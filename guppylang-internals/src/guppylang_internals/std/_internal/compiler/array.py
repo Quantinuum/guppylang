@@ -320,7 +320,12 @@ class ArrayGetitemCompiler(ArrayCompiler):
 
 
 class ArraySetitemCompiler(ArrayCompiler):
-    """Compiler for the `array.__setitem__` function."""
+    """Compiler for the `array.__setitem__` function.
+
+    Arguments:
+        elem_first: If `True`, then compiler will assume that the element wire comes
+            before the index wire. Defaults to `False`.
+    """
 
     def __init__(self, elem_first: bool = False):
         self.elem_first = elem_first
