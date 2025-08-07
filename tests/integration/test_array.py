@@ -7,7 +7,7 @@ from guppylang.std.builtins import array, owned, mem_swap
 from guppylang.std.num import nat
 from tests.util import compile_guppy
 
-from guppylang.std.quantum import qubit, discard
+from guppylang.std.quantum import qubit, discard, measure, h, discard_array
 
 
 @pytest.mark.skip("Requires `is_to_u` in llvm")
@@ -644,3 +644,19 @@ def test_assign_dataflow(validate):
 
     test1.compile_function()
     test2.compile_function()
+
+
+def test_take_put(validate):
+    @guppy
+    def main() -> int:
+        qs = array(qubit() for _ in range(10))
+        h(qs[3])
+        q = qs.take(3)
+        measure(q)
+        qs.put(qubit(), 3)
+        h(qs[3])
+        discard_array(qs)
+        return 0
+
+    validate(main.compile())
+

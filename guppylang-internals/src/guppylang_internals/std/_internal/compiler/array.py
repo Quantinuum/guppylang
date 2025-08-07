@@ -322,6 +322,9 @@ class ArrayGetitemCompiler(ArrayCompiler):
 class ArraySetitemCompiler(ArrayCompiler):
     """Compiler for the `array.__setitem__` function."""
 
+    def __init__(self, elem_first: bool = False):
+        self.elem_first = elem_first
+
     def _build_classical_setitem(
         self, array: Wire, idx: Wire, elem: Wire
     ) -> CallReturnWires:
@@ -359,6 +362,8 @@ class ArraySetitemCompiler(ArrayCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [array, idx, elem] = args
+        if self.elem_first:
+            elem, idx = idx, elem
         if self.elem_ty.type_bound() == ht.TypeBound.Linear:
             return self._build_linear_setitem(array, idx, elem)
         else:
