@@ -646,14 +646,14 @@ def test_assign_dataflow(validate):
     test2.compile_function()
 
 
-def test_take_put(validate):
+def test_take_return_unsafe(validate):
     @guppy
     def main() -> int:
         qs = array(qubit() for _ in range(10))
         h(qs[3])
-        q = qs.take(3)
+        q = qs.take_unsafe(3)
         measure(q)
-        qs.put(qubit(), 3)
+        qs.return_unsafe(qubit(), 3)
         h(qs[3])
         discard_array(qs)
         return 0

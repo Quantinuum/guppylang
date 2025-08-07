@@ -81,17 +81,17 @@ class array(builtins.list[_T], Generic[_T, _n]):
         """Copy an array instance. Will only work if T is a copyable type."""
 
     @custom_function(ArrayGetitemCompiler())
-    def take(self: array[L, n], idx: int) -> L:
+    def take_unsafe(self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
 
-        While regular indexing into an array only allows borrowing of elements, `take`
-        actually *extracts* the element and transfers ownership to the caller. This
-        makes this operation inherently unsafe: If the array elements are non-copyable,
-        then elements may no longer be accessed after they are taken out. Attempting to
-        do so will result in a runtime panic.
+        While regular indexing into an array only allows borrowing of elements,
+        `take_unsafe` actually *extracts* the element and transfers ownership to the
+        caller. This makes this operation inherently unsafe: If the array elements are
+        non-copyable, then elements may no longer be accessed after they are taken out.
+        Attempting to do so will result in a runtime panic.
 
-        The complementary `array.put` method may be used to return an element back into
-        the array to make it accessible again.
+        The complementary `array.return_unsafe` method may be used to return an element
+        back into the array to make it accessible again.
 
         Panics if the provided index is negative or out of bounds or if the element has
         already been taken out.
@@ -101,20 +101,20 @@ class array(builtins.list[_T], Generic[_T, _n]):
         ```
         qs = array(qubit() for _ in range(10))
         h(qs[3])
-        q = qs.take(3)
+        q = qs.take_unsafe(3)
         measure(q)  # We're allowed to deallocate since we own `q`
-        # h(qs[3])   # Would panic since qubit 3 has been taken out
-        qs.put(qubit(), 3)  # Put a fresh qubit back into the array
+        # h(qs[3])  # Would panic since qubit 3 has been taken out
+        qs.return_unsafe(qubit(), 3)  # Put a fresh qubit back into the array
         h(qs[3])
         ```
         """
 
     @custom_function(ArraySetitemCompiler(elem_first=True))
-    def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
+    def return_unsafe(self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
 
-        This is the complement of `array.take`. It may be used to fill the "hole" left
-        by `array.take` with a new element.
+        This is the complement of `array.take_unsafe`. It may be used to fill the "hole"
+        left by `array.take_unsafe` with a new element.
 
         Panics if the provided index is negative or out of bounds or if there is already
         an element at the given index.
@@ -124,9 +124,9 @@ class array(builtins.list[_T], Generic[_T, _n]):
         ```
         qs = array(qubit() for _ in range(10))
         q = qubit()
-        # qs.put(q, 3)  # Would panic since there is already a qubit at index 3
-        measure(qs.take(3))  # Take it out to make space for the new one
-        qs.put(q, 3)
+        # qs.return_unsafe(q, 3)  # Would panic as there is already a qubit at index 3
+        measure(qs.take_unsafe(3))  # Take it out to make space for the new one
+        qs.return_unsafe(q, 3)
         h(qs[3])
         ```
         """
@@ -152,7 +152,7 @@ class ArrayIter(Generic[L, n]):
         self: ArrayIter[L, n] @ owned,
     ) -> Option[tuple[L, ArrayIter[L, n]]]:
         if self.i < int(n):
-            elem = self.xs.take(self.i)
+            elem = self.xs.take_unsafe(self.i)
             return some((elem, ArrayIter(self.xs, self.i + 1)))
         _array_discard_all_used(self.xs)
         return nothing()
