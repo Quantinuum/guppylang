@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field, fields
 from typing import Any, ClassVar, Generic, TypeVar
 
-from hugr.hugr.node_port import ToNode as HugrNode
+from hugr.hugr.node_port import ToNode
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
@@ -46,7 +46,7 @@ class ReservedMetadataKeysError(Fatal):
 
 
 def add_metadata(
-    node: HugrNode,
+    node: ToNode,
     metadata: GuppyMetadata | None = None,
     *,
     additional_metadata: dict[str, Any] | None = None,
@@ -59,7 +59,8 @@ def add_metadata(
             data: GuppyMetadataValue[Any] = getattr(metadata, f.name)
             if data.key in node.metadata:
                 raise GuppyError(MetadataAlreadySetError(None, data.key))
-            node.metadata[data.key] = data.value
+            if data.value is not None:
+                node.metadata[data.key] = data.value
 
     if additional_metadata is not None:
         reserved_keys = GuppyMetadata.reserved_keys()
@@ -68,4 +69,6 @@ def add_metadata(
             raise GuppyError(ReservedMetadataKeysError(None, keys=used_reserved_keys))
 
         for key, value in additional_metadata.items():
+            if key in node.metadata:
+                raise GuppyError(MetadataAlreadySetError(None, key))
             node.metadata[key] = value
