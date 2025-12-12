@@ -245,54 +245,13 @@ class DiagnosticsRenderer:
             span = to_span(diag.span)
             level = self.level_str(diag.level)
 
-            span_start_lineno = span.start.line
-            span_end_lineno = span.end.line
-            max_lineno = span_end_lineno
+            childs_with_span = [child for child in diag.children if child.span]
+            all_spans = [span] + [to_span(child.span) for child in childs_with_span]
+            max_lineno = max(s.end.line for s in all_spans)
 
-            child_not_overlapped = []
-            child_overlapped = []
-
-            for child in diag.children:
-                if child.span:
-                    child_span = to_span(child.span)
-                    max_lineno = max(max_lineno, child_span.end.line)
-                    # Check if child span overlaps with main span
-                    print(child_span.start.line, child_span.end.line)
-                    print(
-                        span_start_lineno - self.PREFIX_ERROR_CONTEXT_LINES,
-                        span_end_lineno,
-                    )
-                    if (
-                        child_span.end.line
-                        < span_start_lineno - self.PREFIX_ERROR_CONTEXT_LINES
-                        or child_span.start.line > span_end_lineno
-                    ):
-                        child_not_overlapped.append(child)
-                    else:
-                        child_overlapped.append(child)
-
-            # TODO: NICOLA
-            # all_spans = [span] + [
-            #     to_span(child.span) for child in diag.children if child.span
-            # ]
-            # max_lineno = max(s.end.line for s in all_spans)
-
-            # TODO: NICOLA DEGUB
-            self.buffer.append(f"--------------")
-            # render all sub-diagnostics that overlap with main span
-            for sub_diag in child_overlapped:
-                self.render_snippet(
-                    to_span(sub_diag.span),
-                    sub_diag.rendered_span_label,
-                    max_lineno,
-                    is_primary=False,
-                )
-
-            self.buffer.append(f"--------------")
             self.buffer.append(f"{level}: {diag.rendered_title} (at {span.start})")
 
-            # TODO: NICOLA
-            # Render main span after overlapped sub-diagnostics
+            # Render main error span first
             self.render_snippet(
                 span,
                 diag.rendered_span_label,
@@ -301,25 +260,65 @@ class DiagnosticsRenderer:
                 prefix_lines=self.PREFIX_ERROR_CONTEXT_LINES,
             )
 
-            # Then render all sub-diagnostics not overlapped that come with a span
-            if len(child_not_overlapped) > 0:
-                self.buffer.append(f"\n\n  Note:")
-                for sub_diag in child_not_overlapped:
-                    self.render_snippet(
-                        to_span(sub_diag.span),
-                        sub_diag.rendered_span_label,
-                        max_lineno,
-                        is_primary=False,
-                        prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                    )
+            if len(childs_with_span) > 0:
+                self.buffer.append(
+                    f"\n{"Note" if len(childs_with_span) == 1 else "Notes"}:"
+                )
+                span = to_span(childs_with_span[0].span)
+                prev_span_end_lineno = span.end.line
+                self.render_snippet(
+                    span,
+                    childs_with_span[0].rendered_span_label,
+                    max_lineno,
+                    prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                    is_first=True,
+                )
+                for sub_diag in childs_with_span[1:]:
+                    span = to_span(sub_diag.span)
+                    span_start_lineno = span.start.line
+                    span_end_lineno = span.end.line
+                    # If notes are on the same line, render them toghether
+                    if span_start_lineno == prev_span_end_lineno:
+                        self.render_snippet(
+                            to_span(sub_diag.span),
+                            sub_diag.rendered_span_label,
+                            max_lineno,
+                            print_line_number=False,
+                        )
+                    # If notes are close enough, render them adjacently
+                    elif (
+                        span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
+                        <= prev_span_end_lineno + 1
+                    ):
+                        self.render_snippet(
+                            to_span(sub_diag.span),
+                            sub_diag.rendered_span_label,
+                            max_lineno,
+                            prefix_lines=span_start_lineno - prev_span_end_lineno - 1,
+                        )
 
-                if diag.rendered_message:
-                    self.buffer.append("")
-                    self.buffer += wrap(
-                        diag.rendered_message, self.MAX_MESSAGE_LINE_LEN
-                    )
+                    else:
+                        # If they are far apart, insert space in between
+                        if (
+                            span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
+                            > prev_span_end_lineno + 1
+                        ):
+                            self.buffer.append("")
+                            self.render_snippet(
+                                to_span(sub_diag.span),
+                                sub_diag.rendered_span_label,
+                                max_lineno,
+                                prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                            )
 
-        # Finally, render all sub-diagnostics that have a non-span message
+                    prev_span_end_lineno = span_end_lineno
+
+            # Render the main diagnostic message if present
+            if diag.rendered_message:
+                self.buffer.append("")
+                self.buffer += wrap(diag.rendered_message, self.MAX_MESSAGE_LINE_LEN)
+
+        # Render all sub-diagnostics that have a non-span message
         for sub_diag in diag.children:
             if sub_diag.rendered_message:
                 self.buffer.append("")
@@ -333,8 +332,10 @@ class DiagnosticsRenderer:
         span: Span,
         label: str | None,
         max_lineno: int,
-        is_primary: bool,
+        is_primary: bool = False,
         prefix_lines: int = 0,
+        is_first: bool = False,
+        print_line_number: bool = True,
     ) -> None:
         """Renders the source associated with a span together with an optional label.
 
@@ -367,17 +368,22 @@ class DiagnosticsRenderer:
         Optionally includes up to `prefix_lines` preceding source lines to give
         additional context.
         """
-        # Check how much horizontal space we need to reserve for the leading line numbers
+        # Check how much horizontal space we need to reserve for the leading
+        # line numbers
         ll_length = len(str(max_lineno))
         highlight_char = "^" if is_primary else "-"
 
         def render_line(line: str, line_number: int | None = None) -> None:
             """Helper method to render a line with the line number bar on the left."""
-            ll = "" if line_number is None else str(line_number)
+            if line_number is None or not print_line_number:
+                ll = ""
+            else:
+                ll = str(line_number)
             self.buffer.append(" " * (ll_length - len(ll)) + ll + " | " + line)
 
-        # One line of padding
-        render_line("")
+        # One line of padding (only with first note or primary span)
+        if is_primary or is_first:
+            render_line("")
 
         # Grab all lines we want to display and remove excessive leading whitespace
         prefix_lines = min(prefix_lines, span.start.line - 1)
