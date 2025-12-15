@@ -31,7 +31,9 @@ def test_guppy_normalization() -> None:
             pauli_zz_rotation.compile_function().modules[0]
         )
 
+        # Test that the dataflow block is inlined by NormalizeGuppy
         assert _count_ops(normalized_hugr, "DataflowBlock") == 0
+        # Test that MakeTuple nodes are removed by NormalizeGuppy
         assert _count_ops(normalized_hugr, "MakeTuple") == 0
 
 
@@ -60,4 +62,5 @@ def test_clifford_simplification() -> None:
         my_hugr_graph = normalize(simple_clifford.compile_function().modules[0])
         cliff_pass = PytketHugrPass(CliffordSimp(allow_swaps=True))
         opt_hugr = cliff_pass(my_hugr_graph)
+        # test that we can cancel a CX gate by using an implicit swap
         assert _count_ops(opt_hugr, "CX") == 1
