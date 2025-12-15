@@ -1,7 +1,7 @@
 from guppylang import guppy
-from guppylang.std.quantum import qubit, cx, h
+from guppylang.std.quantum import qubit, cx, h, s
 
-from pytket.passes import RemoveRedundancies
+from pytket.passes import RemoveRedundancies, CliffordSimp
 
 from tket.passes import NormalizeGuppy, PytketHugrPass, PassResult
 
@@ -34,3 +34,15 @@ def test_redundant_cx_cancellation() -> None:
     assert pass_result.modified
     assert _count_ops(pass_result.hugr, "CX") == 0
     assert _count_ops(pass_result.hugr, "H") == 1
+
+
+def test_clifford_simplification() -> None:
+    @guppy
+    def simple_clifford(q0: qubit, q1: qubit) -> None:
+        cx(q0, q1)
+        s(q1)
+        cx(q1, q0)
+        my_hugr_graph = normalize(simple_clifford.compile_function().modules[0])
+        cliff_pass = PytketHugrPass(CliffordSimp(allow_swaps=True))
+        opt_hugr = cliff_pass(my_hugr_graph)
+        assert _count_ops(opt_hugr, "CX") == 1
