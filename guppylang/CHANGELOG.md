@@ -16,12 +16,6 @@ As of August 2025, The Guppy language is undergoing rapid development and is cur
 
 ## [0.21.7](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.6...guppylang-v0.21.7) (2025-12-15)
 
-
-### ⚠ BREAKING CHANGES
-
-* Removed `guppylang_internals.nodes.ResultExpr` Moved `guppylang_internals.std._internal.checker.{TAG_MAX_LEN, TooLongError}` to `guppylang_internals.std._internal.compiler.platform`
-* `modifier_checker.check_modified_block_signature` now requires the `ModifiedBlock` as first argument
-
 ### Features
 
 * Unitarity annotations for functions ([#1292](https://github.com/Quantinuum/guppylang/issues/1292)) ([54dc200](https://github.com/Quantinuum/guppylang/commit/54dc200de881d065d3ee92bdc9a8ca076990d412))
