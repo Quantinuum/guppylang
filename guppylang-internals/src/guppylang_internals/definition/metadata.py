@@ -1,3 +1,4 @@
+from abc import ABC
 from dataclasses import dataclass, field, fields
 from typing import Any, ClassVar, Generic, TypeVar
 
@@ -10,7 +11,10 @@ T = TypeVar("T")
 
 
 @dataclass(init=True, kw_only=True)
-class GuppyMetadataValue(Generic[T]):
+class GuppyMetadataValue(ABC, Generic[T]):
+    """A template class for a metadata value within the scope of the Guppy compiler.
+    Implementations should provide the `key` in reverse-URL format."""
+
     key: ClassVar[str]
     value: T | None = None
 
@@ -21,6 +25,9 @@ class MetadataMaxQubits(GuppyMetadataValue[int]):
 
 @dataclass(frozen=True, init=True, kw_only=True)
 class GuppyMetadata:
+    """DTO for metadata within the scope of the guppy compiler for attachment to HUGR
+    nodes. See `add_metadata`."""
+
     max_qubits: MetadataMaxQubits = field(default_factory=MetadataMaxQubits, init=False)
 
     @classmethod
@@ -51,8 +58,11 @@ def add_metadata(
     *,
     additional_metadata: dict[str, Any] | None = None,
 ) -> None:
-    """Adds metadata to the given node, using standard keys for defined fields of the
-    `Metadata` instance and forwarding surplus keyword arguments as is.
+    """Adds metadata to the given node using the keys defined through inheritors of
+    `GuppyMetadataValue` defined in the `GuppyMetadata` class.
+
+    Additional metadata is forwarded as is, although the given dictionary may not
+    contain any keys already reserved by fields in `GuppyMetadata`.
     """
     if metadata is not None:
         for f in fields(GuppyMetadata):
