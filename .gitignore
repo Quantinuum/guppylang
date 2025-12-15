@@ -156,3 +156,5 @@ devenv.local.nix
 /.envrc
 
 **/.benchmarks/
+
+.claude/

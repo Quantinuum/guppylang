@@ -85,6 +85,7 @@ from guppylang_internals.checker.errors.type_errors import (
     WrongNumberOfArgsError,
 )
 from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
 from guppylang_internals.error import (
@@ -454,6 +455,29 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 defn, "__new__"
             ):
                 return with_loc(node, GlobalName(id=name, def_id=constr.id)), constr.ty
+            # Handle parameter definitions (e.g., nat_var) that may be imported
+            case ParamDef():
+                # Check if this parameter is in our generic_params (e.g., used in type signature)
+                if name in self.ctx.generic_params:
+                    param = self.ctx.generic_params[name]
+                    match param:
+                        case ConstParam() as param:
+                            ast_node = with_loc(
+                                node, GenericParamValue(id=name, param=param)
+                            )
+                            return ast_node, param.ty
+                        case TypeParam() as param:
+                            raise GuppyError(
+                                ExpectedError(
+                                    node, "a value", got=f"type `{param.name}`"
+                                )
+                            )
+                        case _:
+                            return assert_never(param)
+                # If not in generic_params, it's being used outside its scope
+                raise GuppyError(
+                    ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
+                )
             case defn:
                 raise GuppyError(
                     ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
