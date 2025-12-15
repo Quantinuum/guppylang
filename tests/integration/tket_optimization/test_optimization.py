@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang.std.quantum import qubit, cx, h, s
+from guppylang.std.quantum import qubit, cx, h, s, t
 
 from pytket.passes import RemoveRedundancies, CliffordSimp
 
@@ -18,6 +18,20 @@ def _count_ops(hugr: Hugr, string_name: str) -> int:
 
 
 normalize = NormalizeGuppy()
+
+
+def test_guppy_normalization() -> None:
+    @guppy
+    def pauli_zz_rotation(q0: qubit, q1: qubit) -> None:
+        cx(q0, q1)
+        t(q1)
+        cx(q0, q1)
+
+        normalized_hugr: Hugr = normalize(
+            pauli_zz_rotation.compile_function().modules[0]
+        )
+        assert _count_ops(normalized_hugr, "DataflowBlock") == 0
+        assert _count_ops(normalized_hugr, "MakeTuple") == 0
 
 
 def test_redundant_cx_cancellation() -> None:
