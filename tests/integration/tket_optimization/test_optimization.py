@@ -30,6 +30,7 @@ def test_guppy_normalization() -> None:
         normalized_hugr: Hugr = normalize(
             pauli_zz_rotation.compile_function().modules[0]
         )
+
         assert _count_ops(normalized_hugr, "DataflowBlock") == 0
         assert _count_ops(normalized_hugr, "MakeTuple") == 0
 
