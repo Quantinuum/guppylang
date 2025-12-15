@@ -1,5 +1,6 @@
 Error: Declared wasm function `foo` isn't exported by wasm file
 
-Note: Wasm file: $WASM
+Note: Wasm file:
+$WASM
 
 Guppy compilation failed due to 1 previous error

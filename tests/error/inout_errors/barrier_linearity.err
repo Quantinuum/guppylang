@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:11:14)
 11 |    barrier(q, q)
    |               ^ Variable `q` with non-copyable type `qubit` cannot be
    |                 borrowed ...
+
+Note:
    | 
+10 |    q = qubit()
 11 |    barrier(q, q)
-   |            - since it was already borrowed here
+   |            - Variable `q` borrowed here
 
 Guppy compilation failed due to 1 previous error

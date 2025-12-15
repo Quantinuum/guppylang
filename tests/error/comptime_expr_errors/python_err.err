@@ -9,6 +9,8 @@ Traceback printed below:
 
 Traceback (most recent call last):
   File "<string>", line 1, in <module>
+    import sys;exec(eval(sys.stdin.readline()))
+    ^^^^^
 ZeroDivisionError: division by zero
 
 Guppy compilation failed due to 1 previous error

@@ -1,5 +1,6 @@
 Error: Invalid signature for @wasm function `multiple_outputs`
-in wasm file: `$WASM`
+in wasm file:
+`$WASM`
 
 Note: Multiple output types unsupported in function `multiple_outputs`
 
