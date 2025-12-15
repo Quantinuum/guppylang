@@ -20,6 +20,8 @@ def _count_ops(hugr: Hugr, string_name: str) -> int:
 normalize = NormalizeGuppy()
 
 
+# NormalizeGuppy documentation
+# -> https://quantinuum.github.io/tket2/generated/tket.passes.NormalizeGuppy.html#tket.passes.NormalizeGuppy
 def test_guppy_normalization() -> None:
     @guppy
     def pauli_zz_rotation(q0: qubit, q1: qubit) -> None:
@@ -27,9 +29,13 @@ def test_guppy_normalization() -> None:
         t(q1)
         cx(q0, q1)
 
-        normalized_hugr: Hugr = normalize(
-            pauli_zz_rotation.compile_function().modules[0]
-        )
+        unnormalized_hugr: Hugr = pauli_zz_rotation.compile_function().modules[0]
+
+        # Count ops prior to normalization
+        assert _count_ops(unnormalized_hugr, "DataflowBlock") == 1
+        assert _count_ops(unnormalized_hugr, "MakeTuple") == 3
+
+        normalized_hugr = normalize(unnormalized_hugr)
 
         # Test that the dataflow block is inlined by NormalizeGuppy
         assert _count_ops(normalized_hugr, "DataflowBlock") == 0
