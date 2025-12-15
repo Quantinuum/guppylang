@@ -4,7 +4,10 @@ Error: Variable not defined (at $FILE:7:11)
 6 |     (y := 1) if x else (z := 2)
 7 |     return z
   |            ^ `z` might be undefined ...
+
+Note:
   | 
+5 | def foo(x: bool) -> int:
 6 |     (y := 1) if x else (z := 2)
   |                 - ... if this expression is `True`
 

@@ -5,7 +5,10 @@ Error: Not owned (at $FILE:11:20)
 11 |     return MyStruct(q)
    |                     ^ Function `__new__` wants to take ownership of this argument,
    |                       but `test` doesn't own `q`
+
+Note:
    | 
+ 9 | @guppy
 10 | def test(q: qubit) -> MyStruct:
    |          -------- Argument `q` is only borrowed. Consider taking ownership:
    |                   `q: qubit @owned`

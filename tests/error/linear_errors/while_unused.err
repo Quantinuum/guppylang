@@ -5,7 +5,10 @@ Error: Drop violation (at $FILE:8:4)
  8 |     q = qubit()
    |     ^ Variable `q` with non-droppable type `qubit` may be leaked
    |       ...
+
+Note:
    | 
+ 9 |     i = 0
 10 |     while i < n:
    |           ----- if this expression is `False`
 

@@ -33,9 +33,7 @@ class AlreadyUsedError(Error):
 
     @dataclass(frozen=True)
     class PrevUse(Note):
-        span_label: ClassVar[str] = (
-            "{place.describe} {prev_kind.subjunctive} here"  # since it was already {prev_kind.subjunctive} here"
-        )
+        span_label: ClassVar[str] = "{place.describe} {prev_kind.subjunctive} here"
         prev_kind: UseKind
 
     @dataclass(frozen=True)
@@ -57,9 +55,7 @@ class ComprAlreadyUsedError(Error):
 
     @dataclass(frozen=True)
     class PrevUse(Note):
-        span_label: ClassVar[str] = (
-            "{place.describe} {prev_kind.subjunctive} here"  # since it was already {prev_kind.subjunctive} here"
-        )
+        span_label: ClassVar[str] = "{place.describe} {prev_kind.subjunctive} here"
         prev_kind: UseKind
 
 

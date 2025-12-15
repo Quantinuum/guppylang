@@ -4,7 +4,10 @@ Error: Break in non-droppable loop (at $FILE:12:12)
 11 |         if b:
 12 |             break
    |             ^^^^^ Early exit in non-droppable loops is not allowed
+
+Note:
    | 
+ 8 |     rs: list[qubit] = []
  9 |     for q, b in qs:
    |                 -- Iterator has non-droppable type `list[(qubit, bool)]`
 

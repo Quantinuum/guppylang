@@ -5,7 +5,10 @@ Error: Copy violation (at $FILE:17:8)
 17 |     f = s.foo
    |         ^^^^^ This expression implicitly constructs a closure that
    |               captures a non-copyable value
+
+Note:
    | 
+16 | def foo(s: Struct @owned) -> Struct:
 17 |     f = s.foo
    |         - This expression with non-copyable type `Struct` is
    |           implicitly captured
