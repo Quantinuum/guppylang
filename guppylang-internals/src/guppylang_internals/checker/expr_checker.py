@@ -408,9 +408,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(IllegalConstant(node, type(node.value)))
         return node, ty
 
-    def _check_generic_param(
-        self, name: str, node: ast.expr
-    ) -> tuple[ast.expr, Type]:
+    def _check_generic_param(self, name: str, node: ast.expr) -> tuple[ast.expr, Type]:
         """Helper method to check a generic parameter (ConstParam or TypeParam)."""
         param = self.ctx.generic_params[name]
         match param:
@@ -463,7 +461,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 return with_loc(node, GlobalName(id=name, def_id=constr.id)), constr.ty
             # Handle parameter definitions (e.g., nat_var) that may be imported
             case ParamDef():
-                # Check if this parameter is in our generic_params (e.g., used in type signature)
+                # Check if this parameter is in our generic_params
+                # (e.g., used in type signature)
                 if name in self.ctx.generic_params:
                     return self._check_generic_param(name, node)
                 # If not in generic_params, it's being used outside its scope
