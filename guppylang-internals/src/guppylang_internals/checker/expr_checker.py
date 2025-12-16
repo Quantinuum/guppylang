@@ -408,23 +408,29 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(IllegalConstant(node, type(node.value)))
         return node, ty
 
+    def _check_generic_param(
+        self, name: str, node: ast.expr
+    ) -> tuple[ast.expr, Type]:
+        """Helper method to check a generic parameter (ConstParam or TypeParam)."""
+        param = self.ctx.generic_params[name]
+        match param:
+            case ConstParam() as param:
+                ast_node = with_loc(node, GenericParamValue(id=name, param=param))
+                return ast_node, param.ty
+            case TypeParam() as param:
+                raise GuppyError(
+                    ExpectedError(node, "a value", got=f"type `{param.name}`")
+                )
+            case _:
+                return assert_never(param)
+
     def visit_Name(self, node: ast.Name) -> tuple[ast.expr, Type]:
         x = node.id
         if x in self.ctx.locals:
             var = self.ctx.locals[x]
             return with_loc(node, PlaceNode(place=var)), var.ty
         elif x in self.ctx.generic_params:
-            param = self.ctx.generic_params[x]
-            match param:
-                case ConstParam() as param:
-                    ast_node = with_loc(node, GenericParamValue(id=x, param=param))
-                    return ast_node, param.ty
-                case TypeParam() as param:
-                    raise GuppyError(
-                        ExpectedError(node, "a value", got=f"type `{param.name}`")
-                    )
-                case _:
-                    return assert_never(param)
+            return self._check_generic_param(x, node)
         elif x in self.ctx.globals:
             match self.ctx.globals[x]:
                 case Definition() as defn:
@@ -459,21 +465,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             case ParamDef():
                 # Check if this parameter is in our generic_params (e.g., used in type signature)
                 if name in self.ctx.generic_params:
-                    param = self.ctx.generic_params[name]
-                    match param:
-                        case ConstParam() as param:
-                            ast_node = with_loc(
-                                node, GenericParamValue(id=name, param=param)
-                            )
-                            return ast_node, param.ty
-                        case TypeParam() as param:
-                            raise GuppyError(
-                                ExpectedError(
-                                    node, "a value", got=f"type `{param.name}`"
-                                )
-                            )
-                        case _:
-                            return assert_never(param)
+                    return self._check_generic_param(name, node)
                 # If not in generic_params, it's being used outside its scope
                 raise GuppyError(
                     ExpectedError(node, "a value", got=f"{defn.description} `{name}`")

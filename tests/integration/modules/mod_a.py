@@ -4,6 +4,9 @@ import hugr.tys as ht
 from guppylang import guppy
 from guppylang_internals.decorator import custom_type
 
+# Define a nat_var that can be imported
+n = guppy.nat_var("n")
+
 
 @guppy
 def f(x: int) -> int:
