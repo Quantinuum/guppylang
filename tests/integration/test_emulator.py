@@ -17,6 +17,7 @@ from guppylang.std.quantum import (
     h,
     x,
     t,
+    measure_array,
 )
 from guppylang.std.angles import angle, pi
 from guppylang.std.qsystem import zz_max, zz_phase, phased_x, rz as qsystem_rz
@@ -108,7 +109,7 @@ def test_no_given_qubits() -> None:
             r"`@guppy\(max_qubits=...\)`."
         ),
     ):
-        main.emulator().run()
+        main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
 
 
 def test_hinted_qubits() -> None:
@@ -116,15 +117,18 @@ def test_hinted_qubits() -> None:
     def main() -> None:
         result("c", measure(qubit()))
 
-    main.emulator().run()
+    shots = main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
+    assert shots[0].as_dict()["c"] == 1
 
 
 def test_hinted_qubits_with_given_qubits() -> None:
     @guppy(max_qubits=1)
     def main() -> None:
-        result("c", measure(qubit()))
+        qubits = array(qubit() for _ in range(4))
+        result("c", measure_array(qubits))
 
-    main.emulator(n_qubits=4).run()
+    shots = main.emulator(n_qubits=4).coinflip_sim().with_seed(0).with_shots(1).run()
+    assert shots[0].as_dict()["c"] == [1, 0, 1, 0]
 
 
 def test_hinted_qubits_with_insufficient_given_qubits() -> None:
@@ -139,7 +143,7 @@ def test_hinted_qubits_with_insufficient_given_qubits() -> None:
             r"number of qubits hinted on the entrypoint \(3\)."
         ),
     ):
-        main.emulator(n_qubits=1).run()
+        main.emulator(n_qubits=1).coinflip_sim().with_seed(0).with_shots(1).run()
 
 
 def test_statevector() -> None:
