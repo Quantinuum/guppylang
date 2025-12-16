@@ -1,3 +1,6 @@
+"""Metadata attached to objects within the Guppy compiler, both for internal use and to
+attach to HUGR nodes for lower-level processing."""
+
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from typing import Any, ClassVar, Generic, TypeVar
@@ -46,8 +49,8 @@ class MetadataAlreadySetError(Fatal):
 class ReservedMetadataKeysError(Fatal):
     title: ClassVar[str] = "Metadata key is reserved"
     message: ClassVar[str] = (
-        "The following metadata keys are reserved by Guppy but provided in additional "
-        "metadata: `{keys}`"
+        "The following metadata keys are reserved by Guppy but also provided in "
+        "additional metadata: `{keys}`"
     )
     keys: set[str]
 

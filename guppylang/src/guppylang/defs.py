@@ -102,7 +102,8 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
         Args:
             n_qubits: The number of qubits to allocate for the function. If it is not
-            provided, the function has to declare is maximum number of qubits.
+            provided, the function has to declare the maximum number of qubits it needs
+            in the decorator, e.g. `@guppy(max_qubits=5)`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
             instance. If not provided, the default `EmulatorBuilder` will be used.
 
