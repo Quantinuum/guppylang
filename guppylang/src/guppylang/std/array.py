@@ -18,6 +18,7 @@ from guppylang_internals.std._internal.checker import ArrayCopyChecker, NewArray
 from guppylang_internals.std._internal.compiler.array import (
     ArrayDiscardAllUsedCompiler,
     ArrayGetitemCompiler,
+    ArrayIsBorrowedCompiler,
     ArraySetitemCompiler,
     NewArrayCompiler,
 )
@@ -27,6 +28,7 @@ from guppylang_internals.std._internal.compiler.frozenarray import (
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 
 from guppylang import guppy
+from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
 from guppylang.std.option import Option, nothing, some
 
@@ -80,55 +82,107 @@ class array(builtins.list[_T], Generic[_T, _n]):
     def copy(self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
 
-    @custom_function(ArrayGetitemCompiler())
-    def take_unsafe(self: array[L, n], idx: int) -> L:
-        """Takes an element out of the array.
+    @custom_function(ArrayIsBorrowedCompiler())
+    def is_borrowed(self: array[L, n], idx: int) -> bool:
+        """Checks if a non-copyable element has been taken out of the array.
 
-        While regular indexing into an array only allows borrowing of elements,
-        `take_unsafe` actually *extracts* the element and transfers ownership to the
-        caller. This makes this operation inherently unsafe: If the array elements are
-        non-copyable, then elements may no longer be accessed after they are taken out.
-        Attempting to do so will result in a runtime panic.
-
-        The complementary `array.return_unsafe` method may be used to return an element
-        back into the array to make it accessible again.
-
-        Panics if the provided index is negative or out of bounds or if the element has
-        already been taken out.
+        This is the case whenever an element is borrowed, or manually taken out of the
+        array via the `take` method.
 
         # Example
 
         ```
         qs = array(qubit() for _ in range(10))
         h(qs[3])
-        q = qs.take_unsafe(3)
-        measure(q)  # We're allowed to deallocate since we own `q`
-        # h(qs[3])  # Would panic since qubit 3 has been taken out
-        qs.return_unsafe(qubit(), 3)  # Put a fresh qubit back into the array
-        h(qs[3])
+        result("a", qs.is_borrowed(3))  # False
+        q = qs.take(3).unwrap()
+        result("a", qs.is_borrowed(3))  # True
+        qs.return_unsafe(qubit(), 3).unwrap()
+        result("a", qs.is_borrowed(3))  # False
         ```
         """
 
-    @custom_function(ArraySetitemCompiler(elem_first=True))
-    def return_unsafe(self: array[L, n], elem: L @ owned, idx: int) -> None:
+    @guppy
+    @no_type_check
+    def take(self: array[L, n], idx: int) -> Option[L]:
+        """Tries to take an element out of the array.
+
+        While regular indexing into an array only allows borrowing of elements, `take`
+        actually *extracts* the element and transfers ownership to the caller. This
+        makes this operation inherently unsafe: If the array elements are non-copyable,
+        then elements may no longer be accessed after they are taken out. Attempting to
+        do so will result in a runtime panic.
+
+        The complementary `array.put` method may be used to return an element back into
+        the array to make it accessible again.
+
+        Returns the extracted element or `nothing` if the element has already been taken
+        out. Panics if the provided index is negative or out of bounds.
+
+        # Example
+
+        ```
+        qs = array(qubit() for _ in range(10))
+        h(qs[3])
+        q = qs.take(3).unwrap()
+        measure(q)  # We're allowed to deallocate since we own `q`
+        # h(qs[3])  # Would panic since qubit 3 has been taken out
+        qs.put(qubit(), 3).unwrap()  # Put a fresh qubit back into the array
+        h(qs[3])
+        ```
+        """
+        if self.is_borrowed(idx):
+            return nothing()
+        return some(self.take_unchecked(idx))
+
+    @guppy
+    @no_type_check
+    def put(self: array[L, n], elem: L @ owned, idx: int) -> Result[None, L]:
         """Puts an element back into the array if it has been taken out previously.
 
-        This is the complement of `array.take_unsafe`. It may be used to fill the "hole"
-        left by `array.take_unsafe` with a new element.
+        This is the complement of `array.take`. It may be used to fill the "hole" left
+        by `array.take` with a new element.
 
-        Panics if the provided index is negative or out of bounds or if there is already
-        an element at the given index.
+        If there is already an element at the given index, then the array will not be
+        mutated and the passed replacement element will be returned back in an `err`
+        variant. Panics if the provided index is negative or out of bounds.
 
         # Example
 
         ```
         qs = array(qubit() for _ in range(10))
         q = qubit()
-        # qs.return_unsafe(q, 3)  # Would panic as there is already a qubit at index 3
-        measure(qs.take_unsafe(3))  # Take it out to make space for the new one
-        qs.return_unsafe(q, 3)
+        # qs.put(q, 3).unwrap()  # Would panic as there is already a qubit at index 3
+        measure(qs.take(3).unwrap())  # Take it out to make space for the new one
+        qs.put(q, 3).unwrap()
         h(qs[3])
         ```
+        """
+        if not self.is_borrowed(idx):
+            return err(elem)
+        self.put_unchecked(elem, idx)
+        return ok(None)
+
+    @custom_function(ArrayGetitemCompiler())
+    def take_unchecked(self: array[L, n], idx: int) -> L:
+        """Panicking version of `take`.
+
+        Equivalent to
+
+        ```
+        xs.take(idx).unwrap()
+        ````
+        """
+
+    @custom_function(ArraySetitemCompiler(elem_first=True))
+    def put_unchecked(self: array[L, n], elem: L @ owned, idx: int) -> None:
+        """Panicking version of `put`.
+
+        Equivalent to
+
+        ```
+        xs.put(idx, elem).unwrap()
+        ````
         """
 
     def __new__(cls, *args: _T) -> builtins.list[_T]:  # type: ignore[no-redef]
@@ -152,7 +206,7 @@ class ArrayIter(Generic[L, n]):
         self: ArrayIter[L, n] @ owned,
     ) -> Option[tuple[L, ArrayIter[L, n]]]:
         if self.i < int(n):
-            elem = self.xs.take_unsafe(self.i)
+            elem = self.xs.take_unchecked(self.i)
             return some((elem, ArrayIter(self.xs, self.i + 1)))
         _array_discard_all_used(self.xs)
         return nothing()

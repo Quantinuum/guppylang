@@ -5,6 +5,7 @@ from hugr import ops
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array, owned, mem_swap
 from guppylang.std.num import nat
+from guppylang.std.platform import result
 from tests.util import compile_guppy
 
 from guppylang.std.quantum import qubit, discard, measure, h, discard_array
@@ -646,17 +647,40 @@ def test_assign_dataflow(validate):
     test2.compile_function()
 
 
-def test_take_return_unsafe(validate):
+def test_take_put(validate):
+    @guppy
+    def foo(q: qubit, x: None) -> None:
+        pass
+
     @guppy
     def main() -> int:
         qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        q = qs.take_unsafe(3)
+        result("a", qs.is_borrowed(3))  # False
+
+        # Arguments are borrowed left to right
+        foo(qs[3], result("b", qs.is_borrowed(3)))  # True
+        result("c", qs.is_borrowed(3))  # False
+
+        # We can't put stuff when it's not borrowed
+        q = qubit()
+        q = qs.put(q, 3).unwrap_err()
+        discard(q)
+
+        # We can't take out stuff that's already borrowed
+        q = qs.take(3).unwrap()
+        result("d", qs.is_borrowed(3))  # True
+        qs.take(3).unwrap_nothing()
         measure(q)
-        qs.return_unsafe(qubit(), 3)
+
+        # But we can put something back
+        qs.put(qubit(), 3).unwrap()
+        result("e", qs.is_borrowed(3))  # False
         h(qs[3])
+
         discard_array(qs)
         return 0
 
-    validate(main.compile())
+    res = main.emulator(11).coinflip_sim().run().results[0].entries
+    assert res == [("a", 0), ("b", 1), ("c", 0), ("d", 1), ("e", 0)]
 
+    validate(main.compile())
