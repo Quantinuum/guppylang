@@ -253,6 +253,7 @@ def ext_module_decorator(
     def fun(
         filename: str, module: str | None
     ) -> Callable[[builtins.type[T]], GuppyDefinition]:
+        @pretty_errors
         def dec(cls: builtins.type[T]) -> GuppyDefinition:
             # N.B. Only one module per file and vice-versa
             ext_module = type_def(
