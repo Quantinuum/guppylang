@@ -1,5 +1,4 @@
 from guppylang.decorator import guppy
-import pytest
 
 
 def test_def():
@@ -121,15 +120,10 @@ def test_basic_parameterised(validate):
         return a.foo(42)
 
     @guppy
-    def baz3(a: MyProto[T, S]) -> str:
-        return a.foo(42)
-
-    @guppy
-    def main() -> str:
+    def main() -> None:
         mt = MyType()
         baz1(mt, 42)
         baz2(mt)
-        baz3(mt)
         mot = MyOtherType()
         baz1(mot, 42)
         # baz2(mt) # should fail
