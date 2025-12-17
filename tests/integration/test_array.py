@@ -655,11 +655,11 @@ def test_take_put(validate):
     @guppy
     def main() -> int:
         qs = array(qubit() for _ in range(10))
-        result("a", qs.is_borrowed(3))  # False
+        result("init", qs.is_borrowed(3))  # False
 
         # Arguments are borrowed left to right
-        foo(qs[3], result("b", qs.is_borrowed(3)))  # True
-        result("c", qs.is_borrowed(3))  # False
+        foo(qs[3], result("while_borrowed", qs.is_borrowed(3)))  # True
+        result("after_borrowed", qs.is_borrowed(3))  # False
 
         # We can't put stuff when it's not borrowed
         q = qubit()
@@ -668,19 +668,25 @@ def test_take_put(validate):
 
         # We can't take out stuff that's already borrowed
         q = qs.take(3).unwrap()
-        result("d", qs.is_borrowed(3))  # True
+        result("after_take", qs.is_borrowed(3))  # True
         qs.take(3).unwrap_nothing()
         measure(q)
 
         # But we can put something back
         qs.put(qubit(), 3).unwrap()
-        result("e", qs.is_borrowed(3))  # False
+        result("after_put", qs.is_borrowed(3))  # False
         h(qs[3])
 
         discard_array(qs)
         return 0
 
     res = main.emulator(11).coinflip_sim().run().results[0].entries
-    assert res == [("a", 0), ("b", 1), ("c", 0), ("d", 1), ("e", 0)]
+    assert res == [
+        ("init", 0),
+        ("while_borrowed", 1),
+        ("after_borrowed", 0),
+        ("after_take", 1),
+        ("after_put", 0),
+    ]
 
     validate(main.compile())
