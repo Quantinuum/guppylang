@@ -7,7 +7,7 @@ def test_def_legacy1():
 
     @guppy.protocol
     class MyProto(Generic[T]):
-        def foo(self: "MyProto", x: T) -> str: ...
+        def foo(self: "MyProto[T]", x: T) -> str: ...
 
     MyProto.compile()
 
@@ -17,7 +17,7 @@ def test_def_legacy2():
 
     @guppy.protocol
     class MyProto(Protocol[T]):
-        def foo(self: "MyProto", x: T) -> str: ...
+        def foo(self: "MyProto[T]", x: T) -> str: ...
 
     MyProto.compile()
 

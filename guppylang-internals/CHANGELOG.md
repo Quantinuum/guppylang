@@ -3,6 +3,44 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.26.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.25.0...guppylang-internals-v0.26.0) (2025-12-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* `FunctionType` constructor no longer accepts the `input_names` argument. Instead, input names should be provided as an optional argument to `FuncInput`
+* Removed `guppylang_internals.nodes.ResultExpr` Moved `guppylang_internals.std._internal.checker.{TAG_MAX_LEN, TooLongError}` to `guppylang_internals.std._internal.compiler.platform`
+* 
+* The `tag` field of `guppylang_internals.nodes.{ResultExpr, StateResultExpr}` has been replaced with a const `tag_value` and a `tag_expr` expression
+* `guppylang_internals.tys.ty.SumType` has been removed
+* 
+* `modifier_checker.check_modified_block_signature` now requires the `ModifiedBlock` as first argument
+
+### Features
+
+* Allow dynamic tag and signal in `panic`/`exit` ([#1327](https://github.com/Quantinuum/guppylang/issues/1327)) ([bae0da1](https://github.com/Quantinuum/guppylang/commit/bae0da1d42eea88d34c5c7bdd3d7f8a2504f1501))
+* Unitarity annotations for functions ([#1292](https://github.com/Quantinuum/guppylang/issues/1292)) ([54dc200](https://github.com/Quantinuum/guppylang/commit/54dc200de881d065d3ee92bdc9a8ca076990d412))
+* Validate signatures against wasm file ([#1339](https://github.com/Quantinuum/guppylang/issues/1339)) ([e57059b](https://github.com/Quantinuum/guppylang/commit/e57059b0ed61e6d76492e52d2a6f8c83f421e46b))
+
+
+### Bug Fixes
+
+* Allow comptime string arguments as result tags ([#1354](https://github.com/Quantinuum/guppylang/issues/1354)) ([cdc5c68](https://github.com/Quantinuum/guppylang/commit/cdc5c680879ae160bb592212cc8ed2fe6fc9ddbe))
+* Fix calls with comptime args inside comptime functions ([#1360](https://github.com/Quantinuum/guppylang/issues/1360)) ([8321303](https://github.com/Quantinuum/guppylang/commit/83213034a3c74e158bb58bbd1ff34ab7d253d981)), closes [#1359](https://github.com/Quantinuum/guppylang/issues/1359)
+* Fix internal compiler error when returning generic functions as values in comptime ([#1337](https://github.com/Quantinuum/guppylang/issues/1337)) ([8e2eba7](https://github.com/Quantinuum/guppylang/commit/8e2eba7e75e965405a903308b237344b83a3b168)), closes [#1335](https://github.com/Quantinuum/guppylang/issues/1335)
+* Handle subscript borrows involving index coercions ([#1358](https://github.com/Quantinuum/guppylang/issues/1358)) ([aee0dd8](https://github.com/Quantinuum/guppylang/commit/aee0dd8b34932b6badef6b9336a7f350e241815b)), closes [#1356](https://github.com/Quantinuum/guppylang/issues/1356)
+
+
+### Miscellaneous Chores
+
+* Remove `SumType` ([#1345](https://github.com/Quantinuum/guppylang/issues/1345)) ([b914dfe](https://github.com/Quantinuum/guppylang/commit/b914dfe374a6d7c2a4fe9f95d4f6e8f2ac0675e7))
+
+
+### Code Refactoring
+
+* Implement `result` using overloads instead of a custom node ([#1361](https://github.com/Quantinuum/guppylang/issues/1361)) ([1da2c5d](https://github.com/Quantinuum/guppylang/commit/1da2c5dbb82bf6da35949b505a69f4e2f51acd3b))
+* Store function argument names in `FuncInput` ([#1286](https://github.com/Quantinuum/guppylang/issues/1286)) ([b701840](https://github.com/Quantinuum/guppylang/commit/b70184098a65cde48c82da89ccbb4e50d1750f1d))
+
 ## [0.25.0](https://github.com/quantinuum/guppylang/compare/guppylang-internals-v0.24.0...guppylang-internals-v0.25.0) (2025-10-28)
 
 

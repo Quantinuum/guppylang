@@ -19,12 +19,12 @@ def test_def():
 def test_def_parameterised():
     @guppy.protocol
     class MyProto[T]:
-        def foo(self: "MyProto", x: T) -> T: ...
+        def foo(self: "MyProto[T]", x: T) -> T: ...
 
         # TODO: Implement Self support for protocols.
         # def bar(self: Self) -> "MyProto": ...
 
-        def baz[M: MyProto](self: M, y: int) -> int: ...
+        def baz[M: MyProto[T]](self: M, y: int) -> int: ...
 
     MyProto.compile()
 
@@ -47,10 +47,7 @@ def test_use_def_as_type():
 def test_use_def_as_type_parameterised():
     @guppy.protocol
     class MyProto[T, S]:
-        def foo(self: "MyProto") -> "MyProto": ...
-
-    @guppy.declare
-    def bar(a: MyProto) -> MyProto: ...
+        def foo(self: "MyProto[T, S]") -> "MyProto[T, S]": ...
 
     T = guppy.type_var("T")
     S = guppy.type_var("S")
@@ -61,7 +58,6 @@ def test_use_def_as_type_parameterised():
     @guppy.declare
     def baz2(a: MyProto[bool, bool]) -> MyProto[int, int]: ...
 
-    bar.compile()
     baz1.compile()
     baz2.compile()
 
@@ -99,25 +95,25 @@ def test_basic(validate):
 def test_basic_parameterised(validate):
     @guppy.protocol
     class MyProto[T, S]:
-        def foo(self: "MyProto", x: T) -> S: ...
+        def foo(self: "MyProto[T, S]", x: T) -> S: ...
 
     @guppy.struct
     class MyType[P: int, Q: str]:
         @guppy
-        def foo(self: "MyType", x: int) -> str:
+        def foo(self: "MyType[P, Q]", x: int) -> str:
             return str(x)
 
     @guppy.struct
     class MyOtherType[P: int, Q: int]:
         @guppy
-        def foo(self: "MyType", x: int) -> int:
+        def foo(self: "MyType[P, Q]", x: int) -> int:
             return x * 2
 
     T = guppy.type_var("T")
     S = guppy.type_var("S")
 
     @guppy
-    def baz1(a: MyProto, x: T) -> S:
+    def baz1(a: MyProto[T, S], x: T) -> S:
         return a.foo(x)
 
     @guppy
@@ -125,7 +121,7 @@ def test_basic_parameterised(validate):
         return a.foo(42)
 
     @guppy
-    def baz3(a: MyProto) -> str:
+    def baz3(a: MyProto[T, S]) -> str:
         return a.foo(42)
 
     @guppy

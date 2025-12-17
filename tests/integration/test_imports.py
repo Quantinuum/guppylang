@@ -1,4 +1,4 @@
-from guppylang import guppy
+from guppylang import guppy, array
 
 
 def test_import_func(validate):
@@ -96,5 +96,15 @@ def test_qualified_types(validate):
     @guppy
     def test(x: mod_a.MyType, y: mod_b.MyType) -> tuple[mod_a.MyType, mod_b.MyType]:
         return -x, +y
+
+    validate(test.compile_function())
+
+
+def test_nat_var_alias(validate):
+    from tests.integration.modules.mod_a import n as nat_var
+
+    @guppy
+    def test(arr: array[int, nat_var]) -> int:
+        return arr[0]
 
     validate(test.compile_function())

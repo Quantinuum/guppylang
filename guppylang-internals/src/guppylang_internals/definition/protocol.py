@@ -121,7 +121,9 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
 
                     if isinstance(py_func, GuppyDefinition):
                         err = UnexpectedError(
-                            node, "Guppy function", unexpected_in="protocol definition"
+                            node,
+                            f"{py_func.wrapped.description}",
+                            unexpected_in="protocol definition",
                         )
                         err.add_sub_diagnostic(NoAnnotationHint(None))
                         raise GuppyError(err)

@@ -26,6 +26,7 @@ from guppylang_internals.definition.extern import RawExternDef
 from guppylang_internals.definition.function import (
     RawFunctionDef,
 )
+from guppylang_internals.definition.metadata import GuppyMetadata
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
@@ -92,6 +93,7 @@ class GuppyKwargs(TypedDict, total=False):
     control: bool
     dagger: bool
     power: bool
+    max_qubits: int
 
 
 class _Guppy:
@@ -114,9 +116,14 @@ class _Guppy:
         def dec(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
-            flags = _parse_kwargs(kwargs)
+            flags, metadata = _parse_kwargs(kwargs)
             defn = RawFunctionDef(
-                DefId.fresh(), f.__name__, None, f, unitary_flags=flags
+                DefId.fresh(),
+                f.__name__,
+                None,
+                f,
+                unitary_flags=flags,
+                metadata=metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -154,7 +161,7 @@ class _Guppy:
         def dec(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
-            _flags = _parse_kwargs(kwargs)  # TODO: Pass flags to RawTracedFunctionDef
+            _ = _parse_kwargs(kwargs)  # TODO: Pass flags to RawTracedFunctionDef
             defn = RawTracedFunctionDef(DefId.fresh(), f.__name__, None, f)
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -317,7 +324,7 @@ class _Guppy:
         def dec(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
-            flags = _parse_kwargs(kwargs)
+            flags, _ = _parse_kwargs(kwargs)
             defn = RawFunctionDecl(
                 DefId.fresh(), f.__name__, None, f, unitary_flags=flags
             )
@@ -675,8 +682,10 @@ def _with_optional_kwargs(
 
 
 @hide_trace
-def _parse_kwargs(kwargs: GuppyKwargs) -> UnitaryFlags:
-    """Parses the kwargs dict specified in the `@guppy` decorator."""
+def _parse_kwargs(kwargs: GuppyKwargs) -> tuple[UnitaryFlags, GuppyMetadata]:
+    """Parses the kwargs dict specified in the `@guppy` decorator into `UnitaryFlags`
+    and other metadata that will be passed onto the compiled function as is.
+    """
     flags = UnitaryFlags.NoFlags
     if kwargs.pop("unitary", False):
         flags |= UnitaryFlags.Unitary
@@ -686,10 +695,14 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> UnitaryFlags:
         flags |= UnitaryFlags.Dagger
     if kwargs.pop("power", False):
         flags |= UnitaryFlags.Power
+
+    metadata = GuppyMetadata()
+    metadata.max_qubits.value = kwargs.pop("max_qubits", None)
+
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
         raise TypeError(err)
-    return flags
+    return flags, metadata
 
 
 guppy = cast(_Guppy, _DummyGuppy()) if sphinx_running() else _Guppy()

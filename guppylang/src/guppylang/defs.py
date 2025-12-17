@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
+from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import ENGINE, CoreMetadataKeys
@@ -22,6 +23,7 @@ from hugr.package import Package
 
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
+from guppylang.emulator.exceptions import EmulatorBuildError
 
 __all__ = ("GuppyDefinition", "GuppyFunctionDefinition", "GuppyTypeVarDefinition")
 
@@ -88,7 +90,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         return cast(Out, super().__call__(*args, **kwargs))
 
     def emulator(
-        self, n_qubits: int, builder: EmulatorBuilder | None = None
+        self, n_qubits: int | None = None, builder: EmulatorBuilder | None = None
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
@@ -99,7 +101,9 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
 
         Args:
-            n_qubits: The number of qubits to allocate for the function.
+            n_qubits: The number of qubits to allocate for the function. If it is not
+            provided, the function has to declare the maximum number of qubits it needs
+            in the decorator, e.g. `@guppy(max_qubits=5)`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
             instance. If not provided, the default `EmulatorBuilder` will be used.
 
@@ -109,7 +113,33 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         mod = self.compile()
 
         builder = builder or EmulatorBuilder()
-        return builder.build(mod, n_qubits=n_qubits)
+        qubits = n_qubits
+        if (
+            isinstance(self.wrapped, RawFunctionDef)
+            and self.wrapped.metadata is not None
+        ):
+            hinted_qubits = self.wrapped.metadata.max_qubits.value
+            if qubits is None:
+                qubits = hinted_qubits
+            elif hinted_qubits is not None and qubits < hinted_qubits:
+                raise EmulatorBuildError(
+                    ValueError(
+                        f"Number of qubits requested ({qubits}) is insufficient to "
+                        "cover the maximum number of qubits hinted on the "
+                        f"entrypoint ({hinted_qubits})."
+                    )
+                )
+
+        if qubits is None:
+            raise EmulatorBuildError(
+                ValueError(
+                    "Number of qubits to be used must be specified, either as an "
+                    f"argument to `{self.emulator.__name__}` or hinted on the "
+                    "entrypoint function using `@guppy(max_qubits=...)`."
+                )
+            )
+
+        return builder.build(mod, n_qubits=qubits)
 
     def compile(self) -> Package:
         """

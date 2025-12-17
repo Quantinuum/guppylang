@@ -14,6 +14,27 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.21.7](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.6...guppylang-v0.21.7) (2025-12-15)
+
+### Features
+
+* Unitarity annotations for functions ([#1292](https://github.com/Quantinuum/guppylang/issues/1292)) ([54dc200](https://github.com/Quantinuum/guppylang/commit/54dc200de881d065d3ee92bdc9a8ca076990d412))
+
+
+### Bug Fixes
+
+* Fix rendering of `compile_entrypoint` diagnostics ([#1343](https://github.com/Quantinuum/guppylang/issues/1343)) ([fcd2131](https://github.com/Quantinuum/guppylang/commit/fcd2131d58ad9c0bd9fba868f7581012d8f83916)), closes [#1340](https://github.com/Quantinuum/guppylang/issues/1340)
+
+
+### Miscellaneous Chores
+
+* **guppylang:** upgrade to internals 0.26 ([#1381](https://github.com/Quantinuum/guppylang/issues/1381)) ([8575890](https://github.com/Quantinuum/guppylang/commit/85758904d1cb61556c456362817003e7210910a1))
+
+
+### Code Refactoring
+
+* Implement `result` using overloads instead of a custom node ([#1361](https://github.com/Quantinuum/guppylang/issues/1361)) ([1da2c5d](https://github.com/Quantinuum/guppylang/commit/1da2c5dbb82bf6da35949b505a69f4e2f51acd3b))
+
 ## [0.21.6](https://github.com/quantinuum/guppylang/compare/guppylang-v0.21.5...guppylang-v0.21.6) (2025-10-29)
 
 
