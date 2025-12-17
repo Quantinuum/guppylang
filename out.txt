@@ -1,0 +1,453 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.0, pytest-8.4.2, pluggy-1.6.0
+benchmark: 5.1.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: /Users/nicola.assolini/Documents/GitHub/guppylang
+configfile: pyproject.toml
+plugins: snapshot-0.9.0, cov-5.0.0, anyio-4.11.0, xdist-3.8.0, pytest_notebook-0.10.0, benchmark-5.1.0
+created: 10/10 workers
+10 workers [12 items]
+
+.....FFFFF..                                                             [100%]
+=================================== FAILURES ===================================
+_ test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_output.py] _
+[gw3] darwin -- Python 3.14.0 /Users/nicola.assolini/Documents/GitHub/guppylang/.devenv/state/venv/bin/python
+
+file = '/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_output.py'
+capsys = <_pytest.capture.CaptureFixture object at 0x13051e120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x13051e3c0>
+
+    @pytest.mark.parametrize("file", files)
+    def test_wasm_errors(file, capsys, snapshot):
+>       run_error_test(file, capsys, snapshot)
+
+tests/error/test_wasm_errors.py:20:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+file = PosixPath('/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_output.py')
+capsys = <_pytest.capture.CaptureFixture object at 0x13051e120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x13051e3c0>
+
+    def run_error_test(file, capsys, snapshot):
+        file = pathlib.Path(file)
+
+        with pytest.raises(Exception) as exc_info:
+            importlib.import_module(f"tests.error.{file.parent.name}.{file.stem}")
+
+        # Remove the importlib frames from the traceback by skipping beginning frames until
+        # we end up in the executed file
+        tb = exc_info.tb
+        while tb is not None and inspect.getfile(tb.tb_frame) != str(file):
+            tb = tb.tb_next
+
+        # Invoke except hook to print the exception to stderr
+        sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
+
+        err = capsys.readouterr().err
+        wasm_module = get_wasm_file()
+        err = err.replace(str(file), "$FILE").replace(wasm_module, "$WASM")
+
+        # If we're comparing tracebacks, strip the highlights that are only present for
+        # Python 3.11+
+        if err.startswith("Traceback (most recent call last):"):
+            err = "\n".join(
+                line for line in err.split("\n") if not TRACEBACK_HIGHLIGHT.fullmatch(line)
+            )
+
+        print("\n§§§§§\n")
+        print("testing: \n", file, "\n\n")
+        print(err)
+        print("\n§§§§\n")
+
+        snapshot.snapshot_dir = str(file.parent)
+>       snapshot.assert_match(err, file.with_suffix(".err").name)
+E       AssertionError: value does not match the expected value in snapshot tests/error/wasm_errors/wasm_bad_output.err
+E         (run pytest with --snapshot-update to update snapshots)
+E       assert "Traceback (m...me='$WASM')\n" == 'Error: Inval...vious error\n'
+E
+E         - Error: Invalid signature for @wasm function `bad_output_type`
+E         - in wasm file:
+E         - `$WASM`
+E         -
+E         - Note: Unsupported output type: f32
+E         - ...
+E
+E         ...Full output truncated (11 lines hidden), use '-vv' to show
+
+tests/error/util.py:55: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+§§§§§
+
+testing:
+ /Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_output.py
+
+
+Traceback (most recent call last):
+  File "$FILE", line 6, in <module>
+    @wasm_module(get_wasm_file())
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 240, in inner_fun
+    return decorator_inner(ty)
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 305, in dec
+    raise GuppyError(
+    ...<5 lines>...
+    )
+guppylang_internals.error.GuppyError: WasmSignatureError(span=None, _parent=None, children=[WasmSignatureError.Message(span=None, _parent=..., msg='Unsupported output type: f32')], fn_name='bad_output_type', filename='$WASM')
+
+
+§§§§
+
+_ test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_no_func.py] _
+[gw7] darwin -- Python 3.14.0 /Users/nicola.assolini/Documents/GitHub/guppylang/.devenv/state/venv/bin/python
+
+file = '/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_no_func.py'
+capsys = <_pytest.capture.CaptureFixture object at 0x10bbfe120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x10bbfe3c0>
+
+    @pytest.mark.parametrize("file", files)
+    def test_wasm_errors(file, capsys, snapshot):
+>       run_error_test(file, capsys, snapshot)
+
+tests/error/test_wasm_errors.py:20:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+file = PosixPath('/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_no_func.py')
+capsys = <_pytest.capture.CaptureFixture object at 0x10bbfe120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x10bbfe3c0>
+
+    def run_error_test(file, capsys, snapshot):
+        file = pathlib.Path(file)
+
+        with pytest.raises(Exception) as exc_info:
+            importlib.import_module(f"tests.error.{file.parent.name}.{file.stem}")
+
+        # Remove the importlib frames from the traceback by skipping beginning frames until
+        # we end up in the executed file
+        tb = exc_info.tb
+        while tb is not None and inspect.getfile(tb.tb_frame) != str(file):
+            tb = tb.tb_next
+
+        # Invoke except hook to print the exception to stderr
+        sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
+
+        err = capsys.readouterr().err
+        wasm_module = get_wasm_file()
+        err = err.replace(str(file), "$FILE").replace(wasm_module, "$WASM")
+
+        # If we're comparing tracebacks, strip the highlights that are only present for
+        # Python 3.11+
+        if err.startswith("Traceback (most recent call last):"):
+            err = "\n".join(
+                line for line in err.split("\n") if not TRACEBACK_HIGHLIGHT.fullmatch(line)
+            )
+
+        print("\n§§§§§\n")
+        print("testing: \n", file, "\n\n")
+        print(err)
+        print("\n§§§§\n")
+
+        snapshot.snapshot_dir = str(file.parent)
+>       snapshot.assert_match(err, file.with_suffix(".err").name)
+E       AssertionError: value does not match the expected value in snapshot tests/error/wasm_errors/wasm_no_func.err
+E         (run pytest with --snapshot-update to update snapshots)
+E       assert "Traceback (m...tion='foo')\n" == 'Error: Decla...vious error\n'
+E
+E         - Error: Declared wasm function `foo` isn't exported by wasm file
+E         -
+E         - Note: Wasm file:
+E         - `$WASM`
+E         -
+E         - Guppy compilation failed due to 1 previous error...
+E
+E         ...Full output truncated (10 lines hidden), use '-vv' to show
+
+tests/error/util.py:55: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+§§§§§
+
+testing:
+ /Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_no_func.py
+
+
+Traceback (most recent call last):
+  File "$FILE", line 6, in <module>
+    @wasm_module(get_wasm_file())
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 240, in inner_fun
+    return decorator_inner(ty)
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 291, in dec
+    raise GuppyError(
+    ...<9 lines>...
+    )
+guppylang_internals.error.GuppyError: WasmFunctionNotInFile(span=None, _parent=None, children=[WasmFunctionNotInFile.WasmFileNote(span=None, _parent=..., filename='$WASM')], function='foo')
+
+
+§§§§
+
+_ test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_multi_output.py] _
+[gw2] darwin -- Python 3.14.0 /Users/nicola.assolini/Documents/GitHub/guppylang/.devenv/state/venv/bin/python
+
+file = '/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_multi_output.py'
+capsys = <_pytest.capture.CaptureFixture object at 0x122b52120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x122b523c0>
+
+    @pytest.mark.parametrize("file", files)
+    def test_wasm_errors(file, capsys, snapshot):
+>       run_error_test(file, capsys, snapshot)
+
+tests/error/test_wasm_errors.py:20:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+file = PosixPath('/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_multi_output.py')
+capsys = <_pytest.capture.CaptureFixture object at 0x122b52120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x122b523c0>
+
+    def run_error_test(file, capsys, snapshot):
+        file = pathlib.Path(file)
+
+        with pytest.raises(Exception) as exc_info:
+            importlib.import_module(f"tests.error.{file.parent.name}.{file.stem}")
+
+        # Remove the importlib frames from the traceback by skipping beginning frames until
+        # we end up in the executed file
+        tb = exc_info.tb
+        while tb is not None and inspect.getfile(tb.tb_frame) != str(file):
+            tb = tb.tb_next
+
+        # Invoke except hook to print the exception to stderr
+        sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
+
+        err = capsys.readouterr().err
+        wasm_module = get_wasm_file()
+        err = err.replace(str(file), "$FILE").replace(wasm_module, "$WASM")
+
+        # If we're comparing tracebacks, strip the highlights that are only present for
+        # Python 3.11+
+        if err.startswith("Traceback (most recent call last):"):
+            err = "\n".join(
+                line for line in err.split("\n") if not TRACEBACK_HIGHLIGHT.fullmatch(line)
+            )
+
+        print("\n§§§§§\n")
+        print("testing: \n", file, "\n\n")
+        print(err)
+        print("\n§§§§\n")
+
+        snapshot.snapshot_dir = str(file.parent)
+>       snapshot.assert_match(err, file.with_suffix(".err").name)
+E       AssertionError: value does not match the expected value in snapshot tests/error/wasm_errors/wasm_multi_output.err
+E         (run pytest with --snapshot-update to update snapshots)
+E       assert "Traceback (m...me='$WASM')\n" == 'Error: Inval...vious error\n'
+E
+E         - Error: Invalid signature for @wasm function `multiple_outputs`
+E         - in wasm file:
+E         - `$WASM`
+E         -
+E         - Note: Multiple output types unsupported in function `multiple_outputs`
+E         - ...
+E
+E         ...Full output truncated (11 lines hidden), use '-vv' to show
+
+tests/error/util.py:55: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+§§§§§
+
+testing:
+ /Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_multi_output.py
+
+
+Traceback (most recent call last):
+  File "$FILE", line 6, in <module>
+    @wasm_module(get_wasm_file())
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 240, in inner_fun
+    return decorator_inner(ty)
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 305, in dec
+    raise GuppyError(
+    ...<5 lines>...
+    )
+guppylang_internals.error.GuppyError: WasmSignatureError(span=None, _parent=None, children=[WasmSignatureError.Message(span=None, _parent=..., msg='Multiple output types unsupported in function `multiple_outputs`')], fn_name='multiple_outputs', filename='$WASM')
+
+
+§§§§
+
+_ test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_input.py] _
+[gw6] darwin -- Python 3.14.0 /Users/nicola.assolini/Documents/GitHub/guppylang/.devenv/state/venv/bin/python
+
+file = '/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_input.py'
+capsys = <_pytest.capture.CaptureFixture object at 0x10eefe120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x10eefe3c0>
+
+    @pytest.mark.parametrize("file", files)
+    def test_wasm_errors(file, capsys, snapshot):
+>       run_error_test(file, capsys, snapshot)
+
+tests/error/test_wasm_errors.py:20:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+file = PosixPath('/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_input.py')
+capsys = <_pytest.capture.CaptureFixture object at 0x10eefe120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x10eefe3c0>
+
+    def run_error_test(file, capsys, snapshot):
+        file = pathlib.Path(file)
+
+        with pytest.raises(Exception) as exc_info:
+            importlib.import_module(f"tests.error.{file.parent.name}.{file.stem}")
+
+        # Remove the importlib frames from the traceback by skipping beginning frames until
+        # we end up in the executed file
+        tb = exc_info.tb
+        while tb is not None and inspect.getfile(tb.tb_frame) != str(file):
+            tb = tb.tb_next
+
+        # Invoke except hook to print the exception to stderr
+        sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
+
+        err = capsys.readouterr().err
+        wasm_module = get_wasm_file()
+        err = err.replace(str(file), "$FILE").replace(wasm_module, "$WASM")
+
+        # If we're comparing tracebacks, strip the highlights that are only present for
+        # Python 3.11+
+        if err.startswith("Traceback (most recent call last):"):
+            err = "\n".join(
+                line for line in err.split("\n") if not TRACEBACK_HIGHLIGHT.fullmatch(line)
+            )
+
+        print("\n§§§§§\n")
+        print("testing: \n", file, "\n\n")
+        print(err)
+        print("\n§§§§\n")
+
+        snapshot.snapshot_dir = str(file.parent)
+>       snapshot.assert_match(err, file.with_suffix(".err").name)
+E       AssertionError: value does not match the expected value in snapshot tests/error/wasm_errors/wasm_bad_input.err
+E         (run pytest with --snapshot-update to update snapshots)
+E       assert "Traceback (m...me='$WASM')\n" == 'Error: Inval...vious error\n'
+E
+E         - Error: Invalid signature for @wasm function `bad_input_type`
+E         - in wasm file:
+E         - `$WASM`
+E         -
+E         - Note: Unsupported input type: i32
+E         - ...
+E
+E         ...Full output truncated (11 lines hidden), use '-vv' to show
+
+tests/error/util.py:55: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+§§§§§
+
+testing:
+ /Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_input.py
+
+
+Traceback (most recent call last):
+  File "$FILE", line 6, in <module>
+    @wasm_module(get_wasm_file())
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 240, in inner_fun
+    return decorator_inner(ty)
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 305, in dec
+    raise GuppyError(
+    ...<5 lines>...
+    )
+guppylang_internals.error.GuppyError: WasmSignatureError(span=None, _parent=None, children=[WasmSignatureError.Message(span=None, _parent=..., msg='Unsupported input type: i32')], fn_name='bad_input_type', filename='$WASM')
+
+
+§§§§
+
+_ test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_non_function.py] _
+[gw1] darwin -- Python 3.14.0 /Users/nicola.assolini/Documents/GitHub/guppylang/.devenv/state/venv/bin/python
+
+file = '/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_non_function.py'
+capsys = <_pytest.capture.CaptureFixture object at 0x115f52120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x115f523c0>
+
+    @pytest.mark.parametrize("file", files)
+    def test_wasm_errors(file, capsys, snapshot):
+>       run_error_test(file, capsys, snapshot)
+
+tests/error/test_wasm_errors.py:20:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+file = PosixPath('/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_non_function.py')
+capsys = <_pytest.capture.CaptureFixture object at 0x115f52120>
+snapshot = <pytest_snapshot.plugin.Snapshot object at 0x115f523c0>
+
+    def run_error_test(file, capsys, snapshot):
+        file = pathlib.Path(file)
+
+        with pytest.raises(Exception) as exc_info:
+            importlib.import_module(f"tests.error.{file.parent.name}.{file.stem}")
+
+        # Remove the importlib frames from the traceback by skipping beginning frames until
+        # we end up in the executed file
+        tb = exc_info.tb
+        while tb is not None and inspect.getfile(tb.tb_frame) != str(file):
+            tb = tb.tb_next
+
+        # Invoke except hook to print the exception to stderr
+        sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
+
+        err = capsys.readouterr().err
+        wasm_module = get_wasm_file()
+        err = err.replace(str(file), "$FILE").replace(wasm_module, "$WASM")
+
+        # If we're comparing tracebacks, strip the highlights that are only present for
+        # Python 3.11+
+        if err.startswith("Traceback (most recent call last):"):
+            err = "\n".join(
+                line for line in err.split("\n") if not TRACEBACK_HIGHLIGHT.fullmatch(line)
+            )
+
+        print("\n§§§§§\n")
+        print("testing: \n", file, "\n\n")
+        print(err)
+        print("\n§§§§\n")
+
+        snapshot.snapshot_dir = str(file.parent)
+>       snapshot.assert_match(err, file.with_suffix(".err").name)
+E       AssertionError: value does not match the expected value in snapshot tests/error/wasm_errors/wasm_non_function.err
+E         (run pytest with --snapshot-update to update snapshots)
+E       assert "Traceback (m...me='$WASM')\n" == 'Error: Inval...vious error\n'
+E
+E         - Error: Invalid signature for @wasm function `non_fn`
+E         - in wasm file:
+E         - `$WASM`
+E         -
+E         - Note: `non_fn` is not exported as a function
+E         - ...
+E
+E         ...Full output truncated (11 lines hidden), use '-vv' to show
+
+tests/error/util.py:55: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+§§§§§
+
+testing:
+ /Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_non_function.py
+
+
+Traceback (most recent call last):
+  File "$FILE", line 6, in <module>
+    @wasm_module(get_wasm_file())
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 240, in inner_fun
+    return decorator_inner(ty)
+  File "/Users/nicola.assolini/Documents/GitHub/guppylang/guppylang-internals/src/guppylang_internals/decorator.py", line 305, in dec
+    raise GuppyError(
+    ...<5 lines>...
+    )
+guppylang_internals.error.GuppyError: WasmSignatureError(span=None, _parent=None, children=[WasmSignatureError.Message(span=None, _parent=..., msg='`non_fn` is not exported as a function')], fn_name='non_fn', filename='$WASM')
+
+
+§§§§
+
+=========================== short test summary info ============================
+FAILED tests/error/test_wasm_errors.py::test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_output.py]
+FAILED tests/error/test_wasm_errors.py::test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_no_func.py]
+FAILED tests/error/test_wasm_errors.py::test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_multi_output.py]
+FAILED tests/error/test_wasm_errors.py::test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_bad_input.py]
+FAILED tests/error/test_wasm_errors.py::test_wasm_errors[/Users/nicola.assolini/Documents/GitHub/guppylang/tests/error/wasm_errors/wasm_non_function.py]
+========================= 5 failed, 7 passed in 6.86s ==========================

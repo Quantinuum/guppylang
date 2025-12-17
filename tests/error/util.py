@@ -33,7 +33,11 @@ def run_error_test(file, capsys, snapshot):
         tb = tb.tb_next
 
     # Invoke except hook to print the exception to stderr
-    sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
+    # sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
+
+    from guppylang_internals.error import pretty_hook
+
+    pretty_hook(exc_info.type, exc_info.value, tb)
 
     err = capsys.readouterr().err
     wasm_module = get_wasm_file()
@@ -43,17 +47,18 @@ def run_error_test(file, capsys, snapshot):
     # Python 3.11+
     if err.startswith("Traceback (most recent call last):"):
         err = "\n".join(
-            line
-            for line in err.split("\n")
-            if not TRACEBACK_HIGHLIGHT.fullmatch(line)
+            line for line in err.split("\n") if not TRACEBACK_HIGHLIGHT.fullmatch(line)
         )
+
+    print("\n§§§§§\n")
+    print("testing: \n", file, "\n\n")
+    print(err)
+    print("\n§§§§\n")
 
     snapshot.snapshot_dir = str(file.parent)
     snapshot.assert_match(err, file.with_suffix(".err").name)
 
 
-@custom_type(
-    tys.Opaque(extension="", id="", args=[], bound=TypeBound.Copyable)
-)
+@custom_type(tys.Opaque(extension="", id="", args=[], bound=TypeBound.Copyable))
 class NonBool:
     pass

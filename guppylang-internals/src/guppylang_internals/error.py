@@ -79,6 +79,24 @@ def exception_hook(hook: ExceptHook) -> Iterator[None]:
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
+def pretty_hook(
+    excty: type[BaseException], err: BaseException, traceback: TracebackType | None
+) -> None:
+    """Custom `excepthook` that intercepts `GuppyExceptions` for pretty printing."""
+    if isinstance(err, GuppyError):
+        from guppylang_internals.diagnostic import DiagnosticsRenderer
+        from guppylang_internals.engine import DEF_STORE
+
+        renderer = DiagnosticsRenderer(DEF_STORE.sources)
+        renderer.render_diagnostic(err.error)
+        sys.stderr.write("\n".join(renderer.buffer))
+        sys.stderr.write("\n\nGuppy compilation failed due to 1 previous error\n")
+        return
+
+    # If it's not a GuppyError, fall back to default hook
+    sys.__excepthook__(excty, err, traceback)
+
+
 def pretty_errors(f: FuncT) -> FuncT:
     """Decorator to print custom error banners when a `GuppyError` occurs."""
 
