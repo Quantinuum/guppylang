@@ -1,11 +1,11 @@
-Error: Unexpected Guppy function (at $FILE:7:4)
+Error: Unexpected function (at $FILE:7:4)
   | 
 5 | 
 6 |     @guppy
 7 |     def foo(self: "MyProto", x: float) -> str:
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 8 |         return str(x)
-  | ^^^^^^^^^^^^^^^^^^^^^ Unexpected Guppy function in protocol definition
+  | ^^^^^^^^^^^^^^^^^^^^^ Unexpected function in protocol definition
 
 Help: Protocol function definitions don't need to be annotated
 
