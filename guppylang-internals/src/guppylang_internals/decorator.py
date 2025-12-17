@@ -26,7 +26,7 @@ from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
 from guppylang_internals.definition.wasm import RawWasmFunctionDef
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
 from guppylang_internals.engine import DEF_STORE
-from guppylang_internals.error import GuppyError
+from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.std._internal.checker import WasmCallChecker
 from guppylang_internals.std._internal.compiler.wasm import (
     WasmModuleCallCompiler,
@@ -207,6 +207,7 @@ def custom_type(
     return dec
 
 
+@pretty_errors
 def wasm_module(
     filename: str,
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
