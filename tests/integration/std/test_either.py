@@ -1,5 +1,6 @@
 from guppylang.decorator import guppy
 from guppylang.std.either import Either, left, right
+from guppylang.std.platform import panic, result
 from guppylang.std.quantum import qubit  # noqa: TCH001
 
 
@@ -35,3 +36,38 @@ def test_to_option(run_int_fn):
         return l_val.try_into_left().unwrap() + r_val.try_into_right().unwrap()
 
     run_int_fn(main, expected=11)
+
+
+def test_rows():
+    """Make sure that Hugr generations correctly handles rows inside sums.
+
+    See https://github.com/Quantinuum/guppylang/issues/1388
+    """
+
+    @guppy
+    def assertion(b: bool) -> None:
+        if not b:
+            panic("Assertion failed!")
+
+    @guppy
+    def main() -> None:
+        a: Either[int, tuple[int, int]] = right((1, 2))
+        assertion(not a.is_left() and a.is_right())
+        a0, a1 = a.unwrap_right()
+        result("a", a0 + a1)
+
+        b: Either[tuple[int,], int] = left((1,))
+        assertion(b.is_left() and not b.is_right())
+        (b0,) = b.unwrap_left()
+        result("b", b0)
+
+        c: Either[(), int] = left(())
+        assertion(c.is_left() and not c.is_right())
+        () = c.unwrap_left()
+
+        d: Either[int, None] = right(None)
+        assertion(not d.is_left() and d.is_right())
+        d.unwrap_right()
+
+    res = main.emulator(1).coinflip_sim().run().results[0].entries
+    assert res == [("a", 3), ("b", 1)]
