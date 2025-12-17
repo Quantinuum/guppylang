@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
 from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
@@ -391,6 +391,10 @@ class FuncInput:
     ty: "Type"
     flags: InputFlags
 
+    #: Name of this input, or `None` if it is an unnamed argument (e.g. inside a
+    #: `Callable`). We use `compare=False` because names are not visible to the caller.
+    name: str | None = field(default=None, compare=False)
+
 
 @dataclass(frozen=True, init=False)
 class FunctionType(ParametrizedTypeBase):
@@ -399,7 +403,6 @@ class FunctionType(ParametrizedTypeBase):
     inputs: Sequence[FuncInput]
     output: "Type"
     params: Sequence[Parameter]
-    input_names: Sequence[str] | None
     comptime_args: Sequence[ConstArg]
 
     args: Sequence[Argument] = field(init=False)
@@ -415,7 +418,6 @@ class FunctionType(ParametrizedTypeBase):
         self,
         inputs: Sequence[FuncInput],
         output: "Type",
-        input_names: Sequence[str] | None = None,
         params: Sequence[Parameter] | None = None,
         comptime_args: Sequence[ConstArg] | None = None,
         unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
@@ -434,11 +436,17 @@ class FunctionType(ParametrizedTypeBase):
             ]
         args += comptime_args
 
+        # Either all inputs must have unique names, or none of them have names
+        names = {inp.name for inp in inputs if inp.name is not None}
+        if len(names) not in (0, len(inputs)):
+            raise InternalGuppyError(
+                "Tried to construct FunctionType with invalid input names"
+            )
+
         object.__setattr__(self, "args", args)
         object.__setattr__(self, "comptime_args", comptime_args)
         object.__setattr__(self, "inputs", inputs)
         object.__setattr__(self, "output", output)
-        object.__setattr__(self, "input_names", input_names or [])
         object.__setattr__(self, "params", params)
         object.__setattr__(self, "unitary_flags", unitary_flags)
 
@@ -454,6 +462,16 @@ class FunctionType(ParametrizedTypeBase):
             # Ensures that we don't look inside quantifiers
             return set()
         return super().bound_vars
+
+    @cached_property
+    def input_names(self) -> Sequence[str] | None:
+        """Names of all inputs or `None` if there are unnamed inputs."""
+        names: list[str] = []
+        for inp in self.inputs:
+            if inp.name is None:
+                return None
+            names.append(inp.name)
+        return names
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
@@ -513,12 +531,8 @@ class FunctionType(ParametrizedTypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or FunctionType(
-            [
-                FuncInput(inp.ty.transform(transformer), inp.flags)
-                for inp in self.inputs
-            ],
+            [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
             self.output.transform(transformer),
-            self.input_names,
             self.params,
         )
 
@@ -548,9 +562,8 @@ class FunctionType(ParametrizedTypeBase):
 
         inst = Instantiator(full_inst)
         return FunctionType(
-            [FuncInput(inp.ty.transform(inst), inp.flags) for inp in self.inputs],
+            [replace(inp, ty=inp.ty.transform(inst)) for inp in self.inputs],
             self.output.transform(inst),
-            self.input_names,
             remaining_params,
             # Comptime type arguments also need to be instantiated
             comptime_args=[
@@ -574,7 +587,6 @@ class FunctionType(ParametrizedTypeBase):
         return FunctionType(
             self.inputs,
             self.output,
-            self.input_names,
             self.params,
             self.comptime_args,
             flags,
@@ -863,6 +875,8 @@ def function_tensor_signature(tys: list[FunctionType]) -> FunctionType:
     outputs: list[Type] = []
     for fun_ty in tys:
         assert not fun_ty.parametrized
-        inputs.extend(fun_ty.inputs)
+        # Forget the function input names since they might be non-unique across the
+        # tensored functions
+        inputs.extend([replace(inp, name=None) for inp in fun_ty.inputs])
         outputs.extend(type_to_row(fun_ty.output))
     return FunctionType(inputs, row_to_type(outputs))

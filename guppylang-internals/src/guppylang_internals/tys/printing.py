@@ -162,7 +162,7 @@ def signature_to_str(name: str, sig: FunctionType) -> str:
     assert sig.input_names is not None
     s = f"def {name}("
     s += ", ".join(
-        f"{name}: {inp.ty}{TypePrinter._print_flags(inp.flags)}"
-        for name, inp in zip(sig.input_names, sig.inputs, strict=True)
+        f"{inp.name}: {inp.ty}{TypePrinter._print_flags(inp.flags)}"
+        for inp in sig.inputs
     )
     return s + ") -> " + str(sig.output)

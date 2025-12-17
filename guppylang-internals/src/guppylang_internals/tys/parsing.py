@@ -289,7 +289,7 @@ def check_function_arg(
         ctx.param_var_mapping[name] = ConstParam(
             len(ctx.param_var_mapping), name, ty, from_comptime_arg=True
         )
-    return FuncInput(ty, flags)
+    return FuncInput(ty, flags, name)
 
 
 if sys.version_info >= (3, 12):

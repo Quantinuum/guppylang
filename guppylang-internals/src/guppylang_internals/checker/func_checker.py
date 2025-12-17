@@ -136,13 +136,13 @@ def check_global_func_def(
     """Type checks a top-level function definition."""
     args = func_def.args.args
     returns_none = isinstance(ty.output, NoneType)
-    assert ty.input_names is not None
+    assert all(inp.name is not None for inp in ty.inputs)
 
     check_invalid_under_dagger(func_def, ty.unitary_flags)
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
     inputs = [
-        Variable(x, inp.ty, loc, inp.flags, is_func_input=True)
-        for x, inp, loc in zip(ty.input_names, ty.inputs, args, strict=True)
+        Variable(cast(str, inp.name), inp.ty, loc, inp.flags, is_func_input=True)
+        for inp, loc in zip(ty.inputs, args, strict=True)
         # Comptime inputs are turned into generic args, so are not included here
         if InputFlags.Comptime not in inp.flags
     ]
@@ -199,10 +199,8 @@ def check_nested_func_def(
 
     # Construct inputs for checking the body CFG
     inputs = [v for v, _ in captured.values()] + [
-        Variable(x, inp.ty, func_def.args.args[i], inp.flags, is_func_input=True)
-        for i, (x, inp) in enumerate(
-            zip(func_ty.input_names, func_ty.inputs, strict=True)
-        )
+        Variable(cast(str, inp.name), inp.ty, arg, inp.flags, is_func_input=True)
+        for arg, inp in zip(func_def.args.args, func_ty.inputs, strict=True)
         # Comptime inputs are turned into generic args, so are not included here
         if InputFlags.Comptime not in inp.flags
     ]
@@ -294,7 +292,6 @@ def check_signature(
         assert isinstance(self_defn, TypeDef)
 
     inputs = []
-    input_names = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
     for i, inp in enumerate(func_def.args.args):
         # Special handling for `self` arguments. Note that `__new__` is excluded here
@@ -308,12 +305,10 @@ def check_signature(
                 raise GuppyError(MissingArgAnnotationError(inp))
             input = parse_function_arg_annotation(ty_ast, inp.arg, ctx)
         inputs.append(input)
-        input_names.append(inp.arg)
     output = type_from_ast(func_def.returns, ctx)
     return FunctionType(
         inputs,
         output,
-        input_names,
         sorted(param_var_mapping.values(), key=lambda v: v.idx),
         unitary_flags=unitary_flags,
     )

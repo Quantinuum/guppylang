@@ -1,5 +1,6 @@
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
+from guppylang.emulator.exceptions import EmulatorBuildError
 from guppylang.std.builtins import result, array, comptime, exit, panic
 from guppylang.std.debug import state_result
 from guppylang.std.quantum import (
@@ -16,6 +17,7 @@ from guppylang.std.quantum import (
     h,
     x,
     t,
+    measure_array,
 )
 from guppylang.std.angles import angle, pi
 from guppylang.std.qsystem import zz_max, zz_phase, phased_x, rz as qsystem_rz
@@ -92,6 +94,56 @@ def test_all_options() -> None:
 
     result = configured_em.run()
     assert isinstance(result, EmulatorResult)
+
+
+def test_no_given_qubits() -> None:
+    @guppy()
+    def main() -> None:
+        result("c", measure(qubit()))
+
+    with pytest.raises(
+        EmulatorBuildError,
+        match=(
+            r"Number of qubits to be used must be specified, either as an argument to "
+            r"`emulator` or hinted on the entrypoint function using "
+            r"`@guppy\(max_qubits=...\)`."
+        ),
+    ):
+        main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
+
+
+def test_hinted_qubits() -> None:
+    @guppy(max_qubits=1)
+    def main() -> None:
+        result("c", measure(qubit()))
+
+    shots = main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
+    assert shots[0].as_dict()["c"] == 1
+
+
+def test_hinted_qubits_with_given_qubits() -> None:
+    @guppy(max_qubits=1)
+    def main() -> None:
+        qubits = array(qubit() for _ in range(4))
+        result("c", measure_array(qubits))
+
+    shots = main.emulator(n_qubits=4).coinflip_sim().with_seed(0).with_shots(1).run()
+    assert shots[0].as_dict()["c"] == [1, 0, 1, 0]
+
+
+def test_hinted_qubits_with_insufficient_given_qubits() -> None:
+    @guppy(max_qubits=3)
+    def main() -> None:
+        result("c", measure(qubit()))
+
+    with pytest.raises(
+        EmulatorBuildError,
+        match=(
+            r"Number of qubits requested \(1\) is insufficient to cover the maximum "
+            r"number of qubits hinted on the entrypoint \(3\)."
+        ),
+    ):
+        main.emulator(n_qubits=1).coinflip_sim().with_seed(0).with_shots(1).run()
 
 
 def test_statevector() -> None:

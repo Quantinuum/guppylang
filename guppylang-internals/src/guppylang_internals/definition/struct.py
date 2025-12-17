@@ -273,13 +273,16 @@ class CheckedStructDef(TypeDef, CompiledDef):
 
         constructor_sig = FunctionType(
             inputs=[
-                FuncInput(f.ty, InputFlags.Owned if f.ty.linear else InputFlags.NoFlags)
+                FuncInput(
+                    f.ty,
+                    InputFlags.Owned if f.ty.linear else InputFlags.NoFlags,
+                    f.name,
+                )
                 for f in self.fields
             ],
             output=StructType(
                 defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
             ),
-            input_names=[f.name for f in self.fields],
             params=self.params,
         )
         constructor_def = CustomFunctionDef(
