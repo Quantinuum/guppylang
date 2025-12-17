@@ -84,10 +84,10 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
     @custom_function(ArrayIsBorrowedCompiler())
     def is_borrowed(self: array[L, n], idx: int) -> bool:
-        """Checks if a non-copyable element has been taken out of the array.
+        """Checks if an element has been taken out of the array.
 
-        This is the case whenever an element is borrowed, or manually taken out of the
-        array via the `take` method.
+        This is the case whenever a non-copyable element is borrowed, or when an element
+        is manually taken out of the array via the `take` method.
 
         # Example
 
@@ -97,7 +97,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         result("a", qs.is_borrowed(3))  # False
         q = qs.take(3).unwrap()
         result("a", qs.is_borrowed(3))  # True
-        qs.return_unsafe(qubit(), 3).unwrap()
+        qs.put(qubit(), 3).unwrap()
         result("a", qs.is_borrowed(3))  # False
         ```
         """
@@ -109,9 +109,8 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
         While regular indexing into an array only allows borrowing of elements, `take`
         actually *extracts* the element and transfers ownership to the caller. This
-        makes this operation inherently unsafe: If the array elements are non-copyable,
-        then elements may no longer be accessed after they are taken out. Attempting to
-        do so will result in a runtime panic.
+        makes this operation inherently unsafe: elements may no longer be accessed after
+        they are taken out. Attempting to do so will result in a runtime panic.
 
         The complementary `array.put` method may be used to return an element back into
         the array to make it accessible again.
