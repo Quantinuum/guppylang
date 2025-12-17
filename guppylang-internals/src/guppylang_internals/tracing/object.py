@@ -15,6 +15,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
 )
 from guppylang_internals.definition.common import DefId, Definition
+from guppylang_internals.definition.protocol import ProtocolDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -518,9 +519,10 @@ class TracingDefMixin(DunderMixin):
     def __getitem__(self, item: Any) -> Any:
         # If this is a type definition, then `__getitem__` might be called when
         # specifying generic arguments
-        if isinstance(self.wrapped, TypeDef):
+        if isinstance(self.wrapped, TypeDef | ProtocolDef):
             # It doesn't really matter what we return here since we don't support types
             # as comptime values yet, so just give back the definition
+            # TODO: How do protocols interact with comptime?
             return self
         # TODO: Alternatively, it could be a type application on a generic function.
         #  Supporting those requires a comptime representation of types as values

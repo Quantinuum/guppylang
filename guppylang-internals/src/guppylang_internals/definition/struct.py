@@ -111,6 +111,13 @@ class NonGuppyMethodError(Error):
 
 
 @dataclass(frozen=True)
+class ProtocolHint(Help):
+    message: ClassVar[str] = (
+        "Add a `@guppy.protocol` annotation to turn this struct into a protocol"
+    )
+
+
+@dataclass(frozen=True)
 class RawStructDef(TypeDef, ParsableDef):
     """A raw struct type definition that has not been parsed yet."""
 
@@ -144,13 +151,17 @@ class RawStructDef(TypeDef, ParsableDef):
         match cls_def.bases:
             case []:
                 pass
-            case [base] if elems := try_parse_generic_base(base):
+            case [base] if elems := try_parse_generic_base(base, "Generic"):
                 # Complain if we already have Python 3.12 generic params
                 if params_span is not None:
                     err: Error = RedundantParamsError(base, self.name)
                     err.add_sub_diagnostic(RedundantParamsError.PrevSpec(params_span))
                     raise GuppyError(err)
                 params = params_from_ast(elems, globals)
+            case [base] if isinstance(base, ast.Name) and base.id == "Protocol":
+                err = UnsupportedError(base, "Protocol base", singular=True)
+                err.add_sub_diagnostic(ProtocolHint(None))
+                raise GuppyError(err)
             case bases:
                 err = UnsupportedError(bases[0], "Struct inheritance", singular=True)
                 raise GuppyError(err)
@@ -338,13 +349,13 @@ def parse_py_class(
     return cls_ast
 
 
-def try_parse_generic_base(node: ast.expr) -> list[ast.expr] | None:
-    """Checks if an AST node corresponds to a `Generic[T1, ..., Tn]` base class.
+def try_parse_generic_base(node: ast.expr, base_name: str) -> list[ast.expr] | None:
+    """Checks if an AST node corresponds to a `base_name[T1, ..., Tn]` base class.
 
     Returns the generic parameters or `None` if the AST has a different shape
     """
     match node:
-        case ast.Subscript(value=ast.Name(id="Generic"), slice=elem):
+        case ast.Subscript(value=ast.Name(id=name), slice=elem) if base_name == name:
             return elem.elts if isinstance(elem, ast.Tuple) else [elem]
         case _:
             return None

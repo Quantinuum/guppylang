@@ -8,7 +8,7 @@ node straight from the Python AST. We build a CFG, check it, and return a
 import ast
 import sys
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import ClassVar, cast
 
 from guppylang_internals.ast_util import return_nodes_in_ast, with_loc
 from guppylang_internals.cfg.bb import BB
@@ -24,6 +24,7 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
+from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
     check_function_arg,
@@ -44,9 +45,6 @@ from guppylang_internals.tys.ty import (
 
 if sys.version_info >= (3, 12):
     from guppylang_internals.tys.parsing import parse_parameter
-
-if TYPE_CHECKING:
-    from guppylang_internals.tys.param import Parameter
 
 
 @dataclass(frozen=True)
@@ -244,6 +242,7 @@ def check_signature(
     func_def: ast.FunctionDef,
     globals: Globals,
     def_id: DefId | None = None,
+    param_var_mapping: dict[str, Parameter] | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
 ) -> FunctionType:
     """Checks the signature of a function definition and returns the corresponding
@@ -279,7 +278,8 @@ def check_signature(
         raise GuppyError(err)
 
     # Prepopulate parameter mapping when using Python 3.12 style generic syntax
-    param_var_mapping: dict[str, Parameter] = {}
+    if param_var_mapping is None:
+        param_var_mapping = {}
     if sys.version_info >= (3, 12):
         for i, param_node in enumerate(func_def.type_params):
             param = parse_parameter(param_node, i, globals, param_var_mapping)

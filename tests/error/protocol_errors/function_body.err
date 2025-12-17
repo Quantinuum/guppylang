@@ -1,0 +1,12 @@
+Error: Unexpected function body (at $FILE:6:4)
+  | 
+4 | @guppy.protocol
+5 | class MyProto:
+6 |     def foo(self: "MyProto", x: int) -> str:
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+7 |         return "abcdef"
+  | ^^^^^^^^^^^^^^^^^^^^^^^ Unexpected function body in protocol definition
+
+Help: The body of protocol function definitions must be empty
+
+Guppy compilation failed due to 1 previous error

@@ -3,6 +3,7 @@ import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
+from typing import TYPE_CHECKING
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -48,6 +49,9 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
 )
+
+if TYPE_CHECKING:
+    from guppylang_internals.definition.protocol import ParsedProtocolDef
 
 
 @dataclass(frozen=True)
@@ -175,13 +179,16 @@ def _arg_from_instantiated_defn(
     defn: Definition, arg_nodes: list[ast.expr], node: AstNode, ctx: TypeParsingCtx
 ) -> Argument:
     """Parses a globals definition with type args into an argument."""
+    from guppylang_internals.definition.protocol import ParsedProtocolDef
+
     match defn:
         # Special case for the `Callable` type
         case CallableTypeDef():
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx))
             # Special case for the `Callable` type
         case SelfTypeDef():
-            return TypeArg(_parse_self_type(arg_nodes, node, ctx))
+            self_ty = _parse_self_type(arg_nodes, node, ctx)
+            return TypeArg(self_ty)
         # Either a defined type (e.g. `int`, `bool`, ...)
         case TypeDef() as defn:
             args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
@@ -200,9 +207,33 @@ def _arg_from_instantiated_defn(
                 else:
                     raise GuppyError(FreeTypeVarError(node, defn))
             return ctx.param_var_mapping[defn.name].to_bound()
+        # Or a protocol in which case we need to desugar the annotation to a parameter
+        # (e.g. `x: "MyProto"` to `[MyProto: "MyProto"]`and `x: MyProto`)
+        case ParsedProtocolDef() as defn:
+            return _arg_from_proto(defn, arg_nodes, node, ctx)
         case defn:
             err = ExpectedError(node, "a type", got=f"{defn.description} `{defn.name}`")
             raise GuppyError(err)
+
+
+def _arg_from_proto(
+    proto_defn: "ParsedProtocolDef",
+    arg_nodes: list[ast.expr],
+    node: AstNode,
+    ctx: TypeParsingCtx,
+) -> Argument:
+    """Parses a protocol definition with type args into an argument."""
+    proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
+    inst = proto_defn.check_instantiate(proto_args, node)
+    param = TypeParam(
+        len(ctx.param_var_mapping),
+        proto_defn.name,
+        must_be_copyable=False,
+        must_be_droppable=False,
+        must_implement=[inst],
+    )
+    ctx.param_var_mapping[proto_defn.name] = param
+    return param.to_bound()
 
 
 def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
@@ -330,13 +361,40 @@ if sys.version_info >= (3, 12):
                 return TypeParam(
                     idx, node.name, must_be_copyable=True, must_be_droppable=True
                 )
-            # Otherwise, it must be a const parameter
+            # Otherwise, it must be either a protocol or a const parameter
             case bound:
+                from guppylang_internals.definition.protocol import ParsedProtocolDef
+
+                ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars)
+                # First, try to see if this is a protocol bound by checking if can find
+                # a protocol definition with this name. In contrast to normal
+                # parameters, protocol parameters could be parametrised themselves.
+                proto_defn = None
+                proto_args = []
+                if isinstance(bound, ast.Subscript):
+                    proto_defn = _try_parse_defn(bound.value, ctx.globals)
+                    arg_nodes = (
+                        bound.slice.elts
+                        if isinstance(bound.slice, ast.Tuple)
+                        else [bound.slice]
+                    )
+                    proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
+                else:
+                    proto_defn = _try_parse_defn(bound, ctx.globals)
+                if isinstance(proto_defn, ParsedProtocolDef):
+                    inst = proto_defn.check_instantiate(proto_args, node)
+                    return TypeParam(
+                        idx,
+                        node.name,
+                        must_be_copyable=False,
+                        must_be_droppable=False,
+                        must_implement=[inst],
+                    )
+
                 # For now, we don't allow the types of const params to refer to previous
                 # parameters, so we pass an empty dict as the `param_var_mapping`.
                 # TODO: In the future we might want to allow stuff like
                 #   `def foo[T, XS: array[T, 42]]` and so on
-                ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars)
                 ty = type_from_ast(bound, ctx)
                 if not ty.copyable or not ty.droppable:
                     raise GuppyError(LinearConstParamError(bound, ty))

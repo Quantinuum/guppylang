@@ -14,6 +14,7 @@ from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import ToHugr, ToHugrContext
 from guppylang_internals.tys.const import BoundConstVar, ExistentialConstVar
 from guppylang_internals.tys.errors import WrongNumberOfTypeArgsError
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import ExistentialVar
 
 if TYPE_CHECKING:
@@ -85,6 +86,7 @@ class TypeParam(ParameterBase):
 
     must_be_copyable: bool
     must_be_droppable: bool
+    must_implement: Sequence[ProtocolInst] = field(default_factory=list)
 
     @property
     def can_be_linear(self) -> bool:

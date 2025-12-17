@@ -1,0 +1,8 @@
+Error: Unexpected keyword (at $FILE:5:14)
+  | 
+3 | 
+4 | @guppy.protocol
+5 | class MyProto(metaclass=type):
+  |               ^^^^^^^^^^^^^^ Unexpected keyword
+
+Guppy compilation failed due to 1 previous error
