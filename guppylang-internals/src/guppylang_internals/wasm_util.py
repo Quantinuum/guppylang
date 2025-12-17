@@ -27,7 +27,7 @@ class ConcreteWasmModule:
 class WasmSignatureError(Error):
     title: ClassVar[str] = (
         "Invalid signature for @wasm function `{fn_name}`\n"
-        "in wasm file: `{filename}`"
+        "in wasm file:\n`{filename}`"
     )
     fn_name: str
     filename: str
@@ -53,7 +53,7 @@ class WasmFunctionNotInFile(Error):
 
     @dataclass(frozen=True)
     class WasmFileNote(Note):
-        message: ClassVar[str] = "Wasm file: {filename}"
+        message: ClassVar[str] = "Wasm file:\n`{filename}`"
         filename: str
 
 

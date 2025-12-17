@@ -1,5 +1,6 @@
 Error: Invalid signature for @wasm function `non_fn`
-in wasm file: `$WASM`
+in wasm file:
+`$WASM`
 
 Note: `non_fn` is not exported as a function
 

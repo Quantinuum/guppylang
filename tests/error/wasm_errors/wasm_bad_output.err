@@ -1,5 +1,6 @@
 Error: Invalid signature for @wasm function `bad_output_type`
-in wasm file: `$WASM`
+in wasm file:
+`$WASM`
 
 Note: Unsupported output type: f32
 

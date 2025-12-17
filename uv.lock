@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <4"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -945,7 +945,7 @@ wheels = [
 
 [[package]]
 name = "guppylang"
-version = "0.21.6"
+version = "0.21.7"
 source = { editable = "guppylang" }
 dependencies = [
     { name = "guppylang-internals" },
@@ -978,7 +978,7 @@ provides-extras = ["pytket"]
 
 [[package]]
 name = "guppylang-internals"
-version = "0.25.0"
+version = "0.26.0"
 source = { editable = "guppylang-internals" }
 dependencies = [
     { name = "hugr" },
