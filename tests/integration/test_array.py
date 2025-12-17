@@ -663,17 +663,17 @@ def test_take_put(validate):
 
         # We can't put stuff when it's not borrowed
         q = qubit()
-        q = qs.put(q, 3).unwrap_err()
+        q = qs.try_put(q, 3).unwrap_err()
         discard(q)
 
         # We can't take out stuff that's already borrowed
-        q = qs.take(3).unwrap()
+        q = qs.take(3)
         result("after_take", qs.is_borrowed(3))  # True
-        qs.take(3).unwrap_nothing()
+        qs.try_take(3).unwrap_nothing()
         measure(q)
 
         # But we can put something back
-        qs.put(qubit(), 3).unwrap()
+        qs.put(qubit(), 3)
         result("after_put", qs.is_borrowed(3))  # False
         h(qs[3])
 

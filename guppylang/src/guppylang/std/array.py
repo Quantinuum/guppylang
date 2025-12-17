@@ -102,9 +102,40 @@ class array(builtins.list[_T], Generic[_T, _n]):
         ```
         """
 
+    @custom_function(ArrayGetitemCompiler())
+    def take(self: array[L, n], idx: int) -> L:
+        """Takes an element out of the array.
+
+        While regular indexing into an array only allows borrowing of elements, `take`
+        actually *extracts* the element and transfers ownership to the caller. This
+        makes this operation inherently unsafe: elements may no longer be accessed after
+        they are taken out. Attempting to do so will result in a runtime panic.
+
+        The complementary `array.put` method may be used to return an element back into
+        the array to make it accessible again.
+
+        Panics if the provided index is negative or out of bounds, or if the element has
+        already been taken out.
+
+        Also see `array.try_take` for a version of this function that does not panic if
+        the element has already been taken out.
+
+        # Example
+
+        ```
+        qs = array(qubit() for _ in range(10))
+        h(qs[3])
+        q = qs.take(3)
+        measure(q)  # We're allowed to deallocate since we own `q`
+        # h(qs[3])  # Would panic since qubit 3 has been taken out
+        qs.put(qubit(), 3) # Put a fresh qubit back into the array
+        h(qs[3])
+        ```
+        """
+
     @guppy
     @no_type_check
-    def take(self: array[L, n], idx: int) -> Option[L]:
+    def try_take(self: array[L, n], idx: int) -> Option[L]:
         """Tries to take an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -123,21 +154,47 @@ class array(builtins.list[_T], Generic[_T, _n]):
         ```
         qs = array(qubit() for _ in range(10))
         h(qs[3])
-        q = qs.take(3).unwrap()
+        q = qs.try_take(3).unwrap()
         measure(q)  # We're allowed to deallocate since we own `q`
         # h(qs[3])  # Would panic since qubit 3 has been taken out
-        qs.put(qubit(), 3).unwrap()  # Put a fresh qubit back into the array
+        qs.put(qubit(), 3)  # Put a fresh qubit back into the array
         h(qs[3])
         ```
         """
         if self.is_borrowed(idx):
             return nothing()
-        return some(self.take_unchecked(idx))
+        return some(self.take(idx))
+
+    @custom_function(ArraySetitemCompiler(elem_first=True))
+    def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
+        """Puts an element back into the array if it has been taken out previously.
+
+        This is the complement of `array.take`. It may be used to fill the "hole" left
+        by `array.take` with a new element.
+
+        Panics if the provided index is negative or out of bounds, or if there is
+        already an element at the given index.
+
+        Also see `array.try_put` for a version of this function that does not panic if
+        if there is already an element at the given index.
+
+        # Example
+
+        ```
+        qs = array(qubit() for _ in range(10))
+        q = qubit()
+        # qs.put(q, 3)  # Would panic as there is already a qubit at index 3
+        measure(qs.take(3))  # Take it out to make space for the new one
+        qs.put(q, 3)
+        h(qs[3])
+        ```
+        """
 
     @guppy
     @no_type_check
-    def put(self: array[L, n], elem: L @ owned, idx: int) -> Result[None, L]:
-        """Puts an element back into the array if it has been taken out previously.
+    def try_put(self: array[L, n], elem: L @ owned, idx: int) -> Result[None, L]:
+        """Tries to put an element back into the array if it has been taken out
+        previously.
 
         This is the complement of `array.take`. It may be used to fill the "hole" left
         by `array.take` with a new element.
@@ -151,38 +208,16 @@ class array(builtins.list[_T], Generic[_T, _n]):
         ```
         qs = array(qubit() for _ in range(10))
         q = qubit()
-        # qs.put(q, 3).unwrap()  # Would panic as there is already a qubit at index 3
-        measure(qs.take(3).unwrap())  # Take it out to make space for the new one
-        qs.put(q, 3).unwrap()
+        qs.try_put(q, 3).unwrap_nothing()  # Is `nothing` since there's a qubit at idx 3
+        measure(qs.take(3))  # Take it out to make space for the new one
+        qs.try_put(q, 3).unwrap()
         h(qs[3])
         ```
         """
         if not self.is_borrowed(idx):
             return err(elem)
-        self.put_unchecked(elem, idx)
+        self.put(elem, idx)
         return ok(None)
-
-    @custom_function(ArrayGetitemCompiler())
-    def take_unchecked(self: array[L, n], idx: int) -> L:
-        """Panicking version of `take`.
-
-        Equivalent to
-
-        ```
-        xs.take(idx).unwrap()
-        ````
-        """
-
-    @custom_function(ArraySetitemCompiler(elem_first=True))
-    def put_unchecked(self: array[L, n], elem: L @ owned, idx: int) -> None:
-        """Panicking version of `put`.
-
-        Equivalent to
-
-        ```
-        xs.put(idx, elem).unwrap()
-        ````
-        """
 
     def __new__(cls, *args: _T) -> builtins.list[_T]:  # type: ignore[no-redef]
         # Runtime array constructor that is used for comptime. We return an actual list
@@ -205,7 +240,7 @@ class ArrayIter(Generic[L, n]):
         self: ArrayIter[L, n] @ owned,
     ) -> Option[tuple[L, ArrayIter[L, n]]]:
         if self.i < int(n):
-            elem = self.xs.take_unchecked(self.i)
+            elem = self.xs.take(self.i)
             return some((elem, ArrayIter(self.xs, self.i + 1)))
         _array_discard_all_used(self.xs)
         return nothing()
