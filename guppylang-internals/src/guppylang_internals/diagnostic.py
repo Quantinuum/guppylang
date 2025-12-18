@@ -288,36 +288,30 @@ class DiagnosticsRenderer:
                         span_start_lineno = span.start.line
                         span_end_lineno = span.end.line
 
+                        prefix_lines = 0
+                        print_line_number = True
+
                         # If notes are on the same line, render them together
                         if span_start_lineno == prev_span_end_lineno:
-                            self.render_snippet(
-                                to_span(sub_diag.span),
-                                sub_diag.rendered_span_label,
-                                max_lineno,
-                                print_line_number=False,
-                            )
+                            print_line_number = False
                         # if notes are close enough, render them adjacently
                         elif (
                             span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
                             <= prev_span_end_lineno + 1
                         ):
-                            self.render_snippet(
-                                to_span(sub_diag.span),
-                                sub_diag.rendered_span_label,
-                                max_lineno,
-                                prefix_lines=span_start_lineno
-                                - prev_span_end_lineno
-                                - 1,
-                            )
+                            prefix_lines = span_start_lineno - prev_span_end_lineno - 1
                         # otherwise we render a separator between notes
                         else:
                             self.buffer.append("")
-                            self.render_snippet(
-                                to_span(sub_diag.span),
-                                sub_diag.rendered_span_label,
-                                max_lineno,
-                                prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                            )
+                            prefix_lines = self.PREFIX_NOTE_CONTEXT_LINES
+
+                        self.render_snippet(
+                            to_span(sub_diag.span),
+                            sub_diag.rendered_span_label,
+                            max_lineno,
+                            prefix_lines=prefix_lines,
+                            print_line_number=print_line_number,
+                        )
                         prev_span_end_lineno = span_end_lineno
 
             # Render the main diagnostic message if present
