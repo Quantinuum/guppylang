@@ -248,8 +248,7 @@ class DiagnosticsRenderer:
             children_with_span = [
                 (child, to_span(child.span)) for child in diag.children if child.span
             ]
-            all_spans = [span] + [span for _, span in children_with_span]
-            max_lineno = max(s.end.line for s in all_spans)
+            max_lineno = span.end.line
 
             self.buffer.append(f"{level}: {diag.rendered_title} (at {span.start})")
 
@@ -266,6 +265,7 @@ class DiagnosticsRenderer:
                 case []:
                     pass
                 case [(only_child, span)]:
+                    max_lineno = max(span.end.line, max_lineno)
                     self.buffer.append("\nNote:")
                     self.render_snippet(
                         span,
@@ -275,6 +275,7 @@ class DiagnosticsRenderer:
                         is_first=True,
                     )
                 case [(first_child, first_span), *children_with_span]:
+                    max_lineno = max(first_span.end.line, max_lineno)
                     self.buffer.append("\nNotes:")
                     self.render_snippet(
                         first_span,
@@ -291,6 +292,7 @@ class DiagnosticsRenderer:
                         span_end_lineno = span.end.line
 
                         print_line_number = True
+                        max_lineno = max(span_end_lineno, max_lineno)
 
                         # If notes are on the same line, render them together
                         if span_start_lineno == prev_span_end_lineno:
