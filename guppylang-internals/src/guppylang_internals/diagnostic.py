@@ -262,60 +262,63 @@ class DiagnosticsRenderer:
                 prefix_lines=self.PREFIX_ERROR_CONTEXT_LINES,
             )
 
-            if len(children_with_span) > 0:
-                prev_span_end_lineno = 0
-                is_first = True
-                for sub_diag in children_with_span:
-                    if sub_diag.span is None:
-                        continue
-                    span = to_span(sub_diag.span)
-                    span_start_lineno = span.start.line
-                    span_end_lineno = span.end.line
-
-                    # Is it is the first note, render the header
-                    if is_first:
-                        if len(children_with_span) == 1:
-                            self.buffer.append("\nNote:")
-                        else:
-                            self.buffer.append("\nNotes:")
-                        self.render_snippet(
-                            to_span(sub_diag.span),
-                            sub_diag.rendered_span_label,
-                            max_lineno,
-                            prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                            is_first=True,
-                        )
-                        is_first = False
-                    # If notes are on the same line, render them together
-                    elif span_start_lineno == prev_span_end_lineno:
-                        self.render_snippet(
-                            to_span(sub_diag.span),
-                            sub_diag.rendered_span_label,
-                            max_lineno,
-                            print_line_number=False,
-                        )
-                    # if notes are close enough, render them adjacently
-                    elif (
-                        span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
-                        <= prev_span_end_lineno + 1
-                    ):
-                        self.render_snippet(
-                            to_span(sub_diag.span),
-                            sub_diag.rendered_span_label,
-                            max_lineno,
-                            prefix_lines=span_start_lineno - prev_span_end_lineno - 1,
-                        )
-                    # otherwise we render a separator between notes
+            match children_with_span:
+                case []:
+                    pass
+                case [first_child, *children_with_span]:
+                    assert first_child.span
+                    # If it is the first note, render the header
+                    if len(children_with_span) == 0:
+                        self.buffer.append("\nNote:")
                     else:
-                        self.buffer.append("")
-                        self.render_snippet(
-                            to_span(sub_diag.span),
-                            sub_diag.rendered_span_label,
-                            max_lineno,
-                            prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                        )
+                        self.buffer.append("\nNotes:")
+                    self.render_snippet(
+                        to_span(first_child.span),
+                        first_child.rendered_span_label,
+                        max_lineno,
+                        prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                        is_first=True,
+                    )
 
-                    prev_span_end_lineno = span_end_lineno
+                    prev_span_end_lineno = to_span(first_child.span).end.line
+
+                    for sub_diag in children_with_span:
+                        assert sub_diag.span
+                        span = to_span(sub_diag.span)
+                        span_start_lineno = span.start.line
+                        span_end_lineno = span.end.line
+
+                        # If notes are on the same line, render them together
+                        if span_start_lineno == prev_span_end_lineno:
+                            self.render_snippet(
+                                to_span(sub_diag.span),
+                                sub_diag.rendered_span_label,
+                                max_lineno,
+                                print_line_number=False,
+                            )
+                        # if notes are close enough, render them adjacently
+                        elif (
+                            span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
+                            <= prev_span_end_lineno + 1
+                        ):
+                            self.render_snippet(
+                                to_span(sub_diag.span),
+                                sub_diag.rendered_span_label,
+                                max_lineno,
+                                prefix_lines=span_start_lineno
+                                - prev_span_end_lineno
+                                - 1,
+                            )
+                        # otherwise we render a separator between notes
+                        else:
+                            self.buffer.append("")
+                            self.render_snippet(
+                                to_span(sub_diag.span),
+                                sub_diag.rendered_span_label,
+                                max_lineno,
+                                prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                            )
+                        prev_span_end_lineno = span_end_lineno
 
             # Render the main diagnostic message if present
             if diag.rendered_message:
