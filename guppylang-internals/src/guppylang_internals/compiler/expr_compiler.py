@@ -325,14 +325,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def _pack_returns(self, returns: Sequence[Wire], return_ty: Type) -> Wire:
         """Groups function return values into a tuple"""
-        if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
-            types = type_to_row(return_ty)
-            assert len(returns) == len(types)
-            return self._pack_tuple(returns, types)
-        assert (
-            len(returns) == 1
-        ), f"Expected a single return value. Got {returns}. return type {return_ty}"
-        return returns[0]
+        return pack_returns(returns, return_ty, self.builder, self.ctx)
 
     def _update_inout_ports(
         self,
@@ -758,6 +751,35 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:
     """Turns an expression into a row expressions by unpacking top-level tuples."""
     return expr.elts if isinstance(expr, ast.Tuple) else [expr]
+
+
+def pack_returns(
+    returns: Sequence[Wire],
+    return_ty: Type,
+    builder: DfBase[ops.DfParentOp],
+    ctx: CompilerContext,
+) -> Wire:
+    """Groups function return values into a tuple"""
+    if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
+        types = type_to_row(return_ty)
+        assert len(returns) == len(types)
+        hugr_tys = [t.to_hugr(ctx) for t in types]
+        return builder.add_op(ops.MakeTuple(hugr_tys), *returns)
+    assert (
+        len(returns) == 1
+    ), f"Expected a single return value. Got {returns}. return type {return_ty}"
+    return returns[0]
+
+
+def unpack_wire(
+    wire: Wire, return_ty: Type, builder: DfBase[ops.DfParentOp], ctx: CompilerContext
+) -> list[Wire]:
+    """The inverse of `pack_returns`"""
+    if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
+        types = type_to_row(return_ty)
+        hugr_tys = [t.to_hugr(ctx) for t in types]
+        return list(builder.add_op(ops.UnpackTuple(hugr_tys), wire).outputs())
+    return [wire]
 
 
 def instantiation_needs_unpacking(func_ty: FunctionType, inst: Inst) -> bool:
