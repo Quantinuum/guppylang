@@ -290,12 +290,12 @@ class DiagnosticsRenderer:
                         span_start_lineno = span.start.line
                         span_end_lineno = span.end.line
 
-                        prefix_lines = 0
                         print_line_number = True
 
                         # If notes are on the same line, render them together
                         if span_start_lineno == prev_span_end_lineno:
                             print_line_number = False
+                            prefix_lines = 0
                         # if notes are close enough, render them adjacently
                         elif (
                             span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
