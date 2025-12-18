@@ -245,10 +245,10 @@ class DiagnosticsRenderer:
             span = to_span(diag.span)
             level = self.level_str(diag.level)
 
-            children_with_span = [child for child in diag.children if child.span]
-            all_spans = [span] + [
-                to_span(child.span) for child in children_with_span if child.span
+            children_with_span = [
+                (child, to_span(child.span)) for child in diag.children if child.span
             ]
+            all_spans = [span] + [span for _, span in children_with_span]
             max_lineno = max(s.end.line for s in all_spans)
 
             self.buffer.append(f"{level}: {diag.rendered_title} (at {span.start})")
@@ -265,32 +265,28 @@ class DiagnosticsRenderer:
             match children_with_span:
                 case []:
                     pass
-                case [only_child]:
-                    assert only_child.span
+                case [(only_child, span)]:
                     self.buffer.append("\nNote:")
                     self.render_snippet(
-                        to_span(only_child.span),
+                        span,
                         only_child.rendered_span_label,
                         max_lineno,
                         prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
                         is_first=True,
                     )
-                case [first_child, *children_with_span]:
-                    assert first_child.span
+                case [(first_child, first_span), *children_with_span]:
                     self.buffer.append("\nNotes:")
                     self.render_snippet(
-                        to_span(first_child.span),
+                        first_span,
                         first_child.rendered_span_label,
                         max_lineno,
                         prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
                         is_first=True,
                     )
 
-                    prev_span_end_lineno = to_span(first_child.span).end.line
+                    prev_span_end_lineno = first_span.end.line
 
-                    for sub_diag in children_with_span:
-                        assert sub_diag.span
-                        span = to_span(sub_diag.span)
+                    for sub_diag, span in children_with_span:
                         span_start_lineno = span.start.line
                         span_end_lineno = span.end.line
 
@@ -312,7 +308,7 @@ class DiagnosticsRenderer:
                             prefix_lines = self.PREFIX_NOTE_CONTEXT_LINES
 
                         self.render_snippet(
-                            to_span(sub_diag.span),
+                            span,
                             sub_diag.rendered_span_label,
                             max_lineno,
                             prefix_lines=prefix_lines,
