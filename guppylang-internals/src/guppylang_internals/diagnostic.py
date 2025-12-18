@@ -265,13 +265,19 @@ class DiagnosticsRenderer:
             match children_with_span:
                 case []:
                     pass
+                case [only_child]:
+                    assert only_child.span
+                    self.buffer.append("\nNote:")
+                    self.render_snippet(
+                        to_span(only_child.span),
+                        only_child.rendered_span_label,
+                        max_lineno,
+                        prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                        is_first=True,
+                    )
                 case [first_child, *children_with_span]:
                     assert first_child.span
-                    # If it is the first note, render the header
-                    if len(children_with_span) == 0:
-                        self.buffer.append("\nNote:")
-                    else:
-                        self.buffer.append("\nNotes:")
+                    self.buffer.append("\nNotes:")
                     self.render_snippet(
                         to_span(first_child.span),
                         first_child.rendered_span_label,
