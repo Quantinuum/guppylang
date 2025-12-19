@@ -54,10 +54,40 @@ from guppylang_internals.definition.util import (
 
 
 @dataclass(frozen=True)
-class FieldFormHint(Help):
-    message: ClassVar[str] = (
-        "Struct can contain only fields of the form `name: Type` "
-        "or `@guppy` annotated methods"
+class UncheckedStructField:
+    """A single field on a struct whose type has not been checked yet."""
+
+    name: str
+    type_ast: ast.expr
+
+
+@dataclass(frozen=True)
+class StructField:
+    """A single field on a struct."""
+
+    name: str
+    ty: Type
+
+
+# TODO: Move to a common utility module
+@dataclass(frozen=True)
+class RedundantParamsError(Error):
+    title: ClassVar[str] = "Generic parameters already specified"
+    span_label: ClassVar[str] = "Duplicate specification of generic parameters"
+    class_name: str
+
+    @dataclass(frozen=True)
+    class PrevSpec(Note):
+        span_label: ClassVar[str] = (
+            "Parameters of `{class_name}` are already specified here"
+        )
+
+
+@dataclass(frozen=True)
+class DuplicateFieldError(Error):
+    title: ClassVar[str] = "Duplicate field"
+    span_label: ClassVar[str] = (
+        "Struct `{struct_name}` already contains a field named `{field_name}`"
     )
 
 
@@ -237,7 +267,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
         return [constructor_def]
 
 
-# TODO: Move to a common utility module
+# TODO: Move to a common utility module (parsing.py?)
 def parse_py_class(
     cls: type, defining_frame: FrameType, sources: SourceMap
 ) -> ast.ClassDef:
@@ -277,6 +307,7 @@ def parse_py_class(
     return cls_ast
 
 
+# TODO: Move to a common utility module (parsing.py?)
 def try_parse_generic_base(node: ast.expr) -> list[ast.expr] | None:
     """Checks if an AST node corresponds to a `Generic[T1, ..., Tn]` base class.
 
@@ -296,6 +327,7 @@ class RepeatedTypeParamError(Error):
     name: str
 
 
+# TODO: Move to a common utility module (parsing.py?)
 def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Parameter]:
     """Parses a list of AST nodes into unique type parameters.
 
