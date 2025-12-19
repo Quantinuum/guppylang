@@ -70,8 +70,11 @@ class RawStructDef(TypeDef, ParsableDef):
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedStructDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
+        print("ciaociao I'm parsing struct")
         frame = DEF_STORE.frames[self.id]
         cls_def = parse_py_class(self.python_class, frame, sources)
+        print(cls_def)
+        print("----")
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
 
@@ -234,7 +237,86 @@ class CheckedStructDef(TypeDef, CompiledDef):
         return [constructor_def]
 
 
-# TODO: adapt the following to work also with enums, and move it to a common module
+# TODO: Move to a common utility module
+def parse_py_class(
+    cls: type, defining_frame: FrameType, sources: SourceMap
+) -> ast.ClassDef:
+    """Parses a Python class object into an AST."""
+    module = inspect.getmodule(cls)
+    if module is None:
+        raise GuppyError(UnknownSourceError(None, cls))
+
+    # If we are running IPython, `inspect.getsourcefile` won't work if the class was
+    # defined inside a cell. See
+    #  - https://bugs.python.org/issue33826
+    #  - https://github.com/ipython/ipython/issues/11249
+    #  - https://github.com/wandb/weave/pull/1864
+    if is_running_ipython() and module.__name__ == "__main__":
+        file: str | None = defining_frame.f_code.co_filename
+    else:
+        file = inspect.getsourcefile(cls)
+    if file is None:
+        raise GuppyError(UnknownSourceError(None, cls))
+
+    # We can't rely on `inspect.getsourcelines` since it doesn't work properly for
+    # classes prior to Python 3.13. See https://github.com/quantinuum/guppylang/issues/1107.
+    # Instead, we reproduce the behaviour of Python >= 3.13 using the `__firstlineno__`
+    # attribute. See https://github.com/python/cpython/blob/3.13/Lib/inspect.py#L1052.
+    # In the decorator, we make sure that `__firstlineno__` is set, even if we're not
+    # on Python 3.13.
+    file_lines = linecache.getlines(file)
+    line_offset = cls.__firstlineno__  # type: ignore[attr-defined]
+    source_lines = inspect.getblock(file_lines[line_offset - 1 :])
+    source, cls_ast, line_offset = parse_source(source_lines, line_offset)
+
+    # Store the source file in our cache
+    sources.add_file(file)
+    annotate_location(cls_ast, source, file, line_offset)
+    if not isinstance(cls_ast, ast.ClassDef):
+        raise GuppyError(ExpectedError(cls_ast, "a class definition"))
+    return cls_ast
+
+
+def try_parse_generic_base(node: ast.expr) -> list[ast.expr] | None:
+    """Checks if an AST node corresponds to a `Generic[T1, ..., Tn]` base class.
+
+    Returns the generic parameters or `None` if the AST has a different shape
+    """
+    match node:
+        case ast.Subscript(value=ast.Name(id="Generic"), slice=elem):
+            return elem.elts if isinstance(elem, ast.Tuple) else [elem]
+        case _:
+            return None
+
+
+@dataclass(frozen=True)
+class RepeatedTypeParamError(Error):
+    title: ClassVar[str] = "Duplicate type parameter"
+    span_label: ClassVar[str] = "Type parameter `{name}` cannot be used multiple times"
+    name: str
+
+
+def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Parameter]:
+    """Parses a list of AST nodes into unique type parameters.
+
+    Raises user errors if the AST nodes don't correspond to parameters or parameters
+    occur multiple times.
+    """
+    params: list[Parameter] = []
+    params_set: set[DefId] = set()
+    for node in nodes:
+        if isinstance(node, ast.Name) and node.id in globals:
+            defn = globals[node.id]
+            if isinstance(defn, ParamDef):
+                if defn.id in params_set:
+                    raise GuppyError(RepeatedTypeParamError(node, node.id))
+                params.append(defn.to_param(len(params)))
+                params_set.add(defn.id)
+                continue
+        raise GuppyError(ExpectedError(node, "a type parameter"))
+    return params
+
+
 def check_not_recursive(defn: ParsedStructDef, ctx: TypeParsingCtx) -> None:
     """Throws a user error if the given struct definition is recursive."""
     # TODO: The implementation below hijacks the type parsing logic to detect recursive
