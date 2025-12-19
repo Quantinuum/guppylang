@@ -276,7 +276,9 @@ class NewArrayCompiler(ArrayCompiler):
 
 
 class ArrayGetitemCompiler(ArrayCompiler):
-    """Compiler for the `array.__getitem__` function."""
+    """Compiler for the `array.__getitem__` function, used for both classical and
+    linear arrays e.g. when pulling out arguments to pass to a function.
+    (In the linear, non-owned, case they will be replaced afterwards.)"""
 
     def _build_classical_getitem(self, array: Wire, idx: Wire) -> CallReturnWires:
         """Constructs `__getitem__` for classical arrays."""
@@ -293,8 +295,8 @@ class ArrayGetitemCompiler(ArrayCompiler):
             inout_returns=[arr],
         )
 
-    def _build_linear_getitem(self, array: Wire, idx: Wire) -> CallReturnWires:
-        """Constructs `array.__getitem__` for linear arrays."""
+    def _build_borrow(self, array: Wire, idx: Wire) -> CallReturnWires:
+        """Constructs `borrow_array.borrow` for linear-typed arrays."""
         idx = self.builder.add_op(convert_itousize(), idx)
         arr, elem = self.builder.add_op(
             barray_borrow(self.elem_ty, self.length),
@@ -311,12 +313,22 @@ class ArrayGetitemCompiler(ArrayCompiler):
         [elem_ty_arg, _] = self.type_args
         assert isinstance(elem_ty_arg, TypeArg)
         if not elem_ty_arg.ty.copyable:
-            return self._build_linear_getitem(array, idx)
+            return self._build_borrow(array, idx)
         else:
             return self._build_classical_getitem(array, idx)
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
+
+
+class ArrayBorrowCompiler(ArrayGetitemCompiler):
+    """Compiler for the `array.__borrow__` function only, used for ArrayIter."""
+
+    def _build_classical_getitem(self, array: Wire, idx: Wire) -> CallReturnWires:
+        raise InternalGuppyError("ArrayIter is Hugr-polymorphic with Linear TypeParam")
+        # Note that even if we monomorphized in guppy and needed to handle copyable
+        # here, we could still use just a borrow (not the more complex
+        # _build_classical_getitem), as ArrayIter ends with a discard-all-borrowed.
 
 
 class ArraySetitemCompiler(ArrayCompiler):

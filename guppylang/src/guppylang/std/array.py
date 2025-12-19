@@ -16,6 +16,7 @@ from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import CopyInoutCompiler
 from guppylang_internals.std._internal.checker import ArrayCopyChecker, NewArrayChecker
 from guppylang_internals.std._internal.compiler.array import (
+    ArrayBorrowCompiler,
     ArrayDiscardAllUsedCompiler,
     ArrayGetitemCompiler,
     ArraySetitemCompiler,
@@ -101,7 +102,7 @@ class ArrayIter(Generic[L, n]):
         self: ArrayIter[L, n] @ owned,
     ) -> Option[tuple[L, ArrayIter[L, n]]]:
         if self.i < int(n):
-            elem = _array_unsafe_getitem(self.xs, self.i)
+            elem = _barray_unsafe_borrow(self.xs, self.i)
             return some((elem, ArrayIter(self.xs, self.i + 1)))
         _array_discard_all_used(self.xs)
         return nothing()
@@ -111,8 +112,8 @@ class ArrayIter(Generic[L, n]):
 def _array_discard_all_used(xs: array[L, n] @ owned) -> None: ...
 
 
-@custom_function(ArrayGetitemCompiler())
-def _array_unsafe_getitem(xs: array[L, n], idx: int) -> L: ...
+@custom_function(ArrayBorrowCompiler())
+def _barray_unsafe_borrow(xs: array[L, n], idx: int) -> L: ...
 
 
 @extend_type(frozenarray_type_def)
