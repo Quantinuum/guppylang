@@ -10,6 +10,6 @@ Note:
   | 
 7 | def foo(q: qubit @owned) -> tuple[qubit, qubit]:
 8 |     return q, q
-  |            - Variable `q` returned here
+  |            - Variable `q` already returned here
 
 Guppy compilation failed due to 1 previous error

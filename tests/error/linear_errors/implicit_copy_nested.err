@@ -10,7 +10,7 @@ Note:
    | 
 15 | def test(s: MyStruct) -> None:
 16 |     p = s.x
-   |         --- Field `s.x` moved here
+   |         --- Field `s.x` already moved here
 
 Help: Consider copying `s.x` instead of moving it: `s.x.copy()`
 

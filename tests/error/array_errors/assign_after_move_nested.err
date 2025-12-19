@@ -10,6 +10,6 @@ Note:
   | 
 7 |    xs = array(array(1, 2, 3), array(1, 2, 3))
 8 |    ys = xs
-  |         -- Variable `xs` moved here
+  |         -- Variable `xs` already moved here
 
 Guppy compilation failed due to 1 previous error

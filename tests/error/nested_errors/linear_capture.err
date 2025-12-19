@@ -10,6 +10,6 @@ Note:
   | 
 6 | @guppy
 7 | def foo(q: qubit @owned) -> qubit:
-  |         --------------- `q` defined here
+  |         --------------- `q` already defined here
 
 Guppy compilation failed due to 1 previous error

@@ -10,7 +10,7 @@ Note:
    | 
 14 |         xs = array(1, 2, 3)
 15 |         foo(xs, xs)
-   |             -- Variable `xs` borrowed here
+   |             -- Variable `xs` already borrowed here
 
 Help: Consider copying `xs` instead of moving it: `xs.copy()`
 

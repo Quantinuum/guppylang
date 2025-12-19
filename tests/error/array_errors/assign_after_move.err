@@ -10,7 +10,7 @@ Note:
   | 
 7 |    xs = array(1, 2, 3)
 8 |    ys = xs
-  |         -- Variable `xs` moved here
+  |         -- Variable `xs` already moved here
 
 Help: Consider copying `xs` instead of moving it: `xs.copy()`
 

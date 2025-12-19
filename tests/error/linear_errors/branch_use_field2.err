@@ -10,6 +10,6 @@ Note:
    | 
 14 |     if b:
 15 |         measure(s.q2)
-   |                 ---- Field `s.q2` consumed here
+   |                 ---- Field `s.q2` already consumed here
 
 Guppy compilation failed due to 1 previous error

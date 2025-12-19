@@ -10,6 +10,7 @@ Notes:
 6 |     y = 4
 7 |     0 if (y := x) else (y := 6)
   |           - This is of type `bool`
+  | 
 7 |     0 if (y := x) else (y := 6)
   |                         - This is of type `int`
 

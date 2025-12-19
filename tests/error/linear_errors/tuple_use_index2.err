@@ -10,6 +10,6 @@ Note:
    | 
 15 |     s = S((qubit(), 1))
 16 |     use(s.t[0])
-   |         ------ Tuple index `s.t[0]` consumed here
+   |         ------ Tuple index `s.t[0]` already consumed here
 
 Guppy compilation failed due to 1 previous error

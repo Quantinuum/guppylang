@@ -10,7 +10,7 @@ Note:
   | 
 6 | def main(xs: array[int, 2] @ owned) -> array[int, 2]:
 7 |    ys = xs
-  |         -- Variable `xs` moved here
+  |         -- Variable `xs` already moved here
 
 Help: Consider copying `xs` instead of moving it: `xs.copy()`
 

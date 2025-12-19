@@ -10,6 +10,6 @@ Note:
    | 
 12 |     if b:
 13 |         use(t[0])
-   |             ---- Tuple index `t[0]` consumed here
+   |             ---- Tuple index `t[0]` already consumed here
 
 Guppy compilation failed due to 1 previous error

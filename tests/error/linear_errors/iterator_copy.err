@@ -10,7 +10,7 @@ Note:
    | 
 10 | def test(q: array[int, 3] @owned) -> None:
 11 |     for i in q:
-   |              - Variable `q` consumed here
+   |              - Variable `q` already consumed here
 
 Help: Consider copying `q` instead of moving it: `q.copy()`
 

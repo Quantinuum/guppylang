@@ -10,6 +10,6 @@ Note:
    | 
 11 |     q = qubit()
 12 |     with control(q, q):
-   |                  - Variable `q` borrowed here
+   |                  - Variable `q` already borrowed here
 
 Guppy compilation failed due to 1 previous error

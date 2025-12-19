@@ -10,7 +10,7 @@ Note:
    | 
 10 | def test(q: array[int, 3] @owned) -> None:
 11 |     p = q
-   |         - Variable `q` moved here
+   |         - Variable `q` already moved here
 
 Help: Consider copying `q` instead of moving it: `q.copy()`
 

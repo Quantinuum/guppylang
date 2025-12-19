@@ -33,7 +33,9 @@ class AlreadyUsedError(Error):
 
     @dataclass(frozen=True)
     class PrevUse(Note):
-        span_label: ClassVar[str] = "{place.describe} {prev_kind.subjunctive} here"
+        span_label: ClassVar[str] = (
+            "{place.describe} already {prev_kind.subjunctive} here"
+        )
         prev_kind: UseKind
 
     @dataclass(frozen=True)
@@ -55,7 +57,9 @@ class ComprAlreadyUsedError(Error):
 
     @dataclass(frozen=True)
     class PrevUse(Note):
-        span_label: ClassVar[str] = "{place.describe} {prev_kind.subjunctive} here"
+        span_label: ClassVar[str] = (
+            "{place.describe} already {prev_kind.subjunctive} here"
+        )
         prev_kind: UseKind
 
 
@@ -270,7 +274,7 @@ class NonCopyableCaptureError(Error):
 
     @dataclass(frozen=True)
     class DefinedHere(Note):
-        span_label: ClassVar[str] = "`{var}` defined here"
+        span_label: ClassVar[str] = "`{var}` already defined here"
 
 
 @dataclass(frozen=True)

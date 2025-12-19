@@ -10,6 +10,6 @@ Note:
    | 
 12 | def foo(s: MyStruct @owned) -> tuple[qubit, qubit]:
 13 |     t = s
-   |         - Field `s.q` moved here
+   |         - Field `s.q` already moved here
 
 Guppy compilation failed due to 1 previous error

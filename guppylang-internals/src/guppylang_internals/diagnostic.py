@@ -293,22 +293,26 @@ class DiagnosticsRenderer:
                         # If notes are on the same line, render them together
                         if span_start_lineno == prev_span_end_lineno:
                             prefix_lines = 0
+                            print_pad_line = True
                         # if notes are close enough, render them adjacently
                         elif (
                             span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
                             <= prev_span_end_lineno + 1
                         ):
                             prefix_lines = span_start_lineno - prev_span_end_lineno - 1
+                            print_pad_line = False
                         # otherwise we render a separator between notes
                         else:
                             self.buffer.append("")
                             prefix_lines = self.PREFIX_NOTE_CONTEXT_LINES
+                            print_pad_line = False
 
                         self.render_snippet(
                             span,
                             sub_diag.rendered_span_label,
                             max_lineno,
                             prefix_lines=prefix_lines,
+                            print_pad_line=print_pad_line,
                         )
                         prev_span_end_lineno = span_end_lineno
 

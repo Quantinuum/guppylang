@@ -10,6 +10,6 @@ Note:
    | 
 11 | def main(qs: array[qubit, 42] @owned) -> array[qubit, 42]:
 12 |     return foo(qs[0], qs)
-   |                       -- Variable `qs` consumed here
+   |                       -- Variable `qs` already consumed here
 
 Guppy compilation failed due to 1 previous error

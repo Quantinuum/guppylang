@@ -10,6 +10,6 @@ Note:
    | 
 12 | def foo(s: MyStruct @owned) -> tuple[qubit, MyStruct]:
 13 |     return s.q, s
-   |            --- Field `s.q` returned here
+   |            --- Field `s.q` already returned here
 
 Guppy compilation failed due to 1 previous error
