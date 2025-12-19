@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload the built packages as artifacts
         if: ${{ steps.check-tag.outputs.run == 'true' }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: build-${{ matrix.target.component }}-sdist
           path: |
