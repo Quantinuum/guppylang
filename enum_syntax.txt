@@ -1,8 +1,0 @@
-
-from guppylang.std.quantum import qubit
-
-@guppy.enum
-class MyEnum:
-    Variant1 = {"a": int, "b": qubit}
-    Variant2 = {}
-    Variant3 = (int, float)
