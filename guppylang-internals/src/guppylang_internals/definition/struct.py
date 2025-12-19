@@ -119,8 +119,11 @@ class RawStructDef(TypeDef, ParsableDef):
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedStructDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
+        print("ciaociao I'm parsing struct")
         frame = DEF_STORE.frames[self.id]
         cls_def = parse_py_class(self.python_class, frame, sources)
+        print(cls_def)
+        print("----")
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
 
@@ -299,6 +302,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
         return [constructor_def]
 
 
+# TODO: Move to a common utility module
 def parse_py_class(
     cls: type, defining_frame: FrameType, sources: SourceMap
 ) -> ast.ClassDef:

@@ -38,6 +38,7 @@ from guppylang_internals.definition.pytket_circuits import (
     RawPytketDef,
 )
 from guppylang_internals.definition.struct import RawStructDef
+from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
@@ -203,6 +204,9 @@ class _Guppy:
             def add_fields(self: "MyStruct") -> int:
                 return self.field2 + self.field2
         """
+        print("ciaociao, I am in the struct decorator")
+        print(cls)
+        print("----")
         defn = RawStructDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
@@ -217,6 +221,44 @@ class _Guppy:
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
+
+    @dataclass_transform()
+    # def enum(self, cls: builtins.type[T]):
+    def enum(self, cls: builtins.type[T]) -> builtins.type[T]:
+        """Registers a class as a Guppy enum.
+
+        .. code-block:: python
+            from guppylang import guppy
+
+            @guppy.enum
+            class MyEnum:
+                Variant1 = {"a": int, "b": qubit}
+                Variant2 = {}
+                # In the future...
+                Variant3 = (int, float)
+        ..
+        Enum supposed to have variants as class attributes.
+        They are not supposed to have methods.
+        """
+        print("ciaociao I am in the enum decorator")
+        print(cls)
+        print("----")
+        defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
+        frame = get_calling_frame()
+        DEF_STORE.register_def(defn, frame)
+
+        # we are not checking for GuppyDefinition members here since enums
+        # are not supposed to have methods
+        # ..
+        # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
+        # However, we need this information to precisely look up the source for the
+        # class later. If it's not there, we can set it from the calling frame:
+        if not hasattr(cls, "__firstlineno__"):
+            cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
+        # We're pretending to return the class unchanged, but in fact we return
+        # a `GuppyDefinition` that handles the comptime logic
+        return GuppyDefinition(defn)  # type: ignore[return-value]
+        # return None
 
     def type_var(
         self,
