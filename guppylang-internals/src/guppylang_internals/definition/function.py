@@ -302,6 +302,7 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     return parse_function_with_docstring(func_ast)
 
 
+# TODO: move in an utility file
 def parse_source(source_lines: list[str], line_offset: int) -> tuple[str, ast.AST, int]:
     """Parses a list of source lines into an AST object.
 
