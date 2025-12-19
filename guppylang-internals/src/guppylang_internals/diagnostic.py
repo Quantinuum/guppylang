@@ -272,7 +272,7 @@ class DiagnosticsRenderer:
                         only_child.rendered_span_label,
                         max_lineno,
                         prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                        is_first=True,
+                        print_pad_line=True,
                     )
                 case [(first_child, first_span), *children_with_span]:
                     self.buffer.append("\nNotes:")
@@ -281,7 +281,7 @@ class DiagnosticsRenderer:
                         first_child.rendered_span_label,
                         max_lineno,
                         prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                        is_first=True,
+                        print_pad_line=True,
                     )
 
                     prev_span_end_lineno = first_span.end.line
@@ -290,11 +290,8 @@ class DiagnosticsRenderer:
                         span_start_lineno = span.start.line
                         span_end_lineno = span.end.line
 
-                        print_line_number = True
-
                         # If notes are on the same line, render them together
                         if span_start_lineno == prev_span_end_lineno:
-                            print_line_number = False
                             prefix_lines = 0
                         # if notes are close enough, render them adjacently
                         elif (
@@ -312,7 +309,6 @@ class DiagnosticsRenderer:
                             sub_diag.rendered_span_label,
                             max_lineno,
                             prefix_lines=prefix_lines,
-                            print_line_number=print_line_number,
                         )
                         prev_span_end_lineno = span_end_lineno
 
@@ -337,8 +333,7 @@ class DiagnosticsRenderer:
         max_lineno: int,
         is_primary: bool = False,
         prefix_lines: int = 0,
-        is_first: bool = False,
-        print_line_number: bool = True,
+        print_pad_line: bool = False,
     ) -> None:
         """Renders the source associated with a span together with an optional label.
 
@@ -378,14 +373,11 @@ class DiagnosticsRenderer:
 
         def render_line(line: str, line_number: int | None = None) -> None:
             """Helper method to render a line with the line number bar on the left."""
-            if line_number is None or not print_line_number:
-                ll = ""
-            else:
-                ll = str(line_number)
+            ll = "" if line_number is None else str(line_number)
             self.buffer.append(" " * (ll_length - len(ll)) + ll + " | " + line)
 
-        # One line of padding (only with first note or primary span)
-        if is_primary or is_first:
+        # One line of padding (primary span, first note or between same line notes)
+        if is_primary or print_pad_line:
             render_line("")
 
         # Grab all lines we want to display and remove excessive leading whitespace

@@ -10,7 +10,7 @@ Notes:
 5 | def foo(x: bool) -> None:
 6 |     y = True if x else 42
   |         ---- This is of type `bool`
-  |     y = True if x else 42
+6 |     y = True if x else 42
   |                        -- This is of type `int`
 
 Guppy compilation failed due to 1 previous error

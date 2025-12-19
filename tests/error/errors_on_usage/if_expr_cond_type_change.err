@@ -10,7 +10,7 @@ Notes:
 6 |     y = 4
 7 |     0 if (y := x) else (y := 6)
   |           - This is of type `bool`
-  |     0 if (y := x) else (y := 6)
+7 |     0 if (y := x) else (y := 6)
   |                         - This is of type `int`
 
 Guppy compilation failed due to 1 previous error
