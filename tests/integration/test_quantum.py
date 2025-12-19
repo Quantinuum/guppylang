@@ -120,6 +120,8 @@ def test_parametric(validate):
         q1, q2 = crz(q1, q2, a3)
         return (q1, q2)
 
+    validate(test.compile_function())
+
 
 def test_measure_array(validate):
     """Build and measure array."""

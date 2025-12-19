@@ -51,6 +51,7 @@ def test_define_twice(validate):
 
             def bar(y: int) -> int:
                 return y + 3
+
         else:
 
             def bar(y: int) -> int:

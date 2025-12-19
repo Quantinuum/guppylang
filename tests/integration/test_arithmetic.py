@@ -40,24 +40,26 @@ def test_nat_literal(validate):
     validate(const)
 
 
-def test_int_bounds(run_int_fn):
+def test_int_bounds(run_int_fn, validate):
     @guppy
     def main() -> int:
         return 9_223_372_036_854_775_807 + -9_223_372_036_854_775_808
 
+    validate(main.compile())
     run_int_fn(main, -1)
 
 
-def test_nat_bounds(run_int_fn):
+def test_nat_bounds(run_int_fn, validate):
     @guppy
     def main() -> nat:
         x: nat = 18_446_744_073_709_551_614
         return x - x
 
+    validate(main.compile())
     run_int_fn(main, 0)
 
 
-def test_aug_assign(run_int_fn):
+def test_aug_assign(run_int_fn, validate):
     @guppy
     def add(x: int) -> int:
         x += 1
@@ -67,6 +69,7 @@ def test_aug_assign(run_int_fn):
     def main() -> int:
         return add(5)
 
+    validate(main.compile())
     run_int_fn(main, 6)
 
 
@@ -164,7 +167,7 @@ def test_angle_pi(validate):
         a += 3 * pi / 2
         return a
 
-    validate(main.compile_function())
+    validate(main.compile())
 
 
 def test_shortcircuit_assign1(validate):
@@ -207,7 +210,7 @@ def test_shortcircuit_assign4(validate):
     validate(foo)
 
 
-def test_supported_ops(run_int_fn):
+def test_supported_ops(run_int_fn, validate):
     @guppy
     def double_add(x: int) -> int:
         return x + x
@@ -246,6 +249,11 @@ def test_supported_ops(run_int_fn):
     def run_rem() -> int:
         return 11 % 3
 
+    validate(run_quad.compile_function(), "quad")
+    validate(run_neg.compile_function(), "neg")
+    validate(run_div.compile_function(), "div")
+    validate(run_rem.compile_function(), "rem")
+
     run_int_fn(run_quad, expected=168)
     run_int_fn(run_neg, expected=-42)
     run_int_fn(run_div, expected=-2)
@@ -267,50 +275,56 @@ def test_angle_exec(run_float_fn_approx):
     run_float_fn_approx(main, expected=-6 * math.pi)
 
 
-def test_xor(run_int_fn):
+def test_xor(run_int_fn, validate):
     @guppy
     def main1() -> int:
         return int(True ^ False ^ False)
 
+    validate(main1.compile_function(), "main1")
     run_int_fn(main1, 1)
 
     @guppy
     def main2() -> int:
         return int(True ^ False ^ False ^ True)
 
+    validate(main1.compile_function(), "main2")
     run_int_fn(main2, 0)
 
 
-def test_pow(run_int_fn) -> None:
+def test_pow(run_int_fn, validate) -> None:
     @guppy
     def main() -> int:
         return -(3**3) + 4**2
 
+    validate(main.compile())
     run_int_fn(main, -11)
 
 
-def test_float_to_int(run_int_fn) -> None:
+def test_float_to_int(run_int_fn, validate) -> None:
     @guppy
     def main() -> int:
         return int(-2.75)
 
+    validate(main.compile())
     run_int_fn(main, -2)
 
 
-def test_float_to_nat(run_int_fn) -> None:
+def test_float_to_nat(run_int_fn, validate) -> None:
     @guppy
     def main() -> nat:
         return nat(2.75)
 
+    validate(main.compile())
     run_int_fn(main, 2)
 
 
-def test_shift(run_int_fn) -> None:
+def test_shift(run_int_fn, validate) -> None:
     @guppy
     def main() -> int:
         nats = (nat(7) << nat(2)) - (nat(1) << nat(3))
         return int(nats) + (2 << 3) + (53 >> 3)
 
+    validate(main.compile())
     run_int_fn(main, 42)
 
 

@@ -170,7 +170,7 @@ def test_4pi():
     assert res == [("aux", 0)]
 
 
-def test_qsystem():
+def test_qsystem(validate):
     @guppy
     def main() -> None:
         a, b = qubit(), qubit()
@@ -201,13 +201,14 @@ def test_qsystem():
         result("a", measure(a))
         result("b", measure(b))
 
+    validate(main.compile_function())
     # deterministic - should always be 0
     res = _build_run(main, n_qubits=2)
     for r in res.results:
         assert r.entries == [("a", 0), ("b", 0)]
 
 
-def test_alloc_free():
+def test_alloc_free(validate):
     from guppylang.std.qsystem import measure, measure_and_reset, qfree, reset
 
     @guppy
@@ -223,11 +224,12 @@ def test_alloc_free():
         result("c1", b2)
         result("c2", measure(q0))
 
+    validate(main.compile_function())
     res = _build_run(main, n_qubits=2, n_shots=1, seed=12).results[0].entries
     assert dict(res) == {"c0": 1, "c1": 0, "c2": 0}
 
 
-def test_multi_alloc_free():
+def test_multi_alloc_free(validate):
     N = 4
 
     @guppy
@@ -236,11 +238,12 @@ def test_multi_alloc_free():
             q = qubit()
             result("c", measure(q))
 
+    validate(main.compile())
     res = _build_run(main, n_qubits=2).results[0].entries
     assert res == [("c", 0)] * N
 
 
-def test_user_panic() -> None:
+def test_user_panic(validate) -> None:
     """Test a panic as issued explicitly by the user program.
 
     This should abort the current shot and all subsequent shots, raising
@@ -255,6 +258,8 @@ def test_user_panic() -> None:
         if current_shot == 9:
             panic("Panic at shot 9!")
         result("after", current_shot)
+
+    validate(main.compile())
 
     with pytest.raises(EmulatorError, match="Panic at shot 9!") as exc_info:
         main.emulator(1).with_shots(20).run()
@@ -307,7 +312,7 @@ def test_friendly_emulator_panic() -> None:
     assert exception.failing_shot.entries == [("shot", 5)]
 
 
-def test_exit():
+def test_exit(validate):
     """Test an exit ends a shot early but continues subsequent shots."""
     N = 10
 
@@ -318,18 +323,20 @@ def test_exit():
             exit("even!", 0)
         result("c", i)
 
+    validate(main.compile())
     res = _build_run(main, n_qubits=2, n_shots=N)
     assert res == EmulatorResult(
         [[("c", i)] if i % 2 != 0 else [("exit: even!", 0)] for i in range(N)]
     )
 
 
-def test_static_array_bool():
+def test_static_array_bool(validate):
     @guppy
     def main() -> None:
         q = comptime([[x % 2 == 0 for x in range(100)] for _ in range(100)])
         result("a", q[50][50])
         result("b", q[51][51])
 
+    validate(main.compile())
     res = _build_run(main, n_qubits=1).results[0].entries
     assert res == [("a", True), ("b", False)]
