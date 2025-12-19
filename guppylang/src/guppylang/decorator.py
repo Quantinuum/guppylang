@@ -39,7 +39,6 @@ from guppylang_internals.definition.pytket_circuits import (
     RawPytketDef,
 )
 from guppylang_internals.definition.struct import RawStructDef
-from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
