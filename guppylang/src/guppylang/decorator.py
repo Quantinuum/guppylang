@@ -22,6 +22,7 @@ from guppylang_internals.definition.custom import (
     RawCustomFunctionDef,
 )
 from guppylang_internals.definition.declaration import RawFunctionDecl
+from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.extern import RawExternDef
 from guppylang_internals.definition.function import (
     RawFunctionDef,
@@ -38,7 +39,6 @@ from guppylang_internals.definition.pytket_circuits import (
     RawPytketDef,
 )
 from guppylang_internals.definition.struct import RawStructDef
-from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
