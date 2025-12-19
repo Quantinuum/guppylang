@@ -24,6 +24,7 @@ from guppylang_internals.definition.custom import (
     CustomCallChecker,
 )
 from guppylang_internals.diagnostic import Error, Note
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
 from guppylang_internals.nodes import (
     BarrierExpr,
@@ -79,7 +80,7 @@ class ReversingChecker(CustomCallChecker):
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         [self_arg, other_arg] = args
         self_arg, self_ty = ExprSynthesizer(self.ctx).synthesize(self_arg)
-        f = self.ctx.globals.get_instance_func(self_ty, self.parse_name())
+        f = ENGINE.get_instance_func(self_ty, self.parse_name())
         assert f is not None
         return f.synthesize_call([other_arg, self_arg], self.node, self.ctx)
 
@@ -135,7 +136,7 @@ class CallableChecker(CustomCallChecker):
         arg, ty = ExprSynthesizer(self.ctx).synthesize(arg)
         is_callable = (
             isinstance(ty, FunctionType)
-            or self.ctx.globals.get_instance_func(ty, "__call__") is not None
+            or ENGINE.get_instance_func(ty, "__call__") is not None
         )
         const = with_loc(self.node, ast.Constant(value=is_callable))
         return const, bool_type()
@@ -402,7 +403,7 @@ def to_sized_iter(
 ) -> tuple[ast.expr, Type]:
     """Adds a static size annotation to an iterator."""
     sized_iter_ty = sized_iter_type(range_ty, size)
-    make_sized_iter = ctx.globals.get_instance_func(sized_iter_ty, "__new__")
+    make_sized_iter = ENGINE.get_instance_func(sized_iter_ty, "__new__")
     assert make_sized_iter is not None
     sized_iter, _ = make_sized_iter.check_call([iterator], sized_iter_ty, iterator, ctx)
     return sized_iter, sized_iter_ty

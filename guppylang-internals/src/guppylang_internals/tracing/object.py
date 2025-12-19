@@ -346,7 +346,7 @@ class GuppyObject(DunderMixin):
     def __getattr__(self, key: str) -> Any:  # type: ignore[misc]
         # Guppy objects don't have fields (structs are treated separately below), so the
         # only attributes we have to worry about are methods.
-        func = get_tracing_state().globals.get_instance_func(self._ty, key)
+        func = ENGINE.get_instance_func(self._ty, key)
         if func is None:
             raise GuppyComptimeError(
                 f"Expression of type `{self._ty}` has no attribute `{key}`"
@@ -455,7 +455,7 @@ class GuppyStructObject(DunderMixin):
         if key in self._field_values:
             return self._field_values[key]
         # Or a method
-        func = get_tracing_state().globals.get_instance_func(self._ty, key)
+        func = ENGINE.get_instance_func(self._ty, key)
         if func is None:
             err = f"Expression of type `{self._ty}` has no attribute `{key}`"
             raise AttributeError(err)
