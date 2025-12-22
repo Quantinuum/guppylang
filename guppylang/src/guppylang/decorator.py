@@ -223,7 +223,6 @@ class _Guppy:
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
     @dataclass_transform()
-    # def enum(self, cls: builtins.type[T]):
     def enum(self, cls: builtins.type[T]) -> builtins.type[T]:
         """Registers a class as a Guppy enum.
 
@@ -246,10 +245,10 @@ class _Guppy:
         defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
-
         # we are not checking for GuppyDefinition members here since enums
         # are not supposed to have methods
         # ..
+
         # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
         # However, we need this information to precisely look up the source for the
         # class later. If it's not there, we can set it from the calling frame:

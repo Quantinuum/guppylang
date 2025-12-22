@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from types import FrameType
 from typing import ClassVar
+from unittest import case
 
 from hugr import Wire, ops
 
@@ -48,6 +49,7 @@ from guppylang_internals.tys.ty import (
     Type,
 )
 from guppylang_internals.definition.struct import (
+    DuplicateFieldError,
     RedundantParamsError,
     params_from_ast,
     parse_py_class,
@@ -62,15 +64,16 @@ if sys.version_info >= (3, 12):
 # TODO: Considering renaming to UncheckedField and CheckedField,
 # and joining with UncheckedStructField and StructField
 @dataclass(frozen=True)
-class UncheckedEnumField:
+class UncheckedEnumVariant:
     """A single field on a enum whose type has not been checked yet."""
 
     name: str
-    type_ast: ast.expr
+    # TODO: value in AST form?
+    value: ast.Dict | None
 
 
 @dataclass(frozen=True)
-class EnumField:
+class EnumVariant:
     """A single field on a struct."""
 
     name: str
@@ -85,7 +88,7 @@ class RawEnumDef(TypeDef, ParsableDef):
     python_class: type
     params: None = field(default=None, init=False)  # Params not known yet
 
-    def parse(self, globals: "Globals", sources: SourceMap) -> ParsedEnumDef:
+    def parse(self, globals: "Globals", sources: SourceMap) -> "ParsedEnumDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
         print("ciaociao I'm parsing enum")
         frame = DEF_STORE.frames[self.id]
@@ -118,7 +121,7 @@ class RawEnumDef(TypeDef, ParsableDef):
 
         # The only base we allow is `Generic[...]` to specify generic parameters with
         # the legacy syntax
-        # Assuming is the same...
+        # Assuming is the same as struct
         match cls_def.bases:
             case []:
                 pass
@@ -134,9 +137,8 @@ class RawEnumDef(TypeDef, ParsableDef):
                 raise GuppyError(err)
 
         # we look for fields in the class body
-        fields: list[UncheckedEnumField] = []
+        fields: list[UncheckedEnumVariant] = []
         used_field_names: set[str] = set()
-        used_func_names: dict[str, ast.FunctionDef] = {}
         for i, node in enumerate(cls_def.body):
             match i, node:
                 # TODO: do we allow `pass` statements to define empty enum?
@@ -146,7 +148,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
                 # We do not allow methods, for now
-                case _, ast.FunctionDef(name=name) as node:
+                case _, ast.FunctionDef() as node:
                     # TODO: UnsupportedError or UnexpectedError?
                     err = UnsupportedError(node.value, "methods", singular=False)
                     err.extra = " in Guppy enum definitions"
@@ -154,18 +156,33 @@ class RawEnumDef(TypeDef, ParsableDef):
 
                 # hereeeee
                 # Struct fields are declared via annotated assignments without value
-                case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:
-                    if node.value:
-                        err = UnsupportedError(node.value, "methods", singular=False)
-                        raise GuppyError(err)
+                # multi assignment: a = b = 1 are not supported
+                # TODO: support inline assignment e.g. v1, v2 = {}, {}
+                # TODO: do we allow variant=function(...)? this is more a metaprogramming feature
+                case (
+                    _,
+                    ast.Assign(
+                        targets=[ast.Name(id=field_name)], value=ast.Dict()
+                    ) as node,
+                ):
                     if field_name in used_field_names:
-                        err = DuplicateFieldError(node.target, self.name, field_name)
+                        err = DuplicateFieldError(
+                            node.target, self.name, field_name, class_type="Enum"
+                        )
                         raise GuppyError(err)
-                    fields.append(UncheckedStructField(field_name, node.annotation))
+                    # TODO: what we need? parse the dictionary to get field types?
+                    fields.append(UncheckedEnumVariant(field_name, node.value))
                     used_field_names.add(field_name)
+                # if unexpected statement are found
                 case _, node:
                     err = UnexpectedError(
-                        node, "statement", unexpected_in="struct definition"
+                        node, "statement", unexpected_in="enum definition"
+                    )
+                    err.add_sub_diagnostic(
+                        UnexpectedError.Fix(
+                            None,
+                            'Enum fields must be of the form `name: {"var": type,...}`',
+                        )
                     )
                     raise GuppyError(err)
 
@@ -179,8 +196,31 @@ class RawEnumDef(TypeDef, ParsableDef):
 
 @dataclass(frozen=True)
 class ParsedEnumDef(TypeDef, CheckableDef):
+    """An enum definition whose fields have not been checked yet."""
+
+    defined_at: ast.ClassDef
+    params: Sequence[Parameter]
+    fields: Sequence[UncheckedEnumVariant]
+
+    # heereee
+    def check(self, globals: Globals) -> "CheckedEnumDef":
+        """Checks that all struct fields have valid types."""
+        return super().check(globals)
+
+    # TODO: complete
+
+    def check_instantiate(
+        self, args: Sequence[Argument], loc: AstNode | None = None
+    ) -> Type:
+        return super().check_instantiate(args, loc)
+
+    pass
+
+
+@dataclass(frozen=True)
+class CheckedEnumDef(TypeDef, CompiledDef):
     """
-    Docstring for ParsedEnumDef
+    Docstring for CheckedEnumDef
     """
 
     pass

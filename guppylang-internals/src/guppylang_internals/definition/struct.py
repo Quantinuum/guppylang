@@ -83,12 +83,35 @@ class RedundantParamsError(Error):
         )
 
 
+# TODO: Move to a common utility module
 @dataclass(frozen=True)
 class DuplicateFieldError(Error):
     title: ClassVar[str] = "Duplicate field"
     span_label: ClassVar[str] = (
-        "Struct `{struct_name}` already contains a field named `{field_name}`"
+        "{class_type} `{class_name}` already contains a field named `{field_name}`"
     )
+    class_name: str
+    field_name: str
+    class_type: ClassVar[str] = "Struct"
+
+
+@dataclass(frozen=True)
+class NonGuppyMethodError(Error):
+    title: ClassVar[str] = "Not a Guppy method"
+    span_label: ClassVar[str] = (
+        "Method `{method_name}` of struct `{struct_name}` is not a Guppy function"
+    )
+    struct_name: str
+    method_name: str
+
+    @dataclass(frozen=True)
+    class Suggestion(Help):
+        message: ClassVar[str] = (
+            "Add a `@guppy` annotation to turn `{method_name}` into a Guppy method"
+        )
+
+    def __post_init__(self) -> None:
+        self.add_sub_diagnostic(NonGuppyMethodError.Suggestion(None))
 
 
 @dataclass(frozen=True)
@@ -155,7 +178,12 @@ class RawStructDef(TypeDef, ParsableDef):
                         "statement",
                         unexpected_in="struct definition",
                     )
-                    err.add_sub_diagnostic(FieldFormHint(None))
+                    err.add_sub_diagnostic(
+                        UnexpectedError.Fix(
+                            None,
+                            "Struct fields must be of the form `name: Type` or methods must be annotated with `@guppy`",
+                        )
+                    )
                     raise GuppyError(err)
 
         # Ensure that functions don't override struct fields
