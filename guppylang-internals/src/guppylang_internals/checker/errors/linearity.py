@@ -274,7 +274,7 @@ class NonCopyableCaptureError(Error):
 
     @dataclass(frozen=True)
     class DefinedHere(Note):
-        span_label: ClassVar[str] = "`{var}` already defined here"
+        span_label: ClassVar[str] = "`{var}` defined here"
 
 
 @dataclass(frozen=True)
