@@ -206,7 +206,6 @@ class _Guppy:
         """
         print("ciaociao, I am in the struct decorator")
         print(cls)
-        print("----")
         defn = RawStructDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
@@ -241,7 +240,6 @@ class _Guppy:
         """
         print("ciaociao I am in the enum decorator")
         print(cls)
-        print("----")
         defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
