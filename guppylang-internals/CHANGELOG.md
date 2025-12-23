@@ -3,6 +3,31 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.27.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.26.0...guppylang-internals-v0.27.0) (2025-12-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* 
+* (guppylang-internals): update a class var on the error
+* 
+
+### Features
+
+* Add qubit hints on Guppy functions, allowing elision when building emulators ([#1378](https://github.com/Quantinuum/guppylang/issues/1378)) ([b7f10c6](https://github.com/Quantinuum/guppylang/commit/b7f10c6798aa20841fae844084d8a1606661fd7b)), closes [#1297](https://github.com/Quantinuum/guppylang/issues/1297)
+* Add unsafe array take and put operations ([#1165](https://github.com/Quantinuum/guppylang/issues/1165)) ([7f342e7](https://github.com/Quantinuum/guppylang/commit/7f342e788e2f179382bab46dcc7e69a24dd64de3))
+
+
+### Bug Fixes
+
+* Add a line break for printing WASM files ([#1386](https://github.com/Quantinuum/guppylang/issues/1386)) ([495aba5](https://github.com/Quantinuum/guppylang/commit/495aba5b9bb2218224193c7b2da2c5586744505a))
+* **checker:** handle imported ParamDef with aliases in expr_checker ([#1385](https://github.com/Quantinuum/guppylang/issues/1385)) ([f2838a3](https://github.com/Quantinuum/guppylang/commit/f2838a34a315599c5b46eae92b72e9758e428a16))
+* Ensure errors from `[@wasm](https://github.com/wasm)_module` are rendered correctly ([#1398](https://github.com/Quantinuum/guppylang/issues/1398)) ([a6a539f](https://github.com/Quantinuum/guppylang/commit/a6a539fe07cc94f4a788fef506969e4c9027faee)), closes [#1397](https://github.com/Quantinuum/guppylang/issues/1397)
+* Fix another wasm diagnostics rendering issue ([#1399](https://github.com/Quantinuum/guppylang/issues/1399)) ([6604175](https://github.com/Quantinuum/guppylang/commit/660417542f2b36c387e73765f8647c11cd3d1a7b))
+* Fix Hugr generation for tuples in `Result` and `Either` ([#1395](https://github.com/Quantinuum/guppylang/issues/1395)) ([f8b0d47](https://github.com/Quantinuum/guppylang/commit/f8b0d47eb275aae3f5ba804dfeb3640c4a3baef6)), closes [#1388](https://github.com/Quantinuum/guppylang/issues/1388)
+* improve diagnostics rendering ([#1382](https://github.com/Quantinuum/guppylang/issues/1382)) ([e7ce7f6](https://github.com/Quantinuum/guppylang/commit/e7ce7f6d1a4f2b12ff680a6e54dae96637c5fa92))
+* Support comptime expressions in generic argument applications ([#1409](https://github.com/Quantinuum/guppylang/issues/1409)) ([c1aad34](https://github.com/Quantinuum/guppylang/commit/c1aad346adb15e3636e5586987422d74e36189a1)), closes [#1087](https://github.com/Quantinuum/guppylang/issues/1087)
+
 ## [0.26.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.25.0...guppylang-internals-v0.26.0) (2025-12-11)
 
 
