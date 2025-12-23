@@ -220,21 +220,12 @@ class CompilationEngine:
 
         This is the main driver behind `guppy.check()`.
         """
-        from guppylang_internals.checker.core import Globals
-
         # Clear previous compilation cache.
         # TODO: In order to maintain results from the previous `check` call we would
         #  need to store and check if any dependencies have changed.
         self.reset()
 
-        defn = DEF_STORE.raw_defs[id]
-        self.to_check_worklist = {
-            defn.id: (
-                defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
-                if isinstance(defn, ParsableDef)
-                else defn
-            )
-        }
+        self.to_check_worklist[id] = self.get_parsed(id)
         while self.types_to_check_worklist or self.to_check_worklist:
             # Types need to be checked first. This is because parsing e.g. a function
             # definition requires instantiating the types in its signature which can
