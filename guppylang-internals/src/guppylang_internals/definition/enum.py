@@ -51,6 +51,7 @@ from guppylang_internals.tys.ty import (
 from guppylang_internals.definition.struct import (
     DuplicateFieldError,
     RedundantParamsError,
+    check_not_recursive,
     params_from_ast,
     parse_py_class,
     try_parse_generic_base,
@@ -99,7 +100,6 @@ class RawEnumDef(TypeDef, ParsableDef):
         """
         cls_def = parse_py_class(self.python_class, frame, sources)
         print(cls_def)
-        print("----")
 
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
@@ -147,14 +147,6 @@ class RawEnumDef(TypeDef, ParsableDef):
                 # Docstrings are also fine if they occur at the start
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
-                # We do not allow methods, for now
-                case _, ast.FunctionDef() as node:
-                    # TODO: UnsupportedError or UnexpectedError?
-                    err = UnsupportedError(node.value, "methods", singular=False)
-                    err.extra = " in Guppy enum definitions"
-                    raise GuppyError(err)
-
-                # hereeeee
                 # Struct fields are declared via annotated assignments without value
                 # multi assignment: a = b = 1 are not supported
                 # TODO: support inline assignment e.g. v1, v2 = {}, {}
@@ -167,7 +159,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                 ):
                     if field_name in used_field_names:
                         err = DuplicateFieldError(
-                            node.target, self.name, field_name, class_type="Enum"
+                            node.targets[0], self.name, field_name, class_type="Enum"
                         )
                         raise GuppyError(err)
                     # TODO: what we need? parse the dictionary to get field types?
@@ -175,13 +167,14 @@ class RawEnumDef(TypeDef, ParsableDef):
                     used_field_names.add(field_name)
                 # if unexpected statement are found
                 case _, node:
+                    print(ast)
                     err = UnexpectedError(
                         node, "statement", unexpected_in="enum definition"
                     )
                     err.add_sub_diagnostic(
                         UnexpectedError.Fix(
                             None,
-                            'Enum fields must be of the form `name: {"var": type,...}`',
+                            'Enum fields must be of form `VariantName = {{"var1": Type1, ...}}`',
                         )
                     )
                     raise GuppyError(err)
@@ -204,7 +197,14 @@ class ParsedEnumDef(TypeDef, CheckableDef):
 
     # heereee
     def check(self, globals: Globals) -> "CheckedEnumDef":
-        """Checks that all struct fields have valid types."""
+        """Checks that all enum fields have valid types."""
+        print("ciaociao I'm checking enum", self.name)
+        param_var_mapping = {p.name: p for p in self.params}
+        ctx = TypeParsingCtx(globals, param_var_mapping)
+
+        # TODO: not ideal, see `ParsedStructDef.check_instantiate`
+        check_not_recursive(self, ctx)
+
         return super().check(globals)
 
     # TODO: complete
