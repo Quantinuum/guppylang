@@ -668,6 +668,9 @@ def is_comptime_expression(node: ast.AST) -> ComptimeExpr | None:
 
     Otherwise, returns `None`.
     """
+    if isinstance(node, ComptimeExpr):
+        return node
+
     if (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
