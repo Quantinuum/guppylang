@@ -238,6 +238,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
         fields = [
             StructField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
         ]
+        print("fields: ", fields)
         return CheckedStructDef(
             self.id, self.name, self.defined_at, self.params, fields
         )
