@@ -4,7 +4,7 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import owned
 from guppylang.std.option import Option
 from guppylang.std.quantum import qubit
-from guppylang.std.quantum_functional import h, cx
+from guppylang.std.quantum.functional import h, cx
 from guppylang_internals.decorator import custom_type
 
 from guppylang_internals.tys.ty import NoneType

@@ -3,7 +3,8 @@ import pytest
 from hugr import ops
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, owned, mem_swap
+from guppylang.std.builtins import array, owned
+from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.platform import result
 from tests.util import compile_guppy

@@ -1,15 +1,12 @@
 """Reexports core types and functions that are available without an explicit import."""
 
-from guppylang.std.array import ArrayIter, FrozenarrayIter, array, frozenarray
+from guppylang.std.array import array, frozenarray
 from guppylang.std.bool import bool
-from guppylang.std.iter import Range, SizedIter, range
+from guppylang.std.iter import SizedIter, range
 from guppylang.std.lang import comptime, owned, py
 from guppylang.std.list import list
-from guppylang.std.mem import mem_swap
 from guppylang.std.num import (
     abs,
-    bytecast_float_to_nat,
-    bytecast_nat_to_float,
     divmod,
     float,
     int,
@@ -19,7 +16,7 @@ from guppylang.std.num import (
     round,
 )
 from guppylang.std.option import Option, nothing, some
-from guppylang.std.platform import barrier, exit, panic, result
+from guppylang.std.platform import exit, panic, result
 from guppylang.std.quantum import qubit
 from guppylang.std.reflection import callable
 from guppylang.std.string import str
@@ -167,12 +164,4 @@ __all__ = (
     "type",
     "vars",
     "zip",
-    # TODO: Remove the following from prelude
-    "ArrayIter",  # Deprecated reexport
-    "barrier",  # Deprecated reexport
-    "bytecast_float_to_nat",  # Deprecated reexport
-    "bytecast_nat_to_float",  # Deprecated reexport
-    "FrozenarrayIter",  # Deprecated reexport
-    "mem_swap",  # Deprecated reexport
-    "Range",  # Deprecated reexport
 )

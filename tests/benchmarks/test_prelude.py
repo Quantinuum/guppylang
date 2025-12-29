@@ -1,6 +1,6 @@
 def test_import_guppy(benchmark):
     def setup_guppy():
-        import guppylang.std.quantum_functional as qf  # noqa: F401
+        import guppylang.std.quantum.functional as qf  # noqa: F401
         from guppylang.decorator import guppy
         from guppylang.module import GuppyModule  # noqa: F401
         from guppylang.std import quantum  # noqa: F401
