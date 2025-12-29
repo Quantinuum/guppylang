@@ -255,6 +255,7 @@ def check_all_args(
     """
 
     exp, act = len(params), len(args)
+    print(exp, act)
     if exp != act:
         # TODO: Adjust the error span to only point to the offending arguments (similar
         #  to how we deal with call args in the expression checker). This requires

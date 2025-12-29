@@ -124,10 +124,9 @@ class RawStructDef(TypeDef, ParsableDef):
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedStructDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
-        print("ciaociao I'm parsing struct ", self.name)
+        print("DEBUG: I'm parsing struct ", self.name)
         frame = DEF_STORE.frames[self.id]
         cls_def = parse_py_class(self.python_class, frame, sources)
-        print(cls_def)
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
 
@@ -193,6 +192,7 @@ class RawStructDef(TypeDef, ParsableDef):
                 DuplicateFieldError(used_func_names[x], self.name, x, "Struct")
             )
 
+        print("parsing complete")
         return ParsedStructDef(self.id, self.name, cls_def, params, fields)
 
     def check_instantiate(
@@ -211,7 +211,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
 
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""
-        print(f"ciaociao I'm checking struct {self.name}")
+        print(f"DEBUG: I'm checking struct {self.name}")
         param_var_mapping = {p.name: p for p in self.params}
         ctx = TypeParsingCtx(globals, param_var_mapping)
 
@@ -233,7 +233,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     ) -> Type:
         """Checks if the struct can be instantiated with the given arguments."""
         print(
-            f"ciaociao I'm checking (inside ParsedStructDef) struct instantiation {self.name}"
+            f"DEBUG: I'm checking (inside ParsedStructDef) struct instantiation {self.name}"
         )
         check_all_args(self.params, args, self.name, loc)
         # Obtain a checked version of this struct definition so we can construct a
@@ -261,14 +261,14 @@ class CheckedStructDef(TypeDef, CompiledDef):
     ) -> Type:
         """Checks if the struct can be instantiated with the given arguments."""
         print(
-            f"ciaociao I'm checking (inside CheckedStructDef) struct instantiation {self.name}"
+            f"DEBUG: I'm checking (inside CheckedStructDef) struct instantiation {self.name}"
         )
         check_all_args(self.params, args, self.name, loc)
         return StructType(args, self)
 
     def generated_methods(self) -> list[CustomFunctionDef]:
         """Auto-generated methods for this struct."""
-        print(f"ciaociao I'm generating methods for struct {self.name}")
+        print(f"DEBUG: I'm generating methods for struct {self.name}")
 
         class ConstructorCompiler(CustomCallCompiler):
             """Compiler for the `__new__` constructor method of a struct."""
@@ -389,6 +389,7 @@ def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Paramet
 # TODO: Move to a common utility module
 def check_not_recursive(defn: ParsedStructDef, ctx: TypeParsingCtx) -> None:
     """Throws a user error if the given struct definition is recursive."""
+    print(f"DEBUG: checking recursion for {defn.name}")
     # TODO: The implementation below hijacks the type parsing logic to detect recursive
     #  structs. This is not great since it repeats the work done during checking. We can
     #  get rid of this after resolving the todo in `ParsedStructDef.check_instantiate()`
