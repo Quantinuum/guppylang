@@ -4,6 +4,8 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import result, comptime, array
 
 
+# This caused problems with hugr (see https://github.com/Quantinuum/hugr/pull/2779),
+# as it makes the linearizer copy an array (indeed, two arrays of different lengths).
 def test_array_consts(run_int_fn):
     @guppy
     def main() -> int:
