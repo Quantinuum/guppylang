@@ -78,7 +78,7 @@ class GuppyDefinition(TracingDefMixin):
 
     def check(self) -> None:
         """Type-check a Guppy definition."""
-        print("ciaociao Checking definition", self.id)
+        print("DEBUG: Checking definition", self.id)
         return ENGINE.check(self.id)
 
 
