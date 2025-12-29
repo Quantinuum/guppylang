@@ -101,13 +101,12 @@ class EnumVariant:
 class RawEnumDef(TypeDef, ParsableDef):
     """A raw enum type definition before parsing."""
 
-    print("ciaociao")
     python_class: type
     params: None = field(default=None, init=False)  # Params not known yet
 
     def parse(self, globals: "Globals", sources: SourceMap) -> "ParsedEnumDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
-        print("ciaociao I'm parsing enum")
+        print("DEBUG: I'm parsing enum")
         frame = DEF_STORE.frames[self.id]
         """
         cls_node = ast.parse("class _:\n" + source).body[0]
@@ -213,7 +212,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
 
     def check(self, globals: Globals) -> "CheckedEnumDef":
         """Checks that all enum fields have valid types."""
-        print("ciaociao I'm checking enum", self.name)
+        print("DEBUG: I'm checking enum", self.name)
         param_var_mapping = {p.name: p for p in self.params}
         ctx = TypeParsingCtx(globals, param_var_mapping)
 
@@ -229,7 +228,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
             ]
             variants.append(EnumVariant(variant.name, fields))
 
-        print("ciaociao variants:")
+        print("DEBUG: variants:")
         for v in variants:
             print(v)
 
@@ -240,6 +239,8 @@ class ParsedEnumDef(TypeDef, CheckableDef):
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
+        """Checks if the enum can be instantiated with the given arguments."""
+        print("DEBUG: checking enum instantiation (inside ParsedEnumDef)", self.name)
         # TODO: heree
 
         return super().check_instantiate(args, loc)
