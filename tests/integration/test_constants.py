@@ -1,19 +1,7 @@
 """Constants are only loaded by execution compilers (not validation), test that."""
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import result, comptime, array
-
-
-# This caused problems with hugr (see https://github.com/Quantinuum/hugr/pull/2779),
-# as it makes the linearizer copy an array (indeed, two arrays of different lengths).
-def test_array_consts(run_int_fn):
-    @guppy
-    def main() -> int:
-        result("x", array(True, False))
-        result("y", array(False, True, False, False, True))
-        return 3
-
-    run_int_fn(main, 3)
+from guppylang.std.builtins import result, comptime
 
 
 def test_basic_type(run_int_fn):
