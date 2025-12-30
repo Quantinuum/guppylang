@@ -188,7 +188,6 @@ class CompilationEngine:
             self.types_to_check_worklist[id] = defn
         else:
             self.to_check_worklist[id] = defn
-        print("here_")
         return defn
 
     @pretty_errors
@@ -228,7 +227,6 @@ class CompilationEngine:
         self.reset()
 
         self.to_check_worklist[id] = self.get_parsed(id)
-        print("here=")
         while self.types_to_check_worklist or self.to_check_worklist:
             # Types need to be checked first. This is because parsing e.g. a function
             # definition requires instantiating the types in its signature which can

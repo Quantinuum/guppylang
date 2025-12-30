@@ -1,5 +1,6 @@
 import ast
 import inspect
+import keyword
 import linecache
 import sys
 from collections.abc import Sequence
@@ -272,14 +273,27 @@ class CheckedEnumDef(TypeDef, CompiledDef):
 
 
 def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
-    # TODO: now this allow variant like `v1 = {"1": int}`
-    # we need to prevent this
     variant_fields: list[UncheckedEnumVariantField] = []
     variant_field_names = []
     # we parse the enum variant to get the enum variant fields
     for k, v in zip(dict_ast.keys, dict_ast.values):
         match k:
             case ast.Constant(value=key_name) if isinstance(key_name, str):
+                # check validity of field name
+                if not key_name.isidentifier() or keyword.iskeyword(key_name):
+
+                    err = UnexpectedError(
+                        k,
+                        "field name",
+                        unexpected_in="enum variant definition",
+                    )
+                    err.add_sub_diagnostic(
+                        UnexpectedError.Fix(
+                            None,
+                            f"Invalid field name: {key_name}",
+                        )
+                    )
+                    raise GuppyError(err)
                 if key_name in variant_field_names:
                     err = DuplicateFieldError(
                         k, name, key_name, class_type="Enum Variant"
@@ -300,5 +314,5 @@ def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
                     )
                 )
                 raise GuppyError(err)
-        # adding field
+
     return UncheckedEnumVariant(name, variant_fields)
