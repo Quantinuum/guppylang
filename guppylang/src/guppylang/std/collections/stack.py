@@ -119,3 +119,10 @@ def empty_stack() -> Stack[T, MAX_SIZE]:
     """Constructs a new empty stack."""
     buf = array(nothing[T]() for _ in range(MAX_SIZE))
     return Stack(buf, 0)
+
+
+# Deprecated reexport
+from guppylang.std.collections.priority_queue import (  # noqa: F401 E402
+    PriorityQueue,
+    empty_priority_queue,
+)
