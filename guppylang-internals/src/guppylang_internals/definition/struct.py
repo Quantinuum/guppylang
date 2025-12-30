@@ -158,6 +158,7 @@ class RawStructDef(TypeDef, ParsableDef):
         fields: list[UncheckedStructField] = []
         used_field_names: set[str] = set()
         used_func_names: dict[str, ast.FunctionDef] = {}
+        constructor: ast.FunctionDef | None = None
         for i, node in enumerate(cls_def.body):
             match i, node:
                 # We allow `pass` statements to define empty structs
@@ -176,6 +177,16 @@ class RawStructDef(TypeDef, ParsableDef):
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(DuplicateFieldError(node, self.name, name))
+                    if name == "__init__":
+                        # Ensure that we only have one constructor
+                        if constructor is not None:
+                            raise GuppyError(
+                                UnsupportedError(
+                                    node, "Multiple struct constructors", False
+                                )
+                            )
+                        constructor = node
+
                 # Struct fields are declared via annotated assignments without value
                 case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:
                     if node.value:
@@ -197,7 +208,7 @@ class RawStructDef(TypeDef, ParsableDef):
             x = overridden.pop()
             raise GuppyError(DuplicateFieldError(used_func_names[x], self.name, x))
 
-        return ParsedStructDef(self.id, self.name, cls_def, params, fields)
+        return ParsedStructDef(self.id, self.name, cls_def, params, fields, constructor)
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -212,6 +223,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[UncheckedStructField]
+    constructor: ast.FunctionDef | None = None
 
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""
@@ -227,7 +239,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
             StructField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
         ]
         return CheckedStructDef(
-            self.id, self.name, self.defined_at, self.params, fields
+            self.id, self.name, self.defined_at, self.params, fields, self.constructor
         )
 
     def check_instantiate(
@@ -254,6 +266,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[StructField]
+    constructor: ast.FunctionDef | None = None
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -264,6 +277,8 @@ class CheckedStructDef(TypeDef, CompiledDef):
 
     def generated_methods(self) -> list[CustomFunctionDef]:
         """Auto-generated methods for this struct."""
+
+        print(f"{self.constructor}\n")
 
         class ConstructorCompiler(CustomCallCompiler):
             """Compiler for the `__new__` constructor method of a struct."""

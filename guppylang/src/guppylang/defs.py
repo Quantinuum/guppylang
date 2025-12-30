@@ -199,6 +199,8 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         Returns:
             Package: The compiled package object.
         """
+        print("Compiling function definition...")
+
         return super().compile()
 
 
