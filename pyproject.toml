@@ -17,7 +17,7 @@ test = [
     "pytest-xdist>=3.8.0",
     "ipykernel >=6.29.5,<7",
     "miette-py",
-    "tket~=0.12.13",
+    "tket",
 ]
 pytket_integration = [{ include-group = "test" }, "guppylang[pytket]"]
 
@@ -31,7 +31,7 @@ guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
-# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "35b5b7b" }
+tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", branch = "main" }
 
 
 [build-system]
