@@ -107,7 +107,6 @@ class RawEnumDef(TypeDef, ParsableDef):
 
     def parse(self, globals: "Globals", sources: SourceMap) -> "ParsedEnumDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
-        print("DEBUG: I'm parsing enum")
         frame = DEF_STORE.frames[self.id]
         """
         cls_node = ast.parse("class _:\n" + source).body[0]
@@ -115,7 +114,6 @@ class RawEnumDef(TypeDef, ParsableDef):
         cls_def = cls_node.body[0]
         """
         cls_def = parse_py_class(self.python_class, frame, sources)
-        print(cls_def)
 
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
@@ -184,7 +182,6 @@ class RawEnumDef(TypeDef, ParsableDef):
                     used_variant_names.add(variant_name)
                 # if unexpected statement are found
                 case _, node:
-                    print(ast)
                     err = UnexpectedError(
                         node, "statement", unexpected_in="enum variant definition"
                     )
@@ -213,7 +210,6 @@ class ParsedEnumDef(TypeDef, CheckableDef):
 
     def check(self, globals: Globals) -> "CheckedEnumDef":
         """Checks that all enum fields have valid types."""
-        print("DEBUG: I'm checking enum", self.name)
         param_var_mapping = {p.name: p for p in self.params}
         ctx = TypeParsingCtx(globals, param_var_mapping)
 
@@ -229,9 +225,6 @@ class ParsedEnumDef(TypeDef, CheckableDef):
             ]
             variants.append(EnumVariant(variant.name, fields))
 
-        print("DEBUG: variants:")
-        for v in variants:
-            print(v)
 
         return CheckedEnumDef(
             self.id, self.name, self.defined_at, self.params, variants
@@ -241,7 +234,6 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
-        print("DEBUG: checking enum instantiation (inside ParsedEnumDef)", self.name)
         # TODO: heree
 
         return super().check_instantiate(args, loc)
