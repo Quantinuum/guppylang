@@ -1,5 +1,6 @@
 from guppylang import guppy
 from guppylang.std.quantum import qubit, cx, h, s, t
+from guppylang.std.builtins import array
 
 from pytket.passes import RemoveRedundancies, CliffordSimp
 
@@ -57,6 +58,20 @@ def test_redundant_cx_cancellation() -> None:
     assert pass_result.modified
     assert _count_ops(pass_result.hugr, "CX") == 0
     assert _count_ops(pass_result.hugr, "H") == 1
+
+
+def test_redundant_cx_cancellation_with_arrays():
+    @guppy
+    def arr_cx(arr: array[qubit, 2]) -> None:
+        h(arr[0])
+        cx(arr[0], arr[1])
+        cx(arr[0], arr[1])
+
+    normalize = NormalizeGuppy()
+    hugr_graph: Hugr = normalize(arr_cx.compile_function().modules[0])
+    opt_pass = PytketHugrPass(RemoveRedundancies())
+    new_hugr = opt_pass(hugr_graph)
+    assert _count_ops(new_hugr, "CX") == 0
 
 
 def test_clifford_simplification() -> None:
