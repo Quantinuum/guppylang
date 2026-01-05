@@ -1,66 +1,40 @@
 import ast
-import inspect
 import keyword
-import linecache
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from types import FrameType
-from typing import ClassVar
-from unittest import case
 
-from hugr import Wire, ops
-
-from guppylang_internals.ast_util import AstNode, annotate_location
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
-    ExpectedError,
     UnexpectedError,
-    UnsupportedError,
 )
-from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,
     CompiledDef,
-    DefId,
     ParsableDef,
-    UnknownSourceError,
 )
 from guppylang_internals.definition.custom import (
-    CustomCallCompiler,
     CustomFunctionDef,
-    DefaultCallChecker,
 )
-from guppylang_internals.definition.function import parse_source
-from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.definition.util import (
+    DuplicateFieldError,
+    extract_generic_params,
+    parse_py_class,
+)
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.ipython_inspect import is_running_ipython
-from guppylang_internals.span import SourceMap, Span, to_span
+from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.param import Parameter, check_all_args
+from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
 from guppylang_internals.tys.ty import (
-    FuncInput,
-    FunctionType,
-    InputFlags,
-    StructType,
     Type,
 )
-from guppylang_internals.definition.struct import (
-    DuplicateFieldError,
-    RedundantParamsError,
-    check_not_recursive,
-    params_from_ast,
-    parse_py_class,
-    try_parse_generic_base,
-)
-
 
 if sys.version_info >= (3, 12):
-    from guppylang_internals.tys.parsing import parse_parameter
+    pass
 
 
 @dataclass(frozen=True)
@@ -108,47 +82,12 @@ class RawEnumDef(TypeDef, ParsableDef):
     def parse(self, globals: "Globals", sources: SourceMap) -> "ParsedEnumDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
         frame = DEF_STORE.frames[self.id]
-        """
-        cls_node = ast.parse("class _:\n" + source).body[0]
-        assert isinstance(cls_node, ast.ClassDef)
-        cls_def = cls_node.body[0]
-        """
         cls_def = parse_py_class(self.python_class, frame, sources)
-
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
 
         # Look for generic parameters from Python 3.12 style syntax
-        params = []
-        params_span: Span | None = None
-        if sys.version_info >= (3, 12):
-            if cls_def.type_params:
-                first, last = cls_def.type_params[0], cls_def.type_params[-1]
-                params_span = Span(to_span(first).start, to_span(last).end)
-                param_vars_mapping: dict[str, Parameter] = {}
-                for idx, param_node in enumerate(cls_def.type_params):
-                    param = parse_parameter(
-                        param_node, idx, globals, param_vars_mapping
-                    )
-                    param_vars_mapping[param.name] = param
-                    params.append(param)
-
-        # The only base we allow is `Generic[...]` to specify generic parameters with
-        # the legacy syntax
-        # Assuming is the same as struct
-        match cls_def.bases:
-            case []:
-                pass
-            case [base] if elems := try_parse_generic_base(base):
-                # Complain if we already have Python 3.12 generic params
-                if params_span is not None:
-                    err: Error = RedundantParamsError(base, self.name)
-                    err.add_sub_diagnostic(RedundantParamsError.PrevSpec(params_span))
-                    raise GuppyError(err)
-                params = params_from_ast(elems, globals)
-            case bases:
-                err = UnsupportedError(bases[0], "Enum inheritance", singular=True)
-                raise GuppyError(err)
+        params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
         # we look for variants in the class body
         variants: list[UncheckedEnumVariant] = []
@@ -161,11 +100,13 @@ class RawEnumDef(TypeDef, ParsableDef):
                 # Docstrings are also fine if they occur at the start
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
-                # Enum variant are declared via dictionary, where key are the variant fields and values are types;
+                # Enum variant are declared via dictionary, where key are the variant
+                # fields and values are types;
                 # e.g. `variant = {"a": int, ...}
                 # multi assignment: a = b = 1 are not supported
                 # TODO: support inline assignment e.g. v1, v2 = {}, {}
-                # TODO: do we allow variant=function(...)? this is more a metaprogramming feature
+                # TODO: do we allow variant=function(...)?
+                # this is more a metaprogramming feature
                 case (
                     _,
                     ast.Assign(
@@ -173,24 +114,27 @@ class RawEnumDef(TypeDef, ParsableDef):
                     ) as node,
                 ):
                     if variant_name in used_variant_names:
-                        err = DuplicateFieldError(
-                            node.targets[0], self.name, variant_name, class_type="Enum"
+                        raise GuppyError(
+                            DuplicateFieldError(
+                                node.targets[0],
+                                self.name,
+                                variant_name,
+                                class_type="Enum",
+                            )
                         )
-                        raise GuppyError(err)
-                    # TODO: what we need? I parse the dictionary and get field types
+                    # TODO: is that what we need? (a list of EnumVariant)
+                    assert isinstance(node.value, ast.Dict)  # for mypy
                     variants.append(parse_enum_variant(variant_name, node.value))
                     used_variant_names.add(variant_name)
                 # if unexpected statement are found
                 case _, node:
                     err = UnexpectedError(
-                        node, "statement", unexpected_in="enum variant definition"
+                        node,
+                        "statement",
+                        unexpected_in="enum variant definition",
+                        help_message='enum variant must be of form `VariantName = {"var1": Type1, ...}`',  # noqa: E501
                     )
-                    err.add_sub_diagnostic(
-                        UnexpectedError.Fix(
-                            None,
-                            'Enum variant must be of form `VariantName = {{"var1": Type1, ...}}`',
-                        )
-                    )
+                    err.add_sub_diagnostic(UnexpectedError.Help_Hint(None))
                     raise GuppyError(err)
         return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
 
@@ -225,7 +169,6 @@ class ParsedEnumDef(TypeDef, CheckableDef):
             ]
             variants.append(EnumVariant(variant.name, fields))
 
-
         return CheckedEnumDef(
             self.id, self.name, self.defined_at, self.params, variants
         )
@@ -234,11 +177,9 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
-        # TODO: heree
+        # TODO: here
 
         return super().check_instantiate(args, loc)
-
-    pass
 
 
 @dataclass(frozen=True)
@@ -261,36 +202,29 @@ class CheckedEnumDef(TypeDef, CompiledDef):
         # Generating methods to instantiate enum variants
         return []
 
-    pass
-
 
 def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
     variant_fields: list[UncheckedEnumVariantField] = []
     variant_field_names = []
     # we parse the enum variant to get the enum variant fields
-    for k, v in zip(dict_ast.keys, dict_ast.values):
+    for k, v in zip(dict_ast.keys, dict_ast.values, strict=True):
         match k:
             case ast.Constant(value=key_name) if isinstance(key_name, str):
                 # check validity of field name
                 if not key_name.isidentifier() or keyword.iskeyword(key_name):
-
-                    err = UnexpectedError(
-                        k,
-                        "field name",
-                        unexpected_in="enum variant definition",
-                    )
-                    err.add_sub_diagnostic(
-                        UnexpectedError.Fix(
-                            None,
-                            f"Invalid field name: {key_name}",
+                    raise GuppyError(
+                        UnexpectedError(
+                            k,
+                            "field name",
+                            unexpected_in="enum variant definition",
                         )
                     )
-                    raise GuppyError(err)
                 if key_name in variant_field_names:
-                    err = DuplicateFieldError(
-                        k, name, key_name, class_type="Enum Variant"
+                    raise GuppyError(
+                        DuplicateFieldError(
+                            k, name, key_name, class_type="Enum Variant"
+                        )
                     )
-                    raise GuppyError(err)
                 variant_field_names.append(key_name)
                 variant_fields.append(UncheckedEnumVariantField(key_name, v))
             case _:
@@ -298,13 +232,10 @@ def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
                     dict_ast,
                     "expression",
                     unexpected_in="enum variant definition",
+                    help_message="enum variant must be of form "
+                    '`VariantName = {"var1": Type1, ...}`',
                 )
-                err.add_sub_diagnostic(
-                    UnexpectedError.Fix(
-                        None,
-                        'Enum variant must be of form `VariantName = {{"var1": Type1, ...}}`',
-                    )
-                )
+                err.add_sub_diagnostic(UnexpectedError.Help_Hint(None))
                 raise GuppyError(err)
 
     return UncheckedEnumVariant(name, variant_fields)

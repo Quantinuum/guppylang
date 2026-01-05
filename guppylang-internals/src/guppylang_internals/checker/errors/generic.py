@@ -27,14 +27,15 @@ class UnexpectedError(Error):
     span_label: ClassVar[str] = "Unexpected {things}{extra}"
     things: str
     unexpected_in: str = ""
+    help_message: str = ""
 
     @property
     def extra(self) -> str:
         return f" in {self.unexpected_in}" if self.unexpected_in else ""
 
     @dataclass(frozen=True)
-    class Fix(Help):
-        message: str
+    class Help_Hint(Help):
+        message: ClassVar[str] = "{help_message}"
 
 
 @dataclass(frozen=True)
