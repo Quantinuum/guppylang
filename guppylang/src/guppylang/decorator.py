@@ -204,8 +204,6 @@ class _Guppy:
             def add_fields(self: "MyStruct") -> int:
                 return self.field2 + self.field2
         """
-        print("DEBUG:, I am in the struct decorator")
-        print(cls)
         defn = RawStructDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
@@ -238,8 +236,6 @@ class _Guppy:
         Enum supposed to have variants as class attributes.
         They are not supposed to have methods.
         """
-        print("DEBUG: I am in the enum decorator")
-        print(cls)
         defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
