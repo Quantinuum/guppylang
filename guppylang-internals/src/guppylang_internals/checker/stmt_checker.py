@@ -146,6 +146,10 @@ class StmtChecker(AstVisitor[BBStatement]):
     def _check_field_assign(
         self, lhs: ast.Attribute, _rhs: ast.expr, rhs_ty: Type
     ) -> PlaceNode:
+        print("> _check_field_assign")
+        print(" lhs:", ast.dump(lhs, indent=2))
+        print(" rhs_ty:", rhs_ty)
+
         # Unfortunately, the `attr` is just a string,  not an AST node, so we
         # have to compute its span by hand. This is fine since linebreaks are
         # not allowed in the identifier following the `.`

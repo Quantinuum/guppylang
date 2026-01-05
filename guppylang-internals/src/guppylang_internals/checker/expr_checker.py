@@ -338,10 +338,15 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 tensor_ty, node.args, ty, node, self.ctx
             )
             assert len(inst) == 0
-            return with_loc(
-                node,
-                TensorCall(func=node.func, args=processed_args, tensor_ty=tensor_ty),
-            ), subst
+            return (
+                with_loc(
+                    node,
+                    TensorCall(
+                        func=node.func, args=processed_args, tensor_ty=tensor_ty
+                    ),
+                ),
+                subst,
+            )
 
         elif callee := self.ctx.globals.get_instance_func(func_ty, "__call__"):
             return callee.check_call(node.args, ty, node, self.ctx)
@@ -389,6 +394,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         Also returns a new desugared expression with type annotations.
         """
+        print(">synthesizing expr:\n  ", ast.dump(node, indent=2))
         if ty := get_type_opt(node):
             return node, ty
         node, ty = self.visit(node)
@@ -730,6 +736,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return with_loc(node, expr), result_ty
 
     def visit_Call(self, node: ast.Call) -> tuple[ast.expr, Type]:
+        print(">visit_Call:")
+        print("% node:\n", ast.dump(node, indent=8))
+
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, ty = self.synthesize(node.func)
@@ -766,9 +775,12 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             )
             assert len(inst) == 0
 
-            return with_loc(
-                node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
-            ), return_ty
+            return (
+                with_loc(
+                    node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
+                ),
+                return_ty,
+            )
 
         elif f := self.ctx.globals.get_instance_func(ty, "__call__"):
             return f.synthesize_call(node.args, node, self.ctx)
@@ -955,10 +967,14 @@ def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Ins
 
 
 def check_num_args(
-    exp: int, act: int, node: AstNode, sig: FunctionType | None = None
+    exp: int,
+    act: int,
+    node: AstNode,
+    sig: FunctionType | None = None,
+    coustom_constructor: bool = False,
 ) -> None:
     """Checks that the correct number of arguments have been passed to a function."""
-    if exp == act:
+    if exp == act or (exp == act + 1 and coustom_constructor):
         return
     span, detailed = to_span(node), False
     if isinstance(node, ast.Call):
@@ -982,6 +998,7 @@ def type_check_args(
     subst: Subst,
     ctx: Context,
     node: AstNode,
+    custom_constructor: bool = False,
 ) -> tuple[list[ast.expr], Subst]:
     """Checks the arguments of a function call and infers free type variables.
 
@@ -989,11 +1006,27 @@ def type_check_args(
     Checks that all unification variables can be inferred.
     """
     assert not func_ty.parametrized
-    check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
+    check_num_args(
+        exp=len(func_ty.inputs),
+        act=len(inputs),
+        node=node,
+        sig=func_ty,
+        coustom_constructor=custom_constructor,
+    )
 
+    print(">type_check_args:")
+    print(" func_ty.inputs:", func_ty.inputs)
+    print(" inputs:", [ast.dump(inp, indent=2) for inp in inputs])
+
+    func_ty_inputs = func_ty.inputs
+    if custom_constructor:
+        func_ty_inputs = func_ty.inputs[1:]
+
+    # TODO: NICOLA HEREEE
+    # handle custom constroctor: -> in type checking args, if custom constructor, first arg is self, skip it
     new_args: list[ast.expr] = []
     comptime_args = iter(func_ty.comptime_args)
-    for inp, func_inp in zip(inputs, func_ty.inputs, strict=True):
+    for inp, func_inp in zip(inputs, func_ty_inputs, strict=True):
         a, s = ExprChecker(ctx).check(inp, func_inp.ty.substitute(subst), "argument")
         subst |= s
         if InputFlags.Inout in func_inp.flags and isinstance(a, PlaceNode):
@@ -1125,12 +1158,42 @@ def synthesize_call(
     instantiation for the quantifiers in the function type.
     """
     assert not func_ty.unsolved_vars
-    check_num_args(len(func_ty.inputs), len(args), node, func_ty)
+    custom_constructor = False
+
+    # TODO: NICOLA not sure about this part
+    # Special case: When calling a custom constructor, we allow one extra argument
+    # for the `self` parameter
+    if isinstance(node, ast.Call) and len(func_ty.inputs) > 0:
+        func_node = node.func
+        if isinstance(func_node, GlobalName):
+            fun_name = func_node.id
+            first_input_name = func_ty.input_names[0]
+            first_input_ty = func_ty.inputs[0].ty
+            # only consider custom constructors for struct types
+            if isinstance(first_input_ty, StructType):
+                if fun_name == first_input_ty.defn.name and first_input_name == "self":
+                    custom_constructor = True
+
+    print(
+        f">synthesize_call:\n\tfunc_ty={func_ty},",
+        f"\n\targs={args},",
+        f"\n\tnode={ast.dump(node)}",
+        f"\n\tcustom_constructor={custom_constructor}",
+    )
+    check_num_args(
+        exp=len(func_ty.inputs),
+        act=len(args),
+        node=node,
+        sig=func_ty,
+        coustom_constructor=custom_constructor,
+    )
 
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
-    args, subst = type_check_args(args, unquantified, {}, ctx, node)
+    args, subst = type_check_args(
+        args, unquantified, {}, ctx, node, custom_constructor=custom_constructor
+    )
 
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
@@ -1156,7 +1219,7 @@ def check_call(
     expected type, and an instantiation for the quantifiers in the function type.
     """
     assert not func_ty.unsolved_vars
-    check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
+    check_num_args(exp=len(func_ty.inputs), act=len(inputs), node=node, sig=func_ty)
 
     # When checking, we can use the information from the expected return type to infer
     # some type arguments. However, this pushes errors inwards. For example, given a
@@ -1355,7 +1418,9 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
         raise GuppyError(ComptimeExprNotCPythonError(node))
 
     try:
-        python_val = eval(ast.unparse(node.value), DummyEvalDict(ctx, node.value))  # noqa: S307
+        python_val = eval(
+            ast.unparse(node.value), DummyEvalDict(ctx, node.value)
+        )  # noqa: S307
     except DummyEvalDict.GuppyVarUsedError as e:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
     except Exception as e:

@@ -140,6 +140,8 @@ def check_global_func_def(
 
     check_invalid_under_dagger(func_def, ty.unitary_flags)
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
+    # if len(args) == len(ty.inputs) + 1 and args[0].arg == "self":
+    #     args = args[1:]
     inputs = [
         Variable(cast(str, inp.name), inp.ty, loc, inp.flags, is_func_input=True)
         for inp, loc in zip(ty.inputs, args, strict=True)
@@ -287,10 +289,12 @@ def check_signature(
 
     # Figure out if this is a method
     self_defn: TypeDef | None = None
+
+    print(">check_signature called:")
+
     if def_id is not None and def_id in DEF_STORE.impl_parents:
         self_defn = cast(TypeDef, ENGINE.get_checked(DEF_STORE.impl_parents[def_id]))
         assert isinstance(self_defn, TypeDef)
-
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
     for i, inp in enumerate(func_def.args.args):

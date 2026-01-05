@@ -275,10 +275,11 @@ class CheckedStructDef(TypeDef, CompiledDef):
         check_all_args(self.params, args, self.name, loc)
         return StructType(args, self)
 
-    def generated_methods(self) -> list[CustomFunctionDef]:
+    def generated_methods(self, globals: Globals) -> list[CustomFunctionDef]:
         """Auto-generated methods for this struct."""
 
-        print(f"{self.constructor}\n")
+        if self.constructor is not None:
+            return []
 
         class ConstructorCompiler(CustomCallCompiler):
             """Compiler for the `__new__` constructor method of a struct."""
@@ -286,20 +287,25 @@ class CheckedStructDef(TypeDef, CompiledDef):
             def compile(self, args: list[Wire]) -> list[Wire]:
                 return list(self.builder.add(ops.MakeTuple()(*args)))
 
-        constructor_sig = FunctionType(
-            inputs=[
-                FuncInput(
-                    f.ty,
-                    InputFlags.Owned if f.ty.linear else InputFlags.NoFlags,
-                    f.name,
-                )
-                for f in self.fields
-            ],
-            output=StructType(
-                defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
-            ),
-            params=self.params,
+        inputs = [
+            FuncInput(
+                f.ty,
+                (
+                    InputFlags.Owned
+                    if getattr(f.ty, "linear", False)
+                    else InputFlags.NoFlags
+                ),
+                f.name,
+            )
+            for f in self.fields
+        ]
+
+        output = StructType(
+            defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
         )
+
+        constructor_sig = FunctionType(inputs=inputs, output=output, params=self.params)
+
         constructor_def = CustomFunctionDef(
             id=DefId.fresh(),
             name="__new__",

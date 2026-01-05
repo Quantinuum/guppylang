@@ -83,6 +83,9 @@ def check_cfg(
     unreachable blocks. Note that the inputs/outputs are annotated in the form of
     *places* rather than just variables.
     """
+
+    print(f">check_cfg for function {func_name}...")
+
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]

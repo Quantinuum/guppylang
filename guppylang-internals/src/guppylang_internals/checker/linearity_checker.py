@@ -326,7 +326,14 @@ class BBLinearityChecker(ast.NodeVisitor):
         Populates the `use_kind` kwarg of `visit_PlaceNode` in case some of the
         arguments are places.
         """
-        for inp, arg in zip(func_ty.inputs, call.args, strict=True):
+
+        # TODO: NICOLA not sure about this part
+        func_ty_inputs = func_ty.inputs
+        # if this is true, we are calling a custom constructor, thus we ignore the first arg (self)
+        if len(func_ty.inputs) == len(call.args) + 1:
+            func_ty_inputs = func_ty.inputs[1:]
+
+        for inp, arg in zip(func_ty_inputs, call.args, strict=True):
             if isinstance(arg, PlaceNode):
                 use_kind = (
                     UseKind.BORROW if InputFlags.Inout in inp.flags else UseKind.CONSUME
@@ -337,7 +344,14 @@ class BBLinearityChecker(ast.NodeVisitor):
 
     def _reassign_inout_args(self, func_ty: FunctionType, call: AnyCall) -> None:
         """Helper function to reassign the borrowed arguments after a function call."""
-        for inp, arg in zip(func_ty.inputs, call.args, strict=True):
+
+        # TODO: NICOLA not sure about this part
+        func_ty_inputs = func_ty.inputs
+        # if this is true, we are calling a custom constructor, thus we ignore the first arg (self)
+        if len(func_ty.inputs) == len(call.args) + 1:
+            func_ty_inputs = func_ty.inputs[1:]
+
+        for inp, arg in zip(func_ty_inputs, call.args, strict=True):
             if InputFlags.Inout in inp.flags:
                 match arg:
                     case PlaceNode(place=place):

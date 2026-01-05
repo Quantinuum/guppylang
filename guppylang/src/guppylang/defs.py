@@ -71,6 +71,7 @@ class GuppyDefinition(TracingDefMixin):
 
     def compile(self) -> Package:
         """Compile a Guppy definition to HUGR."""
+        print("Compiling Guppy definition with id:", self.id)
         package: Package = ENGINE.compile(self.id).package
         for mod in package.modules:
             _update_generator_metadata(mod)
@@ -199,7 +200,6 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         Returns:
             Package: The compiled package object.
         """
-        print("Compiling function definition...")
 
         return super().compile()
 

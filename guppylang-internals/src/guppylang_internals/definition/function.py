@@ -81,6 +81,7 @@ class RawFunctionDef(ParsableDef):
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
+        print(f">£parsed function {self.name} with type: {ty}")
         return ParsedFunctionDef(
             self.id,
             self.name,
@@ -143,6 +144,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
     ) -> tuple[ast.expr, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
+        print(">typed from parsing: ", self.ty)
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return with_type(ty, node), ty

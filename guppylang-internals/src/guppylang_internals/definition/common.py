@@ -72,6 +72,13 @@ class Definition(ABC):
         a function, but got {description of this definition} instead".
         """
 
+    def update_name(self, new_name: str) -> None:
+        """Updates the name of this definition.
+
+        This is useful for custom constructors (change name to __new__).
+        """
+        object.__setattr__(self, "name", new_name)
+
 
 class ParsableDef(Definition):
     """Abstract base class for raw definitions that still require parsing.

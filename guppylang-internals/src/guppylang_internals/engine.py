@@ -196,7 +196,6 @@ class CompilationEngine:
         Parses and checks the definition if it hasn't been parsed/checked yet. Also
         makes sure that the definition will be compiled to Hugr later on.
         """
-        # print(f"Getting checked definition for id: {id}")
         from guppylang_internals.checker.core import Globals
 
         if id in self.checked:
@@ -209,11 +208,15 @@ class CompilationEngine:
         from guppylang_internals.definition.struct import CheckedStructDef
 
         if isinstance(defn, CheckedStructDef):
+            print("--------------------------------")
             print(f"Registering generated methods for struct {defn.name}")
-            for method_def in defn.generated_methods():
+            for method_def in defn.generated_methods(
+                Globals(DEF_STORE.frames[defn.id])
+            ):
+                print(f"\tRegistering method {method_def.name} with id {method_def.id}")
                 DEF_STORE.register_def(method_def, None)
                 DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
-
+            print("--------------------------------")
         return defn
 
     @pretty_errors
@@ -244,9 +247,7 @@ class CompilationEngine:
 
         This is the function that is invoked by `guppy.compile`.
         """
-        print("Engine.compile called")
         self.check(id)
-        print("Checked all definitions, starting compilation...")
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
