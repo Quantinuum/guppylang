@@ -168,7 +168,8 @@ class ParsedProtocolDef(ProtocolDef, CheckableDef):
         checked_members = {}
         for member_name, func_def in self.members.items():
             ty = check_signature(func_def, globals, self.id, param_var_mapping)
-            # TODO: Check first self argument is valid (type variable with protocol bound, all arguments are also type variables)
+            # TODO: Check first self argument is valid (type variable with protocol
+            # bound, all arguments are also type variables)
             checked_members[member_name] = ty
         return CheckedProtocolDef(
             self.id, self.name, self.defined_at, self.params, checked_members

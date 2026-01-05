@@ -42,6 +42,16 @@ class GlobalName(ast.Name):
     )
 
 
+class ProtocolCall(ast.Name):
+    member: str
+    proto_id: "DefId"
+
+    _fields = (
+        "member",
+        "proto_id",
+    )
+
+
 class GenericParamValue(ast.Name):
     id: str
     param: "ConstParam"

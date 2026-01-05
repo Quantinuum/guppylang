@@ -112,6 +112,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     PartialApply,
     PlaceNode,
+    ProtocolCall,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
@@ -139,6 +140,7 @@ from guppylang_internals.tys.param import ConstParam, TypeParam, check_all_args
 from guppylang_internals.tys.parsing import arg_from_ast
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
+    BoundTypeVar,
     ExistentialTypeVar,
     FuncInput,
     FunctionType,
@@ -514,6 +516,28 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # you loose access to all fields besides `a`).
                 expr = FieldAccessAndDrop(value=node.value, struct_ty=ty, field=field)
             return with_loc(node, expr), field.ty
+        elif isinstance(ty, BoundTypeVar):
+            from guppylang_internals.definition.protocol import CheckedProtocolDef
+
+            for proto in ty.implements:
+                proto_def = ENGINE.get_checked(proto.def_id)
+                assert isinstance(proto_def, CheckedProtocolDef)
+                for member_name, member_ty in proto_def.members.items():
+                    # TODO: Figure out what to do with self here.
+                    if node.attr == member_name:
+                        ty_without_self = FunctionType(
+                            member_ty.inputs[1:], member_ty.output, member_ty.params
+                        )
+                        name_node = with_type(
+                            ty_without_self,
+                            with_loc(
+                                node,
+                                ProtocolCall(member=member_name, proto_id=proto.def_id),
+                            ),
+                        )
+                        # TODO: This results in unsolved protocol parameter during type
+                        # checking.
+                        return with_loc(node, name_node), ty_without_self
         elif func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))

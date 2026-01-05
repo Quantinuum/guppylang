@@ -152,7 +152,13 @@ class TypeParam(ParameterBase):
         if idx is None:
             idx = self.idx
         return TypeArg(
-            BoundTypeVar(self.name, idx, self.must_implement,self.must_be_copyable, self.must_be_droppable)
+            BoundTypeVar(
+                self.name,
+                idx,
+                self.must_implement,
+                self.must_be_copyable,
+                self.must_be_droppable,
+            )
         )
 
     def instantiate_bounds(self, inst: "PartialInst") -> "TypeParam":

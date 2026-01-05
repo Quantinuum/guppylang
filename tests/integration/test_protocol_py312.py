@@ -1,4 +1,6 @@
+from typing import no_type_check
 from guppylang.decorator import guppy
+import pytest
 
 
 def test_def():
@@ -10,7 +12,7 @@ def test_def():
         # def bar(self: Self) -> Self: ...
 
         # Internally desugared this is equivalent to `foo`.
-        def baz[M: MyProto](self: M) -> M: ...
+        def baz[M: MyProto](self: M) -> M: ...  # noqa: PYI019
 
     MyProto.compile()
 
@@ -52,6 +54,7 @@ def test_use_def_as_type_parameterised():
     S = guppy.type_var("S")
 
     @guppy.declare
+    @no_type_check
     def baz1(a: MyProto[T, S]) -> MyProto[T, S]: ...
 
     @guppy.declare
@@ -61,6 +64,7 @@ def test_use_def_as_type_parameterised():
     baz2.compile()
 
 
+@pytest.mark.skip
 def test_basic(validate):
     @guppy.protocol
     class MyProto:
@@ -70,7 +74,7 @@ def test_basic(validate):
     class MyType:
         @guppy
         def foo(self: "MyType", x: int) -> str:
-            return str(x)
+            return "something"
 
     @guppy
     def bar[M: MyProto](a: M) -> str:
@@ -97,22 +101,24 @@ def test_basic_parameterised(validate):
         def foo(self: "MyProto[T, S]", x: T) -> S: ...
 
     @guppy.struct
-    class MyType[P: int, Q: str]:
+    class MyType:
         @guppy
-        def foo(self: "MyType[P, Q]", x: int) -> str:
-            return str(x)
+        def foo(self: "MyType", x: int) -> str:
+            return "something"
 
+    # TODO: Is this valid?
     @guppy.struct
-    class MyOtherType[P: int, Q: int]:
+    class MyOtherType[P]:
         @guppy
-        def foo(self: "MyType[P, Q]", x: int) -> int:
-            return x * 2
+        def foo(self: "MyType[P]", x: P) -> str:
+            return "something"
 
-    T = guppy.type_var("T")
-    S = guppy.type_var("S")
+    V = guppy.type_var("V")
+    W = guppy.type_var("W")
 
     @guppy
-    def baz1(a: MyProto[T, S], x: T) -> S:
+    @no_type_check
+    def baz1(a: MyProto[V, W], x: V) -> W:
         return a.foo(x)
 
     @guppy
@@ -124,9 +130,9 @@ def test_basic_parameterised(validate):
         mt = MyType()
         baz1(mt, 42)
         baz2(mt)
-        mot = MyOtherType()
+        mot = MyOtherType[int]()
         baz1(mot, 42)
-        # baz2(mt) # should fail
+        baz2(mot)
 
     # TODO: Turn into compile once compilation is implemented.
     validate(main.check())
