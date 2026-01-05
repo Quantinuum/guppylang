@@ -5,7 +5,7 @@ Error: Unexpected statement (at $FILE:9:4)
 9 |     x
   |     ^ Unexpected statement in struct definition
 
-Help: Struct can contain only fields of the form `name: Type` or `@guppy`
-annotated methods
+Help: struct fields must be of the form `name: Type` or `@guppy` annotated
+methods
 
 Guppy compilation failed due to 1 previous error

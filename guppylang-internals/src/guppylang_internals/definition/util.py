@@ -18,12 +18,11 @@ from guppylang_internals.definition.common import (
     UnknownSourceError,
 )
 from guppylang_internals.definition.parameter import ParamDef
-from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError
 from guppylang_internals.ipython_inspect import is_running_ipython
 from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.param import Parameter
-from guppylang_internals.tys.ty import Type
 
 if sys.version_info >= (3, 12):
     from guppylang_internals.tys.parsing import parse_parameter
@@ -50,27 +49,7 @@ class DuplicateFieldError(Error):
     )
     class_name: str
     field_name: str
-    class_type: str
-
-
-@dataclass(frozen=True)
-class NonGuppyMethodError(Error):
-    title: ClassVar[str] = "Not a Guppy method"
-    span_label: ClassVar[str] = (
-        "Method `{method_name}` of {class_type} `{class_name}` is not a Guppy function"
-    )
-    class_name: str
-    method_name: str
-    class_type: str
-
-    @dataclass(frozen=True)
-    class Suggestion(Help):
-        message: ClassVar[str] = (
-            "Add a `@guppy` annotation to turn `{method_name}` into a Guppy method"
-        )
-
-    def __post_init__(self) -> None:
-        self.add_sub_diagnostic(NonGuppyMethodError.Suggestion(None))
+    class_type: str = "Struct"
 
 
 @dataclass(frozen=True)
@@ -78,22 +57,6 @@ class RepeatedTypeParamError(Error):
     title: ClassVar[str] = "Duplicate type parameter"
     span_label: ClassVar[str] = "Type parameter `{name}` cannot be used multiple times"
     name: str
-
-
-@dataclass(frozen=True)
-class UncheckedField:
-    """A single field on a struct or enum variant whose type has not been checked yet."""  # noqa: E501
-
-    name: str
-    type_ast: ast.expr
-
-
-@dataclass(frozen=True)
-class CheckedField:
-    """A single field on a struct or enum variant."""
-
-    name: str
-    ty: Type
 
 
 # TODO: Most all the function are about parsing ASTs, should they be moved to a
