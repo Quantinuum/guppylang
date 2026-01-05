@@ -1,15 +1,5 @@
 
-from guppylang.std.quantum import qubit
-
-@guppy.enum
-class MyEnum:
-    Variant1 = {"a": int, "b": qubit}
-    Variant2 = {}
-    Variant3 = (int, float)
-
-
-
-Strating from a Rust example:
+Stating from a Rust example:
 ```rust
 enum Message {
     Quit,
@@ -45,17 +35,13 @@ class Message:
     Move = {x: int, y: int}
     Echo = (str)
     ChangeColor = (int, int, int)
-```
-We need to decide a way to represent in python syntax this:
-```rust
-    Message::Resize {
-        width: 10,
-        height: 30,
-    },
-    Message::Move { x: 10, y: 15 },
-    Message::Echo(String::from("hello world")),
-    Message::ChangeColor(200, 255, 255),
-    Message::Quit,
+
+variant1 = Message.Resize(2, 3)
+variant2 = Message.Echo("hello world")
+variant3 = Message.Quit()
+variant4 = Message.ChangeColor(200, 255, 255)
+
+
+
 ```
 
-Using a class methods,like `variant = Message.resize(2,3)` ?

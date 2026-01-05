@@ -34,6 +34,7 @@ from guppylang_internals.definition.common import (
     UnknownSourceError,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
+from guppylang_internals.definition.util import parse_source
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -300,27 +301,3 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     if not isinstance(func_ast, ast.FunctionDef):
         raise GuppyError(ExpectedError(func_ast, "a function definition"))
     return parse_function_with_docstring(func_ast)
-
-
-# TODO: move in an utility file
-def parse_source(source_lines: list[str], line_offset: int) -> tuple[str, ast.AST, int]:
-    """Parses a list of source lines into an AST object.
-
-    Also takes care of correctly parsing source that is indented.
-
-    Returns the full source, the parsed AST node, and a potentially updated line number
-    offset.
-    """
-    source = "".join(source_lines)  # Lines already have trailing \n's
-    if source_lines[0][0].isspace():
-        # This means the function is indented, so we cannot parse it straight away.
-        # Running `textwrap.dedent` would mess up the column number in spans. Instead,
-        # we'll just wrap the source into a dummy class definition so the indent becomes
-        # valid
-        cls_node = ast.parse("class _:\n" + source).body[0]
-        assert isinstance(cls_node, ast.ClassDef)
-        node = cls_node.body[0]
-        line_offset -= 1
-    else:
-        node = ast.parse(source).body[0]
-    return source, node, line_offset

@@ -1,0 +1,12 @@
+Error: Unexpected statement (at $FILE:9:4)
+   | 
+ 7 | 
+ 8 |     @guppy
+ 9 |     def method(self):
+   |     ^^^^^^^^^^^^^^^^^
+10 |         pass
+   | ^^^^^^^^^^^^ Unexpected statement in enum variant definition
+
+Help: enum variant must be of form `VariantName = {"var1": Type1, ...}`
+
+Guppy compilation failed due to 1 previous error
