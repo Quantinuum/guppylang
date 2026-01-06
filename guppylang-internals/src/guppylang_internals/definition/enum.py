@@ -3,6 +3,7 @@ import keyword
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
@@ -23,6 +24,7 @@ from guppylang_internals.definition.util import (
     extract_generic_params,
     parse_py_class,
 )
+from guppylang_internals.diagnostic import Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
@@ -35,6 +37,13 @@ from guppylang_internals.tys.ty import (
 
 if sys.version_info >= (3, 12):
     pass
+
+
+@dataclass(frozen=True)
+class EnumHelp(Help):
+    message: ClassVar[str] = (
+        'Enum variants must be of the form `VariantName = {{"var1": Type1, ...}}`'
+    )
 
 
 # TODO: Considering renaming to UncheckedField and CheckedField,
@@ -134,9 +143,8 @@ class RawEnumDef(TypeDef, ParsableDef):
                         node,
                         "statement",
                         unexpected_in="enum variant definition",
-                        help_message='enum variant must be of form `VariantName = {"var1": Type1, ...}`',  # noqa: E501
                     )
-                    err.add_sub_diagnostic(UnexpectedError.Help_Hint(None))
+                    err.add_sub_diagnostic(EnumHelp(None))
                     raise GuppyError(err)
         return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
 
@@ -235,10 +243,8 @@ def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
                     dict_ast,
                     "expression",
                     unexpected_in="enum variant definition",
-                    help_message="enum variant must be of form "
-                    '`VariantName = {"var1": Type1, ...}`',
                 )
-                err.add_sub_diagnostic(UnexpectedError.Help_Hint(None))
+                err.add_sub_diagnostic(EnumHelp(None))
                 raise GuppyError(err)
 
     return UncheckedEnumVariant(name, variant_fields)

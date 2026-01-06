@@ -5,6 +5,6 @@ Error: Unexpected statement (at $FILE:6:4)
 6 |     v1: int
   |     ^^^^^^^ Unexpected statement in enum variant definition
 
-Help: enum variant must be of form `VariantName = {"var1": Type1, ...}`
+Help: Enum variants must be of the form `VariantName = {"var1": Type1, ...}`
 
 Guppy compilation failed due to 1 previous error
