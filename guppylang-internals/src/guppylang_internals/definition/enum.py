@@ -1,7 +1,7 @@
 import ast
 import keyword
 import sys
-from collections.abc import Sequence, Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from guppylang_internals.ast_util import AstNode
@@ -90,7 +90,7 @@ class RawEnumDef(TypeDef, ParsableDef):
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
         # We look for variants in the class body
-        variants: Mapping[str, UncheckedEnumVariant] = {}
+        variants: dict[str, UncheckedEnumVariant] = {}
         used_variant_names: set[str] = set()
         for i, node in enumerate(cls_def.body):
             match i, node:
@@ -163,7 +163,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         # TODO: temporarily commented, see best way to do it
         # check_not_recursive(self, ctx)
 
-        variants: Mapping[str, EnumVariant] = {}
+        variants: dict[str, EnumVariant] = {}
         # loop over variants to check their fields
         for name, variant in self.variants.items():
             fields: list[EnumVariantField] = [
