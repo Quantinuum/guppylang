@@ -51,6 +51,13 @@ from guppylang_internals.definition.util import (
 
 
 @dataclass(frozen=True)
+class StructHelp(Help):
+    message: ClassVar[str] = (
+        "Struct fields must be of the form `name: Type` or `@guppy` annotated methods"
+    )
+
+
+@dataclass(frozen=True)
 class UncheckedStructField:
     """A single field on a struct whose type has not been checked yet."""
 
@@ -141,12 +148,8 @@ class RawStructDef(TypeDef, ParsableDef):
                         node,
                         "statement",
                         unexpected_in="struct definition",
-                        help_message=(
-                            "struct fields must be of the form `name: Type` or"
-                            " `@guppy` annotated methods"
-                        ),
                     )
-                    err.add_sub_diagnostic(UnexpectedError.Help_Hint(None))
+                    err.add_sub_diagnostic(StructHelp(None))
                     raise GuppyError(err)
 
         # Ensure that functions don't override struct fields
