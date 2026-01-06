@@ -122,7 +122,7 @@ class RawStructDef(TypeDef, ParsableDef):
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(DuplicateFieldError(node, self.name, name))
-                # struct fields are declared via annotated assignments without value
+                # Struct fields are declared via annotated assignments without value
                 case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:
                     if node.value:
                         raise GuppyError(
