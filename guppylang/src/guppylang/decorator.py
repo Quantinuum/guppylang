@@ -215,6 +215,8 @@ class _Guppy:
             if isinstance(val, GuppyDefinition):
                 if val.wrapped.name == "__init__":
                     val.wrapped.update_name("__new__")
+                    assert isinstance(val.wrapped, RawFunctionDef)
+                    val.wrapped.mark_as_constructor()
                 DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
                 print(f"\tRegistered impl: {val.wrapped.name} with id: {val.id}")
 

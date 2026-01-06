@@ -247,6 +247,7 @@ def check_signature(
     globals: Globals,
     def_id: DefId | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    is_constructor: bool = False,
 ) -> FunctionType:
     """Checks the signature of a function definition and returns the corresponding
     Guppy type.
@@ -315,6 +316,7 @@ def check_signature(
         output,
         sorted(param_var_mapping.values(), key=lambda v: v.idx),
         unitary_flags=unitary_flags,
+        is_constructor=is_constructor,
     )
 
 

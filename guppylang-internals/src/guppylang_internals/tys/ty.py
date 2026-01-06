@@ -413,6 +413,7 @@ class FunctionType(ParametrizedTypeBase):
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
+    is_constructor: bool = field(default=False, kw_only=True, init=True)
 
     def __init__(
         self,
@@ -421,6 +422,7 @@ class FunctionType(ParametrizedTypeBase):
         params: Sequence[Parameter] | None = None,
         comptime_args: Sequence[ConstArg] | None = None,
         unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        is_constructor: bool = False,
     ) -> None:
         # We need a custom __init__ to set the args
         args: list[Argument] = [TypeArg(inp.ty) for inp in inputs]
@@ -449,6 +451,7 @@ class FunctionType(ParametrizedTypeBase):
         object.__setattr__(self, "output", output)
         object.__setattr__(self, "params", params)
         object.__setattr__(self, "unitary_flags", unitary_flags)
+        object.__setattr__(self, "is_constructor", is_constructor)
 
     @property
     def parametrized(self) -> bool:
@@ -569,6 +572,7 @@ class FunctionType(ParametrizedTypeBase):
             comptime_args=[
                 cast(ConstArg, arg.transform(inst)) for arg in self.comptime_args
             ],
+            is_constructor=self.is_constructor,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":

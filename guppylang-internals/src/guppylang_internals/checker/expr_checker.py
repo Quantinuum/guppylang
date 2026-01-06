@@ -971,10 +971,14 @@ def check_num_args(
     act: int,
     node: AstNode,
     sig: FunctionType | None = None,
-    coustom_constructor: bool = False,
+    custom_constructor: bool = False,
 ) -> None:
     """Checks that the correct number of arguments have been passed to a function."""
-    if exp == act or (exp == act + 1 and coustom_constructor):
+
+    # TODO: NICOLA not sure about this part
+    # Special case: When calling a custom constructor, we allow one extra argument
+    # for the `self` parameter
+    if exp == act or (exp == act + 1 and custom_constructor):
         return
     span, detailed = to_span(node), False
     if isinstance(node, ast.Call):
@@ -998,7 +1002,6 @@ def type_check_args(
     subst: Subst,
     ctx: Context,
     node: AstNode,
-    custom_constructor: bool = False,
 ) -> tuple[list[ast.expr], Subst]:
     """Checks the arguments of a function call and infers free type variables.
 
@@ -1006,24 +1009,30 @@ def type_check_args(
     Checks that all unification variables can be inferred.
     """
     assert not func_ty.parametrized
+    print(
+        ">type_check_args: func_ty:",
+        func_ty,
+        " is_constructor:",
+        func_ty.is_constructor,
+    )
     check_num_args(
         exp=len(func_ty.inputs),
         act=len(inputs),
         node=node,
         sig=func_ty,
-        coustom_constructor=custom_constructor,
+        custom_constructor=func_ty.is_constructor,
     )
 
     print(">type_check_args:")
     print(" func_ty.inputs:", func_ty.inputs)
     print(" inputs:", [ast.dump(inp, indent=2) for inp in inputs])
 
-    func_ty_inputs = func_ty.inputs
-    if custom_constructor:
-        func_ty_inputs = func_ty.inputs[1:]
-
     # TODO: NICOLA HEREEE
     # handle custom constroctor: -> in type checking args, if custom constructor, first arg is self, skip it
+    func_ty_inputs = func_ty.inputs
+    if func_ty.is_constructor:
+        func_ty_inputs = func_ty.inputs[1:]
+
     new_args: list[ast.expr] = []
     comptime_args = iter(func_ty.comptime_args)
     for inp, func_inp in zip(inputs, func_ty_inputs, strict=True):
@@ -1158,42 +1167,30 @@ def synthesize_call(
     instantiation for the quantifiers in the function type.
     """
     assert not func_ty.unsolved_vars
-    custom_constructor = False
-
-    # TODO: NICOLA not sure about this part
-    # Special case: When calling a custom constructor, we allow one extra argument
-    # for the `self` parameter
-    if isinstance(node, ast.Call) and len(func_ty.inputs) > 0:
-        func_node = node.func
-        if isinstance(func_node, GlobalName):
-            fun_name = func_node.id
-            first_input_name = func_ty.input_names[0]
-            first_input_ty = func_ty.inputs[0].ty
-            # only consider custom constructors for struct types
-            if isinstance(first_input_ty, StructType):
-                if fun_name == first_input_ty.defn.name and first_input_name == "self":
-                    custom_constructor = True
 
     print(
         f">synthesize_call:\n\tfunc_ty={func_ty},",
         f"\n\targs={args},",
         f"\n\tnode={ast.dump(node)}",
-        f"\n\tcustom_constructor={custom_constructor}",
+        f"\n\tcustom_constructor={func_ty.is_constructor}",
     )
     check_num_args(
         exp=len(func_ty.inputs),
         act=len(args),
         node=node,
         sig=func_ty,
-        coustom_constructor=custom_constructor,
+        custom_constructor=func_ty.is_constructor,
     )
 
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
-    args, subst = type_check_args(
-        args, unquantified, {}, ctx, node, custom_constructor=custom_constructor
+    print(
+        f"  after unquantified:\n\tunquantified={unquantified},",
+        f"\n\tcustom_constructor={unquantified.is_constructor}",
     )
+
+    args, subst = type_check_args(args, unquantified, {}, ctx, node)
 
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())

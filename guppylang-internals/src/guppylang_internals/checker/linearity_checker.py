@@ -330,7 +330,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         # TODO: NICOLA not sure about this part
         func_ty_inputs = func_ty.inputs
         # if this is true, we are calling a custom constructor, thus we ignore the first arg (self)
-        if len(func_ty.inputs) == len(call.args) + 1:
+        if func_ty.is_constructor and len(func_ty.inputs) == len(call.args) + 1:
             func_ty_inputs = func_ty.inputs[1:]
 
         for inp, arg in zip(func_ty_inputs, call.args, strict=True):
@@ -348,7 +348,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         # TODO: NICOLA not sure about this part
         func_ty_inputs = func_ty.inputs
         # if this is true, we are calling a custom constructor, thus we ignore the first arg (self)
-        if len(func_ty.inputs) == len(call.args) + 1:
+        if func_ty.is_constructor and len(func_ty.inputs) == len(call.args) + 1:
             func_ty_inputs = func_ty.inputs[1:]
 
         for inp, arg in zip(func_ty_inputs, call.args, strict=True):

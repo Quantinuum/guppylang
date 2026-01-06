@@ -75,13 +75,21 @@ class RawFunctionDef(ParsableDef):
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
+    is_constructor: bool = False
+
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_constructor=self.is_constructor,
         )
-        print(f">£parsed function {self.name} with type: {ty}")
+        print(
+            f">£parsed function {self.name} with type: {ty}, is_constructor: {self.is_constructor}"
+        )
         return ParsedFunctionDef(
             self.id,
             self.name,
@@ -90,6 +98,10 @@ class RawFunctionDef(ParsableDef):
             docstring,
             metadata=self.metadata,
         )
+
+    def mark_as_constructor(self) -> None:
+        """Marks this function as a constructor"""
+        object.__setattr__(self, "is_constructor", True)
 
 
 @dataclass(frozen=True)
@@ -116,6 +128,9 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
+    # TODO: NCOLA is it useful to have this here?
+    # is_constructor: bool = field(default=False, kw_only=True)
+
     def check(self, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
         # Add python variable scope to the globals
@@ -128,6 +143,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
             self.docstring,
             cfg,
             metadata=self.metadata,
+            # is_constructor=self.is_constructor,
         )
 
     def check_call(
@@ -207,6 +223,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             self.cfg,
             func_def,
             metadata=self.metadata,
+            # is_constructor=self.is_constructor,
         )
 
 
