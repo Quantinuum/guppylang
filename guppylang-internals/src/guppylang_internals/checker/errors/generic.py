@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.diagnostic import Error, Note
 
 
 @dataclass(frozen=True)
@@ -27,15 +27,10 @@ class UnexpectedError(Error):
     span_label: ClassVar[str] = "Unexpected {things}{extra}"
     things: str
     unexpected_in: str = ""
-    help_message: str = ""
 
     @property
     def extra(self) -> str:
         return f" in {self.unexpected_in}" if self.unexpected_in else ""
-
-    @dataclass(frozen=True)
-    class Help_Hint(Help):
-        message: ClassVar[str] = "{help_message}"
 
 
 @dataclass(frozen=True)
