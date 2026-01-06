@@ -1,7 +1,7 @@
 import ast
 import keyword
 import sys
-from collections.abc import Sequence
+from collections.abc import Sequence, Mapping
 from dataclasses import dataclass, field
 
 from guppylang_internals.ast_util import AstNode
@@ -37,6 +37,8 @@ if sys.version_info >= (3, 12):
     pass
 
 
+# TODO: Considering renaming to UncheckedField and CheckedField,
+# and joining with UncheckedStructField and StructField
 @dataclass(frozen=True)
 class UncheckedEnumVariantField:
     """A single field on a enum variant whose type has not been checked yet."""
@@ -53,15 +55,13 @@ class EnumVariantField:
     ty: Type
 
 
-# TODO: Considering renaming to UncheckedField and CheckedField,
-# and joining with UncheckedStructField and StructField
 @dataclass(frozen=True)
 class UncheckedEnumVariant:
     """A single field on a enum whose type has not been checked yet."""
 
     # TODO: value in AST form?
     name: str
-    variant_fields: list[UncheckedEnumVariantField]
+    variant_fields: Sequence[UncheckedEnumVariantField]
 
 
 @dataclass(frozen=True)
@@ -69,7 +69,7 @@ class EnumVariant:
     """A single field on a struct."""
 
     name: str
-    fields: list[EnumVariantField]
+    fields: Sequence[EnumVariantField]
 
 
 @dataclass(frozen=True)
@@ -89,8 +89,8 @@ class RawEnumDef(TypeDef, ParsableDef):
         # Look for generic parameters from Python 3.12 style syntax
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
-        # we look for variants in the class body
-        variants: list[UncheckedEnumVariant] = []
+        # We look for variants in the class body
+        variants: Mapping[str, UncheckedEnumVariant] = {}
         used_variant_names: set[str] = set()
         for i, node in enumerate(cls_def.body):
             match i, node:
@@ -103,10 +103,10 @@ class RawEnumDef(TypeDef, ParsableDef):
                 # Enum variant are declared via dictionary, where key are the variant
                 # fields and values are types;
                 # e.g. `variant = {"a": int, ...}
-                # multi assignment: a = b = 1 are not supported
-                # TODO: support inline assignment e.g. v1, v2 = {}, {}
-                # TODO: do we allow variant=function(...)?
-                # this is more a metaprogramming feature
+                # We do not support:
+                #  - multi assignment: a = b = 1 are not supported
+                #  - inline assignment e.g. v1, v2 = {}, {}
+                # - variant=function(...)? [this is more a metaprogramming feature]
                 case (
                     _,
                     ast.Assign(
@@ -124,7 +124,9 @@ class RawEnumDef(TypeDef, ParsableDef):
                         )
                     # TODO: is that what we need? (a list of EnumVariant)
                     assert isinstance(node.value, ast.Dict)  # for mypy
-                    variants.append(parse_enum_variant(variant_name, node.value))
+                    variants[variant_name] = parse_enum_variant(
+                        variant_name, node.value
+                    )
                     used_variant_names.add(variant_name)
                 # if unexpected statement are found
                 case _, node:
@@ -150,7 +152,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    variants: Sequence[UncheckedEnumVariant]
+    variants: Mapping[str, UncheckedEnumVariant]
 
     def check(self, globals: Globals) -> "CheckedEnumDef":
         """Checks that all enum fields have valid types."""
@@ -161,13 +163,14 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         # TODO: temporarily commented, see best way to do it
         # check_not_recursive(self, ctx)
 
-        variants: list[EnumVariant] = []
-        for variant in self.variants:
+        variants: Mapping[str, EnumVariant] = {}
+        # loop over variants to check their fields
+        for name, variant in self.variants.items():
             fields: list[EnumVariantField] = [
                 EnumVariantField(field.name, type_from_ast(field.type_ast, ctx))
                 for field in variant.variant_fields
             ]
-            variants.append(EnumVariant(variant.name, fields))
+            variants[name] = EnumVariant(name, fields)
 
         return CheckedEnumDef(
             self.id, self.name, self.defined_at, self.params, variants
@@ -188,7 +191,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    variants: Sequence[EnumVariant]
+    variants: Mapping[str, EnumVariant]
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
