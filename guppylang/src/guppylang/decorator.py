@@ -251,7 +251,6 @@ class _Guppy:
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
-        # return None
 
     def type_var(
         self,
