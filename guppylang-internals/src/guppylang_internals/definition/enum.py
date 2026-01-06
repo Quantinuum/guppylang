@@ -179,7 +179,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         """Checks if the enum can be instantiated with the given arguments."""
         # TODO: here
 
-        return super().check_instantiate(args, loc)
+        return None  # type: ignore[return-value]
 
 
 @dataclass(frozen=True)
@@ -194,7 +194,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         # TODO
-        return super().check_instantiate(args, loc)
+        return None  # type: ignore[return-value]
 
     """Chechks instantiation of this enum type."""
 
