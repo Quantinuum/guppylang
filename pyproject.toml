@@ -18,6 +18,8 @@ test = [
     "ipykernel >=6.29.5,<7",
     "miette-py",
     "tket~=0.12.13",
+    # pin until https://github.com/Quantinuum/guppylang/issues/1424 is resolved
+    "selene-hugr-qis-compiler == 0.2.9"
 ]
 pytket_integration = [{ include-group = "test" }, "guppylang[pytket]"]
 
@@ -31,8 +33,7 @@ guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
-# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "35b5b7b" }
-
+# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "191c473" }
 
 [build-system]
 requires = ["hatchling"]
