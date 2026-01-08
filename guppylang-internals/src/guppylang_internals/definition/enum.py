@@ -35,12 +35,9 @@ from guppylang_internals.tys.ty import (
     Type,
 )
 
-if sys.version_info >= (3, 12):
-    pass
-
 
 @dataclass(frozen=True)
-class EnumHelp(Help):
+class VariantFormHint(Help):
     message: ClassVar[str] = (
         'Enum variants must be of the form `VariantName = {{"var1": Type1, ...}}`'
     )
@@ -131,7 +128,6 @@ class RawEnumDef(TypeDef, ParsableDef):
                                 class_type="Enum",
                             )
                         )
-                    # TODO: is that what we need? (a list of EnumVariant)
                     assert isinstance(node.value, ast.Dict)  # for mypy
                     variants[variant_name] = parse_enum_variant(
                         variant_name, node.value
@@ -142,9 +138,9 @@ class RawEnumDef(TypeDef, ParsableDef):
                     err = UnexpectedError(
                         node,
                         "statement",
-                        unexpected_in="enum variant definition",
+                        unexpected_in="enum definition",
                     )
-                    err.add_sub_diagnostic(EnumHelp(None))
+                    err.add_sub_diagnostic(VariantFormHint(None))
                     raise GuppyError(err)
         return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
 
@@ -242,7 +238,7 @@ def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
                     "expression",
                     unexpected_in="enum variant definition",
                 )
-                err.add_sub_diagnostic(EnumHelp(None))
+                err.add_sub_diagnostic(VariantFormHint(None))
                 raise GuppyError(err)
 
     return UncheckedEnumVariant(name, variant_fields)
