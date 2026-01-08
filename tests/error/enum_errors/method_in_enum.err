@@ -5,7 +5,7 @@ Error: Unexpected statement (at $FILE:9:4)
  9 |     def method(self):
    |     ^^^^^^^^^^^^^^^^^
 10 |         pass
-   | ^^^^^^^^^^^^ Unexpected statement in enum variant definition
+   | ^^^^^^^^^^^^ Unexpected statement in enum definition
 
 Help: Enum variants must be of the form `VariantName = {"var1": Type1, ...}`
 

@@ -51,9 +51,10 @@ from guppylang_internals.definition.util import (
 
 
 @dataclass(frozen=True)
-class StructHelp(Help):
+class FieldFormHint(Help):
     message: ClassVar[str] = (
-        "Struct fields must be of the form `name: Type` or `@guppy` annotated methods"
+        "Struct can contain only fields of the form `name: Type` "
+        "or `@guppy` annotated methods"
     )
 
 
@@ -147,7 +148,7 @@ class RawStructDef(TypeDef, ParsableDef):
                         "statement",
                         unexpected_in="struct definition",
                     )
-                    err.add_sub_diagnostic(StructHelp(None))
+                    err.add_sub_diagnostic(FieldFormHint(None))
                     raise GuppyError(err)
 
         # Ensure that functions don't override struct fields

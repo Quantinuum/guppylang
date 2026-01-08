@@ -230,8 +230,6 @@ class _Guppy:
             class MyEnum:
                 Variant1 = {"a": int, "b": qubit}
                 Variant2 = {}
-                # In the future...
-                Variant3 = (int, float)
         ..
         Enum supposed to have variants as class attributes.
         They are not supposed to have methods.
