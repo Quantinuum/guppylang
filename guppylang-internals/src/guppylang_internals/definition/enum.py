@@ -204,8 +204,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
-        # TODO
-        return None  # type: ignore[return-value]
+        raise NotImplementedError()
 
     """Chechks instantiation of this enum type."""
 
