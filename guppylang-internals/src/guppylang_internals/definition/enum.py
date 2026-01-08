@@ -217,7 +217,7 @@ def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
     # we parse the enum variant to get the enum variant fields
     for k, v in zip(dict_ast.keys, dict_ast.values, strict=True):
         match k:
-            case ast.Constant(value=key_name) if isinstance(key_name, str):
+            case ast.Constant(value=str(key_name)):
                 # check validity of field name
                 if not key_name.isidentifier() or keyword.iskeyword(key_name):
                     raise GuppyError(
