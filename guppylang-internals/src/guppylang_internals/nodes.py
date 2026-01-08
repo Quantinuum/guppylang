@@ -1,6 +1,7 @@
 """Custom AST nodes used by Guppy"""
 
 import ast
+import copy
 from collections.abc import Mapping
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -171,6 +172,15 @@ class MakeIter(ast.expr):
         super().__init__(value)
         self.origin_node = origin_node
         self.unwrap_size_hint = unwrap_size_hint
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "MakeIter":
+        new_node = MakeIter(
+            copy.deepcopy(self.value, memo),
+            self.origin_node,  # deepcopying origin_node should not be necessary
+            self.unwrap_size_hint,
+        )
+        memo[id(self)] = new_node
+        return new_node
 
 
 class IterNext(ast.expr):
