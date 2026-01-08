@@ -139,7 +139,10 @@ class TypeParam(ParameterBase):
         from guppylang_internals.tys.ty import ExistentialTypeVar
 
         var = ExistentialTypeVar.fresh(
-            self.name, self.must_be_copyable, self.must_be_droppable
+            self.name,
+            self.must_be_copyable,
+            self.must_be_droppable,
+            tuple(self.must_implement),
         )
         return TypeArg(var), var
 

@@ -68,14 +68,14 @@ class ProtocolMemberMissing(Error):
 
 
 def _unify_args(
-    xs: Sequence[Argument], ys: Sequence[Argument], subst: Subst
+    xs: Sequence[Argument], ys: Sequence[Argument], subst: Subst | None
 ) -> Subst | None:
     for x, y in zip(xs, ys, strict=True):
         # TODO: Unify doesn't expect arguments here
-        unified_subst = unify(x, y, subst)
-        if unified_subst is None:
+        subst = unify(x, y, subst)
+        if subst is None:
             return None
-    return unified_subst
+    return subst
 
 
 def _instantiate_self(
@@ -98,6 +98,10 @@ def _instantiate_self(
     partial_inst[self_ty.idx] = impl_ty.to_arg()
     return proto_func.instantiate_partial(partial_inst)
 
+def _substitute_proto_inst_args(proto: ProtocolInst, subst: Subst) -> ProtocolInst:
+    # TODO: Implement substitution of type arguments
+    return proto
+
 
 def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
     # Invariant: `ty` and `protocol` might have unsolved variables.
@@ -115,8 +119,7 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
             raise Exception("Zero or more than one")
         [(_, subst)] = candidates
         return AssumptionImplProof(
-            # TODO: Need substitute method on protocol inst
-            protocol.substitute(subst),
+            _substitute_proto_inst_args(protocol, subst),
             ty.substitute(subst),
         ), subst
 

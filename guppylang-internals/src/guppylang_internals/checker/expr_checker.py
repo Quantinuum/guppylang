@@ -312,6 +312,8 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
 
+        # TODO: Handle ProtocolCall here
+
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
             node.args = [*node.func.args, *node.args]

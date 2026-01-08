@@ -242,7 +242,7 @@ class ExistentialTypeVar(ExistentialVar, TypeBase):
         display_name: str,
         copyable: bool,
         droppable: bool,
-        implements: Sequence[ProtocolInst] = [],
+        implements: Sequence[ProtocolInst] = (),
     ) -> "ExistentialTypeVar":
         return ExistentialTypeVar(
             display_name, next(cls._fresh_id), implements, copyable, droppable

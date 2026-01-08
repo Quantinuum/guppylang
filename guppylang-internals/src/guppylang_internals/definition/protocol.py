@@ -180,7 +180,7 @@ class ParsedProtocolDef(ProtocolDef, CheckableDef):
     ) -> ProtocolInst:
         """Checks if the protocol can be instantiated with the given arguments."""
         check_all_args(self.params, args, self.name, loc)
-        return ProtocolInst(args, self.id)
+        return ProtocolInst(tuple(args), self.id)
 
 
 @dataclass(frozen=True)
@@ -196,4 +196,4 @@ class CheckedProtocolDef(ProtocolDef, CompiledDef):
     ) -> ProtocolInst:
         """Checks if the protocol can be instantiated with the given arguments."""
         check_all_args(self.params, args, self.name, loc)
-        return ProtocolInst(args, self.id)
+        return ProtocolInst(tuple(args), self.id)

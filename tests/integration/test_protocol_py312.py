@@ -64,7 +64,6 @@ def test_use_def_as_type_parameterised():
     baz2.compile()
 
 
-@pytest.mark.skip
 def test_basic(validate):
     @guppy.protocol
     class MyProto:
@@ -91,9 +90,7 @@ def test_basic(validate):
         bar(mt)
         baz(mt)
 
-    # TODO: Turn into compile once compilation is implemented.
-    validate(main.check())
-
+    validate(main.compile())
 
 def test_basic_parameterised(validate):
     @guppy.protocol
@@ -134,5 +131,20 @@ def test_basic_parameterised(validate):
         baz1(mot, 42)
         baz2(mot)
 
-    # TODO: Turn into compile once compilation is implemented.
-    validate(main.check())
+    validate(main.compile())
+
+
+def test_assumption(validate):
+    @guppy.protocol
+    class MyProto:
+        def foo(self: "MyProto", x: int) -> str: ...
+
+    @guppy
+    def bar(a: MyProto) -> str:
+        return a.foo(42)
+
+    @guppy
+    def main[P: MyProto](x: P) -> str:
+        return bar(x)
+
+    validate(main.compile_function())
