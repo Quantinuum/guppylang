@@ -1,6 +1,6 @@
 import ast
-from contextlib import suppress
 import copy
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import ClassVar, NoReturn
 
@@ -87,9 +87,11 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             assert isinstance(defn, CallableDef)
             available_sigs.append(defn.ty)
             with suppress(GuppyError):
-                node_1 = copy.deepcopy(node)
-                args_1 = copy.deepcopy(args)
-                return defn.check_call(args_1, ty, node_1, ctx)
+                # check_call may modify args and node,
+                # thus we deepcopy them before passing in the function
+                return defn.check_call(
+                    copy.deepcopy(args), ty, copy.deepcopy(node), ctx
+                )
         return self._call_error(args, node, ctx, available_sigs, ty)
 
     def synthesize_call(
@@ -101,9 +103,11 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             assert isinstance(defn, CallableDef)
             available_sigs.append(defn.ty)
             with suppress(GuppyError):
-                node_1 = copy.deepcopy(node)
-                args_1 = copy.deepcopy(args)
-                return defn.synthesize_call(args_1, node_1, ctx)
+                # synthesize_call may modify args and node,
+                # thus we deepcopy them before passing in the function
+                return defn.synthesize_call(
+                    copy.deepcopy(args), copy.deepcopy(node), ctx
+                )
         return self._call_error(args, node, ctx, available_sigs)
 
     def _call_error(
