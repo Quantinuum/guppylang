@@ -189,8 +189,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
         # TODO: here
-
-        return None  # type: ignore[return-value]
+        raise NotImplementedError
 
 
 @dataclass(frozen=True)
@@ -206,7 +205,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
         # TODO
-        return None  # type: ignore[return-value]
+        raise NotImplementedError
 
     def generated_methods(self) -> list[CustomFunctionDef]:
         # Generating methods to instantiate enum variants
