@@ -190,7 +190,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         """Checks if the enum can be instantiated with the given arguments."""
         # TODO: here
 
-        return None  # type: ignore[return-value]
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True)
