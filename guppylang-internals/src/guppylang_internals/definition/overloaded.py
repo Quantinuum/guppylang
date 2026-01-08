@@ -89,9 +89,8 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             with suppress(GuppyError):
                 # check_call may modify args and node,
                 # thus we deepcopy them before passing in the function
-                return defn.check_call(
-                    copy.deepcopy(args), ty, copy.deepcopy(node), ctx
-                )
+                node_copy, args_copy = safe_deepcopy(node, args)
+                return defn.check_call(args_copy, ty, node_copy, ctx)
         return self._call_error(args, node, ctx, available_sigs, ty)
 
     def synthesize_call(
@@ -105,9 +104,8 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             with suppress(GuppyError):
                 # synthesize_call may modify args and node,
                 # thus we deepcopy them before passing in the function
-                return defn.synthesize_call(
-                    copy.deepcopy(args), copy.deepcopy(node), ctx
-                )
+                node_copy, args_copy = safe_deepcopy(node, args)
+                return defn.synthesize_call(args_copy, node_copy, ctx)
         return self._call_error(args, node, ctx, available_sigs)
 
     def _call_error(
@@ -157,3 +155,25 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         raise InternalGuppyError(
             "OverloadedFunctionDef.load_with_args shouldn't be invoked"
         )
+
+
+def safe_deepcopy(
+    node: AstNode, args: list[ast.expr]
+) -> tuple[AstNode, list[ast.expr]]:
+    """Attempts to deepcopy an AST node and a list of AST expressions.
+
+    If deepcopying fails for any of the nodes, the original node is returned instead.
+    """
+    try:
+        node_copy = copy.deepcopy(node)
+    except Exception:  # noqa: BLE001
+        node_copy = node
+
+    args_copy: list[ast.expr] = []
+    for a in args:
+        try:
+            args_copy.append(copy.deepcopy(a))
+        except Exception:  # noqa: BLE001, PERF203
+            args_copy.append(a)
+
+    return node_copy, args_copy
