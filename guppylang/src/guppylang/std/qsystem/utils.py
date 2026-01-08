@@ -1,3 +1,5 @@
+"""Guppy standard module for quantum shot utilities."""
+
 from typing import no_type_check
 
 from guppylang_internals.decorator import hugr_op
