@@ -89,6 +89,9 @@ class EmulatorResult(QsysResult):
     def collated_counts(self) -> Counter[tuple[tuple[str, str], ...]]:
         return super().collated_counts()
 
+    def collated_digitstring_counts(self) -> Counter[tuple[tuple[str, str], ...]]:
+        return super().collated_digitstring_counts()
+
     def partial_state_dicts(self) -> list[dict[str, PartialVector]]:
         """Extract state results from shot results in to dictionaries.
 
