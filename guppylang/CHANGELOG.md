@@ -16,16 +16,12 @@ As of August 2025, The Guppy language is undergoing rapid development and is cur
 
 ## [0.21.8](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.7...guppylang-v0.21.8) (2026-01-09)
 
-
-### ⚠ BREAKING CHANGES
-
-* 
-
 ### Features
 
 * Add qubit hints on Guppy functions, allowing elision when building emulators ([#1378](https://github.com/Quantinuum/guppylang/issues/1378)) ([b7f10c6](https://github.com/Quantinuum/guppylang/commit/b7f10c6798aa20841fae844084d8a1606661fd7b)), closes [#1297](https://github.com/Quantinuum/guppylang/issues/1297)
 * Add unsafe array take and put operations ([#1165](https://github.com/Quantinuum/guppylang/issues/1165)) ([7f342e7](https://github.com/Quantinuum/guppylang/commit/7f342e788e2f179382bab46dcc7e69a24dd64de3))
 * update to guppylang-internals 0.27 ([#1430](https://github.com/Quantinuum/guppylang/issues/1430)) ([be02891](https://github.com/Quantinuum/guppylang/commit/be02891955ac07819144e1e27374c3324d521536))
+* Update to hugr v0.15, includes collated_digitstring_counts to extend bitstring collation to digits (#2788) (191c473)
 
 ## [0.21.7](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.6...guppylang-v0.21.7) (2025-12-15)
 
