@@ -8,9 +8,10 @@ from `guppylang`.
 
 ### ⚠ BREAKING CHANGES
 
-* 
-* (guppylang-internals): update a class var on the error
-* 
+* The first argument to `add_unitarity_metadata` is now named `node`
+instead of `func`, since its type was raised to allow for more HUGR
+nodes to be fed. Migration is trivial. 
+* `DiagnosticsRenderer.PREFIX_CONTEXT_LINES` constant has been removed.
 
 ### Features
 
