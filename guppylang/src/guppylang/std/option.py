@@ -1,4 +1,4 @@
-"""Guppy standard module for option type and its operations"""
+"""Guppy standard library for option type and its operations"""
 
 from typing import Generic, no_type_check
 

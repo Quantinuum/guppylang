@@ -1,4 +1,4 @@
-"""Guppy standard module for Quantinuum systems device operations."""
+"""Guppy standard library for Quantinuum systems device operations."""
 
 from typing import no_type_check
 

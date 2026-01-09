@@ -1,4 +1,4 @@
-"""Guppy standard module for quantum shot utilities."""
+"""Guppy standard library for quantum shot utilities."""
 
 from typing import no_type_check
 
