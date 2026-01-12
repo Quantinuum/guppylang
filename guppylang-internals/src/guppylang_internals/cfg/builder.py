@@ -168,7 +168,11 @@ class CFGBuilder(AstVisitor[BB | None]):
         return bb
 
     def visit_Assign(self, node: ast.Assign, bb: BB, jumps: Jumps) -> BB | None:
-        return self._build_node_value(node, bb)
+        node.value, bb = ExprBuilder.build(node.value, self.cfg, bb)
+        for i, target in enumerate(node.targets):
+            node.targets[i], bb = ExprBuilder.build(target, self.cfg, bb)
+        bb.statements.append(node)
+        return bb
 
     def visit_AugAssign(self, node: ast.AugAssign, bb: BB, jumps: Jumps) -> BB | None:
         return self._build_node_value(node, bb)
