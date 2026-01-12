@@ -42,16 +42,6 @@ class GlobalName(ast.Name):
     )
 
 
-class ProtocolCall(ast.Name):
-    member: str
-    proto_id: "DefId"
-
-    _fields = (
-        "member",
-        "proto_id",
-    )
-
-
 class GenericParamValue(ast.Name):
     id: str
     param: "ConstParam"
@@ -79,6 +69,19 @@ class GlobalCall(ast.expr):
 
     _fields = (
         "def_id",
+        "args",
+        "type_args",
+    )
+
+class ProtocolCall(ast.expr):
+    member: str
+    proto_id: "DefId"
+    args: list[ast.expr]
+    type_args: Inst
+
+    _fields = (
+        "member",
+        "proto_id",
         "args",
         "type_args",
     )

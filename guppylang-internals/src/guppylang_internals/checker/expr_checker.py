@@ -312,7 +312,24 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
 
-        # TODO: Handle ProtocolCall here
+            from guppylang_internals.definition.protocol import ParsedProtocolDef
+
+            # Protocol methods don't have their own definition, we have to look up the
+            # protocol definition itself first.
+            if isinstance(defn, ParsedProtocolDef):
+                # TODO: Am I missing anything handling protocol method calls here?
+                args, return_ty, inst = check_call(
+                    func_ty, node.args, ty, node, self.ctx
+                )
+                return with_loc(
+                    node,
+                    ProtocolCall(
+                        member=node.func.id,
+                        proto_id=node.func.def_id,
+                        args=args,
+                        type_args=inst,
+                    ),
+                ), return_ty
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -525,21 +542,21 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 proto_def = ENGINE.get_checked(proto.def_id)
                 assert isinstance(proto_def, CheckedProtocolDef)
                 for member_name, member_ty in proto_def.members.items():
-                    # TODO: Figure out what to do with self here.
                     if node.attr == member_name:
+                        name_node = with_type(
+                            member_ty,
+                            with_loc(
+                                node,
+                                # TODO: Should we have a different AST node for this?
+                                GlobalName(id=member_name, def_id=proto.def_id),
+                            ),
+                        )
                         ty_without_self = FunctionType(
                             member_ty.inputs[1:], member_ty.output, member_ty.params
                         )
-                        name_node = with_type(
-                            ty_without_self,
-                            with_loc(
-                                node,
-                                ProtocolCall(member=member_name, proto_id=proto.def_id),
-                            ),
-                        )
-                        # TODO: This results in unsolved protocol parameter during type
-                        # checking.
-                        return with_loc(node, name_node), ty_without_self
+                        return with_loc(
+                            node, PartialApply(func=name_node, args=[node.value])
+                        ), ty_without_self
         elif func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
@@ -765,6 +782,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
+                print(node.func.id)
                 return defn.synthesize_call(node.args, node, self.ctx)
 
         # When calling a `PartialApply` node, we just move the args into this call
