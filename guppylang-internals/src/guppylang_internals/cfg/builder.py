@@ -154,31 +154,52 @@ class CFGBuilder(AstVisitor[BB | None]):
         return bb_opt
 
     def _build_node_value(self, node: BBStatement, bb: BB) -> BB:
-        """Utility method for building a node containing a `value` expression.
+        """Utility method for building a nodes `value` expression, if available.
 
         Builds the expression and mutates `node.value` to point to the built expression.
-        Returns the BB in which the expression is available and adds the node to it.
+        Returns the BB in which the expression is available.
         """
         if (
             not isinstance(node, NestedFunctionDef | ModifiedBlock)
             and node.value is not None
         ):
             node.value, bb = ExprBuilder.build(node.value, self.cfg, bb)
-        bb.statements.append(node)
+        return bb
+
+    def _build_node_targets(self, node: BBStatement, bb: BB) -> BB:
+        """Utility method for building a nodes `target` or `targets` expressions,
+        depending on the node type.
+
+        Builds the expressions and mutates the elements of `node.targets` to point to
+        the built expressions. Returns the BB in which the expressions are available.
+        """
+        if isinstance(node, ast.Assign):
+            for i, target in enumerate(node.targets):
+                node.targets[i], bb = ExprBuilder.build(target, self.cfg, bb)
+        elif isinstance(node, ast.AugAssign | ast.AnnAssign):
+            new_target, bb = ExprBuilder.build(node.target, self.cfg, bb)
+            if not isinstance(new_target, ast.Name | ast.Attribute | ast.Subscript):
+                raise InternalGuppyError("Unexpected type for built expression.")
+            node.target = new_target
         return bb
 
     def visit_Assign(self, node: ast.Assign, bb: BB, jumps: Jumps) -> BB | None:
-        node.value, bb = ExprBuilder.build(node.value, self.cfg, bb)
-        for i, target in enumerate(node.targets):
-            node.targets[i], bb = ExprBuilder.build(target, self.cfg, bb)
+        bb = self._build_node_value(node, bb)
+        bb = self._build_node_targets(node, bb)
         bb.statements.append(node)
         return bb
 
     def visit_AugAssign(self, node: ast.AugAssign, bb: BB, jumps: Jumps) -> BB | None:
-        return self._build_node_value(node, bb)
+        bb = self._build_node_value(node, bb)
+        bb = self._build_node_targets(node, bb)
+        bb.statements.append(node)
+        return bb
 
     def visit_AnnAssign(self, node: ast.AnnAssign, bb: BB, jumps: Jumps) -> BB | None:
-        return self._build_node_value(node, bb)
+        bb = self._build_node_value(node, bb)
+        bb = self._build_node_targets(node, bb)
+        bb.statements.append(node)
+        return bb
 
     def visit_Expr(self, node: ast.Expr, bb: BB, jumps: Jumps) -> BB | None:
         # This is an expression statement where the value is discarded
@@ -266,6 +287,7 @@ class CFGBuilder(AstVisitor[BB | None]):
 
     def visit_Return(self, node: ast.Return, bb: BB, jumps: Jumps) -> BB | None:
         bb = self._build_node_value(node, bb)
+        bb.statements.append(node)
         self.cfg.link(bb, jumps.return_bb)
         return None
 
