@@ -1008,8 +1008,8 @@ def type_check_args(
         new_args.append(a)
     assert next(comptime_args, None) is None
 
-    # If the argument check succeeded, this means that we must have found instantiations
-    # for all unification variables occurring in the input types
+    # Check whether we have found instantiations for all unification variables occurring
+    # in the input types
     for inp in func_ty.inputs:
         if not set.issubset(inp.ty.unsolved_vars, subst.keys()):
             raise GuppyTypeInferenceError(
