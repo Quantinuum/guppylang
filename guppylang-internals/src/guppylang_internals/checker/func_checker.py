@@ -6,6 +6,7 @@ node straight from the Python AST. We build a CFG, check it, and return a
 """
 
 import ast
+import copy
 import sys
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, ClassVar, cast
@@ -131,9 +132,14 @@ class SelfParamsShadowedError(Error):
 
 
 def check_global_func_def(
-    func_def: ast.FunctionDef, ty: FunctionType, globals: Globals
+    func_def: ast.FunctionDef,
+    generic_ty: FunctionType,
+    type_args: Inst,
+    globals: Globals,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
+    ty = generic_ty.instantiate(type_args)
+    func_def = copy.deepcopy(func_def)
     args = func_def.args.args
     returns_none = isinstance(ty.output, NoneType)
     assert all(inp.name is not None for inp in ty.inputs)

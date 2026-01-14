@@ -23,7 +23,6 @@ from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
     GlobalConstId,
-    partially_monomorphize_args,
     qualified_name,
 )
 from guppylang_internals.definition.common import ParsableDef
@@ -246,20 +245,16 @@ class CustomFunctionDef(CompiledCallableDef):
             raise GuppyError(NotHigherOrderError(node, self.name))
         assert len(self.ty.params) == len(type_args)
 
-        # Partially monomorphize the function if required
-        mono_args, rem_args = partially_monomorphize_args(
-            self.ty.params, type_args, ctx
-        )
-
         # We create a generic `FunctionDef` that takes some inputs, compiles a call to
         # the function, and returns the results
+        mono_ty = self.ty.instantiate(type_args)
         func, already_defined = ctx.declare_global_func(
             self.higher_order_func_id,
-            self.ty.instantiate_partial(mono_args).to_hugr_poly(ctx),
-            mono_args,
+            mono_ty.to_hugr_poly(ctx),
+            type_args,
         )
         if not already_defined:
-            with ctx.set_monomorphized_args(mono_args):
+            with ctx.set_monomorphized_args(tuple(type_args)):
                 func_dfg = DFContainer(func, ctx, dfg.locals.copy())
                 args: list[Wire] = list(func.inputs())
                 generic_ty_args = [param.to_bound() for param in self.ty.params]
@@ -267,9 +262,7 @@ class CustomFunctionDef(CompiledCallableDef):
                 func.set_outputs(*returns.regular_returns, *returns.inout_returns)
 
         # Finally, load the function into the local DFG
-        mono_ty = self.ty.instantiate(type_args).to_hugr(ctx)
-        hugr_ty_args = [ta.to_hugr(ctx) for ta in rem_args]
-        return dfg.builder.load_function(func, mono_ty, hugr_ty_args)
+        return dfg.builder.load_function(func)
 
     def compile_call(
         self,
