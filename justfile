@@ -2,10 +2,9 @@ set shell := ["bash", "-uc"]
 
 # List the available commands
 help:
-    @just --list --justfile {{ justfile() }}
+    @just --list --justfile {{justfile()}}
 
 # Prepare the environment for development, installing all the dependencies and
-
 # setting up the pre-commit hooks.
 setup:
     uv sync
@@ -15,9 +14,10 @@ setup:
 check:
     uv run pre-commit run --all-files
 
+
 # Run the tests.
 test *PYTEST_FLAGS:
-    uv run pytest -n auto {{ PYTEST_FLAGS }}
+    uv run pytest -n auto {{PYTEST_FLAGS}}
 
 # Export the integration test cases to a directory.
 export-integration-tests directory="guppy-exports":
@@ -54,51 +54,52 @@ build-wheels:
 
 # Run benchmarks using pytest-benchmark.
 bench *PYTEST_FLAGS:
-    uv run pytest --benchmark-only {{ PYTEST_FLAGS }}
+    uv run pytest --benchmark-only {{PYTEST_FLAGS}}
 
 # Run benchmarks and save JSON data to path/name.json.
 bench_save path name:
-    uv run pytest --benchmark-only --benchmark-storage={{ path }} --benchmark-save={{ name }}
+    uv run pytest --benchmark-only --benchmark-storage={{path}} --benchmark-save={{name}}
+
 
 NOW := `date +%s%n | tr -d '\n'`
 BENCHER_PROJECT := "guppylang-benchmarks"
 
 # Run benchmarks and upload the results using bencher_cli. Note: Needs the BENCHER_API_TOKEN env variable.
 bench_upload *BENCHER_FLAGS:
-    uv run pytest --benchmark-only --benchmark-json="{{ NOW }}-pytest-benchmark.json"
+    uv run pytest --benchmark-only --benchmark-json="{{NOW}}-pytest-benchmark.json"
     bencher run \
             --adapter python_pytest \
-            --file "{{ NOW }}-pytest-benchmark.json" \
-            --project {{ BENCHER_PROJECT }} \
+            --file "{{NOW}}-pytest-benchmark.json" \
+            --project {{BENCHER_PROJECT}} \
             --quiet \
-            {{ BENCHER_FLAGS }}
-    uv run python tests/bencher.py "{{ NOW }}-pytest-benchmark.json" "{{ NOW }}-bencher.json"
+            {{BENCHER_FLAGS}}
+    uv run python tests/bencher.py "{{NOW}}-pytest-benchmark.json" "{{NOW}}-bencher.json"
     bencher run \
-            --file "{{ NOW }}-bencher.json" \
+            --file "{{NOW}}-bencher.json" \
             --adapter json \
-            --project {{ BENCHER_PROJECT }} \
+            --project {{BENCHER_PROJECT}} \
             --quiet \
-            {{ BENCHER_FLAGS }}
+            {{BENCHER_FLAGS}}
 
 # Run benchmarks and compare the results using bencher_cli. Note: Needs the BENCHER_API_TOKEN env variable.
 bench_compare *BENCHER_FLAGS:
-    uv run pytest --benchmark-only --benchmark-json="{{ NOW }}-pytest-benchmark.json"
+    uv run pytest --benchmark-only --benchmark-json="{{NOW}}-pytest-benchmark.json"
     bencher run \
-            --project {{ BENCHER_PROJECT }} \
+            --project {{BENCHER_PROJECT}} \
             --adapter python_pytest \
-            --file "{{ NOW }}-pytest-benchmark.json" \
+            --file "{{NOW}}-pytest-benchmark.json" \
             --average median \
             --threshold-measure latency \
             --threshold-test percentage \
             --threshold-upper-boundary 0.05 \
             --err \
             --quiet \
-            {{ BENCHER_FLAGS }}
-    uv run python tests/bencher.py "{{ NOW }}-pytest-benchmark.json" "{{ NOW }}-bencher.json"
+            {{BENCHER_FLAGS}}
+    uv run python tests/bencher.py "{{NOW}}-pytest-benchmark.json" "{{NOW}}-bencher.json"
     bencher run \
-            --project {{ BENCHER_PROJECT }} \
+            --project {{BENCHER_PROJECT}} \
             --adapter json \
-            --file "{{ NOW }}-bencher.json" \
+            --file "{{NOW}}-bencher.json" \
             --average median \
             --threshold-measure hugr_bytes \
             --threshold-test percentage \
@@ -108,4 +109,4 @@ bench_compare *BENCHER_FLAGS:
             --threshold-upper-boundary 0.01 \
             --err \
             --quiet \
-            {{ BENCHER_FLAGS }}
+            {{BENCHER_FLAGS}}
