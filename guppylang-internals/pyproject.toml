@@ -16,13 +16,10 @@ maintainers = [
 
 classifiers = [
     "Development Status :: 3 - Alpha",
-
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Topic :: Software Development :: Compilers",
-
     "License :: OSI Approved :: Apache Software License",
-
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -37,10 +34,12 @@ dependencies = [
     "tket-exts ~= 0.12.0",
     "hugr ~= 0.15.0",
     "wasmtime ~= v38.0.0",
+    "pytket>=1.34",
+    "tket >= 0.12.7",
 ]
 
 [project.optional-dependencies]
-pytket = ["pytket>=1.34"]
+pytket = []
 
 [build-system]
 requires = ["hatchling"]

@@ -45,18 +45,6 @@ class ComptimeExprIncoherentListError(Error):
 
 
 @dataclass(frozen=True)
-class TketNotInstalled(Error):
-    title: ClassVar[str] = "Tket not installed"
-    span_label: ClassVar[str] = (
-        "Experimental pytket compatibility requires `tket` to be installed"
-    )
-
-    @dataclass(frozen=True)
-    class InstallInstruction(Help):
-        message: ClassVar[str] = "Install tket: `pip install tket`"
-
-
-@dataclass(frozen=True)
 class PytketSignatureMismatch(Error):
     title: ClassVar[str] = "Signature mismatch"
     span_label: ClassVar[str] = "Signature `{name}` doesn't match provided circuit"

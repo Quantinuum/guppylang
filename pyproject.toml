@@ -3,7 +3,6 @@ docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
-    { include-group = "pytket_integration" },
     { include-group = "examples" },
 ]
 lint = ["pre-commit >=3.6.0,<4", "ruff >=0.6.2,<0.7", "mypy ==1.10.0"]
@@ -17,9 +16,8 @@ test = [
     "pytest-xdist>=3.8.0",
     "ipykernel >=6.29.5,<7",
     "miette-py",
-    "tket~=0.12.13",
+    "tket >= 0.12.13",
 ]
-pytket_integration = [{ include-group = "test" }, "guppylang[pytket]"]
 
 [tool.uv]
 
@@ -49,12 +47,10 @@ module = ["miette_py"]
 exclude_also = [
     # Don't complain about missing coverage on typing imports
     "if TYPE_CHECKING:",
-
     # Don't complain if tests don't hit defensive assertion code:
     "raise AssertionError",
     "raise NotImplementedError",
     "raise InternalGuppyError",
-
     # Don't complain about abstract methods, they aren't run:
     "@abstractmethod",
 ]

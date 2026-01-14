@@ -8,8 +8,8 @@ on:
     branches:
       - "**"
   merge_group:
-    types: [checks_requested]
-  workflow_dispatch: {}
+    types: [ checks_requested ]
+  workflow_dispatch: { }
 
 env:
   SCCACHE_GHA_ENABLED: "true"
@@ -25,7 +25,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.10", "3.12"]
+        python-version: [ "3.10", "3.12" ]
 
     steps:
       - uses: actions/checkout@v6
@@ -55,12 +55,6 @@ jobs:
       - name: Run tests
         run: uv run pytest -n auto
 
-      - name: Install tket dependencies
-        run: uv sync --extra pytket
-
-      - name: Rerun comptime expression tests and pytket lowering with tket installed
-        run: uv run pytest tests/integration/test_comptime_expr.py tests/error/test_comptime_expr_errors.py tests/integration/test_pytket_circuits.py
-
   test-coverage:
     name: Check Python (3.14) with coverage
     runs-on: ubuntu-latest
@@ -80,8 +74,8 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
-      - name: Install Guppy with pytket
-        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }} --extra pytket
+      - name: Install Guppy
+        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
 
       - name: Run python tests with coverage instrumentation
         # can't parllelise due to bug with 3.13: https://github.com/quantinuum/guppylang/issues/1130

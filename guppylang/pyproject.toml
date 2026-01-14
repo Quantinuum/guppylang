@@ -16,13 +16,10 @@ maintainers = [
 
 classifiers = [
     "Development Status :: 3 - Alpha",
-
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Topic :: Software Development :: Compilers",
-
     "License :: OSI Approved :: Apache Software License",
-
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -41,9 +38,8 @@ dependencies = [
     "types-tqdm>=4.67.0.20250809",
 ]
 
-
 [project.optional-dependencies]
-pytket = ["pytket>=1.34", "tket >= 0.12.7"]
+pytket = []
 
 [project.urls]
 homepage = "https://github.com/quantinuum/guppylang"

@@ -1,13 +1,8 @@
 """Tests for using python expressions in guppy functions."""
 
-from importlib.util import find_spec
-
-
 from guppylang.decorator import guppy
 from guppylang.std.builtins import py, comptime, array, frozenarray, nat, owned
 from tests.util import compile_guppy
-
-tket_installed = find_spec("tket") is not None
 
 
 def test_basic(validate):

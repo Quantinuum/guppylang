@@ -10,10 +10,6 @@ setup:
     uv sync
     [[ -n "${JUST_INHIBIT_GIT_HOOKS:-}" ]] || uv run pre-commit install -t pre-commit
 
-# Prepare the environment for development, including the extra dependency groups.
-setup-extras:
-    uv sync --extra pytket --inexact
-
 # Run the pre-commit checks.
 check:
     uv run pre-commit run --all-files
