@@ -16,7 +16,6 @@ members = [
 
 [manifest.dependency-groups]
 dev = [
-    { name = "guppylang", extras = ["pytket"], editable = "guppylang" },
     { name = "ipykernel", specifier = ">=6.29.5,<7" },
     { name = "matplotlib", specifier = ">=3.9.2" },
     { name = "miette-py", editable = "miette-py" },
@@ -30,7 +29,7 @@ dev = [
     { name = "pytest-snapshot", specifier = ">=0.9.0,<1" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = ">=0.6.2,<0.7" },
-    { name = "tket", specifier = "~=0.12.13" },
+    { name = "tket", specifier = ">=0.12.13" },
 ]
 docs = [
     { name = "furo", specifier = ">=2024.8.6" },
@@ -46,7 +45,6 @@ lint = [
     { name = "ruff", specifier = ">=0.6.2,<0.7" },
 ]
 pytket-integration = [
-    { name = "guppylang", extras = ["pytket"], editable = "guppylang" },
     { name = "ipykernel", specifier = ">=6.29.5,<7" },
     { name = "miette-py", editable = "miette-py" },
     { name = "pytest", specifier = ">=8.3.2,<9" },
@@ -55,7 +53,7 @@ pytket-integration = [
     { name = "pytest-notebook", specifier = ">=0.10.0,<0.11" },
     { name = "pytest-snapshot", specifier = ">=0.9.0,<1" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
-    { name = "tket", specifier = "~=0.12.13" },
+    { name = "tket", specifier = ">=0.12.13" },
 ]
 test = [
     { name = "ipykernel", specifier = ">=6.29.5,<7" },
@@ -66,7 +64,7 @@ test = [
     { name = "pytest-notebook", specifier = ">=0.10.0,<0.11" },
     { name = "pytest-snapshot", specifier = ">=0.9.0,<1" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
-    { name = "tket", specifier = "~=0.12.13" },
+    { name = "tket", specifier = ">=0.12.13" },
 ]
 
 [[package]]
@@ -1058,26 +1056,22 @@ dependencies = [
     { name = "guppylang-internals" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pytket" },
     { name = "selene-hugr-qis-compiler" },
     { name = "selene-sim" },
+    { name = "tket" },
     { name = "tqdm" },
     { name = "types-tqdm" },
-]
-
-[package.optional-dependencies]
-pytket = [
-    { name = "pytket" },
-    { name = "tket" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "guppylang-internals", editable = "guppylang-internals" },
     { name = "numpy", specifier = "~=2.0" },
-    { name = "pytket", marker = "extra == 'pytket'", specifier = ">=1.34" },
+    { name = "pytket", specifier = ">=1.34" },
     { name = "selene-hugr-qis-compiler", specifier = "~=0.2.9" },
     { name = "selene-sim", specifier = "~=0.2.3" },
-    { name = "tket", marker = "extra == 'pytket'", specifier = ">=0.12.7" },
+    { name = "tket", specifier = ">=0.12.7" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]

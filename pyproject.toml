@@ -17,9 +17,9 @@ test = [
     "pytest-xdist>=3.8.0",
     "ipykernel >=6.29.5,<7",
     "miette-py",
-    "tket~=0.12.13",
+    "tket >= 0.12.13",
 ]
-pytket_integration = [{ include-group = "test" }, "guppylang[pytket]"]
+pytket_integration = [{ include-group = "test" }]
 
 [tool.uv]
 
@@ -49,12 +49,10 @@ module = ["miette_py"]
 exclude_also = [
     # Don't complain about missing coverage on typing imports
     "if TYPE_CHECKING:",
-
     # Don't complain if tests don't hit defensive assertion code:
     "raise AssertionError",
     "raise NotImplementedError",
     "raise InternalGuppyError",
-
     # Don't complain about abstract methods, they aren't run:
     "@abstractmethod",
 ]
