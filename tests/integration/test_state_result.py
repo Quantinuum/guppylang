@@ -97,8 +97,13 @@ def test_generic_array(validate):
     n = guppy.nat_var("n")
 
     @guppy
-    def main(qs: array[qubit, n]) -> None:
+    def foo(qs: array[qubit, n]) -> None:
         cx(qs[0], qs[1])
         state_result("tag", qs)
+
+    @guppy
+    def main(qs1: array[qubit, 3], qs2: array[qubit, 0]) -> None:
+        foo(qs1)
+        foo(qs2)
 
     validate(main.compile_function())

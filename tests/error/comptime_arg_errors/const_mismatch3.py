@@ -8,8 +8,14 @@ def foo(n: nat @comptime) -> None:
 
 
 @guppy
-def main(n: nat @ comptime, m: nat @ comptime) -> None:
+def bar(n: nat @ comptime, m: nat @ comptime) -> None:
     foo[n](m)
+
+
+@guppy
+def main() -> None:
+    bar(42, 42)  # This succeeds
+    bar(42, 43)  # This fails
 
 
 main.compile_function()

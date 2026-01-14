@@ -1,6 +1,6 @@
 """Tests Python 3.12 style generic syntax."""
 
-from guppylang import array
+from guppylang import array, qubit
 from guppylang.decorator import guppy
 from guppylang.std.lang import Copy, Drop, owned, comptime
 from guppylang.std.num import nat
@@ -9,8 +9,13 @@ from guppylang.std.option import Option, nothing
 
 def test_function(validate):
     @guppy
-    def main[S, T](x: S @ owned, y: T @ owned) -> tuple[T, S]:
+    def foo[S, T](x: S @ owned, y: T @ owned) -> tuple[T, S]:
         return y, x
+
+    @guppy
+    def main() -> None:
+        foo(1, 2)
+        foo(True, False)
 
     validate(main.compile_function())
 
@@ -53,8 +58,13 @@ def test_copy_bound(validate):
         x: T
 
     @guppy
-    def main[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
+    def foo[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
         return s.x, s.x
+
+    @guppy
+    def main() -> None:
+        foo(MyStruct(42))
+        foo(MyStruct(False))
 
     validate(main.compile_function())
 
@@ -81,8 +91,13 @@ def test_copy_and_drop_bound(validate):
         x: T
 
     @guppy
-    def main[T: (Copy, Drop)](s1: MyStruct[T], s2: MyStruct[T]) -> tuple[T, T]:
+    def foo[T: (Copy, Drop)](s1: MyStruct[T], s2: MyStruct[T]) -> tuple[T, T]:
         return s1.x, s1.x
+
+    @guppy
+    def main() -> None:
+        foo(MyStruct(42), MyStruct(43))
+        foo(MyStruct(False), MyStruct(True))
 
     validate(main.compile_function())
 
@@ -93,8 +108,13 @@ def test_const_param(validate):
         xs: array[T, n]
 
     @guppy
-    def main[T, n: nat](xs: array[T, n], s: MyStruct[T, n]) -> nat:
+    def foo[T, n: nat](xs: array[T, n], s: MyStruct[T, n]) -> nat:
         return n
+
+    @guppy
+    def main() -> None:
+        foo(array(1, 2, 3), MyStruct(array(4, 5, 6)))
+        foo[float, 0](array(), MyStruct(array()))
 
     validate(main.compile_function())
 
@@ -103,8 +123,13 @@ def test_mixed_legacy_params(validate):
     T = guppy.type_var("T", copyable=False, droppable=False)
 
     @guppy
-    def main[S](x: S @ owned, y: T @ owned) -> tuple[T, S]:
+    def foo[S](x: S @ owned, y: T @ owned) -> tuple[T, S]:
         return y, x
+
+    @guppy
+    def main() -> tuple[qubit, qubit]:
+        foo(1, 2)
+        return foo(qubit(), qubit())
 
     validate(main.compile_function())
 
@@ -185,8 +210,7 @@ def test_multi_dependent():
         return x, y.get(), z.get().get()
 
     # We can't define a main that calls `foo` since we don't have comptime constructors
-    # for structs yet. We can check that `foo` type checks though
-    foo.check()
+    # for structs yet. We can't even check that `foo` type checks
 
 
 def test_generic_tuple_chain(validate):

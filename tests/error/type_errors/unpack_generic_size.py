@@ -11,4 +11,10 @@ def foo(xs: array[int, n]) -> int:
     return a
 
 
-foo.compile()
+@guppy
+def main() -> None:
+    foo(array(1, 2, 3))  # This succeeds
+    foo(array())  # This fails
+
+
+main.compile()
