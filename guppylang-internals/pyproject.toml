@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-pytket = ["pytket>=1.34"]
+pytket = []
 
 [build-system]
 requires = ["hatchling"]

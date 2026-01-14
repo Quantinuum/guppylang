@@ -1075,16 +1075,10 @@ dependencies = [
     { name = "wasmtime" },
 ]
 
-[package.optional-dependencies]
-pytket = [
-    { name = "pytket" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "hugr", specifier = "~=0.15.0" },
     { name = "pytket", specifier = ">=1.34" },
-    { name = "pytket", marker = "extra == 'pytket'", specifier = ">=1.34" },
     { name = "tket", specifier = ">=0.12.7" },
     { name = "tket-exts", specifier = "~=0.12.0" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
