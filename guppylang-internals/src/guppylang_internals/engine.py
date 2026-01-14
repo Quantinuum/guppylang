@@ -201,7 +201,7 @@ class CompilationEngine:
             return self.parsed[id]
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
-            defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
+            defn = defn.parse(Globals(defn.id), DEF_STORE.sources)
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
             self.types_to_check_worklist[id] = defn
@@ -227,9 +227,9 @@ class CompilationEngine:
             return self.checked[id, mono_args]
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
-            defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
+            defn = defn.check(Globals(defn.id))
         elif isinstance(defn, CheckableGenericDef):
-            defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
+            defn = defn.check(mono_args, Globals(defn.id))
         self.checked[id, mono_args] = defn
 
         from guppylang_internals.definition.struct import CheckedStructDef

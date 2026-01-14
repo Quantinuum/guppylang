@@ -127,16 +127,6 @@ class CompilerContext(ToHugrContext):
 
         Might mutate the current Hugr if this definition has never been compiled before.
         """
-        # TODO: The check below is a hack to support nested function definitions. We
-        #  forgot to insert frames for nested functions into the DEF_STORE, which would
-        #  make the call to `ENGINE.get_checked` below fail. For now, let's just short-
-        #  cut if the function doesn't take any generic params (as is the case for all
-        #  nested functions).
-        #  See https://github.com/quantinuum/guppylang/issues/1032
-        if (def_id, ()) in self.compiled:
-            assert type_args == []
-            return self.compiled[def_id, ()]
-
         mono_args = tuple(type_args) if type_args is not None else ()
         if (def_id, mono_args) not in self.compiled:
             defn = ENGINE.get_checked(def_id, mono_args)

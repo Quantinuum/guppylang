@@ -4,7 +4,6 @@ import itertools
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, replace
 from functools import cache, cached_property
-from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -327,9 +326,12 @@ class Globals:
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
+    def_id: DefId | None
 
-    def __init__(self, frame: FrameType | None) -> None:
-        if frame is not None:
+    def __init__(self, def_id: DefId | None) -> None:
+        self.def_id = def_id
+        if def_id is not None:
+            frame = DEF_STORE.frames[def_id]
             self.f_locals = frame.f_locals
             self.f_globals = frame.f_globals
             self.f_builtins = frame.f_builtins

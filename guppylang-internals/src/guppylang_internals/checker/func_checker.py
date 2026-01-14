@@ -223,8 +223,10 @@ def check_nested_func_def(
             from guppylang.defs import GuppyDefinition
             from guppylang_internals.definition.function import ParsedFunctionDef
 
+            assert ctx.globals.def_id is not None
+            parent_frame = DEF_STORE.frames[ctx.globals.def_id]
             func = ParsedFunctionDef(def_id, func_def.name, func_def, func_ty, None)
-            DEF_STORE.register_def(func, None)
+            DEF_STORE.register_def(func, parent_frame)
             ENGINE.parsed[def_id] = func
             globals.f_locals[func_def.name] = GuppyDefinition(func)
         else:
