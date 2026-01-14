@@ -32,6 +32,7 @@ from guppylang_internals.tys.parsing import (
     type_from_ast,
     type_with_flags_from_ast,
 )
+from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     ExistentialTypeVar,
     FuncInput,
@@ -153,7 +154,7 @@ def check_global_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     generic_params = {
-        param.name: param.with_idx(i) for i, param in enumerate(ty.params)
+        param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
     return check_cfg(cfg, inputs, ty.output, generic_params, func_def.name, globals)
 
