@@ -759,7 +759,7 @@ def pack_returns(
     ctx: CompilerContext,
 ) -> Wire:
     """Groups function return values into a tuple"""
-    if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
+    if isinstance(return_ty, TupleType | NoneType):
         types = type_to_row(return_ty)
         assert len(returns) == len(types)
         hugr_tys = [t.to_hugr(ctx) for t in types]
@@ -774,7 +774,7 @@ def unpack_wire(
     wire: Wire, return_ty: Type, builder: DfBase[ops.DfParentOp], ctx: CompilerContext
 ) -> list[Wire]:
     """The inverse of `pack_returns`"""
-    if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
+    if isinstance(return_ty, TupleType | NoneType):
         types = type_to_row(return_ty)
         hugr_tys = [t.to_hugr(ctx) for t in types]
         return list(builder.add_op(ops.UnpackTuple(hugr_tys), wire).outputs())
