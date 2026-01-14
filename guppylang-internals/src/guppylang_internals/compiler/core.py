@@ -1,9 +1,9 @@
 import itertools
 from abc import ABC
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import Any, cast
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops
@@ -16,7 +16,6 @@ from hugr.hugr.node_port import ToNode
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
-from typing_extensions import assert_never
 
 from guppylang_internals.checker.core import (
     FieldAccess,
@@ -31,20 +30,18 @@ from guppylang_internals.definition.common import (
     CompilableDef,
     CompiledDef,
     DefId,
-    MonomorphizableDef,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
-from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import ENGINE
-from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.engine import ENGINE, MonoArgs, MonoDefId
+from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import nat_type
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import BoundConstVar, ConstValue
 from guppylang_internals.tys.param import ConstParam, Parameter
-from guppylang_internals.tys.subst import Inst, Instantiator
+from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
     NumericType,
@@ -53,29 +50,7 @@ from guppylang_internals.tys.ty import (
     Type,
 )
 
-if TYPE_CHECKING:
-    from guppylang_internals.tys.arg import Argument
-
 CompiledLocals = dict[PlaceId, Wire]
-
-#: Partial instantiation of generic type parameters for monomorphization.
-#:
-#: When compiling polymorphic definitions to Hugr, some of their generic parameters will
-#: need to be monomorphized (e.g. to support language features that cannot be encoded
-#: in Hugr, see `requires_monomorphization` for details). However, other generic
-#: parameters can be faithfully captured in Hugr. Thus, we want to perform a *partial*
-#: monomorphization when compiling to Hugr.
-#:
-#: A `mono_args: PartiallyMonomorphizedArgs` represents such a partial monomorphization
-#: of generic parameters as a sequence of `Argument | None`. Concretely,
-#: `mono_args[i] == None` means that the argument with index `i` is left as a
-#: polymorphic Hugr type parameter, i.e. it is not monomorphised by Guppy. Otherwise,
-#: `mono_args[i]` specifies the monomorphic instantiation  for parameter `i`. For
-#: example, a function with 3 generic parameters that should all be retained in Hugr
-#: will have mono_args = `(None, None, None)`.
-#:
-#: Finally, note that this sequence is required to be a tuple to ensure hashability.
-PartiallyMonomorphizedArgs = tuple["Argument | None", ...]
 
 
 @dataclass(frozen=True)
@@ -94,33 +69,9 @@ class GlobalConstId:
         return f"{self.base_name}.{self.id}"
 
 
-#: Unique identifier for a partially monomorphized definition.
-#:
-#: If the `DefId` corresponds to a `MonomorphizableDef`, then the second tuple entry
-#: should hold the corresponding partial monomorphization. Otherwise, the second entry
-#: should be `None`.
-#:
-#: Note the following subtlety: Functions are instances of `MonomorphizableDef`, even if
-#: they aren't actually generic! This means that for non-generic function definitions we
-#: will have an empty tuple `()` as `PartiallyMonomorphizedArgs`, but never `None`.
-#: `None` only shows up for kinds of definitions that are never monomorphized (e.g.
-#: definitions of constants).
-MonoDefId = tuple[DefId, PartiallyMonomorphizedArgs | None]
-
-#: Unique identifier for global Hugr constants and functions, the latter with optional
-#: monomorphized type arguments
-MonoGlobalConstId = tuple[GlobalConstId, PartiallyMonomorphizedArgs | None]
-
-
-@dataclass(frozen=True)
-class EntryMonomorphizeError(Error):
-    title: ClassVar[str] = "Invalid entry point"
-    span_label: ClassVar[str] = (
-        "Function `{name}` is not a valid compilation entry point since the value of "
-        "generic parameter `{param}` is not known"
-    )
-    name: str
-    param: Parameter
+#: Unique identifier for global Hugr constants and functions with monomorphized type
+#: arguments
+MonoGlobalConstId = tuple[GlobalConstId, MonoArgs]
 
 
 class CompilerContext(ToHugrContext):
@@ -133,9 +84,9 @@ class CompilerContext(ToHugrContext):
 
     module: DefinitionBuilder[ops.Module]
 
-    #: The definitions compiled so far. For `MonomorphizableDef`s, their id can occur
-    #: multiple times here with respectively different partial monomorphizations. See
-    #: `MonoDefId` and `PartiallyMonomorphizedArgs` for details.
+    #: The definitions compiled so far. For generic definitions, their id can occur
+    #: multiple times here with respectively different monomorphizations. See
+    #: `MonoDefId` and `MonoArgs` for details.
     compiled: dict[MonoDefId, CompiledDef]
 
     # use dict over set for deterministic iteration order
@@ -145,7 +96,7 @@ class CompilerContext(ToHugrContext):
 
     #: Partial instantiation for some of the type parameters of the current function for
     #: the purpose of monomorphization
-    current_mono_args: PartiallyMonomorphizedArgs | None
+    current_mono_args: MonoArgs | None
 
     checked_globals: Globals
 
@@ -161,9 +112,7 @@ class CompilerContext(ToHugrContext):
         self.current_mono_args = None
 
     @contextmanager
-    def set_monomorphized_args(
-        self, mono_args: PartiallyMonomorphizedArgs | None
-    ) -> Iterator[None]:
+    def set_monomorphized_args(self, mono_args: MonoArgs | None) -> Iterator[None]:
         """Context manager to set the partial monomorphization for the function that is
         compiled currently being compiled.
         """
@@ -172,9 +121,7 @@ class CompilerContext(ToHugrContext):
         yield
         self.current_mono_args = old
 
-    def build_compiled_def(
-        self, def_id: DefId, type_args: Inst
-    ) -> tuple[CompiledDef, Inst]:
+    def build_compiled_def(self, def_id: DefId, type_args: Inst | None) -> CompiledDef:
         """Returns the compiled definitions corresponding to the given ID, along with
         the remaining type args that have not been monomorphized away.
 
@@ -188,61 +135,32 @@ class CompilerContext(ToHugrContext):
         #  See https://github.com/quantinuum/guppylang/issues/1032
         if (def_id, ()) in self.compiled:
             assert type_args == []
-            return self.compiled[def_id, ()], type_args
+            return self.compiled[def_id, ()]
 
-        mono_args: PartiallyMonomorphizedArgs | None = None
-        rem_args = type_args
-        compile_outer: Callable[[], CompiledDef]
-        match ENGINE.get_checked(def_id):
-            case MonomorphizableDef(params=params) as monomorphizable:
-                mono_args, rem_args = partially_monomorphize_args(
-                    params, type_args, self
-                )
-                compile_outer = lambda: monomorphizable.monomorphize(  # noqa: E731 (assign-lambda)
-                    self.module, mono_args, self
-                )
-            case CompilableDef() as compilable:
-                compile_outer = lambda: compilable.compile_outer(self.module, self)  # noqa: E731
-            case CompiledDef() as compiled_defn:
-                compile_outer = lambda: compiled_defn  # noqa: E731
-            case defn:
-                compile_outer = assert_never(defn)
+        mono_args = tuple(type_args) if type_args is not None else ()
         if (def_id, mono_args) not in self.compiled:
-            self.compiled[def_id, mono_args] = compile_outer()
+            defn = ENGINE.get_checked(def_id, mono_args)
+            if isinstance(defn, CompilableDef):
+                defn = defn.compile_outer(self.module, self)
+            self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None
-        return self.compiled[def_id, mono_args], rem_args
+        return self.compiled[def_id, mono_args]
 
-    def compile(self, defn: CheckedDef) -> CompiledDef:
+    def compile(self, defn: CheckedDef, mono_args: MonoArgs) -> CompiledDef:
         """Compiles the given definition and all of its dependencies into the current
         Hugr."""
         # Check and compile the entry point
-        entry_mono_args: PartiallyMonomorphizedArgs | None = None
-        entry_compiled: CompiledDef
-        match ENGINE.get_checked(defn.id):
-            case MonomorphizableDef(params=params) as defn:
-                # Entry point is not allowed to require monomorphization
-                if mono_params := require_monomorphization(params):
-                    mono_param = mono_params.pop()
-                    err = EntryMonomorphizeError(defn.defined_at, defn.name, mono_param)
-                    raise GuppyError(err)
-                # Thus, the partial monomorphization for the entry point is always empty
-                entry_mono_args = tuple(None for _ in params)
-                entry_compiled = defn.monomorphize(self.module, entry_mono_args, self)
-            case CompilableDef() as defn:
-                entry_compiled = defn.compile_outer(self.module, self)
-            case CompiledDef() as defn:
-                entry_compiled = defn
-            case defn:
-                entry_compiled = assert_never(defn)
-
-        self.compiled[defn.id, entry_mono_args] = entry_compiled
-        self.worklist[defn.id, entry_mono_args] = None
+        entry_compiled = self.build_compiled_def(
+            defn.id, list(mono_args) if mono_args is not None else None
+        )
+        self.compiled[defn.id, mono_args] = entry_compiled
+        self.worklist[defn.id, mono_args] = None
 
         # Compile definition bodies
         while self.worklist:
-            next_id, mono_args = self.worklist.popitem()[0]
-            next_def = self.compiled[next_id, mono_args]
-            with track_hugr_side_effects(), self.set_monomorphized_args(mono_args):
+            next_id, next_mono_args = self.worklist.popitem()[0]
+            next_def = self.compiled[next_id, next_mono_args]
+            with track_hugr_side_effects(), self.set_monomorphized_args(next_mono_args):
                 next_def.compile_inner(self)
 
         # Insert explicit drops for affine types
@@ -257,7 +175,7 @@ class CompilerContext(ToHugrContext):
         ty: Type | TypeDef,
         name: str,
         type_args: Inst,
-    ) -> tuple[CompiledCallableDef, Inst] | None:
+    ) -> CompiledCallableDef | None:
         """Returns s compiled instance method along with its remaining type args that
         have not been monomorphized away, or `None` if the type doesn't have a matching
         method.
@@ -269,21 +187,22 @@ class CompilerContext(ToHugrContext):
         parsed_func = self.checked_globals.get_instance_func(ty, name)
         if parsed_func is None:
             return None
-        checked_func = ENGINE.get_checked(parsed_func.id)
-        compiled_func, rem_args = self.build_compiled_def(checked_func.id, type_args)
+        checked_func = ENGINE.get_checked(parsed_func.id, tuple(type_args))
+        compiled_func = self.build_compiled_def(checked_func.id, type_args)
         assert isinstance(compiled_func, CompiledCallableDef)
-        return compiled_func, rem_args
+        return compiled_func
 
     def declare_global_func(
         self,
         const_id: GlobalConstId,
         func_ty: ht.PolyFuncType,
-        mono_args: PartiallyMonomorphizedArgs | None = None,
+        type_args: Inst | None = None,
     ) -> tuple[hf.Function, bool]:
         """
         Creates a function builder for a global function if it doesn't already exist,
         else returns the existing one.
         """
+        mono_args = tuple(type_args) if type_args is not None else None
         if (const_id, mono_args) in self.global_funcs:
             return self.global_funcs[const_id, mono_args], True
         func = self.module.module_root_builder().define_function(
@@ -490,51 +409,7 @@ def require_monomorphization(params: Sequence[Parameter]) -> set[Parameter]:
     return mono_params
 
 
-def partially_monomorphize_args(
-    params: Sequence[Parameter],
-    args: Inst,
-    ctx: CompilerContext,
-) -> tuple[PartiallyMonomorphizedArgs, Inst]:
-    """
-    Given an instantiation of all type parameters, extracts the ones that will need to
-    be monomorphized.
-
-    Also takes care of normalising bound variables w.r.t. the current monomorphization.
-    """
-    # Normalise args w.r.t. the current outer monomorphisation
-    if ctx.current_mono_args is not None:
-        instantiator = Instantiator(ctx.current_mono_args, allow_partial=True)
-        args = [arg.transform(instantiator) for arg in args]
-
-    # Filter args depending on whether they need monomorphization or not. For this, we
-    # can't purely rely on the `require_monomorphization` function above since the
-    # instantiation also needs to be taken into account. For example, consider
-    # a function `def foo[T, x: T](...)`. Normally, both parameters would need to be
-    # monomorphized. However, if we instantiate `T := nat`, suddenly `x` no longer needs
-    # be monomorphized since we can use bounded nats in Hugr. Thus, we have to replicate
-    # the behaviour of `require_monomorphization` while taking `args` into account.
-    mono_args: list[Argument | None] = [None] * len(args)
-    for param, arg in zip(params, args, strict=True):
-        match param, param.instantiate_bounds(args):
-            case ConstParam(ty=original_ty), ConstParam(ty=inst_ty):
-                # If the original const type is not `nat`, then all variables occurring
-                # in the type need to be monomorphised
-                if original_ty != nat_type():
-                    for var in original_ty.bound_vars:
-                        mono_args[var.idx] = args[var.idx]
-                # If the const type is still not `nat` after normalisation, then the
-                # const arg itself also needs to be monomorphized
-                if inst_ty != nat_type():
-                    mono_args[param.idx] = arg
-
-    # Mono-arguments should not refer to any bound variables
-    assert all(mono_arg is None or not mono_arg.bound_vars for mono_arg in mono_args)
-
-    rem_args = [arg for i, arg in enumerate(args) if mono_args[i] is None]
-    return tuple(mono_args), rem_args
-
-
-def compile_variable_idx(idx: int, mono_args: PartiallyMonomorphizedArgs) -> int:
+def compile_variable_idx(idx: int, mono_args: MonoArgs) -> int:
     """Returns the Hugr index for a variable.
 
     Takes care of shifting down Guppy's indices to account for the current partial

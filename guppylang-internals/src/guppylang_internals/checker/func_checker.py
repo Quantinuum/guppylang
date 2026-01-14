@@ -288,7 +288,9 @@ def check_signature(
     # Figure out if this is a method
     self_defn: TypeDef | None = None
     if def_id is not None and def_id in DEF_STORE.impl_parents:
-        self_defn = cast(TypeDef, ENGINE.get_checked(DEF_STORE.impl_parents[def_id]))
+        self_defn = cast(
+            TypeDef, ENGINE.get_checked(DEF_STORE.impl_parents[def_id], None)
+        )
         assert isinstance(self_defn, TypeDef)
 
     inputs = []
