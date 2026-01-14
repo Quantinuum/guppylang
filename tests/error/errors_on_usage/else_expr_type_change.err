@@ -4,7 +4,10 @@ Error: Different types (at $FILE:8:11)
 7 |     (y := y + 1) if x else (y := True)
 8 |     return y
   |            ^ Variable `y` may refer to different types
+
+Notes:
   | 
+6 |     y = 3
 7 |     (y := y + 1) if x else (y := True)
   |      - This is of type `int`
   | 

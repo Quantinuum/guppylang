@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:8:16)
 8 |     return [(q, q) for q in qs]
   |                 ^ Variable `q` with non-copyable type `qubit` cannot be moved
   |                   ...
+
+Note:
   | 
+7 | def foo(qs: list[qubit] @owned) -> list[tuple[qubit, qubit]]:
 8 |     return [(q, q) for q in qs]
-  |              - since it was already moved here
+  |              - Variable `q` already moved here
 
 Guppy compilation failed due to 1 previous error

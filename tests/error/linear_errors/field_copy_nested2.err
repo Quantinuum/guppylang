@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:20:21)
 20 |     return MyStruct1(s.x)
    |                      ^^^ Field `s.x.q1` with non-copyable type `qubit` cannot be
    |                          consumed ...
+
+Note:
    | 
+18 | def foo(s: MyStruct1 @owned) -> MyStruct1:
 19 |     measure(s.x.q1)
-   |             ------ since it was already consumed here
+   |             ------ Field `s.x.q1` already consumed here
 
 Guppy compilation failed due to 1 previous error

@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:21:11)
 21 |     return s
    |            ^ Field `s.x.q` with non-copyable type `qubit` cannot be
    |              returned ...
+
+Note:
    | 
+19 |     measure(s.q)
 20 |     s.q = s.x.q
-   |           ----- since it was already moved here
+   |           ----- Field `s.x.q` already moved here
 
 Guppy compilation failed due to 1 previous error

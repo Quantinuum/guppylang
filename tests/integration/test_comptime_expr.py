@@ -159,3 +159,33 @@ def test_func_type_arg(validate):
     validate(foo.compile_function())
     validate(bar.compile_function())
     validate(Baz.compile())
+
+
+def test_subscript_assign(validate):
+    n = 5
+
+    @guppy
+    def subscript(xs: array[int, 10]) -> None:
+        xs[comptime(n)] = 0
+
+    validate(subscript.compile_function())
+
+
+def test_subscript_augmenting_assign(validate):
+    n = 5
+
+    @guppy
+    def subscript(xs: array[int, 10]) -> None:
+        xs[comptime(n)] += 0
+
+    validate(subscript.compile_function())
+
+
+def test_subscript_annotated_assign(validate):
+    n = 5
+
+    @guppy
+    def subscript(xs: array[int, 10]) -> None:
+        xs[comptime(n)]: int = 0
+
+    validate(subscript.compile_function())

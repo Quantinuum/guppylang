@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:8:14)
 8 |     return x, x
   |               ^ Variable `x` with non-copyable type `T` cannot be returned
   |                 ...
+
+Note:
   | 
+7 |     # T is not copyable
 8 |     return x, x
-  |            - since it was already returned here
+  |            - Variable `x` already returned here
 
 Guppy compilation failed due to 1 previous error

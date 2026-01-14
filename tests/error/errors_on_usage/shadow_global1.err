@@ -4,7 +4,10 @@ Error: Variable not defined (at $FILE:11:11)
 10 |         x = 1.0
 11 |     return x
    |            ^ `x` might be undefined ...
+
+Note:
    | 
+ 8 | def main(b: bool) -> float:
  9 |     if b:
    |        - ... if this expression is `False`
 

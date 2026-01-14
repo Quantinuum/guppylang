@@ -5,9 +5,12 @@ Error: Copy violation (at $FILE:17:8)
 17 |     use(s.x)
    |         ^^^ Field `s.x` with non-copyable type `array[int, 1]` cannot be
    |             consumed ...
+
+Note:
    | 
+15 | def test(s: MyStruct) -> None:
 16 |     p = s.x
-   |         --- since it was already moved here
+   |         --- Field `s.x` already moved here
 
 Help: Consider copying `s.x` instead of moving it: `s.x.copy()`
 

@@ -16,6 +16,7 @@ from guppylang_internals.std._internal.compiler.arithmetic import convert_itousi
 from guppylang_internals.std._internal.compiler.prelude import (
     build_unwrap_right,
 )
+from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
@@ -206,6 +207,14 @@ def barray_new_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
     return _instantiate_array_op("new_all_borrowed", elem_ty, length, [], [arr_ty])
 
 
+def barray_is_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+    """Returns an array `is_borrowed` operation."""
+    arr_ty = array_type(elem_ty, length)
+    return _instantiate_array_op(
+        "is_borrowed", elem_ty, length, [arr_ty, ht.USize()], [arr_ty, ht.Bool]
+    )
+
+
 def array_clone(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
     """Returns an array `clone` operation for arrays none of whose elements are
     borrowed."""
@@ -320,7 +329,15 @@ class ArrayGetitemCompiler(ArrayCompiler):
 
 
 class ArraySetitemCompiler(ArrayCompiler):
-    """Compiler for the `array.__setitem__` function."""
+    """Compiler for the `array.__setitem__` function.
+
+    Arguments:
+        elem_first: If `True`, then compiler will assume that the element wire comes
+            before the index wire. Defaults to `False`.
+    """
+
+    def __init__(self, elem_first: bool = False):
+        self.elem_first = elem_first
 
     def _build_classical_setitem(
         self, array: Wire, idx: Wire, elem: Wire
@@ -359,6 +376,8 @@ class ArraySetitemCompiler(ArrayCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [array, idx, elem] = args
+        if self.elem_first:
+            elem, idx = idx, elem
         if self.elem_ty.type_bound() == ht.TypeBound.Linear:
             return self._build_linear_setitem(array, idx, elem)
         else:
@@ -379,3 +398,19 @@ class ArrayDiscardAllUsedCompiler(ArrayCompiler):
                 arr,
             )
         return []
+
+
+class ArrayIsBorrowedCompiler(ArrayCompiler):
+    """Compiler for the `array.is_borrowed` method."""
+
+    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+        [array, idx] = args
+        idx = self.builder.add_op(convert_itousize(), idx)
+        array, b = self.builder.add_op(
+            barray_is_borrowed(self.elem_ty, self.length), array, idx
+        )
+        b = self.builder.add_op(make_opaque(), b)
+        return CallReturnWires(regular_returns=[b], inout_returns=[array])
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        raise InternalGuppyError("Call compile_with_inouts instead")

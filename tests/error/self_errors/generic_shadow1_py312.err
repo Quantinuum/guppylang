@@ -5,7 +5,10 @@ Error: Shadowed generic parameters (at $FILE:8:20)
 8 |     def foo[T: nat](my_self) -> None:   # Shadow
   |                     ^^^^^^^ Cannot infer type for `my_self` since parameter `T` of `Foo`
   |                             is shadowed
+
+Note:
   | 
+7 |     @guppy
 8 |     def foo[T: nat](my_self) -> None:   # Shadow
   |                     ------- Consider specifying the type explicitly: `my_self:
   |                             "Foo[?T]"`

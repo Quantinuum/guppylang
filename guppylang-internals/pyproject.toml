@@ -1,6 +1,6 @@
 [project]
 name = "guppylang-internals"
-version = "0.26.0"
+version = "0.27.0"
 requires-python = ">=3.10,<4"
 description = "Compiler internals for `guppylang` package."
 license = { file = "LICENCE" }
@@ -35,7 +35,7 @@ classifiers = [
 dependencies = [
     "typing-extensions >=4.9.0,<5",
     "tket-exts ~= 0.12.0",
-    "hugr ~= 0.14.1",
+    "hugr ~= 0.15.0",
     "wasmtime ~= v38.0.0",
 ]
 

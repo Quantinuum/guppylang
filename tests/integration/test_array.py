@@ -3,11 +3,13 @@ import pytest
 from hugr import ops
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, owned, mem_swap
+from guppylang.std.builtins import array, owned
+from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
+from guppylang.std.platform import result
 from tests.util import compile_guppy
 
-from guppylang.std.quantum import qubit, discard
+from guppylang.std.quantum import qubit, discard, measure, h, discard_array
 
 
 @pytest.mark.skip("Requires `is_to_u` in llvm")
@@ -644,3 +646,48 @@ def test_assign_dataflow(validate):
 
     test1.compile_function()
     test2.compile_function()
+
+
+def test_take_put(validate):
+    @guppy
+    def foo(q: qubit, x: None) -> None:
+        pass
+
+    @guppy
+    def main() -> int:
+        qs = array(qubit() for _ in range(10))
+        result("init", qs.is_borrowed(3))  # False
+
+        # Arguments are borrowed left to right
+        foo(qs[3], result("while_borrowed", qs.is_borrowed(3)))  # True
+        result("after_borrowed", qs.is_borrowed(3))  # False
+
+        # We can't put stuff when it's not borrowed
+        q = qubit()
+        q = qs.try_put(q, 3).unwrap_err()
+        discard(q)
+
+        # We can't take out stuff that's already borrowed
+        q = qs.take(3)
+        result("after_take", qs.is_borrowed(3))  # True
+        qs.try_take(3).unwrap_nothing()
+        measure(q)
+
+        # But we can put something back
+        qs.put(qubit(), 3)
+        result("after_put", qs.is_borrowed(3))  # False
+        h(qs[3])
+
+        discard_array(qs)
+        return 0
+
+    res = main.emulator(11).coinflip_sim().run().results[0].entries
+    assert res == [
+        ("init", 0),
+        ("while_borrowed", 1),
+        ("after_borrowed", 0),
+        ("after_take", 1),
+        ("after_put", 0),
+    ]
+
+    validate(main.compile())

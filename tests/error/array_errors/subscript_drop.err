@@ -5,7 +5,10 @@ Error: Drop violation (at $FILE:12:11)
 12 |     return foo()[0]
    |            ^^^^^ Non-droppable items of expression with type `array[qubit,
    |                  10]` are leaked ...
+
+Note:
    | 
+11 | def main() -> qubit:
 12 |     return foo()[0]
    |                  - since only this subscript is used
 

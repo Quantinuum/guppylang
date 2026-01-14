@@ -14,6 +14,24 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.21.8](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.7...guppylang-v0.21.8) (2026-01-09)
+
+### Features
+
+* Add qubit hints on Guppy functions, allowing elision when building emulators ([#1378](https://github.com/Quantinuum/guppylang/issues/1378)) ([b7f10c6](https://github.com/Quantinuum/guppylang/commit/b7f10c6798aa20841fae844084d8a1606661fd7b)), closes [#1297](https://github.com/Quantinuum/guppylang/issues/1297)
+* Add unsafe array take and put operations ([#1165](https://github.com/Quantinuum/guppylang/issues/1165)) ([7f342e7](https://github.com/Quantinuum/guppylang/commit/7f342e788e2f179382bab46dcc7e69a24dd64de3))
+* update to guppylang-internals 0.27 ([#1430](https://github.com/Quantinuum/guppylang/issues/1430)) ([be02891](https://github.com/Quantinuum/guppylang/commit/be02891955ac07819144e1e27374c3324d521536))
+* Update to hugr v0.15, includes collated_digitstring_counts to extend bitstring collation to digits (#2788) (191c473)
+
+### Bug Fixes
+
+* Fix regression in `result` calls ([#1426](https://github.com/Quantinuum/guppylang/issues/1426)) ([9be6fef](https://github.com/Quantinuum/guppylang/commit/9be6fefcdfb9fc9eb1025774d2dd2727b3e719b1))
+* Convert symbolic pytket circuits angle inputs into rotations ([#1425](https://github.com/Quantinuum/guppylang/issues/1425)) ([4724d90](https://github.com/Quantinuum/guppylang/commit/4724d9039d8dffae8fd939f62ae80ec307d8918a))
+* Fix Hugr generation for tuples in `Result` and `Either` ([#1395](https://github.com/Quantinuum/guppylang/issues/1395)) ([f8b0d47](https://github.com/Quantinuum/guppylang/commit/f8b0d47eb275aae3f5ba804dfeb3640c4a3baef6)), closes [#1388](https://github.com/Quantinuum/guppylang/issues/1388)
+* Improve diagnostics rendering ([#1382](https://github.com/Quantinuum/guppylang/issues/1382)) ([e7ce7f6](https://github.com/Quantinuum/guppylang/commit/e7ce7f6d1a4f2b12ff680a6e54dae96637c5fa92))
+* Improve diagnostics rendering for wasm ([#1399](https://github.com/Quantinuum/guppylang/issues/1399)) ([6604175](https://github.com/Quantinuum/guppylang/commit/660417542f2b36c387e73765f8647c11cd3d1a7b)), ([#1398](https://github.com/Quantinuum/guppylang/issues/1398)) ([a6a539f](https://github.com/Quantinuum/guppylang/commit/a6a539fe07cc94f4a788fef506969e4c9027faee))
+* Support comptime expressions in generic argument applications ([#1409](https://github.com/Quantinuum/guppylang/issues/1409)) ([c1aad34](https://github.com/Quantinuum/guppylang/commit/c1aad346adb15e3636e5586987422d74e36189a1)), closes [#1087](https://github.com/Quantinuum/guppylang/issues/1087)
+
 ## [0.21.7](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.6...guppylang-v0.21.7) (2025-12-15)
 
 ### Features
@@ -46,7 +64,7 @@ As of August 2025, The Guppy language is undergoing rapid development and is cur
 
 ## [0.21.5](https://github.com/quantinuum/guppylang/compare/guppylang-v0.21.4...guppylang-v0.21.5) (2025-09-22)
 
-> [!WARNING]  
+> [!WARNING]
 > The `.compile()` method now assumes the function being compiled is an execution entrypoint and therefore checks it takes no arguments.
 > If you have an existing workflow that produces a HUGR with a non-executable function this will break, use `compile_function` instead.
 
@@ -183,7 +201,7 @@ to a program.
 
 ### Features
 
-* Add emulation of Guppy programs powered by the [Selene](https://github.com/quantinuum/selene) framework ([#1127](https://github.com/quantinuum/guppylang/issues/1127))([5e2f595](https://github.com/quantinuum/guppylang/commit/5e2f5951dff8782f7bbfe656ed02edf761a66593)). See the [Getting Started](../../../sphinx/getting_started.md) guide and the [Examples Gallery](../../../sphinx/examples_index.md) for example usage. 
+* Add emulation of Guppy programs powered by the [Selene](https://github.com/quantinuum/selene) framework ([#1127](https://github.com/quantinuum/guppylang/issues/1127))([5e2f595](https://github.com/quantinuum/guppylang/commit/5e2f5951dff8782f7bbfe656ed02edf761a66593)). See the [Getting Started](../../../sphinx/getting_started.md) guide and the [Examples Gallery](../../../sphinx/examples_index.md) for example usage.
 * Add `Future` type ([#1075](https://github.com/quantinuum/guppylang/issues/1075)) ([5ad7673](https://github.com/quantinuum/guppylang/commit/5ad76734c58e6d0c48a487c0645a4265abf3763e))
 * add error when constant integer out of bounds ([#1084](https://github.com/quantinuum/guppylang/issues/1084)) ([eee77ae](https://github.com/quantinuum/guppylang/commit/eee77ae92d0490f9a6fc843b02729a4fc88ba16c))
 * Add guppy version metadata to hugr entrypoint ([#1039](https://github.com/quantinuum/guppylang/issues/1039)) ([0eafbd9](https://github.com/quantinuum/guppylang/commit/0eafbd9f8e52484ae823aba830c1d38d30dd9755)), closes [#1037](https://github.com/quantinuum/guppylang/issues/1037)
@@ -270,7 +288,7 @@ main.compile()
 * `with_owned` std library function to temporarily take ownership of a borrowed value ([#994](https://github.com/quantinuum/guppylang/issues/994)) ([7bf75df](https://github.com/quantinuum/guppylang/commit/7bf75dff290b3b652c1939bffb86a915555207d2)), closes [#992](https://github.com/quantinuum/guppylang/issues/992)
 * Add an [Either](../../api/generated/guppylang.std.either.Either.rst) type to the standard library. ([#993](https://github.com/quantinuum/guppylang/issues/993)) ([75c1804](https://github.com/quantinuum/guppylang/commit/75c18045747017aaacad74f92fc92d4e0cd78182)), closes [#991](https://github.com/quantinuum/guppylang/issues/991)
 * Added a [PriorityQueue](../../api/generated/guppylang.std.collections.PriorityQueue.rst) structure to the standard library.
-* Guppy programs can now include `state_result` tags which can be used together with Selene to retrieve the statevector at a given point in the program execution ([#905](https://github.com/quantinuum/guppylang/issues/905)) ([2217bbc](https://github.com/quantinuum/guppylang/commit/2217bbc63d910a29b5a4f732d0c3224617ca8dcf)). See the example notebook on [Debugging with State Results](https://github.com/quantinuum/guppylang/blob/main/examples/state_results.ipynb). 
+* Guppy programs can now include `state_result` tags which can be used together with Selene to retrieve the statevector at a given point in the program execution ([#905](https://github.com/quantinuum/guppylang/issues/905)) ([2217bbc](https://github.com/quantinuum/guppylang/commit/2217bbc63d910a29b5a4f732d0c3224617ca8dcf)). See the example notebook on [Debugging with State Results](https://github.com/quantinuum/guppylang/blob/main/examples/state_results.ipynb).
 * Add optional signature argument to RawCustomFunctionDef ([#1005](https://github.com/quantinuum/guppylang/issues/1005)) ([79e2d5b](https://github.com/quantinuum/guppylang/commit/79e2d5b77acd09645f02755de2e6e4a40ce49b10)), closes [#1003](https://github.com/quantinuum/guppylang/issues/1003)
 * Add PriorityQueue to standard library ([#1006](https://github.com/quantinuum/guppylang/issues/1006)) ([4e609f0](https://github.com/quantinuum/guppylang/commit/4e609f08933f4e0f4f459cf10f2ecca9079bb7aa))
 * Allow users to wrap `guppy` in their own decorator ([#1017](https://github.com/quantinuum/guppylang/issues/1017)) ([f047c9b](https://github.com/quantinuum/guppylang/commit/f047c9bd16fdb26e757365c0ae8d2ec019f0aa06))
@@ -720,7 +738,7 @@ main.compile()
 
 ### ⚠ BREAKING CHANGES
 
-* 
+*
 
 ### Bug Fixes
 

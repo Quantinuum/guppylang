@@ -46,6 +46,7 @@ from guppylang_internals.std._internal.compiler.array import (
     array_new,
     array_unpack,
 )
+from guppylang_internals.std._internal.compiler.quantum import from_halfturns_unchecked
 from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, make_opaque
 from guppylang_internals.tys.builtin import array_type, bool_type, float_type
 from guppylang_internals.tys.subst import Inst, Subst
@@ -235,12 +236,15 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                     lex_names = sorted(param_order)
                     name_to_param = dict(zip(lex_names, lex_params, strict=True))
                     angle_wires = [name_to_param[name] for name in param_order]
-                    # Need to convert all angles to floats.
+                    # Need to convert all angles to rotations.
                     for angle in angle_wires:
                         [halfturns] = outer_func.add_op(
                             ops.UnpackTuple([FLOAT_T]), angle
                         )
-                        param_wires.append(halfturns)
+                        rotation = outer_func.add_op(
+                            from_halfturns_unchecked(), halfturns
+                        )
+                        param_wires.append(rotation)
 
                 # Pass all arguments to call node.
                 call_node = outer_func.call(

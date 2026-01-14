@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from hugr import Wire, ops
 from hugr import tys as ht
 
+from guppylang_internals.ast_util import get_type
+from guppylang_internals.compiler.expr_compiler import pack_returns, unpack_wire
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
@@ -69,7 +71,14 @@ class EitherConstructor(EitherCompiler, CustomCallCompiler):
             # In the `right` case, the type args are swapped around since `R` occurs
             # first in the signature :(
             ty.variant_rows = [ty.variant_rows[1], ty.variant_rows[0]]
-        return [self.builder.add_op(ops.Tag(self.tag, ty), *args)]
+        # For the same reason, the type of the input corresponds to the first type
+        # variable
+        inp_arg = self.type_args[0]
+        assert isinstance(inp_arg, TypeArg)
+        [inp] = args
+        # Unpack the single input into a row
+        inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx)
+        return [self.builder.add_op(ops.Tag(self.tag, ty), *inp_row)]
 
 
 class EitherTestCompiler(EitherCompiler):
@@ -128,4 +137,7 @@ class EitherUnwrapCompiler(EitherCompiler, CustomCallCompiler):
             out = build_unwrap_right(
                 self.builder, either, "Either.unwrap_right: value is `left`"
             )
-        return list(out)
+        # Pack outputs into a single wire. We're not allowed to return a row since the
+        # signature has a generic return type (also see `TupleType.preserve`)
+        return_ty = get_type(self.node)
+        return [pack_returns(list(out), return_ty, self.builder, self.ctx)]
