@@ -40,6 +40,9 @@ dependencies = [
     "tket >= 0.12.7",
 ]
 
+[project.optional-dependencies]
+pytket = []
+
 [project.urls]
 homepage = "https://github.com/quantinuum/guppylang"
 repository = "https://github.com/quantinuum/guppylang"

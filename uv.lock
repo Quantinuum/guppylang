@@ -44,6 +44,17 @@ lint = [
     { name = "pre-commit", specifier = ">=3.6.0,<4" },
     { name = "ruff", specifier = ">=0.6.2,<0.7" },
 ]
+pytket-integration = [
+    { name = "ipykernel", specifier = ">=6.29.5,<7" },
+    { name = "miette-py", editable = "miette-py" },
+    { name = "pytest", specifier = ">=8.3.2,<9" },
+    { name = "pytest-benchmark", specifier = ">=5.1.0" },
+    { name = "pytest-cov", specifier = ">=5.0.0,<6" },
+    { name = "pytest-notebook", specifier = ">=0.10.0,<0.11" },
+    { name = "pytest-snapshot", specifier = ">=0.9.0,<1" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "tket", specifier = ">=0.12.13" },
+]
 test = [
     { name = "ipykernel", specifier = ">=6.29.5,<7" },
     { name = "miette-py", editable = "miette-py" },
@@ -1064,6 +1075,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]
+provides-extras = ["pytket"]
 
 [[package]]
 name = "guppylang-internals"
