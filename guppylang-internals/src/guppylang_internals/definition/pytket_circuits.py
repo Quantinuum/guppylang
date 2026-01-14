@@ -3,12 +3,12 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 import hugr.build.function as hf
-import pytket
 from hugr import Node, Wire, envelope, ops, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.envelope import EnvelopeConfig
 from hugr.std.float import FLOAT_T
+from pytket.circuit import Circuit
 
 from guppylang.defs import GuppyDefinition
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
@@ -368,15 +368,12 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
 
 
 def _signature_from_circuit(
-    input_circuit: Any,
+    input_circuit: Circuit,
     defined_at: ToSpan | None,
     use_arrays: bool = False,
 ) -> FunctionType:
     """Helper function for inferring a function signature from a pytket circuit."""
     # May want to set proper unitary flags in the future.
-    if not isinstance(input_circuit, pytket.circuit.Circuit):
-        pass
-
     from guppylang.std.angles import angle  # Avoid circular imports
     from guppylang.std.quantum import qubit
 
