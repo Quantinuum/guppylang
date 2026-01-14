@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, Generic, TypeVar, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import CopyInoutCompiler
-from guppylang_internals.std._internal.checker import ArrayCopyChecker, NewArrayChecker
+from guppylang_internals.std._internal.checker import (
+    ArrayCopyChecker,
+    ArrayIndexChecker,
+    NewArrayChecker,
+)
 from guppylang_internals.std._internal.compiler.array import (
     ArrayDiscardAllUsedCompiler,
     ArrayGetitemCompiler,
@@ -54,7 +58,7 @@ _n = TypeVar("_n")
 class array(builtins.list[_T], Generic[_T, _n]):
     """Sequence of homogeneous values with statically known fixed length."""
 
-    @custom_function(ArrayGetitemCompiler())
+    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
     def __getitem__(self: array[L, n], idx: int) -> L: ...
 
     @custom_function(ArraySetitemCompiler())

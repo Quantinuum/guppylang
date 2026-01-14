@@ -691,3 +691,74 @@ def test_take_put(validate):
     ]
 
     validate(main.compile())
+
+
+# https://github.com/Quantinuum/guppylang/issues/1438
+# Compile time array bounds check for literal indices #1438
+def test_compile_inbounds(validate):
+    @guppy
+    def main() -> int:
+        qs = array(qubit() for _ in range(3))
+        h(qs[0])
+        discard_array(qs)
+
+        return 0
+
+    validate(main.compile())
+    res = main.emulator(10).coinflip_sim().run().results[0].entries
+
+
+# FAILED test_array.py::test_compile_outbounds_check
+# guppylang.emulator.exceptions.EmulatorError:
+# Panic (#1002): Index out of bounds
+def test_compile_outbounds(validate):
+    """Test that #Compile time array bounds check for literal indices #1438"
+    See https://github.com/Quantinuum/guppylang/issues/1438
+    """
+
+    @guppy
+    def main() -> int:
+        qs = array(qubit() for _ in range(3))
+        h(qs[3])
+        # out of bounds error
+        # need to throw an error like this
+        # "index 3 is invalid for array of size 3"
+        # at compile time rather runtime when emulator runs.
+        discard_array(qs)
+        return 0
+
+    validate(main.compile())
+    res = main.emulator(10).coinflip_sim().run().results[0].entries
+
+
+# runs both checks for inbounds and outbounds
+# out of bounds error, need to throw an error like
+# this "index 3 is invalid for array of size 3"
+# at compile time rather runtime when emulator runs.
+def test_array_bounds(validate):
+    """Test that #Compile time array bounds check for literal indices #1438"
+    See https://github.com/Quantinuum/guppylang/issues/1438
+    """
+
+    @guppy
+    def test_inbounds() -> int:
+        qs = array(qubit() for _ in range(3))
+        h(qs[0])
+        discard_array(qs)
+
+        return 0
+
+    validate(test_inbounds.compile())
+    # run the emulator for "runtime", no errors
+    res = test_inbounds.emulator(3).coinflip_sim().run().results[0].entries
+
+    @guppy
+    def test_outbounds() -> int:
+        qs = array(qubit() for _ in range(3))
+        h(qs[3])
+        discard_array(qs)
+        return 0
+
+    validate(test_outbounds.compile())  # should throw an error here instead
+    # run the emulator for "runtime" Panic (#1002): Index out of bounds
+    res = test_outbounds.emulator(3).coinflip_sim().run().results[0].entries

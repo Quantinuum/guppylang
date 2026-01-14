@@ -172,6 +172,35 @@ class ArrayCopyChecker(CustomCallChecker):
         return with_loc(self.node, node), get_type(array_arg)
 
 
+class ArrayIndexChecker(CustomCallChecker):
+    """Function call checker for the `array index check` function."""
+
+    def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
+        # Run regular type checking for the arguments
+        args, subst, type_args = check_call(self.func.ty, args, ty, self.node, self.ctx)
+        [_, length] = type_args
+        assert isinstance(length, ConstArg)
+
+        # Check if the array size is statically know.
+        # This is the case iff `length.const`
+        # is a `ConstValue`.
+        # ...
+
+        # Look at the ast node in `args` corresponding to the index and check if it's
+        # an `ast.Constant`. If so, compare with the length looked up above and raise
+        # an error if they don't match
+        # ...
+
+        # Return needs to look like this:
+        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        return with_loc(self.node, node), subst
+
+    def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
+        # Similar to above, now using `synthesize_call` instead of `check_call`
+        # ...
+        raise NotImplementedError
+
+
 class NewArrayChecker(CustomCallChecker):
     """Function call checker for the `array.__new__` function."""
 
