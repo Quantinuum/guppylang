@@ -246,6 +246,12 @@ def check_nested_func_def(
         returns=func_def.returns,
         type_comment=func_def.type_comment,
     )
+
+    from guppylang_internals.definition.function import CheckedFunctionDef
+
+    ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
+        def_id, func_def.name, func_def, func_ty, func_def.docstring, checked_cfg
+    )
     return with_loc(func_def, checked_def)
 
 
