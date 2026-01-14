@@ -255,6 +255,20 @@ def test_type_apply_empty_tuple(validate):
     validate(main.compile_function())
 
 
+def test_type_apply_empty_array(validate):
+    T = guppy.type_var("T")
+    n = guppy.nat_var("n")
+
+    @guppy.declare
+    def foo(xs: array[T, n]) -> array[T, n]: ...
+
+    @guppy
+    def main() -> None:
+        xs: array[float, 0] = foo(array())
+
+    validate(main.compile_function())
+
+
 def test_type_apply_method(validate):
     T = guppy.type_var("T")
 
