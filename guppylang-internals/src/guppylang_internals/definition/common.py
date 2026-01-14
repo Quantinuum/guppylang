@@ -12,10 +12,7 @@ from guppylang_internals.span import SourceMap
 
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Globals
-    from guppylang_internals.compiler.core import (
-        CompilerContext,
-        PartiallyMonomorphizedArgs,
-    )
+    from guppylang_internals.compiler.core import CompilerContext
     from guppylang_internals.tys.param import Parameter
     from guppylang_internals.tys.subst import Inst
 

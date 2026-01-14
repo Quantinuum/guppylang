@@ -202,7 +202,7 @@ class CompilerContext(ToHugrContext):
         Creates a function builder for a global function if it doesn't already exist,
         else returns the existing one.
         """
-        mono_args = tuple(type_args) if type_args is not None else None
+        mono_args = tuple(type_args) if type_args is not None else ()
         if (const_id, mono_args) in self.global_funcs:
             return self.global_funcs[const_id, mono_args], True
         func = self.module.module_root_builder().define_function(
