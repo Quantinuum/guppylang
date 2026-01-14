@@ -1045,10 +1045,8 @@ dependencies = [
     { name = "guppylang-internals" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "pytket" },
     { name = "selene-hugr-qis-compiler" },
     { name = "selene-sim" },
-    { name = "tket" },
     { name = "tqdm" },
     { name = "types-tqdm" },
 ]
@@ -1057,10 +1055,8 @@ dependencies = [
 requires-dist = [
     { name = "guppylang-internals", editable = "guppylang-internals" },
     { name = "numpy", specifier = "~=2.0" },
-    { name = "pytket", specifier = ">=1.34" },
     { name = "selene-hugr-qis-compiler", specifier = "~=0.2.9" },
     { name = "selene-sim", specifier = "~=0.2.3" },
-    { name = "tket", specifier = ">=0.12.7" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]
@@ -1072,6 +1068,8 @@ version = "0.27.0"
 source = { editable = "guppylang-internals" }
 dependencies = [
     { name = "hugr" },
+    { name = "pytket" },
+    { name = "tket" },
     { name = "tket-exts" },
     { name = "typing-extensions" },
     { name = "wasmtime" },
@@ -1085,7 +1083,9 @@ pytket = [
 [package.metadata]
 requires-dist = [
     { name = "hugr", specifier = "~=0.15.0" },
+    { name = "pytket", specifier = ">=1.34" },
     { name = "pytket", marker = "extra == 'pytket'", specifier = ">=1.34" },
+    { name = "tket", specifier = ">=0.12.7" },
     { name = "tket-exts", specifier = "~=0.12.0" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "wasmtime", specifier = "~=38.0.0" },
