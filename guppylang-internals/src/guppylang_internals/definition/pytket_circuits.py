@@ -3,18 +3,17 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 import hugr.build.function as hf
+import pytket
 from hugr import Node, Wire, envelope, ops, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.envelope import EnvelopeConfig
 from hugr.std.float import FLOAT_T
 
+from guppylang.defs import GuppyDefinition
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals
-from guppylang_internals.checker.errors.comptime_errors import (
-    PytketSignatureMismatch,
-    TketNotInstalled,
-)
+from guppylang_internals.checker.errors.comptime_errors import PytketSignatureMismatch
 from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import (
     check_signature,
@@ -375,63 +374,46 @@ def _signature_from_circuit(
 ) -> FunctionType:
     """Helper function for inferring a function signature from a pytket circuit."""
     # May want to set proper unitary flags in the future.
-    try:
-        import pytket
+    if not isinstance(input_circuit, pytket.circuit.Circuit):
+        pass
 
-        if isinstance(input_circuit, pytket.circuit.Circuit):
-            try:
-                import tket  # type: ignore[import-untyped, import-not-found, unused-ignore]  # noqa: F401
+    from guppylang.std.angles import angle  # Avoid circular imports
+    from guppylang.std.quantum import qubit
 
-                from guppylang.defs import GuppyDefinition
-                from guppylang.std.angles import angle
-                from guppylang.std.quantum import qubit
+    assert isinstance(qubit, GuppyDefinition)
+    qubit_ty = cast(TypeDef, qubit.wrapped).check_instantiate([])
 
-                assert isinstance(qubit, GuppyDefinition)
-                qubit_ty = cast(TypeDef, qubit.wrapped).check_instantiate([])
+    angle_defn = ENGINE.get_checked(angle.id)  # type: ignore[attr-defined]
+    assert isinstance(angle_defn, TypeDef)
+    angle_ty = angle_defn.check_instantiate([])
 
-                angle_defn = ENGINE.get_checked(angle.id)  # type: ignore[attr-defined]
-                assert isinstance(angle_defn, TypeDef)
-                angle_ty = angle_defn.check_instantiate([])
-
-                if use_arrays:
-                    inputs = [
-                        FuncInput(array_type(qubit_ty, q_reg.size), InputFlags.Inout)
-                        for q_reg in input_circuit.q_registers
-                    ]
-                    if len(input_circuit.free_symbols()) != 0:
-                        inputs.append(
-                            FuncInput(
-                                array_type(angle_ty, len(input_circuit.free_symbols())),
-                                InputFlags.NoFlags,
-                            )
-                        )
-                    outputs = [
-                        array_type(bool_type(), c_reg.size)
-                        for c_reg in input_circuit.c_registers
-                    ]
-                    circuit_signature = FunctionType(
-                        inputs,
-                        row_to_type(outputs),
-                    )
-                else:
-                    param_inputs = [
-                        FuncInput(angle_ty, InputFlags.NoFlags)
-                        for _ in range(len(input_circuit.free_symbols()))
-                    ]
-                    circuit_signature = FunctionType(
-                        [FuncInput(qubit_ty, InputFlags.Inout)] * input_circuit.n_qubits
-                        + param_inputs,
-                        row_to_type([bool_type()] * input_circuit.n_bits),
-                    )
-            except ImportError:
-                err = TketNotInstalled(defined_at)
-                err.add_sub_diagnostic(TketNotInstalled.InstallInstruction(None))
-                raise GuppyError(err) from None
-        else:
-            pass
-    except ImportError:
-        raise InternalGuppyError(
-            "Pytket error should have been caught earlier"
-        ) from None
+    if use_arrays:
+        inputs = [
+            FuncInput(array_type(qubit_ty, q_reg.size), InputFlags.Inout)
+            for q_reg in input_circuit.q_registers
+        ]
+        if len(input_circuit.free_symbols()) != 0:
+            inputs.append(
+                FuncInput(
+                    array_type(angle_ty, len(input_circuit.free_symbols())),
+                    InputFlags.NoFlags,
+                )
+            )
+        outputs = [
+            array_type(bool_type(), c_reg.size) for c_reg in input_circuit.c_registers
+        ]
+        circuit_signature = FunctionType(
+            inputs,
+            row_to_type(outputs),
+        )
     else:
-        return circuit_signature
+        param_inputs = [
+            FuncInput(angle_ty, InputFlags.NoFlags)
+            for _ in range(len(input_circuit.free_symbols()))
+        ]
+        circuit_signature = FunctionType(
+            [FuncInput(qubit_ty, InputFlags.Inout)] * input_circuit.n_qubits
+            + param_inputs,
+            row_to_type([bool_type()] * input_circuit.n_bits),
+        )
+    return circuit_signature
