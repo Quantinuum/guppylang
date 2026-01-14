@@ -534,28 +534,17 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             TooLongError,
         )
 
-        is_generic: BoundConstVar | None = None
         match tag:
             case ConstValue(value=str(v)):
                 tag_value = v
-            case BoundConstVar(idx=idx) as var:
-                assert self.ctx.current_mono_args is not None
-                match self.ctx.current_mono_args[idx]:
-                    case ConstArg(const=ConstValue(value=str(v))):
-                        tag_value = v
-                        is_generic = var
-                    case _:
-                        raise InternalGuppyError("Unexpected tag monomorphization")
+            case BoundConstVar():
+                raise InternalGuppyError("Tag should be monomorphized at this point")
             case _:
                 raise InternalGuppyError("Unexpected tag value")
 
         if len(tag_value.encode("utf-8")) > TAG_MAX_LEN:
             err = TooLongError(loc)
             err.add_sub_diagnostic(TooLongError.Hint(None))
-            if is_generic:
-                err.add_sub_diagnostic(
-                    TooLongError.GenericHint(None, is_generic.display_name, tag_value)
-                )
             raise GuppyError(err)
         return tag_value
 

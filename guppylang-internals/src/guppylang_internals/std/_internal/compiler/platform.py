@@ -39,12 +39,6 @@ class TooLongError(Error):
     class Hint(Note):
         message: ClassVar[str] = f"Result tags are limited to {TAG_MAX_LEN} bytes"
 
-    @dataclass(frozen=True)
-    class GenericHint(Note):
-        message: ClassVar[str] = "Parameter `{param}` was instantiated to `{value}`"
-        param: str
-        value: str
-
 
 class ResultCompiler(CustomCallCompiler):
     """Custom compiler for overloads of the `result` function.
@@ -127,27 +121,16 @@ def tag_to_hugr(tag_arg: Argument, ctx: CompilerContext, loc: AstNode) -> tys.Ty
     Takes care of reading the tag value from the current monomorphization and checks
     that the tag fits into `TAG_MAX_LEN`.
     """
-    is_generic: BoundConstVar | None = None
     match tag_arg:
         case ConstArg(const=ConstValue(value=str(value))):
             tag = value
-        case ConstArg(const=BoundConstVar(idx=idx) as var):
-            is_generic = var
-            assert ctx.current_mono_args is not None
-            match ctx.current_mono_args[idx]:
-                case ConstArg(const=ConstValue(value=str(value))):
-                    tag = value
-                case _:
-                    raise InternalGuppyError("Invalid tag monomorphization")
+        case ConstArg(const=BoundConstVar()):
+            raise InternalGuppyError("Tag should be monomorphized at this point")
         case _:
             raise InternalGuppyError("Invalid tag argument")
 
     if len(tag.encode("utf-8")) > TAG_MAX_LEN:
         err = TooLongError(loc)
         err.add_sub_diagnostic(TooLongError.Hint(None))
-        if is_generic:
-            err.add_sub_diagnostic(
-                TooLongError.GenericHint(None, is_generic.display_name, tag)
-            )
         raise GuppyError(err)
     return tys.StringArg(tag)
