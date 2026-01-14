@@ -529,6 +529,8 @@ class FunctionType(ParametrizedTypeBase):
             [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
             self.output.transform(transformer),
             self.params,
+            comptime_args=self.comptime_args,
+            unitary_flags=self.unitary_flags,
         )
 
     def instantiate_partial(self, args: "PartialInst") -> "FunctionType":
@@ -557,6 +559,7 @@ class FunctionType(ParametrizedTypeBase):
             comptime_args=[
                 cast(ConstArg, arg.transform(inst)) for arg in self.comptime_args
             ],
+            unitary_flags=self.unitary_flags,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
