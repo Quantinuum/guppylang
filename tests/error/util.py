@@ -19,6 +19,12 @@ from tests.util import get_wasm_file
 # files for Python 3.10
 TRACEBACK_HIGHLIGHT = re.compile(r" *~*\^\^*~*")
 
+# Regular expression to match the bootstrapping source line inserted in tracebacks from
+# Python 3.13 onwards in combination with using execnet (the backend of pytest-xdist) to
+# run the test. We strip those out so we can use the same golden files for Python < 3.13
+EXECNET_BOOTSTRAP = re.compile(
+    r" *import sys;exec\(eval\(sys.stdin.readline\(\)\)\) *")
+
 
 def run_error_test(file, capsys, snapshot):
     file = pathlib.Path(file)
@@ -39,14 +45,15 @@ def run_error_test(file, capsys, snapshot):
     wasm_module = get_wasm_file()
     err = err.replace(str(file), "$FILE").replace(wasm_module, "$WASM")
 
-    # If we're comparing tracebacks, strip the highlights that are only present for
-    # Python 3.11+
-    if err.startswith("Traceback (most recent call last):"):
-        err = "\n".join(
-            line
-            for line in err.split("\n")
-            if not TRACEBACK_HIGHLIGHT.fullmatch(line)
-        )
+    # Strip the highlights that are only present for Python 3.11+, and the bootstrap
+    # passed by parallelized tests only included in the traceback for Python 3.13+.
+    err = "\n".join(
+        line
+        for line in err.split("\n")
+        if
+        not TRACEBACK_HIGHLIGHT.fullmatch(line) and not EXECNET_BOOTSTRAP.fullmatch(
+            line)
+    )
 
     snapshot.snapshot_dir = str(file.parent)
     snapshot.assert_match(err, file.with_suffix(".err").name)
