@@ -1,3 +1,6 @@
+"""Guppy standard library for random number generation and
+discrete probability distributions."""
+
 # mypy: disable-error-code="no-any-return"
 from typing import Generic, no_type_check
 

@@ -172,6 +172,14 @@ class MakeIter(ast.expr):
         self.origin_node = origin_node
         self.unwrap_size_hint = unwrap_size_hint
 
+    # Needed for the deepcopy to work correctly, ast.AST's deepcopy logic
+    # reconstructs nodes using _fields only.
+    # If you store extra attributes or rely overwriting the __init__,
+    # deepcopy will crash with a constructor mismatch.
+    # Overriding __reduce__ forces deepcopy to copy the instance dictionary instead
+    __reduce_ex__ = object.__reduce_ex__
+    __reduce__ = object.__reduce__
+
 
 class IterNext(ast.expr):
     """Obtains the next element of an iterator using the `__next__` magic method.
@@ -349,6 +357,10 @@ class ArrayUnpack(ast.expr):
         self.length = length
         self.elt_type = elt_type
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class IterableUnpack(ast.expr):
     """The LHS of an unpacking assignment of an iterable type."""
@@ -372,6 +384,10 @@ class IterableUnpack(ast.expr):
         super().__init__(pattern)
         self.compr = compr
         self.rhs_var = rhs_var
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 #: Any unpacking operation.
@@ -420,6 +436,10 @@ class Dagger(ast.expr):
     def __init__(self, node: ast.expr) -> None:
         super().__init__(**node.__dict__)
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class Control(ast.Call):
     """The control modifier"""
@@ -434,6 +454,10 @@ class Control(ast.Call):
         self.ctrl = ctrl
         self.qubit_num = None
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class Power(ast.expr):
     """The power modifier"""
@@ -445,6 +469,10 @@ class Power(ast.expr):
     def __init__(self, node: ast.expr, iter: ast.expr) -> None:
         super().__init__(**node.__dict__)
         self.iter = iter
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 Modifier = Dagger | Control | Power
@@ -532,6 +560,10 @@ class CheckedModifiedBlock(ast.With):
         self.dagger = dagger
         self.control = control
         self.power = power
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
     def __str__(self) -> str:
         # generate a function name from the def_id

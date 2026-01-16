@@ -3,6 +3,7 @@ from guppylang.decorator import guppy
 from guppylang_internals.decorator import custom_function, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.std._internal.util import int_op
+from pytket import Circuit
 
 
 def test_basic_overload(validate):
@@ -167,33 +168,25 @@ def test_everything_can_be_overloaded(validate):
 
     validate(main.compile_function())
 
-    # If we have tket installed, we can even overload circuits
-    try:
-        from pytket import Circuit
+    # Test overloading circuits
+    circ = Circuit(1)
+    circ.H(0)
 
-        circ = Circuit(1)
-        circ.H(0)
+    @guppy.pytket(circ)
+    def circ1(q: qubit) -> None: ...
 
-        @guppy.pytket(circ)
-        def circ1(q: qubit) -> None: ...
+    circ2 = guppy.load_pytket("circ2", circ, use_arrays=True)
 
-        circ2 = guppy.load_pytket("circ2", circ, use_arrays=True)
+    @guppy.overload(custom, my_hugr_op, declaration, defined, overloaded, circ1, circ2)
+    def combined_circ(): ...
 
-        @guppy.overload(
-            custom, my_hugr_op, declaration, defined, overloaded, circ1, circ2
-        )
-        def combined(): ...
+    @guppy
+    def main(q: qubit, qs: array[qubit, 1]) -> None:
+        combined_circ(1)
+        combined_circ(1, 2)
+        combined_circ(1, 2, 3)
+        combined_circ(1, 2, 3, 4)
+        combined_circ(q)
+        combined_circ(qs)
 
-        @guppy
-        def main(q: qubit, qs: array[qubit, 1]) -> None:
-            combined(1)
-            combined(1, 2)
-            combined(1, 2, 3)
-            combined(1, 2, 3, 4)
-            combined(q)
-            combined(qs)
-
-        validate(main.compile_function())
-
-    except ImportError:
-        pass
+    validate(main.compile_function())
