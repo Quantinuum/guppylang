@@ -1,7 +1,9 @@
 from guppylang import guppy
-from guppylang.std.quantum import qubit, cx, h, s, t
+from guppylang.std.angles import pi
+from guppylang.std.quantum import qubit, cx, h, s, t, rz
+from guppylang.std.builtins import array
 
-from pytket.passes import RemoveRedundancies, CliffordSimp
+from pytket.passes import RemoveRedundancies, CliffordSimp, SquashRzPhasedX
 
 from tket.passes import NormalizeGuppy, PytketHugrPass, PassResult
 
@@ -59,6 +61,19 @@ def test_redundant_cx_cancellation() -> None:
     assert _count_ops(pass_result.hugr, "H") == 1
 
 
+def test_redundant_cx_cancellation_with_arrays():
+    @guppy
+    def arr_cx(arr: array[qubit, 2]) -> None:
+        h(arr[0])
+        cx(arr[0], arr[1])
+        cx(arr[0], arr[1])
+
+    hugr_graph: Hugr = normalize(arr_cx.compile_function().modules[0])
+    opt_pass = PytketHugrPass(RemoveRedundancies())
+    new_hugr = opt_pass(hugr_graph)
+    assert _count_ops(new_hugr, "CX") == 0
+
+
 def test_clifford_simplification() -> None:
     @guppy
     def simple_clifford(q0: qubit, q1: qubit) -> None:
@@ -70,3 +85,16 @@ def test_clifford_simplification() -> None:
         opt_hugr = cliff_pass(my_hugr_graph)
         # test that we can cancel a CX gate by using an implicit swap
         assert _count_ops(opt_hugr, "CX") == 1
+
+
+def test_1q_rz_squashing() -> None:
+    @guppy
+    def redundant_1q_gates(q0: qubit) -> None:
+        rz(q0, pi / 2)
+        rz(q0, pi / 2)
+        rz(q0, pi / 2)
+
+    hugr_graph: Hugr = normalize(redundant_1q_gates.compile_function().modules[0])
+    opt_pass = PytketHugrPass(SquashRzPhasedX())
+    new_hugr = opt_pass(hugr_graph)
+    assert _count_ops(new_hugr, "Rz") == 1
