@@ -68,7 +68,6 @@ def test_redundant_cx_cancellation_with_arrays():
         cx(arr[0], arr[1])
         cx(arr[0], arr[1])
 
-    normalize = NormalizeGuppy()
     hugr_graph: Hugr = normalize(arr_cx.compile_function().modules[0])
     opt_pass = PytketHugrPass(RemoveRedundancies())
     new_hugr = opt_pass(hugr_graph)
