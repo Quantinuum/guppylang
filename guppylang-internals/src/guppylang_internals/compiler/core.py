@@ -266,7 +266,7 @@ class CompilerContext(ToHugrContext):
         """
         from guppylang_internals.engine import ENGINE
 
-        parsed_func = self.checked_globals.get_instance_func(ty, name)
+        parsed_func = ENGINE.get_instance_func(ty, name)
         if parsed_func is None:
             return None
         checked_func = ENGINE.get_checked(parsed_func.id)

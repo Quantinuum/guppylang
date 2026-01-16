@@ -88,6 +88,7 @@ from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
     GuppyError,
     GuppyTypeError,
@@ -343,7 +344,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 TensorCall(func=node.func, args=processed_args, tensor_ty=tensor_ty),
             ), subst
 
-        elif callee := self.ctx.globals.get_instance_func(func_ty, "__call__"):
+        elif callee := ENGINE.get_instance_func(func_ty, "__call__"):
             return callee.check_call(node.args, ty, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, func_ty))
@@ -455,7 +456,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             case ValueDef() as defn:
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
             # For types, we return their `__new__` constructor
-            case TypeDef() as defn if constr := self.ctx.globals.get_instance_func(
+            case TypeDef() as defn if constr := ENGINE.get_instance_func(
                 defn, "__new__"
             ):
                 return with_loc(node, GlobalName(id=name, def_id=constr.id)), constr.ty
@@ -513,7 +514,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # you loose access to all fields besides `a`).
                 expr = FieldAccessAndDrop(value=node.value, struct_ty=ty, field=field)
             return with_loc(node, expr), field.ty
-        elif func := self.ctx.globals.get_instance_func(ty, node.attr):
+        elif func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
             )
@@ -581,7 +582,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Check all other unary expressions by calling out to instance dunder methods
         op, display_name = unary_table[node.op.__class__]
-        func = self.ctx.globals.get_instance_func(op_ty, op)
+        func = ENGINE.get_instance_func(op_ty, op)
         if func is None:
             raise GuppyTypeError(
                 UnaryOperatorNotDefinedError(node.operand, op_ty, display_name)
@@ -602,11 +603,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         left_expr, left_ty = self.synthesize(left_expr)
         right_expr, right_ty = self.synthesize(right_expr)
 
-        if func := self.ctx.globals.get_instance_func(left_ty, lop):
+        if func := ENGINE.get_instance_func(left_ty, lop):
             with suppress(GuppyError):
                 return func.synthesize_call([left_expr, right_expr], node, self.ctx)
 
-        if func := self.ctx.globals.get_instance_func(right_ty, rop):
+        if func := ENGINE.get_instance_func(right_ty, rop):
             with suppress(GuppyError):
                 return func.synthesize_call([right_expr, left_expr], node, self.ctx)
 
@@ -634,7 +635,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         given expected signature.
         """
         node, ty = self.synthesize(node)
-        func = self.ctx.globals.get_instance_func(ty, func_name)
+        func = ENGINE.get_instance_func(ty, func_name)
         if func is None:
             err = BadProtocolError(node, ty, description)
             if give_reason and exp_sig is not None:
@@ -770,7 +771,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
             ), return_ty
 
-        elif f := self.ctx.globals.get_instance_func(ty, "__call__"):
+        elif f := ENGINE.get_instance_func(ty, "__call__"):
             return f.synthesize_call(node.args, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, ty))
@@ -915,7 +916,7 @@ def try_coerce_to(
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
     if act.kind < exp.kind:
-        f = ctx.globals.get_instance_func(act, f"__{exp.kind.name.lower()}__")
+        f = ENGINE.get_instance_func(act, f"__{exp.kind.name.lower()}__")
         assert f is not None
         node, subst = f.check_call([node], exp, node, ctx)
         assert len(subst) == 0, "Coercion methods are not generic"
