@@ -89,12 +89,12 @@ def _instantiate_self(
     partial_inst: PartialInst = [None for _ in proto_func.params]
     # Instantiate all self type occurrences in protocol methods with the type we assume
     # is implementing the protocol.
-    for arg in proto_inst.type_args:
-        match arg:
+    for proto_arg, bound_arg in zip(proto_inst.type_args, bound.type_args, strict=True):
+        match bound_arg:
             case TypeArg(ty=BoundTypeVar(idx=idx)):
-                partial_inst[idx] = arg
+                partial_inst[idx] = proto_arg
             case ConstArg(const=BoundConstVar(idx=idx)):
-                partial_inst[idx] = arg
+                partial_inst[idx] = proto_arg
     partial_inst[self_ty.idx] = impl_ty.to_arg()
     return proto_func.instantiate_partial(partial_inst)
 
@@ -112,6 +112,7 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
         candidates = []
         for impl in ty.implements:
             if impl.def_id == protocol.def_id:
+                # TODO: Should either be existential or concrete.
                 subst = _unify_args(protocol.type_args, impl.type_args, {})
                 if subst is not None:
                     candidates.append((impl, subst))

@@ -84,7 +84,7 @@ class _TupleTypeDef(TypeDef, CompiledDef):
         args = [
             # TODO: Better error location
             TypeParam(0, f"T{i}", must_be_copyable=False, must_be_droppable=False)
-            .check_arg(arg, loc)
+            .check_arg(arg, loc)[0]
             .ty
             for i, arg in enumerate(args)
         ]

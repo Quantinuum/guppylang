@@ -21,6 +21,7 @@ from guppylang_internals.tys.const import (
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
+    from guppylang_internals.checker.protocol_checker import ImplProof
     from guppylang_internals.tys.ty import Type
 
 
@@ -57,6 +58,7 @@ class TypeArg(ArgumentBase):
 
     # The type to instantiate
     ty: "Type" = field(hash=False)  # Types are not hashable
+    proto_proof : "ImplProof | None" = field(default=None, hash=False)
 
     @property
     def unsolved_vars(self) -> set[ExistentialVar]:

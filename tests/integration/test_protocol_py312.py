@@ -1,6 +1,6 @@
 from typing import no_type_check
 from guppylang.decorator import guppy
-import pytest
+from guppylang.std.lang import owned
 
 
 def test_def():
@@ -103,7 +103,6 @@ def test_basic_parameterised(validate):
         def foo(self: "MyType", x: int) -> str:
             return "something"
 
-    # TODO: Is this valid?
     @guppy.struct
     class MyOtherType[P]:
         @guppy

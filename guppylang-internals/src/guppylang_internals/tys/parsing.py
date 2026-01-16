@@ -383,13 +383,14 @@ if sys.version_info >= (3, 12):
                     proto_defn = _try_parse_defn(bound, ctx.globals)
                 if isinstance(proto_defn, ParsedProtocolDef):
                     inst = proto_defn.check_instantiate(proto_args, node)
-                    return TypeParam(
+                    param = TypeParam(
                         idx,
                         node.name,
                         must_be_copyable=False,
                         must_be_droppable=False,
                         must_implement=[inst],
                     )
+                    return param
 
                 # For now, we don't allow the types of const params to refer to previous
                 # parameters, so we pass an empty dict as the `param_var_mapping`.
@@ -428,7 +429,7 @@ def type_with_flags_from_ast(
     else:
         # Parse an argument and check that it's valid for a `TypeParam`
         arg = arg_from_ast(node, ctx)
-        tyarg = _type_param.check_arg(arg, node)
+        tyarg, _ = _type_param.check_arg(arg, node)
         return tyarg.ty, InputFlags.NoFlags
 
 

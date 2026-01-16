@@ -18,7 +18,7 @@ from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import ExistentialVar
 
 if TYPE_CHECKING:
-    from guppylang_internals.tys.subst import PartialInst
+    from guppylang_internals.tys.subst import PartialInst, Subst
     from guppylang_internals.tys.ty import Type
 
 # We define the `Parameter` type as a union of all `ParameterBase` subclasses defined
@@ -97,11 +97,14 @@ class TypeParam(ParameterBase):
         """Returns a copy of the parameter with a new index."""
         return TypeParam(idx, self.name, self.must_be_copyable, self.must_be_droppable)
 
-    def check_arg(self, arg: Argument, loc: AstNode | None = None) -> TypeArg:
+    def check_arg(
+        self, arg: Argument, loc: AstNode | None = None
+    ) -> "tuple[TypeArg, Subst]":
         """Checks that this parameter can be instantiated with a given argument.
 
         Raises a user error if the argument is not valid.
         """
+        subst: Subst = {}
         match arg:
             case ConstArg(const):
                 err = ExpectedError(loc, "a type", got=f"value of type `{const.ty}`")
@@ -128,7 +131,8 @@ class TypeParam(ParameterBase):
 
                     for proto in self.must_implement:
                         proof, subst = check_protocol(ty, proto)
-                return arg
+                        arg = replace(arg, proto_proof=proof)
+                return arg, subst
 
     def to_existential(self) -> tuple[Argument, ExistentialVar]:
         """Creates a fresh existential variable that can be instantiated for this

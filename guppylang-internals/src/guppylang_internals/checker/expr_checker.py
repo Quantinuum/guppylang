@@ -23,7 +23,7 @@ can be used to infer a type for an expression.
 import ast
 import sys
 import traceback
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
@@ -136,7 +136,12 @@ from guppylang_internals.tys.builtin import (
     string_type,
 )
 from guppylang_internals.tys.const import Const, ConstValue
-from guppylang_internals.tys.param import ConstParam, TypeParam, check_all_args
+from guppylang_internals.tys.param import (
+    ConstParam,
+    Parameter,
+    TypeParam,
+    check_all_args,
+)
 from guppylang_internals.tys.parsing import arg_from_ast
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
@@ -318,9 +323,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 # TODO: Am I missing anything handling protocol method calls here?
-                args, return_ty, inst = check_call(
-                    func_ty, node.args, ty, node, self.ctx
-                )
+                args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
                 return with_loc(
                     node,
                     ProtocolCall(
@@ -329,7 +332,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                         args=args,
                         type_args=inst,
                     ),
-                ), return_ty
+                ), subst
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -340,10 +343,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
-            args, return_ty, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
-            return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
+            return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
         if isinstance(func_ty, TupleType) and (
             function_elements := parse_function_tensor(func_ty)
@@ -782,8 +785,24 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
-                print(node.func.id)
+                # TODO: Should we error here if not callable?
                 return defn.synthesize_call(node.args, node, self.ctx)
+
+            from guppylang_internals.definition.protocol import ParsedProtocolDef
+
+            # Protocol methods don't have their own definition, we have to look up the
+            # protocol definition itself first.
+            if isinstance(defn, ParsedProtocolDef):
+                args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
+                return with_loc(
+                    node,
+                    ProtocolCall(
+                        member=node.func.id,
+                        proto_id=node.func.def_id,
+                        args=args,
+                        type_args=inst,
+                    ),
+                ), return_ty
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1025,6 +1044,7 @@ def type_check_args(
     inputs: list[ast.expr],
     func_ty: FunctionType,
     subst: Subst,
+    free_var_mapping: Mapping[ExistentialVar, Parameter],
     ctx: Context,
     node: AstNode,
 ) -> tuple[list[ast.expr], Subst]:
@@ -1040,6 +1060,12 @@ def type_check_args(
     comptime_args = iter(func_ty.comptime_args)
     for inp, func_inp in zip(inputs, func_ty.inputs, strict=True):
         a, s = ExprChecker(ctx).check(inp, func_inp.ty.substitute(subst), "argument")
+        for var in s:
+            if var in free_var_mapping:
+                param = free_var_mapping[var]
+                arg, arg_subst = param.check_arg(s[var], a)
+                subst |= arg_subst
+                subst[var] = arg.ty
         subst |= s
         if InputFlags.Inout in func_inp.flags and isinstance(a, PlaceNode):
             a.place = check_place_assignable(
@@ -1177,7 +1203,8 @@ def synthesize_call(
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
-    args, subst = type_check_args(args, unquantified, {}, ctx, node)
+    var_mapping = dict(zip(free_vars, func_ty.params, strict=True))
+    args, subst = type_check_args(args, unquantified, {}, var_mapping, ctx, node)
 
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
@@ -1246,7 +1273,7 @@ def check_call(
         raise GuppyTypeError(TypeMismatchError(node, ty, unquantified.output, kind))
 
     # Try to infer more by checking against the arguments
-    inputs, subst = type_check_args(inputs, unquantified, subst, ctx, node)
+    inputs, subst = type_check_args(inputs, unquantified, subst, {}, ctx, node)
 
     # Also make sure we found an instantiation for all free vars in the type we're
     # checking against
