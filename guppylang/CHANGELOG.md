@@ -14,6 +14,27 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.22.0](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.8...guppylang-v0.22.0) (2026-01-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* Tket is now a non-optional dependency. Most systems already have this installed, rerunning the package manager should fix any issues.
+
+### Features
+
+* Make tket a non-optional dependency ([#1440](https://github.com/Quantinuum/guppylang/issues/1440)) ([4af4360](https://github.com/Quantinuum/guppylang/commit/4af4360495c9d6155e69310d5bfb8f22953fc1ff))
+
+
+### Bug Fixes
+
+* upgrade selene-sim version to fix state ordering bug ([#1444](https://github.com/Quantinuum/guppylang/issues/1444)) ([d976df9](https://github.com/Quantinuum/guppylang/commit/d976df90410e0452202671c481a28163e5f8aae5))
+
+
+### Documentation
+
+* Added documentation for Issue [#1213](https://github.com/Quantinuum/guppylang/issues/1213) Add API docs for std modules ([#1428](https://github.com/Quantinuum/guppylang/issues/1428)) ([7b38fc6](https://github.com/Quantinuum/guppylang/commit/7b38fc61e0996c2a2bc8fbd1180c7a0cc6ac2312))
+
 ## [0.21.8](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.7...guppylang-v0.21.8) (2026-01-09)
 
 ### Features
