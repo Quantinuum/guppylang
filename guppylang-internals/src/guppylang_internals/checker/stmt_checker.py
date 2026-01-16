@@ -319,12 +319,10 @@ class StmtChecker(AstVisitor[BBStatement]):
                     elt_ty = get_element_type(ty)
                     unpack = ArrayUnpack(pattern, size, elt_ty)
                     return unpack, size * [expr], size * [elt_ty]
-                case generic_size:
-                    err = UnpackableError(expr, get_type(expr))
-                    err.add_sub_diagnostic(
-                        UnpackableError.GenericSize(None, generic_size)
+                case _:
+                    raise InternalGuppyError(
+                        "Array length should be monomorphized at this point"
                     )
-                    raise GuppyError(err)
 
         elif self.ctx.globals.get_instance_func(ty, "__iter__"):
             size = check_iter_unpack_has_static_size(expr, self.ctx)
@@ -506,6 +504,7 @@ def check_iter_unpack_has_static_size(expr: ast.expr, ctx: Context) -> int:
     match get_iter_size(iter_ty):
         case ConstValue(value=int(size)):
             return size
-        case generic_size:
-            err.add_sub_diagnostic(UnpackableError.GenericSize(None, generic_size))
-            raise GuppyError(err)
+        case _:
+            raise InternalGuppyError(
+                "Iterator size should be monomorphized at this point"
+            )

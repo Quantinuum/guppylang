@@ -1,6 +1,6 @@
 import ast
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
 
@@ -60,6 +60,9 @@ class TypeParsingCtx:
     #: The available type parameters indexed by name
     param_var_mapping: dict[str, Parameter] = field(default_factory=dict)
 
+    #: Type parameters that are bound to concrete arguments
+    param_inst: Mapping[str, Argument] = field(default_factory=dict)
+
     #: Whether a previously unseen type parameters is allowed to be bound (i.e. is
     #: allowed to be added to `param_var_mapping`
     allow_free_vars: bool = False
@@ -79,6 +82,8 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
 
     # An identifier referring to a quantified variable
     if isinstance(node, ast.Name):
+        if node.id in ctx.param_inst:
+            return ctx.param_inst[node.id]
         if node.id in ctx.param_var_mapping:
             return ctx.param_var_mapping[node.id].to_bound()
         raise GuppyError(VarNotDefinedError(node, node.id))
@@ -192,6 +197,8 @@ def _arg_from_instantiated_defn(
             # We don't allow parametrised variables like `T[int]`
             if arg_nodes:
                 raise GuppyError(HigherKindedTypeVarError(node, defn))
+            if defn.name in ctx.param_inst:
+                return ctx.param_inst[defn.name]
             if defn.name not in ctx.param_var_mapping:
                 if ctx.allow_free_vars:
                     ctx.param_var_mapping[defn.name] = defn.to_param(
@@ -336,7 +343,7 @@ if sys.version_info >= (3, 12):
                 # parameters, so we pass an empty dict as the `param_var_mapping`.
                 # TODO: In the future we might want to allow stuff like
                 #   `def foo[T, XS: array[T, 42]]` and so on
-                ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars)
+                ctx = TypeParsingCtx(globals, param_var_mapping, {}, allow_free_vars)
                 ty = type_from_ast(bound, ctx)
                 if not ty.copyable or not ty.droppable:
                     raise GuppyError(LinearConstParamError(bound, ty))

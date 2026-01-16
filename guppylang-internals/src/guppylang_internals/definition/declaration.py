@@ -1,4 +1,5 @@
 import ast
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
 
@@ -15,7 +16,11 @@ from guppylang_internals.compiler.core import (
     DFContainer,
     require_monomorphization,
 )
-from guppylang_internals.definition.common import CompilableDef, ParsableDef
+from guppylang_internals.definition.common import (
+    CheckableGenericDef,
+    CompilableDef,
+    ParsableDef,
+)
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
@@ -29,9 +34,12 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.diagnostic import Error
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys.arg import ConstArg, TypeArg
+from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import Type, UnitaryFlags
@@ -67,7 +75,7 @@ class RawFunctionDecl(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
-    def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
+    def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
@@ -78,7 +86,7 @@ class RawFunctionDecl(ParsableDef):
         # Make sure we won't need monomorphization to compile this declaration
         if mono_params := require_monomorphization(ty.params):
             raise GuppyError(MonomorphizeError(func_ast, self.name, mono_params.pop()))
-        return CheckedFunctionDecl(
+        return ParsedFunctionDecl(
             self.id,
             self.name,
             func_ast,
@@ -89,14 +97,25 @@ class RawFunctionDecl(ParsableDef):
 
 
 @dataclass(frozen=True)
-class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
-    """A function declaration with parsed and checked signature.
-
-    In particular, this means that we have determined a type for the function.
-    """
-
+class ParsedFunctionDecl(RawFunctionDecl, CheckableGenericDef, CallableDef):
     defined_at: ast.FunctionDef
     docstring: str | None
+
+    @property
+    def params(self) -> Sequence[Parameter]:
+        return self.ty.params
+
+    def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDecl":
+        mono_ty = self.ty.instantiate_partial(type_args)
+        return CheckedFunctionDecl(
+            self.id,
+            self.name,
+            self.defined_at,
+            mono_ty,
+            self.python_func,
+            self.docstring,
+            type_args,
+        )
 
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
@@ -105,6 +124,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        ENGINE.register_generic_use(self, inst)
         return node, subst
 
     def synthesize_call(
@@ -114,7 +134,31 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        ENGINE.register_generic_use(self, inst)
         return with_type(ty, node), ty
+
+
+@dataclass(frozen=True)
+class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
+    """A function declaration with parsed and checked signature.
+
+    In particular, this means that we have determined a type for the function.
+    """
+
+    type_args: Inst
+
+    @property
+    def mangled_name(self) -> str:
+        if not self.type_args:
+            return self.name
+        arg_strings = []
+        for arg in self.type_args:
+            match arg:
+                case TypeArg(ty=ty):
+                    arg_strings.append(str(ty))
+                case ConstArg(const=ConstValue(value=v)):
+                    arg_strings.append(str(v))
+        return f"{self.name}$" + "_".join(arg_strings)
 
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
@@ -125,7 +169,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         ), "Functions can only be declared in modules"
         module: hf.Module = module
 
-        node = module.declare_function(self.name, self.ty.to_hugr_poly(ctx))
+        node = module.declare_function(self.mangled_name, self.ty.to_hugr_poly(ctx))
         return CompiledFunctionDecl(
             self.id,
             self.name,
@@ -133,6 +177,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
             self.ty,
             self.python_func,
             self.docstring,
+            self.type_args,
             node,
         )
 

@@ -77,7 +77,6 @@ def compile_local_func_def(
             func.def_id,
             func.name,
             func,
-            mono_args,
             func.ty,
             None,
             func.cfg,

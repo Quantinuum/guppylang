@@ -284,10 +284,8 @@ def test_many(validate):
     compiled = main.compile_function()
     validate(compiled)
 
-    # Check we have main, and 2 monomorphizations of foo and baz each. Note that `s2`
-    # doesn't generate a monomorphisation since it shares the relevant mono-parameters
-    # with `s1`
-    assert len(funcs_defs(compiled.modules[0])) == 5
+    # Check we have main, and 3 monomorphizations of foo and baz each
+    assert len(funcs_defs(compiled.modules[0])) == 7
 
 
 def test_constructor(validate):
@@ -361,16 +359,18 @@ def test_nat_generic(validate):
         return t
 
     @guppy
-    def main(n: nat @ comptime, m: nat @ comptime) -> None:
+    def bar(n: nat @ comptime, m: nat @ comptime) -> None:
         foo(n)
         foo(m)
         foo(True)
         foo(False)
 
+    @guppy
+    def main() -> None:
+        bar(1, 2)
+
     compiled = main.compile()
     validate(compiled)
 
-    # Check we have main, and 3 monomorphisations of foo. The two nat versions should
-    # correspond to the same monomorphisation since the bounded nat args are preserved
-    # in Hugr!
-    assert len(funcs_defs(compiled.modules[0])) == 4
+    # Check we have main, bar, and 4 monomorphisations of foo
+    assert len(funcs_defs(compiled.modules[0])) == 6

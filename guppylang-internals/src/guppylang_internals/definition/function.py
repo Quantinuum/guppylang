@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
-import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.hugr.node_port import ToNode
@@ -23,13 +22,11 @@ from guppylang_internals.checker.func_checker import (
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
-    PartiallyMonomorphizedArgs,
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
 from guppylang_internals.definition.common import (
-    CheckableDef,
-    MonomorphizableDef,
-    MonomorphizedDef,
+    CheckableGenericDef,
+    CompilableDef,
     ParsableDef,
     UnknownSourceError,
 )
@@ -40,6 +37,7 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
@@ -92,7 +90,7 @@ class RawFunctionDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class ParsedFunctionDef(CheckableDef, CallableDef):
+class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     """A function definition with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function and are
@@ -115,15 +113,20 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
-    def check(self, globals: Globals) -> "CheckedFunctionDef":
+    @property
+    def params(self) -> "Sequence[Parameter]":
+        """Generic parameters of this function."""
+        return self.ty.params
+
+    def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
-        # Add python variable scope to the globals
-        cfg = check_global_func_def(self.defined_at, self.ty, globals)
+        cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
+        mono_ty = self.ty.instantiate_partial(type_args)
         return CheckedFunctionDef(
             self.id,
             self.name,
             self.defined_at,
-            self.ty,
+            mono_ty,
             self.docstring,
             cfg,
             metadata=self.metadata,
@@ -136,6 +139,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        ENGINE.register_generic_use(self, inst)
         return node, subst
 
     def synthesize_call(
@@ -145,11 +149,12 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        ENGINE.register_generic_use(self, inst)
         return with_type(ty, node), ty
 
 
 @dataclass(frozen=True)
-class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
+class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
     """Type checked version of a user-defined function that is ready to be compiled.
 
     In particular, this means that we have a constructed and type checked a control-flow
@@ -160,22 +165,19 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         name: The name of the function.
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
-        python_scope: The Python scope where the function was defined.
         docstring: The docstring of the function.
         cfg: The type- and linearity-checked CFG for the function body.
     """
 
     cfg: CheckedCFG[Place]
 
-    @property
-    def params(self) -> "Sequence[Parameter]":
-        """Generic parameters of this function."""
-        return self.ty.params
+    def __post_init__(self) -> None:
+        # We should be monomorphized at this point
+        assert not self.params
 
-    def monomorphize(
+    def compile_outer(
         self,
         module: DefinitionBuilder[OpVar],
-        mono_args: "PartiallyMonomorphizedArgs",
         ctx: "CompilerContext",
     ) -> "CompiledFunctionDef":
         """Adds a Hugr `FuncDefn` node for the (partially) monomorphized function to the
@@ -185,8 +187,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         access to the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
-        mono_ty = self.ty.instantiate_partial(mono_args)
-        hugr_ty = mono_ty.to_hugr_poly(ctx)
+        hugr_ty = self.ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
             self.name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
@@ -199,8 +200,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             self.id,
             self.name,
             self.defined_at,
-            mono_args,
-            mono_ty,
+            self.ty,
             self.docstring,
             self.cfg,
             func_def,
@@ -209,9 +209,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
 
 
 @dataclass(frozen=True)
-class CompiledFunctionDef(
-    CheckedFunctionDef, CompiledCallableDef, MonomorphizedDef, CompiledHugrNodeDef
-):
+class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrNodeDef):
     """A function definition with a corresponding Hugr node.
 
     Args:
@@ -266,9 +264,7 @@ def load_with_args(
     func: ToNode,
 ) -> Wire:
     """Loads the function as a value into a local Hugr dataflow graph."""
-    func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
-    type_args = [ta.to_hugr(dfg.ctx) for ta in type_args]
-    return dfg.builder.load_function(func, func_ty, type_args)
+    return dfg.builder.load_function(func)
 
 
 def compile_call(
@@ -279,10 +275,8 @@ def compile_call(
     func: ToNode,
 ) -> CallReturnWires:
     """Compiles a call to the function."""
-    func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
-    type_args = [arg.to_hugr(dfg.ctx) for arg in type_args]
     num_returns = len(type_to_row(ty.output))
-    call = dfg.builder.call(func, *args, instantiation=func_ty, type_args=type_args)
+    call = dfg.builder.call(func, *args)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),
