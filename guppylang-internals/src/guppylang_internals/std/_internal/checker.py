@@ -172,6 +172,127 @@ class ArrayCopyChecker(CustomCallChecker):
         return with_loc(self.node, node), get_type(array_arg)
 
 
+class ArrayIndexChecker(CustomCallChecker):
+    """Custom call checker that performs compile-time bounds
+      checking for array indexing.
+
+    When the array size is statically known and the index is a literal constant,
+    this checker validates that the index is within bounds and raises an error
+    at compile time if it's not.
+    """
+
+    @dataclass(frozen=True)
+    class IndexOutOfBoundsError(Error):
+        title: ClassVar[str] = "Index out of bounds"
+        span_label: ClassVar[str] = (
+            "Array index {index} is out of bounds for array of size {size}"
+        )
+        index: int
+        size: int
+
+    def _extract_constant_index(self, index_expr: ast.expr) -> int | None:
+        """Extract a constant integer value from an index expression if possible.
+
+        Handles both AST constants and PlaceNode structures.
+        """
+        # Case 1: Simple AST constant (e.g., arr[8] - direct Constant node)
+        if isinstance(index_expr, ast.Constant) and isinstance(index_expr.value, int):
+            return index_expr.value
+
+        # Case 2: PlaceNode with constant defined_at (e.g., after type checking)
+        if hasattr(index_expr, "place"):
+            place = index_expr.place
+            if hasattr(place, "defined_at"):
+                defined_at = place.defined_at
+                # Check if defined_at is a Constant node with a value
+                if isinstance(defined_at, ast.Constant) and isinstance(
+                    defined_at.value, int
+                ):
+                    return defined_at.value
+
+        return None
+
+    def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
+        """Check-mode: verify arguments against
+        expected type and perform bounds check."""
+
+        # Run regular type checking for the arguments
+        args, subs, type_args = check_call(self.func.ty, args, ty, self.node, self.ctx)
+
+        # Extract the array length from type arguments
+        # Type args are: [element_type, length]
+        if len(type_args) >= 2:
+            length_arg = type_args[1]
+
+            # Check if the array size is statically known
+            if hasattr(length_arg, "const") and isinstance(
+                length_arg.const, ConstValue
+            ):
+                array_length = length_arg.const.value
+
+                # The index is the second argument (first is self/array)
+                if len(args) >= 2:
+                    index_expr = args[1]
+
+                    # Extract constant index value
+                    index_value = self._extract_constant_index(index_expr)
+
+                    # Perform bounds check
+                    if index_value is not None and (
+                        index_value < 0 or index_value >= array_length
+                    ):
+                        raise GuppyError(
+                            ArrayIndexChecker.IndexOutOfBoundsError(
+                                self.node,
+                                index=index_value,
+                                size=array_length,
+                            )
+                        )
+
+        # Return the synthesized node and type
+        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        return with_loc(self.node, node), subs
+
+    def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
+        """Synthesize-mode: infer return type and perform bounds check."""
+        # Run regular type synthesis for the arguments
+        args, subs, type_args = synthesize_call(self.func.ty, args, self.node, self.ctx)
+
+        # Extract the array length from type arguments
+        # Type args are: [element_type, length]
+        if len(type_args) >= 2:
+            length_arg = type_args[1]
+
+            # Check if the array size is statically known
+            if hasattr(length_arg, "const") and isinstance(
+                length_arg.const, ConstValue
+            ):
+                array_length = length_arg.const.value
+
+                # The index is the second argument (first is self/array)
+                if len(args) >= 2:
+                    index_expr = args[1]
+
+                    # Extract constant index value
+                    index_value = self._extract_constant_index(index_expr)
+
+                    # Perform bounds check
+                    if index_value is not None and (
+                        index_value < 0 or index_value >= array_length
+                    ):
+                        raise GuppyError(
+                            ArrayIndexChecker.IndexOutOfBoundsError(
+                                self.node,
+                                index=index_value,
+                                size=array_length,
+                            )
+                        )
+
+        # Return the synthesized node and type
+        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        return with_loc(self.node, node), subs
+
+
 class NewArrayChecker(CustomCallChecker):
     """Function call checker for the `array.__new__` function."""
 

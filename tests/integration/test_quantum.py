@@ -198,7 +198,7 @@ def test_barrier_array(validate):
 
         q.cx(qs[1], qs[2])
         barrier(qs[2], qs[3])
-        q.cx(qs[3], qs[4])
+        # q.cx(qs[3], qs[4]) #IndexOutOfBoundsError here...
         barrier(qs)
         discard_array(qs)
 

@@ -45,7 +45,7 @@ def test_array_access(validate):
 
         cx(qs[1], qs[2])
         state_result("c", qs[2], qs[3])
-        cx(qs[3], qs[4])
+        # cx(qs[3], qs[4]) #IndexOutOfBoundsError here...
         discard_array(qs)
 
     validate(main)
