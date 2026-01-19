@@ -173,8 +173,7 @@ class ArrayCopyChecker(CustomCallChecker):
 
 
 class ArrayIndexChecker(CustomCallChecker):
-    """Custom call checker that performs compile-time bounds
-      checking for array indexing.
+    """Performs compile-time bounds checking for array indexing.
 
     When the array size is statically known and the index is a literal constant,
     this checker validates that the index is within bounds and raises an error
