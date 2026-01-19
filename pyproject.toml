@@ -16,7 +16,7 @@ test = [
     "pytest-xdist>=3.8.0",
     "ipykernel >=6.29.5,<7",
     "miette-py",
-    "tket >= 0.12.13",
+    "tket~=0.12.15",
 ]
 
 [tool.uv]
