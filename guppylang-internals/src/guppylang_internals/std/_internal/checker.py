@@ -184,7 +184,7 @@ class ArrayIndexChecker(CustomCallChecker):
     class IndexOutOfBoundsError(Error):
         title: ClassVar[str] = "Index out of bounds"
         span_label: ClassVar[str] = (
-            "Array index {index} is out of bounds for array of size {size}"
+            "Array index {index} is out of bounds for array of size {size}."
         )
         index: int
         size: int
