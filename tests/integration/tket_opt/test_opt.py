@@ -1,6 +1,7 @@
 from guppylang import guppy
-from guppylang.std.angles import pi
+from guppylang.std.angles import pi, angle
 from guppylang.std.quantum import qubit, cx, h, s, t, rz
+from guppylang.std.qsystem import phased_x
 from guppylang.std.builtins import array
 
 from pytket.passes import RemoveRedundancies, CliffordSimp, SquashRzPhasedX
@@ -98,3 +99,21 @@ def test_1q_rz_squashing() -> None:
     opt_pass = PytketHugrPass(SquashRzPhasedX())
     new_hugr = opt_pass(hugr_graph)
     assert _count_ops(new_hugr, "Rz") == 1
+
+
+def test_1q_rz_squashing2() -> None:
+    @guppy
+    def rz_phased_x_func(q0: qubit) -> None:
+        phased_x(q0, angle(1 / 2), angle(1 / 2))
+        rz(q0, angle(1 / 2))
+        phased_x(q0, angle(1 / 2), angle(1 / 2))
+
+    # Should simplify to
+    # phased_x(q0, angle(7/2), angle(1))
+    # rz(q0, angle(1))
+
+    hugr_graph: Hugr = normalize(rz_phased_x_func.compile_function().modules[0])
+    opt_pass = PytketHugrPass(SquashRzPhasedX())
+    new_hugr = opt_pass(hugr_graph)
+    assert _count_ops(new_hugr, "Rz") == 1
+    assert _count_ops(new_hugr, "PhasedX") == 1
