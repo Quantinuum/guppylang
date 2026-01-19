@@ -211,6 +211,35 @@ class ArrayIndexChecker(CustomCallChecker):
 
         return None
 
+    def _check_constant_index_bounds(
+        self, index_expr: ast.expr, length_arg: TypeArg | ConstArg
+    ) -> None:
+        """Perform compile-time bounds checking if size and index are constant."""
+
+        # Check if array size is statically known
+        if not (
+            hasattr(length_arg, "const") and isinstance(length_arg.const, ConstValue)
+        ):
+            return
+
+        # get the array length
+        array_length = length_arg.const.value
+
+        # Extract constant index if possible
+        index_value = self._extract_constant_index(index_expr)
+        if index_value is None:
+            return
+
+        # Perform bounds check
+        if index_value < 0 or index_value >= array_length:
+            raise GuppyError(
+                ArrayIndexChecker.IndexOutOfBoundsError(
+                    self.node,
+                    index=index_value,
+                    size=array_length,
+                )
+            )
+
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         """Check-mode: verify arguments against
         expected type and perform bounds check."""
@@ -218,27 +247,8 @@ class ArrayIndexChecker(CustomCallChecker):
         # Run regular type checking for the arguments
         args, subs, type_args = check_call(self.func.ty, args, ty, self.node, self.ctx)
 
-        # Extract the array length from type arguments
-        # Type args are: [element_type, length]
-        length_arg = type_args[1]
-
-        # Check if the array size is statically known
-        if hasattr(length_arg, "const") and isinstance(length_arg.const, ConstValue):
-            array_length = length_arg.const.value
-
-            # The index is the second argument (first is self/array)
-            index_value = self._extract_constant_index(args[1])
-
-            if index_value is not None and (
-                index_value < 0 or index_value >= array_length
-            ):
-                raise GuppyError(
-                    ArrayIndexChecker.IndexOutOfBoundsError(
-                        self.node,
-                        index=index_value,
-                        size=array_length,
-                    )
-                )
+        # Check the index bounds (first:index expression, second: length_arg)
+        self._check_constant_index_bounds(args[1], type_args[1])
 
         # Return the synthesized node and type
         node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
@@ -249,27 +259,8 @@ class ArrayIndexChecker(CustomCallChecker):
         # Run regular type synthesis for the arguments
         args, subs, type_args = synthesize_call(self.func.ty, args, self.node, self.ctx)
 
-        # Extract the array length from type arguments
-        # Type args are: [element_type, length]
-        length_arg = type_args[1]
-
-        # Check if the array size is statically known
-        if hasattr(length_arg, "const") and isinstance(length_arg.const, ConstValue):
-            array_length = length_arg.const.value
-
-            # The index is the second argument (first is self/array)
-            index_value = self._extract_constant_index(args[1])
-
-            if index_value is not None and (
-                index_value < 0 or index_value >= array_length
-            ):
-                raise GuppyError(
-                    ArrayIndexChecker.IndexOutOfBoundsError(
-                        self.node,
-                        index=index_value,
-                        size=array_length,
-                    )
-                )
+        # Check the index bounds (first:index expression, second: length_arg)
+        self._check_constant_index_bounds(args[1], type_args[1])
 
         # Return the synthesized node and type
         node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
