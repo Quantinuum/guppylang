@@ -322,7 +322,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # Protocol methods don't have their own definition, we have to look up the
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
-                # TODO: Am I missing anything handling protocol method calls here?
+                assert isinstance(func_ty, FunctionType)
                 args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
                 return with_loc(
                     node,
@@ -793,6 +793,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # Protocol methods don't have their own definition, we have to look up the
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
+                assert isinstance(ty, FunctionType)
                 args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
                 return with_loc(
                     node,
@@ -1060,12 +1061,16 @@ def type_check_args(
     comptime_args = iter(func_ty.comptime_args)
     for inp, func_inp in zip(inputs, func_ty.inputs, strict=True):
         a, s = ExprChecker(ctx).check(inp, func_inp.ty.substitute(subst), "argument")
+        # For each new substitution we find for any previously uninstantiated parameter,
+        # we check it in order to possibly infer more substitutions through protocol
+        # checking.
         for var in s:
             if var in free_var_mapping:
                 param = free_var_mapping[var]
-                arg, arg_subst = param.check_arg(s[var], a)
-                subst |= arg_subst
-                subst[var] = arg.ty
+                assert isinstance(param, TypeParam)
+                check_arg, check_subst = param.check_arg(s[var].to_arg(), a)
+                subst |= check_subst
+                subst[var] = check_arg.ty
         subst |= s
         if InputFlags.Inout in func_inp.flags and isinstance(a, PlaceNode):
             a.place = check_place_assignable(

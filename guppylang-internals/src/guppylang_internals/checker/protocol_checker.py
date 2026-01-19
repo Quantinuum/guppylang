@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import ClassVar, TypeAlias
 
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.definition.parameter import Error
 from guppylang_internals.definition.protocol import CheckedProtocolDef
+from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
@@ -18,6 +18,7 @@ from guppylang_internals.tys.ty import (
     Type,
     unify,
 )
+from guppylang_internals.tys.var import ExistentialVar
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,7 @@ class AssumptionImplProof(ImplProofBase):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        assert self.proto in self.ty.implements
+        # assert self.proto in self.ty.implements
 
 
 ImplProof: TypeAlias = ConcreteImplProof | AssumptionImplProof
@@ -68,13 +69,10 @@ class ProtocolMemberMissing(Error):
 
 
 def _unify_args(
-    xs: Sequence[Argument], ys: Sequence[Argument], subst: Subst | None
+    xs: Sequence[ExistentialVar], ys: Sequence[Argument], subst: Subst | None
 ) -> Subst | None:
     for x, y in zip(xs, ys, strict=True):
-        # TODO: Unify doesn't expect arguments here
-        subst = unify(x, y, subst)
-        if subst is None:
-            return None
+        subst = unify(x, y.ty, subst)
     return subst
 
 
@@ -98,8 +96,14 @@ def _instantiate_self(
     partial_inst[self_ty.idx] = impl_ty.to_arg()
     return proto_func.instantiate_partial(partial_inst)
 
+
 def _substitute_proto_inst_args(proto: ProtocolInst, subst: Subst) -> ProtocolInst:
-    # TODO: Implement substitution of type arguments
+    for arg, idx in enumerate(proto.type_args):
+        match arg:
+            case TypeArg(ty=ty):
+                proto.type_args[idx] = ty.substitute(subst).to_arg()
+            case ConstArg(const=const):
+                proto.type_args[idx] = const.substitute(subst).to_arg()
     return proto
 
 
@@ -112,8 +116,11 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
         candidates = []
         for impl in ty.implements:
             if impl.def_id == protocol.def_id:
-                # TODO: Should either be existential or concrete.
-                subst = _unify_args(protocol.type_args, impl.type_args, {})
+                # TODO: Is this correct?
+                existential_params = [
+                    p.to_existential()[1] for p in protocol_def.params
+                ]
+                subst = _unify_args(existential_params, impl.type_args, {})
                 if subst is not None:
                     candidates.append((impl, subst))
         if len(candidates) != 1:

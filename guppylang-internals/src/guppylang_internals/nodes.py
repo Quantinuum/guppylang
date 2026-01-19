@@ -73,6 +73,7 @@ class GlobalCall(ast.expr):
         "type_args",
     )
 
+
 class ProtocolCall(ast.expr):
     member: str
     proto_id: "DefId"
@@ -313,7 +314,9 @@ class StateResultExpr(ast.expr):
     _fields = ("tag_value", "tag_expr", "args", "func_ty", "has_array_input")
 
 
-AnyCall = LocalCall | GlobalCall | TensorCall | BarrierExpr | StateResultExpr | ProtocolCall
+AnyCall = (
+    LocalCall | GlobalCall | TensorCall | BarrierExpr | StateResultExpr | ProtocolCall
+)
 
 
 class InoutReturnSentinel(ast.expr):

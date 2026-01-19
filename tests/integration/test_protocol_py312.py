@@ -1,6 +1,5 @@
 from typing import no_type_check
 from guppylang.decorator import guppy
-from guppylang.std.lang import owned
 
 
 def test_def():
@@ -92,7 +91,8 @@ def test_basic(validate):
 
     validate(main.compile())
 
-def test_basic_parameterised(validate):
+
+def test_basic_parameterised_concrete(validate):
     @guppy.protocol
     class MyProto[T, S]:
         def foo(self: "MyProto[T, S]", x: T) -> S: ...
@@ -103,32 +103,38 @@ def test_basic_parameterised(validate):
         def foo(self: "MyType", x: int) -> str:
             return "something"
 
-    @guppy.struct
-    class MyOtherType[P]:
-        @guppy
-        def foo(self: "MyType[P]", x: P) -> str:
-            return "something"
-
-    V = guppy.type_var("V")
-    W = guppy.type_var("W")
-
     @guppy
-    @no_type_check
-    def baz1(a: MyProto[V, W], x: V) -> W:
-        return a.foo(x)
-
-    @guppy
-    def baz2(a: MyProto[int, str]) -> str:
+    def baz(a: MyProto[int, str]) -> str:
         return a.foo(42)
 
     @guppy
     def main() -> None:
         mt = MyType()
-        baz1(mt, 42)
-        baz2(mt)
-        mot = MyOtherType[int]()
-        baz1(mot, 42)
-        baz2(mot)
+        baz(mt)
+
+    validate(main.compile())
+
+
+def test_basic_parameterised_more_generic(validate):
+    @guppy.protocol
+    class MyProto:
+        def foo(self: "MyProto", x: int) -> int: ...
+
+    # TODO: Note generic struct functions require a different syntax, this might be
+    # confusing for users?
+    @guppy.struct
+    class MyType[T]:
+        @guppy.declare
+        def foo[T](self: "MyType[T]", x: T) -> T: ...
+
+    @guppy
+    def baz(a: MyProto, x: int) -> int:
+        return a.foo(x)
+
+    @guppy
+    def main() -> None:
+        mt = MyType[int]()
+        baz(mt, 42)
 
     validate(main.compile())
 

@@ -832,7 +832,7 @@ def _unify_var(
         return unify(var, subst[t], subst)
     if var in t.unsolved_vars:
         return None
-    # TODO: Check that `t`` implements all protocols required by `var`.
+    # TODO: Check that `t` implements all protocols required by `var`.
     return {var: t, **subst}
 
 

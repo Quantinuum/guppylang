@@ -58,7 +58,7 @@ class TypeArg(ArgumentBase):
 
     # The type to instantiate
     ty: "Type" = field(hash=False)  # Types are not hashable
-    proto_proof : "ImplProof | None" = field(default=None, hash=False)
+    proto_proof: "ImplProof | None" = field(default=None, hash=False)
 
     @property
     def unsolved_vars(self) -> set[ExistentialVar]:

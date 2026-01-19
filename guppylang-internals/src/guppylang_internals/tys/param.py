@@ -55,7 +55,9 @@ class ParameterBase(ToHugr[ht.TypeParam], ABC):
         """Returns a copy of the parameter with a new index."""
 
     @abstractmethod
-    def check_arg(self, arg: Argument, loc: AstNode | None = None) -> Argument:
+    def check_arg(
+        self, arg: Argument, loc: AstNode | None = None
+    ) -> "Argument | tuple[Argument, Subst]":
         """Checks that this parameter can be instantiated with a given argument.
 
         Raises a user error if the argument is not valid.
