@@ -264,7 +264,7 @@ class ArrayIndexChecker(CustomCallChecker):
 
         # Return the synthesized node and type
         node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
-        return with_loc(self.node, node), subs
+        return with_loc(self.node, node), ty
 
 
 class NewArrayChecker(CustomCallChecker):
