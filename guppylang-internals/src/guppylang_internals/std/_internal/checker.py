@@ -218,7 +218,8 @@ class ArrayIndexChecker(CustomCallChecker):
 
         # Check if array size is statically known
         if not (
-            hasattr(length_arg, "const") and isinstance(length_arg.const, ConstValue)
+            isinstance(length_arg, ConstArg)
+            and isinstance(length_arg.const, ConstValue)
         ):
             return
 
