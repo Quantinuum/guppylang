@@ -234,7 +234,7 @@ class ArrayIndexChecker(CustomCallChecker):
         if index_value < 0 or index_value >= array_length:
             raise GuppyError(
                 ArrayIndexChecker.IndexOutOfBoundsError(
-                    self.node,
+                    index_expr,
                     index=index_value,
                     size=array_length,
                 )
