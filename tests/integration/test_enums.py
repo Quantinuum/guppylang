@@ -4,8 +4,28 @@ from guppylang import guppy
 from tests.util import compile_guppy
 
 
+# TODO: NICOLA temporary test, to be substituted with `test_basic_enum`
+# when enum implementation is complete
+def test_enum_syntax():
+    @guppy.enum
+    class EmptyEnum:
+        pass
+
+    @guppy.enum
+    class GenericEnum:
+        VariantA = {}
+        VariantB = {"x": int, "y": float}
+
+        @guppy
+        def describe(variant: "GenericEnum") -> int:
+            return 42
+
+    EmptyEnum.compile()
+    GenericEnum.compile()
+
+
 @pytest.mark.skip
-def test_enum():
+def test_basic_enum():
     """
     Stating from a Rust example:
     rust

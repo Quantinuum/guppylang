@@ -229,14 +229,20 @@ class _Guppy:
             @guppy.enum
             class MyEnum:
                 Variant1 = {"a": int, "b": qubit}
-                Variant2 = {}
+                Variant2 = {"a": int}
+
+            @guppy
+            def method_on_enum(e: MyEnum) -> int:
+                return e.a + 1
         ..
         Enum supposed to have variants as class attributes.
-        They are not supposed to have methods.
         """
         defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
+        for val in cls.__dict__.values():
+            if isinstance(val, GuppyDefinition):
+                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
         # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
         # However, we need this information to precisely look up the source for the
         # class later. If it's not there, we can set it from the calling frame:

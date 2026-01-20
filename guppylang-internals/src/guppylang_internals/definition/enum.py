@@ -1,6 +1,5 @@
 import ast
 import keyword
-import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -18,6 +17,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.custom import (
     CustomFunctionDef,
 )
+from guppylang_internals.definition.struct import NonGuppyMethodError
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
     DuplicateFieldError,
@@ -39,7 +39,8 @@ from guppylang_internals.tys.ty import (
 @dataclass(frozen=True)
 class VariantFormHint(Help):
     message: ClassVar[str] = (
-        'Enum variants must be of the form `VariantName = {{"var1": Type1, ...}}`'
+        'Enum can contain only variants of the form `VariantName = {{"var1": Type1, ...}}`'  # noqa: E501
+        "or `@guppy` annotated methods"
     )
 
 
@@ -97,7 +98,7 @@ class RawEnumDef(TypeDef, ParsableDef):
 
         # We look for variants in the class body
         variants: dict[str, UncheckedEnumVariant] = {}
-        used_variant_names: set[str] = set()
+        used_func_names: dict[str, ast.FunctionDef] = {}
         for i, node in enumerate(cls_def.body):
             match i, node:
                 # TODO: do we allow `pass` statements to define empty enum?
@@ -106,6 +107,15 @@ class RawEnumDef(TypeDef, ParsableDef):
                 # Docstrings are also fine if they occur at the start
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
+                case _, ast.FunctionDef(name=name) as node:
+                    from guppylang.defs import GuppyDefinition
+
+                    v = getattr(self.python_class, name)
+                    if not isinstance(v, GuppyDefinition):
+                        raise GuppyError(NonGuppyMethodError(node, self.name, name))
+                    used_func_names[name] = node
+                    if name in variants:
+                        raise GuppyError(DuplicateFieldError(node, self.name, name))
                 # Enum variant are declared via dictionary, where key are the variant
                 # fields and values are types;
                 # e.g. `variant = {"a": int, ...}
@@ -119,7 +129,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                         targets=[ast.Name(id=variant_name)], value=ast.Dict()
                     ) as node,
                 ):
-                    if variant_name in used_variant_names:
+                    if variant_name in variants:
                         raise GuppyError(
                             DuplicateFieldError(
                                 node.targets[0],
@@ -132,7 +142,6 @@ class RawEnumDef(TypeDef, ParsableDef):
                     variants[variant_name] = parse_enum_variant(
                         variant_name, node.value
                     )
-                    used_variant_names.add(variant_name)
                 # if unexpected statement are found
                 case _, node:
                     err = UnexpectedError(
@@ -142,6 +151,12 @@ class RawEnumDef(TypeDef, ParsableDef):
                     )
                     err.add_sub_diagnostic(VariantFormHint(None))
                     raise GuppyError(err)
+
+        # Ensure that functions don't override struct fields
+        if overridden := variants.keys() & used_func_names.keys():
+            x = overridden.pop()
+            raise GuppyError(DuplicateFieldError(used_func_names[x], self.name, x))
+
         return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
 
     def check_instantiate(
@@ -190,7 +205,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
 
 @dataclass(frozen=True)
 class CheckedEnumDef(TypeDef, CompiledDef):
-    """Docstring for CheckedEnumDef"""
+    """An enum definition that has been fully checked."""
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
