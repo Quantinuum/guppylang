@@ -257,7 +257,7 @@ class ArrayIndexChecker(CustomCallChecker):
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         """Synthesize-mode: infer return type and perform bounds check."""
         # Run regular type synthesis for the arguments
-        args, subs, type_args = synthesize_call(self.func.ty, args, self.node, self.ctx)
+        args, ty, type_args = synthesize_call(self.func.ty, args, self.node, self.ctx)
 
         # Check the index bounds (first:index expression, second: length_arg)
         self._check_constant_index_bounds(args[1], type_args[1])
