@@ -13,8 +13,8 @@ def test_enum_syntax():
 
     @guppy.enum
     class GenericEnum:
-        VariantA = {}
-        VariantB = {"x": int, "y": float}
+        VariantA = {}  # noqa: RUF012
+        VariantB = {"x": int, "y": float}  # noqa: RUF012
 
         @guppy
         def describe(variant: "GenericEnum") -> int:

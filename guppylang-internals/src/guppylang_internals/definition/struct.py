@@ -44,7 +44,9 @@ if sys.version_info >= (3, 12):
     pass
 
 from guppylang_internals.definition.util import (
+    CheckedField,
     DuplicateFieldError,
+    UncheckedField,
     extract_generic_params,
     parse_py_class,
 )
@@ -56,22 +58,6 @@ class FieldFormHint(Help):
         "Struct can contain only fields of the form `name: Type` "
         "or `@guppy` annotated methods"
     )
-
-
-@dataclass(frozen=True)
-class UncheckedStructField:
-    """A single field on a struct whose type has not been checked yet."""
-
-    name: str
-    type_ast: ast.expr
-
-
-@dataclass(frozen=True)
-class StructField:
-    """A single field on a struct."""
-
-    name: str
-    ty: Type
 
 
 @dataclass(frozen=True)
@@ -109,7 +95,7 @@ class RawStructDef(TypeDef, ParsableDef):
 
         params = extract_generic_params(cls_def, self.name, globals, "Struct")
 
-        fields: list[UncheckedStructField] = []
+        fields: list[UncheckedField] = []
         used_field_names: set[str] = set()
         used_func_names: dict[str, ast.FunctionDef] = {}
         for i, node in enumerate(cls_def.body):
@@ -140,7 +126,7 @@ class RawStructDef(TypeDef, ParsableDef):
                         raise GuppyError(
                             DuplicateFieldError(node.target, self.name, field_name)
                         )
-                    fields.append(UncheckedStructField(field_name, node.annotation))
+                    fields.append(UncheckedField(field_name, node.annotation))
                     used_field_names.add(field_name)
                 case _, node:
                     err = UnexpectedError(
@@ -170,7 +156,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    fields: Sequence[UncheckedStructField]
+    fields: Sequence[UncheckedField]
 
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""
@@ -183,7 +169,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
         check_not_recursive(self, ctx)
 
         fields = [
-            StructField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
+            CheckedField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
         ]
         return CheckedStructDef(
             self.id, self.name, self.defined_at, self.params, fields
@@ -212,7 +198,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    fields: Sequence[StructField]
+    fields: Sequence[CheckedField]
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None

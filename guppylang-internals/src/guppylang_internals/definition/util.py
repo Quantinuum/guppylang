@@ -23,6 +23,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.ipython_inspect import is_running_ipython
 from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.ty import Type
 
 if sys.version_info >= (3, 12):
     from guppylang_internals.tys.parsing import parse_parameter
@@ -57,6 +58,22 @@ class RepeatedTypeParamError(Error):
     title: ClassVar[str] = "Duplicate type parameter"
     span_label: ClassVar[str] = "Type parameter `{name}` cannot be used multiple times"
     name: str
+
+
+@dataclass(frozen=True)
+class UncheckedField:
+    """A single field on a enum variant whose type has not been checked yet."""
+
+    name: str
+    type_ast: ast.expr
+
+
+@dataclass(frozen=True)
+class CheckedField:
+    """A single field on a enum variant."""
+
+    name: str
+    ty: Type
 
 
 # TODO: Most all the function are about parsing ASTs, should they be moved to a

@@ -2,7 +2,7 @@ import ast
 import keyword
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, Generic, TypeVar
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
@@ -20,7 +20,9 @@ from guppylang_internals.definition.custom import (
 from guppylang_internals.definition.struct import NonGuppyMethodError
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
+    CheckedField,
     DuplicateFieldError,
+    UncheckedField,
     extract_generic_params,
     parse_py_class,
 )
@@ -44,39 +46,14 @@ class VariantFormHint(Help):
     )
 
 
-# TODO: Considering renaming to UncheckedField and CheckedField,
-# and joining with UncheckedStructField and StructField
-@dataclass(frozen=True)
-class UncheckedEnumVariantField:
-    """A single field on a enum variant whose type has not been checked yet."""
-
-    name: str
-    type_ast: ast.expr
+F = TypeVar("F", UncheckedField, CheckedField)
 
 
 @dataclass(frozen=True)
-class EnumVariantField:
-    """A single field on a enum variant."""
-
+class EnumVariant(Generic[F]):
+    index: int
     name: str
-    ty: Type
-
-
-@dataclass(frozen=True)
-class UncheckedEnumVariant:
-    """A single field on a enum whose type has not been checked yet."""
-
-    # TODO: value in AST form?
-    name: str
-    variant_fields: Sequence[UncheckedEnumVariantField]
-
-
-@dataclass(frozen=True)
-class EnumVariant:
-    """A single field on a struct."""
-
-    name: str
-    fields: Sequence[EnumVariantField]
+    fields: Sequence[F]
 
 
 @dataclass(frozen=True)
@@ -97,8 +74,9 @@ class RawEnumDef(TypeDef, ParsableDef):
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
         # We look for variants in the class body
-        variants: dict[str, UncheckedEnumVariant] = {}
+        variants: dict[str, EnumVariant[UncheckedField]] = {}
         used_func_names: dict[str, ast.FunctionDef] = {}
+        variant_index = 0
         for i, node in enumerate(cls_def.body):
             match i, node:
                 # TODO: do we allow `pass` statements to define empty enum?
@@ -140,8 +118,9 @@ class RawEnumDef(TypeDef, ParsableDef):
                         )
                     assert isinstance(node.value, ast.Dict)  # for mypy
                     variants[variant_name] = parse_enum_variant(
-                        variant_name, node.value
+                        variant_index, variant_name, node.value
                     )
+                    variant_index += 1
                 # if unexpected statement are found
                 case _, node:
                     err = UnexpectedError(
@@ -171,7 +150,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    variants: Mapping[str, UncheckedEnumVariant]
+    variants: Mapping[str, EnumVariant[UncheckedField]]
 
     def check(self, globals: Globals) -> "CheckedEnumDef":
         """Checks that all enum fields have valid types."""
@@ -182,17 +161,17 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         # TODO: temporarily commented, see best way to do it
         # check_not_recursive(self, ctx)
 
-        variants: dict[str, EnumVariant] = {}
+        checked_variants: dict[str, EnumVariant[CheckedField]] = {}
         # loop over variants to check their fields
         for name, variant in self.variants.items():
-            fields: list[EnumVariantField] = [
-                EnumVariantField(field.name, type_from_ast(field.type_ast, ctx))
-                for field in variant.variant_fields
+            fields: list[CheckedField] = [
+                CheckedField(field.name, type_from_ast(field.type_ast, ctx))
+                for field in variant.fields
             ]
-            variants[name] = EnumVariant(name, fields)
+            checked_variants[name] = EnumVariant(variant.index, name, fields)
 
         return CheckedEnumDef(
-            self.id, self.name, self.defined_at, self.params, variants
+            self.id, self.name, self.defined_at, self.params, checked_variants
         )
 
     def check_instantiate(
@@ -210,7 +189,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    variants: Mapping[str, EnumVariant]
+    variants: Mapping[str, EnumVariant[CheckedField]]
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -222,8 +201,10 @@ class CheckedEnumDef(TypeDef, CompiledDef):
         return []
 
 
-def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
-    variant_fields: list[UncheckedEnumVariantField] = []
+def parse_enum_variant(
+    index: int, name: str, dict_ast: ast.Dict
+) -> EnumVariant[UncheckedField]:
+    variant_fields: list[UncheckedField] = []
     variant_field_names = []
     # we parse the enum variant to get the enum variant fields
     for k, v in zip(dict_ast.keys, dict_ast.values, strict=True):
@@ -245,7 +226,7 @@ def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
                         )
                     )
                 variant_field_names.append(key_name)
-                variant_fields.append(UncheckedEnumVariantField(key_name, v))
+                variant_fields.append(UncheckedField(key_name, v))
             case _:
                 err = UnexpectedError(
                     dict_ast,
@@ -255,4 +236,4 @@ def parse_enum_variant(name: str, dict_ast: ast.Dict) -> UncheckedEnumVariant:
                 err.add_sub_diagnostic(VariantFormHint(None))
                 raise GuppyError(err)
 
-    return UncheckedEnumVariant(name, variant_fields)
+    return EnumVariant(index, name, variant_fields)
