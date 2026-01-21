@@ -115,6 +115,32 @@ def test_basic_parameterised_concrete(validate):
     validate(main.compile())
 
 
+def test_basic_parameterised_generic(validate):
+    @guppy.protocol
+    class MyProto[T, S]:
+        def foo(self: "MyProto[T, S]", x: T) -> S: ...
+
+    @guppy.struct
+    class MyType:
+        @guppy
+        def foo(self: "MyType", x: int) -> str:
+            return "something"
+
+    V = guppy.type_var("V")
+    W = guppy.type_var("W")
+
+    @guppy
+    def baz(a: MyProto[V, W], x: V) -> W:
+        return a.foo(x)
+
+    @guppy
+    def main() -> None:
+        mt = MyType()
+        baz(mt, 42)
+
+    validate(main.compile())
+
+
 def test_basic_parameterised_more_generic(validate):
     @guppy.protocol
     class MyProto:
