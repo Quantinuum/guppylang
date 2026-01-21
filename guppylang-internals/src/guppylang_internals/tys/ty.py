@@ -24,6 +24,7 @@ from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.enum import CheckedEnumDef, EnumVariant
     from guppylang_internals.definition.struct import CheckedStructDef
     from guppylang_internals.definition.ty import OpaqueTypeDef
     from guppylang_internals.definition.util import CheckedField
@@ -724,8 +725,49 @@ class StructType(ParametrizedTypeBase):
         )
 
 
+@dataclass(frozen=True)
+class EnumType(ParametrizedTypeBase):
+    """An enum (sum/tagged union) type.
+
+    Minimal implementation for PR 1.
+    """
+
+    defn: "CheckedEnumDef"
+
+    @cached_property
+    def variants(self) -> list["EnumVariant"]:
+        """The variants of this enum type."""
+        from guppylang_internals.definition.enum import EnumVariant
+        from guppylang_internals.tys.subst import Instantiator
+
+        inst = Instantiator(self.args)
+        return [
+            EnumVariant(
+                v.name,
+                [ty.transform(inst) for ty in v.payload_types]
+            )
+            for v in self.defn.variants
+        ]
+
+    def cast(self) -> "Type":
+        return self
+
+    def to_hugr(self, ctx: ToHugrContext) -> ht.Sum:
+        """Computes the Hugr representation of the type."""
+        rows = [
+            ht.Tuple(*(ty.to_hugr(ctx) for ty in v.payload_types))
+            for v in self.variants
+        ]
+        return ht.Sum(rows)
+
+    def transform(self, transformer: Transformer) -> "Type":
+        return transformer.transform(self) or EnumType(
+            [arg.transform(transformer) for arg in self.args], self.defn
+        )
+
 #: The type of parametrized Guppy types.
-ParametrizedType: TypeAlias = FunctionType | TupleType | OpaqueType | StructType
+ParametrizedType: TypeAlias = FunctionType | TupleType | OpaqueType | StructType \
+    | EnumType
 
 
 #: The type of Guppy types.
