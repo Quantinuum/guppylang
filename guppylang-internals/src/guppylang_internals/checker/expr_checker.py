@@ -968,15 +968,9 @@ def check_num_args(
     act: int,
     node: AstNode,
     sig: FunctionType | None = None,
-    custom_constructor: bool = False,
 ) -> None:
     """Checks that the correct number of arguments have been passed to a function."""
 
-    # TODO: NICOLA not sure about this part
-    # Special case: When calling a custom constructor, we allow one extra argument
-    # for the `self` parameter
-    if exp == act or (exp == act + 1 and custom_constructor):
-        return
     span, detailed = to_span(node), False
     if isinstance(node, ast.Call):
         # We can construct a nicer error span if we know it's a regular call
@@ -1012,14 +1006,9 @@ def type_check_args(
         node=node,
         sig=func_ty,
     )
-
-    # TODO: NICOLA HEREEE
-    # handle custom constroctor: -> in type checking args, if custom constructor, first arg is self, skip it
-    func_ty_inputs = func_ty.inputs
-
     new_args: list[ast.expr] = []
     comptime_args = iter(func_ty.comptime_args)
-    for inp, func_inp in zip(inputs, func_ty_inputs, strict=True):
+    for inp, func_inp in zip(inputs, func_ty.inputs, strict=True):
         a, s = ExprChecker(ctx).check(inp, func_inp.ty.substitute(subst), "argument")
         subst |= s
         if InputFlags.Inout in func_inp.flags and isinstance(a, PlaceNode):
