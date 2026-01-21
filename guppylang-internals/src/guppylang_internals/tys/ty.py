@@ -413,7 +413,6 @@ class FunctionType(ParametrizedTypeBase):
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
-    is_constructor: bool = field(default=False, kw_only=True, init=True)
 
     def __init__(
         self,
@@ -572,7 +571,6 @@ class FunctionType(ParametrizedTypeBase):
             comptime_args=[
                 cast(ConstArg, arg.transform(inst)) for arg in self.comptime_args
             ],
-            is_constructor=self.is_constructor,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":

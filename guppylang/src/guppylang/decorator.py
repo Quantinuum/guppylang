@@ -125,7 +125,6 @@ class _Guppy:
                 metadata=metadata,
             )
 
-            print("Registering function: ", f.__name__, ", def id:", defn.id)
 
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -207,7 +206,6 @@ class _Guppy:
                 return self.field2 + self.field2
         """
         defn = RawStructDef(DefId.fresh(), cls.__name__, None, cls)
-        print(f"Registering struct for class {cls.__name__} def id:", defn.id)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
         for val in cls.__dict__.values():
@@ -215,10 +213,7 @@ class _Guppy:
             if isinstance(val, GuppyDefinition):
                 if val.wrapped.name == "__init__":
                     val.wrapped.update_name("__new__")
-                    assert isinstance(val.wrapped, RawFunctionDef)
-                    val.wrapped.mark_as_constructor()
                 DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
-                print(f"\tRegistered impl: {val.wrapped.name} with id: {val.id}")
 
         # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
         # However, we need this information to precisely look up the source for the

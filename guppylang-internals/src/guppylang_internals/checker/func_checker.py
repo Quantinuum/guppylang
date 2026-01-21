@@ -140,8 +140,11 @@ def check_global_func_def(
 
     check_invalid_under_dagger(func_def, ty.unitary_flags)
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
-    # if len(args) == len(ty.inputs) + 1 and args[0].arg == "self":
-    #     args = args[1:]
+
+    # TODO: NICOLA - hugly workaround, maybe changing directly the ast?
+    if len(args) == len(ty.inputs) + 1 and args[0].arg == "self":
+        args = args[1:]
+
     inputs = [
         Variable(cast(str, inp.name), inp.ty, loc, inp.flags, is_func_input=True)
         for inp, loc in zip(ty.inputs, args, strict=True)
@@ -247,7 +250,6 @@ def check_signature(
     globals: Globals,
     def_id: DefId | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    is_constructor: bool = False,
 ) -> FunctionType:
     """Checks the signature of a function definition and returns the corresponding
     Guppy type.
@@ -291,33 +293,49 @@ def check_signature(
     # Figure out if this is a method
     self_defn: TypeDef | None = None
 
-    print(">check_signature called:")
+    print(">check_signature called: on ", func_def.name)
 
+    # If this is a method, retrieve the parent definition
     if def_id is not None and def_id in DEF_STORE.impl_parents:
         self_defn = cast(TypeDef, ENGINE.get_checked(DEF_STORE.impl_parents[def_id]))
         assert isinstance(self_defn, TypeDef)
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
+    is_custom_init = False
     for i, inp in enumerate(func_def.args.args):
-        # Special handling for `self` arguments. Note that `__new__` is excluded here
-        # since it's not a method so doesn't take `self`.
-        if self_defn and i == 0 and func_def.name != "__new__":
-            input = parse_self_arg(inp, self_defn, ctx)
-            ctx = replace(ctx, self_ty=input.ty)
+        # Special handling for `self` arguments. Note that:
+        #  `__new__` is excluded here since it's not a method so doesn't take `self`;
+        #  `__init__` is treated specially since it doesn't actually take a `self`.
+        if self_defn and i == 0:
+            if func_def.name == "__init__":
+                is_custom_init = True
+                continue
+            elif func_def.name != "__new__":
+                input = parse_self_arg(inp, self_defn, ctx)
+                ctx = replace(ctx, self_ty=input.ty)
         else:
             ty_ast = inp.annotation
             if ty_ast is None:
                 raise GuppyError(MissingArgAnnotationError(inp))
             input = parse_function_arg_annotation(ty_ast, inp.arg, ctx)
         inputs.append(input)
-    output = type_from_ast(func_def.returns, ctx)
-    return FunctionType(
+
+    # TODO: NICOLA - somewhere, check that custom init is well defined (at least one arg, first arg is self etc)  # noqa: E501
+    if is_custom_init:
+        assert self_defn is not None  # for mypy
+        output, _ = type_with_flags_from_ast(func_def.args.args[0].annotation, ctx)
+    else:
+        output = type_from_ast(func_def.returns, ctx)
+
+    ret_ty = FunctionType(
         inputs,
         output,
         sorted(param_var_mapping.values(), key=lambda v: v.idx),
         unitary_flags=unitary_flags,
-        is_constructor=is_constructor,
     )
+    print("<-check_signature returning:", ret_ty)
+
+    return ret_ty
 
 
 def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> FuncInput:

@@ -84,7 +84,7 @@ def check_cfg(
     *places* rather than just variables.
     """
 
-    print(f">check_cfg for function {func_name}...")
+    print(f">check_cfg for function {func_name} ")
 
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}

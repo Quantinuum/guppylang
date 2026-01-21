@@ -208,15 +208,11 @@ class CompilationEngine:
         from guppylang_internals.definition.struct import CheckedStructDef
 
         if isinstance(defn, CheckedStructDef):
-            print("--------------------------------")
-            print(f"Registering generated methods for struct {defn.name}")
             for method_def in defn.generated_methods(
                 Globals(DEF_STORE.frames[defn.id])
             ):
-                print(f"\tRegistering method {method_def.name} with id {method_def.id}")
                 DEF_STORE.register_def(method_def, None)
                 DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
-            print("--------------------------------")
         return defn
 
     @pretty_errors

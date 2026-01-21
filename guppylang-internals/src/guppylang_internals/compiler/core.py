@@ -220,7 +220,7 @@ class CompilerContext(ToHugrContext):
         """Compiles the given definition and all of its dependencies into the current
         Hugr."""
         # Check and compile the entry point
-        print(f"Compiling definition in core `{defn.name}`...")
+        print(f"Compiling definition in core `{defn.name}`")
         entry_mono_args: PartiallyMonomorphizedArgs | None = None
         entry_compiled: CompiledDef
         match ENGINE.get_checked(defn.id):

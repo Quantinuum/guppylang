@@ -736,9 +736,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return with_loc(node, expr), result_ty
 
     def visit_Call(self, node: ast.Call) -> tuple[ast.expr, Type]:
-        print(">visit_Call:")
-        print("% node:\n", ast.dump(node, indent=8))
-
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, ty = self.synthesize(node.func)
@@ -1009,29 +1006,16 @@ def type_check_args(
     Checks that all unification variables can be inferred.
     """
     assert not func_ty.parametrized
-    print(
-        ">type_check_args: func_ty:",
-        func_ty,
-        " is_constructor:",
-        func_ty.is_constructor,
-    )
     check_num_args(
         exp=len(func_ty.inputs),
         act=len(inputs),
         node=node,
         sig=func_ty,
-        custom_constructor=func_ty.is_constructor,
     )
-
-    print(">type_check_args:")
-    print(" func_ty.inputs:", func_ty.inputs)
-    print(" inputs:", [ast.dump(inp, indent=2) for inp in inputs])
 
     # TODO: NICOLA HEREEE
     # handle custom constroctor: -> in type checking args, if custom constructor, first arg is self, skip it
     func_ty_inputs = func_ty.inputs
-    if func_ty.is_constructor:
-        func_ty_inputs = func_ty.inputs[1:]
 
     new_args: list[ast.expr] = []
     comptime_args = iter(func_ty.comptime_args)
@@ -1172,23 +1156,17 @@ def synthesize_call(
         f">synthesize_call:\n\tfunc_ty={func_ty},",
         f"\n\targs={args},",
         f"\n\tnode={ast.dump(node)}",
-        f"\n\tcustom_constructor={func_ty.is_constructor}",
     )
     check_num_args(
         exp=len(func_ty.inputs),
         act=len(args),
         node=node,
         sig=func_ty,
-        custom_constructor=func_ty.is_constructor,
     )
 
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
-    print(
-        f"  after unquantified:\n\tunquantified={unquantified},",
-        f"\n\tcustom_constructor={unquantified.is_constructor}",
-    )
 
     args, subst = type_check_args(args, unquantified, {}, ctx, node)
 
