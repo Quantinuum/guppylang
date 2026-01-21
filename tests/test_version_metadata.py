@@ -29,8 +29,8 @@ def test_metadata():
 
 def test_used_extensions_computed_dynamically():
     """Test that used extensions are computed based on actual usage."""
-    from guppylang.std.quantum import qubit, h
     from guppylang.std.builtins import owned
+    from guppylang.std.quantum import h, qubit
 
     # A simple function with no special ops should only have minimal extensions
     @guppy
