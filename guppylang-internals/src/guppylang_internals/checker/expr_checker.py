@@ -970,7 +970,8 @@ def check_num_args(
     sig: FunctionType | None = None,
 ) -> None:
     """Checks that the correct number of arguments have been passed to a function."""
-
+    if exp == act:
+        return
     span, detailed = to_span(node), False
     if isinstance(node, ast.Call):
         # We can construct a nicer error span if we know it's a regular call
