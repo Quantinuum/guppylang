@@ -3,12 +3,9 @@ from enum import Enum
 from types import FrameType
 from typing import TYPE_CHECKING
 
+import hugr
 import hugr.build.function as hf
-import hugr.std.collections.array
-import hugr.std.float
-import hugr.std.int
-import hugr.std.logic
-import hugr.std.prelude
+from hugr import ext as hugr_ext
 from hugr import ops
 from hugr.ext import Extension
 from hugr.package import ModulePointer, Package
@@ -263,21 +260,16 @@ class CompilationEngine:
             # if compiling a region set it as the HUGR entrypoint can be
             # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
             graph.hugr.entrypoint = compiled_def.hugr_node
-
-        # TODO: Currently the list of extensions is manually managed by the user.
-        #  We should compute this dynamically from the imported dependencies instead.
-        #
-        # The hugr prelude and std_extensions are implicit.
         from guppylang_internals.std._internal.compiler.tket_exts import TKET_EXTENSIONS
 
-        extensions = [
+        packaged_extensions = [
             *TKET_EXTENSIONS,
             guppylang_internals.compiler.hugr_extension.EXTENSION,  # type: ignore[attr-defined]
             *self.additional_extensions,
         ]
-        # TODO replace with computed extensions after https://github.com/quantinuum/guppylang/issues/550
-        all_used_extensions = [
-            *extensions,
+        resolve_registry = hugr_ext.ExtensionRegistry()
+        for ext in [
+            *packaged_extensions,
             hugr.std.prelude.PRELUDE_EXTENSION,
             hugr.std.collections.array.EXTENSION,
             hugr.std.float.FLOAT_OPS_EXTENSION,
@@ -285,19 +277,44 @@ class CompilationEngine:
             hugr.std.int.INT_OPS_EXTENSION,
             hugr.std.int.INT_TYPES_EXTENSION,
             hugr.std.logic.EXTENSION,
-        ]
-        graph.hugr.module_root.metadata[CoreMetadataKeys.USED_EXTENSIONS.value] = [
+        ]:
+            resolve_registry.register_updated(ext)
+        # Compute used extensions dynamically from the HUGR.
+        used_extensions_result = graph.hugr.used_extensions(
+            resolve_from=resolve_registry
+        )
+
+        # Set metadata for used extensions
+        used_exts_meta = [
             {
                 "name": ext.name,
                 "version": str(ext.version),
             }
-            for ext in all_used_extensions
+            for ext in used_extensions_result.used_extensions.extensions.values()
         ]
+        # Add unresolved extensions as well, but we only have the names
+        used_exts_meta.extend(
+            {
+                "name": ext,
+            }
+            for ext in used_extensions_result.unresolved_extensions
+        )
+        graph.hugr.module_root.metadata[CoreMetadataKeys.USED_EXTENSIONS.value] = (
+            used_exts_meta
+        )
         graph.hugr.module_root.metadata[CoreMetadataKeys.GENERATOR.value] = {
             "name": "guppylang",
             "version": guppylang_internals.__version__,
         }
-        return ModulePointer(Package(modules=[graph.hugr], extensions=extensions), 0)
+        # only package used extensions
+        packaged_extensions = [
+            ext
+            for ext in packaged_extensions
+            if ext.name in used_extensions_result.ids()
+        ]
+        return ModulePointer(
+            Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+        )
 
 
 ENGINE: CompilationEngine = CompilationEngine()
