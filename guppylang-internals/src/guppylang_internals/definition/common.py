@@ -163,6 +163,7 @@ class MonomorphizableDef(Definition):
         module: DefinitionBuilder[OpVar],
         mono_args: "PartiallyMonomorphizedArgs",
         ctx: "CompilerContext",
+        parent_ty: "RawDef | None",
     ) -> "MonomorphizedDef":
         """Adds a Hugr node for the (partially) monomorphized definition to the provided
         Hugr module.

@@ -31,6 +31,7 @@ from guppylang_internals.definition.common import (
     MonomorphizableDef,
     MonomorphizedDef,
     ParsableDef,
+    RawDef,
     UnknownSourceError,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
@@ -177,6 +178,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         module: DefinitionBuilder[OpVar],
         mono_args: "PartiallyMonomorphizedArgs",
         ctx: "CompilerContext",
+        parent_ty: "RawDef | None",
     ) -> "CompiledFunctionDef":
         """Adds a Hugr `FuncDefn` node for the (partially) monomorphized function to the
         Hugr.
@@ -185,10 +187,15 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         access to the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
+        if parent_ty is None:
+            hugr_func_name = self.name
+        else:
+            hugr_func_name = f"{parent_ty.name}.{self.name}"
+
         mono_ty = self.ty.instantiate_partial(mono_args)
         hugr_ty = mono_ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            self.name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
         add_metadata(
             func_def,

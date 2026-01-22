@@ -31,12 +31,14 @@ from guppylang_internals.definition.common import (
     CompilableDef,
     CompiledDef,
     DefId,
+    Definition,
     MonomorphizableDef,
+    RawDef,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.arg import ConstArg, TypeArg
@@ -199,7 +201,7 @@ class CompilerContext(ToHugrContext):
                     params, type_args, self
                 )
                 compile_outer = lambda: monomorphizable.monomorphize(  # noqa: E731 (assign-lambda)
-                    self.module, mono_args, self
+                    self.module, mono_args, self, get_parent_type(monomorphizable)
                 )
             case CompilableDef() as compilable:
                 compile_outer = lambda: compilable.compile_outer(self.module, self)  # noqa: E731
@@ -227,7 +229,9 @@ class CompilerContext(ToHugrContext):
                     raise GuppyError(err)
                 # Thus, the partial monomorphization for the entry point is always empty
                 entry_mono_args = tuple(None for _ in params)
-                entry_compiled = defn.monomorphize(self.module, entry_mono_args, self)
+                entry_compiled = defn.monomorphize(
+                    self.module, entry_mono_args, self, get_parent_type(defn)
+                )
             case CompilableDef() as defn:
                 entry_compiled = defn.compile_outer(self.module, self)
             case CompiledDef() as defn:
@@ -465,6 +469,15 @@ def return_var(n: int) -> str:
 def is_return_var(x: str) -> bool:
     """Checks whether the given name is a dummy return variable."""
     return x.startswith("%ret")
+
+
+def get_parent_type(defn: Definition) -> "RawDef | None":
+    """Returns the RawDef registered as the parent of `child` in the DEF_STORE,
+    or None if it has no parent."""
+    if parent_ty_id := DEF_STORE.impl_parents.get(defn.id):
+        return DEF_STORE.raw_defs[parent_ty_id]
+    else:
+        return None
 
 
 def require_monomorphization(params: Sequence[Parameter]) -> set[Parameter]:
