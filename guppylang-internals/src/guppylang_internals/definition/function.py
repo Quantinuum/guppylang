@@ -178,7 +178,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         module: DefinitionBuilder[OpVar],
         mono_args: "PartiallyMonomorphizedArgs",
         ctx: "CompilerContext",
-        parent_ty: "RawDef | None",
+        parent_ty: "RawDef | None" = None,
     ) -> "CompiledFunctionDef":
         """Adds a Hugr `FuncDefn` node for the (partially) monomorphized function to the
         Hugr.
