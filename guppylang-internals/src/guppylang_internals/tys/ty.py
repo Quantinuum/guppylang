@@ -413,6 +413,7 @@ class FunctionType(ParametrizedTypeBase):
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
+    is_constructor: bool = field(default=False, kw_only=True, init=True)
 
     def __init__(
         self,
@@ -571,6 +572,7 @@ class FunctionType(ParametrizedTypeBase):
             comptime_args=[
                 cast(ConstArg, arg.transform(inst)) for arg in self.comptime_args
             ],
+            is_constructor=self.is_constructor,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
@@ -685,6 +687,7 @@ class StructType(ParametrizedTypeBase):
     """A struct type."""
 
     defn: "CheckedStructDef"
+    constructor_self: bool = field(default=False, kw_only=True, init=True)
 
     @cached_property
     def fields(self) -> list["StructField"]:
@@ -723,6 +726,9 @@ class StructType(ParametrizedTypeBase):
         return transformer.transform(self) or StructType(
             [arg.transform(transformer) for arg in self.args], self.defn
         )
+
+    def set_as_constructor_self(self):
+        return replace(self, constructor_self=True)
 
 
 #: The type of parametrized Guppy types.

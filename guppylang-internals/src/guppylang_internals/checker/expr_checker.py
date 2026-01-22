@@ -1383,9 +1383,7 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
         raise GuppyError(ComptimeExprNotCPythonError(node))
 
     try:
-        python_val = eval(
-            ast.unparse(node.value), DummyEvalDict(ctx, node.value)
-        )  # noqa: S307
+        python_val = eval(ast.unparse(node.value), DummyEvalDict(ctx, node.value))  # noqa: S307
     except DummyEvalDict.GuppyVarUsedError as e:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
     except Exception as e:

@@ -37,6 +37,7 @@ from guppylang_internals.tys.ty import (
     FunctionType,
     InputFlags,
     NoneType,
+    StructType,
     Type,
     UnitaryFlags,
     unify,
@@ -141,16 +142,27 @@ def check_global_func_def(
     check_invalid_under_dagger(func_def, ty.unitary_flags)
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
 
-    # TODO: NICOLA - hugly workaround, maybe changing directly the ast?
-    if len(args) == len(ty.inputs) + 1 and args[0].arg == "self":
+    # TODO: NICOLA - HERE edit inputs
+    inputs = []
+    if ty.is_constructor:
+        if args[0].arg != "self":
+            # TODO: NICOLA proper error here
+            # If the function is a constructor, the first argument must be 'self'
+            raise GuppyError(UnsupportedError(func_def, "TODO"))
+        inputs.append(
+            Variable("self", ty.output, defined_at=args[0], is_func_input=True)
+        )
         args = args[1:]
 
-    inputs = [
-        Variable(cast(str, inp.name), inp.ty, loc, inp.flags, is_func_input=True)
-        for inp, loc in zip(ty.inputs, args, strict=True)
+    for inp, loc in zip(ty.inputs, args, strict=True):
         # Comptime inputs are turned into generic args, so are not included here
-        if InputFlags.Comptime not in inp.flags
-    ]
+        if InputFlags.Comptime not in inp.flags:
+            inputs.append(
+                Variable(
+                    cast(str, inp.name), inp.ty, loc, inp.flags, is_func_input=True
+                )
+            )
+
     generic_params = {
         param.name: param.with_idx(i) for i, param in enumerate(ty.params)
     }
@@ -323,7 +335,12 @@ def check_signature(
     # TODO: NICOLA - somewhere, check that custom init is well defined (at least one arg, first arg is self etc)  # noqa: E501
     if is_custom_init:
         assert self_defn is not None  # for mypy
+        assert func_def.args.args[0].annotation is not None
+        # TODO; NICOLA Is there a better way?
         output, _ = type_with_flags_from_ast(func_def.args.args[0].annotation, ctx)
+        assert isinstance(output, StructType)
+        output = output.set_as_constructor_self()
+        # print("\tcustom init output:", output, output.constructor_self)
     else:
         output = type_from_ast(func_def.returns, ctx)
 
@@ -332,8 +349,9 @@ def check_signature(
         output,
         sorted(param_var_mapping.values(), key=lambda v: v.idx),
         unitary_flags=unitary_flags,
+        is_constructor=is_custom_init,
     )
-    print("<-check_signature returning:", ret_ty)
+    print("<-check_signature returning:", ret_ty, ret_ty.is_constructor)
 
     return ret_ty
 

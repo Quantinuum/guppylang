@@ -198,15 +198,11 @@ class CompilerContext(ToHugrContext):
                 mono_args, rem_args = partially_monomorphize_args(
                     params, type_args, self
                 )
-                compile_outer = (
-                    lambda: monomorphizable.monomorphize(  # noqa: E731 (assign-lambda)
-                        self.module, mono_args, self
-                    )
+                compile_outer = lambda: monomorphizable.monomorphize(  # noqa: E731 (assign-lambda)
+                    self.module, mono_args, self
                 )
             case CompilableDef() as compilable:
-                compile_outer = lambda: compilable.compile_outer(
-                    self.module, self
-                )  # noqa: E731
+                compile_outer = lambda: compilable.compile_outer(self.module, self)  # noqa: E731
             case CompiledDef() as compiled_defn:
                 compile_outer = lambda: compiled_defn  # noqa: E731
             case defn:

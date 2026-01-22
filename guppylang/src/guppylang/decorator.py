@@ -125,7 +125,6 @@ class _Guppy:
                 metadata=metadata,
             )
 
-
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 
