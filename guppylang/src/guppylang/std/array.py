@@ -169,7 +169,9 @@ class array(builtins.list[_T], Generic[_T, _n]):
             return nothing()
         return some(self.take(idx))
 
-    @custom_function(ArraySetitemCompiler(elem_first=True), checker=ArrayIndexChecker())
+    @custom_function(
+        ArraySetitemCompiler(elem_first=True), checker=ArrayIndexChecker(expr_index=2)
+    )
     def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
 
