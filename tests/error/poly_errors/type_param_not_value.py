@@ -8,4 +8,9 @@ def foo(x: T) -> None:
     y = T
 
 
-foo.compile()
+@guppy
+def main() -> None:
+    foo(42)
+
+
+main.compile()

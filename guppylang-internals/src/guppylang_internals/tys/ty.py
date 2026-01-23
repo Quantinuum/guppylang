@@ -280,11 +280,6 @@ class NoneType(TypeBase):
     droppable: bool = field(default=True, init=True)
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
 
-    # Flag to avoid turning the type into a row when calling `type_to_row()`. This is
-    # used to make sure that type vars instantiated to Nones are not broken up into
-    # empty rows when generating a Hugr
-    preserve: bool = field(default=False, compare=False)
-
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
         return self
@@ -534,6 +529,8 @@ class FunctionType(ParametrizedTypeBase):
             [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
             self.output.transform(transformer),
             self.params,
+            comptime_args=self.comptime_args,
+            unitary_flags=self.unitary_flags,
         )
 
     def instantiate_partial(self, args: "PartialInst") -> "FunctionType":
@@ -551,13 +548,6 @@ class FunctionType(ParametrizedTypeBase):
                 param = param.with_idx(len(remaining_params))
                 remaining_params.append(param.instantiate_bounds(full_inst))
                 arg = param.to_bound()
-
-            # Set the `preserve` flag for instantiated tuples and None
-            if isinstance(arg, TypeArg):
-                if isinstance(arg.ty, TupleType):
-                    arg = TypeArg(TupleType(arg.ty.element_types, preserve=True))
-                elif isinstance(arg.ty, NoneType):
-                    arg = TypeArg(NoneType(preserve=True))
             full_inst.append(arg)
 
         inst = Instantiator(full_inst)
@@ -569,6 +559,7 @@ class FunctionType(ParametrizedTypeBase):
             comptime_args=[
                 cast(ConstArg, arg.transform(inst)) for arg in self.comptime_args
             ],
+            unitary_flags=self.unitary_flags,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
@@ -599,17 +590,11 @@ class TupleType(ParametrizedTypeBase):
 
     element_types: Sequence["Type"]
 
-    # Flag to avoid turning the tuple into a row when calling `type_to_row()`. This is
-    # used to make sure that type vars instantiated to tuples are not broken up into
-    # rows when generating a Hugr
-    preserve: bool = field(default=False, compare=False)
-
-    def __init__(self, element_types: Sequence["Type"], preserve: bool = False) -> None:
+    def __init__(self, element_types: Sequence["Type"]) -> None:
         # We need a custom __init__ to set the args
         args = [TypeArg(ty) for ty in element_types]
         object.__setattr__(self, "args", args)
         object.__setattr__(self, "element_types", element_types)
-        object.__setattr__(self, "preserve", preserve)
 
     @property
     def intrinsically_copyable(self) -> bool:
@@ -632,7 +617,7 @@ class TupleType(ParametrizedTypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or TupleType(
-            [ty.transform(transformer) for ty in self.element_types], self.preserve
+            [ty.transform(transformer) for ty in self.element_types]
         )
 
 
@@ -756,9 +741,9 @@ def row_to_type(row: TypeRow) -> Type:
 
 def type_to_row(ty: Type) -> TypeRow:
     """Turns a type into a row of types by unpacking top-level tuples."""
-    if isinstance(ty, NoneType) and not ty.preserve:
+    if isinstance(ty, NoneType):
         return []
-    if isinstance(ty, TupleType) and not ty.preserve:
+    if isinstance(ty, TupleType):
         return ty.element_types
     return [ty]
 

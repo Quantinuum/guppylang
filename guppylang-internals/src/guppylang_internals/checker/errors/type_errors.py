@@ -282,16 +282,6 @@ class UnpackableError(Error):
             "for `{ty}`."
         )
 
-    @dataclass(frozen=True)
-    class GenericSize(Note):
-        message: ClassVar[str] = (
-            "Unpacking of iterable types like `{ty}` is only allowed if the number of "
-            "items yielded by the iterator is statically known. Here, the number of "
-            "items `{num}` is generic and can change between different function "
-            "invocations."
-        )
-        num: Const
-
 
 @dataclass(frozen=True)
 class StarredTupleUnpackError(Error):
