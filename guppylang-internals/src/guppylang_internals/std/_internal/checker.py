@@ -197,7 +197,6 @@ class ArrayIndexChecker(CustomCallChecker):
         """
         self.expr_index: int = expr_index
 
-    # TODO: need to improve the logic to get rid of Case 2 or modify it
     def _extract_constant_index(self, index_expr: ast.expr) -> int | None:
         """Extract a constant integer value from an index expression if possible.
 
