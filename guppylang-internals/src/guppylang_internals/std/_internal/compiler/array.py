@@ -414,3 +414,56 @@ class ArrayIsBorrowedCompiler(ArrayCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
+
+
+class ArraySwapCompiler(ArrayCompiler):
+    """Compiler for the `array_swap` function.
+    Implements swap using borrow_array's borrow and return operations.
+    """
+
+    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+        """Compiles array_swap(arr, idx, idx2) by borrowing both
+        elements and swapping them."""
+        [array_wire, idx, idx2] = args
+
+        # Convert indices from int to usize
+        idx = self.builder.add_op(convert_itousize(), idx)
+        idx2 = self.builder.add_op(convert_itousize(), idx2)
+
+        # Borrow element at first index
+        array_wire, elem_first = self.builder.add_op(
+            barray_borrow(self.elem_ty, self.length),
+            array_wire,
+            idx,
+        )
+
+        # Borrow element at second index
+        array_wire, elem_second = self.builder.add_op(
+            barray_borrow(self.elem_ty, self.length),
+            array_wire,
+            idx2,
+        )
+
+        # Return second element to first position (swap)
+        array_wire = self.builder.add_op(
+            barray_return(self.elem_ty, self.length),
+            array_wire,
+            idx,
+            elem_second,
+        )
+
+        # Return first element to second position (swap)
+        array_wire = self.builder.add_op(
+            barray_return(self.elem_ty, self.length),
+            array_wire,
+            idx2,
+            elem_first,
+        )
+
+        return CallReturnWires(
+            regular_returns=[],
+            inout_returns=[array_wire],
+        )
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        raise InternalGuppyError("Call compile_with_inouts instead")

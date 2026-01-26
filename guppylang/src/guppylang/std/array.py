@@ -20,6 +20,7 @@ from guppylang_internals.std._internal.compiler.array import (
     ArrayGetitemCompiler,
     ArrayIsBorrowedCompiler,
     ArraySetitemCompiler,
+    ArraySwapCompiler,
     NewArrayCompiler,
 )
 from guppylang_internals.std._internal.compiler.frozenarray import (
@@ -248,6 +249,27 @@ class ArrayIter(Generic[L, n]):
 
 @custom_function(ArrayDiscardAllUsedCompiler())
 def _array_discard_all_used(xs: array[L, n] @ owned) -> None: ...
+
+
+@custom_function(ArraySwapCompiler())
+def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
+    """Swap two elements in an array at indices idx and idx2.
+    Exchanges the elements at two indices within the array. This operation
+    compiles directly to HUGR's native swap operation, making it more efficient
+    than using `mem_swap(arr[idx], arr[idx2])`.
+    The swap happens in-place. Panics if either index is out of bounds.
+    Works with both copyable and linear types (like qubits).
+    Args:
+        arr: The array to modify
+        idx: Index of first element to swap
+        idx2: Index of second element to swap
+    Example:
+    ```python
+            arr = array(10, 20, 30, 40)
+            array_swap(arr, 0, 3)
+            # arr is now [40, 20, 30, 10]
+    ```
+    """
 
 
 @extend_type(frozenarray_type_def)
