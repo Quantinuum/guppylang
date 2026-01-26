@@ -394,7 +394,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         Also returns a new desugared expression with type annotations.
         """
-        print(">synthesizing expr:\n  ", ast.dump(node, indent=2))
         if ty := get_type_opt(node):
             return node, ty
         node, ty = self.visit(node)
@@ -1142,11 +1141,6 @@ def synthesize_call(
     """
     assert not func_ty.unsolved_vars
 
-    print(
-        f">synthesize_call:\n\tfunc_ty={func_ty},",
-        f"\n\targs={args},",
-        f"\n\tnode={ast.dump(node)}",
-    )
     check_num_args(
         exp=len(func_ty.inputs),
         act=len(args),
@@ -1383,7 +1377,9 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
         raise GuppyError(ComptimeExprNotCPythonError(node))
 
     try:
-        python_val = eval(ast.unparse(node.value), DummyEvalDict(ctx, node.value))  # noqa: S307
+        python_val = eval(  # noqa: S307
+            ast.unparse(node.value), DummyEvalDict(ctx, node.value)
+        )
     except DummyEvalDict.GuppyVarUsedError as e:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
     except Exception as e:

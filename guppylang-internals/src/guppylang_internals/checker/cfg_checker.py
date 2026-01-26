@@ -84,8 +84,6 @@ def check_cfg(
     *places* rather than just variables.
     """
 
-    print(f">check_cfg for function {func_name} ")
-
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
@@ -219,6 +217,7 @@ def check_bb(
     if bb == cfg.entry_bb:
         assert len(bb.predecessors) == 0
         for x, use in bb.vars.used.items():
+            # NOTE: Nicola - here we check that variables are defined before use same as before if we have more bb  # noqa: E501
             if (
                 x not in cfg.ass_before[bb]
                 and x not in globals
@@ -242,6 +241,7 @@ def check_bb(
             # a local variable, then we must be able to find it in the context.
             # Following Python, locals are exactly those variables that are defined
             # somewhere in the function body.
+            # NOTE: Nicola - here we check that variables are defined before use same as before if we have more bb  # noqa: E501
             if x in cfg.assigned_somewhere:
                 if x not in ctx.locals:
                     # If the variable is defined on *some* paths, we can give a more

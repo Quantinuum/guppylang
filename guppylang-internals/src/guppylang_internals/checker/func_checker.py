@@ -140,7 +140,9 @@ def check_global_func_def(
     assert all(inp.name is not None for inp in ty.inputs)
 
     check_invalid_under_dagger(func_def, ty.unitary_flags)
-    cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
+    cfg = CFGBuilder().build(
+        func_def.body, returns_none, globals, ty.unitary_flags, ty.is_constructor
+    )
 
     # TODO: NICOLA - HERE edit inputs
     inputs = []
@@ -305,8 +307,6 @@ def check_signature(
     # Figure out if this is a method
     self_defn: TypeDef | None = None
 
-    print(">check_signature called: on ", func_def.name)
-
     # If this is a method, retrieve the parent definition
     if def_id is not None and def_id in DEF_STORE.impl_parents:
         self_defn = cast(TypeDef, ENGINE.get_checked(DEF_STORE.impl_parents[def_id]))
@@ -321,16 +321,15 @@ def check_signature(
         if self_defn and i == 0:
             if func_def.name == "__init__":
                 is_custom_init = True
-                continue
             elif func_def.name != "__new__":
                 input = parse_self_arg(inp, self_defn, ctx)
                 ctx = replace(ctx, self_ty=input.ty)
+                inputs.append(input)
         else:
             ty_ast = inp.annotation
             if ty_ast is None:
                 raise GuppyError(MissingArgAnnotationError(inp))
-            input = parse_function_arg_annotation(ty_ast, inp.arg, ctx)
-        inputs.append(input)
+            inputs.append(parse_function_arg_annotation(ty_ast, inp.arg, ctx))
 
     # TODO: NICOLA - somewhere, check that custom init is well defined (at least one arg, first arg is self etc)  # noqa: E501
     if is_custom_init:
@@ -340,7 +339,6 @@ def check_signature(
         output, _ = type_with_flags_from_ast(func_def.args.args[0].annotation, ctx)
         assert isinstance(output, StructType)
         output = output.set_as_constructor_self()
-        # print("\tcustom init output:", output, output.constructor_self)
     else:
         output = type_from_ast(func_def.returns, ctx)
 
@@ -351,8 +349,6 @@ def check_signature(
         unitary_flags=unitary_flags,
         is_constructor=is_custom_init,
     )
-    print("<-check_signature returning:", ret_ty, ret_ty.is_constructor)
-
     return ret_ty
 
 

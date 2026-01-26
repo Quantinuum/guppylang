@@ -107,12 +107,14 @@ class CFG(BaseCFG[BB]):
         maybe_ass_before: set[str],
         inout_vars: list[str],
     ) -> dict[BB, VariableStats[str]]:
+        """Run Liveness and Assignment analyses on the CFG."""
         stats = {bb: bb.compute_variable_stats() for bb in self.bbs}
         # Locals are variables that are assigned somewhere inside the function
         self.assigned_somewhere = def_ass_before.union(
             maybe_ass_before, (x for bb in self.bbs for x in stats[bb].assigned)
         )
         # Mark all borrowed variables as implicitly used in the exit BB
+        # NOTE: NICOLA - here we mark the inout (borrowed) variables as used in the exit BB, do the same  # noqa: E501
         stats[self.exit_bb].used |= {x: InoutReturnSentinel(var=x) for x in inout_vars}
         # This also means borrowed variables are always live, so we can use them as the
         # initial value in the liveness analysis. This solves the edge case that

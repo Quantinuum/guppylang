@@ -687,6 +687,8 @@ class StructType(ParametrizedTypeBase):
     """A struct type."""
 
     defn: "CheckedStructDef"
+    # TODO: NICOLA use flag instead of field in type? in the spirit seems better,
+    # however when we visit the AST we only know the type, not the flags
     constructor_self: bool = field(default=False, kw_only=True, init=True)
 
     @cached_property

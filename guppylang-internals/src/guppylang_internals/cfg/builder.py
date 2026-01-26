@@ -84,6 +84,7 @@ class CFGBuilder(AstVisitor[BB | None]):
         returns_none: bool,
         globals: Globals,
         unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        is_constructor: bool = False,
     ) -> CFG:
         """Builds a CFG from a list of ast nodes.
 
@@ -108,7 +109,8 @@ class CFGBuilder(AstVisitor[BB | None]):
             self.cfg.link(final_bb, self.cfg.exit_bb)
             if final_bb.reachable:
                 self.cfg.exit_bb.reachable = True
-                if not returns_none:
+                # TODO: NCOLA - here we need a personalzed check for cunstructors
+                if not returns_none and not is_constructor:
                     raise GuppyError(ExpectedError(nodes[-1], "return statement"))
 
         # Prune the CFG such that there are no jumps from unreachable code back into
@@ -281,7 +283,9 @@ class CFGBuilder(AstVisitor[BB | None]):
         func_ty = check_signature(node, self.globals)
         returns_none = isinstance(func_ty.output, NoneType)
         # No UnitaryFlags are assigned to nested functions
-        cfg = CFGBuilder().build(node.body, returns_none, self.globals)
+        cfg = CFGBuilder().build(
+            node.body, returns_none, self.globals, is_constructor=func_ty.is_constructor
+        )
 
         new_node = NestedFunctionDef(
             cfg,

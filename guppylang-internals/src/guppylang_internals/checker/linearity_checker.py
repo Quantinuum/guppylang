@@ -762,6 +762,8 @@ def check_cfg_linearity(
 
     # Run liveness analysis with this initial value
     stats = {bb: scope.stats() for bb, scope in scopes.items()}
+    # NOTE: NICOLA - During type checking we run liveness over variables, during linearity checking we do it over places.  # noqa: E501
+    # I.e. in the linearity phase, we consider all struct fields, tuple elements, etc individually                         # noqa: E501
     live_before = LivenessAnalysis(
         stats, initial=live_default, include_unreachable=False
     ).run(cfg.bbs)
