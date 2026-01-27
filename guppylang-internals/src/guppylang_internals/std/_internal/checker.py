@@ -319,16 +319,27 @@ class PanicChecker(CustomCallChecker):
             case [msg, *rest]:
                 # Check type of message and synthesize types for additional values.
                 msg, _ = ExprChecker(self.ctx).check(msg, string_type())
-                vals = [ExprSynthesizer(self.ctx).synthesize(val)[0] for val in rest]
-                # TODO variable signals once default arguments are available
-                # TODO this will also allow us to remove this manual AST node hack
-                signal_expr = with_type(
-                    int_type(), with_loc(self.node, ast.Constant(value=1))
-                )
+                vals = [ExprSynthesizer(self.ctx).synthesize(val) for val in rest]
+                # If the first value after msg is an int, we assume that this is the
+                # signal. This means that users can't pass an integer as the first
+                # additional value without also passing a signal, however as it only
+                # makes sense to pass linear values as additional values, this should
+                # not be a problem in practice.
+                if vals and vals[0][1] == int_type():
+                    signal = vals[0][0]
+                else:
+                    # Default signal value is 1.
+                    signal = with_type(
+                        int_type(), with_loc(self.node, ast.Constant(value=1))
+                    )
                 node = PanicExpr(
-                    kind=ExitKind.Panic, msg=msg, values=vals, signal=signal_expr
+                    kind=ExitKind.Panic,
+                    msg=msg,
+                    values=[val[0] for val in vals],
+                    signal=signal,
                 )
                 return with_loc(self.node, node), NoneType()
+
             case args:
                 return assert_never(args)  # type: ignore[arg-type]
 

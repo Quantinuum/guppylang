@@ -84,14 +84,23 @@ def result(tag: str, value):
 
 
 @custom_function(checker=PanicChecker(), higher_order_value=False)
-def panic(msg: str, *args):
-    """Panic, throwing an error with the given message, and immediately exit the
-    program, aborting any subsequent shots.
+def _panic(msg: str, *args) -> None: ...
+
+
+@custom_function(checker=PanicChecker(), higher_order_value=False)
+def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
+
+
+@guppy.overload(_panic, _panic_with_signal)
+def panic(msg: str, signal: int = 1, *args):
+    """Panic, throwing an error with the given message (and signal if given), and
+    immediately exit the program, aborting any subsequent shots.
 
     Return type is arbitrary, as this function never returns.
 
     Args:
         msg: The message to display. Must be a string literal.
+        signal: An optional integer for distinguishing different failure modes.
         args: Arbitrary extra inputs, will not affect the message. Only useful for
         consuming linear values.
     """
