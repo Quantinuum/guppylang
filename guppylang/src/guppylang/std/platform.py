@@ -16,8 +16,8 @@ from guppylang_internals.std._internal.compiler.platform import (
     ArrayResultCompiler,
     ResultCompiler,
 )
-from guppylang_internals.tys.builtin import NoneType, int_type, string_type
-from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags
+from guppylang_internals.tys.builtin import int_type, string_type
+from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags, NoneType
 
 from guppylang import guppy
 

@@ -83,7 +83,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
-        available_sigs: list[FunctionType] = []
+        available_sigs: list[tuple[FunctionType, bool]] = []
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)
@@ -100,7 +100,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
-        available_sigs: list[FunctionType] = []
+        available_sigs: list[tuple[FunctionType, bool]] = []
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)

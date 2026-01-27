@@ -154,7 +154,7 @@ class RawCustomFunctionDef(ParsableDef):
             self.higher_order_value,
             GlobalConstId.fresh(self.name),
             sig is not None,
-            self.has_var_args
+            self.has_var_args,
         )
 
     def _get_signature(
