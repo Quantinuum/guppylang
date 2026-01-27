@@ -71,3 +71,16 @@ def test_rows():
 
     res = main.emulator(1).coinflip_sim().run().results[0].entries
     assert res == [("a", 3), ("b", 1)]
+
+
+def test_either_comprehension(validate):
+    from guppylang.std.array import array
+
+    @guppy
+    def main(b: bool) -> Either[array[int, 3], int]:
+        if b:
+            return left(array(42 for x in range(3)))
+        else:
+            return right(0)
+
+    validate(main.compile())
