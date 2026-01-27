@@ -1,8 +1,10 @@
 import itertools
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import ClassVar
+
+from guppylang_internals.tys.common import Transformer
 
 # Type of de Bruijn indices
 DeBruijn = int
@@ -47,3 +49,6 @@ class ExistentialVar(Var, ABC):
 
     # Generator of fresh unique ids
     _fresh_id: ClassVar[Iterator[UniqueId]] = itertools.count()
+
+    @abstractmethod
+    def transform(self, t: Transformer) -> "ExistentialVar": ...

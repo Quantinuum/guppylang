@@ -276,7 +276,10 @@ class ExistentialTypeVar(ExistentialVar, TypeBase):
 
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
-        return transformer.transform(self) or self
+        return transformer.transform(self) or replace(
+            self,
+            implements=tuple(impl.transform(transformer) for impl in self.implements),
+        )
 
 
 @dataclass(frozen=True)
@@ -584,8 +587,17 @@ class FunctionType(ParametrizedTypeBase):
 
     def unquantified(self) -> tuple["FunctionType", Sequence[ExistentialVar]]:
         """Instantiates all parameters with existential variables."""
-        exs = [param.to_existential() for param in self.params]
-        return self.instantiate([arg for arg, _ in exs]), [var for _, var in exs]
+        from guppylang_internals.tys.subst import Instantiator
+
+        args = []
+        exes = []
+        for param in self.params:
+            arg, ex = param.to_existential()
+            inst = Instantiator(args)
+            exes.append(ex.transform(inst))
+            args.append(arg.transform(inst))
+
+        return self.instantiate(args), exes
 
     def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
         """Returns a copy of this function type with the specified unitary flags."""

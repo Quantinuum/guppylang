@@ -173,7 +173,13 @@ class TypeParam(ParameterBase):
     def instantiate_bounds(self, inst: "PartialInst") -> "TypeParam":
         """Instantiates bound variables mentioned in parameter bounds"""
         # For now, type parameters don't have any bounds that could be instantiated
-        return self
+        from guppylang_internals.tys.subst import Instantiator
+
+        impls = tuple(
+            impl.transform(Instantiator(inst)) for impl in self.must_implement
+        )
+
+        return replace(self, must_implement=impls)
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.TypeParam:
         """Computes the Hugr representation of the parameter."""
