@@ -8,6 +8,7 @@ from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import UnexpectedError, UnsupportedError
 from guppylang_internals.definition.common import CheckableDef, ParsableDef
+from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.struct import extract_generic_params, parse_py_class
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error, Help
@@ -243,9 +244,15 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
-        # TODO: here
-
-        raise NotImplementedError()
+        check_all_args(self.params, args, self.name, loc)
+        globals = Globals(DEF_STORE.frames[self.id])
+        # TODO: This is quite bad: If we have a cyclic definition this will not
+        #  terminate, so we have to check for cycles in every call to `check`. The
+        #  proper way to deal with this is changing `EnumType` such that it only
+        #  takes a `DefId` instead of a `CheckedEnumDef`. But this will be a bigger
+        #  refactor... (See PR 4)
+        checked_def = self.check(globals)
+        return EnumType(args, checked_def)
 
 
 @dataclass(frozen=True)
@@ -262,7 +269,9 @@ class CheckedEnumDef(TypeDef):
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
-        raise NotImplementedError()
+        """Checks if the enum can be instantiated with the given arguments."""
+        check_all_args(self.params, args, self.name, loc)
+        return EnumType(args, self)
 
     def generated_methods(self) -> list[CustomFunctionDef]:
         # Generating methods to instantiate enum variants
