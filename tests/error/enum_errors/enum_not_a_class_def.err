@@ -1,0 +1,10 @@
+Error: Expected a class definition (at $FILE:5:0)
+  | 
+3 | 
+4 | @guppy.enum
+5 | def foo(x: int) -> int:
+  | ^^^^^^^^^^^^^^^^^^^^^^^
+6 |     return x
+  | ^^^^^^^^^^^^ Expected a class definition
+
+Guppy compilation failed due to 1 previous error

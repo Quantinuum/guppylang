@@ -52,7 +52,7 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.parsing import TypeParsingCtx
 
 
@@ -134,7 +134,7 @@ class FieldAccess:
     """A place identifying a field access on a local struct."""
 
     parent: Place
-    field: "StructField"
+    field: "CheckedField"
     exact_defined_at: AstNode | None
 
     @dataclass(frozen=True)

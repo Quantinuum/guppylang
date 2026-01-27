@@ -1,0 +1,11 @@
+Error: Unexpected statement (at $FILE:7:4)
+  | 
+5 | class MyEnum:
+6 |     v1 = {"x": int}
+7 |     """Docstring in wrong position"""
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unexpected statement in enum definition
+
+Help: Enum can contain only variants of the form `VariantName = {"var1": Type1,
+...}`or `@guppy` annotated methods
+
+Guppy compilation failed due to 1 previous error
