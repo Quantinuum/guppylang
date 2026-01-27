@@ -21,6 +21,7 @@ can be used to infer a type for an expression.
 """
 
 import ast
+import copy
 import sys
 import traceback
 from collections.abc import Sequence
@@ -1182,7 +1183,11 @@ def check_call(
     # First, try to synthesize
     res: tuple[Type, Inst] | None = None
     try:
-        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx)
+        # check_call may modify args and node,
+        # thus we deepcopy them before passing in the function
+        node_copy = copy.deepcopy(node)
+        inputs_copy = copy.deepcopy(inputs)
+        inputs, synth, inst = synthesize_call(func_ty, inputs_copy, node_copy, ctx)
         res = synth, inst
     except GuppyTypeInferenceError:
         pass
