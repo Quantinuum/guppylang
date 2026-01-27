@@ -1,16 +1,19 @@
 import ast
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 
+from guppylang.defs import GuppyDefinition
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
-from guppylang_internals.checker.errors.generic import UnsupportedError
-from guppylang_internals.definition.common import CheckableDef
+from guppylang_internals.checker.errors.generic import UnexpectedError, UnsupportedError
+from guppylang_internals.definition.common import CheckableDef, ParsableDef
+from guppylang_internals.definition.struct import extract_generic_params, parse_py_class
 from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.diagnostic import Error
+from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
-from guppylang_internals.error import GuppyError
+from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -49,6 +52,141 @@ class DuplicateVariantError(Error):
     title: ClassVar[str] = "Duplicate variant"
     span_label: ClassVar[str] = "Variant `{variant_name}` is already defined"
     variant_name: str
+
+
+@dataclass(frozen=True)
+class NonGuppyMethodError(Error):
+    """Error raised when an enum method is not a Guppy function."""
+
+    title: ClassVar[str] = "Not a Guppy method"
+    span_label: ClassVar[str] = (
+        "Method `{method_name}` of enum `{enum_name}` is not a Guppy function"
+    )
+    enum_name: str
+    method_name: str
+
+    @dataclass(frozen=True)
+    class Suggestion(Help):
+        message: ClassVar[str] = (
+            "Add a `@guppy` annotation to turn `{method_name}` into a Guppy method"
+        )
+
+    def __post_init__(self) -> None:
+        self.add_sub_diagnostic(NonGuppyMethodError.Suggestion(None))
+
+
+# ============================================================================
+# Definition Classes
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class RawEnumDef(TypeDef, ParsableDef):
+    """A raw enum type definition that has not been parsed yet.
+
+    This is the initial representation created by the @guppy.enum decorator
+    before any parsing or validation has occurred.
+    """
+
+    python_class: type
+    params: None = field(default=None, init=False)  # Params not known yet
+
+    def parse(self, globals: Globals, sources: SourceMap) -> "ParsedEnumDef":
+        """Parses the raw class object into an AST and checks that it is well-formed.
+
+        This method:
+        1. Extracts the Python class source code
+        2. Parses it into an AST
+        3. Validates the structure
+        4. Extracts variants from class body
+        5. Returns a ParsedEnumDef ready for type checking
+
+        Args:
+            globals: The global definitions available in this scope
+            sources: Source map for tracking file locations
+
+        Returns:
+            A ParsedEnumDef with validated structure
+
+        Raises:
+            GuppyError: If the enum definition is malformed
+        """
+        frame = DEF_STORE.frames[self.id]
+        cls_def = parse_py_class(self.python_class, frame, sources)
+
+        if cls_def.keywords:
+            raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
+
+        # Extract generic parameters (e.g., class MyEnum[T, E]:)
+        params = extract_generic_params(cls_def, self.name, globals, "Enum")
+
+        variants: list[UncheckedEnumVariant] = []
+        used_variant_names: set[str] = set()
+        used_func_names: dict[str, ast.FunctionDef] = {}
+
+        for i, node in enumerate(cls_def.body):
+            match i, node:
+                # Allow `pass` statements for empty enums
+                case _, ast.Pass():
+                    pass
+
+                # Allow docstrings at the start
+                case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
+                    pass
+
+                # Ensure all function definitions are Guppy functions
+                case _, ast.FunctionDef(name=name) as node:
+                    v = getattr(self.python_class, name)
+                    if not isinstance(v, GuppyDefinition):
+                        raise GuppyError(NonGuppyMethodError(node, self.name, name))
+                    used_func_names[name] = node
+                    if name in used_variant_names:
+                        raise GuppyError(DuplicateVariantError(node, self.name, name))
+
+                # Enum variants: name: Type or name: dict[str, Type]
+                case _, ast.AnnAssign(target=ast.Name(id=variant_name)) as node:
+                    if node.value:
+                        err = UnsupportedError(node.value, "Default variant values")
+                        raise GuppyError(err)
+
+                    if variant_name in used_variant_names:
+                        err = DuplicateVariantError(
+                            node.target, self.name, variant_name
+                        )
+                        raise GuppyError(err)
+
+                    # Parse the annotation to extract payload types
+                    # Single type: Variant: int  -> [int]
+                    # Tuple: Variant: tuple[int, str] -> [int, str]
+                    payload_type_asts: list[ast.expr] = []
+                    match node.annotation:
+                        case ast.Tuple(elts=elts):
+                            payload_type_asts = elts
+                        case _:
+                            payload_type_asts = [node.annotation]
+
+                    variants.append(
+                        UncheckedEnumVariant(variant_name, payload_type_asts)
+                    )
+                    used_variant_names.add(variant_name)
+
+                case _, node:
+                    err = UnexpectedError(
+                        node, "statement", unexpected_in="enum definition"
+                    )
+                    raise GuppyError(err)
+
+        # Ensure functions don't override enum variants
+        if overridden := used_variant_names.intersection(used_func_names.keys()):
+            x = overridden.pop()
+            raise GuppyError(DuplicateVariantError(used_func_names[x], self.name, x))
+
+        return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
+
+    def check_instantiate(
+        self, args: Sequence[Argument], loc: AstNode | None = None
+    ) -> Type:
+        raise InternalGuppyError("Tried to instantiate raw enum definition")
 
 
 # ============================================================================
