@@ -13,6 +13,7 @@ from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
     DefId,
 )
+from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -52,12 +53,13 @@ class OverloadNoMatchError(Error):
 @dataclass(frozen=True)
 class AvailableOverloadsHint(Note):
     func_name: str
-    variants: list[FunctionType]
+    variants: list[tuple[FunctionType, bool]]
 
     @property
     def rendered_message(self) -> str:
         return "Available overloads are:\n" + "\n".join(
-            f"  {signature_to_str(self.func_name, ty)}" for ty in self.variants
+            f"  {signature_to_str(self.func_name, sig[0], sig[1])}"
+            for sig in self.variants
         )
 
 
@@ -85,7 +87,8 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)
-            available_sigs.append(defn.ty)
+            has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
+            available_sigs.append((defn.ty, has_var_args))
             with suppress(GuppyError):
                 # check_call may modify args and node,
                 # thus we deepcopy them before passing in the function
@@ -101,7 +104,8 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)
-            available_sigs.append(defn.ty)
+            has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
+            available_sigs.append((defn.ty, has_var_args))
             with suppress(GuppyError):
                 # synthesize_call may modify args and node,
                 # thus we deepcopy them before passing in the function
@@ -115,7 +119,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         args: list[ast.expr],
         node: AstNode,
         ctx: "Context",
-        available_sigs: list[FunctionType],
+        available_sigs: list[tuple[FunctionType, bool]],
         return_ty: Type | None = None,
     ) -> NoReturn:
         if args and not return_ty:

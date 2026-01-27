@@ -306,15 +306,10 @@ class PanicChecker(CustomCallChecker):
         title: ClassVar[str] = "No panic message"
         span_label: ClassVar[str] = "Missing message argument to panic call"
 
-        @dataclass(frozen=True)
-        class Suggestion(Note):
-            message: ClassVar[str] = 'Add a message: `panic("message")`'
-
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         match args:
             case []:
                 err = PanicChecker.NoMessageError(self.node)
-                err.add_sub_diagnostic(PanicChecker.NoMessageError.Suggestion(None))
                 raise GuppyTypeError(err)
             case [msg, *rest]:
                 # Check type of message and synthesize types for additional values.

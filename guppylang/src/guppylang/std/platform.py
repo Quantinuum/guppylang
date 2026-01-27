@@ -16,6 +16,8 @@ from guppylang_internals.std._internal.compiler.platform import (
     ArrayResultCompiler,
     ResultCompiler,
 )
+from guppylang_internals.tys.builtin import NoneType, int_type, string_type
+from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags
 
 from guppylang import guppy
 
@@ -83,11 +85,35 @@ def result(tag: str, value):
     """
 
 
-@custom_function(checker=PanicChecker(), higher_order_value=False)
+@custom_function(
+    checker=PanicChecker(),
+    higher_order_value=False,
+    # We need to define a signature manually here for error reporting purposes. This is
+    # because we are using a custom checker due to the arbitrary extra inputs that
+    # can't be represented by a standard Guppy signature.
+    signature=FunctionType(
+        [
+            FuncInput(string_type(), InputFlags.NoFlags, "msg"),
+        ],
+        NoneType(),
+    ),
+    has_var_args=True,
+)
 def _panic(msg: str, *args) -> None: ...
 
 
-@custom_function(checker=PanicChecker(), higher_order_value=False)
+@custom_function(
+    checker=PanicChecker(),
+    higher_order_value=False,
+    signature=FunctionType(
+        [
+            FuncInput(string_type(), InputFlags.NoFlags, "msg"),
+            FuncInput(int_type(), InputFlags.NoFlags, "signal"),
+        ],
+        NoneType(),
+    ),
+    has_var_args=True,
+)
 def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
 
 
