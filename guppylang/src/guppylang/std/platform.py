@@ -16,6 +16,8 @@ from guppylang_internals.std._internal.compiler.platform import (
     ArrayResultCompiler,
     ResultCompiler,
 )
+from guppylang_internals.tys.builtin import int_type, string_type
+from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags, NoneType
 
 from guppylang import guppy
 
@@ -83,15 +85,48 @@ def result(tag: str, value):
     """
 
 
-@custom_function(checker=PanicChecker(), higher_order_value=False)
-def panic(msg: str, *args):
-    """Panic, throwing an error with the given message, and immediately exit the
-    program, aborting any subsequent shots.
+@custom_function(
+    checker=PanicChecker(),
+    higher_order_value=False,
+    # We need to define a signature manually here for error reporting purposes. This is
+    # because we are using a custom checker due to the arbitrary extra inputs that
+    # can't be represented by a standard Guppy signature.
+    signature=FunctionType(
+        [
+            FuncInput(string_type(), InputFlags.NoFlags, "msg"),
+        ],
+        NoneType(),
+    ),
+    has_var_args=True,
+)
+def _panic(msg: str, *args) -> None: ...
+
+
+@custom_function(
+    checker=PanicChecker(),
+    higher_order_value=False,
+    signature=FunctionType(
+        [
+            FuncInput(string_type(), InputFlags.NoFlags, "msg"),
+            FuncInput(int_type(), InputFlags.NoFlags, "signal"),
+        ],
+        NoneType(),
+    ),
+    has_var_args=True,
+)
+def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
+
+
+@guppy.overload(_panic, _panic_with_signal)
+def panic(msg: str, signal: int = 1, *args):
+    """Panic, throwing an error with the given message (and signal if given), and
+    immediately exit the program, aborting any subsequent shots.
 
     Return type is arbitrary, as this function never returns.
 
     Args:
         msg: The message to display. Must be a string literal.
+        signal: An optional integer for distinguishing different failure modes.
         args: Arbitrary extra inputs, will not affect the message. Only useful for
         consuming linear values.
     """

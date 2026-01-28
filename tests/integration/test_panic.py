@@ -1,4 +1,4 @@
-from guppylang import guppy
+from guppylang import guppy, qubit
 from guppylang.std.builtins import panic, exit, comptime
 from tests.util import compile_guppy
 
@@ -70,5 +70,15 @@ def test_dynamic(validate):
     def main(b: bool, s: str, i: int) -> None:
         panic("foo" if b else "bar", b)
         exit(s, i + 1)
+
+    validate(main)
+
+
+def test_panic_with_signal(validate):
+    @compile_guppy
+    def main(s: int) -> None:
+        q = qubit()
+        panic("I panicked with signal!", 42, q)
+        panic("I panicked with dynamic signal!", s)
 
     validate(main)

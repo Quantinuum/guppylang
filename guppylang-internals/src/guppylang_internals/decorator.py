@@ -86,6 +86,7 @@ def custom_function(
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    has_var_args: bool = False,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
 
@@ -109,6 +110,7 @@ def custom_function(
             higher_order_value,
             signature,
             unitary_flags,
+            has_var_args,
         )
         DEF_STORE.register_def(func, get_calling_frame())
         return GuppyFunctionDefinition(func)
