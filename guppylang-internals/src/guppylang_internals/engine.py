@@ -272,7 +272,7 @@ class CompilationEngine:
 
         extensions = [
             *TKET_EXTENSIONS,
-            guppylang_internals.compiler.hugr_extension.EXTENSION,
+            guppylang_internals.compiler.hugr_extension.EXTENSION,  # type: ignore[attr-defined]
             *self.additional_extensions,
         ]
         # TODO replace with computed extensions after https://github.com/quantinuum/guppylang/issues/550

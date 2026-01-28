@@ -38,7 +38,7 @@ class QubitFinder(Visitor):
         pass
 
     @functools.singledispatchmethod
-    def visit(self, ty: Any) -> bool:  # type: ignore[override]
+    def visit(self, ty: Any) -> bool:
         return False
 
     @visit.register

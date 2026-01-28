@@ -351,7 +351,9 @@ class NewArrayChecker(CustomCallChecker):
                             ConstValue(nat_type(), len(args)),
                         ]
                         call = GlobalCall(
-                            def_id=self.func.id, args=args, type_args=type_args
+                            self.func.id,
+                            args,
+                            type_args,  # type: ignore[arg-type]
                         )
                         return with_loc(self.node, call), subst
             case type_args:

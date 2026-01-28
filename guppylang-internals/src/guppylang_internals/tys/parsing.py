@@ -379,7 +379,9 @@ def type_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Type:
     """Turns an AST expression into a Guppy type."""
     ty, flags = type_with_flags_from_ast(node, ctx)
     if flags != InputFlags.NoFlags:
-        assert InputFlags.Inout not in flags  # Users shouldn't be able to set this
+        # Users shouldn't be able to set this
+        # Ignore needed for Python 3.10 mypy compatibility with Flag enums
+        assert InputFlags.Inout not in flags  # type: ignore[operator, unused-ignore]
         raise GuppyError(FlagNotAllowedError(node))
     return ty
 

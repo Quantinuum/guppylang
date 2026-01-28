@@ -156,29 +156,48 @@ class ContextAdjuster(ast.NodeTransformer):
         self,
         node: ast.Starred,
     ) -> ast.Starred:
-        return with_loc(node, ast.Starred(value=self.visit(node.value), ctx=self.ctx))
+        return with_loc(
+            node,
+            ast.Starred(value=self.visit(node.value), ctx=self.ctx),  # type: ignore[arg-type]
+        )
 
     def visit_Tuple(self, node: ast.Tuple) -> ast.Tuple:
         return with_loc(
-            node, ast.Tuple(elts=[self.visit(elt) for elt in node.elts], ctx=self.ctx)
+            node,
+            ast.Tuple(
+                elts=[self.visit(elt) for elt in node.elts],  # type: ignore[misc]
+                ctx=self.ctx,
+            ),
         )
 
     def visit_List(self, node: ast.List) -> ast.List:
         return with_loc(
-            node, ast.List(elts=[self.visit(elt) for elt in node.elts], ctx=self.ctx)
+            node,
+            ast.List(
+                elts=[self.visit(elt) for elt in node.elts],  # type: ignore[misc]
+                ctx=self.ctx,
+            ),
         )
 
     def visit_Subscript(self, node: ast.Subscript) -> ast.Subscript:
         # Don't adjust the slice!
         return with_loc(
             node,
-            ast.Subscript(value=self.visit(node.value), slice=node.slice, ctx=self.ctx),
+            ast.Subscript(
+                value=self.visit(node.value),  # type: ignore[arg-type]
+                slice=node.slice,
+                ctx=self.ctx,
+            ),
         )
 
     def visit_Attribute(self, node: ast.Attribute) -> ast.Attribute:
         return with_loc(
             node,
-            ast.Attribute(value=self.visit(node.value), attr=node.attr, ctx=self.ctx),
+            ast.Attribute(
+                value=self.visit(node.value),  # type: ignore[arg-type]
+                attr=node.attr,
+                ctx=self.ctx,
+            ),
         )
 
 
@@ -240,15 +259,15 @@ def template_replace(
 
 def line_col(node: ast.AST) -> tuple[int, int]:
     """Returns the line and column of an ast node."""
-    return node.lineno, node.col_offset
+    return node.lineno, node.col_offset  # type: ignore[attr-defined]
 
 
 def set_location_from(node: ast.AST, loc: ast.AST) -> None:
     """Copy source location from one AST node to the other."""
-    node.lineno = loc.lineno
-    node.col_offset = loc.col_offset
-    node.end_lineno = loc.end_lineno
-    node.end_col_offset = loc.end_col_offset
+    node.lineno = loc.lineno  # type: ignore[attr-defined]
+    node.col_offset = loc.col_offset  # type: ignore[attr-defined]
+    node.end_lineno = loc.end_lineno  # type: ignore[attr-defined]
+    node.end_col_offset = loc.end_col_offset  # type: ignore[attr-defined]
 
     source, file, line_offset = get_source(loc), get_file(loc), get_line_offset(loc)
     assert source is not None

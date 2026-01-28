@@ -235,7 +235,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if actual := get_type_opt(expr):
             expr, subst, inst = check_type_against(actual, ty, expr, self.ctx, kind)
             if inst:
-                expr = with_loc(expr, TypeApply(value=expr, tys=inst))
+                expr = with_loc(expr, TypeApply(expr, inst))
             return with_type(ty.substitute(subst), expr), subst
 
         # When checking against a variable, we have to synthesize
@@ -371,7 +371,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Apply instantiation of quantified type variables
         if inst:
-            node = with_loc(node, TypeApply(value=node, inst=inst))
+            node = with_loc(node, TypeApply(node, inst))
 
         return node, subst
 
@@ -1281,7 +1281,7 @@ def instantiate_poly(node: ast.expr, ty: FunctionType, inst: Inst) -> ast.expr:
             assert full_ty.params == ty.params
             node.func = instantiate_poly(node.func, full_ty, inst)
         else:
-            node = with_loc(node, TypeApply(value=with_type(ty, node), inst=inst))
+            node = with_loc(node, TypeApply(with_type(ty, node), inst))
         return with_type(ty.instantiate(inst), node)
     return with_type(ty, node)
 

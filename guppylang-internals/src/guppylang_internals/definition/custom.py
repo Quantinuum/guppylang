@@ -479,7 +479,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
             for res in result
         ]
         return CallReturnWires(
-            regular_returns=converted_result,
+            regular_returns=converted_result,  # type: ignore[arg-type]
             inout_returns=[],
         )
 
