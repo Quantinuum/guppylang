@@ -113,11 +113,15 @@ def to_span(x: ToSpan) -> Span:
     assert file is not None
     assert line_offset is not None
     # x.lineno and line_offset both start at 1, so we have to subtract 1
-    start = Loc(file, x.lineno + line_offset - 1, x.col_offset)
+    start = Loc(
+        file,
+        x.lineno + line_offset - 1,  # type: ignore[attr-defined]
+        x.col_offset,  # type: ignore[attr-defined]
+    )
     end = Loc(
         file,
-        (x.end_lineno or x.lineno) + line_offset - 1,
-        x.end_col_offset or x.col_offset,
+        (x.end_lineno or x.lineno) + line_offset - 1,  # type: ignore[attr-defined]
+        x.end_col_offset or x.col_offset,  # type: ignore[attr-defined]
     )
     return Span(start, end)
 

@@ -60,7 +60,7 @@ def test_redeclare_after(validate):
 def test_tuple(validate):
     @compile_guppy
     def foo() -> int:
-        x, y = comptime((1, False))
+        x, _y = comptime((1, False))
         return x
 
     validate(foo)
@@ -69,7 +69,7 @@ def test_tuple(validate):
 def test_tuple_implicit(validate):
     @compile_guppy
     def foo() -> int:
-        x, y = comptime(1, False)
+        x, _y = comptime(1, False)
         return x
 
     validate(foo)

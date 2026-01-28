@@ -598,7 +598,7 @@ class BranchBuilder(AstVisitor[None]):
                     comparators[:-1], node.ops, comparators[1:], strict=True
                 )
             ]
-            conj = ast.BoolOp(op=ast.And(), values=values)
+            conj = ast.BoolOp(op=ast.And(), values=values)  # type: ignore[arg-type]
             set_location_from(conj, node)
             self.visit_BoolOp(conj, bb, true_bb, false_bb)
         else:
@@ -708,8 +708,8 @@ def is_comptime_expression(node: ast.AST) -> ComptimeExpr | None:
             case [arg]:
                 pass
             case args:
-                arg = with_loc(node, ast.Tuple(elts=args, ctx=ast.Load))
-        return with_loc(node, ComptimeExpr(value=arg))
+                arg = with_loc(node, ast.Tuple(elts=args, ctx=ast.Load))  # type: ignore[arg-type]
+        return with_loc(node, ComptimeExpr(arg))
     return None
 
 
@@ -730,7 +730,7 @@ def is_illegal_in_list_comp(node: ast.AST) -> bool:
 
 def make_var(name: str, loc: ast.AST | None = None) -> ast.Name:
     """Creates an `ast.Name` node."""
-    node = ast.Name(id=name, ctx=ast.Load)
+    node = ast.Name(id=name, ctx=ast.Load)  # type: ignore[arg-type]
     if loc is not None:
         set_location_from(node, loc)
     return node
@@ -744,5 +744,8 @@ def make_assign(lhs: list[ast.AST], value: ast.expr) -> ast.Assign:
     if len(lhs) == 1:
         target = lhs[0]
     else:
-        target = with_loc(value, ast.Tuple(elts=lhs, ctx=ast.Store()))
-    return with_loc(value, ast.Assign(targets=[target], value=value))
+        target = with_loc(
+            value,
+            ast.Tuple(elts=lhs, ctx=ast.Store()),  # type: ignore[arg-type]
+        )
+    return with_loc(value, ast.Assign(targets=[target], value=value))  # type: ignore[list-item]

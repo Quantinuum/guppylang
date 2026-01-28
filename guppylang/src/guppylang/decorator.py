@@ -80,7 +80,7 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("guppy", "custom_guppy_decorator", "GuppyKwargs")
+__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -555,9 +555,9 @@ def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.e
             # can't give a better location since we don't know the column
             # offset of the `ty` argument
             for node in [expr_ast, *ast.walk(expr_ast)]:
-                node.lineno = node.end_lineno = info.lineno
-                node.col_offset = 0
-                node.end_col_offset = len(source_lines[info.lineno - 1]) - 1
+                node.lineno = node.end_lineno = info.lineno  # type: ignore[attr-defined]
+                node.col_offset = 0  # type: ignore[attr-defined]
+                node.end_col_offset = len(source_lines[info.lineno - 1]) - 1  # type: ignore[attr-defined]
     return expr_ast
 
 
@@ -669,4 +669,4 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> tuple[UnitaryFlags, GuppyMetadata]:
     return flags, metadata
 
 
-guppy = cast(_Guppy, _DummyGuppy()) if sphinx_running() else _Guppy()
+guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()

@@ -478,7 +478,7 @@ def parse_unpack_pattern(lhs: ast.Tuple | ast.List) -> UnpackPattern:
     # that there is at most one starred expression)
     left = list(takewhile(lambda e: not isinstance(e, ast.Starred), lhs.elts))
     starred = (
-        cast(ast.Starred, lhs.elts[len(left)]).value
+        cast("ast.Starred", lhs.elts[len(left)]).value
         if len(left) < len(lhs.elts)
         else None
     )

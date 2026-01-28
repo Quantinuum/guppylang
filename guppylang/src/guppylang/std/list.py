@@ -21,7 +21,7 @@ from guppylang_internals.std._internal.util import unsupported_op
 from guppylang_internals.tys.builtin import list_type_def
 
 from guppylang import guppy
-from guppylang.std.option import Option  # noqa: TCH001
+from guppylang.std.option import Option  # noqa: TC001
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
@@ -51,7 +51,7 @@ class list(Generic[T]):
     def __iter__(self: list[L] @ owned) -> list[L]: ...
 
     @hugr_op(unsupported_op("pop"))
-    def __next__(self: list[L] @ owned) -> Option[tuple[L, list[L]]]: ...  # type: ignore[type-arg]
+    def __next__(self: list[L] @ owned) -> Option[tuple[L, list[L]]]: ...
 
     @custom_function(ListPushCompiler())
     def append(self: list[L], item: L @ owned) -> None: ...

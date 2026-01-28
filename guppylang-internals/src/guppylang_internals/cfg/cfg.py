@@ -118,7 +118,7 @@ class CFG(BaseCFG[BB]):
         # initial value in the liveness analysis. This solves the edge case that
         # borrowed variables should be considered live, even if the exit is actually
         # unreachable (to avoid linearity violations later).
-        inout_live = {x: self.exit_bb for x in inout_vars}
+        inout_live = dict.fromkeys(inout_vars, self.exit_bb)
         self.live_before = LivenessAnalysis(
             stats, initial=inout_live, include_unreachable=True
         ).run(self.bbs)

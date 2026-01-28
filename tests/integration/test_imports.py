@@ -33,7 +33,7 @@ def test_func_alias(validate):
 
 
 def test_type_alias(validate):
-    from tests.integration.modules.mod_a import MyType as MyType_Alias  # noqa: TCH001
+    from tests.integration.modules.mod_a import MyType as MyType_Alias  # noqa: TC001
 
     @guppy
     def test(x: "MyType_Alias") -> "MyType_Alias":

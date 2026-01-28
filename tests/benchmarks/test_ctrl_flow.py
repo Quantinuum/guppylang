@@ -1,10 +1,9 @@
 from typing import no_type_check
 
-from hugr.package import Package
-
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array, py
 from guppylang.std.quantum import cx, discard_array, h, measure, project_z, qubit
+from hugr.package import Package
 
 n_q = 20
 

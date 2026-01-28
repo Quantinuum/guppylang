@@ -1,4 +1,3 @@
-# ruff: noqa: F821
 # ^ Stop ruff complaining about not knowing what "tensor" is
 
 from collections.abc import Callable
