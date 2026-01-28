@@ -63,7 +63,7 @@ class StateResultChecker(CustomCallChecker):
         from guppylang.std.quantum import qubit
 
         assert isinstance(qubit, GuppyDefinition)
-        qubit_ty = cast(TypeDef, qubit.wrapped).check_instantiate([])
+        qubit_ty = cast("TypeDef", qubit.wrapped).check_instantiate([])
 
         array_len = None
         arg, ty = ExprSynthesizer(self.ctx).synthesize(args[1])

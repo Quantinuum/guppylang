@@ -21,7 +21,7 @@ from guppylang_internals.std._internal.util import unsupported_op
 from guppylang_internals.tys.builtin import list_type_def
 
 from guppylang import guppy
-from guppylang.std.option import Option  # noqa: TCH001
+from guppylang.std.option import Option  # noqa: TC001
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned

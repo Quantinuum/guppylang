@@ -80,7 +80,7 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("guppy", "custom_guppy_decorator", "GuppyKwargs")
+__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -669,4 +669,4 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> tuple[UnitaryFlags, GuppyMetadata]:
     return flags, metadata
 
 
-guppy = cast(_Guppy, _DummyGuppy()) if sphinx_running() else _Guppy()
+guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()

@@ -6,7 +6,6 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
-
 from guppylang.emulator.state import NotSingleStateError, PartialVector
 
 

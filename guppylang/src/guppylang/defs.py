@@ -87,7 +87,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
     @hide_trace
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Out:
-        return cast(Out, super().__call__(*args, **kwargs))
+        return cast("Out", super().__call__(*args, **kwargs))
 
     def emulator(
         self, n_qubits: int | None = None, builder: EmulatorBuilder | None = None
@@ -176,7 +176,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             and len(compiled_def.ty.inputs) > 0
         ):
             # Check if the entrypoint has arguments
-            defined_at = cast(ast.FunctionDef, compiled_def.defined_at)
+            defined_at = cast("ast.FunctionDef", compiled_def.defined_at)
             start = to_span(defined_at.args.args[0])
             end = to_span(defined_at.args.args[-1])
             span = Span(start=start.start, end=end.end)

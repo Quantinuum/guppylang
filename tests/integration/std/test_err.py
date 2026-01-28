@@ -1,7 +1,7 @@
 from guppylang.decorator import guppy
 from guppylang.std.err import Result, ok, err
 from guppylang.std.platform import result, panic
-from guppylang.std.quantum import qubit  # noqa: TCH001
+from guppylang.std.quantum import qubit  # noqa: TC002
 
 
 def test_ok(run_int_fn):

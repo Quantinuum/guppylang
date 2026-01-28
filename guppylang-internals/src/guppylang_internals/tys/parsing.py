@@ -143,6 +143,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
 def _try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
     """Tries to parse a (possibly qualified) name into a global definition."""
     from guppylang.defs import GuppyDefinition
+
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
 
     match node:

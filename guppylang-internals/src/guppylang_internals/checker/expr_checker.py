@@ -476,6 +476,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_Attribute(self, node: ast.Attribute) -> tuple[ast.expr, Type]:
         from guppylang.defs import GuppyDefinition
+
         from guppylang_internals.engine import ENGINE
 
         # A `value.attr` attribute access. Unfortunately, the `attr` is just a string,
@@ -1406,7 +1407,7 @@ def python_value_to_guppy_type(
             ]
             if any(ty is None for ty in tys):
                 return None
-            return TupleType(cast(list[Type], tys))
+            return TupleType(cast("list[Type]", tys))
         case list():
             return _python_list_to_guppy_type(v, node, globals, type_hint)
         case None:

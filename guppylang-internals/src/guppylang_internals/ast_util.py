@@ -97,13 +97,13 @@ def find_nodes(
 def name_nodes_in_ast(node: Any) -> list[ast.Name]:
     """Returns all `Name` nodes occurring in an AST."""
     found = find_nodes(lambda n: isinstance(n, ast.Name), node)
-    return cast(list[ast.Name], found)
+    return cast("list[ast.Name]", found)
 
 
 def return_nodes_in_ast(node: Any) -> list[ast.Return]:
     """Returns all `Return` nodes occurring in an AST."""
     found = find_nodes(lambda n: isinstance(n, ast.Return), node, {ast.FunctionDef})
-    return cast(list[ast.Return], found)
+    return cast("list[ast.Return]", found)
 
 
 def loop_in_ast(node: Any) -> list[ast.For | ast.While]:
@@ -111,7 +111,7 @@ def loop_in_ast(node: Any) -> list[ast.For | ast.While]:
     found = find_nodes(
         lambda n: isinstance(n, ast.For | ast.While), node, {ast.FunctionDef}
     )
-    return cast(list[ast.For | ast.While], found)
+    return cast("list[ast.For | ast.While]", found)
 
 
 def breaks_in_loop(node: Any) -> list[ast.Break]:
@@ -122,7 +122,7 @@ def breaks_in_loop(node: Any) -> list[ast.Break]:
     found = find_nodes(
         lambda n: isinstance(n, ast.Break), node, {ast.For, ast.While, ast.FunctionDef}
     )
-    return cast(list[ast.Break], found)
+    return cast("list[ast.Break]", found)
 
 
 def loop_controls_in_loop(node: Any) -> list[ast.Break | ast.Continue]:
@@ -135,7 +135,7 @@ def loop_controls_in_loop(node: Any) -> list[ast.Break | ast.Continue]:
         node,
         {ast.For, ast.While, ast.FunctionDef},
     )
-    return cast(list[ast.Break | ast.Continue], found)
+    return cast("list[ast.Break | ast.Continue]", found)
 
 
 class ContextAdjuster(ast.NodeTransformer):
@@ -147,7 +147,7 @@ class ContextAdjuster(ast.NodeTransformer):
         self.ctx = ctx
 
     def visit(self, node: ast.AST) -> ast.AST:
-        return cast(ast.AST, super().visit(node))
+        return cast("ast.AST", super().visit(node))
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
         return with_loc(node, ast.Name(id=node.id, ctx=self.ctx))
@@ -341,11 +341,11 @@ def with_type(ty: "Type", node: A) -> A:
 
 def get_type_opt(node: AstNode) -> Optional["Type"]:
     """Tries to retrieve a type annotation from an AST node."""
-    from guppylang_internals.tys.ty import Type, TypeBase
+    from guppylang_internals.tys.ty import TypeBase
 
     try:
         ty = node.type  # type: ignore[union-attr]
-        return cast(Type, ty) if isinstance(ty, TypeBase) else None
+        return cast("Type", ty) if isinstance(ty, TypeBase) else None
     except AttributeError:
         return None
 

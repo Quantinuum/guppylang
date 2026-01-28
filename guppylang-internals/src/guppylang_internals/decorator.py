@@ -4,10 +4,10 @@ import inspect
 import pathlib
 from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
 
+from guppylang.defs import GuppyDefinition, GuppyFunctionDefinition
 from hugr import ops
 from hugr import tys as ht
 
-from guppylang.defs import GuppyDefinition, GuppyFunctionDefinition
 from guppylang_internals.compiler.core import (
     CompilerContext,
     GlobalConstId,
