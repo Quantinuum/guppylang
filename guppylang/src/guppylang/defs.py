@@ -4,10 +4,9 @@ These are the objects returned by the `@guppy` decorator. They should not be con
 with the compiler-internal definition objects in the `definitions` module.
 """
 
-import ast
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
 from guppylang_internals.definition.function import RawFunctionDef
@@ -24,6 +23,9 @@ from hugr.package import Package
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
 from guppylang.emulator.exceptions import EmulatorBuildError
+
+if TYPE_CHECKING:
+    import ast
 
 __all__ = ("GuppyDefinition", "GuppyFunctionDefinition", "GuppyTypeVarDefinition")
 

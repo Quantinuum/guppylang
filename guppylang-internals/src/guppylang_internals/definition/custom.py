@@ -134,7 +134,7 @@ class RawCustomFunctionDef(ParsableDef):
         """
         from guppylang_internals.definition.function import parse_py_func
 
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        func_ast, _docstring = parse_py_func(self.python_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         sig = self.signature or self._get_signature(func_ast, globals)

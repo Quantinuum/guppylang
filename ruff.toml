@@ -3,7 +3,12 @@ target-version = "py310"
 
 line-length = 88
 
-extend-exclude = ["tests/error", "*.ipynb"]
+extend-exclude = [
+  "tests/error",
+  "tests/integration/test_poly_py312.py",
+  "tests/integration/test_comptime_expr_py312.py",
+  "*.ipynb",
+]
 
 [lint]
 

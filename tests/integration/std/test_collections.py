@@ -59,7 +59,7 @@ def test_priority_queue(run_int_fn) -> None:
         s = 0
         multiplier = 1
         while len(pq) > 0:
-            priority, value, pq = pq.pop()
+            _priority, value, pq = pq.pop()
             # use multiplier to ensure the correct order
             s += value * multiplier
             multiplier += 1

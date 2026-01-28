@@ -83,7 +83,7 @@ from guppylang.std.unsupported import (
     zip,
 )
 
-__all__ = (
+__all__ = (  # noqa: RUF022
     "__import__",
     "abs",
     "aiter",
