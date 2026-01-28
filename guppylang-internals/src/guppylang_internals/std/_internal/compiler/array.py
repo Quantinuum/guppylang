@@ -223,6 +223,21 @@ def array_clone(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
     return _instantiate_array_op("clone", elem_ty, length, [arr_ty], [arr_ty, arr_ty])
 
 
+def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+    """Returns an array `swap` operation.
+
+    Swaps two elements at given indices in-place.
+    """
+    arr_ty = array_type(elem_ty, length)
+    return _instantiate_array_op(
+        "swap",
+        elem_ty,
+        length,
+        [arr_ty, ht.USize(), ht.USize()],
+        [arr_ty],
+    )
+
+
 # ------------------------------------------------------
 # --------- Custom compilers for non-native ops --------
 # ------------------------------------------------------
@@ -411,6 +426,31 @@ class ArrayIsBorrowedCompiler(ArrayCompiler):
         )
         b = self.builder.add_op(make_opaque(), b)
         return CallReturnWires(regular_returns=[b], inout_returns=[array])
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        raise InternalGuppyError("Call compile_with_inouts instead")
+
+
+class ArraySwapCompiler(ArrayCompiler):
+    """Compiler for `array_swap`."""
+
+    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+        [array, idx1, idx2] = args
+
+        idx1 = self.builder.add_op(convert_itousize(), idx1)
+        idx2 = self.builder.add_op(convert_itousize(), idx2)
+
+        array = self.builder.add_op(
+            array_swap(self.elem_ty, self.length),
+            array,
+            idx1,
+            idx2,
+        )
+
+        return CallReturnWires(
+            regular_returns=[],
+            inout_returns=[array],
+        )
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
