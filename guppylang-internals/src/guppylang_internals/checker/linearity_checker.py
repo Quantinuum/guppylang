@@ -292,6 +292,7 @@ class BBLinearityChecker(ast.NodeVisitor):
 
     def visit_Assign(self, node: ast.Assign) -> None:
         self.visit(node.value)
+        # TODO NCOLA - handle when we are initializing a struct with linear fields
         self._check_assign_targets(node.targets)
 
         # Check that borrowed vars are not being shadowed. This would also be caught by
@@ -510,9 +511,17 @@ class BBLinearityChecker(ast.NodeVisitor):
                     # Global checks are handled by dataflow analysis.
                     if x in self.scope.vars and x not in self.scope.used_local:
                         place = self.scope[x]
-                        if not place.ty.droppable:
+                        # If the place being overridden is not droppable,
+                        # we have an error, however, we make an exception
+                        # for struct fields initialization in constructors
+                        if not place.ty.droppable and not (
+                            isinstance(place, FieldAccess)
+                            and isinstance(place.parent.ty, StructType)
+                            and place.parent.ty.constructor_self
+                        ):
                             err = PlaceNotUsedError(place.defined_at, place)
                             err.add_sub_diagnostic(PlaceNotUsedError.Fix(None))
+                            # TODO NICOLA: this error!
                             raise GuppyError(err)
                     self.scope.assign(tgt_place)
 

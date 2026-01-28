@@ -355,6 +355,7 @@ class StmtChecker(AstVisitor[BBStatement]):
 
         [target] = node.targets
         node.value, ty = self._synth_expr(node.value)
+        # TODO here I do not want to have a normal field assign.
         node.targets = [self._check_assign(target, node.value, ty)]
         return node
 

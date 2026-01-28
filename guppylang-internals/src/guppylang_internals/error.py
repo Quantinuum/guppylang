@@ -90,7 +90,7 @@ def pretty_errors(f: FuncT) -> FuncT:
         """Custom `excepthook` that intercepts `GuppyExceptions` for pretty printing."""
         # TODO: NCOLA
         # tmp change, use to skip error rendering and see full traceback
-        skip = True
+        skip = False
         if isinstance(err, GuppyError) and not skip:
             from guppylang_internals.diagnostic import DiagnosticsRenderer
             from guppylang_internals.engine import DEF_STORE
