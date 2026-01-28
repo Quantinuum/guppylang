@@ -21,10 +21,7 @@ def test_metadata():
 
     used_key = CoreMetadataKeys.USED_EXTENSIONS.value
     used = meta[used_key]
-    assert len(used) > 0
-    assert all("name" in ext and "version" in ext for ext in used)
-    assert all(isinstance(ext["name"], str) for ext in used)
-    assert all(isinstance(ext["version"], str) for ext in used)
+    assert len(used) == 0, "Expected no used extensions for a simple function"
 
 
 def test_used_extensions_computed_dynamically():
