@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING
 
 import hugr
 import hugr.build.function as hf
-from hugr import ext as hugr_ext
 from hugr import ops
-from hugr.ext import Extension
+from hugr.ext import Extension, ExtensionRegistry
 from hugr.package import ModulePointer, Package
 
 import guppylang_internals
@@ -147,10 +146,51 @@ class CompilationEngine:
     types_to_check_worklist: dict[DefId, ParsedDef]
     to_check_worklist: dict[DefId, ParsedDef]
 
+    # Cached compilation infrastructure (lazy-initialized, program-independent)
+    _base_packaged_extensions: list[Extension] | None = None
+    _base_resolve_registry: ExtensionRegistry | None = None
+
     def __init__(self) -> None:
         """Resets the compilation cache."""
         self.reset()
         self.additional_extensions = []
+
+    @staticmethod
+    def _get_base_packaged_extensions() -> list[Extension]:
+        """Get the base list of packaged extensions (cached at class level)."""
+        if CompilationEngine._base_packaged_extensions is None:
+            from guppylang_internals.std._internal.compiler.tket_exts import (
+                TKET_EXTENSIONS,
+            )
+
+            CompilationEngine._base_packaged_extensions = [
+                *TKET_EXTENSIONS,
+                guppylang_internals.compiler.hugr_extension.EXTENSION,  # type: ignore[attr-defined]
+            ]
+        return CompilationEngine._base_packaged_extensions
+
+    @staticmethod
+    def _get_base_resolve_registry() -> ExtensionRegistry:
+        """Get the base resolve registry with standard extensions.
+
+        Cached at class level.
+        """
+        if CompilationEngine._base_resolve_registry is None:
+            base_extensions = CompilationEngine._get_base_packaged_extensions()
+            registry = ExtensionRegistry()
+            for ext in [
+                *base_extensions,
+                hugr.std.prelude.PRELUDE_EXTENSION,
+                hugr.std.collections.array.EXTENSION,
+                hugr.std.float.FLOAT_OPS_EXTENSION,
+                hugr.std.float.FLOAT_TYPES_EXTENSION,
+                hugr.std.int.INT_OPS_EXTENSION,
+                hugr.std.int.INT_TYPES_EXTENSION,
+                hugr.std.logic.EXTENSION,
+            ]:
+                registry.register_updated(ext)
+            CompilationEngine._base_resolve_registry = registry
+        return CompilationEngine._base_resolve_registry
 
     def reset(self) -> None:
         """Resets the compilation cache."""
@@ -260,25 +300,21 @@ class CompilationEngine:
             # if compiling a region set it as the HUGR entrypoint can be
             # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
             graph.hugr.entrypoint = compiled_def.hugr_node
-        from guppylang_internals.std._internal.compiler.tket_exts import TKET_EXTENSIONS
 
-        packaged_extensions = [
-            *TKET_EXTENSIONS,
-            guppylang_internals.compiler.hugr_extension.EXTENSION,  # type: ignore[attr-defined]
-            *self.additional_extensions,
-        ]
-        resolve_registry = hugr_ext.ExtensionRegistry()
-        for ext in [
-            *packaged_extensions,
-            hugr.std.prelude.PRELUDE_EXTENSION,
-            hugr.std.collections.array.EXTENSION,
-            hugr.std.float.FLOAT_OPS_EXTENSION,
-            hugr.std.float.FLOAT_TYPES_EXTENSION,
-            hugr.std.int.INT_OPS_EXTENSION,
-            hugr.std.int.INT_TYPES_EXTENSION,
-            hugr.std.logic.EXTENSION,
-        ]:
-            resolve_registry.register_updated(ext)
+        # Use cached base extensions and registry, only add additional extensions
+        base_extensions = self._get_base_packaged_extensions()
+        packaged_extensions = [*base_extensions, *self.additional_extensions]
+
+        # Build resolve registry: start with cached base, add any additional
+        if self.additional_extensions:
+            from copy import deepcopy
+
+            resolve_registry = deepcopy(self._get_base_resolve_registry())
+            for ext in self.additional_extensions:
+                resolve_registry.register_updated(ext)
+        else:
+            resolve_registry = self._get_base_resolve_registry()
+
         # Compute used extensions dynamically from the HUGR.
         used_extensions_result = graph.hugr.used_extensions(
             resolve_from=resolve_registry
