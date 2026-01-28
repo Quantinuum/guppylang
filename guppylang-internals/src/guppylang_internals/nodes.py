@@ -35,6 +35,10 @@ class PlaceNode(ast.expr):
         super().__init__()
         self.place = place
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class GlobalName(ast.Name):
     id: str
@@ -49,6 +53,10 @@ class GlobalName(ast.Name):
         super().__init__(id=id)
         self.id = id
         self.def_id = def_id
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class GenericParamValue(ast.Name):
@@ -65,6 +73,10 @@ class GenericParamValue(ast.Name):
         self.id = id
         self.param = param
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class LocalCall(ast.expr):
     func: ast.expr
@@ -79,6 +91,10 @@ class LocalCall(ast.expr):
         super().__init__()
         self.func = func
         self.args = args
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class GlobalCall(ast.expr):
@@ -97,6 +113,10 @@ class GlobalCall(ast.expr):
         self.def_id = def_id
         self.args = args
         self.type_args = type_args
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class TensorCall(ast.expr):
@@ -121,6 +141,10 @@ class TensorCall(ast.expr):
         self.args = args
         self.tensor_ty = tensor_ty
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class TypeApply(ast.expr):
     value: ast.expr
@@ -135,6 +159,10 @@ class TypeApply(ast.expr):
         super().__init__()
         self.value = value
         self.inst = inst
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class PartialApply(ast.expr):
@@ -157,6 +185,10 @@ class PartialApply(ast.expr):
         self.func = func
         self.args = args
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class FieldAccessAndDrop(ast.expr):
     """A field access on a struct, dropping all the remaining other fields."""
@@ -178,6 +210,10 @@ class FieldAccessAndDrop(ast.expr):
         self.value = value
         self.struct_ty = struct_ty
         self.field = field
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class SubscriptAccessAndDrop(ast.expr):
@@ -203,6 +239,10 @@ class SubscriptAccessAndDrop(ast.expr):
         self.getitem_expr = getitem_expr
         self.original_expr = original_expr
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class TupleAccessAndDrop(ast.expr):
     """A subscript element access on a tuple, dropping all the remaining items."""
@@ -218,6 +258,10 @@ class TupleAccessAndDrop(ast.expr):
         self.value = value
         self.tuple_ty = tuple_ty
         self.index = index
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class MakeIter(ast.expr):
@@ -266,6 +310,10 @@ class IterNext(ast.expr):
         super().__init__()
         self.value = value
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class DesugaredGenerator(ast.expr):
     """A single desugared generator in a list comprehension.
@@ -307,6 +355,10 @@ class DesugaredGenerator(ast.expr):
         self.ifs = ifs
         self.used_outer_places = used_outer_places
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class DesugaredGeneratorExpr(ast.expr):
     """A desugared generator expression."""
@@ -324,6 +376,10 @@ class DesugaredGeneratorExpr(ast.expr):
         self.elt = elt
         self.generators = generators
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class DesugaredListComp(ast.expr):
     """A desugared list comprehension."""
@@ -340,6 +396,10 @@ class DesugaredListComp(ast.expr):
         super().__init__()
         self.elt = elt
         self.generators = generators
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class DesugaredArrayComp(ast.expr):
@@ -366,6 +426,10 @@ class DesugaredArrayComp(ast.expr):
         self.length = length
         self.elt_ty = elt_ty
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class ComptimeExpr(ast.expr):
     """A compile-time evaluated `py(...)` expression."""
@@ -377,6 +441,10 @@ class ComptimeExpr(ast.expr):
     def __init__(self, value: ast.expr) -> None:
         super().__init__()
         self.value = value
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class ExitKind(Enum):
@@ -403,6 +471,10 @@ class PanicExpr(ast.expr):
         self.msg = msg
         self.values = values
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class BarrierExpr(ast.expr):
     """A `barrier(*args)` expression."""
@@ -415,6 +487,10 @@ class BarrierExpr(ast.expr):
         super().__init__()
         self.args = args
         self.func_ty = func_ty
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class StateResultExpr(ast.expr):
@@ -443,6 +519,10 @@ class StateResultExpr(ast.expr):
         self.func_ty = func_ty
         self.array_len = array_len
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 AnyCall = LocalCall | GlobalCall | TensorCall | BarrierExpr | StateResultExpr
 
@@ -458,6 +538,10 @@ class InoutReturnSentinel(ast.expr):
     def __init__(self, var: "Place | str") -> None:
         super().__init__()
         self.var = var
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class UnpackPattern(ast.expr):
@@ -484,6 +568,10 @@ class UnpackPattern(ast.expr):
         self.starred = starred
         self.right = right
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class TupleUnpack(ast.expr):
     """The LHS of an unpacking assignment of a tuple."""
@@ -496,6 +584,10 @@ class TupleUnpack(ast.expr):
     def __init__(self, pattern: UnpackPattern) -> None:
         super().__init__()
         self.pattern = pattern
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class ArrayUnpack(ast.expr):
@@ -566,6 +658,10 @@ class NestedFunctionDef(ast.FunctionDef):
         self.cfg = cfg
         self.ty = ty
 
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
 
 class CheckedNestedFunctionDef(ast.FunctionDef):
     def_id: "DefId"
@@ -590,6 +686,10 @@ class CheckedNestedFunctionDef(ast.FunctionDef):
         self.cfg = cfg
         self.ty = ty
         self.captured = captured
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
 
 class Dagger(ast.expr):
@@ -652,6 +752,10 @@ class ModifiedBlock(ast.With):
         self.dagger = []
         self.control = []
         self.power = []
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
 
     def is_dagger(self) -> bool:
         return len(self.dagger) % 2 == 1
