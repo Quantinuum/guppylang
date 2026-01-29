@@ -70,7 +70,7 @@ class UncheckedField:
 
 @dataclass(frozen=True)
 class CheckedField:
-    """A single field on a enum variant."""
+    """A single field on a struct or enum variant."""
 
     name: str
     ty: Type
