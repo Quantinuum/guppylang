@@ -131,7 +131,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                     err.add_sub_diagnostic(VariantFormHint(None))
                     raise GuppyError(err)
 
-        # Ensure that functions don't override struct fields
+        # Ensure that functions don't override enum variants
         if overridden := variants.keys() & used_func_names.keys():
             x = overridden.pop()
             raise GuppyError(DuplicateFieldError(used_func_names[x], self.name, x))
