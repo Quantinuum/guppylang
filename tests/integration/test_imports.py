@@ -110,6 +110,6 @@ def test_nat_var_alias(validate):
     @guppy
     def main() -> None:
         test(array(1, 2, 3))
-        test(array())
+        test(array(1))
 
     validate(main.compile_function())

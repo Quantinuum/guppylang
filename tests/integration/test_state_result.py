@@ -102,7 +102,7 @@ def test_generic_array(validate):
         state_result("tag", qs)
 
     @guppy
-    def main(qs1: array[qubit, 3], qs2: array[qubit, 0]) -> None:
+    def main(qs1: array[qubit, 3], qs2: array[qubit, 2]) -> None:
         foo(qs1)
         foo(qs2)
 
