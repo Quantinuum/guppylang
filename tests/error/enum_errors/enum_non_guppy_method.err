@@ -1,0 +1,13 @@
+Error: Not a Guppy method (at $FILE:8:4)
+  | 
+6 |     var1 = {"x": int}
+7 | 
+8 |     def nonguppy_method(self) -> None:
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+9 |         pass
+  | ^^^^^^^^^^^^ Method `nonguppy_method` of enum `MyEnum` is not a Guppy
+  |              function
+
+Help: Add a `@guppy` annotation to turn `nonguppy_method` into a Guppy method
+
+Guppy compilation failed due to 1 previous error

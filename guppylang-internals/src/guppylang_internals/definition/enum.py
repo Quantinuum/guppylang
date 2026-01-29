@@ -17,16 +17,16 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.custom import (
     CustomFunctionDef,
 )
-from guppylang_internals.definition.struct import NonGuppyMethodError
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
     CheckedField,
     DuplicateFieldError,
+    NonGuppyMethodError,
     UncheckedField,
     extract_generic_params,
     parse_py_class,
 )
-from guppylang_internals.diagnostic import Help
+from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
@@ -36,6 +36,16 @@ from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
 from guppylang_internals.tys.ty import (
     Type,
 )
+
+
+@dataclass(frozen=True)
+class DuplicateVariantError(Error):
+    title: ClassVar[str] = "Duplicate variant"
+    span_label: ClassVar[str] = (
+        "Enum `{class_name}` already contains a variant named `{variant_name}`"
+    )
+    class_name: str
+    variant_name: str
 
 
 @dataclass(frozen=True)
@@ -90,10 +100,12 @@ class RawEnumDef(TypeDef, ParsableDef):
 
                     v = getattr(self.python_class, name)
                     if not isinstance(v, GuppyDefinition):
-                        raise GuppyError(NonGuppyMethodError(node, self.name, name))
+                        raise GuppyError(
+                            NonGuppyMethodError(node, self.name, name, "enum")
+                        )
                     used_func_names[name] = node
                     if name in variants:
-                        raise GuppyError(DuplicateFieldError(node, self.name, name))
+                        raise GuppyError(DuplicateVariantError(node, self.name, name))
                 # Enum variant are declared via dictionary, where key are the variant
                 # fields and values are types;
                 # e.g. `variant = {"a": int, ...}
@@ -109,11 +121,8 @@ class RawEnumDef(TypeDef, ParsableDef):
                 ):
                     if variant_name in variants:
                         raise GuppyError(
-                            DuplicateFieldError(
-                                node.targets[0],
-                                self.name,
-                                variant_name,
-                                class_type="Enum",
+                            DuplicateVariantError(
+                                node.targets[0], self.name, variant_name
                             )
                         )
                     assert isinstance(node.value, ast.Dict)  # for mypy
@@ -134,7 +143,7 @@ class RawEnumDef(TypeDef, ParsableDef):
         # Ensure that functions don't override enum variants
         if overridden := variants.keys() & used_func_names.keys():
             x = overridden.pop()
-            raise GuppyError(DuplicateFieldError(used_func_names[x], self.name, x))
+            raise GuppyError(DuplicateVariantError(used_func_names[x], self.name, x))
 
         return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
 
@@ -223,7 +232,7 @@ def parse_enum_variant(
                 if key_name in variant_field_names:
                     raise GuppyError(
                         DuplicateFieldError(
-                            k, name, key_name, class_type="Enum Variant"
+                            k, name, key_name, class_type="Enum variant"
                         )
                     )
                 variant_field_names.append(key_name)
