@@ -153,10 +153,10 @@ def check_global_func_def(
         # Comptime inputs are turned into generic args, so are not included here
         if InputFlags.Comptime not in inp.flags
     ]
-    generic_params = {
+    generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    return check_cfg(cfg, inputs, ty.output, generic_params, func_def.name, globals)
+    return check_cfg(cfg, inputs, ty.output, generic_args, func_def.name, globals)
 
 
 def check_nested_func_def(

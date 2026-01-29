@@ -206,7 +206,7 @@ def check_bb(
     checked_cfg: CheckedCFG[Variable],
     inputs: Row[Variable],
     return_ty: Type,
-    generic_inst: dict[str, Argument],
+    generic_args: dict[str, Argument],
     globals: Globals,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
@@ -219,12 +219,12 @@ def check_bb(
             if (
                 x not in cfg.ass_before[bb]
                 and x not in globals
-                and x not in generic_inst
+                and x not in generic_args
             ):
                 raise GuppyError(VarNotDefinedError(use, x))
 
     # Check the basic block
-    ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_inst)
+    ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
     # If we branch, we also have to check the branch predicate
@@ -255,7 +255,7 @@ def check_bb(
                         err = VarNotDefinedError(use_bb.vars.used[x], x)
                     raise GuppyError(err)
             # If x is not a local, then it must be a global or generic param
-            elif x not in ctx.globals and x not in generic_inst:
+            elif x not in ctx.globals and x not in generic_args:
                 raise GuppyError(VarNotDefinedError(use_bb.vars.used[x], x))
 
     # Finally, we need to compute the signature of the basic block
