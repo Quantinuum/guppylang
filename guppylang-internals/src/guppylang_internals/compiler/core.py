@@ -96,8 +96,8 @@ class CompilerContext(ToHugrContext):
 
     global_funcs: dict[MonoGlobalConstId, hf.Function]
 
-    #: Partial instantiation for some of the type parameters of the current function for
-    #: the purpose of monomorphization
+    #: Instantiation of the type parameters of the function that we are currently
+    #: monomorphizing
     current_mono_args: MonoArgs | None
 
     checked_globals: Globals
