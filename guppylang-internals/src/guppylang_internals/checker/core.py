@@ -386,7 +386,7 @@ class Globals:
             case _:
                 return assert_never(ty)
 
-        type_defn = cast(TypeDef, ENGINE.get_checked(type_defn.id, None))
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, None))
         if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
             def_id = DEF_STORE.impls[type_defn.id][name]
             defn = ENGINE.get_parsed(def_id)

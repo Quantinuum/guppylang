@@ -148,7 +148,7 @@ def check_global_func_def(
     check_invalid_under_dagger(func_def, ty.unitary_flags)
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
     inputs = [
-        Variable(cast(str, inp.name), inp.ty, loc, inp.flags, is_func_input=True)
+        Variable(cast("str", inp.name), inp.ty, loc, inp.flags, is_func_input=True)
         for inp, loc in zip(ty.inputs, args, strict=True)
         # Comptime inputs are turned into generic args, so are not included here
         if InputFlags.Comptime not in inp.flags
@@ -206,7 +206,7 @@ def check_nested_func_def(
 
     # Construct inputs for checking the body CFG
     inputs = [v for v, _ in captured.values()] + [
-        Variable(cast(str, inp.name), inp.ty, arg, inp.flags, is_func_input=True)
+        Variable(cast("str", inp.name), inp.ty, arg, inp.flags, is_func_input=True)
         for arg, inp in zip(func_def.args.args, func_ty.inputs, strict=True)
         # Comptime inputs are turned into generic args, so are not included here
         if InputFlags.Comptime not in inp.flags
@@ -221,6 +221,7 @@ def check_nested_func_def(
         if not captured:
             # If there are no captured vars, we treat the function like a global name
             from guppylang.defs import GuppyDefinition
+
             from guppylang_internals.definition.function import ParsedFunctionDef
 
             assert ctx.globals.def_id is not None
@@ -304,7 +305,7 @@ def check_signature(
     self_defn: TypeDef | None = None
     if def_id is not None and def_id in DEF_STORE.impl_parents:
         self_defn = cast(
-            TypeDef, ENGINE.get_checked(DEF_STORE.impl_parents[def_id], None)
+            "TypeDef", ENGINE.get_checked(DEF_STORE.impl_parents[def_id], None)
         )
         assert isinstance(self_defn, TypeDef)
 

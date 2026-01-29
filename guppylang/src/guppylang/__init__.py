@@ -7,10 +7,10 @@ from guppylang.std.builtins import array, comptime, py
 from guppylang.std.quantum import qubit
 
 __all__ = (
-    "qubit",
-    "guppy",
-    "enable_experimental_features",
     "GuppyModule",
+    "enable_experimental_features",
+    "guppy",
+    "qubit",
 )
 
 # This is updated by our release-please workflow, triggered by this

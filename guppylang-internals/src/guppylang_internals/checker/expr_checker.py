@@ -238,7 +238,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if actual := get_type_opt(expr):
             expr, subst, inst = check_type_against(actual, ty, expr, self.ctx, kind)
             if inst:
-                expr = with_loc(expr, TypeApply(value=expr, tys=inst))
+                expr = with_loc(expr, TypeApply(expr, inst))
             return with_type(ty.substitute(subst), expr), subst
 
         # When checking against a variable, we have to synthesize
@@ -374,7 +374,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Apply instantiation of quantified type variables
         if inst:
-            node = with_loc(node, TypeApply(value=node, inst=inst))
+            node = with_loc(node, TypeApply(node, inst))
 
         return node, subst
 
@@ -479,6 +479,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_Attribute(self, node: ast.Attribute) -> tuple[ast.expr, Type]:
         from guppylang.defs import GuppyDefinition
+
         from guppylang_internals.engine import ENGINE
 
         # A `value.attr` attribute access. Unfortunately, the `attr` is just a string,
@@ -1283,7 +1284,7 @@ def instantiate_poly(node: ast.expr, ty: FunctionType, inst: Inst) -> ast.expr:
             assert full_ty.params == ty.params
             node.func = instantiate_poly(node.func, full_ty, inst)
         else:
-            node = with_loc(node, TypeApply(value=with_type(ty, node), inst=inst))
+            node = with_loc(node, TypeApply(with_type(ty, node), inst))
         return with_type(ty.instantiate(inst), node)
     return with_type(ty, node)
 
@@ -1409,7 +1410,7 @@ def python_value_to_guppy_type(
             ]
             if any(ty is None for ty in tys):
                 return None
-            return TupleType(cast(list[Type], tys))
+            return TupleType(cast("list[Type]", tys))
         case list():
             return _python_list_to_guppy_type(v, node, globals, type_hint)
         case None:

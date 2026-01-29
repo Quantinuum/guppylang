@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass
-from typing import ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from guppylang_internals.ast_util import with_loc
 from guppylang_internals.checker.core import ComptimeVariable
@@ -12,7 +12,6 @@ from guppylang_internals.checker.expr_checker import (
     synthesize_call,
 )
 from guppylang_internals.definition.custom import CustomCallChecker
-from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyTypeError
 from guppylang_internals.nodes import GenericParamValue, PlaceNode, StateResultExpr
@@ -30,6 +29,9 @@ from guppylang_internals.tys.ty import (
     NoneType,
     Type,
 )
+
+if TYPE_CHECKING:
+    from guppylang_internals.definition.ty import TypeDef
 
 
 class StateResultChecker(CustomCallChecker):
@@ -63,7 +65,7 @@ class StateResultChecker(CustomCallChecker):
         from guppylang.std.quantum import qubit
 
         assert isinstance(qubit, GuppyDefinition)
-        qubit_ty = cast(TypeDef, qubit.wrapped).check_instantiate([])
+        qubit_ty = cast("TypeDef", qubit.wrapped).check_instantiate([])
 
         array_len = None
         arg, ty = ExprSynthesizer(self.ctx).synthesize(args[1])

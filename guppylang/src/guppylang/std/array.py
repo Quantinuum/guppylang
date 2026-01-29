@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, Generic, TypeVar, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import CopyInoutCompiler
-from guppylang_internals.std._internal.checker import ArrayCopyChecker, NewArrayChecker
+from guppylang_internals.std._internal.checker import (
+    ArrayCopyChecker,
+    ArrayIndexChecker,
+    NewArrayChecker,
+)
 from guppylang_internals.std._internal.compiler.array import (
     ArrayDiscardAllUsedCompiler,
     ArrayGetitemCompiler,
@@ -54,10 +58,10 @@ _n = TypeVar("_n")
 class array(builtins.list[_T], Generic[_T, _n]):
     """Sequence of homogeneous values with statically known fixed length."""
 
-    @custom_function(ArrayGetitemCompiler())
+    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
     def __getitem__(self: array[L, n], idx: int) -> L: ...
 
-    @custom_function(ArraySetitemCompiler())
+    @custom_function(ArraySetitemCompiler(), checker=ArrayIndexChecker())
     def __setitem__(self: array[L, n], idx: int, value: L @ owned) -> None: ...
 
     @guppy
@@ -82,7 +86,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
     def copy(self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
 
-    @custom_function(ArrayIsBorrowedCompiler())
+    @custom_function(ArrayIsBorrowedCompiler(), checker=ArrayIndexChecker())
     def is_borrowed(self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
 
@@ -102,7 +106,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         ```
         """
 
-    @custom_function(ArrayGetitemCompiler())
+    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
     def take(self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
 
@@ -165,7 +169,9 @@ class array(builtins.list[_T], Generic[_T, _n]):
             return nothing()
         return some(self.take(idx))
 
-    @custom_function(ArraySetitemCompiler(elem_first=True))
+    @custom_function(
+        ArraySetitemCompiler(elem_first=True), checker=ArrayIndexChecker(expr_index=2)
+    )
     def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
 

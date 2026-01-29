@@ -33,7 +33,7 @@ dependencies = [
     "guppylang-internals ~= 0.27.0",
     "numpy~=2.0",
     "selene-hugr-qis-compiler~=0.2.9",
-    "selene-sim~=0.2.3",
+    "selene-sim~=0.2.7",
     "tqdm>=4.67.1",
     "types-tqdm>=4.67.0.20250809",
 ]

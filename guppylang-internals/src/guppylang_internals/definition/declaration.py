@@ -164,9 +164,9 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledFunctionDecl":
         """Adds a Hugr `FuncDecl` node for this function to the Hugr."""
-        assert isinstance(
-            module, hf.Module
-        ), "Functions can only be declared in modules"
+        assert isinstance(module, hf.Module), (
+            "Functions can only be declared in modules"
+        )
         module: hf.Module = module
 
         node = module.declare_function(self.mangled_name, self.ty.to_hugr_poly(ctx))

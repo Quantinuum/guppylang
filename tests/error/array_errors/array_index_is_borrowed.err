@@ -1,0 +1,8 @@
+Error: Index out of bounds (at $FILE:8:18)
+  | 
+6 | def main() -> None:
+7 |    qs = array(qubit() for _ in range(5))
+8 |    qs.is_borrowed(10)
+  |                   ^^ Array index 10 is out of bounds for array of size 5.
+
+Guppy compilation failed due to 1 previous error

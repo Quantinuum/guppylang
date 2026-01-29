@@ -30,10 +30,12 @@ from guppylang_internals.definition.common import (
     CompilableDef,
     CompiledDef,
     DefId,
+    Definition,
+    RawDef,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
-from guppylang_internals.engine import ENGINE, MonoArgs, MonoDefId
+from guppylang_internals.engine import DEF_STORE, ENGINE, MonoArgs, MonoDefId
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.arg import ConstArg, TypeArg
@@ -280,7 +282,7 @@ class DFContainer:
         ctx: CompilerContext,
         locals: CompiledLocals | None = None,
     ) -> None:
-        generic_builder = cast(DfBase[ops.DfParentOp], builder)
+        generic_builder = cast("DfBase[ops.DfParentOp]", builder)
         if locals is None:
             locals = {}
         self.builder = generic_builder
@@ -374,6 +376,15 @@ def return_var(n: int) -> str:
 def is_return_var(x: str) -> bool:
     """Checks whether the given name is a dummy return variable."""
     return x.startswith("%ret")
+
+
+def get_parent_type(defn: Definition) -> "RawDef | None":
+    """Returns the RawDef registered as the parent of `child` in the DEF_STORE,
+    or None if it has no parent."""
+    if parent_ty_id := DEF_STORE.impl_parents.get(defn.id):
+        return DEF_STORE.raw_defs[parent_ty_id]
+    else:
+        return None
 
 
 def require_monomorphization(params: Sequence[Parameter]) -> set[Parameter]:

@@ -4,10 +4,10 @@ import inspect
 import pathlib
 from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
 
+from guppylang.defs import GuppyDefinition, GuppyFunctionDefinition
 from hugr import ops
 from hugr import tys as ht
 
-from guppylang.defs import GuppyDefinition, GuppyFunctionDefinition
 from guppylang_internals.compiler.core import (
     CompilerContext,
     GlobalConstId,
@@ -193,7 +193,7 @@ def custom_type(
             params or [],
             not copyable,
             not droppable,
-            mk_hugr_ty,
+            mk_hugr_ty,  # type: ignore[arg-type]
             bound,
         )
         DEF_STORE.register_def(defn, get_calling_frame())

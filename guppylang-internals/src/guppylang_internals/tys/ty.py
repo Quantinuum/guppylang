@@ -97,7 +97,7 @@ class TypeBase(ToHugr[ht.Type], Transformable["Type"], ABC):
 
         # We use a custom printer that takes care of inserting parentheses and choosing
         # unique names
-        return TypePrinter().visit(cast(Type, self))
+        return TypePrinter().visit(cast("Type", self))
 
 
 @dataclass(frozen=True)
@@ -557,7 +557,7 @@ class FunctionType(ParametrizedTypeBase):
             remaining_params,
             # Comptime type arguments also need to be instantiated
             comptime_args=[
-                cast(ConstArg, arg.transform(inst)) for arg in self.comptime_args
+                cast("ConstArg", arg.transform(inst)) for arg in self.comptime_args
             ],
             unitary_flags=self.unitary_flags,
         )

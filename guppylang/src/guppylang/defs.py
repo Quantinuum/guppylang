@@ -4,10 +4,9 @@ These are the objects returned by the `@guppy` decorator. They should not be con
 with the compiler-internal definition objects in the `definitions` module.
 """
 
-import ast
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
 from guppylang_internals.definition.function import RawFunctionDef
@@ -24,6 +23,9 @@ from hugr.package import Package
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
 from guppylang.emulator.exceptions import EmulatorBuildError
+
+if TYPE_CHECKING:
+    import ast
 
 __all__ = ("GuppyDefinition", "GuppyFunctionDefinition", "GuppyTypeVarDefinition")
 
@@ -87,7 +89,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
     @hide_trace
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Out:
-        return cast(Out, super().__call__(*args, **kwargs))
+        return cast("Out", super().__call__(*args, **kwargs))
 
     def emulator(
         self, n_qubits: int | None = None, builder: EmulatorBuilder | None = None
@@ -176,7 +178,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             and len(compiled_def.ty.inputs) > 0
         ):
             # Check if the entrypoint has arguments
-            defined_at = cast(ast.FunctionDef, compiled_def.defined_at)
+            defined_at = cast("ast.FunctionDef", compiled_def.defined_at)
             start = to_span(defined_at.args.args[0])
             end = to_span(defined_at.args.args[-1])
             span = Span(start=start.start, end=end.end)

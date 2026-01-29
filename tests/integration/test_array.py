@@ -577,7 +577,7 @@ def test_subscript_assign_unpacking_complicated(run_int_fn):
     @guppy
     def main() -> int:
         xs = array(0, 0, 0)
-        (a1, a2), *b, (c1, c2) = array((0, 1), (2, 3), (4, 5), (5, 6))
+        (a1, _a2), *_b, (c1, _c2) = array((0, 1), (2, 3), (4, 5), (5, 6))
         return a1 + c1
 
     run_int_fn(main, expected=5)
@@ -587,7 +587,7 @@ def test_subscript_assign_unpacking_range(run_int_fn):
     @guppy
     def main() -> int:
         xs = array(0, 0, 0)
-        a, *b, xs[1] = range(10)
+        _a, *_b, xs[1] = range(10)
         return xs[1]
 
     run_int_fn(main, expected=9)
@@ -597,7 +597,7 @@ def test_subscript_assign_unpacking_array(run_int_fn):
     @guppy
     def main() -> int:
         xs = array(0, 0, 0)
-        a, *b, xs[1] = array(1, 2, 3, 4)
+        _a, *_b, xs[1] = array(1, 2, 3, 4)
         return xs[1]
 
     run_int_fn(main, expected=4)

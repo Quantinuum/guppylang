@@ -35,7 +35,7 @@ class GuppyMetadata:
 
     @classmethod
     def reserved_keys(cls) -> set[str]:
-        return {f.type.key for f in fields(GuppyMetadata)}
+        return {f.type.key for f in fields(GuppyMetadata)}  # type: ignore[union-attr]
 
 
 @dataclass(frozen=True)

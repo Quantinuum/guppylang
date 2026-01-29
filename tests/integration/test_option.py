@@ -1,7 +1,7 @@
 from typing import no_type_check
 from guppylang.decorator import guppy
 from guppylang.std.option import Option, nothing, some
-from guppylang.std.quantum import qubit  # noqa: TCH001
+from guppylang.std.quantum import qubit  # noqa: TC002
 
 
 def test_none(run_int_fn):

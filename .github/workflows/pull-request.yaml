@@ -35,7 +35,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -69,7 +69,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -78,8 +78,7 @@ jobs:
         run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
 
       - name: Run python tests with coverage instrumentation
-        # can't parllelise due to bug with 3.13: https://github.com/quantinuum/guppylang/issues/1130
-        run: uv run pytest --cov=./ --cov-report=xml
+        run: uv run pytest -n auto --cov=./ --cov-report=xml
 
       - name: Upload python coverage to codecov.io
         uses: codecov/codecov-action@v5

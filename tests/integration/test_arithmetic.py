@@ -270,13 +270,13 @@ def test_angle_exec(run_float_fn_approx):
 def test_xor(run_int_fn):
     @guppy
     def main1() -> int:
-        return int(True ^ False ^ False)
+        return int(True ^ False ^ False)  # noqa: RUF046
 
     run_int_fn(main1, 1)
 
     @guppy
     def main2() -> int:
-        return int(True ^ False ^ False ^ True)
+        return int(True ^ False ^ False ^ True)  # noqa: RUF046
 
     run_int_fn(main2, 0)
 
