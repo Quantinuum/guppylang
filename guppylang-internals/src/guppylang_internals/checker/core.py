@@ -4,7 +4,6 @@ import itertools
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, replace
 from functools import cache, cached_property
-from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -29,6 +28,7 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.builtin import (
     callable_type_def,
     float_type_def,
@@ -37,7 +37,6 @@ from guppylang_internals.tys.builtin import (
     none_type_def,
     tuple_type_def,
 )
-from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
     ExistentialTypeVar,
@@ -327,9 +326,12 @@ class Globals:
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
+    def_id: DefId | None
 
-    def __init__(self, frame: FrameType | None) -> None:
-        if frame is not None:
+    def __init__(self, def_id: DefId | None) -> None:
+        self.def_id = def_id
+        if def_id is not None:
+            frame = DEF_STORE.frames[def_id]
             self.f_locals = frame.f_locals
             self.f_globals = frame.f_globals
             self.f_builtins = frame.f_builtins
@@ -384,7 +386,7 @@ class Globals:
             case _:
                 return assert_never(ty)
 
-        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id))
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, None))
         if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
             def_id = DEF_STORE.impls[type_defn.id][name]
             defn = ENGINE.get_parsed(def_id)
@@ -509,14 +511,14 @@ class Context(NamedTuple):
 
     globals: Globals
     locals: Locals[str, Variable]
-    generic_params: dict[str, Parameter]
+    generic_param_inst: dict[str, Argument]
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":
         """A type parsing context derived from this checking context."""
         from guppylang_internals.tys.parsing import TypeParsingCtx
 
-        return TypeParsingCtx(self.globals, self.generic_params)
+        return TypeParsingCtx(self.globals, param_inst=self.generic_param_inst)
 
 
 class DummyEvalDict(dict[str, Any]):
