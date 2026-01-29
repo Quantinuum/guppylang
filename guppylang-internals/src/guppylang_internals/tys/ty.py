@@ -12,7 +12,6 @@ from hugr import tys as ht
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
-    QuantifiedToHugrContext,
     ToHugr,
     ToHugrContext,
     Transformable,
@@ -204,7 +203,10 @@ class BoundTypeVar(TypeBase, BoundVar):
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
         """Computes the Hugr representation of the type."""
-        return ctx.type_var_to_hugr(self)
+        raise InternalGuppyError(
+            "Tried to convert generic variable to Hugr. This should have been "
+            "monomorphized away."
+        )
 
     def visit(self, visitor: Visitor) -> None:
         """Accepts a visitor on this type."""
@@ -483,13 +485,13 @@ class FunctionType(ParametrizedTypeBase):
 
     def to_hugr_poly(self, ctx: ToHugrContext) -> ht.PolyFuncType:
         """Computes the Hugr `PolyFuncType` representation of the type."""
-        # Function body needs to be translated in a new context where the variables are
-        # bound to the quantifier.
-        inner_ctx = QuantifiedToHugrContext(self.params)
-        func_ty = self._to_hugr_function_type(inner_ctx)
-        return ht.PolyFuncType(
-            params=[p.to_hugr(ctx) for p in self.params], body=func_ty
-        )
+        if self.parametrized:
+            raise InternalGuppyError(
+                "Tried to convert parametrised function type to Hugr. This should have "
+                "been monomorphized away."
+            )
+        func_ty = self._to_hugr_function_type(ctx)
+        return ht.PolyFuncType(params=[], body=func_ty)
 
     def _to_hugr_function_type(self, ctx: ToHugrContext) -> ht.FunctionType:
         """Helper method to compute the Hugr `FunctionType` representation of the type.

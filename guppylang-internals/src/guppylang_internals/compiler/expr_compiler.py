@@ -44,7 +44,6 @@ from guppylang_internals.nodes import (
     DesugaredListComp,
     ExitKind,
     FieldAccessAndDrop,
-    GenericParamValue,
     GlobalCall,
     GlobalName,
     LocalCall,
@@ -59,7 +58,6 @@ from guppylang_internals.nodes import (
 )
 from guppylang_internals.std._internal.compiler.arithmetic import (
     UnsignedIntVal,
-    convert_ifromusize,
     convert_itousize,
 )
 from guppylang_internals.std._internal.compiler.array import (
@@ -87,7 +85,6 @@ from guppylang_internals.std._internal.compiler.tket_bool import (
     not_op,
     read_bool,
 )
-from guppylang_internals.tys.arg import ConstArg
 from guppylang_internals.tys.builtin import (
     bool_type,
     get_element_type,
@@ -274,29 +271,6 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         defn = self.ctx.build_compiled_def(node.def_id, type_args=[])
         assert isinstance(defn, CompiledValueDef)
         return defn.load(self.dfg, self.ctx, node)
-
-    def visit_GenericParamValue(self, node: GenericParamValue) -> Wire:
-        assert self.ctx.current_mono_args is not None
-        param = node.param.instantiate_bounds(self.ctx.current_mono_args)
-        match param.ty:
-            case NumericType(NumericType.Kind.Nat):
-                # Generic nat parameters are encoded using Hugr bounded nat parameters,
-                # so they are not monomorphized when compiling to Hugr
-                arg = param.to_bound().to_hugr(self.ctx)
-                load_nat = hugr.std.PRELUDE.get_op("load_nat").instantiate(
-                    [arg], ht.FunctionType([], [ht.USize()])
-                )
-                usize = self.builder.add_op(load_nat)
-                return self.builder.add_op(convert_ifromusize(), usize)
-            case ty:
-                # Look up monomorphization
-                match self.ctx.current_mono_args[node.param.idx]:
-                    case ConstArg(const=ConstValue(value=v)):
-                        val = python_value_to_hugr(v, ty, self.ctx)
-                        assert val is not None
-                        return self.builder.load(val)
-                    case _:
-                        raise InternalGuppyError("Monomorphized const is not a value")
 
     def visit_Name(self, node: ast.Name) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")

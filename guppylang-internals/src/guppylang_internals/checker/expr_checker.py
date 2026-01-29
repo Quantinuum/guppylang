@@ -102,7 +102,6 @@ from guppylang_internals.nodes import (
     DesugaredGeneratorExpr,
     DesugaredListComp,
     FieldAccessAndDrop,
-    GenericParamValue,
     GlobalName,
     IterNext,
     LocalCall,
@@ -1098,8 +1097,6 @@ def check_comptime_arg(
             const = ConstValue(ty, v)
         case PlaceNode(place=ComptimeVariable(ty=ty, static_value=v)):
             const = ConstValue(ty, v)
-        case GenericParamValue(param=const_param):
-            const = const_param.to_bound().const
         case arg:
             # Anything else is considered unknown at comptime, but we can give some
             # nicer error hints by inspecting in more detail

@@ -38,14 +38,10 @@ from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.engine import DEF_STORE, ENGINE, MonoArgs, MonoDefId
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
-from guppylang_internals.tys.arg import ConstArg, TypeArg
-from guppylang_internals.tys.builtin import nat_type
 from guppylang_internals.tys.common import ToHugrContext
-from guppylang_internals.tys.const import BoundConstVar, ConstValue
 from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
-    BoundTypeVar,
     NumericType,
     StructType,
     TupleType,
@@ -96,10 +92,6 @@ class CompilerContext(ToHugrContext):
 
     global_funcs: dict[MonoGlobalConstId, hf.Function]
 
-    #: Instantiation of the type parameters of the function that we are currently
-    #: monomorphizing
-    current_mono_args: MonoArgs | None
-
     checked_globals: Globals
 
     def __init__(
@@ -111,17 +103,6 @@ class CompilerContext(ToHugrContext):
         self.compiled = {}
         self.global_funcs = {}
         self.checked_globals = Globals(None)
-        self.current_mono_args = None
-
-    @contextmanager
-    def set_monomorphized_args(self, mono_args: MonoArgs | None) -> Iterator[None]:
-        """Context manager to set the partial monomorphization for the function that is
-        compiled currently being compiled.
-        """
-        old = self.current_mono_args
-        self.current_mono_args = mono_args
-        yield
-        self.current_mono_args = old
 
     def build_compiled_def(self, def_id: DefId, type_args: Inst | None) -> CompiledDef:
         """Returns the compiled definitions corresponding to the given ID, along with
@@ -152,7 +133,7 @@ class CompilerContext(ToHugrContext):
         while self.worklist:
             next_id, next_mono_args = self.worklist.popitem()[0]
             next_def = self.compiled[next_id, next_mono_args]
-            with track_hugr_side_effects(), self.set_monomorphized_args(next_mono_args):
+            with track_hugr_side_effects():
                 next_def.compile_inner(self)
 
         # Insert explicit drops for affine types
@@ -205,61 +186,6 @@ class CompilerContext(ToHugrContext):
         )
         self.global_funcs[const_id, mono_args] = func
         return func, False
-
-    def type_var_to_hugr(self, var: BoundTypeVar) -> ht.Type:
-        """Compiles a bound Guppy type variable into a Hugr type.
-
-        Takes care of performing partial monomorphization as specified in the current
-        context.
-        """
-        if self.current_mono_args is None:
-            # If we're not inside a monomorphized context, just return the Hugr
-            # variable with the same de Bruijn index
-            return ht.Variable(var.idx, var.hugr_bound)
-
-        match self.current_mono_args[var.idx]:
-            # Either we have a decided to monomorphize the corresponding parameter...
-            case TypeArg(ty=ty):
-                return ty.to_hugr(self)
-            # ... or we're still want to be generic in Hugr
-            case None:
-                # But in that case we'll have to down-shift the de Bruijn index to
-                # account for earlier params that have been monomorphized away
-                hugr_idx = compile_variable_idx(var.idx, self.current_mono_args)
-                return ht.Variable(hugr_idx, var.hugr_bound)
-            case _:
-                raise InternalGuppyError("Invalid monomorphization")
-
-    def const_var_to_hugr(self, var: BoundConstVar) -> ht.TypeArg:
-        """Compiles a bound Guppy constant variable into a Hugr type argument.
-
-        Takes care of performing partial monomorphization as specified in the current
-        context.
-        """
-        if var.ty != nat_type():
-            raise InternalGuppyError(
-                "Tried to convert non-nat const type argument to Hugr. This should "
-                "have been monomprhized away."
-            )
-        param = ht.BoundedNatParam(upper_bound=None)
-
-        if self.current_mono_args is None:
-            # If we're not inside a monomorphized context, just return the Hugr
-            # variable with the same de Bruijn index
-            return ht.VariableArg(var.idx, param)
-
-        match self.current_mono_args[var.idx]:
-            # Either we have a decided to monomorphize the corresponding parameter...
-            case ConstArg(const=ConstValue(value=int(v))):
-                return ht.BoundedNatArg(n=v)
-            # ... or we're still want to be generic in Hugr
-            case None:
-                # But in that case we'll have to down-shift the de Bruijn index to
-                # account for earlier params that have been monomorphized away
-                hugr_idx = compile_variable_idx(var.idx, self.current_mono_args)
-                return ht.VariableArg(hugr_idx, param)
-            case _:
-                raise InternalGuppyError("Invalid monomorphization")
 
 
 @dataclass
@@ -408,17 +334,6 @@ def require_monomorphization(params: Sequence[Parameter]) -> set[Parameter]:
             case _:
                 pass
     return mono_params
-
-
-def compile_variable_idx(idx: int, mono_args: MonoArgs) -> int:
-    """Returns the Hugr index for a variable.
-
-    Takes care of shifting down Guppy's indices to account for the current partial
-    monomorphization. This avoids gaps in Hugr indices due to the fact that not all
-    Guppy parameters are lowered to Hugr (some are monomorphized away).
-    """
-    assert mono_args[idx] is None, "Should not compile monomorphized index"
-    return sum(1 for arg in mono_args[:idx] if arg is None)
 
 
 QUANTUM_EXTENSION = tket_exts.quantum()

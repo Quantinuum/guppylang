@@ -254,12 +254,10 @@ class CustomFunctionDef(CompiledCallableDef):
             type_args,
         )
         if not already_defined:
-            with ctx.set_monomorphized_args(tuple(type_args)):
-                func_dfg = DFContainer(func, ctx, dfg.locals.copy())
-                args: list[Wire] = list(func.inputs())
-                generic_ty_args = [param.to_bound() for param in self.ty.params]
-                returns = self.compile_call(args, generic_ty_args, func_dfg, ctx, node)
-                func.set_outputs(*returns.regular_returns, *returns.inout_returns)
+            func_dfg = DFContainer(func, ctx, dfg.locals.copy())
+            args: list[Wire] = list(func.inputs())
+            returns = self.compile_call(args, type_args, func_dfg, ctx, node)
+            func.set_outputs(*returns.regular_returns, *returns.inout_returns)
 
         # Finally, load the function into the local DFG
         return dfg.builder.load_function(func)
