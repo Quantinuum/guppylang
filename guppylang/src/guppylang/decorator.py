@@ -231,9 +231,9 @@ class _Guppy:
                 Variant1 = {"a": int, "b": qubit}
                 Variant2 = {"a": int}
 
-            @guppy
-            def method_on_enum(e: MyEnum) -> int:
-                return e.a + 1
+                @guppy
+                def method_on_enum(e: MyEnum) -> int:
+                    return e.a + 1
         ..
         Enum supposed to have variants as class attributes.
         """
