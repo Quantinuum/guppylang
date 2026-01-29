@@ -96,16 +96,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
                 case _, ast.FunctionDef(name=name) as node:
-                    from guppylang.defs import GuppyDefinition
-
-                    v = getattr(self.python_class, name)
-                    if not isinstance(v, GuppyDefinition):
-                        raise GuppyError(
-                            NonGuppyMethodError(node, self.name, name, "enum")
-                        )
                     used_func_names[name] = node
-                    if name in variants:
-                        raise GuppyError(DuplicateVariantError(node, self.name, name))
                 # Enum variant are declared via dictionary, where key are the variant
                 # fields and values are types;
                 # e.g. `variant = {"a": int, ...}
@@ -141,9 +132,21 @@ class RawEnumDef(TypeDef, ParsableDef):
                     raise GuppyError(err)
 
         # Ensure that functions don't override enum variants
-        if overridden := variants.keys() & used_func_names.keys():
-            x = overridden.pop()
-            raise GuppyError(DuplicateVariantError(used_func_names[x], self.name, x))
+        # and that all functions are Guppy functions
+        for func_name, func_def in used_func_names.items():
+            from guppylang.defs import GuppyDefinition
+
+            if func_name in variants:
+                raise GuppyError(
+                    DuplicateVariantError(
+                        used_func_names[func_name], self.name, func_name
+                    )
+                )
+            v = getattr(self.python_class, func_name)
+            if not isinstance(v, GuppyDefinition):
+                raise GuppyError(
+                    NonGuppyMethodError(func_def, self.name, func_name, "enum")
+                )
 
         return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
 
