@@ -339,10 +339,15 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 tensor_ty, node.args, ty, node, self.ctx
             )
             assert len(inst) == 0
-            return with_loc(
-                node,
-                TensorCall(func=node.func, args=processed_args, tensor_ty=tensor_ty),
-            ), subst
+            return (
+                with_loc(
+                    node,
+                    TensorCall(
+                        func=node.func, args=processed_args, tensor_ty=tensor_ty
+                    ),
+                ),
+                subst,
+            )
 
         elif callee := self.ctx.globals.get_instance_func(func_ty, "__call__"):
             return callee.check_call(node.args, ty, node, self.ctx)
@@ -767,9 +772,12 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             )
             assert len(inst) == 0
 
-            return with_loc(
-                node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
-            ), return_ty
+            return (
+                with_loc(
+                    node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
+                ),
+                return_ty,
+            )
 
         elif f := self.ctx.globals.get_instance_func(ty, "__call__"):
             return f.synthesize_call(node.args, node, self.ctx)
@@ -1187,10 +1195,11 @@ def check_call(
         # thus we deepcopy them before passing in the function
         node_copy = copy.deepcopy(node)
         inputs_copy = copy.deepcopy(inputs)
-        inputs, synth, inst = synthesize_call(func_ty, inputs_copy, node_copy, ctx)
+        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx)
         res = synth, inst
     except GuppyTypeInferenceError:
-        pass
+        inputs = inputs_copy
+        node = node_copy
     if res is not None:
         synth, inst = res
         subst = unify(ty, synth, {})
