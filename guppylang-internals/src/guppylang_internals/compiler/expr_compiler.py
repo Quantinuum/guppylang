@@ -94,7 +94,6 @@ from guppylang_internals.tys.builtin import (
 from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
-    BoundTypeVar,
     FuncInput,
     FunctionType,
     InputFlags,
@@ -456,20 +455,6 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Dynamic TypeApply not supported yet!")
         defn = self.ctx.build_compiled_def(node.value.def_id, node.inst)
         assert isinstance(defn, CompiledCallableDef)
-
-        # We have to be very careful here: If we instantiate `foo: forall T. T -> T`
-        # with a tuple type `tuple[A, B]`, we get the type `tuple[A, B] -> tuple[A, B]`.
-        # Normally, this would be represented in Hugr as a function with two output
-        # ports types A and B. However, when TypeApplying `foo`, we actually get a
-        # function with a single output port typed `tuple[A, B]`.
-        # TODO: We would need to do manual monomorphisation in that case to obtain a
-        #  function that returns two ports as expected
-        if instantiation_needs_unpacking(defn.ty, node.inst):
-            err = UnsupportedError(
-                node, "Generic function instantiations returning rows"
-            )
-            raise GuppyError(err)
-
         return defn.load_with_args(node.inst, self.dfg, self.ctx, node)
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Wire:
@@ -742,14 +727,6 @@ def unpack_wire(
         hugr_tys = [t.to_hugr(ctx) for t in types]
         return list(builder.add_op(ops.UnpackTuple(hugr_tys), wire).outputs())
     return [wire]
-
-
-def instantiation_needs_unpacking(func_ty: FunctionType, inst: Inst) -> bool:
-    """Checks if instantiating a polymorphic makes it return a row."""
-    if isinstance(func_ty.output, BoundTypeVar):
-        return_ty = inst[func_ty.output.idx]
-        return isinstance(return_ty, TupleType | NoneType)
-    return False
 
 
 def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value | None:
