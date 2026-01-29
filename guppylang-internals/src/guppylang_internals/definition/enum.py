@@ -131,7 +131,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                     err.add_sub_diagnostic(VariantFormHint(None))
                     raise GuppyError(err)
 
-        # Ensure that functions don't override enum variants
+        # Ensure that functions do not override enum variants
         # and that all functions are Guppy functions
         for func_name, func_def in used_func_names.items():
             from guppylang.defs import GuppyDefinition
