@@ -22,6 +22,7 @@ from guppylang_internals.checker.func_checker import (
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
+    get_parent_type,
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
 from guppylang_internals.definition.common import (
@@ -187,9 +188,14 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         access to the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
+        parent_ty = get_parent_type(self)
+        if parent_ty is None:
+            hugr_func_name = self.name
+        else:
+            hugr_func_name = f"{parent_ty.name}.{self.name}"
         hugr_ty = self.ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            self.name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
         add_metadata(
             func_def,
