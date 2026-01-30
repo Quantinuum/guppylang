@@ -156,3 +156,4 @@ devenv.local.nix
 /.envrc
 
 **/.benchmarks/
+.vscode/settings.json

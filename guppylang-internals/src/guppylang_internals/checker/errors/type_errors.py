@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar
 from guppylang_internals.diagnostic import Error, Help, Note
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.const import Const
     from guppylang_internals.tys.param import TypeParam
     from guppylang_internals.tys.ty import FunctionType, Type
@@ -56,7 +56,7 @@ class AssignFieldTypeMismatchError(Error):
         "`{field.ty}`"
     )
     actual: Type
-    field: StructField
+    field: CheckedField
 
 
 @dataclass(frozen=True)
@@ -309,7 +309,7 @@ class AssignNonPlaceHelp(Help):
         "Consider assigning this value to a local variable first before assigning the "
         "field `{field.name}`"
     )
-    field: StructField
+    field: CheckedField
 
 
 @dataclass(frozen=True)
