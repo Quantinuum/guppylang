@@ -24,8 +24,9 @@ from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.struct import CheckedStructDef, StructField
+    from guppylang_internals.definition.struct import CheckedStructDef
     from guppylang_internals.definition.ty import OpaqueTypeDef
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.subst import Inst, PartialInst, Subst
 
 
@@ -685,16 +686,16 @@ class StructType(ParametrizedTypeBase):
     defn: "CheckedStructDef"
 
     @cached_property
-    def fields(self) -> list["StructField"]:
+    def fields(self) -> list["CheckedField"]:
         """The fields of this struct type."""
-        from guppylang_internals.definition.struct import StructField
+        from guppylang_internals.definition.util import CheckedField
         from guppylang_internals.tys.subst import Instantiator
 
         inst = Instantiator(self.args)
-        return [StructField(f.name, f.ty.transform(inst)) for f in self.defn.fields]
+        return [CheckedField(f.name, f.ty.transform(inst)) for f in self.defn.fields]
 
     @cached_property
-    def field_dict(self) -> "dict[str, StructField]":
+    def field_dict(self) -> "dict[str, CheckedField]":
         """Mapping from names to fields of this struct type."""
         return {field.name: field for field in self.fields}
 

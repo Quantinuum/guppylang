@@ -182,6 +182,7 @@ class CompilationEngine:
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
+
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
             self.types_to_check_worklist[id] = defn

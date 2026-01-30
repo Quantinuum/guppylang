@@ -1,18 +1,14 @@
 import ast
-import inspect
-import linecache
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from types import FrameType
 from typing import ClassVar
 
 from hugr import Wire, ops
 
-from guppylang_internals.ast_util import AstNode, annotate_location
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
-    ExpectedError,
     UnexpectedError,
     UnsupportedError,
 )
@@ -22,21 +18,17 @@ from guppylang_internals.definition.common import (
     CompiledDef,
     DefId,
     ParsableDef,
-    UnknownSourceError,
 )
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomFunctionDef,
     DefaultCallChecker,
 )
-from guppylang_internals.definition.function import parse_source
-from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.diagnostic import Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.ipython_inspect import is_running_ipython
-from guppylang_internals.span import SourceMap, Span, to_span
+from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -49,65 +41,24 @@ from guppylang_internals.tys.ty import (
 )
 
 if sys.version_info >= (3, 12):
-    from guppylang_internals.tys.parsing import parse_parameter
+    pass
+
+from guppylang_internals.definition.util import (
+    CheckedField,
+    DuplicateFieldError,
+    NonGuppyMethodError,
+    UncheckedField,
+    extract_generic_params,
+    parse_py_class,
+)
 
 
 @dataclass(frozen=True)
-class UncheckedStructField:
-    """A single field on a struct whose type has not been checked yet."""
-
-    name: str
-    type_ast: ast.expr
-
-
-@dataclass(frozen=True)
-class StructField:
-    """A single field on a struct."""
-
-    name: str
-    ty: Type
-
-
-@dataclass(frozen=True)
-class RedundantParamsError(Error):
-    title: ClassVar[str] = "Generic parameters already specified"
-    span_label: ClassVar[str] = "Duplicate specification of generic parameters"
-    struct_name: str
-
-    @dataclass(frozen=True)
-    class PrevSpec(Note):
-        span_label: ClassVar[str] = (
-            "Parameters of `{struct_name}` are already specified here"
-        )
-
-
-@dataclass(frozen=True)
-class DuplicateFieldError(Error):
-    title: ClassVar[str] = "Duplicate field"
-    span_label: ClassVar[str] = (
-        "Struct `{struct_name}` already contains a field named `{field_name}`"
+class FieldFormHint(Help):
+    message: ClassVar[str] = (
+        "Struct can contain only fields of the form `name: Type` "
+        "or `@guppy` annotated methods"
     )
-    struct_name: str
-    field_name: str
-
-
-@dataclass(frozen=True)
-class NonGuppyMethodError(Error):
-    title: ClassVar[str] = "Not a Guppy method"
-    span_label: ClassVar[str] = (
-        "Method `{method_name}` of struct `{struct_name}` is not a Guppy function"
-    )
-    struct_name: str
-    method_name: str
-
-    @dataclass(frozen=True)
-    class Suggestion(Help):
-        message: ClassVar[str] = (
-            "Add a `@guppy` annotation to turn `{method_name}` into a Guppy method"
-        )
-
-    def __post_init__(self) -> None:
-        self.add_sub_diagnostic(NonGuppyMethodError.Suggestion(None))
 
 
 @dataclass(frozen=True)
@@ -124,38 +75,9 @@ class RawStructDef(TypeDef, ParsableDef):
         if cls_def.keywords:
             raise GuppyError(UnexpectedError(cls_def.keywords[0], "keyword"))
 
-        # Look for generic parameters from Python 3.12 style syntax
-        params = []
-        params_span: Span | None = None
-        if sys.version_info >= (3, 12):
-            if cls_def.type_params:
-                first, last = cls_def.type_params[0], cls_def.type_params[-1]
-                params_span = Span(to_span(first).start, to_span(last).end)
-                param_vars_mapping: dict[str, Parameter] = {}
-                for idx, param_node in enumerate(cls_def.type_params):
-                    param = parse_parameter(
-                        param_node, idx, globals, param_vars_mapping
-                    )
-                    param_vars_mapping[param.name] = param
-                    params.append(param)
+        params = extract_generic_params(cls_def, self.name, globals, "Struct")
 
-        # The only base we allow is `Generic[...]` to specify generic parameters with
-        # the legacy syntax
-        match cls_def.bases:
-            case []:
-                pass
-            case [base] if elems := try_parse_generic_base(base):
-                # Complain if we already have Python 3.12 generic params
-                if params_span is not None:
-                    err: Error = RedundantParamsError(base, self.name)
-                    err.add_sub_diagnostic(RedundantParamsError.PrevSpec(params_span))
-                    raise GuppyError(err)
-                params = params_from_ast(elems, globals)
-            case bases:
-                err = UnsupportedError(bases[0], "Struct inheritance", singular=True)
-                raise GuppyError(err)
-
-        fields: list[UncheckedStructField] = []
+        fields: list[UncheckedField] = []
         used_field_names: set[str] = set()
         used_func_names: dict[str, ast.FunctionDef] = {}
         for i, node in enumerate(cls_def.body):
@@ -172,30 +94,43 @@ class RawStructDef(TypeDef, ParsableDef):
 
                     v = getattr(self.python_class, name)
                     if not isinstance(v, GuppyDefinition):
-                        raise GuppyError(NonGuppyMethodError(node, self.name, name))
+                        raise GuppyError(
+                            NonGuppyMethodError(node, self.name, name, "struct")
+                        )
                     used_func_names[name] = node
                     if name in used_field_names:
-                        raise GuppyError(DuplicateFieldError(node, self.name, name))
+                        raise GuppyError(
+                            DuplicateFieldError(node, self.name, name, "Struct")
+                        )
                 # Struct fields are declared via annotated assignments without value
                 case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:
                     if node.value:
-                        err = UnsupportedError(node.value, "Default struct values")
-                        raise GuppyError(err)
+                        raise GuppyError(
+                            UnsupportedError(node.value, "Default struct values")
+                        )
                     if field_name in used_field_names:
-                        err = DuplicateFieldError(node.target, self.name, field_name)
-                        raise GuppyError(err)
-                    fields.append(UncheckedStructField(field_name, node.annotation))
+                        raise GuppyError(
+                            DuplicateFieldError(
+                                node.target, self.name, field_name, "Struct"
+                            )
+                        )
+                    fields.append(UncheckedField(field_name, node.annotation))
                     used_field_names.add(field_name)
                 case _, node:
                     err = UnexpectedError(
-                        node, "statement", unexpected_in="struct definition"
+                        node,
+                        "statement",
+                        unexpected_in="struct definition",
                     )
+                    err.add_sub_diagnostic(FieldFormHint(None))
                     raise GuppyError(err)
 
         # Ensure that functions don't override struct fields
         if overridden := used_field_names.intersection(used_func_names.keys()):
             x = overridden.pop()
-            raise GuppyError(DuplicateFieldError(used_func_names[x], self.name, x))
+            raise GuppyError(
+                DuplicateFieldError(used_func_names[x], self.name, x, "Struct")
+            )
 
         return ParsedStructDef(self.id, self.name, cls_def, params, fields)
 
@@ -211,7 +146,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    fields: Sequence[UncheckedStructField]
+    fields: Sequence[UncheckedField]
 
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""
@@ -224,7 +159,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
         check_not_recursive(self, ctx)
 
         fields = [
-            StructField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
+            CheckedField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
         ]
         return CheckedStructDef(
             self.id, self.name, self.defined_at, self.params, fields
@@ -253,7 +188,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    fields: Sequence[StructField]
+    fields: Sequence[CheckedField]
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -299,88 +234,9 @@ class CheckedStructDef(TypeDef, CompiledDef):
         return [constructor_def]
 
 
-def parse_py_class(
-    cls: type, defining_frame: FrameType, sources: SourceMap
-) -> ast.ClassDef:
-    """Parses a Python class object into an AST."""
-    module = inspect.getmodule(cls)
-    if module is None:
-        raise GuppyError(UnknownSourceError(None, cls))
-
-    # If we are running IPython, `inspect.getsourcefile` won't work if the class was
-    # defined inside a cell. See
-    #  - https://bugs.python.org/issue33826
-    #  - https://github.com/ipython/ipython/issues/11249
-    #  - https://github.com/wandb/weave/pull/1864
-    if is_running_ipython() and module.__name__ == "__main__":
-        file: str | None = defining_frame.f_code.co_filename
-    else:
-        file = inspect.getsourcefile(cls)
-    if file is None:
-        raise GuppyError(UnknownSourceError(None, cls))
-
-    # We can't rely on `inspect.getsourcelines` since it doesn't work properly for
-    # classes prior to Python 3.13. See https://github.com/quantinuum/guppylang/issues/1107.
-    # Instead, we reproduce the behaviour of Python >= 3.13 using the `__firstlineno__`
-    # attribute. See https://github.com/python/cpython/blob/3.13/Lib/inspect.py#L1052.
-    # In the decorator, we make sure that `__firstlineno__` is set, even if we're not
-    # on Python 3.13.
-    file_lines = linecache.getlines(file)
-    line_offset = cls.__firstlineno__  # type: ignore[attr-defined]
-    source_lines = inspect.getblock(file_lines[line_offset - 1 :])
-    source, cls_ast, line_offset = parse_source(source_lines, line_offset)
-
-    # Store the source file in our cache
-    sources.add_file(file)
-    annotate_location(cls_ast, source, file, line_offset)
-    if not isinstance(cls_ast, ast.ClassDef):
-        raise GuppyError(ExpectedError(cls_ast, "a class definition"))
-    return cls_ast
-
-
-def try_parse_generic_base(node: ast.expr) -> list[ast.expr] | None:
-    """Checks if an AST node corresponds to a `Generic[T1, ..., Tn]` base class.
-
-    Returns the generic parameters or `None` if the AST has a different shape
-    """
-    match node:
-        case ast.Subscript(value=ast.Name(id="Generic"), slice=elem):
-            return elem.elts if isinstance(elem, ast.Tuple) else [elem]
-        case _:
-            return None
-
-
-@dataclass(frozen=True)
-class RepeatedTypeParamError(Error):
-    title: ClassVar[str] = "Duplicate type parameter"
-    span_label: ClassVar[str] = "Type parameter `{name}` cannot be used multiple times"
-    name: str
-
-
-def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Parameter]:
-    """Parses a list of AST nodes into unique type parameters.
-
-    Raises user errors if the AST nodes don't correspond to parameters or parameters
-    occur multiple times.
-    """
-    params: list[Parameter] = []
-    params_set: set[DefId] = set()
-    for node in nodes:
-        if isinstance(node, ast.Name) and node.id in globals:
-            defn = globals[node.id]
-            if isinstance(defn, ParamDef):
-                if defn.id in params_set:
-                    raise GuppyError(RepeatedTypeParamError(node, node.id))
-                params.append(defn.to_param(len(params)))
-                params_set.add(defn.id)
-                continue
-        raise GuppyError(ExpectedError(node, "a type parameter"))
-    return params
-
-
+# TODO: adapt the following to work also with enums, and move it to a common module
 def check_not_recursive(defn: ParsedStructDef, ctx: TypeParsingCtx) -> None:
     """Throws a user error if the given struct definition is recursive."""
-
     # TODO: The implementation below hijacks the type parsing logic to detect recursive
     #  structs. This is not great since it repeats the work done during checking. We can
     #  get rid of this after resolving the todo in `ParsedStructDef.check_instantiate()`
