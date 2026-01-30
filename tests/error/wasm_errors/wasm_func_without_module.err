@@ -4,7 +4,10 @@ Error: WASM signature error (at $FILE:11:0)
 10 | @wasm
 11 | def foo(x: int) -> None: ...
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ First argument to WASM function should be a WASM module.
+
+Note:
    | 
+10 | @wasm
 11 | def foo(x: int) -> None: ...
    | ---------------------------- Found `int` instead.
 

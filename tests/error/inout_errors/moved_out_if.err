@@ -4,7 +4,10 @@ Error: Copy violation (at $FILE:16:9)
 15 | @guppy
 16 | def test(s: MyStruct, b: bool) -> None:
    |          ^^^^^^^^^^^ Borrowed argument s cannot be returned to the caller ...
+
+Note:
    | 
+17 |     if b:
 18 |         use(s.q)
    |             --- since `s.q` with non-copyable type `qubit` was already
    |                 consumed here

@@ -5,7 +5,10 @@ Error: Drop violation (at $FILE:13:22)
 13 |     return [42 for b, q in qs if b if bar(q)]
    |                       ^ Variable `q` with non-droppable type `qubit` may be leaked
    |                         ...
+
+Note:
    | 
+12 | def foo(qs: list[tuple[bool, qubit]] @owned) -> list[int]:
 13 |     return [42 for b, q in qs if b if bar(q)]
    |                                  - if this expression is `False`
 

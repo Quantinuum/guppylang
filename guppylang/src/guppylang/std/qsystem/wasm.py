@@ -1,3 +1,5 @@
+"""Guppy standard library for WebAssembly-style (wasm) contexts"""
+
 from collections.abc import Callable
 from typing import no_type_check
 

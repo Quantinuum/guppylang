@@ -5,9 +5,12 @@ Error: Copy violation (at $FILE:12:8)
 12 |     use(q)
    |         ^ Variable `q` with non-copyable type `array[int, 3]` cannot
    |           be consumed ...
+
+Note:
    | 
+10 | def test(q: array[int, 3] @owned) -> None:
 11 |     p = q
-   |         - since it was already moved here
+   |         - Variable `q` already moved here
 
 Help: Consider copying `q` instead of moving it: `q.copy()`
 

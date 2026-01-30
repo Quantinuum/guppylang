@@ -1,3 +1,5 @@
+"""Guppy standard library for Quantinuum systems device operations."""
+
 from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, hugr_op

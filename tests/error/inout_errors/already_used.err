@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:17:8)
 17 |     foo(q)
    |         ^ Variable `q` with non-copyable type `qubit` cannot be
    |           borrowed ...
+
+Note:
    | 
+15 | def test(q: qubit @owned) -> None:
 16 |     use(q)
-   |         - since it was already consumed here
+   |         - Variable `q` already consumed here
 
 Guppy compilation failed due to 1 previous error

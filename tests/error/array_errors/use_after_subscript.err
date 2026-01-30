@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:12:15)
 12 |     return foo(qs[0], qs)
    |                ^^^^^ Variable `qs` with non-copyable type `array[qubit, 42]`
    |                      cannot be borrowed ...
+
+Note:
    | 
+11 | def main(qs: array[qubit, 42] @owned) -> array[qubit, 42]:
 12 |     return foo(qs[0], qs)
-   |                       -- since it was already consumed here
+   |                       -- Variable `qs` already consumed here
 
 Guppy compilation failed due to 1 previous error

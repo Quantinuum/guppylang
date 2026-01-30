@@ -1,3 +1,6 @@
+"""Guppy standard library for random number generation and
+discrete probability distributions."""
+
 # mypy: disable-error-code="no-any-return"
 from typing import Generic, no_type_check
 
@@ -16,7 +19,8 @@ from guppylang_internals.std._internal.util import external_op
 
 from guppylang import guppy
 from guppylang.std.angles import angle, pi
-from guppylang.std.builtins import array, mem_swap, owned, panic
+from guppylang.std.builtins import array, owned, panic
+from guppylang.std.mem import mem_swap
 from guppylang.std.option import Option
 
 SHUFFLE_N = guppy.nat_var("SHUFFLE_N")

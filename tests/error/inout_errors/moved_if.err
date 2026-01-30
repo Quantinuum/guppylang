@@ -5,7 +5,10 @@ Error: Not owned (at $FILE:13:12)
 13 |         use(q)
    |             ^ Function `use` wants to take ownership of this argument, but
    |               `test` doesn't own `q`
+
+Note:
    | 
+10 | @guppy
 11 | def test(q: qubit, b: bool) -> None:
    |          -------- Argument `q` is only borrowed. Consider taking ownership:
    |                   `q: qubit @owned`

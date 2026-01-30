@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:17:11)
 17 |     return s
    |            ^ Tuple index `s.t[0]` with non-copyable type `qubit` cannot
    |              be returned ...
+
+Note:
    | 
+15 |     s = S((qubit(), 1))
 16 |     use(s.t[0])
-   |         ------ since it was already consumed here
+   |         ------ Tuple index `s.t[0]` already consumed here
 
 Guppy compilation failed due to 1 previous error

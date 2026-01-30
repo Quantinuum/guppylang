@@ -4,6 +4,9 @@ Error: Can't compare apples with oranges (at <unknown>:99:6)
  98 | apple == orange
  99 | apple == orange
     |       ^^ Comparison attempted here
+
+Note:
     | 
+ 99 | apple == orange
 100 | This apple is on another line
     |      ----- This is an apple

@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:12:20)
 12 |     with control(q, q):
    |                     ^ Variable `q` with non-copyable type `qubit` cannot be
    |                       borrowed ...
+
+Note:
    | 
+11 |     q = qubit()
 12 |     with control(q, q):
-   |                  - since it was already borrowed here
+   |                  - Variable `q` already borrowed here
 
 Guppy compilation failed due to 1 previous error

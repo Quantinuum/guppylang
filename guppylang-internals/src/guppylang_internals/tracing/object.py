@@ -342,6 +342,10 @@ class GuppyObject(DunderMixin):
         if not ty.droppable and not self._used:
             state.unused_undroppable_objs[self._id] = self
 
+    def __deepcopy__(self, memo: dict[int, Any]) -> "GuppyObject":
+        # Dummy deepcopy implementation, we do not want to actually deepcopy
+        return self
+
     @hide_trace
     def __getattr__(self, key: str) -> Any:  # type: ignore[misc]
         # Guppy objects don't have fields (structs are treated separately below), so the

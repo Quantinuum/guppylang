@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:8:28)
 8 |     state_result("tag", q1, q1)
   |                             ^^ Variable `q1` with non-copyable type `qubit` cannot be
   |                                borrowed ...
+
+Note:
   | 
+7 |     q1 = qubit()
 8 |     state_result("tag", q1, q1)
-  |                         -- since it was already borrowed here
+  |                         -- Variable `q1` already borrowed here
 
 Guppy compilation failed due to 1 previous error

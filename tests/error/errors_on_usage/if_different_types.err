@@ -4,10 +4,13 @@ Error: Different types (at $FILE:10:11)
  9 |         y = False
 10 |     return y
    |            ^ Variable `y` may refer to different types
+
+Notes:
    | 
+ 6 |     if x:
  7 |         y = 1
    |         - This is of type `int`
-   | 
+ 8 |     else:
  9 |         y = False
    |         - This is of type `bool`
 

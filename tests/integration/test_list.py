@@ -3,7 +3,7 @@ from guppylang import qubit, guppy
 from guppylang.std.angles import angle
 from guppylang.std.builtins import owned
 from guppylang.std.quantum import cx, rz
-from guppylang.std.quantum_functional import h
+from guppylang.std.quantum.functional import h
 
 from tests.util import compile_guppy
 
