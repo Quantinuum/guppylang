@@ -19,4 +19,4 @@ class EnumB:
 
 
 # This should raise an error when compiling EnumB
-EnumB.compile()
+EnumB.compile() # type: ignore[attr-defined]

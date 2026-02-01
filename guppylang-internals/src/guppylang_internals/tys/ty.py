@@ -728,8 +728,6 @@ class StructType(ParametrizedTypeBase):
 @dataclass(frozen=True)
 class EnumType(ParametrizedTypeBase):
     """An enum (sum/tagged union) type.
-
-    Minimal implementation for PR 1.
     """
 
     defn: "CheckedEnumDef"
@@ -748,6 +746,28 @@ class EnumType(ParametrizedTypeBase):
             )
             for v in self.defn.variants
         ]
+        
+    @cached_property
+    def intrinsically_copyable(self) -> bool:
+        """Whether objects of this type can be implicitly copied.
+
+        An enum is copyable only if ALL payload types in ALL variants are copyable.
+        """
+        return all(
+            all(ty.copyable for ty in v.payload_types)
+            for v in self.variants
+        )
+        
+    @cached_property
+    def intrinsically_droppable(self) -> bool:
+        """Whether objects of this type can be dropped.
+
+        An enum is droppable only if ALL payload types in ALL variants are droppable.
+        """
+        return all(
+            all(ty.droppable for ty in v.payload_types)
+            for v in self.variants
+        )
 
     def cast(self) -> "Type":
         return self
@@ -755,7 +775,7 @@ class EnumType(ParametrizedTypeBase):
     def to_hugr(self, ctx: ToHugrContext) -> ht.Sum:
         """Computes the Hugr representation of the type."""
         rows = [
-            ht.Tuple(*(ty.to_hugr(ctx) for ty in v.payload_types))
+            [ty.to_hugr(ctx) for ty in v.payload_types]
             for v in self.variants
         ]
         return ht.Sum(rows)

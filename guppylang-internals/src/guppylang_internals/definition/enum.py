@@ -7,9 +7,9 @@ from guppylang.defs import GuppyDefinition
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import UnexpectedError, UnsupportedError
-from guppylang_internals.definition.common import CheckableDef, ParsableDef
+from guppylang_internals.definition.common import CheckableDef, ParsableDef, CompiledDef
 from guppylang_internals.definition.custom import CustomFunctionDef
-from guppylang_internals.definition.struct import extract_generic_params, parse_py_class
+from guppylang_internals.definition.util import extract_generic_params, parse_py_class
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
@@ -19,10 +19,6 @@ from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
 from guppylang_internals.tys.ty import EnumType, Type
-
-# ============================================================================
-# Variant Classes
-# ============================================================================
 
 
 @dataclass(frozen=True)
@@ -39,11 +35,6 @@ class EnumVariant:
 
     name: str
     payload_types: list[Type]
-
-
-# ============================================================================
-# Error Classes (Minimal)
-# ============================================================================
 
 
 @dataclass(frozen=True)
@@ -74,11 +65,6 @@ class NonGuppyMethodError(Error):
 
     def __post_init__(self) -> None:
         self.add_sub_diagnostic(NonGuppyMethodError.Suggestion(None))
-
-
-# ============================================================================
-# Definition Classes
-# ============================================================================
 
 
 @dataclass(frozen=True)
@@ -142,20 +128,15 @@ class RawEnumDef(TypeDef, ParsableDef):
                         raise GuppyError(NonGuppyMethodError(node, self.name, name))
                     used_func_names[name] = node
                     if name in used_variant_names:
-                        raise GuppyError(DuplicateVariantError(node, self.name, name))
+                        raise GuppyError(DuplicateVariantError(node, name))
 
                 # Enum variants: name: Type or name: dict[str, Type]
                 case _, ast.AnnAssign(target=ast.Name(id=variant_name)) as node:
                     if node.value:
-                        err = UnsupportedError(node.value, "Default variant values")
-                        raise GuppyError(err)
+                        raise GuppyError(UnsupportedError(node.value, "Default variant values"))
 
                     if variant_name in used_variant_names:
-                        err = DuplicateVariantError(
-                            node.target, self.name, variant_name
-                        )
-                        raise GuppyError(err)
-
+                        raise GuppyError(DuplicateVariantError(node.target, variant_name))
                     # Parse the annotation to extract payload types
                     # Single type: Variant: int  -> [int]
                     # Tuple: Variant: tuple[int, str] -> [int, str]
@@ -172,15 +153,12 @@ class RawEnumDef(TypeDef, ParsableDef):
                     used_variant_names.add(variant_name)
 
                 case _, node:
-                    err = UnexpectedError(
-                        node, "statement", unexpected_in="enum definition"
-                    )
-                    raise GuppyError(err)
+                    raise GuppyError(UnexpectedError(node, "statement", unexpected_in="enum definition"))
 
         # Ensure functions don't override enum variants
         if overridden := used_variant_names.intersection(used_func_names.keys()):
             x = overridden.pop()
-            raise GuppyError(DuplicateVariantError(used_func_names[x], self.name, x))
+            raise GuppyError(DuplicateVariantError(used_func_names[x], x))
 
         return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
 
@@ -188,11 +166,6 @@ class RawEnumDef(TypeDef, ParsableDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         raise InternalGuppyError("Tried to instantiate raw enum definition")
-
-
-# ============================================================================
-# Definition Classes (Minimal - No Raw, just Parsed and Checked)
-# ============================================================================
 
 
 @dataclass(frozen=True)
@@ -256,7 +229,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
 
 
 @dataclass(frozen=True)
-class CheckedEnumDef(TypeDef):
+class CheckedEnumDef(TypeDef, CompiledDef):
     """An enum definition that has been fully checked.
 
     All variant payload types have been resolved and validated.
@@ -278,11 +251,6 @@ class CheckedEnumDef(TypeDef):
         return []
 
 
-# ============================================================================
-# Recursion Checking
-# ============================================================================
-
-
 def check_not_recursive(defn: ParsedEnumDef, ctx: TypeParsingCtx) -> None:
     """Throws a user error if the given enum definition is recursive.
 
@@ -299,12 +267,11 @@ def check_not_recursive(defn: ParsedEnumDef, ctx: TypeParsingCtx) -> None:
         GuppyError: If the enum is directly or mutually recursive
 
     Note:
-        This is a TEMPORARY hacky implementation (see PR 4 for the proper solution).
+        This is a TEMPORARY hacky implementation.
     """
     # TODO: The implementation below hijacks the type parsing logic to detect recursive
     #  enums. This is not great since it repeats the work done during checking. We can
     #  get rid of this after resolving the todo in `ParsedEnumDef.check_instantiate()`
-    #  This will be fixed in PR 4 with DefId refactoring.
 
     def dummy_check_instantiate(
         args: Sequence[Argument],

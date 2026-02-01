@@ -13,4 +13,4 @@ class MyEnum:
 
 
 # This should raise an error during compilation
-MyEnum.compile()
+MyEnum.compile() # type: ignore[attr-defined]
