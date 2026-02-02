@@ -283,7 +283,7 @@ def check_not_recursive(defn: ParsedEnumDef, ctx: TypeParsingCtx) -> None:
     """Throws a user error if the given enum definition is recursive.
 
     This function temporarily replaces the enum's check_instantiate method with
-    a dummy that raises an error. Then it attempts to parse all variant payload
+    a dummy that raises an error. Then it attempts to parse all variant field
     types. If any variant references the enum being defined, the dummy method
     will be called, catching the recursion.
 
