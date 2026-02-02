@@ -1190,7 +1190,8 @@ def check_call(
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
-        return inputs, subst, inst
+        else:
+            return inputs, subst, inst
     except GuppyTypeInferenceError:
         pass
 
