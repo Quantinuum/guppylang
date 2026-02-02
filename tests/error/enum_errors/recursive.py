@@ -9,8 +9,8 @@ from guppylang.decorator import guppy
 @guppy.enum
 class MyEnum:
     """An enum that contains itself - should fail."""
-    Variant1: "tuple[MyEnum, int]"
+    Variant1 = {"self_ref": "MyEnum", "count": int}
 
 
 # This should raise an error during compilation
-MyEnum.compile() # type: ignore[attr-defined]
+MyEnum.compile()  # type: ignore[attr-defined]

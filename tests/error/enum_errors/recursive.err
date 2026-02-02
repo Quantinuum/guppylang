@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:12:32)
+  |
+10 | class MyEnum:
+11 |     """An enum that contains itself - should fail."""
+12 |     Variant1 = {"self_ref": MyEnum, "count": int}
+  |                                ^^^^^^ Recursive enums are not supported
+
+Guppy compilation failed due to 1 previous error

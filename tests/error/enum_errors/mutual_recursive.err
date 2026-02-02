@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:18:29)
+  |
+16 | class EnumB:
+17 |     """Second enum in mutual recursion - should fail."""
+18 |     Variant1 = {"value": EnumA}
+  |                             ^^^^^ Recursive enums are not supported
+
+Guppy compilation failed due to 1 previous error
