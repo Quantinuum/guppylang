@@ -1,4 +1,5 @@
 from guppylang.decorator import guppy
+from guppylang.std.array import array
 from guppylang.std.either import Either, left, right
 from guppylang.std.platform import panic, result
 from guppylang.std.quantum import qubit  # noqa: TCH001
@@ -74,8 +75,6 @@ def test_rows():
 
 
 def test_either_comprehension(validate):
-    from guppylang.std.array import array
-
     @guppy
     def main(b: bool) -> Either[array[int, 3], int]:
         if b:
