@@ -73,7 +73,7 @@ def test_rows():
     assert res == [("a", 3), ("b", 1)]
 
 
-def test_either_comprehension():
+def test_either_comprehension(validate):
     from guppylang.std.array import array
 
     @guppy
@@ -83,4 +83,4 @@ def test_either_comprehension():
         else:
             return right(0)
 
-    main.check()
+    validate(main.compile_function())
