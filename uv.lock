@@ -3665,7 +3665,7 @@ wheels = [
 
 [[package]]
 name = "tket"
-version = "0.12.15"
+version = "0.12.16"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hugr" },
@@ -3673,13 +3673,13 @@ dependencies = [
     { name = "tket-eccs" },
     { name = "tket-exts" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/43/5d/0d063d5b0f90fe197c68fcda5bee384606a368666abe961cd1227ae1afee/tket-0.12.15.tar.gz", hash = "sha256:1ce7c0877c510810ae91be9c0a7a1b638de8b7f5008f065939aa200ca7cde5a5", size = 464051, upload-time = "2026-01-16T16:40:41.838Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/7b/5ba9cc8847161d7060e5b4340a027e7ec9d1746afbe731c404673de11486/tket-0.12.16.tar.gz", hash = "sha256:a60399d883f712c39c43c2eedba2f92fbd65b06a7195fd4332fec4533040e163", size = 465146, upload-time = "2026-01-29T11:38:15.402Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/6f/1ca616db59681f08db1577eb7592ea5b2f3bcdeab423bea61cff30676a3c/tket-0.12.15-cp310-abi3-macosx_13_0_arm64.whl", hash = "sha256:a802b785a09c58a468cb0d7c605837eed328ac441e1ef9fade0913b3082a1a49", size = 10082145, upload-time = "2026-01-16T16:40:29.858Z" },
-    { url = "https://files.pythonhosted.org/packages/8c/37/ba7e9d2b15c7d89ce33930640ac9f7fb86f2c1ffd8d63ba62e5819463c22/tket-0.12.15-cp310-abi3-macosx_15_0_x86_64.whl", hash = "sha256:8cd363d59e5d7bad90baf458bfc231db4e0a36329275e4c5cafb8052f3490c23", size = 11022474, upload-time = "2026-01-16T16:40:33.042Z" },
-    { url = "https://files.pythonhosted.org/packages/52/1a/ce41490837bb9e4177104ca6e4f7afa837fbb1a32468bc8b57a2b46361eb/tket-0.12.15-cp310-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:7fda0d91a4281a3a9825676f12c8b8ae466fa6e39fdf9a79b04b3305df34ccad", size = 13088827, upload-time = "2026-01-16T16:21:11.12Z" },
-    { url = "https://files.pythonhosted.org/packages/69/39/43dddc3e0143d56af058af612c863b5c3bb09823ed35d915f64a33d4597f/tket-0.12.15-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:730cd5f8103db95ba3387caa2588f1925dfb4473cf3cc383d16b4bea69c6b47f", size = 14678972, upload-time = "2026-01-16T16:40:36.576Z" },
-    { url = "https://files.pythonhosted.org/packages/2e/12/7f9fdff4543bc28228b20bb359f2518ec0067b4ab08ddff1fe6b10e5b9eb/tket-0.12.15-cp310-abi3-win_amd64.whl", hash = "sha256:eac19fade07aa07a2967b3775ac65506e197ae1b8723daba8666b1cc27f6abef", size = 9866960, upload-time = "2026-01-16T16:40:39.837Z" },
+    { url = "https://files.pythonhosted.org/packages/37/c7/12b9c3cbc9d04f48ff7d3be7d9fe16efa55739bb398969d45235e58082dc/tket-0.12.16-cp310-abi3-macosx_13_0_arm64.whl", hash = "sha256:b2e7123d4028371907bad76fffa101b9ba4d9678d5bc5ccae7cf1ba88b3fd8d4", size = 10031113, upload-time = "2026-01-29T11:38:04.187Z" },
+    { url = "https://files.pythonhosted.org/packages/08/80/267272befa672d2557e57d3d29c8901afcfb0b2c26c2dd3c576d13662b71/tket-0.12.16-cp310-abi3-macosx_15_0_x86_64.whl", hash = "sha256:5c2412211c071ceb64d8027e28e5c8878c13f02a268cb5a76aa7905f0344bb3e", size = 11022308, upload-time = "2026-01-29T11:38:06.206Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/86/d037ba5eaf4a957a42f90b5cb71429df86d4e29f3b7bf88c8962402baa7e/tket-0.12.16-cp310-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:362b0458d928bcd9563b19fe0d8c5ed24abfd57a949c7afbea4c0e3ca369d9a9", size = 13192887, upload-time = "2026-01-29T11:38:08.301Z" },
+    { url = "https://files.pythonhosted.org/packages/79/19/613e550bd989db008c9bbe7828ec59cfa2818a4a9dec67ca277e33556a3f/tket-0.12.16-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:e78c6af6742b8a165d8b595caef6cc0853468af49625f1bdc99c3965fce4be67", size = 14692407, upload-time = "2026-01-29T11:38:10.836Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/08/91b7a63ee80138a5c2adaef9168977bb15a3499f9beba7d6eaec20e8041f/tket-0.12.16-cp310-abi3-win_amd64.whl", hash = "sha256:b102e31c2f65350fe1a12e6710babba589d58052ad593a1cbe995b17b96f5071", size = 9893558, upload-time = "2026-01-29T11:38:13.432Z" },
 ]
 
 [[package]]
