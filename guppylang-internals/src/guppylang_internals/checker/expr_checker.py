@@ -339,15 +339,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 tensor_ty, node.args, ty, node, self.ctx
             )
             assert len(inst) == 0
-            return (
-                with_loc(
-                    node,
-                    TensorCall(
-                        func=node.func, args=processed_args, tensor_ty=tensor_ty
-                    ),
-                ),
-                subst,
-            )
+            return with_loc(
+                node,
+                TensorCall(func=node.func, args=processed_args, tensor_ty=tensor_ty),
+            ), subst
 
         elif callee := self.ctx.globals.get_instance_func(func_ty, "__call__"):
             return callee.check_call(node.args, ty, node, self.ctx)
@@ -772,12 +767,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             )
             assert len(inst) == 0
 
-            return (
-                with_loc(
-                    node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
-                ),
-                return_ty,
-            )
+            return with_loc(
+                node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
+            ), return_ty
 
         elif f := self.ctx.globals.get_instance_func(ty, "__call__"):
             return f.synthesize_call(node.args, node, self.ctx)
