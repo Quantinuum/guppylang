@@ -8,6 +8,7 @@ from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
+    UnsupportedError,
 )
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -31,9 +32,10 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
 from guppylang_internals.tys.ty import (
+    EnumType,
     Type,
 )
 
@@ -171,7 +173,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
 
         # TODO: not ideal, see `ParsedStructDef.check_instantiate`
         # TODO: temporarily commented, see best way to do it
-        # check_not_recursive(self, ctx)
+        check_not_recursive(self, ctx)
 
         checked_variants: dict[str, EnumVariant[CheckedField]] = {}
         # loop over variants to check their fields
@@ -190,8 +192,15 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
-        # TODO: here
-        raise NotImplementedError
+        check_all_args(self.params, args, self.name, loc)
+        globals = Globals(DEF_STORE.frames[self.id])
+        # TODO: This is quite bad: If we have a cyclic definition this will not
+        #  terminate, so we have to check for cycles in every call to `check`. The
+        #  proper way to deal with this is changing `EnumType` such that it only
+        #  takes a `DefId` instead of a `CheckedEnumDef`. But this will be a bigger
+        #  refactor...
+        checked_def = self.check(globals)
+        return EnumType(args, checked_def)
 
 
 @dataclass(frozen=True)
@@ -250,3 +259,49 @@ def parse_enum_variant(
                 raise GuppyError(err)
 
     return EnumVariant(index, name, variant_fields)
+
+
+def check_not_recursive(defn: ParsedEnumDef, ctx: TypeParsingCtx) -> None:
+    """Throws a user error if the given enum definition is recursive.
+
+    This function temporarily replaces the enum's check_instantiate method with
+    a dummy that raises an error. Then it attempts to parse all variant field
+    types. If any variant references the enum being defined, the dummy method
+    will be called, catching the recursion.
+
+    Args:
+        defn: The parsed enum definition to check for recursion
+        ctx: The type parsing context containing available types
+
+    Raises:
+        GuppyError: If the enum is directly or mutually recursive
+
+    Note:
+        This is a TEMPORARY hacky implementation.
+    """
+    # TODO: The implementation below hijacks the type parsing logic to detect recursive
+    #  enums. This is not great since it repeats the work done during checking. We can
+    #  get rid of this after resolving the todo in `ParsedEnumDef.check_instantiate()`
+
+    def dummy_check_instantiate(
+        args: Sequence[Argument],
+        loc: AstNode | None = None,
+    ) -> Type:
+        """Dummy method that raises an error if called during type parsing."""
+        raise GuppyError(UnsupportedError(loc, "Recursive enums"))
+
+    # Save the original check_instantiate method
+    original = defn.check_instantiate
+
+    # Temporarily replace it with the dummy that raises on recursion
+    object.__setattr__(defn, "check_instantiate", dummy_check_instantiate)
+
+    try:
+        # Attempt to parse all variant field types
+        # Note: defn.variants is a Mapping[str, EnumVariant[UncheckedField]]
+        for variant in defn.variants.values():
+            for field in variant.fields:
+                type_from_ast(field.type_ast, ctx)
+    finally:
+        # Always restore the original method
+        object.__setattr__(defn, "check_instantiate", original)

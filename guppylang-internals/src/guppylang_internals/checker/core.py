@@ -40,6 +40,7 @@ from guppylang_internals.tys.builtin import (
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
+    EnumType,
     ExistentialTypeVar,
     FunctionType,
     InputFlags,
@@ -381,6 +382,8 @@ class Globals:
                 type_defn = tuple_type_def
             case NoneType():
                 type_defn = none_type_def
+            case EnumType():
+                type_defn = ty.defn
             case _:
                 return assert_never(ty)
 
