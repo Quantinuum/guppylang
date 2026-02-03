@@ -24,6 +24,7 @@ from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.enum import CheckedEnumDef, EnumVariant
     from guppylang_internals.definition.struct import CheckedStructDef
     from guppylang_internals.definition.ty import OpaqueTypeDef
     from guppylang_internals.definition.util import CheckedField
@@ -724,8 +725,63 @@ class StructType(ParametrizedTypeBase):
         )
 
 
+@dataclass(frozen=True)
+class EnumType(ParametrizedTypeBase):
+    """An enum (sum/tagged union) type."""
+
+    defn: "CheckedEnumDef"
+
+    @cached_property
+    def variants(self) -> list["EnumVariant[CheckedField]"]:
+        """The variants of this enum type."""
+        from guppylang_internals.definition.enum import EnumVariant
+        from guppylang_internals.definition.util import CheckedField
+        from guppylang_internals.tys.subst import Instantiator
+
+        inst = Instantiator(self.args)
+        return [
+            EnumVariant(
+                variant.index,
+                name,
+                [CheckedField(f.name, f.ty.transform(inst)) for f in variant.fields],
+            )
+            for (name, variant) in self.defn.variants.items()
+        ]
+
+    @cached_property
+    def intrinsically_copyable(self) -> bool:
+        """Whether objects of this type can be implicitly copied.
+
+        An enum is copyable only if ALL payload types in ALL variants are copyable.
+        """
+        return all(all(f.ty.copyable for f in v.fields) for v in self.variants)
+
+    @cached_property
+    def intrinsically_droppable(self) -> bool:
+        """Whether objects of this type can be dropped.
+
+        An enum is droppable only if ALL payload types in ALL variants are droppable.
+        """
+        return all(all(f.ty.droppable for f in v.fields) for v in self.variants)
+
+    def cast(self) -> "Type":
+        return self
+
+    def to_hugr(self, ctx: ToHugrContext) -> ht.Sum:
+        """Computes the Hugr representation of the type."""
+        rows = [[f.ty.to_hugr(ctx) for f in v.fields] for v in self.variants]
+        return ht.Sum(rows)
+
+    def transform(self, transformer: Transformer) -> "Type":
+        return transformer.transform(self) or EnumType(
+            [arg.transform(transformer) for arg in self.args], self.defn
+        )
+
+
 #: The type of parametrized Guppy types.
-ParametrizedType: TypeAlias = FunctionType | TupleType | OpaqueType | StructType
+ParametrizedType: TypeAlias = (
+    FunctionType | TupleType | OpaqueType | StructType | EnumType
+)
 
 
 #: The type of Guppy types.
