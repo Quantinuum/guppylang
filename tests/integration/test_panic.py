@@ -2,6 +2,9 @@ from guppylang import guppy, qubit
 from guppylang.std.builtins import panic, exit, comptime
 from tests.util import compile_guppy
 
+from hugr.ops import Const
+from hugr.std.int import IntVal
+
 
 def test_basic(validate):
     @compile_guppy
@@ -82,3 +85,7 @@ def test_panic_with_signal(validate):
         panic("I panicked with dynamic signal!", s)
 
     validate(main)
+    for node in main.modules[0].nodes():
+        if isinstance(node[1].op, Const) and isinstance(node[1].op.val, IntVal):
+            # Check that we are using custom signals, not the default 1.
+            assert node[1].op.val.v != 1

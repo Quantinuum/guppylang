@@ -2,7 +2,7 @@ import ast
 import copy
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import ClassVar, NoReturn
+from typing import ClassVar, NamedTuple, NoReturn
 
 from hugr import Wire
 
@@ -25,6 +25,11 @@ from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.printing import signature_to_str
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type
+
+
+class OverloadVariant(NamedTuple):
+    func_ty: FunctionType
+    has_var_args: bool
 
 
 @dataclass(frozen=True)
@@ -53,12 +58,12 @@ class OverloadNoMatchError(Error):
 @dataclass(frozen=True)
 class AvailableOverloadsHint(Note):
     func_name: str
-    variants: list[tuple[FunctionType, bool]]
+    variants: list[OverloadVariant]
 
     @property
     def rendered_message(self) -> str:
         return "Available overloads are:\n" + "\n".join(
-            f"  {signature_to_str(self.func_name, sig[0], sig[1])}"
+            f"  {signature_to_str(self.func_name, sig.func_ty, sig.has_var_args)}"
             for sig in self.variants
         )
 
@@ -83,12 +88,12 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
-        available_sigs: list[tuple[FunctionType, bool]] = []
+        available_sigs: list[OverloadVariant] = []
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)
             has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
-            available_sigs.append((defn.ty, has_var_args))
+            available_sigs.append(OverloadVariant(defn.ty, has_var_args))
             with suppress(GuppyError):
                 # check_call may modify args and node,
                 # thus we deepcopy them before passing in the function
@@ -100,12 +105,12 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
-        available_sigs: list[tuple[FunctionType, bool]] = []
+        available_sigs: list[OverloadVariant] = []
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)
             has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
-            available_sigs.append((defn.ty, has_var_args))
+            available_sigs.append(OverloadVariant(defn.ty, has_var_args))
             with suppress(GuppyError):
                 # synthesize_call may modify args and node,
                 # thus we deepcopy them before passing in the function
@@ -119,7 +124,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         args: list[ast.expr],
         node: AstNode,
         ctx: "Context",
-        available_sigs: list[tuple[FunctionType, bool]],
+        available_sigs: list[OverloadVariant],
         return_ty: Type | None = None,
     ) -> NoReturn:
         if args and not return_ty:
