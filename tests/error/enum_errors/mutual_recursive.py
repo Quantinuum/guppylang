@@ -15,7 +15,7 @@ class EnumA:
 @guppy.enum
 class EnumB:
     """Second enum in mutual recursion - should fail."""
-    Variant1 = {"value": "EnumA"}
+    Variant1 = {"value": EnumA}
 
 
 # This should raise an error when compiling EnumB
