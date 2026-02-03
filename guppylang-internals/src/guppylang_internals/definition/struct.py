@@ -25,7 +25,7 @@ from guppylang_internals.definition.custom import (
     DefaultCallChecker,
 )
 from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.diagnostic import Error, Help
+from guppylang_internals.diagnostic import Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
@@ -46,6 +46,7 @@ if sys.version_info >= (3, 12):
 from guppylang_internals.definition.util import (
     CheckedField,
     DuplicateFieldError,
+    NonGuppyMethodError,
     UncheckedField,
     extract_generic_params,
     parse_py_class,
@@ -58,25 +59,6 @@ class FieldFormHint(Help):
         "Struct can contain only fields of the form `name: Type` "
         "or `@guppy` annotated methods"
     )
-
-
-@dataclass(frozen=True)
-class NonGuppyMethodError(Error):
-    title: ClassVar[str] = "Not a Guppy method"
-    span_label: ClassVar[str] = (
-        "Method `{method_name}` of struct `{struct_name}` is not a Guppy function"
-    )
-    struct_name: str
-    method_name: str
-
-    @dataclass(frozen=True)
-    class Suggestion(Help):
-        message: ClassVar[str] = (
-            "Add a `@guppy` annotation to turn `{method_name}` into a Guppy method"
-        )
-
-    def __post_init__(self) -> None:
-        self.add_sub_diagnostic(NonGuppyMethodError.Suggestion(None))
 
 
 @dataclass(frozen=True)
@@ -117,7 +99,9 @@ class RawStructDef(TypeDef, ParsableDef):
                         )
                     used_func_names[name] = node
                     if name in used_field_names:
-                        raise GuppyError(DuplicateFieldError(node, self.name, name))
+                        raise GuppyError(
+                            DuplicateFieldError(node, self.name, name, "Struct")
+                        )
                 # Struct fields are declared via annotated assignments without value
                 case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:
                     if node.value:
@@ -126,7 +110,9 @@ class RawStructDef(TypeDef, ParsableDef):
                         )
                     if field_name in used_field_names:
                         raise GuppyError(
-                            DuplicateFieldError(node.target, self.name, field_name)
+                            DuplicateFieldError(
+                                node.target, self.name, field_name, "Struct"
+                            )
                         )
                     fields.append(UncheckedField(field_name, node.annotation))
                     used_field_names.add(field_name)

@@ -22,6 +22,7 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
     CheckedField,
     DuplicateFieldError,
+    NonGuppyMethodError,
     UncheckedField,
     extract_generic_params,
     parse_py_class,
@@ -34,8 +35,8 @@ from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
 from guppylang_internals.tys.ty import (
-    Type,
     EnumType,
+    Type,
 )
 
 
@@ -47,25 +48,6 @@ class DuplicateVariantError(Error):
     )
     class_name: str
     variant_name: str
-
-
-@dataclass(frozen=True)
-class NonGuppyMethodError(Error):
-    title: ClassVar[str] = "Not a Guppy method"
-    span_label: ClassVar[str] = (
-        "Method `{method_name}` of enum `{enum_name}` is not a Guppy function"
-    )
-    enum_name: str
-    method_name: str
-
-    @dataclass(frozen=True)
-    class Suggestion(Help):
-        message: ClassVar[str] = (
-            "Add a `@guppy` annotation to turn `{method_name}` into a Guppy method"
-        )
-
-    def __post_init__(self) -> None:
-        self.add_sub_diagnostic(NonGuppyMethodError.Suggestion(None))
 
 
 @dataclass(frozen=True)
