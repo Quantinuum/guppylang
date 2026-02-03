@@ -99,7 +99,7 @@ def result(tag: str, value):
     ),
     has_var_args=True,
 )
-def _panic(message: str, *args) -> None: ...
+def _panic(msg: str, *args) -> None: ...
 
 
 @custom_function(
@@ -114,11 +114,11 @@ def _panic(message: str, *args) -> None: ...
     ),
     has_var_args=True,
 )
-def _panic_with_signal(message: str, signal: int, *args) -> None: ...
+def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
 
 
 @guppy.overload(_panic, _panic_with_signal)
-def panic(message: str, signal: int = 1, *args):
+def panic(msg: str, signal: int = 1, *args):
     """Panic, throwing an error with the given message (and signal if given), and
     immediately exit the program, aborting any subsequent shots.
 
@@ -153,7 +153,7 @@ def panic(message: str, signal: int = 1, *args):
     ),
     has_var_args=True,
 )
-def _exit(message: str, *args) -> None: ...
+def _exit(msg: str, *args) -> None: ...
 
 
 @custom_function(
@@ -168,11 +168,11 @@ def _exit(message: str, *args) -> None: ...
     ),
     has_var_args=True,
 )
-def _exit_with_signal(message: str, signal: int, *args) -> None: ...
+def _exit_with_signal(msg: str, signal: int, *args) -> None: ...
 
 
 @guppy.overload(_exit, _exit_with_signal)
-def exit(message: str, signal: int = 1, *args):
+def exit(msg: str, signal: int = 1, *args):
     """Exit, reporting the given message (and signal if given), and immediately exit the
     program. Subsequent shots may still run.
 
