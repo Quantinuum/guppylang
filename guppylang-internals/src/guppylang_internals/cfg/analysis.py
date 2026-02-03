@@ -11,7 +11,7 @@ T = TypeVar("T")
 Result = dict[BB, T]
 
 
-class Analysis(Generic[T], ABC):
+class Analysis(ABC, Generic[T]):
     """Abstract base class for a program analysis pass over the lattice `T`"""
 
     def eq(self, t1: T, t2: T, /) -> bool:
@@ -39,7 +39,7 @@ class Analysis(Generic[T], ABC):
         """
 
 
-class ForwardAnalysis(Generic[T], Analysis[T], ABC):
+class ForwardAnalysis(Analysis[T], ABC, Generic[T]):
     """Abstract base class for a program analysis pass running in forward direction."""
 
     @abstractmethod
@@ -71,7 +71,7 @@ class ForwardAnalysis(Generic[T], Analysis[T], ABC):
         return vals_before
 
 
-class BackwardAnalysis(Generic[T], Analysis[T], ABC):
+class BackwardAnalysis(Analysis[T], ABC, Generic[T]):
     """Abstract base class for a program analysis pass running in backward direction."""
 
     @abstractmethod
@@ -105,7 +105,7 @@ class BackwardAnalysis(Generic[T], Analysis[T], ABC):
 LivenessDomain = dict[VId, BB]
 
 
-class LivenessAnalysis(Generic[VId], BackwardAnalysis[LivenessDomain[VId]]):
+class LivenessAnalysis(BackwardAnalysis[LivenessDomain[VId]], Generic[VId]):
     """Live variable analysis pass.
 
     Computes the variables that are live before the execution of each BB. The analysis
@@ -143,7 +143,7 @@ class LivenessAnalysis(Generic[VId], BackwardAnalysis[LivenessDomain[VId]]):
 
     def apply_bb(self, live_after: LivenessDomain[VId], bb: BB) -> LivenessDomain[VId]:
         stats = self.stats[bb]
-        return {x: bb for x in stats.used} | {
+        return dict.fromkeys(stats.used, bb) | {
             x: b for x, b in live_after.items() if x not in stats.assigned
         }
 
@@ -159,7 +159,7 @@ MaybeAssignmentDomain = set[VId]
 AssignmentDomain = tuple[DefAssignmentDomain[VId], MaybeAssignmentDomain[VId]]
 
 
-class AssignmentAnalysis(Generic[VId], ForwardAnalysis[AssignmentDomain[VId]]):
+class AssignmentAnalysis(ForwardAnalysis[AssignmentDomain[VId]], Generic[VId]):
     """Assigned variable analysis pass.
 
     Computes the set of variables (i.e. `V`s) that are definitely assigned at the start

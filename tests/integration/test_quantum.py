@@ -190,15 +190,15 @@ def test_barrier_array(validate):
     @no_type_check
     def test() -> None:
         qs = array(qubit() for _ in range(4))
+        q.h(qs[0])
         q.h(qs[1])
+        barrier(qs[0], qs[1], qs[2])
+        barrier(qs[0])
         q.h(qs[2])
-        barrier(qs[1], qs[2], qs[3])
-        barrier(qs[1])
-        q.h(qs[3])
 
-        q.cx(qs[1], qs[2])
-        barrier(qs[2], qs[3])
-        q.cx(qs[3], qs[4])
+        q.cx(qs[0], qs[1])
+        barrier(qs[1], qs[2])
+        q.cx(qs[2], qs[3])
         barrier(qs)
         discard_array(qs)
 

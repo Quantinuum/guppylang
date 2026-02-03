@@ -39,14 +39,14 @@ def _mock_meta(cls: type) -> type:
     return MockMeta
 
 
-class float(builtins.float, metaclass=_mock_meta(builtins.float)):  # type: ignore[misc]
+class float(builtins.float, metaclass=_mock_meta(builtins.float)):  # type: ignore[metaclass]
     def __new__(cls, x: Any = 0.0, /) -> Any:
         if isinstance(x, GuppyObject):
             return x.__float__()
         return builtins.float(x)
 
 
-class int(builtins.int, metaclass=_mock_meta(builtins.int)):  # type: ignore[misc]
+class int(builtins.int, metaclass=_mock_meta(builtins.int)):  # type: ignore[metaclass]
     def __new__(cls, x: Any = 0, /, *args: Any, **kwargs: Any) -> Any:
         if isinstance(x, GuppyObject):
             return x.__int__(*args, **kwargs)

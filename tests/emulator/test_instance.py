@@ -5,13 +5,12 @@ from __future__ import annotations
 import datetime
 from unittest.mock import Mock, patch
 
+from guppylang.emulator.instance import EmulatorInstance
+from guppylang.emulator.result import EmulatorResult
 from selene_depolarizing_error_model_plugin import DepolarizingPlugin
 from selene_sim import IdealErrorModel, NoEventHook, Quest, SimpleRuntime, Stim
 from selene_sim.backends.bundled_simulators import Coinflip
 from selene_soft_rz_runtime_plugin import SoftRZRuntimePlugin
-
-from guppylang.emulator.instance import EmulatorInstance
-from guppylang.emulator.result import EmulatorResult
 
 
 def test_emulator_instance_init():

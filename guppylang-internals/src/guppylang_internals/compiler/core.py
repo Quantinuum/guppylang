@@ -375,7 +375,7 @@ class DFContainer:
         ctx: CompilerContext,
         locals: CompiledLocals | None = None,
     ) -> None:
-        generic_builder = cast(DfBase[ops.DfParentOp], builder)
+        generic_builder = cast("DfBase[ops.DfParentOp]", builder)
         if locals is None:
             locals = {}
         self.builder = generic_builder

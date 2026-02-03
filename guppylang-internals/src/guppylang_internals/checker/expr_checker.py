@@ -21,6 +21,7 @@ can be used to infer a type for an expression.
 """
 
 import ast
+import copy
 import sys
 import traceback
 from collections.abc import Sequence
@@ -235,7 +236,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if actual := get_type_opt(expr):
             expr, subst, inst = check_type_against(actual, ty, expr, self.ctx, kind)
             if inst:
-                expr = with_loc(expr, TypeApply(value=expr, tys=inst))
+                expr = with_loc(expr, TypeApply(expr, inst))
             return with_type(ty.substitute(subst), expr), subst
 
         # When checking against a variable, we have to synthesize
@@ -371,7 +372,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Apply instantiation of quantified type variables
         if inst:
-            node = with_loc(node, TypeApply(value=node, inst=inst))
+            node = with_loc(node, TypeApply(node, inst))
 
         return node, subst
 
@@ -476,6 +477,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_Attribute(self, node: ast.Attribute) -> tuple[ast.expr, Type]:
         from guppylang.defs import GuppyDefinition
+
         from guppylang_internals.engine import ENGINE
 
         # A `value.attr` attribute access. Unfortunately, the `attr` is just a string,
@@ -1179,19 +1181,25 @@ def check_call(
     #  However the bad case, e.g. `x: int = foo(foo(...foo(?)...))`, shouldn't be common
     #  in practice. Can we do better than that?
 
-    # First, try to synthesize
-    res: tuple[Type, Inst] | None = None
+    # synthesize_call may modify args and node in place,
+    # hence we deepcopy them before passing in the function
+    node_copy = copy.deepcopy(node)
+    inputs_copy = copy.deepcopy(inputs)
+
     try:
         inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx)
-        res = synth, inst
-    except GuppyTypeInferenceError:
-        pass
-    if res is not None:
-        synth, inst = res
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
-        return inputs, subst, inst
+        else:
+            return inputs, subst, inst
+    except GuppyTypeInferenceError:
+        pass
+
+    # Restore the state of these values from before they were potentially
+    # modified by `synthesize_call`.
+    inputs = inputs_copy
+    node = node_copy
 
     # If synthesis fails, we try again, this time also using information from the
     # expected return type
@@ -1280,7 +1288,7 @@ def instantiate_poly(node: ast.expr, ty: FunctionType, inst: Inst) -> ast.expr:
             assert full_ty.params == ty.params
             node.func = instantiate_poly(node.func, full_ty, inst)
         else:
-            node = with_loc(node, TypeApply(value=with_type(ty, node), inst=inst))
+            node = with_loc(node, TypeApply(with_type(ty, node), inst))
         return with_type(ty.instantiate(inst), node)
     return with_type(ty, node)
 
@@ -1406,7 +1414,7 @@ def python_value_to_guppy_type(
             ]
             if any(ty is None for ty in tys):
                 return None
-            return TupleType(cast(list[Type], tys))
+            return TupleType(cast("list[Type]", tys))
         case list():
             return _python_list_to_guppy_type(v, node, globals, type_hint)
         case None:

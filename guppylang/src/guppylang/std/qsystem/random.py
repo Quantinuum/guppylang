@@ -39,7 +39,7 @@ class RNG:
     """Random number generator."""
 
     @guppy  # type: ignore[misc] # Unsupported decorated constructor type; Self argument missing for a non-static method (or an invalid type for self)
-    def __new__(seed: int) -> "RNG":
+    def __new__(seed: int) -> "RNG":  # noqa: PYI034
         """Create a new random number generator using a seed."""
         return _new_rng_context(seed).unwrap()
 

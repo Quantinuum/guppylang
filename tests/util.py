@@ -6,9 +6,8 @@ from typing import TYPE_CHECKING
 from guppylang.decorator import custom_guppy_decorator, guppy
 
 if TYPE_CHECKING:
-    from hugr.package import Package, PackagePointer
-
     from guppylang.defs import GuppyFunctionDefinition
+    from hugr.package import Package, PackagePointer
 
 
 @custom_guppy_decorator

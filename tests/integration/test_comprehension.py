@@ -227,9 +227,7 @@ def test_linear_next_nonlinear_iter(validate):
 
 def test_nonlinear_next_linear_iter(validate):
     @custom_type(
-        tys.Opaque(
-            extension="prelude", id="qubit", args=[], bound=tys.TypeBound.Linear
-        ),
+        tys.Qubit,
         copyable=False,
         droppable=False,
     )

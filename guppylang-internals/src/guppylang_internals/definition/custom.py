@@ -138,7 +138,7 @@ class RawCustomFunctionDef(ParsableDef):
         """
         from guppylang_internals.definition.function import parse_py_func
 
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        func_ast, _docstring = parse_py_func(self.python_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         sig = self.signature or self._get_signature(func_ast, globals)
@@ -486,7 +486,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
             for res in result
         ]
         return CallReturnWires(
-            regular_returns=converted_result,
+            regular_returns=converted_result,  # type: ignore[arg-type]
             inout_returns=[],
         )
 

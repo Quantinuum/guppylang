@@ -32,7 +32,7 @@ class Substituter(Transformer):
         self.subst = subst
 
     @functools.singledispatchmethod
-    def transform(self, ty: Any) -> Any | None:  # type: ignore[override]
+    def transform(self, ty: Any) -> Any | None:
         return None
 
     @transform.register
@@ -56,7 +56,7 @@ class Instantiator(Transformer):
         self.inst = inst
 
     @functools.singledispatchmethod
-    def transform(self, ty: Any) -> Any | None:  # type: ignore[override]
+    def transform(self, ty: Any) -> Any | None:
         return None
 
     @transform.register

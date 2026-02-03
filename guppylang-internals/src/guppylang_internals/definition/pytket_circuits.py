@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 import hugr.build.function as hf
+from guppylang.defs import GuppyDefinition
 from hugr import Node, Wire, envelope, ops, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
@@ -10,7 +11,6 @@ from hugr.envelope import EnvelopeConfig
 from hugr.std.float import FLOAT_T
 from pytket.circuit import Circuit
 
-from guppylang.defs import GuppyDefinition
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.errors.comptime_errors import PytketSignatureMismatch
@@ -230,7 +230,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                         )
                         lex_params = list(unpack_result)
                     param_order = cast(
-                        list[str], hugr_func.metadata["TKET1.input_parameters"]
+                        "list[str]", hugr_func.metadata["TKET1.input_parameters"]
                     )
                     lex_names = sorted(param_order)
                     name_to_param = dict(zip(lex_names, lex_params, strict=True))
@@ -378,7 +378,7 @@ def _signature_from_circuit(
     from guppylang.std.quantum import qubit
 
     assert isinstance(qubit, GuppyDefinition)
-    qubit_ty = cast(TypeDef, qubit.wrapped).check_instantiate([])
+    qubit_ty = cast("TypeDef", qubit.wrapped).check_instantiate([])
 
     angle_defn = ENGINE.get_checked(angle.id)  # type: ignore[attr-defined]
     assert isinstance(angle_defn, TypeDef)
