@@ -63,8 +63,8 @@ jobs:
         with:
           name: build-guppylang-internals-sdist
           path: |
-            dist/guppylang-internals-*.tar.gz
-            dist/guppylang-internals-*.whl
+            dist/guppylang_internals-*.tar.gz
+            dist/guppylang_internals-*.whl
 
       - name: Upload the built guppylang package as an artifact
         if: ${{ steps.check-tag.outputs.run == 'true' }}
