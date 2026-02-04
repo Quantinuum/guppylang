@@ -696,11 +696,9 @@ def test_take_put(validate):
 
 # https://github.com/CQCL/hugr/issues/1826
 def test_array_const(validate, run_int_fn):
-    bools = [True, False]
-
     @guppy
     def main() -> int:
-        bs = comptime(bools)
+        bs = comptime([True, False])
         return int(bs[0])
 
     run_int_fn(main, expected=1)
