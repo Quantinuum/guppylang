@@ -82,7 +82,7 @@ jobs:
         if: ${{ steps.check-tag.outputs.run == 'true' }}
         run: |
           echo "Testing the newly built wheels..."
-          uv run -f dist --with guppylang guppylang-internals --refresh-package guppylang --refresh-package guppylang-internals --no-project -- python -c "import guppylang; import guppylang_internals"
+          uv run -f dist --with guppylang --with guppylang-internals --refresh-package guppylang --refresh-package guppylang-internals --no-project -- python -c "import guppylang; import guppylang_internals; print('Smoke test done')"
           uvx twine check --strict dist/*
 
   publish:
