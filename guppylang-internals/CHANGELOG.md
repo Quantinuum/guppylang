@@ -3,6 +3,28 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.28.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.27.0...guppylang-internals-v0.28.0) (2026-02-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Tket is now a non-optional dependency. Most systems already have this installed, rerunning the package manager should fix any issues.
+
+### Features
+
+* Label `FuncDefn`s with qualified names in HUGR ([#1452](https://github.com/Quantinuum/guppylang/issues/1452)) ([a92f274](https://github.com/Quantinuum/guppylang/commit/a92f274a14668b7ac88713a69a6902aca62d4483))
+* Make tket a non-optional dependency ([#1440](https://github.com/Quantinuum/guppylang/issues/1440)) ([4af4360](https://github.com/Quantinuum/guppylang/commit/4af4360495c9d6155e69310d5bfb8f22953fc1ff))
+* use hugr used_extensions in engine.py ([#1451](https://github.com/Quantinuum/guppylang/issues/1451)) ([c16b96b](https://github.com/Quantinuum/guppylang/commit/c16b96bd5dc6ab4df13e3242ffe55279b317dd7e))
+
+
+### Bug Fixes
+
+* Add a copy before fallable `synthesize_call` call  ([#1460](https://github.com/Quantinuum/guppylang/issues/1460)) ([84137c3](https://github.com/Quantinuum/guppylang/commit/84137c39b7e8ca24142ffe73afcce6a1bcceffe2))
+* Raise type inference error when not all function argument types could be resolved. ([#1439](https://github.com/Quantinuum/guppylang/issues/1439)) ([4120d59](https://github.com/Quantinuum/guppylang/commit/4120d590917245258d69ceb07c763c7633c7c5f8)), closes [#1437](https://github.com/Quantinuum/guppylang/issues/1437)
+* Remove leading tab characters from diagnostics during rendering ([#1447](https://github.com/Quantinuum/guppylang/issues/1447)) ([a1cf792](https://github.com/Quantinuum/guppylang/commit/a1cf792deaf90e31721505ac17fd4911737e6c26)), closes [#1101](https://github.com/Quantinuum/guppylang/issues/1101)
+* Support comptime expressions in subscript assignments ([#1433](https://github.com/Quantinuum/guppylang/issues/1433)) ([108c104](https://github.com/Quantinuum/guppylang/commit/108c104d55ecb052d4d7c363062f444efc689724)), closes [#1363](https://github.com/Quantinuum/guppylang/issues/1363)
+* Support more cases of comptime subscripts ([#1436](https://github.com/Quantinuum/guppylang/issues/1436)) ([9aefdcc](https://github.com/Quantinuum/guppylang/commit/9aefdcc50b142acf842cf60314b5bccc49e01614)), closes [#1435](https://github.com/Quantinuum/guppylang/issues/1435)
+
 ## [0.27.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.26.0...guppylang-internals-v0.27.0) (2026-01-08)
 
 
