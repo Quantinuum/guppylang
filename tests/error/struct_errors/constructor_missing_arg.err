@@ -1,8 +1,8 @@
-Error: Not enough arguments (at $FILE:15:12)
+Error: Not enough arguments (at $FILE:11:12)
    | 
-13 | @guppy(module)
-14 | def main() -> None:
-15 |     MyStruct()
+ 9 | @guppy
+10 | def main() -> None:
+11 |     MyStruct()
    |             ^^ Missing argument (expected 1, got 0)
 
 Note: Function signature is `int -> MyStruct`

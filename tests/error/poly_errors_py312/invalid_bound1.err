@@ -1,0 +1,8 @@
+Error: Expected a type (at $FILE:5:12)
+  | 
+3 | 
+4 | @guppy
+5 | def main[x: 42]() -> None:
+  |             ^^ Expected a type, got value of type `nat`
+
+Guppy compilation failed due to 1 previous error

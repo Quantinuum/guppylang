@@ -1,10 +1,10 @@
-Error: Linearity violation (at $FILE:15:7)
+Error: Drop violation (at $FILE:11:7)
    | 
-13 | @guppy(module)
-14 | def test() -> None:
-15 |    foo(qubit())
-   |        ^^^^^^^ Value with linear type `qubit` would be leaked after `foo`
-   |                returns
+ 9 | @guppy
+10 | def test() -> None:
+11 |    foo(qubit())
+   |        ^^^^^^^ Value with non-droppable type `qubit` would be leaked after
+   |                `foo` returns
 
 Help: Consider assigning the value to a local variable before passing it to
 `foo`

@@ -1,0 +1,17 @@
+Error: Copy violation (at $FILE:11:17)
+   | 
+ 9 |    xs = array(1, 2, 3)
+10 |    ys = xs
+11 |    result("foo", xs)
+   |                  ^^ Variable `xs` with non-copyable type `array[int, 3]` cannot
+   |                     be borrowed ...
+
+Note:
+   | 
+ 9 |    xs = array(1, 2, 3)
+10 |    ys = xs
+   |         -- Variable `xs` already moved here
+
+Help: Consider copying `xs` instead of moving it: `xs.copy()`
+
+Guppy compilation failed due to 1 previous error

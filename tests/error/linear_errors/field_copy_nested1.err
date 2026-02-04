@@ -1,12 +1,15 @@
-Error: Linearity violation (at $FILE:27:11)
+Error: Copy violation (at $FILE:21:11)
    | 
-25 |     measure(s.q)
-26 |     s.q = s.x.q
-27 |     return s
-   |            ^ Field `s.x.q` with linear type `qubit` cannot be returned
-   |              ...
+19 |     measure(s.q)
+20 |     s.q = s.x.q
+21 |     return s
+   |            ^ Field `s.x.q` with non-copyable type `qubit` cannot be
+   |              returned ...
+
+Note:
    | 
-26 |     s.q = s.x.q
-   |           ----- since it was already moved here
+19 |     measure(s.q)
+20 |     s.q = s.x.q
+   |           ----- Field `s.x.q` already moved here
 
 Guppy compilation failed due to 1 previous error

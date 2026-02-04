@@ -1,0 +1,8 @@
+Error: Variable not defined (at $FILE:19:14)
+   | 
+17 |         bar = foo
+18 |     else:
+19 |         bar = bar
+   |               ^^^ `bar` is not defined
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:16:4)
+   | 
+14 | @guppy
+15 | def main(s: MyStruct[int]) -> None:
+16 |     s.foo[float]()
+   |     ^ Expected argument of type `MyStruct[float]`, got
+   |       `MyStruct[int]`
+
+Guppy compilation failed due to 1 previous error

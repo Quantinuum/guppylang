@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:11:12)
+   | 
+ 9 | 
+10 | @guppy
+11 | def main(x: MyStruct[bool, 42]) -> None:
+   |             ^^^^^^^^^^^^^^^^^^ Expected argument of type `bool`, got `nat`
+
+Guppy compilation failed due to 1 previous error

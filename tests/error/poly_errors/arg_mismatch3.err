@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:17:11)
+Error: Type mismatch (at $FILE:14:11)
    | 
-15 | @guppy(module)
-16 | def main(x: array[int, 42], y: array[int, 43]) -> None:
-17 |     foo(x, y)
+12 | @guppy
+13 | def main(x: array[int, 42], y: array[int, 43]) -> None:
+14 |     foo(x, y)
    |            ^ Expected argument of type `array[int, 42]`, got `array[int,
    |              43]`
 

@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:14:12)
+   | 
+12 | @guppy
+13 | def main() -> None:
+14 |     foo(42, True)
+   |             ^^^^ Expected argument of type `int`, got `bool`
+
+Guppy compilation failed due to 1 previous error

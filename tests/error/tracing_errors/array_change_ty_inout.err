@@ -1,0 +1,14 @@
+Error: Error in comptime function return (at $FILE:6:0)
+  | 
+4 | 
+5 | @guppy.comptime
+6 | def test(xs: array[int, 10]) -> None:
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | ...
+9 |         xs.append(float(i))
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument `xs` is borrowed, so it is implicitly returned to the caller. Expected
+it to have type `array[int, 10]`, but got `array[float, 10]`.
+
+Guppy compilation failed due to 1 previous error

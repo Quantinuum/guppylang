@@ -1,9 +1,9 @@
-Error: Borrow shadowed (at $FILE:13:8)
-   | 
-11 | def test(q: qubit, b: bool) -> None:
-12 |     if b:
-13 |         q = qubit()
-   |         ^ Assignment shadows borrowed argument `q`
+Error: Borrow shadowed (at $FILE:8:8)
+  | 
+6 | def test(q: qubit, b: bool) -> None:
+7 |     if b:
+8 |         q = qubit()
+  |         ^ Assignment shadows borrowed argument `q`
 
 Help: Consider assigning to a different name
 

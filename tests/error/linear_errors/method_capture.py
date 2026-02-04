@@ -1,27 +1,21 @@
-import guppylang.std.quantum as quantum
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from guppylang.std.builtins import owned
 from guppylang.std.quantum import qubit
 
 
-module = GuppyModule("test")
-module.load_all(quantum)
-
-
-@guppy.struct(module)
+@guppy.struct
 class Struct:
     q: qubit
 
-    @guppy(module)
+    @guppy
     def foo(self: "Struct @owned") -> "Struct":
         return self
 
 
-@guppy(module)
+@guppy
 def foo(s: Struct @owned) -> Struct:
     f = s.foo
     return f()
 
 
-module.compile()
+foo.compile()

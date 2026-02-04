@@ -1,12 +1,15 @@
-Error: Array comprehension with nonstatic size (at $FILE:13:9)
-   | 
-11 | @guppy(module)
-12 | def main(n: int) -> None:
-13 |     array(i for i in range(n))
-   |          ^^^^^^^^^^^^^^^^^^^^^ Cannot infer the size of this array comprehension ...
-   | 
-13 |     array(i for i in range(n))
-   |                      -------- since the number of elements yielded by this iterator is
-   |                               not statically known
+Error: Array comprehension with nonstatic size (at $FILE:7:9)
+  | 
+5 | @guppy
+6 | def main(n: int) -> None:
+7 |     array(i for i in range(n))
+  |          ^^^^^^^^^^^^^^^^^^^^^ Cannot infer the size of this array comprehension ...
+
+Note:
+  | 
+6 | def main(n: int) -> None:
+7 |     array(i for i in range(n))
+  |                      -------- since the number of elements yielded by this iterator is not
+  |                               statically known
 
 Guppy compilation failed due to 1 previous error

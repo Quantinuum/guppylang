@@ -1,0 +1,12 @@
+Error: Drop violation (at $FILE:10:12)
+   | 
+ 8 | @no_type_check
+ 9 | def main() -> None:
+10 |     barrier(qubit())
+   |             ^^^^^^^ Value with non-droppable type `qubit` would be leaked after
+   |                     the function returns
+
+Help: Consider assigning the value to a local variable before passing it to the
+function
+
+Guppy compilation failed due to 1 previous error

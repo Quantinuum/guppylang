@@ -1,0 +1,12 @@
+  x Optional longer message describing the error.
+   ,-[4:12]
+ 3 | 
+ 4 | def foo(x: blah) -> None:
+   :            ^^|^
+   :              `-- Primary label giving some source-dependent context
+ 5 |     print('function')
+ 6 |     x = bar() + baz
+   :         ^^|^^
+   :           `-- Sub-diagnostic label for additional context
+   `----
+  help: Additional sub-diagnostic message without span

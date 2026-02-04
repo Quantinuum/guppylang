@@ -1,8 +1,8 @@
-Error: Non-parametric type (at $FILE:10:0)
-   | 
- 8 | module = GuppyModule("test")
- 9 | 
-10 | guppy.extern("x", ty="float[int]", module=module)
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type `float` is not parametric
+Error: Non-parametric type (at $FILE:3:0)
+  | 
+1 | from guppylang.decorator import guppy
+2 | 
+3 | x = guppy._extern("x", ty="float[int]")
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type `float` is not parametric
 
 Guppy compilation failed due to 1 previous error

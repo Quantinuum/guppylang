@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 9, in <module>
+    test.compile()
+  File "$FILE", line 6, in test
+    return (1, 2) + x
+guppylang_internals.error.GuppyComptimeError: Operator not defined: Binary operator `+` not defined for `(int, int)` and `int`

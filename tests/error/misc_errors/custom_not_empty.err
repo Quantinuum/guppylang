@@ -1,8 +1,8 @@
-Error: Unexpected function body (at $FILE:9:4)
+Error: Unexpected function body (at $FILE:6:4)
   | 
-7 | @guppy.custom(module=module)
-8 | def foo(x: int) -> int:
-9 |     return x
+4 | @custom_function()
+5 | def foo(x: int) -> int:
+6 |     return x
   |     ^^^^^^^^ Body of custom function `foo` must be empty
 
 Guppy compilation failed due to 1 previous error

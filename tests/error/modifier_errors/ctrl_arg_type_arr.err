@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:7:17)
+  | 
+5 | def test() -> None:
+6 |     x = array(1, 2, 3)
+7 |     with control(x):
+  |                  ^ Expected expression of type `array[qubit, ?n]`, got
+  |                    `array[int, 3]`
+
+Guppy compilation failed due to 1 previous error

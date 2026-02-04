@@ -1,9 +1,9 @@
-Error: Not truthy (at $FILE:12:17)
-   | 
-10 | @guppy(module)
-11 | def foo(x: bool, y: NonBool) -> bool:
-12 |     return x and y
-   |                  ^ Expression of type `NonBool` is not truthy
+Error: Not truthy (at $FILE:7:17)
+  | 
+5 | @guppy
+6 | def foo(x: bool, y: NonBool) -> bool:
+7 |     return x and y
+  |                  ^ Expression of type `NonBool` is not truthy
 
 Help: Implement missing method: `__bool__: NonBool -> bool`
 

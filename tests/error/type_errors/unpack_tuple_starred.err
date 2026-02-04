@@ -4,7 +4,7 @@ Error: Invalid starred unpacking (at $FILE:6:8)
 5 | def foo() -> int:
 6 |     a, *bs = 1, 2, True
   |         ^^ Expression of type `(int, bool)` cannot be collected into a
-  |            starred assignment since the yielded items have
-  |            different types
+  |            starred assignment since the yielded items have different
+  |            types
 
 Guppy compilation failed due to 1 previous error

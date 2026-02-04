@@ -1,0 +1,9 @@
+Error: Invalid const variable (at $FILE:13:0)
+   | 
+11 | 
+12 | 
+13 | X = guppy.const_var("X", "MyType")
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Const variable `X` is not allowed have non-droppable type
+   |                                    `MyType`
+
+Guppy compilation failed due to 1 previous error

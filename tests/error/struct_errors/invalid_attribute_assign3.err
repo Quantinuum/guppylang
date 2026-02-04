@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:15:6)
+Error: Type mismatch (at $FILE:12:6)
    | 
-13 | @guppy(module)
-14 | def foo(s: MyStruct) -> None:
-15 |     s.x, a = (1, 2), 3
+10 | @guppy
+11 | def foo(s: MyStruct) -> None:
+12 |     s.x, a = (1, 2), 3
    |       ^ Cannot assign expression of type `(int, int)` to field `x`
    |         of type `int`
 

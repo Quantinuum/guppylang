@@ -1,8 +1,8 @@
-Error: Unsupported (at $FILE:15:8)
-   | 
-13 | @guppy.struct(module)
-14 | class StructB:
-15 |     y: "StructA"
-   |         ^^^^^^^ Recursive structs are not supported
+Error: Unsupported (at $FILE:6:13)
+  | 
+4 | @guppy.struct
+5 | class StructA:
+6 |     x: "list[StructB]"
+  |              ^^^^^^^ Recursive structs are not supported
 
 Guppy compilation failed due to 1 previous error

@@ -1,0 +1,9 @@
+Error: Expected a droppable type (at $FILE:15:12)
+   | 
+13 | @guppy
+14 | def main() -> None:
+15 |     f = foo[qubit]
+   |             ^^^^^ Expected a droppable type, got type `qubit` which is not
+   |                   implicitly droppable
+
+Guppy compilation failed due to 1 previous error

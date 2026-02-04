@@ -1,11 +1,15 @@
-Error: Linearity violation (at $FILE:24:21)
+Error: Drop violation (at $FILE:19:21)
    | 
-22 | @guppy(module)
-23 | def foo(qs: list[MyStruct] @owned) -> list[qubit]:
-24 |     return [s.q2 for s in qs if bar(s.q1)]
-   |                      ^ Field `s.q2` with linear type `qubit` may be leaked ...
+17 | @guppy
+18 | def foo(qs: list[MyStruct] @owned) -> list[qubit]:
+19 |     return [s.q2 for s in qs if bar(s.q1)]
+   |                      ^ Field `s.q2` with non-droppable type `qubit` may be leaked
+   |                        ...
+
+Note:
    | 
-24 |     return [s.q2 for s in qs if bar(s.q1)]
+18 | def foo(qs: list[MyStruct] @owned) -> list[qubit]:
+19 |     return [s.q2 for s in qs if bar(s.q1)]
    |                                 --------- if this expression is `False`
 
 Guppy compilation failed due to 1 previous error

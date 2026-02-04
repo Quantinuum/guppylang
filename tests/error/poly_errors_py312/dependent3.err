@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:17:11)
+   | 
+15 | @guppy
+16 | def main() -> Eq[bool, True, False]:
+17 |     return eq_refl()
+   |            ^^^^^^^^^ Expected expression of type `Eq[bool, True, False]`, got
+   |                      `Eq[?T, ?x, ?x]`
+
+Guppy compilation failed due to 1 previous error

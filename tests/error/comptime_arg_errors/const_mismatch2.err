@@ -1,0 +1,8 @@
+Error: Value mismatch (at $FILE:12:11)
+   | 
+10 | @guppy
+11 | def main(n: nat @ comptime) -> None:
+12 |     foo[n](42)
+   |            ^^ Expected constant `n`, got `42`
+
+Guppy compilation failed due to 1 previous error

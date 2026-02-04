@@ -1,0 +1,8 @@
+Error: Non-parametric type (at $FILE:12:19)
+   | 
+10 | class Foo(Generic[T]):
+11 |     @guppy
+12 |     def foo(self: "Self[int]") -> None:
+   |                    ^^^^^^^^^ Type `Self` is not parametric
+
+Guppy compilation failed due to 1 previous error

@@ -1,9 +1,9 @@
-Error: Too many arguments (at $FILE:12:28)
-   | 
-10 | @guppy(module)
-11 | def main() -> int:
-12 |     return (foo, foo)(1, 2, 3)
-   |                             ^ Unexpected argument (expected 2, got 3)
+Error: Too many arguments (at $FILE:9:28)
+  | 
+7 | @guppy
+8 | def main() -> int:
+9 |     return (foo, foo)(1, 2, 3)
+  |                             ^ Unexpected argument (expected 2, got 3)
 
 Note: Function signature is `(int, int) -> (int, int)`
 

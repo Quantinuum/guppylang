@@ -1,0 +1,8 @@
+Error: Recursive self annotation (at $FILE:12:18)
+   | 
+10 | class Foo(Generic[T]):
+11 |     @guppy
+12 |     def foo(self: "Foo[Self]") -> None:
+   |                   ^^^^^^^^^^^ Type of `self` cannot recursively refer to `Self`
+
+Guppy compilation failed due to 1 previous error

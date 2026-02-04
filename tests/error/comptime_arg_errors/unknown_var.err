@@ -1,0 +1,19 @@
+Error: Not known at compile-time (at $FILE:12:8)
+   | 
+10 | def main() -> None:
+11 |     m: nat = 1
+12 |     foo(m)
+   |         ^ Value of this argument must be known at compile-time
+
+Note:
+   | 
+10 | def main() -> None:
+11 |     m: nat = 1
+   |     - `m` is a dynamic variable, so its value is not statically
+   |       known
+
+Note: We are currently investigating ways to make Guppy's compile-time reasoning
+smarter. Please leave your feedback at
+https://github.com/CQCL/guppylang/discussions/987
+
+Guppy compilation failed due to 1 previous error

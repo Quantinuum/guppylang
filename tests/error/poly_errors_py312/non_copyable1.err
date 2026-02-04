@@ -1,0 +1,9 @@
+Error: Invalid parameter (at $FILE:6:12)
+  | 
+4 | 
+5 | @guppy
+6 | def main[Q: qubit]() -> None:
+  |             ^^^^^ Non-copyable type `qubit` is not allowed as a generic
+  |                   parameter
+
+Guppy compilation failed due to 1 previous error

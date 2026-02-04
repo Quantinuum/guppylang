@@ -1,37 +1,33 @@
 from typing import Generic, TYPE_CHECKING
 
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 
-import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 
 def test_basic_defs(validate):
-    module = GuppyModule("module")
-
-    @guppy.struct(module)
+    @guppy.struct
     class EmptyStruct:
         pass
 
-    @guppy.struct(module)
+    @guppy.struct
     class OneMemberStruct:
         x: int
 
-    @guppy.struct(module)
+    @guppy.struct
     class TwoMemberStruct:
         x: tuple[bool, int]
         y: float
 
-    @guppy.struct(module)
+    @guppy.struct
     class DocstringStruct:
         """This is struct with a docstring!"""
 
         x: int
 
-    @guppy(module)
+    @guppy
     def main(
         a: EmptyStruct, b: OneMemberStruct, c: TwoMemberStruct, d: DocstringStruct
     ) -> None:
@@ -40,66 +36,61 @@ def test_basic_defs(validate):
         TwoMemberStruct((True, 0), 1.0)
         DocstringStruct(-1)
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_backward_ref(validate):
-    module = GuppyModule("module")
-
-    @guppy.struct(module)
+    @guppy.struct
     class StructA:
         x: int
 
-    @guppy.struct(module)
+    @guppy.struct
     class StructB:
         y: StructA
 
-    @guppy(module)
+    @guppy
     def main(a: StructA, b: StructB) -> None:
         StructB(a)
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_forward_ref(validate):
-    module = GuppyModule("module")
-
-    @guppy.struct(module)
+    @guppy.struct
     class StructA:
         x: "StructB"
 
-    @guppy.struct(module)
+    @guppy.struct
     class StructB:
         y: int
 
-    @guppy(module)
+    @guppy
     def main(a: StructA, b: StructB) -> None:
         StructA(b)
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_generic(validate):
-    module = GuppyModule("module")
-    S = guppy.type_var("S", module=module)
-    T = guppy.type_var("T", module=module)
+    S = guppy.type_var("S")
+    T = guppy.type_var("T")
 
-    @guppy.struct(module)
+    @guppy.struct
     class StructA(Generic[T]):
         x: tuple[int, T]
 
-    @guppy.struct(module)
+    @guppy.struct
     class StructC:
         a: StructA[int]
         b: StructA[list[bool]]
         c: "StructB[float, StructB[bool, int]]"
 
-    @guppy.struct(module)
+    @guppy.struct
     class StructB(Generic[S, T]):
         x: S
         y: StructA[T]
 
-    @guppy(module)
+    @guppy
     def main(a: StructA[StructA[float]], b: StructB[bool, int], c: StructC) -> None:
         x = StructA((0, False))
         y = StructA((0, -5))
@@ -107,63 +98,58 @@ def test_generic(validate):
         StructB(x, a)
         StructC(y, StructA((0, [])), StructB(42.0, StructA((4, b))))
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_methods(validate):
-    module = GuppyModule("module")
-
-    @guppy.struct(module)
+    @guppy.struct
     class StructA:
         x: int
 
-        @guppy(module)
+        @guppy
         def foo(self: "StructA", y: int) -> int:
             return 2 * self.x + y
 
-    @guppy.struct(module)
+    @guppy.struct
     class StructB:
         x: int
         y: float
 
-        @guppy(module)
+        @guppy
         def bar(self: "StructB", a: StructA) -> float:
             return a.foo(self.x) + self.y
 
-    @guppy(module)
+    @guppy
     def main(a: StructA, b: StructB) -> tuple[int, float]:
         return a.foo(1), b.bar(a)
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_higher_order(validate):
-    module = GuppyModule("module")
-    T = guppy.type_var("T", module=module)
+    T = guppy.type_var("T")
 
-    @guppy.struct(module)
+    @guppy.struct
     class Struct(Generic[T]):
         x: T
 
-    @guppy(module)
+    @guppy
     def factory(mk_struct: "Callable[[int], Struct[int]]", x: int) -> Struct[int]:
         return mk_struct(x)
 
-    @guppy(module)
+    @guppy
     def main() -> None:
         factory(Struct, 42)
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_wiring(validate):
-    module = GuppyModule("module")
-
-    @guppy.struct(module)
+    @guppy.struct
     class MyStruct:
         x: int
 
-    @guppy(module)
+    @guppy
     def foo() -> MyStruct:
         s = 0
         # This tests that reassigning `s` invalidates the old `s = 0` wire when
@@ -171,22 +157,38 @@ def test_wiring(validate):
         s = MyStruct(42)
         return s
 
-    validate(module.compile())
+    validate(foo.compile_function())
 
 
 def test_field_access_and_drop(validate):
-    module = GuppyModule("module")
-
-    @guppy.struct(module)
+    @guppy.struct
     class MyStruct:
         x: int
         y: float
         z: tuple[int, int]
 
-    @guppy(module)
+    @guppy
     def foo() -> float:
         # Access a field of an unnamed struct,
         # dropping all the other fields
         return MyStruct(42, 3.14, (1, 2)).y
 
-    validate(module.compile())
+    validate(foo.compile_function())
+
+
+def test_redefine(validate):
+    """See https://github.com/quantinuum/guppylang/issues/1107"""
+
+    @guppy.struct
+    class MyStruct:
+        x: int
+
+    @guppy.struct
+    class MyStruct:  # noqa: F811
+        pass
+
+    @guppy
+    def foo() -> MyStruct:
+        return MyStruct()
+
+    validate(foo.compile_function())

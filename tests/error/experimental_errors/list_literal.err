@@ -1,8 +1,8 @@
-Error: Experimental feature (at $FILE:9:4)
+Error: Experimental feature (at $FILE:6:4)
   | 
-7 | @guppy(module)
-8 | def main() -> None:
-9 |     [1, 2, 3]
+4 | @guppy
+5 | def main() -> None:
+6 |     [1, 2, 3]
   |     ^^^^^^^^^ Lists are an experimental feature
 
 Help: Experimental features are currently disabled. You can enable them by

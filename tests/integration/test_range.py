@@ -1,68 +1,66 @@
+import builtins
+
 from guppylang.decorator import guppy
-from guppylang.std.builtins import nat, range, SizedIter, Range, py
-from guppylang.module import GuppyModule
-from tests.util import compile_guppy
+from guppylang.std.builtins import range, SizedIter, py
+from guppylang.std.iter import Range
 
-def test_range(validate, run_int_fn):
-    module = GuppyModule("test_range")
 
-    @guppy(module)
-    def main() -> int:
+def test_range(run_int_fn):
+    @guppy
+    def stop(stop: int) -> int:
         total = 0
-        for x in range(5):
-            total += x + 100 # Make the initial 0 obvious
-        return total
-
-    @guppy(module)
-    def negative() -> int:
-        total = 0
-        for x in range(-3):
-            total += 100 + x
-        return total
-
-    @guppy(module)
-    def non_static() -> int:
-        total = 0
-        n = 4
-        for x in range(n + 1):
+        for x in range(stop):
             total += x + 100  # Make the initial 0 obvious
         return total
 
-    compiled = module.compile()
-    validate(compiled)
-    run_int_fn(compiled, expected=510)
-    run_int_fn(compiled, expected=0, fn_name="negative")
-    run_int_fn(compiled, expected=510, fn_name="non_static")
+    @guppy
+    def start(start: int, stop: int) -> int:
+        total = 0
+        for x in range(start, stop):
+            total += x + 100
+        return total
+
+    @guppy
+    def step(start: int, stop: int, step: int) -> int:
+        total = 0
+        for x in range(start, stop, step):
+            total += x + 100
+        return total
+
+    def expected(r) -> int:
+        return sum(x + 100 for x in r)
+
+    run_int_fn(stop, args=[5], expected=expected(builtins.range(5)))
+    run_int_fn(stop, args=[-3], expected=expected(builtins.range(-3)))
+    run_int_fn(start, args=[2, 7], expected=expected(builtins.range(2, 7)))
+    run_int_fn(start, args=[-2, 5], expected=expected(builtins.range(-2, 5)))
+    run_int_fn(step, args=[1, 5, 2], expected=expected(builtins.range(1, 5, 2)))
+    run_int_fn(step, args=[5, -2, -1], expected=expected(builtins.range(5, -2, -1)))
 
 
 def test_static_size(validate):
-    module = GuppyModule("test")
-
-    @guppy(module)
+    @guppy
     def negative() -> SizedIter[Range, 10]:
         return range(10)
 
-    validate(module.compile())
+    validate(negative.compile_function())
 
 
 def test_py_size(validate):
-    module = GuppyModule("test")
     n = 10
 
-    @guppy(module)
+    @guppy
     def negative() -> SizedIter[Range, 10]:
         return range(py(n))
 
-    validate(module.compile())
+    validate(negative.compile_function())
 
 
 def test_static_generic_size(validate):
-    module = GuppyModule("test")
-    n = guppy.nat_var("n", module=module)
+    n = guppy.nat_var("n")
 
-    @guppy(module)
+    @guppy
     def negative() -> SizedIter[Range, n]:
         return range(n)
 
-    validate(module.compile())
-
+    validate(negative.compile_function())

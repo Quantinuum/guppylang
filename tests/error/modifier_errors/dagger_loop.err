@@ -1,0 +1,16 @@
+Error: Invalid expression in dagger (at $FILE:7:8)
+  | 
+5 | def test() -> None:
+6 |     with dagger:
+7 |         for _ in range(46):
+  |         ^^^^^^^^^^^^^^^^^^^
+8 |             pass
+  | ^^^^^^^^^^^^^^^^ Loop found in a dagger context
+
+Note:
+  | 
+5 | def test() -> None:
+6 |     with dagger:
+  |          ------ dagger modifier is used here
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,37 @@
+name: Benchmark main
+
+on:
+  push:
+    branches: main
+
+env:
+  UV_VERSION: "0.9.5"
+
+jobs:
+  benchmark_base_branch:
+    name: Continuous Benchmarking with Bencher
+    permissions:
+      checks: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up bencher
+        uses: bencherdev/bencher@main
+
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+
+      - name: Track base branch benchmarks with Bencher
+        run: |
+          just bench_upload \
+               --token '${{ secrets.BENCHER_API_TOKEN }}' \
+               --testbed Linux \
+               --branch main \
+               --github-actions '${{ secrets.GITHUB_TOKEN }}' \

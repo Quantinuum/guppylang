@@ -1,23 +1,20 @@
-from guppylang import GuppyModule, guppy
-from tests.integration.modules.mod_a import f, mod_a, MyType
-
-mod_c = GuppyModule("mod_c")
-mod_c.load_all(mod_a)
+from guppylang import guppy
+from guppylang_internals.decorator import extend_type
+from tests.integration.modules.mod_a import f, MyType
 
 
-@guppy.declare(mod_c)
-def g() -> MyType:
-    ...
+@guppy.declare
+def g() -> MyType: ...
 
 
-@guppy(mod_c)
+@guppy
 def h(x: int) -> int:
     return f(x)
 
 
 # Extend type defined in module A
-@guppy.extend_type(MyType, module=mod_c)
+@extend_type(MyType)
 class _:
-    @guppy(mod_c)
+    @guppy
     def __int__(self: "MyType") -> int:
         return 0

@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:6:11)
+  | 
+4 | @guppy
+5 | def foo(x: float) -> int:
+6 |     return x
+  |            ^ Expected return value of type `int`, got `float`
+
+Guppy compilation failed due to 1 previous error

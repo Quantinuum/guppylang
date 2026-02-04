@@ -1,9 +1,9 @@
-Error: Linearity violation (at $FILE:19:8)
+Error: Drop violation (at $FILE:13:8)
    | 
-17 | def foo(b: bool) -> int:
-18 |     if b:
-19 |         q = new_qubit()
-   |         ^ Variable `q` with linear type `qubit` is leaked
+11 | def foo(b: bool) -> int:
+12 |     if b:
+13 |         q = new_qubit()
+   |         ^ Variable `q` with non-droppable type `qubit` is leaked
 
 Help: Make sure that `q` is consumed or returned to avoid the leak
 

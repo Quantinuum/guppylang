@@ -1,11 +1,11 @@
-Error: Not a Guppy method (at $FILE:12:4)
-   | 
-10 |     x: int
-11 | 
-12 |     def f(self: "MyStruct") -> None:
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-13 |         pass
-   | ^^^^^^^^^^^^ Method `f` of struct `MyStruct` is not a Guppy function
+Error: Not a Guppy method (at $FILE:8:4)
+  | 
+6 |     x: int
+7 | 
+8 |     def f(self: "MyStruct") -> None:
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+9 |         pass
+  | ^^^^^^^^^^^^ Method `f` of struct `MyStruct` is not a Guppy function
 
 Help: Add a `@guppy` annotation to turn `f` into a Guppy method
 

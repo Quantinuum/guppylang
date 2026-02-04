@@ -1,0 +1,9 @@
+Error: Not compile-time evaluatable (at $FILE:9:20)
+  | 
+7 | @compile_guppy
+8 | def foo(x: int) -> int:
+9 |     return comptime(x + 1)
+  |                     ^ Guppy variable `x` cannot be accessed in a comptime
+  |                       expression
+
+Guppy compilation failed due to 1 previous error

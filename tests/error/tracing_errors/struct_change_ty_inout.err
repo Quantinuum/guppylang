@@ -1,0 +1,13 @@
+Error: Error in comptime function return (at $FILE:12:0)
+   | 
+10 | 
+11 | @guppy.comptime
+12 | def test(s: S) -> None:
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+13 |     s.x = 1.0
+   | ^^^^^^^^^^^^^
+
+Argument `s` is borrowed, so it is implicitly returned to the caller. Field `x`
+of object with type `S` has an unexpected type. Expected `int`, got `float`.
+
+Guppy compilation failed due to 1 previous error

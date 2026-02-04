@@ -1,17 +1,18 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 
 
-module = GuppyModule("test")
-
-
-@guppy.struct(module)
+@guppy.struct
 class MyStruct:
-    @guppy(module)
+    @guppy
     def x(self: "MyStruct") -> int:
         return 0
 
     x: int
 
 
-module.compile()
+@guppy
+def main(s: MyStruct) -> None:
+    s.x
+
+
+main.compile()

@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:17:14)
+Error: Type mismatch (at $FILE:13:14)
    | 
-15 | @guppy(module)
-16 | def main(x: bool) -> None:
-17 |     y: None = foo(x)
+11 | @guppy
+12 | def main(x: bool) -> None:
+13 |     y: None = foo(x)
    |               ^^^^^^ Expected expression of type `None`, got `bool`
 
 Guppy compilation failed due to 1 previous error

@@ -1,8 +1,8 @@
-Error: Invalid annotation (at $FILE:12:13)
-   | 
-10 | 
-11 | @guppy.declare(module)
-12 | def foo() -> qubit @owned: ...
-   |              ^^^^^^^^^^^^ `@` type annotations are not allowed in this position
+Error: Invalid annotation (at $FILE:7:13)
+  | 
+5 | 
+6 | @guppy.declare
+7 | def foo() -> qubit @owned: ...
+  |              ^^^^^^^^^^^^ `@` type annotations are not allowed in this position
 
 Guppy compilation failed due to 1 previous error

@@ -1,10 +1,9 @@
-Error: Type mismatch (at $FILE:24:8)
+Error: Type mismatch (at $FILE:20:8)
    | 
-22 | @guppy(module)
-23 | def main() -> None:
-24 |     foo(bar)
-   |         ^^^ Expected argument of type `?T -> ?T`, got `forall T. T ->
-   |             T`
+18 | @guppy
+19 | def main() -> None:
+20 |     foo(bar)
+   |         ^^^ Expected argument of type `?T -> ?T`, got `forall T. T -> T`
 
 Note: Couldn't infer an instantiation for type variable `?T` (higher-rank
 polymorphic types are not supported)

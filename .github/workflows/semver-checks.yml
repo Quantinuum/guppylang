@@ -1,0 +1,41 @@
+name: Python semver-checks 🐍
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - edited
+      - synchronize
+      - labeled
+      - unlabeled
+  merge_group:
+    types: [checks_requested]
+
+env:
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+  UV_VERSION: "0.9.5"
+
+jobs:
+  semver-checks:
+    name: Check for breaking changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install Guppy
+        run: uv sync --frozen
+
+      - uses: quantinuum/hugrverse-actions/py-semver-checks@main
+        with:
+          packages: guppylang/src/guppylang guppylang-internals/src/guppylang_internals
+          token: ${{ secrets.HUGRBOT_PAT }}

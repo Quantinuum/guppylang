@@ -1,0 +1,11 @@
+Error: Free type variable (at $FILE:9:0)
+  | 
+7 | 
+8 | # We don't yet support const vars referencing previously bound parameters
+9 | X = guppy.const_var("X", "array[T, n]")
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type variable `T` is unbound
+
+Note: Only struct and function definitions can be generic. Other generic values
+or nested types are not supported.
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,10 @@
+Error: Unsupported (at $FILE:8:0)
+  | 
+6 | 
+7 | @guppy.comptime
+8 | def test(xs: array[int, n]) -> None:
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+9 |     pass
+  | ^^^^^^^^ Generic comptime functions are not supported
+
+Guppy compilation failed due to 1 previous error

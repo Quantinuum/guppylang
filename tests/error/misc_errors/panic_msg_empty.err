@@ -1,0 +1,10 @@
+Error: No panic message (at $FILE:7:4)
+  | 
+5 | @compile_guppy
+6 | def foo(x: int) -> None:
+7 |     panic()
+  |     ^^^^^^^ Missing message argument to panic call
+
+Note: Add a message: `panic("message")`
+
+Guppy compilation failed due to 1 previous error

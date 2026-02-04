@@ -1,0 +1,9 @@
+Error: Invalid parameter (at $FILE:6:18)
+  | 
+4 | 
+5 | @guppy.struct
+6 | class MyStruct[Q: qubit]:
+  |                   ^^^^^ Non-copyable type `qubit` is not allowed as a generic
+  |                         parameter
+
+Guppy compilation failed due to 1 previous error

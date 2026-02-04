@@ -1,0 +1,50 @@
+[project]
+name = "guppylang"
+version = "0.21.8"
+requires-python = ">=3.10,<4"
+description = "Pythonic quantum-classical programming language"
+license = { file = "LICENCE" }
+readme = "../README.md"
+authors = [
+    { name = "Mark Koch", email = "mark.koch@quantinuum.com" },
+    { name = "TKET development team", email = "tket-support@quantinuum.com" },
+]
+maintainers = [
+    { name = "Mark Koch", email = "mark.koch@quantinuum.com" },
+    { name = "TKET development team", email = "tket-support@quantinuum.com" },
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Compilers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+dependencies = [
+    "guppylang-internals ~= 0.27.0",
+    "numpy~=2.0",
+    "selene-hugr-qis-compiler~=0.2.9",
+    "selene-sim~=0.2.7",
+    "tqdm>=4.67.1",
+    "types-tqdm>=4.67.0.20250809",
+]
+
+[project.optional-dependencies]
+pytket = []
+
+[project.urls]
+homepage = "https://github.com/quantinuum/guppylang"
+repository = "https://github.com/quantinuum/guppylang"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,10 +1,6 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 
-
-module = GuppyModule("test")
-
-X = guppy.type_var("X", module=module)
+X = guppy.type_var("X")
 
 
 class Generic:
@@ -13,9 +9,9 @@ class Generic:
         return cls
 
 
-@guppy.struct(module)
+@guppy.struct
 class MyStruct(Generic[X, X]):
     x: int
 
 
-module.compile()
+MyStruct.compile()

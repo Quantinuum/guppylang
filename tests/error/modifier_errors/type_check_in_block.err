@@ -1,0 +1,8 @@
+Error: Operator not defined (at $FILE:7:8)
+  | 
+5 | def test() -> None:
+6 |     with dagger:
+7 |         1 + True
+  |         ^^^^^^^^ Binary operator `+` not defined for `int` and `bool`
+
+Guppy compilation failed due to 1 previous error

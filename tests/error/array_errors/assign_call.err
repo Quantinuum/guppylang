@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:10:4)
+   | 
+ 8 | @guppy
+ 9 | def main() -> None:
+10 |     foo()[0] = 22
+   |     ^^^^^ Assigning to this expression is not supported
+
+Guppy compilation failed due to 1 previous error

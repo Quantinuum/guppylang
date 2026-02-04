@@ -1,0 +1,10 @@
+Error: Too many type arguments (at $FILE:13:13)
+   | 
+11 | @guppy
+12 | def main() -> None:
+13 |     foo[int, float, bool]
+   |              ^^^^^^^^^^^ Unexpected type arguments (expected 1, got 3)
+
+Note: Function signature is `forall T. T -> None`
+
+Guppy compilation failed due to 1 previous error

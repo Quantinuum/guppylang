@@ -1,0 +1,3 @@
+Error: Wasm file `not_there.wasm` not found
+
+Guppy compilation failed due to 1 previous error

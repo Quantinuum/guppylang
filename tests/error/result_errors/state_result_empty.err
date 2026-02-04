@@ -1,0 +1,9 @@
+Error: Missing qubit inputs (at $FILE:6:4)
+  | 
+4 | @compile_guppy
+5 | def main() -> None:
+6 |     state_result("tag")
+  |     ^^^^^^^^^^^^^^^^^^^ Qubits whose state should be reported must be passed
+  |                         explicitly
+
+Guppy compilation failed due to 1 previous error

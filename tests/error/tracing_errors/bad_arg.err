@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 13, in <module>
+    test.compile()
+  File "$FILE", line 10, in test
+    foo(1.0)
+guppylang_internals.error.GuppyComptimeError: Type mismatch: Expected argument of type `int`, got `float`

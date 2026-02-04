@@ -1,8 +1,8 @@
-Error: Unsupported (at $FILE:14:11)
+Error: Unsupported (at $FILE:11:11)
    | 
-12 | @guppy(module)
-13 | def main() -> int:
-14 |     return (foo, foo)(42, 42)
+ 9 | @guppy
+10 | def main() -> int:
+11 |     return (foo, foo)(42, 42)
    |            ^^^^^^^^^^ Polymorphic function tensors are not supported
 
 Guppy compilation failed due to 1 previous error

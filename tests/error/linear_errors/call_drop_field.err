@@ -1,10 +1,10 @@
-Error: Linearity violation (at $FILE:24:11)
+Error: Drop violation (at $FILE:18:11)
    | 
-22 | @guppy(module)
-23 | def bar() -> qubit:
-24 |     return foo().q1
-   |            ^^^^^ Linear field `q2` of expression with type `MyStruct` is
-   |                  leaked
+16 | @guppy
+17 | def bar() -> qubit:
+18 |     return foo().q1
+   |            ^^^^^ Non-droppable field `q2` of expression with type `MyStruct`
+   |                  is leaked
 
 Help: Consider assigning this value to a local variable before accessing the
 field `q1`

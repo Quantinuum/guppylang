@@ -1,0 +1,13 @@
+Error: Unpackable (at $FILE:10:13)
+   | 
+ 8 | @guppy
+ 9 | def foo(_xs: array[int, n]) -> int:
+10 |     a, *bs = range(n)
+   |              ^^^^^^^^ Expression of type `SizedIter[Range, n]` cannot be unpacked
+
+Note: Unpacking of iterable types like `SizedIter[Range, n]` is only allowed if
+the number of items yielded by the iterator is statically known. Here, the
+number of items `n` is generic and can change between different function
+invocations.
+
+Guppy compilation failed due to 1 previous error

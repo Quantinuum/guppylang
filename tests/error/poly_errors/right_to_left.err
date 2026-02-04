@@ -1,8 +1,8 @@
-Error: Cannot infer type (at $FILE:22:8)
+Error: Cannot infer type (at $FILE:18:8)
    | 
-20 | @guppy(module)
-21 | def main() -> None:
-22 |     bar(foo(), 42)
+16 | @guppy
+17 | def main() -> None:
+18 |     bar(foo(), 42)
    |         ^^^^^ Cannot infer type variables in expression of type `?T`
 
 Guppy compilation failed due to 1 previous error

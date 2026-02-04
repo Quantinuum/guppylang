@@ -1,9 +1,9 @@
-Error: Type mismatch (at $FILE:13:11)
-   | 
-11 | @guppy(module)
-12 | def main() -> array[int, 2]:
-13 |     return array(1, 2, 3)
-   |            ^^^^^^^^^^^^^^ Expected expression of type `array[int, 2]`, got
-   |                           `array[int, 3]`
+Error: Type mismatch (at $FILE:7:11)
+  | 
+5 | @guppy
+6 | def main() -> array[int, 2]:
+7 |     return array(1, 2, 3)
+  |            ^^^^^^^^^^^^^^ Expected expression of type `array[int, 2]`, got `array[int,
+  |                           3]`
 
 Guppy compilation failed due to 1 previous error

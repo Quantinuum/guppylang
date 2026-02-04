@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:14:13)
+   | 
+12 |     t = (11, qubit(), 22)
+13 |     q1 = use(t[1])
+14 |     q2 = use(t[1])
+   |              ^^^^ Tuple index `t[1]` with non-copyable type `qubit` cannot be
+   |                   consumed ...
+
+Note:
+   | 
+12 |     t = (11, qubit(), 22)
+13 |     q1 = use(t[1])
+   |              ---- Tuple index `t[1]` already consumed here
+
+Guppy compilation failed due to 1 previous error

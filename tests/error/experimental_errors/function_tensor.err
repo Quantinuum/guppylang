@@ -1,8 +1,8 @@
-Error: Experimental feature (at $FILE:19:11)
+Error: Experimental feature (at $FILE:16:11)
    | 
-17 | @guppy(module)
-18 | def main() -> tuple[int, int]:
-19 |     return (f, g)(1, 2)
+14 | @guppy
+15 | def main() -> tuple[int, int]:
+16 |     return (f, g)(1, 2)
    |            ^^^^^^ Function tensors are an experimental feature
 
 Help: Experimental features are currently disabled. You can enable them by

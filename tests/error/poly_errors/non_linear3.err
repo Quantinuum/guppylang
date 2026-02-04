@@ -1,10 +1,10 @@
-Error: Not defined for linear argument (at $FILE:25:4)
+Error: Not defined for linear argument (at $FILE:19:4)
    | 
-23 | @guppy(module)
-24 | def main() -> None:
-25 |     foo(h)
-   |     ^^^^^^ Cannot instantiate non-linear type parameter `T` in type
-   |            `forall T. (T -> None) -> None` with linear type
+17 | @guppy
+18 | def main() -> None:
+19 |     foo(h)
+   |     ^^^^^^ Cannot instantiate copyable type parameter `T` in type
+   |            `forall T. (T -> None) -> None` with non-copyable type
    |            `qubit`
 
 Guppy compilation failed due to 1 previous error

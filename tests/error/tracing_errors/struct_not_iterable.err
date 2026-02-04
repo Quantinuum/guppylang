@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 21, in <module>
+    test.compile()
+  File "$FILE", line 17, in test
+    for _ in s:
+guppylang_internals.error.GuppyComptimeError: Expression of type `S` is not iterable

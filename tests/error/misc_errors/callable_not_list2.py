@@ -1,13 +1,10 @@
 from typing import Callable
 
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 
 
-module = GuppyModule("test")
-
-@guppy.declare(module)
+@guppy.declare
 def foo(f: "Callable[None]") -> None: ...
 
 
-module.compile()
+foo.compile()

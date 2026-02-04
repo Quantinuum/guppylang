@@ -1,11 +1,15 @@
-Error: Linearity violation (at $FILE:12:4)
+Error: Drop violation (at $FILE:8:4)
    | 
-10 | @guppy(module)
-11 | def test(n: int) -> None:
-12 |     q = qubit()
-   |     ^ Variable `q` with linear type `qubit` may be leaked ...
+ 6 | @guppy
+ 7 | def test(n: int) -> None:
+ 8 |     q = qubit()
+   |     ^ Variable `q` with non-droppable type `qubit` may be leaked
+   |       ...
+
+Note:
    | 
-14 |     while i < n:
+ 9 |     i = 0
+10 |     while i < n:
    |           ----- if this expression is `False`
 
 Help: Make sure that `q` is consumed or returned to avoid the leak

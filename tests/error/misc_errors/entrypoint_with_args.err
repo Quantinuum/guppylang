@@ -1,0 +1,12 @@
+Error: Entrypoint function has arguments (at $FILE:4:8)
+  | 
+2 | 
+3 | @guppy
+4 | def foo(x: bool) -> bool:
+  |         ^^^^^^^ Entrypoint function must have no input parameters, found
+  |                 (`x`).
+
+Note: If the function is not an execution entrypoint, consider using
+`foo.compile_function()`
+
+Guppy compilation failed due to 1 previous error

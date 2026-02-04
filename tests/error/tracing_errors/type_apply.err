@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 16, in <module>
+    test.compile()
+  File "$FILE", line 13, in test
+    return foo[int](0)
+guppylang_internals.error.GuppyComptimeError: Explicitly specifying type arguments of generic functions in a comptime context is not supported yet

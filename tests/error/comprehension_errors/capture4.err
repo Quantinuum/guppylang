@@ -1,10 +1,9 @@
-Error: Linearity violation (at $FILE:18:12)
+Error: Copy violation (at $FILE:13:12)
    | 
-16 | @guppy(module)
-17 | def foo(xs: list[int], s: MyStruct @owned) -> list[qubit]:
-18 |     return [s.q for x in xs]
-   |             ^^^ Field `s.q` with linear type `qubit` would be moved
-   |                 multiple times when evaluating this
-   |                 comprehension
+11 | @guppy
+12 | def foo(xs: list[int], s: MyStruct @owned) -> list[qubit]:
+13 |     return [s.q for x in xs]
+   |             ^^^ Field `s.q` with non-copyable type `qubit` would be moved
+   |                 multiple times when evaluating this comprehension
 
 Guppy compilation failed due to 1 previous error

@@ -1,0 +1,10 @@
+Error: Cannot infer generic parameter (at $FILE:11:11)
+   | 
+ 9 | @guppy
+10 | def main() -> bool:
+11 |     return foo()
+   |            ^^^^^ Cannot infer generic parameter `x` of this function
+
+Note: Function signature is `forall x: bool. () -> bool`
+
+Guppy compilation failed due to 1 previous error

@@ -1,6 +1,0 @@
-Guppy compilation failed. Error in file $FILE:11
-
-9:     @guppy(module)
-10:    def main(x: "lib.MyType2[int]") -> int:
-                    ^^^^^^^^^^^
-GuppyError: Module `lib` has no member `MyType2`

@@ -19,19 +19,19 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  UV_VERSION: "0.4.27"
+  UV_VERSION: "0.9.5"
 
 jobs:
   build:
     name: Build docs.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -41,25 +41,25 @@ jobs:
           cd docs
           ./build.sh
       - name: Upload artifact.
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./docs/build/
 
   # Create an issue if building docs fails.
   create-issue:
-    uses: CQCL/hugrverse-actions/.github/workflows/create-issue.yml@main
+    uses: quantinuum/hugrverse-actions/.github/workflows/create-issue.yml@main
     needs: build
     if: always() && needs.build.result == 'failure' && github.event_name == 'push'
     secrets:
-        GITHUB_PAT: ${{ secrets.HUGRBOT_PAT }}
+      GITHUB_PAT: ${{ secrets.HUGRBOT_PAT }}
     with:
-        title: "💥 Doc builds fail on main"
-        body: |
-            The doc building workflow has failed on the main branch.
+      title: "💥 Doc builds fail on main"
+      body: |
+        The doc building workflow has failed on the main branch.
 
-            [Please investigate](https://github.com/CQCL/guppylang/actions/runs/${{ github.run_id }}).
-        unique-label: "docs-fail"
-        other-labels: "bug"
+        [Please investigate](https://github.com/quantinuum/guppylang/actions/runs/${{ github.run_id }}).
+      unique-label: "docs-fail"
+      other-labels: "bug"
 
   publish:
     name: Publish docs.

@@ -1,8 +1,8 @@
-Error: Unexpected statement (at $FILE:13:4)
-   | 
-11 | @guppy.struct(module)
-12 | class MyStruct:
-13 |     x
-   |     ^ Unexpected statement in struct definition
+Error: Unexpected statement (at $FILE:9:4)
+  | 
+7 | @guppy.struct
+8 | class MyStruct:
+9 |     x
+  |     ^ Unexpected statement in struct definition
 
 Guppy compilation failed due to 1 previous error

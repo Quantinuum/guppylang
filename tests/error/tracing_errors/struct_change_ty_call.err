@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 20, in <module>
+    test.compile()
+  File "$FILE", line 17, in test
+    foo(s)
+guppylang_internals.error.GuppyComptimeError: Field `x` of object with type `S` has an unexpected type. Expected `int`, got `float`.

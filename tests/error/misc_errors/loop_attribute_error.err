@@ -1,0 +1,8 @@
+Error: Variable not defined (at $FILE:6:8)
+  | 
+4 | def foo() -> None:
+5 |     for i in range(
+6 |         a
+  |         ^ `a` is not defined
+
+Guppy compilation failed due to 1 previous error

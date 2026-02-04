@@ -1,11 +1,9 @@
-Error: Linearity violation (at $FILE:18:33)
+Error: Copy violation (at $FILE:13:33)
    | 
-16 | @guppy(module)
-17 | def foo(xs: list[int], q: qubit @owned) -> list[int]:
-18 |     return [x for x in xs if bar(q)]
-   |                                  ^ Variable `q` with linear type `qubit` would be consumed
-   |                                    multiple times when
-   |                                    evaluating this
-   |                                    comprehension
+11 | @guppy
+12 | def foo(xs: list[int], q: qubit @owned) -> list[int]:
+13 |     return [x for x in xs if bar(q)]
+   |                                  ^ Variable `q` with non-copyable type `qubit` would be
+   |                                    consumed multiple times when evaluating this comprehension
 
 Guppy compilation failed due to 1 previous error

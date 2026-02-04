@@ -1,0 +1,8 @@
+Error: Too many arguments (at $FILE:10:27)
+   | 
+ 8 | @no_type_check
+ 9 | def main(qs: array[qubit, 3], rs: array[qubit, 4]) -> None:
+10 |    state_result("foo", qs, rs)
+   |                            ^^ Unexpected argument (expected 2, got 3)
+
+Guppy compilation failed due to 1 previous error

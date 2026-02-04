@@ -1,12 +1,15 @@
-Error: Linearity violation (at $FILE:21:8)
+Error: Copy violation (at $FILE:17:8)
    | 
-19 | def test(q: qubit @owned) -> None:
-20 |     use(q)
-21 |     foo(q)
-   |         ^ Variable `q` with linear type `qubit` cannot be borrowed
-   |           ...
+15 | def test(q: qubit @owned) -> None:
+16 |     use(q)
+17 |     foo(q)
+   |         ^ Variable `q` with non-copyable type `qubit` cannot be
+   |           borrowed ...
+
+Note:
    | 
-20 |     use(q)
-   |         - since it was already consumed here
+15 | def test(q: qubit @owned) -> None:
+16 |     use(q)
+   |         - Variable `q` already consumed here
 
 Guppy compilation failed due to 1 previous error

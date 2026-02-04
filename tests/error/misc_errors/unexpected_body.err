@@ -1,8 +1,8 @@
-Error: Unexpected function body (at $FILE:9:4)
+Error: Unexpected function body (at $FILE:6:4)
   | 
-7 | @guppy.declare(module)
-8 | def foo() -> int:
-9 |     return 42
+4 | @guppy.declare
+5 | def foo() -> int:
+6 |     return 42
   |     ^^^^^^^^^ Body of declared function `foo` must be empty
 
 Guppy compilation failed due to 1 previous error

@@ -1,0 +1,8 @@
+Error: Not enough arguments (at $FILE:8:16)
+  | 
+6 | @guppy
+7 | def test() -> None:
+8 |     with control():
+  |                 ^^ Missing argument (expected 1, got 0)
+
+Guppy compilation failed due to 1 previous error

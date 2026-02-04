@@ -1,12 +1,9 @@
-from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
+from guppylang_internals.decorator import custom_function
 
 
-module = GuppyModule("test")
-
-@guppy.custom(module=module)
+@custom_function()
 def foo(x: int) -> int:
     return x
 
 
-module.compile()
+foo.compile()

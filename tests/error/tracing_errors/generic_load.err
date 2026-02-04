@@ -1,0 +1,12 @@
+Error: Error in comptime function return (at $FILE:14:0)
+   | 
+12 | 
+13 | @guppy.comptime
+14 | def main() -> Callable[[int], int]:
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |     return generic_func
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+
+Cannot infer type parameters of generic function `generic_func`
+
+Guppy compilation failed due to 1 previous error

@@ -12,7 +12,7 @@ This is the API documentation for the Guppy compiler.
    :template: autosummary/module.rst
    :recursive:
 
-   guppylang
+   guppylang_internals
 
 
 Indices and tables

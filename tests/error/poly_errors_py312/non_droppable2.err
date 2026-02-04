@@ -1,0 +1,9 @@
+Error: Invalid parameter (at $FILE:12:18)
+   | 
+10 | 
+11 | @guppy.struct
+12 | class MyStruct[D: NonDroppable]:
+   |                   ^^^^^^^^^^^^ Non-droppable type `NonDroppable` is not allowed as a
+   |                                generic parameter
+
+Guppy compilation failed due to 1 previous error

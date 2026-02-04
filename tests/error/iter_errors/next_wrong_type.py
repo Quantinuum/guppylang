@@ -1,41 +1,37 @@
-from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
-from guppylang.tys.ty import NoneType
+from guppylang import guppy
+from guppylang_internals.decorator import custom_type
+from guppylang_internals.tys.ty import NoneType
 
-
-module = GuppyModule("test")
-
-
-@guppy.type(NoneType().to_hugr(), module=module)
+@custom_type(lambda _, ctx: NoneType().to_hugr(ctx))
 class MyIter:
     """An iterator where the `__next__` method has the wrong signature."""
 
-    @guppy.declare(module)
+    @guppy.declare
     def __next__(self: "MyIter") -> tuple["MyIter", float]:
         ...
 
-    @guppy.declare(module)
+    @guppy.declare
     def __hasnext__(self: "MyIter") -> tuple[bool, "MyIter"]:
         ...
 
-    @guppy.declare(module)
+    @guppy.declare
     def __end__(self: "MyIter") -> None:
         ...
 
 
-@guppy.type(NoneType().to_hugr(), module=module)
+@custom_type(lambda _, ctx: NoneType().to_hugr(ctx))
 class MyType:
     """Type that produces the iterator above."""
 
-    @guppy.declare(module)
+    @guppy.declare
     def __iter__(self: "MyType") -> MyIter:
         ...
 
 
-@guppy(module)
+@guppy
 def test(x: MyType) -> None:
     for _ in x:
         pass
 
 
-module.compile()
+test.compile()

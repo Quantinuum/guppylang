@@ -1,22 +1,23 @@
 """Dummy module used in `test_imports.py`"""
 
 import hugr.tys as ht
+from guppylang import guppy
+from guppylang_internals.decorator import custom_type
 
-from guppylang import GuppyModule, guppy
+# Define a nat_var that can be imported
+n = guppy.nat_var("n")
 
-mod_a = GuppyModule("mod_a")
 
-
-@guppy(mod_a)
+@guppy
 def f(x: int) -> int:
     return x + 1
 
 
-@guppy.declare(mod_a)
+@guppy.declare
 def g() -> int: ...
 
 
-@guppy.type(ht.Bool, module=mod_a)
+@custom_type(ht.Bool)
 class MyType:
-    @guppy.declare(mod_a)
+    @guppy.declare
     def __neg__(self: "MyType") -> "MyType": ...

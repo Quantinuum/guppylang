@@ -1,0 +1,8 @@
+Error: Expected an integer literal (at $FILE:5:21)
+  | 
+3 | @compile_guppy
+4 | def foo(x: int) -> int:
+5 |     return (1, 2, 3)[x]
+  |                      ^ Expected an integer literal
+
+Guppy compilation failed due to 1 previous error

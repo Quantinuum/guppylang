@@ -1,93 +1,35 @@
-[project]
-name = "guppylang"
-version = "0.14.0"
-requires-python = ">=3.10,<4"
-description = "Pythonic quantum-classical programming language"
-license = { file = "LICENCE" }
-readme = "quickstart.md"
-authors = [
-    { name = "Mark Koch", email = "mark.koch@quantinuum.com" },
-    { name = "TKET development team", email = "tket-support@quantinuum.com" },
-]
-maintainers = [
-    { name = "Mark Koch", email = "mark.koch@quantinuum.com" },
-    { name = "TKET development team", email = "tket-support@quantinuum.com" },
-]
-
-classifiers = [
-    "Development Status :: 3 - Alpha",
-
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "Topic :: Software Development :: Compilers",
-
-    "License :: OSI Approved :: Apache Software License",
-
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Programming Language :: Python :: 3 :: Only",
-]
-
-dependencies = [
-    "graphviz >=0.20.1,<0.21",
-    "networkx >=3.2.1,<4",
-    "pydantic >=2.7.0b1,<3",
-    "typing-extensions >=4.9.0,<5",
-    "hugr >=0.10.1,<0.11",
-    "tket2-exts>=0.3.0,<0.4",
-]
-
-[project.optional-dependencies]
-# pytket = ["pytket >=1.30.0,<2", "tket2 >=0.4.1,<0.5"]
-pytket = ["pytket>=1.34"]
-
-[project.urls]
-homepage = "https://github.com/CQCL/guppylang"
-repository = "https://github.com/CQCL/guppylang"
-
 [dependency-groups]
-docs = ["sphinx >=7.2.6,<9", "sphinx-book-theme >=1.1.2,<2"]
+docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
-    { include-group = "execution" },
-    { include-group = "pytket_integration" },
+    { include-group = "examples" },
 ]
-lint = ["pre-commit >=3.6.0,<4", "ruff >=0.6.2,<0.7", "mypy ==1.10.0"]
+lint = ["pre-commit>=3.6.0,<5", "ruff~=0.14.4", "mypy ~=1.19.1"]
+examples = ["matplotlib>=3.9.2", "networkx>=2.6,<4"]
 test = [
-    "pytest >=8.3.2,<9",
-    "pytest-cov >=5.0.0,<6",
+    "pytest>=8.3.2,<10",
+    "pytest-cov>=5.0.0,<8",
     "pytest-notebook >=0.10.0,<0.11",
     "pytest-snapshot >=0.9.0,<1",
-    "ipykernel >=6.29.5,<7",
-    "tket2>=0.6.0",
+    "pytest-benchmark>=5.1.0",
+    "pytest-xdist>=3.8.0",
+    "ipykernel>=6.29.5,<8",
+    "miette-py",
+    "tket~=0.12.15",
 ]
-execution = [
-    { include-group = "test" },
-    # Required to run the llvm integration tests
-    # The `execute_llvm` package itself should be installed directly
-    # by running `uv run maturin develop -m execute_llvm/Cargo.toml`.
-    "maturin >=1.7.7,<2",
-    "pip >=24",
-]
-pytket_integration = [{ include-group = "test" }, "pytket >=1.34.0,<2"]
+
+[tool.uv]
 
 [tool.uv.workspace]
-members = ["execute_llvm"]
+members = ["guppylang", "guppylang-internals", "miette-py"]
 
 [tool.uv.sources]
-execute-llvm = { workspace = true }
-
+guppylang = { workspace = true }
+guppylang-internals = { workspace = true }
+miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
-#  hugr = { git = "https://github.com/CQCL/hugr", subdirectory = "hugr-py", rev = "e40b6c7" }
-# tket2-exts = { git = "https://github.com/CQCL/tket2", subdirectory = "tket2-exts", rev = "eb7cc63"}
-# tket2 = { git = "https://github.com/CQCL/tket2", subdirectory = "tket2-py", rev = "eb7cc63"}
-
+# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "191c473" }
 
 [build-system]
 requires = ["hatchling"]
@@ -95,21 +37,28 @@ build-backend = "hatchling.build"
 
 
 [tool.mypy]
-plugins = ["pydantic.mypy"]
 strict = true
 allow_redefinition = true
 
+[[tool.mypy.overrides]]
+module = ["miette_py"]
 
 [tool.coverage.report]
 exclude_also = [
     # Don't complain about missing coverage on typing imports
     "if TYPE_CHECKING:",
-
     # Don't complain if tests don't hit defensive assertion code:
     "raise AssertionError",
     "raise NotImplementedError",
     "raise InternalGuppyError",
-
     # Don't complain about abstract methods, they aren't run:
     "@abstractmethod",
+]
+
+
+[tool.pytest.ini_options]
+addopts = "--benchmark-skip" # benchmarks run explicitly with `just bench`
+filterwarnings = [
+    "ignore::DeprecationWarning", # TODO remove after removing guppy.compile()
+    "ignore::SyntaxWarning", # Python 3.14 complains about guppy tuple callables
 ]

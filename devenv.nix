@@ -1,43 +1,34 @@
 { pkgs, lib, ... }:
 
 {
-  # for building optional tket2 dependency
-  # see https://github.com/CQCL/tket2/blob/main/devenv.nix
   packages = [
     pkgs.just
-    pkgs.llvmPackages_14.libllvm
-    pkgs.libffi
-    pkgs.libxml2
-  ]
-  ++ lib.optionals pkgs.stdenv.isLinux [
-    pkgs.stdenv.cc.cc.lib
+    pkgs.graphviz
+
   ]
   ++ lib.optionals pkgs.stdenv.isDarwin (
-    with pkgs.darwin.apple_sdk; [
-      frameworks.CoreServices
-      frameworks.CoreFoundation
-    ]
+    [ pkgs.zlib pkgs.xz ]
   );
 
   enterShell = ''
-    export PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
+    which bencher
+    [[ $? != 0 ]] && curl --proto '=https' --tlsv1.2 -sSfL https://bencher.dev/download/install-cli.sh | sh
   '';
 
   languages.python = {
     enable = true;
     uv = {
       enable = true;
-      sync = {
-        enable = true;
-        allExtras = true;
-      };
+      sync.enable = true;
     };
+    venv.enable = true;
+    version = "3.14";
   };
-
-  env.LLVM_SYS_140_PREFIX = pkgs.llvmPackages_14.libllvm.dev;
 
   languages.rust = {
-    enable = true;
     channel = "stable";
+    enable = true;
+    components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" ];
   };
+
 }

@@ -1,8 +1,0 @@
-Error: Invalid Python expression (at $FILE:6:11)
-  | 
-4 | @compile_guppy
-5 | def foo() -> int:
-6 |     return py()
-  |            ^^^^ Compile-time `py(...)` expression requires an argument
-
-Guppy compilation failed due to 1 previous error

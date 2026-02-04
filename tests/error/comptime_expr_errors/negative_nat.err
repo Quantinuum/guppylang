@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:7:11)
+  | 
+5 | @compile_guppy
+6 | def foo() -> nat:
+7 |     return comptime(-1)
+  |            ^^^^^^^^^^^^ Expected expression of type `nat`, got `int`
+
+Guppy compilation failed due to 1 previous error

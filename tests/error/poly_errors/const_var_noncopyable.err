@@ -1,0 +1,9 @@
+Error: Invalid const variable (at $FILE:6:0)
+  | 
+4 | from guppylang.std.quantum import qubit
+5 | 
+6 | Q = guppy.const_var("Q", "qubit")
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Const variable `Q` is not allowed have non-copyable type
+  |                                   `qubit`
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,15 @@
+Error: Error in comptime function return (at $FILE:7:0)
+  | 
+5 | 
+6 | @guppy.comptime
+7 | def test(qs: array[qubit, 10]) -> None:
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8 |     measure(qs[0])
+  | ^^^^^^^^^^^^^^^^^^
+
+Argument `qs` is borrowed, so it is implicitly returned to the caller. Value
+with non-copyable type `qubit` was already used
+
+Previous use occurred in linear_not_owned2.py:8 as an argument to `measure`.
+
+Guppy compilation failed due to 1 previous error

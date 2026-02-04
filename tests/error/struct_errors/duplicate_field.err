@@ -1,8 +1,8 @@
-Error: Duplicate field (at $FILE:11:4)
-   | 
- 9 | class MyStruct:
-10 |     x: int
-11 |     x: bool
-   |     ^ Struct `MyStruct` already contains a field named `x`
+Error: Duplicate field (at $FILE:7:4)
+  | 
+5 | class MyStruct:
+6 |     x: int
+7 |     x: bool
+  |     ^ Struct `MyStruct` already contains a field named `x`
 
 Guppy compilation failed due to 1 previous error

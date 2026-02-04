@@ -1,9 +1,9 @@
-Error: Borrow shadowed (at $FILE:12:4)
-   | 
-10 | @guppy(module)
-11 | def test(q: qubit) -> None:
-12 |     q = qubit()
-   |     ^ Assignment shadows borrowed argument `q`
+Error: Borrow shadowed (at $FILE:7:4)
+  | 
+5 | @guppy
+6 | def test(q: qubit) -> None:
+7 |     q = qubit()
+  |     ^ Assignment shadows borrowed argument `q`
 
 Help: Consider assigning to a different name
 

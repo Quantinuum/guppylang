@@ -1,11 +1,11 @@
-Error: Not an iterator (at $FILE:37:13)
+Error: Not an iterator (at $FILE:33:13)
    | 
-35 | @guppy(module)
-36 | def test(x: MyType) -> None:
-37 |     for _ in x:
+31 | @guppy
+32 | def test(x: MyType) -> None:
+33 |     for _ in x:
    |              ^ Expression of type `MyIter` is not an iterator
 
-Help: Fix signature of method `MyIter.__next__`:  Expected `MyIter -> (?T,
-MyIter)`, got `MyIter -> (MyIter, float)`
+Help: Fix signature of method `MyIter.__next__`:  Expected `MyIter ->
+Option[(?T, MyIter)]`, got `MyIter -> (MyIter, float)`
 
 Guppy compilation failed due to 1 previous error

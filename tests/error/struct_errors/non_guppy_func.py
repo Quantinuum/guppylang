@@ -1,11 +1,7 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 
 
-module = GuppyModule("test")
-
-
-@guppy.struct(module)
+@guppy.struct
 class MyStruct:
     x: int
 
@@ -13,4 +9,4 @@ class MyStruct:
         pass
 
 
-module.compile()
+MyStruct.compile()

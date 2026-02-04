@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 12, in <module>
+    test.compile()
+  File "$FILE", line 9, in test
+    mem_swap(x, y)
+guppylang_internals.error.GuppyComptimeError: Cannot borrow Python object of type `int` at comptime

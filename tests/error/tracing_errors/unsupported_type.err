@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 13, in <module>
+    test.compile()
+  File "$FILE", line 10, in test
+    foo(set())
+guppylang_internals.error.GuppyComptimeError: Unsupported Python expression: Expression of type `<class 'set'>` is not supported

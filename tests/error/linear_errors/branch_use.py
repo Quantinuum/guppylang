@@ -1,25 +1,19 @@
-import guppylang.std.quantum as quantum
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from guppylang.std.builtins import owned
 from guppylang.std.quantum import qubit
 
 
-module = GuppyModule("test")
-module.load_all(quantum)
-
-
-@guppy.declare(module)
+@guppy.declare
 def new_qubit() -> qubit:
     ...
 
 
-@guppy.declare(module)
+@guppy.declare
 def measure(q: qubit @owned) -> bool:
     ...
 
 
-@guppy(module)
+@guppy
 def foo(b: bool) -> bool:
     q = new_qubit()
     if b:
@@ -27,4 +21,4 @@ def foo(b: bool) -> bool:
     return False
 
 
-module.compile()
+foo.compile()

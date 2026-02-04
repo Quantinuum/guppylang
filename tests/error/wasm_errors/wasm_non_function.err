@@ -1,0 +1,7 @@
+Error: Invalid signature for @wasm function `non_fn`
+in wasm file:
+`$WASM`
+
+Note: `non_fn` is not exported as a function
+
+Guppy compilation failed due to 1 previous error

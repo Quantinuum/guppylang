@@ -1,0 +1,71 @@
+# A check that ensures that `guppylang` works correctly with the latest release of `guppylang-internals`.
+#
+# If this fails, it is likely that we either didn't update the dependency version in guppylang's pyproject,
+# or the latest `guppylang-internals` package hasn't been published to pypi.
+
+name: 🚚 guppylang release checks
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+env:
+  # Pinned version for the uv package manager
+  UV_VERSION: "0.9.5"
+  # The highest and lowest supported Python versions, used for testing
+  PYTHON_HIGHEST: "3.14"
+  PYTHON_LOWEST: "3.10"
+
+jobs:
+  py-release:
+    name: Check `guppylang` release compatibility
+    runs-on: ubuntu-latest
+    # Check if we are running on a release PR.
+    #
+    # release-please always uses this branch name.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'release-please--branches--main--components--guppylang' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install Python ${{ env.PYTHON_HIGHEST }}
+        run: uv python install ${{ env.PYTHON_HIGHEST }}
+      - name: Setup `guppylang` with only pypi dependencies
+        run: |
+          uv sync --no-sources --no-install-workspace \
+            --python ${{ env.PYTHON_HIGHEST }}
+          # Install the latest published release of guppylang-internals.
+          uv pip install --no-sources guppylang-internals \
+            --python-version ${{ env.PYTHON_HIGHEST }}
+          # Install the local version of guppylang.
+          uv pip install -e guppylang --no-deps \
+            --python-version ${{ env.PYTHON_HIGHEST }}
+          echo "\nDone! Installed dependencies:"
+          uv pip list
+      - name: Type check with mypy
+        run: uv run --no-sync mypy guppylang
+      - name: Lint with ruff
+        run: uv run --no-sync ruff check guppylang
+      - name: Run tests
+        run: uv run --no-sync pytest
+
+      # Check pytket integration
+      - name: Install tket dependencies
+        run: |
+          uv sync --no-sources --no-install-workspace \
+            --python ${{ env.PYTHON_HIGHEST }} --extra pytket
+          # Install the latest published release of guppylang-internals.
+          uv pip install --no-sources guppylang-internals \
+            --python-version ${{ env.PYTHON_HIGHEST }}
+          # Install the local version of guppylang.
+          uv pip install -e guppylang --no-deps \
+            --python-version ${{ env.PYTHON_HIGHEST }}
+          echo "\nDone! Installed dependencies:"
+      - name: Rerun comptime expression tests and pytket lowering with tket installed
+        run: uv run --no-sync pytest tests/integration/test_comptime_expr.py tests/error/test_comptime_expr_errors.py tests/integration/test_pytket_circuits.py

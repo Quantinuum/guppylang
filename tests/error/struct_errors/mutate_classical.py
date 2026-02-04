@@ -1,18 +1,14 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from guppylang.std.quantum import qubit
 
-module = GuppyModule("test")
-module.load(qubit)
 
-
-@guppy.struct(module)
+@guppy.struct
 class MyStruct:
     x: int
     q: qubit
 
 
-@guppy(module)
+@guppy
 def foo(s: MyStruct) -> tuple[MyStruct, bool]:
     t = s
     t.x += 1
@@ -21,4 +17,4 @@ def foo(s: MyStruct) -> tuple[MyStruct, bool]:
     return t, t.x == s.x
 
 
-module.compile()
+foo.compile()

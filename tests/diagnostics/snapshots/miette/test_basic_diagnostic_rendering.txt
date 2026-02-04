@@ -1,0 +1,6 @@
+  x Can't compare apples with oranges
+   ,----
+ 1 | apple == orange
+   :       ^|
+   :        `-- Comparison attempted here
+   `----

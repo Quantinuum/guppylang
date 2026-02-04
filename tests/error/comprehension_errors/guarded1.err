@@ -1,11 +1,15 @@
-Error: Linearity violation (at $FILE:13:21)
-   | 
-11 | @guppy(module)
-12 | def foo(qs: list[tuple[bool, qubit]] @owned) -> list[qubit]:
-13 |     return [q for b, q in qs if b]
-   |                      ^ Variable `q` with linear type `qubit` may be leaked ...
-   | 
-13 |     return [q for b, q in qs if b]
-   |                                 - if this expression is `False`
+Error: Drop violation (at $FILE:8:21)
+  | 
+6 | @guppy
+7 | def foo(qs: list[tuple[bool, qubit]] @owned) -> list[qubit]:
+8 |     return [q for b, q in qs if b]
+  |                      ^ Variable `q` with non-droppable type `qubit` may be leaked
+  |                        ...
+
+Note:
+  | 
+7 | def foo(qs: list[tuple[bool, qubit]] @owned) -> list[qubit]:
+8 |     return [q for b, q in qs if b]
+  |                                 - if this expression is `False`
 
 Guppy compilation failed due to 1 previous error

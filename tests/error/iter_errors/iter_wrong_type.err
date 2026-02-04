@@ -1,8 +1,8 @@
-Error: Not iterable (at $FILE:20:13)
+Error: Not iterable (at $FILE:16:13)
    | 
-18 | @guppy(module)
-19 | def test(x: MyType) -> None:
-20 |     for _ in x:
+14 | @guppy
+15 | def test(x: MyType) -> None:
+16 |     for _ in x:
    |              ^ Expression of type `MyType` is not iterable
 
 Help: Fix signature of method `MyType.__iter__`:  Expected `MyType -> ?Iter`,

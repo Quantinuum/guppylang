@@ -1,21 +1,18 @@
-from typing import Generic, TypeVar
+from typing import Generic
 
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
+
+T = guppy.type_var("T")
 
 
-module = GuppyModule("test")
-T = guppy.type_var("T", module=module)
-
-
-@guppy.struct(module)
+@guppy.struct
 class MyStruct(Generic[T]):
     x: list[T]
 
 
-@guppy(module)
+@guppy
 def foo(s: MyStruct) -> None:
     pass
 
 
-module.compile()
+foo.compile()

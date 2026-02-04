@@ -1,0 +1,8 @@
+Error: Integer overflow (at $FILE:7:11)
+  | 
+5 | @guppy
+6 | def foo() -> nat:
+7 |     return 18_446_744_073_709_551_616
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^ Value does not fit into a 64-bit unsigned integer
+
+Guppy compilation failed due to 1 previous error

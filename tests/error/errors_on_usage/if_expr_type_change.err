@@ -4,10 +4,12 @@ Error: Different types (at $FILE:8:8)
 7 |     (y := False) if x or a > 5 else 0
 8 |     z = y
   |         ^ Variable `y` may refer to different types
+
+Notes:
   | 
+5 | def foo(x: bool, a: int) -> int:
 6 |     y = 3
   |     - This is of type `int`
-  | 
 7 |     (y := False) if x or a > 5 else 0
   |      - This is of type `bool`
 

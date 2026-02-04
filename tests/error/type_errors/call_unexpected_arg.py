@@ -1,6 +1,9 @@
-from tests.util import compile_guppy
+from guppylang.decorator import guppy
 
 
-@compile_guppy
+@guppy
 def foo(x: int) -> int:
     return foo(x, x)
+
+
+foo.compile()

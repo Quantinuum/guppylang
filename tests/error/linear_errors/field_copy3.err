@@ -1,11 +1,15 @@
-Error: Linearity violation (at $FILE:18:16)
+Error: Copy violation (at $FILE:13:16)
    | 
-16 | @guppy(module)
-17 | def foo(s: MyStruct @owned) -> tuple[qubit, MyStruct]:
-18 |     return s.q, s
-   |                 ^ Field `s.q` with linear type `qubit` cannot be returned ...
+11 | @guppy
+12 | def foo(s: MyStruct @owned) -> tuple[qubit, MyStruct]:
+13 |     return s.q, s
+   |                 ^ Field `s.q` with non-copyable type `qubit` cannot be
+   |                   returned ...
+
+Note:
    | 
-18 |     return s.q, s
-   |            --- since it was already returned here
+12 | def foo(s: MyStruct @owned) -> tuple[qubit, MyStruct]:
+13 |     return s.q, s
+   |            --- Field `s.q` already returned here
 
 Guppy compilation failed due to 1 previous error

@@ -1,20 +1,16 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from guppylang.std.builtins import owned
 from guppylang.std.quantum import qubit
 
-module = GuppyModule("test")
-module.load(qubit)
 
-
-@guppy.declare(module)
+@guppy.declare
 def use(q: qubit @owned) -> None: ...
 
 
-@guppy(module)
+@guppy
 def test(q: qubit, b: bool) -> None:
     if b:
         use(q)
 
 
-module.compile()
+test.compile()

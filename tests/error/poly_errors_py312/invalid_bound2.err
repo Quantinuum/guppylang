@@ -1,0 +1,8 @@
+Error: Expected a type (at $FILE:5:19)
+  | 
+3 | 
+4 | @guppy.struct
+5 | class MyStruct[x: (42, 43)]:
+  |                    ^^ Expected a type, got value of type `nat`
+
+Guppy compilation failed due to 1 previous error

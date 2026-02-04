@@ -1,12 +1,15 @@
-Error: Linearity violation (at $FILE:22:11)
+Error: Copy violation (at $FILE:16:11)
    | 
-20 |     if b:
-21 |         measure(s.q2)
-22 |     return s
-   |            ^ Field `s.q2` with linear type `qubit` cannot be returned
-   |              ...
+14 |     if b:
+15 |         measure(s.q2)
+16 |     return s
+   |            ^ Field `s.q2` with non-copyable type `qubit` cannot be
+   |              returned ...
+
+Note:
    | 
-21 |         measure(s.q2)
-   |                 ---- since it was already consumed here
+14 |     if b:
+15 |         measure(s.q2)
+   |                 ---- Field `s.q2` already consumed here
 
 Guppy compilation failed due to 1 previous error

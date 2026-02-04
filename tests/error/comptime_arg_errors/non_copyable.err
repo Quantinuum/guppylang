@@ -1,0 +1,9 @@
+Error: Invalid annotation (at $FILE:6:19)
+  | 
+4 | 
+5 | @guppy
+6 | def main(q: qubit @comptime) -> None:
+  |                    ^^^^^^^^ Non-copyable type `qubit` is not allowed as a comptime
+  |                             argument
+
+Guppy compilation failed due to 1 previous error

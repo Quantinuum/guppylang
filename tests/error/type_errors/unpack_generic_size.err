@@ -1,8 +1,8 @@
-Error: Unpackable (at $FILE:11:13)
+Error: Unpackable (at $FILE:10:13)
    | 
- 9 | @guppy(module)
-10 | def foo(xs: array[int, n]) -> int:
-11 |     a, *bs = xs
+ 8 | @guppy
+ 9 | def foo(xs: array[int, n]) -> int:
+10 |     a, *bs = xs
    |              ^^ Expression of type `array[int, n]` cannot be unpacked
 
 Note: Unpacking of iterable types like `array[int, n]` is only allowed if the

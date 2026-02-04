@@ -1,22 +1,19 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
-
-module = GuppyModule("test")
 
 
-@guppy(module)
+@guppy
 def f(x: int) -> int:
     return x
 
 
-@guppy(module)
+@guppy
 def g(x: int) -> int:
     return x
 
 
-@guppy(module)
+@guppy
 def main() -> tuple[int, int]:
     return (f, g)(1, 2)
 
 
-module.compile()
+main.compile()

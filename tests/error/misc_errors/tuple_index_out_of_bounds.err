@@ -1,0 +1,8 @@
+Error: Tuple index out of bounds (at $FILE:6:13)
+  | 
+4 | def foo() -> float:
+5 |     t = (1.0, 2.0)
+6 |     return t[10]
+  |              ^^ Tuple index `10` is out of bounds for tuple of size `2`
+
+Guppy compilation failed due to 1 previous error

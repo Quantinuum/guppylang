@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 23, in <module>
+    main.compile()
+  File "$FILE", line 12, in foo
+    s.xs.clear()
+guppylang_internals.error.GuppyComptimeError: This list is an owned function argument. Therefore, this mutation won't be visible to the caller. Consider calling `copy()` to obtain a mutable local copy of this list.

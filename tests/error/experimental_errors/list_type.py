@@ -1,12 +1,9 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
-
-module = GuppyModule("test")
 
 
-@guppy(module)
+@guppy
 def main(x: list[int]) -> list[int]:
     return x
 
 
-module.compile()
+main.compile_function()

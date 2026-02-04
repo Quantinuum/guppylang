@@ -1,0 +1,13 @@
+[package]
+name = "miette-py"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[lib]
+name = "miette_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+miette = { version = "7.0", features = ["fancy"] }
+pyo3.workspace = true

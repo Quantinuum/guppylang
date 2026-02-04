@@ -1,9 +1,9 @@
-Error: Invalid type (at $FILE:10:12)
-   | 
- 8 | 
- 9 | @guppy.declare(module)
-10 | def foo(f: "Callable[int, float, bool]") -> None: ...
-   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^ Invalid function type
+Error: Invalid type (at $FILE:7:12)
+  | 
+5 | 
+6 | @guppy.declare
+7 | def foo(f: "Callable[int, float, bool]") -> None: ...
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^ Invalid function type
 
 Help: Function types are specified as follows: `Callable[[<arguments>], <return
 type>]`

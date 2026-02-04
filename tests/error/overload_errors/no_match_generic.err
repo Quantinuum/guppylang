@@ -1,0 +1,13 @@
+Error: Invalid call of overloaded function (at $FILE:20:13)
+   | 
+18 | @guppy
+19 | def main() -> None:
+20 |     x: int = overloaded(1.2, 3.4)
+   |              ^^^^^^^^^^^^^^^^^^^^ No variant of overloaded function `overloaded` takes
+   |                                   arguments `float`, `float` and returns `int`
+
+Note: Available overloads are:
+  def overloaded(x: T, y: float) -> T
+  def overloaded(x: float, y: T) -> T
+
+Guppy compilation failed due to 1 previous error

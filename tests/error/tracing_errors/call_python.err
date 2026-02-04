@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "$FILE", line 11, in <module>
+    foo()
+guppylang_internals.error.GuppyComptimeError: Function `foo` may only be called in a Guppy context

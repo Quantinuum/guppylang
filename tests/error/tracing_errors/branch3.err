@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 10, in <module>
+    test.compile()
+  File "$FILE", line 7, in test
+    return all(x for x in xs)
+guppylang_internals.error.GuppyComptimeError: Can't branch on a dynamic Guppy value since its concrete value is not known at comptime. Consider defining a regular Guppy function to perform dynamic branching.

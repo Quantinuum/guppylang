@@ -6,94 +6,79 @@ on:
       - main
   pull_request:
     branches:
-      - '**'
+      - "**"
   merge_group:
-    types: [checks_requested]
-  workflow_dispatch: {}
+    types: [ checks_requested ]
+  workflow_dispatch: { }
 
 env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
-  UV_VERSION: "0.4.27"
-
+  UV_VERSION: "0.9.5"
 
 jobs:
   check:
-    name: Check Python (3.10)
+    name: Check Python (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     env:
-      PYTHON_VERSION: '3.10'
+      PYTHON_VERSION: ${{ matrix.python-version }}
+
+    strategy:
+      matrix:
+        python-version: [ "3.10", "3.12" ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        uses: mozilla-actions/sccache-action@v0.0.9
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      - name: install-llvm
-        run: "sudo apt-get update && sudo apt-get install -y llvm-14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
       - name: Install Guppy
-        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }} 
+        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
 
       - name: Type check with mypy
-        run: uv run mypy guppylang
+        run: uv run mypy guppylang guppylang-internals
 
       - name: Check formatting with ruff
-        run: uv run ruff format --check guppylang
+        run: uv run ruff format --check
 
       - name: Lint with ruff
-        run: uv run ruff check guppylang
-
-      - name: Install Guppy with llvm-based execution
-        run: uv sync --extra execution
-
-      - name: Cargo build validator
-        run: cargo build -p validator --release
+        run: uv run ruff check
 
       - name: Run tests
-        run: uv run pytest
-
-      - name: Install tket2 dependencies
-        # This removes the `execution` extra group
-        run: uv sync --extra pytket
-
-      - name: Rerun `py(...)` expression tests and pytket lowering with tket2 installed
-        run: uv run pytest tests/integration/test_py.py tests/error/test_py_errors.py tests/integration/test_tket.py tests/integration/test_pytket_circuits.py
+        run: uv run pytest -n auto
 
   test-coverage:
-    name: Check Python (3.13) with coverage
+    name: Check Python (3.14) with coverage
     runs-on: ubuntu-latest
     env:
-      PYTHON_VERSION: '3.13'
+      PYTHON_VERSION: "3.14"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        uses: mozilla-actions/sccache-action@v0.0.9
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
-      - name: Install Guppy with execution and pytket
-        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }} --extra execution --extra pytket
-
-      - name: Cargo build validator
-        run: cargo build -p validator --release
+      - name: Install Guppy
+        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
 
       - name: Run python tests with coverage instrumentation
-        run: uv run pytest --cov=./ --cov-report=xml
+        run: uv run pytest -n auto --cov=./ --cov-report=xml
 
       - name: Upload python coverage to codecov.io
         uses: codecov/codecov-action@v5

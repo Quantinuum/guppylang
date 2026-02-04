@@ -1,0 +1,13 @@
+Error: Can't compare apples with oranges (at <unknown>:1:86)
+  | 
+1 | apple + apple + apple + apple + apple + apple + apple + apple + apple + apple + apple == orange
+  |                                                                                       ^^ Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.
+  |                                                                                          Comparison attempted here. Comparison attempted here.

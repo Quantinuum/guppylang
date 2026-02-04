@@ -1,69 +1,78 @@
 from collections.abc import Callable
 
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from tests.util import compile_guppy
 
 
 def test_basic(validate):
-    module = GuppyModule("test")
-
-    @guppy(module)
+    @guppy
     def bar(x: int) -> bool:
         return x > 0
 
-    @guppy(module)
+    @guppy
     def foo() -> Callable[[int], bool]:
         return bar
 
-    validate(module.compile())
+    validate(foo.compile_function())
 
 
 def test_call_1(validate):
-    module = GuppyModule("test")
-
-    @guppy(module)
+    @guppy
     def bar() -> bool:
         return False
 
-    @guppy(module)
+    @guppy
     def foo() -> Callable[[], bool]:
         return bar
 
-    @guppy(module)
+    @guppy
     def baz() -> bool:
         return foo()()
 
-    validate(module.compile())
+    validate(baz.compile_function())
 
 
 def test_call_2(validate):
-    module = GuppyModule("test")
-
-    @guppy(module)
+    @guppy
     def bar(x: int) -> Callable[[int], None]:
         return bar(x - 1)
 
-    @guppy(module)
+    @guppy
     def foo() -> Callable[[int], Callable[[int], None]]:
         return bar
 
-    @guppy(module)
+    @guppy
     def baz(y: int) -> None:
         return foo()(y)(y)
 
-    validate(module.compile())
+    validate(baz.compile_function())
+
+
+def test_conditional(validate):
+    @guppy.declare
+    def foo() -> int: ...
+
+    @guppy.declare
+    def bar() -> int: ...
+
+    @guppy
+    def main(b: bool) -> int:
+        if b:
+            baz = foo
+        else:
+            baz = bar
+        return baz()
+
+    validate(main.compile_function())
 
 
 def test_method(validate):
-    module = GuppyModule("module")
-
-    @guppy(module)
+    @guppy
     def foo(x: int) -> tuple[int, Callable[[int], int]]:
         f = x.__add__
         return f(1), f
 
-    validate(module.compile())
+    validate(foo.compile_function())
 
 
 def test_nested(validate):
@@ -78,26 +87,22 @@ def test_nested(validate):
 
 
 def test_nested_capture_struct(validate):
-    module = GuppyModule("test")
-
-    @guppy.struct(module)
+    @guppy.struct
     class MyStruct:
         x: int
 
-    @guppy(module)
+    @guppy
     def foo(s: MyStruct) -> Callable[[int], bool]:
         def bar(y: int) -> bool:
             return s.x > y
 
         return bar
 
-    validate(module.compile())
+    validate(foo.compile_function())
 
 
 def test_curry(validate):
-    module = GuppyModule("curry")
-
-    @guppy(module)
+    @guppy
     def curry(f: Callable[[int, int], bool]) -> Callable[[int], Callable[[int], bool]]:
         def g(x: int) -> Callable[[int], bool]:
             def h(y: int) -> bool:
@@ -107,7 +112,7 @@ def test_curry(validate):
 
         return g
 
-    @guppy(module)
+    @guppy
     def uncurry(
         f: Callable[[int], Callable[[int], bool]],
     ) -> Callable[[int, int], bool]:
@@ -116,11 +121,11 @@ def test_curry(validate):
 
         return g
 
-    @guppy(module)
+    @guppy
     def gt(x: int, y: int) -> bool:
         return x > y
 
-    @guppy(module)
+    @guppy
     def main(x: int, y: int) -> None:
         curried = curry(gt)
         curried(x)(y)
@@ -128,27 +133,25 @@ def test_curry(validate):
         uncurried(x, y)
         curry(uncurry(curry(gt)))(y)(x)
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_y_combinator(validate):
-    module = GuppyModule("fib")
-
-    @guppy(module)
+    @guppy
     def fac_(f: Callable[[int], int], n: int) -> int:
         if n == 0:
             return 1
         return n * f(n - 1)
 
-    @guppy(module)
+    @guppy
     def Y(f: Callable[[Callable[[int], int], int], int]) -> Callable[[int], int]:
         def y(x: int) -> int:
             return f(Y(f), x)
 
         return y
 
-    @guppy(module)
+    @guppy
     def fac(x: int) -> int:
         return Y(fac_)(x)
 
-    validate(module.compile())
+    validate(fac.compile_function())

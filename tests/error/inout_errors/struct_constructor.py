@@ -1,18 +1,14 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from guppylang.std.quantum import qubit
 
-module = GuppyModule("test")
-module.load(qubit)
 
-
-@guppy.struct(module)
+@guppy.struct
 class MyStruct:
     q: qubit
 
-@guppy(module)
+@guppy
 def test(q: qubit) -> MyStruct:
     return MyStruct(q)
 
 
-module.compile()
+test.compile()

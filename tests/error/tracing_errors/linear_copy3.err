@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "$FILE", line 12, in <module>
+    test.compile()
+  File "$FILE", line 8, in test
+    cx(q, q)
+guppylang_internals.error.GuppyComptimeError: Value with non-copyable type `qubit` was already used
+
+Previous use occurred in linear_copy3.py:8 as an argument to `cx`

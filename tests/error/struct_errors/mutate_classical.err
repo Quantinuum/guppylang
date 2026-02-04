@@ -1,8 +1,8 @@
-Error: Unsupported (at $FILE:18:6)
+Error: Unsupported (at $FILE:14:6)
    | 
-16 | def foo(s: MyStruct) -> tuple[MyStruct, bool]:
-17 |     t = s
-18 |     t.x += 1
+12 | def foo(s: MyStruct) -> tuple[MyStruct, bool]:
+13 |     t = s
+14 |     t.x += 1
    |       ^ Mutation of classical fields is not supported
 
 Guppy compilation failed due to 1 previous error

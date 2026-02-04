@@ -1,110 +1,101 @@
 import pytest
 
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
+from guppylang_internals.error import GuppyError
 
 
 def test_func_redefinition(validate):
-    module = GuppyModule("test")
-
-    @guppy(module)
+    @guppy
     def test() -> bool:
         return 5  # Type error on purpose
 
-    @guppy(module)
+    @guppy
     def test() -> bool:  # noqa: F811
         return False
 
-    validate(module.compile())
+    validate(test.compile_function())
 
 
 def test_method_redefinition(validate):
-    module = GuppyModule("test")
-
-    @guppy.struct(module)
+    @guppy.struct
     class Test:
         x: int
 
-        @guppy(module)
+        @guppy
         def foo(self: "Test") -> int:
             return 1.0  # Type error on purpose
 
-        @guppy(module)
-        def foo(self: "Test") -> int:
+        @guppy
+        def foo(self: "Test") -> int:  # noqa: F811
             return 1  # Type error on purpose
 
-    validate(module.compile())
+    @guppy
+    def main(t: Test) -> int:
+        return t.foo()
+
+    validate(main.compile_function())
 
 
 def test_redefine_after_error(validate):
-    module = GuppyModule("test")
-
-    @guppy.struct(module)
+    @guppy.struct
     class Foo:
         x: int
 
-    @guppy(module)
+    @guppy
     def foo() -> int:
-        return y
+        return y  # noqa: F821
 
-    try:
-        module.compile()
-    except:
-        pass
+    with pytest.raises(GuppyError):
+        foo.compile_function()
 
-    @guppy.struct(module)
-    class Foo:
+    @guppy.struct
+    class Foo:  # noqa: F811
         x: int
 
-    @guppy(module)
+    @guppy
     def foo(f: Foo) -> int:
         return f.x
 
-    validate(module.compile())
+    validate(foo.compile_function())
 
 
-@pytest.mark.skip("See https://github.com/CQCL/guppylang/issues/456")
+@pytest.mark.skip("See https://github.com/quantinuum/guppylang/issues/456")
 def test_struct_redefinition(validate):
-    module = GuppyModule("test")
-
-    @guppy.struct(module)
+    @guppy.struct
     class Test:
-        x: "blah"  # Non-existing type
+        x: "blah"  # Non-existing type  # noqa: F821
 
-    @guppy.struct(module)
-    class Test:
+    @guppy.struct
+    class Test:  # noqa: F811
         y: int
 
-    @guppy(module)
+    @guppy
     def main(x: int) -> Test:
         return Test(x)
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
-@pytest.mark.skip("See https://github.com/CQCL/guppylang/issues/456")
+@pytest.mark.skip("See https://github.com/quantinuum/guppylang/issues/456")
 def test_struct_method_redefinition(validate):
-    module = GuppyModule("test")
-
-    @guppy.struct(module)
+    @guppy.struct
     class Test:
         x: int
 
-        @guppy(module)
+        @guppy
         def foo(self: "Test") -> int:
             return 1.0  # Type error on purpose
 
-    @guppy.struct(module)
-    class Test:
+    @guppy.struct
+    class Test:  # noqa: F811
         y: int
 
-        @guppy(module)
+        @guppy
         def bar(self: "Test") -> int:
             return self.y
 
-    @guppy(module)
+    @guppy
     def main(x: int) -> int:
         return Test(x).bar()
 
-    validate(module.compile())
-
+    validate(main.compile_function())

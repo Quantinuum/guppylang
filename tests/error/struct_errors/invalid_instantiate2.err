@@ -1,8 +1,8 @@
-Error: Too many type arguments (at $FILE:17:11)
+Error: Too many type arguments (at $FILE:15:11)
    | 
-15 | 
-16 | @guppy(module)
-17 | def foo(s: MyStruct[int, bool]) -> None:
+13 | 
+14 | @guppy
+15 | def foo(s: MyStruct[int, bool]) -> None:
    |            ^^^^^^^^^^^^^^^^^^^ Unexpected type argument for type `MyStruct` (expected 1,
    |                                got 2)
 

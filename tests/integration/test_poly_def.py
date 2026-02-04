@@ -1,128 +1,143 @@
 from collections.abc import Callable
 
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
-from guppylang.std.builtins import array
+from guppylang.std.builtins import array, owned
+from guppylang.std.option import Option, nothing
 
 
 def test_id(validate):
-    module = GuppyModule("test")
-    T = guppy.type_var("T", module=module)
+    T = guppy.type_var("T")
 
-    @guppy(module)
+    @guppy
     def identity(x: T) -> T:
         return x
 
-    validate(module.compile())
+    validate(identity.compile_function())
 
 
 def test_nonlinear(validate):
-    module = GuppyModule("test")
-    T = guppy.type_var("T", module=module)
+    T = guppy.type_var("T")
 
-    @guppy(module)
+    @guppy
     def copy(x: T) -> tuple[T, T]:
         return x, x
 
-    validate(module.compile())
+    validate(copy.compile_function())
 
 
 def test_apply(validate):
-    module = GuppyModule("test")
-    S = guppy.type_var("S", module=module)
-    T = guppy.type_var("T", module=module)
+    S = guppy.type_var("S")
+    T = guppy.type_var("T")
 
-    @guppy(module)
+    @guppy
     def apply(f: Callable[[S], T], x: S) -> T:
         return f(x)
 
-    validate(module.compile())
+    validate(apply.compile_function())
 
 
 def test_annotate(validate):
-    module = GuppyModule("test")
-    T = guppy.type_var("T", module=module)
+    T = guppy.type_var("T")
 
-    @guppy(module)
+    @guppy
     def identity(x: T) -> T:
         y: T = x
         return y
 
-    validate(module.compile())
+    validate(identity.compile_function())
 
 
 def test_recurse(validate):
-    module = GuppyModule("test")
-    T = guppy.type_var("T", module=module)
+    T = guppy.type_var("T")
 
-    @guppy(module)
+    @guppy
     def empty() -> T:
         return empty()
 
-    validate(module.compile())
+    validate(empty.compile_function())
 
 
 def test_call(validate):
-    module = GuppyModule("test")
-    T = guppy.type_var("T", module=module)
+    T = guppy.type_var("T")
 
-    @guppy(module)
+    @guppy
     def identity(x: T) -> T:
         return x
 
-    @guppy(module)
+    @guppy
     def main() -> float:
         return identity(5) + identity(42.0)
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_nat(validate):
-    module = GuppyModule("test")
-    T = guppy.type_var("T", module=module)
-    n = guppy.nat_var("n", module=module)
+    T = guppy.type_var("T")
+    n = guppy.nat_var("n")
 
-    @guppy(module)
-    def foo(xs: array[T, n]) -> array[T, n]:
+    @guppy
+    def foo(xs: array[T, n] @ owned) -> array[T, n]:
         return xs
 
-    validate(module.compile())
+    validate(foo.compile_function())
 
 
 def test_nat_use(validate):
-    module = GuppyModule("test")
-    n = guppy.nat_var("n", module=module)
+    n = guppy.nat_var("n")
 
-    @guppy(module)
+    @guppy
     def foo(xs: array[int, n]) -> int:
         return int(n)
 
-    validate(module.compile())
+    validate(foo.compile_function())
 
 
 def test_nat_call(validate):
-    module = GuppyModule("test")
-    T = guppy.type_var("T", module=module)
-    n = guppy.nat_var("n", module=module)
+    T = guppy.type_var("T")
+    n = guppy.nat_var("n")
 
-    @guppy(module)
+    @guppy
     def foo() -> array[T, n]:
         return foo()
 
-    @guppy(module)
+    @guppy
     def main() -> tuple[array[int, 10], array[float, 20]]:
         return foo(), foo()
 
-    validate(module.compile())
+    validate(main.compile_function())
 
 
 def test_nat_recurse(validate):
-    module = GuppyModule("test")
-    n = guppy.nat_var("n", module=module)
+    n = guppy.nat_var("n")
 
-    @guppy(module)
+    @guppy
     def empty() -> array[int, n]:
         return empty()
 
-    validate(module.compile())
+    validate(empty.compile_function())
 
+
+def test_type_apply(validate):
+    T = guppy.type_var("T")
+    n = guppy.nat_var("n")
+
+    @guppy.declare
+    def foo(x: array[T, n]) -> array[T, n]: ...
+
+    @guppy
+    def identity(x: array[T, n]) -> array[T, n]:
+        return foo[T, n](x)
+
+    validate(identity.compile_function())
+
+
+def test_custom_func_higher_order(validate):
+    # See https://github.com/quantinuum/guppylang/issues/970
+    T = guppy.type_var("T")
+
+    @guppy
+    def foo() -> Option[T]:
+        f = nothing[T]
+        return f()
+
+    validate(foo.compile_function())

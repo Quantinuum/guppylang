@@ -1,0 +1,8 @@
+Error: Invalid type (at $FILE:8:7)
+  | 
+6 | @guppy.struct
+7 | class Foo:
+8 |     x: Self
+  |        ^^^^ `Self` type annotations are only allowed in methods
+
+Guppy compilation failed due to 1 previous error

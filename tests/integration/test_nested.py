@@ -1,3 +1,4 @@
+from guppylang import guppy
 from tests.util import compile_guppy
 
 
@@ -192,7 +193,7 @@ def test_capture_recurse(validate):
 
 
 def test_capture_recurse_nested(validate):
-    @compile_guppy
+    @guppy
     def foo(x: int) -> int:
         def bar(y: int, z: int) -> int:
             if y == 0:
@@ -207,7 +208,7 @@ def test_capture_recurse_nested(validate):
 
         return bar(x, 0)
 
-    validate(foo)
+    validate(foo.compile_function())
 
 
 def test_capture_while(validate):

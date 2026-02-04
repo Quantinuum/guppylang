@@ -1,0 +1,8 @@
+Error: Invalid annotation (at $FILE:10:24)
+   | 
+ 8 | class Foo:
+ 9 |     @guppy
+10 |     def foo(self: Self @owned) -> None:
+   |                         ^^^^^ Classical type `?Self` cannot be owned
+
+Guppy compilation failed due to 1 previous error

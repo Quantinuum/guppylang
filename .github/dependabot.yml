@@ -5,12 +5,12 @@
 
 version: 2
 updates:
-  # NOTE: This won't update the `uv.lock` file yet, so that should be updated
-  # manually when needed.
-  # https://github.com/dependabot/dependabot-core/issues/10478
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directories: # Location of package manifests
       - "/"
+      - "/guppylang"
+      - "/guppylang-internals"
+      - "/miette-py"
     schedule:
       interval: "weekly"
     commit-message:

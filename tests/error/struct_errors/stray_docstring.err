@@ -1,8 +1,8 @@
-Error: Unexpected statement (at $FILE:11:4)
-   | 
- 9 | class MyStruct:
-10 |     x: int
-11 |     """Docstring in wrong position"""
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unexpected statement in struct definition
+Error: Unexpected statement (at $FILE:7:4)
+  | 
+5 | class MyStruct:
+6 |     x: int
+7 |     """Docstring in wrong position"""
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unexpected statement in struct definition
 
 Guppy compilation failed due to 1 previous error

@@ -1,32 +1,26 @@
-import guppylang.std.quantum as quantum
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from guppylang.std.builtins import owned
-from guppylang.std.quantum import qubit, measure
+from guppylang.std.quantum import qubit
 
 
-module = GuppyModule("test")
-module.load_all(quantum)
-
-
-@guppy.struct(module)
+@guppy.struct
 class MyStruct1:
     x: "MyStruct2"
 
 
-@guppy.struct(module)
+@guppy.struct
 class MyStruct2:
     q: qubit
 
 
-@guppy.declare(module)
+@guppy.declare
 def use(s: MyStruct2 @owned) -> None: ...
 
 
-@guppy(module)
+@guppy
 def foo(s: MyStruct1 @owned) -> qubit:
     use(s.x)
     return s.x.q
 
 
-module.compile()
+foo.compile()

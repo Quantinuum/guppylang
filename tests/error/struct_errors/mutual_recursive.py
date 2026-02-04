@@ -1,18 +1,14 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 
 
-module = GuppyModule("test")
-
-
-@guppy.struct(module)
+@guppy.struct
 class StructA:
     x: "list[StructB]"
 
 
-@guppy.struct(module)
+@guppy.struct
 class StructB:
     y: "StructA"
 
 
-module.compile()
+StructB.compile()

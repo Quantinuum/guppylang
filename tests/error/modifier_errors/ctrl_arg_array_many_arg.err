@@ -1,0 +1,8 @@
+Error: Too many arguments (at $FILE:15:16)
+   | 
+13 |     x = array(qubit())
+14 |     y = array(qubit())
+15 |     with control(x, y):
+   |                 ^^^^^^ Unexpected argument (expected 1, got 2)
+
+Guppy compilation failed due to 1 previous error

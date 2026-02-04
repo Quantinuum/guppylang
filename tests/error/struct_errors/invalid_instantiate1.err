@@ -1,8 +1,8 @@
-Error: Missing type arguments (at $FILE:17:11)
+Error: Missing type arguments (at $FILE:14:11)
    | 
-15 | 
-16 | @guppy(module)
-17 | def foo(s: MyStruct) -> None:
+12 | 
+13 | @guppy
+14 | def foo(s: MyStruct) -> None:
    |            ^^^^^^^^ Missing type argument for type `MyStruct` (expected 1, got
    |                     0)
 

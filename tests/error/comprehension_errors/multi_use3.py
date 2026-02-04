@@ -1,21 +1,16 @@
-import guppylang.std.quantum as quantum
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from guppylang.std.quantum import qubit
 from guppylang.std.builtins import owned
 
-module = GuppyModule("test")
-module.load_all(quantum)
 
-
-@guppy.declare(module)
+@guppy.declare
 def bar(q: qubit @owned) -> bool:
     ...
 
 
-@guppy(module)
+@guppy
 def foo(qs: list[qubit] @owned, xs: list[int]) -> list[int]:
     return [x for q in qs for x in xs if bar(q)]
 
 
-module.compile()
+foo.compile()

@@ -1,8 +1,8 @@
-Error: Linearity violation (at $FILE:13:19)
-   | 
-11 | @guppy(module)
-12 | def foo(qs: list[qubit] @owned) -> list[int]:
-13 |     return [42 for q in qs]
-   |                    ^ Variable `q` with linear type `qubit` is leaked
+Error: Drop violation (at $FILE:8:19)
+  | 
+6 | @guppy
+7 | def foo(qs: list[qubit] @owned) -> list[int]:
+8 |     return [42 for q in qs]
+  |                    ^ Variable `q` with non-droppable type `qubit` is leaked
 
 Guppy compilation failed due to 1 previous error

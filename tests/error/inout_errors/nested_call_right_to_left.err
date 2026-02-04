@@ -1,12 +1,15 @@
-Error: Linearity violation (at $FILE:17:22)
+Error: Copy violation (at $FILE:13:22)
    | 
-15 | def test(q: qubit @owned) -> tuple[int, qubit]:
-16 |     # This doesn't work since arguments are evaluated from left to right
-17 |     return foo(q, foo(q, foo(q, 0))), q
-   |                       ^ Variable `q` with linear type `qubit` cannot be borrowed
-   |                         ...
+11 | def test(q: qubit @owned) -> tuple[int, qubit]:
+12 |     # This doesn't work since arguments are evaluated from left to right
+13 |     return foo(q, foo(q, foo(q, 0))), q
+   |                       ^ Variable `q` with non-copyable type `qubit` cannot be
+   |                         borrowed ...
+
+Note:
    | 
-17 |     return foo(q, foo(q, foo(q, 0))), q
-   |                - since it was already borrowed here
+12 |     # This doesn't work since arguments are evaluated from left to right
+13 |     return foo(q, foo(q, foo(q, 0))), q
+   |                - Variable `q` already borrowed here
 
 Guppy compilation failed due to 1 previous error

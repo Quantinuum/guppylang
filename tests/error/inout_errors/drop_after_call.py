@@ -1,18 +1,14 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 from guppylang.std.quantum import qubit
 
-module = GuppyModule("test")
-module.load(qubit)
 
-
-@guppy.declare(module)
+@guppy.declare
 def foo(q: qubit) -> None: ...
 
 
-@guppy(module)
+@guppy
 def test() -> None:
    foo(qubit())
 
 
-module.compile()
+test.compile()

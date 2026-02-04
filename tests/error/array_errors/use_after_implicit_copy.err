@@ -1,0 +1,17 @@
+Error: Copy violation (at $FILE:8:10)
+  | 
+6 | def main(xs: array[int, 2] @ owned) -> array[int, 2]:
+7 |    ys = xs
+8 |    return xs
+  |           ^^ Variable `xs` with non-copyable type `array[int, 2]` cannot
+  |              be returned ...
+
+Note:
+  | 
+6 | def main(xs: array[int, 2] @ owned) -> array[int, 2]:
+7 |    ys = xs
+  |         -- Variable `xs` already moved here
+
+Help: Consider copying `xs` instead of moving it: `xs.copy()`
+
+Guppy compilation failed due to 1 previous error

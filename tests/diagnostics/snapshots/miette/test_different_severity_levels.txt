@@ -1,0 +1,6 @@
+  ! Warning message
+   ,----
+ 1 | suspicious_code()
+   : ^^^^^^^|^^^^^^^
+   :        `-- Warning here
+   `----

@@ -4,14 +4,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
 
-from guppylang.diagnostic import (
+from guppylang_internals.diagnostic import (
     Diagnostic,
     DiagnosticsRenderer,
     Error,
     Help,
     Note,
 )
-from guppylang.span import Loc, SourceMap, Span
+from guppylang_internals.span import Loc, SourceMap, Span
 
 file = "<unknown>"
 
@@ -210,5 +210,53 @@ def test_two_line_span(snapshot, request):
 def test_three_line_span(snapshot, request):
     source = "apple.compare(\n     orange\n) == EQUAL"
     span = Span(Loc(file, 1, 5), Loc(file, 3, 1))
+    diagnostic = MyError(span)
+    run_test(source, diagnostic, snapshot, request)
+
+
+def test_message_new_line(snapshot, request):
+    @dataclass(frozen=True)
+    class MyError(Error):
+        message: ClassVar[str] = "Apple " * 20 + "\n\n" + "Orange " * 30
+
+    diagnostic = MyError(None)
+    run_test("", diagnostic, snapshot, request)
+
+
+def test_far_indented_label(snapshot, request):
+    @dataclass(frozen=True)
+    class MyDiagnostic(Error):
+        title: ClassVar[str] = "Can't compare apples with oranges"
+        span_label: ClassVar[str] = "Comparison attempted here. " * 20
+
+    source = "apple + " * 10 + "apple == orange"
+    span = Span(Loc(file, 1, 86), Loc(file, 1, 88))
+    diagnostic = MyDiagnostic(span)
+    run_test(source, diagnostic, snapshot, request)
+
+
+def test_leading_tab_characters_single_line_span(snapshot, request):
+    source = "\tsuper_apple := apple ** 2\n"
+    source += "\tlemon := orange - apple\n"
+    source += "\tapple == orange\n"
+    span = Span(Loc(file, 3, 1), Loc(file, 3, 1 + 15))
+    diagnostic = MyError(span)
+    run_test(source, diagnostic, snapshot, request)
+
+
+def test_leading_tab_characters_multi_line_span(snapshot, request):
+    source = "\tsuper_apple := apple ** 2\n"
+    source += "\tlemon := orange - apple\n"
+    source += "\tapple == orange\n"
+    span = Span(Loc(file, 1, 1), Loc(file, 3, 1 + 15))
+    diagnostic = MyError(span)
+    run_test(source, diagnostic, snapshot, request)
+
+
+def test_leading_tab_characters_multi_line_span_varying_tabs(snapshot, request):
+    source = "\t\tsuper_apple := apple ** 2\n"
+    source += "\tlemon := orange - apple\n"
+    source += "\t\t\tapple == orange\n"
+    span = Span(Loc(file, 1, 2), Loc(file, 3, 3 + 15))
     diagnostic = MyError(span)
     run_test(source, diagnostic, snapshot, request)

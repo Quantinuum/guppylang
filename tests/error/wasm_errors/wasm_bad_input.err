@@ -1,0 +1,7 @@
+Error: Invalid signature for @wasm function `bad_input_type`
+in wasm file:
+`$WASM`
+
+Note: Unsupported input type: i32
+
+Guppy compilation failed due to 1 previous error

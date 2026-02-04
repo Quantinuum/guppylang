@@ -1,11 +1,14 @@
-Error: Break in linear loop (at $FILE:17:12)
+Error: Break in non-droppable loop (at $FILE:12:12)
    | 
-15 |         rs += [q]
-16 |         if b:
-17 |             return []
-   |             ^^^^^^^^^ Early exit in linear loops is not allowed
+10 |         rs += [q]
+11 |         if b:
+12 |             return []
+   |             ^^^^^^^^^ Early exit in non-droppable loops is not allowed
+
+Note:
    | 
-14 |     for q, b in qs:
-   |                 -- Iterator has linear type `list[(qubit, bool)]`
+ 8 |     rs: list[qubit] = []
+ 9 |     for q, b in qs:
+   |                 -- Iterator has non-droppable type `list[(qubit, bool)]`
 
 Guppy compilation failed due to 1 previous error

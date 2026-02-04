@@ -1,5 +1,4 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 
 
 def test_docstring(validate):
@@ -32,42 +31,6 @@ def test_docstring(validate):
             string.
             """
 
-    default_module = guppy.get_module()
-    validate(default_module.compile())
-
-
-def test_docstring_module(validate):
-    module = GuppyModule("")
-
-    @guppy(module)
-    def f() -> None:
-        "Example docstring"
-        f()
-
-    @guppy(module)
-    def g() -> None:
-        """Multi
-        line
-        doc
-        string.
-        """
-
-    @guppy(module)
-    def nested() -> None:
-        """Test docstrings in nested functions"""
-
-        def f_nested() -> None:
-            "Example docstring"
-            f()
-            g()
-
-        def g_nested() -> None:
-            """Multi
-            line
-            doc
-            string.
-            """
-            f()
-            f_nested()
-
-    validate(module.compile())
+    validate(f.compile_function())
+    validate(g.compile_function())
+    validate(nested.compile_function())

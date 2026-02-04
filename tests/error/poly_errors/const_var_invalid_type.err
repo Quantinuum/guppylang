@@ -1,0 +1,8 @@
+Error: Non-parametric type (at $FILE:5:0)
+  | 
+3 | from guppylang.decorator import guppy
+4 | 
+5 | X = guppy.const_var("X", "float[int]")
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type `float` is not parametric
+
+Guppy compilation failed due to 1 previous error

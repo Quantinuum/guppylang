@@ -1,8 +1,8 @@
-Error: Expected a function definition (at $FILE:6:0)
+Error: Expected a function definition (at $FILE:4:0)
   | 
-4 | module = GuppyModule("test")
-5 | 
-6 | f = lambda x: x
+2 | 
+3 | 
+4 | f = lambda x: x
   | ^^^^^^^^^^^^^^^ Expected a function definition
 
 Guppy compilation failed due to 1 previous error

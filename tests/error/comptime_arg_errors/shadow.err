@@ -1,0 +1,9 @@
+Error: Shadowed type parameter (at $FILE:8:31)
+  | 
+6 | 
+7 | @guppy
+8 | def main(xs: array[int, n], n: nat @comptime) -> None:
+  |                                ^^^^^^^^^^^^^ Comptime argument `n` shadows previously used parameter with
+  |                                              the same name
+
+Guppy compilation failed due to 1 previous error

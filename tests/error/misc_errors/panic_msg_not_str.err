@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:7:10)
+  | 
+5 | @compile_guppy
+6 | def foo(x: int) -> None:
+7 |     panic((), x)
+  |           ^^ Expected expression of type `str`, got `()`
+
+Guppy compilation failed due to 1 previous error

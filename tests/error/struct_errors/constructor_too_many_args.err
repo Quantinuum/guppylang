@@ -1,8 +1,8 @@
-Error: Too many arguments (at $FILE:15:16)
+Error: Too many arguments (at $FILE:11:16)
    | 
-13 | @guppy(module)
-14 | def main() -> None:
-15 |     MyStruct(1, 2, 3)
+ 9 | @guppy
+10 | def main() -> None:
+11 |     MyStruct(1, 2, 3)
    |                 ^^^^ Unexpected arguments (expected 1, got 3)
 
 Note: Function signature is `int -> MyStruct`

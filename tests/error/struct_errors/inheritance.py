@@ -1,13 +1,9 @@
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
 
 
-module = GuppyModule("test")
-
-
-@guppy.struct(module)
+@guppy.struct
 class MyStruct(int):
     x: bool
 
 
-module.compile()
+MyStruct.compile()

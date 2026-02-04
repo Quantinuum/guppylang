@@ -1,28 +1,22 @@
 from typing import Callable
 
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
-
 from guppylang.std.quantum import qubit
 
-module = GuppyModule("test")
-module.load(qubit)
+T = guppy.type_var("T")
 
 
-T = guppy.type_var("T", module=module)
-
-
-@guppy.declare(module)
+@guppy.declare
 def foo(x: Callable[[T], None]) -> None:
     ...
 
-@guppy.declare(module)
+@guppy.declare
 def h(q: qubit) -> None: ...
 
 
-@guppy(module)
+@guppy
 def main() -> None:
     foo(h)
 
 
-module.compile()
+main.compile()

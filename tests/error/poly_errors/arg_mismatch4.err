@@ -1,8 +1,8 @@
-Error: Expected expression of type `nat` (at $FILE:9:12)
+Error: Expected expression of type `nat` (at $FILE:6:12)
   | 
-7 | 
-8 | @guppy(module)
-9 | def main(x: array[int, bool]) -> None:
+4 | 
+5 | @guppy
+6 | def main(x: array[int, bool]) -> None:
   |             ^^^^^^^^^^^^^^^^ Expected expression of type `nat`, got type `bool`
 
 Guppy compilation failed due to 1 previous error

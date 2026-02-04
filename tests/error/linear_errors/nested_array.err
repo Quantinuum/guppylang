@@ -1,0 +1,12 @@
+Error: Subscript returned (at $FILE:7:11)
+  | 
+5 | @guppy
+6 | def foo(xs: array[array[int, 10], 20]) -> array[int, 10]:
+7 |     return xs[0]
+  |            ^^^^^ Cannot return a subscript of `xs` with non-copyable type
+  |                  `array[array[int, 10], 20]`
+
+Note: Subscripts on non-copyable types are only allowed to be borrowed, not
+returned
+
+Guppy compilation failed due to 1 previous error

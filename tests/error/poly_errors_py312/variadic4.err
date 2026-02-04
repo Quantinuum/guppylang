@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:5:15)
+  | 
+3 | 
+4 | @guppy.struct
+5 | class MyStruct[**Ts]:
+  |                ^^^^ Variadic generic parameters are not supported
+
+Guppy compilation failed due to 1 previous error

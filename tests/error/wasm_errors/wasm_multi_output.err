@@ -1,0 +1,7 @@
+Error: Invalid signature for @wasm function `multiple_outputs`
+in wasm file:
+`$WASM`
+
+Note: Multiple output types unsupported in function `multiple_outputs`
+
+Guppy compilation failed due to 1 previous error

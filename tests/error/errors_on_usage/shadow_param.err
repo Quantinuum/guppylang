@@ -1,0 +1,14 @@
+Error: Variable not defined (at $FILE:11:11)
+   | 
+ 9 |     if b:
+10 |         n = nat(42)
+11 |     return n
+   |            ^ `n` might be undefined ...
+
+Note:
+   | 
+ 8 | def main(b: bool) -> nat:
+ 9 |     if b:
+   |        - ... if this expression is `False`
+
+Guppy compilation failed due to 1 previous error

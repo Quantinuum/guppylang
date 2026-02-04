@@ -1,27 +1,23 @@
 from typing import Callable
 
 from guppylang.decorator import guppy
-from guppylang.module import GuppyModule
+
+T = guppy.type_var("T")
 
 
-module = GuppyModule("test")
-
-T = guppy.type_var("T", module=module)
-
-
-@guppy.declare(module)
+@guppy.declare
 def foo(f: Callable[[T], T]) -> None:
     ...
 
 
-@guppy.declare(module)
+@guppy.declare
 def bar(x: T) -> T:
     ...
 
 
-@guppy(module)
+@guppy
 def main() -> None:
     foo(bar)
 
 
-module.compile()
+main.compile()

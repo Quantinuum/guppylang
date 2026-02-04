@@ -1,12 +1,15 @@
-Error: Not owned (at $FILE:17:12)
+Error: Not owned (at $FILE:13:12)
    | 
-15 | def test(q: qubit, b: bool) -> None:
-16 |     if b:
-17 |         use(q)
-   |             ^ Function `use` wants to take ownership of this argument,
-   |               but `test` doesn't own `q`
+11 | def test(q: qubit, b: bool) -> None:
+12 |     if b:
+13 |         use(q)
+   |             ^ Function `use` wants to take ownership of this argument, but
+   |               `test` doesn't own `q`
+
+Note:
    | 
-15 | def test(q: qubit, b: bool) -> None:
+10 | @guppy
+11 | def test(q: qubit, b: bool) -> None:
    |          -------- Argument `q` is only borrowed. Consider taking ownership:
    |                   `q: qubit @owned`
 

@@ -1,0 +1,8 @@
+Error: Value mismatch (at $FILE:14:14)
+   | 
+12 | @guppy
+13 | def main(x: T @ comptime, y: T @ comptime) -> None:
+14 |     foo[T, x](y)
+   |               ^ Expected constant `x`, got `y`
+
+Guppy compilation failed due to 1 previous error

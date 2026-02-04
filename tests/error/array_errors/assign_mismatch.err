@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:8:4)
+  | 
+6 | def main() -> None:
+7 |     a = array(1, 2, 3)
+8 |     a[0] = "not an int"
+  |     ^^^^ Cannot assign expression of type `str` to array element of
+  |          type `int`
+
+Guppy compilation failed due to 1 previous error

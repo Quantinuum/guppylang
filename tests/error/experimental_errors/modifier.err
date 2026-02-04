@@ -1,0 +1,14 @@
+Error: Experimental feature (at $FILE:6:4)
+  | 
+4 | @guppy
+5 | def main() -> None:
+6 |     with dagger:
+  |     ^^^^^^^^^^^^
+7 |         pass
+  | ^^^^^^^^^^^^ Modifiers are an experimental feature
+
+Help: Experimental features are currently disabled. You can enable them by
+calling `guppylang.enable_experimental_features()`, however note that these
+features are unstable and might break in the future.
+
+Guppy compilation failed due to 1 previous error

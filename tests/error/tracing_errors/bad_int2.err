@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 9, in <module>
+    test.compile()
+  File "$FILE", line 7, in test
+    return x + (-(1 << 63) - 1)
+guppylang_internals.error.GuppyComptimeError: Integer underflow: Value does not fit into a 64-bit signed integer

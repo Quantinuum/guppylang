@@ -1,0 +1,7 @@
+  x Can't compare apples with oranges
+   ,----
+ 1 | apple == orange
+   :       ^| ^^^|^^
+   :        |    `-- Sub-diagnostic label
+   :        `-- Comparison attempted here
+   `----

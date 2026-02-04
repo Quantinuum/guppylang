@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 11, in <module>
+    test.compile()
+  File "$FILE", line 8, in test
+    x(1)
+guppylang_internals.error.GuppyComptimeError: Extern `x` is not callable

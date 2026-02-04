@@ -1,0 +1,9 @@
+Error: Not generic (at $FILE:20:4)
+   | 
+18 | @guppy
+19 | def main() -> None:
+20 |     overloaded[int](42)
+   |     ^^^^^^^^^^^^^^^ `overloaded` is not generic, so no type parameters can be
+   |                     provided
+
+Guppy compilation failed due to 1 previous error

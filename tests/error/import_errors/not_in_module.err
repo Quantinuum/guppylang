@@ -1,7 +1,0 @@
-Guppy compilation failed. Error in file $FILE:12
-
-10:    @guppy(module)
-11:    def main(x: int) -> int:
-12:        return lib.bar(x)
-                  ^^^^^^^
-GuppyError: Module `lib` has no member `bar`

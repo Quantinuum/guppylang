@@ -1,8 +1,8 @@
-Error: Expected a value (at $FILE:12:8)
-   | 
-10 | @guppy(module)
-11 | def foo(x: T) -> None:
-12 |     y = T
-   |         ^ Expected a value, got type `T`
+Error: Expected a value (at $FILE:8:8)
+  | 
+6 | @guppy
+7 | def foo(x: T) -> None:
+8 |     y = T
+  |         ^ Expected a value, got type `T`
 
 Guppy compilation failed due to 1 previous error

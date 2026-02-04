@@ -1,8 +1,8 @@
-Error: Unsupported (at $FILE:10:13)
-   | 
- 8 | @guppy.struct(module)
- 9 | class MyStruct:
-10 |     x: int = 42
-   |              ^^ Default struct values are not supported
+Error: Unsupported (at $FILE:6:13)
+  | 
+4 | @guppy.struct
+5 | class MyStruct:
+6 |     x: int = 42
+  |              ^^ Default struct values are not supported
 
 Guppy compilation failed due to 1 previous error

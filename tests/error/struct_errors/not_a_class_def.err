@@ -1,10 +1,10 @@
-Error: Expected a class definition (at $FILE:8:0)
+Error: Expected a class definition (at $FILE:5:0)
   | 
-6 | 
-7 | @guppy.struct(module)
-8 | def foo(x: int) -> int:
+3 | 
+4 | @guppy.struct
+5 | def foo(x: int) -> int:
   | ^^^^^^^^^^^^^^^^^^^^^^^
-9 |     return x
+6 |     return x
   | ^^^^^^^^^^^^ Expected a class definition
 
 Guppy compilation failed due to 1 previous error

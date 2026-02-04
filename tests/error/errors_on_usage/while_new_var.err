@@ -4,7 +4,10 @@ Error: Variable not defined (at $FILE:8:11)
 7 |         y = 5
 8 |     return y
   |            ^ `y` might be undefined ...
+
+Note:
   | 
+5 | def foo(x: bool) -> int:
 6 |     while x:
   |           - ... if this expression is `False`
 

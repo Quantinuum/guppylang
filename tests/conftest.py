@@ -1,9 +1,15 @@
 import argparse
+import sys
 from pathlib import Path
 
 import guppylang
 
 guppylang.enable_experimental_features()
+
+
+if sys.version_info < (3, 12):
+    # Ignore tests that require Python 3.12 syntax
+    collect_ignore_glob = ["*_py312.py"]
 
 
 def pytest_addoption(parser):

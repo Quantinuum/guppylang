@@ -1,12 +1,15 @@
-Error: Linearity violation (at $FILE:29:11)
+Error: Copy violation (at $FILE:23:11)
    | 
-27 | def foo(s: MyStruct1 @owned) -> MyStruct1:
-28 |     use(s)
-29 |     return s
-   |            ^ Field `s.x.q` with linear type `qubit` cannot be returned
-   |              ...
+21 | def foo(s: MyStruct1 @owned) -> MyStruct1:
+22 |     use(s)
+23 |     return s
+   |            ^ Field `s.x.q` with non-copyable type `qubit` cannot be
+   |              returned ...
+
+Note:
    | 
-28 |     use(s)
-   |         - since it was already consumed here
+21 | def foo(s: MyStruct1 @owned) -> MyStruct1:
+22 |     use(s)
+   |         - Field `s.x.q` already consumed here
 
 Guppy compilation failed due to 1 previous error

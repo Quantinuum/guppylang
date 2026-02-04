@@ -1,0 +1,8 @@
+Error: Unknown modifier (at $FILE:6:9)
+  | 
+4 | @guppy
+5 | def test() -> None:
+6 |     with True:
+  |          ^^^^ Expected one of {dagger, control(...), or power(...)}
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:9:15)
+  | 
+7 | 
+8 |     def inner() -> int:
+9 |         return x
+  |                ^ Capturing closures are not supported
+
+Guppy compilation failed due to 1 previous error

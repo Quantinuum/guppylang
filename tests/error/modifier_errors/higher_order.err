@@ -1,0 +1,8 @@
+Error: Unitary constraint violation (at $FILE:10:4)
+   | 
+ 8 | def test_ho(f: Callable[[qubit], None], q: qubit) -> None:
+ 9 |     # There is no way to use specify flags for f
+10 |     f(q)
+   |     ^^^^ This function cannot be called in a dagger context
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,9 @@
+Error: Invalid type argument (at $FILE:7:23)
+  | 
+5 | 
+6 | @compile_guppy
+7 | def foo(xs: array[int, comptime(1.0)]) -> None:
+  |                        ^^^^^^^^^^^^^ Comptime expression evaluating to `1.0` is not a valid type
+  |                                      argument
+
+Guppy compilation failed due to 1 previous error

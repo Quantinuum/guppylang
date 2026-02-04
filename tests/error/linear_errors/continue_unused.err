@@ -1,11 +1,15 @@
-Error: Linearity violation (at $FILE:26:8)
+Error: Drop violation (at $FILE:20:8)
    | 
-24 |     b = False
-25 |     while i > 0:
-26 |         q = new_qubit()
-   |         ^ Variable `q` with linear type `qubit` may be leaked ...
+18 |     b = False
+19 |     while i > 0:
+20 |         q = new_qubit()
+   |         ^ Variable `q` with non-droppable type `qubit` may be leaked
+   |           ...
+
+Note:
    | 
-27 |         if i % 10 == 0:
+20 |         q = new_qubit()
+21 |         if i % 10 == 0:
    |            ----------- if this expression is `True`
 
 Help: Make sure that `q` is consumed or returned to avoid the leak

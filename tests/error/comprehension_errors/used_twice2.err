@@ -1,11 +1,15 @@
-Error: Linearity violation (at $FILE:18:12)
+Error: Copy violation (at $FILE:13:12)
    | 
-16 | @guppy(module)
-17 | def foo(qs: list[qubit] @owned) -> list[qubit]:
-18 |     return [q for q in qs if bar(q)]
-   |             ^ Variable `q` with linear type `qubit` cannot be moved ...
+11 | @guppy
+12 | def foo(qs: list[qubit] @owned) -> list[qubit]:
+13 |     return [q for q in qs if bar(q)]
+   |             ^ Variable `q` with non-copyable type `qubit` cannot be moved
+   |               ...
+
+Note:
    | 
-18 |     return [q for q in qs if bar(q)]
-   |                                  - since it was already consumed here
+12 | def foo(qs: list[qubit] @owned) -> list[qubit]:
+13 |     return [q for q in qs if bar(q)]
+   |                                  - Variable `q` already consumed here
 
 Guppy compilation failed due to 1 previous error

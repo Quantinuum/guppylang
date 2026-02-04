@@ -1,0 +1,9 @@
+Error: Not defined for linear argument (at $FILE:14:4)
+   | 
+12 | @guppy
+13 | def main(q: qubit) -> None:
+14 |     foo(q)
+   |     ^^^^^^ Cannot instantiate droppable type parameter `T` in type
+   |            `forall T. T -> None` with non-droppable type `qubit`
+
+Guppy compilation failed due to 1 previous error

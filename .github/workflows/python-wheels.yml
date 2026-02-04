@@ -2,15 +2,12 @@ name: Build and publish python wheels
 # Builds and publishes the wheels on pypi.
 #
 # When running on a push-to-main event, or as a workflow dispatch on a branch,
-# this workflow will do a dry-run publish to test-pypi.
+# this workflow will do a dry-run and **will not** publish the created wheels.
 #
 # When running on a release event or as a workflow dispatch for a tag,
-# and if the tag matches `hugr-py-v*`,
-# this workflow will publish the wheels to pypi.
+# and if the tag matches `guppylang-v*` or `guppylang-internals-v*`,
+# this workflow will publish the corresponding wheels to pypi.
 # If the version is already published, pypi just ignores it.
-
-permissions:
-  id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
 
 on:
   workflow_dispatch:
@@ -21,43 +18,84 @@ on:
     types:
       - published
 
+env:
+  # Pinned version for the uv package manager
+  UV_VERSION: "0.9.5"
+
 jobs:
   build-publish:
-    name: Build and publish wheels
+    name: Package and publish wheels
     runs-on: ubuntu-latest
     environment: release
-
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
+    strategy:
+      matrix:
+        target:
+          - {
+              dir: guppylang,
+              component: guppylang,
+              package: guppylang,
+              lib: guppylang,
+            }
+          - {
+              dir: guppylang-internals,
+              component: guppylang-internals,
+              package: guppylang-internals,
+              lib: guppylang_internals,
+            }
     steps:
-      - uses: actions/checkout@v4
+      # Check the release tag against the package name
+      #
+      # Skip the workflow when triggered by a release event for any other package.
+      - name: Check tag
+        id: check-tag
+        run: |
+          echo "run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+        env:
+          SHOULD_RUN: ${{ github.event_name != 'release' || ( github.ref_type == 'tag' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.target.component)) ) }}
+
+      - uses: actions/checkout@v6
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Set up uv
-        run: curl -LsSf https://astral.sh/uv/0.3.4/install.sh | sh
-      - name: "Set up Python"
-        uses: actions/setup-python@v5
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.10'
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install Python 3.13
+        run: uv python install 3.13
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
 
       - name: Build sdist and wheels
-        run: uvx --from build pyproject-build --installer uv --outdir dist
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
+        run: |
+          cd ${{ matrix.target.dir }}
+          uvx --from build pyproject-build --installer uv --outdir ../dist
 
       - name: Upload the built packages as artifacts
-        uses: actions/upload-artifact@v4
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
+        uses: actions/upload-artifact@v6
         with:
-          name: build-guppylang-sdist
+          name: build-${{ matrix.target.component }}-sdist
           path: |
             dist/*.tar.gz
             dist/*.whl
 
       - name: Test installing the built wheels
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
         run: |
-          echo "Testing the newly built wheels..."
-          uv run -f dist --with guppylang --refresh-package guppylang --no-project -- python -c "import guppylang"
+          echo "Testing the newly built ${{ matrix.target.package }} wheels..."
+          uv run -f dist --with ${{ matrix.target.package }} --refresh-package ${{ matrix.target.package }} --no-project -- python -c "import ${{ matrix.target.lib }}"
           uvx twine check --strict dist/*
 
-      - name: Report tag
-        if: ${{ (github.event_name == 'release' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')) }}
+      - name: Report
+        if: ${{ (github.event_name == 'release' && github.ref_type == 'tag' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.target.component)) ) || (github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.target.component)) ) }}
         run: |
           echo "Publishing to PyPI..."
           echo "Based on the following workflow variables, this is a new version tag push:"
@@ -66,8 +104,8 @@ jobs:
           echo "  - ref: ${{ github.ref }}"
 
       - name: Publish package distributions to PyPI
-        # This workflow is a trusted publisher for this package on PyPI.
-        if: ${{ (github.event_name == 'release' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')) }}
+        # This workflow is a trusted publisher for the packages on PyPI.
+        if: ${{ (github.event_name == 'release' && github.ref_type == 'tag' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.target.component)) ) || (github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.target.component)) ) }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           verbose: true

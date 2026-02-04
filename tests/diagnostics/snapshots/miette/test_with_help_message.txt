@@ -1,0 +1,7 @@
+  x Can't compare apples with oranges
+   ,----
+ 1 | apple == orange
+   :       ^|
+   :        `-- Comparison attempted here
+   `----
+  help: Additional sub-diagnostic message without span

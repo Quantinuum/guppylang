@@ -1,0 +1,7 @@
+Error: Invalid signature for @wasm function `bad_output_type`
+in wasm file:
+`$WASM`
+
+Note: Unsupported output type: f32
+
+Guppy compilation failed due to 1 previous error

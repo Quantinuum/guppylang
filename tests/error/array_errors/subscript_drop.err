@@ -1,12 +1,15 @@
-Error: Linearity violation (at $FILE:18:11)
+Error: Drop violation (at $FILE:12:11)
    | 
-16 | @guppy(module)
-17 | def main() -> qubit:
-18 |     return foo()[0]
-   |            ^^^^^ Linear items of expression with type `array[qubit, 10]` are
-   |                  leaked ...
+10 | @guppy
+11 | def main() -> qubit:
+12 |     return foo()[0]
+   |            ^^^^^ Non-droppable items of expression with type `array[qubit,
+   |                  10]` are leaked ...
+
+Note:
    | 
-18 |     return foo()[0]
+11 | def main() -> qubit:
+12 |     return foo()[0]
    |                  - since only this subscript is used
 
 Help: Consider assigning this value to a local variable before subscripting it

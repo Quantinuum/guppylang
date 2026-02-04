@@ -1,0 +1,8 @@
+Error: Too many arguments (at $FILE:6:18)
+  | 
+4 | @guppy
+5 | def test() -> None:
+6 |     with power(1, 2, 3):
+  |                   ^^^^ Unexpected arguments (expected 1, got 3)
+
+Guppy compilation failed due to 1 previous error

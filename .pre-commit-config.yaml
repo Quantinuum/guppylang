@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -38,7 +38,7 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.21.0
+    rev: typos-dict-v0.12.6
     hooks:
       - id: typos
         args: []
@@ -48,39 +48,21 @@ repos:
       - id: ruff-format
         name: ruff format
         description: Format python code with `ruff`.
-        entry: uv run ruff format guppylang
+        entry: uv run ruff format
         language: system
         files: \.py$
         pass_filenames: false
       - id: ruff-check
         name: ruff
         description: Check python code with `ruff`.
-        entry: uv run ruff check --fix --exit-non-zero-on-fix guppylang
+        entry: uv run ruff check --fix --exit-non-zero-on-fix
         language: system
         files: \.py$
         pass_filenames: false
       - id: mypy-check
         name: mypy
         description: Check python code with `mypy`.
-        entry: uv run mypy guppylang
+        entry: uv run mypy guppylang guppylang-internals
         language: system
         files: \.py$
         pass_filenames: false
-      - id: cargo-check
-        name: Cargo check
-        entry: bash -c 'cd validator && exec cargo check'
-        pass_filenames: false
-        types: [file, rust]
-        language: system
-      - id: rust-linting
-        name: Rust linting
-        entry: bash -c 'cd validator && exec cargo fmt --all --'
-        pass_filenames: true
-        types: [file, rust]
-        language: system
-      - id: rust-clippy
-        name: Rust clippy
-        entry: bash -c 'cd validator && exec cargo clippy --all-targets --all-features -- -Dclippy::all'
-        pass_filenames: false
-        types: [file, rust]
-        language: system

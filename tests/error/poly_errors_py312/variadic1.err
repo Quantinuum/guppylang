@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:5:9)
+  | 
+3 | 
+4 | @guppy
+5 | def main[*Ts]() -> None:
+  |          ^^^ Variadic generic parameters are not supported
+
+Guppy compilation failed due to 1 previous error

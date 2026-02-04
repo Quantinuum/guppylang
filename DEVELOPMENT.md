@@ -2,7 +2,7 @@
 
 This guide is intended to help you get started with developing guppylang.
 
-If you find any errors or omissions in this document, please [open an issue](https://github.com/CQCL/guppylang/issues/new)!
+If you find any errors or omissions in this document, please [open an issue](https://github.com/quantinuum/guppylang/issues/new)!
 
 ## #️⃣ Setting up the development environment
 
@@ -29,15 +29,10 @@ shell by setting up [direnv](https://devenv.sh/automatic-shell-activation/).
 To setup the environment manually you will need:
 
 - Just: [just.systems](https://just.systems/)
-- uv `>=0.4.27`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
-    * If you have an older manually installed `uv` version you can upgrade it
-      with `uv self update`, or by following the instructions in your package
-      manager.
-
-The extended test suite has additional requirements. These are **optional**; tests that require them will be skipped if they are not installed.
-
-- Rust `>=1.75`: [rust-lang.org](https://www.rust-lang.org/tools/install)
-- `llvm-14`: [llvm.org](https://llvm.org/)
+- uv `>=0.6`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
+  - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
+    or by following the instructions in your package manager.
+- bencher_cli: [bencer.dev](https://bencher.dev/docs/tutorial/quick-start/?adapter=json)
 
 Once you have these installed, you can install the required python dependencies and setup pre-commit hooks with:
 
@@ -55,14 +50,43 @@ just test
 just test -k test_name
 ```
 
-If you have Rust and `llvm-14` installed, this will include the integration
-tests automatically. If you need to export the integration test cases, use:
+If you need to export the integration test cases, use:
 
 ```bash
 just export-integration-tests
 ```
 
 Run `just` to see all available commands.
+
+## 🐰 Running the benchmarks
+
+To run the benchmarks using `pytest-benchmark`:
+
+```bash
+just bench
+# or, to specify a directory and name for the report to be saved locally
+just bench_save <dir> <name>
+```
+
+If you save the results, then you can compare them following
+[this approach](https://pytest-benchmark.readthedocs.io/en/latest/comparing.html).
+However, this would only let you compare the `latency` or running time,
+but not the other custom metrics like `hugr_bytes` and `hugr_nodes`.
+
+You can also upload benchmark results to the
+[guppylang-benchmarks](https://bencher.dev/console/projects/guppylang-benchmarks)
+bencher project with:
+
+```bash
+just bench_upload
+```
+
+And if you want to compare your local changes against the base benchmarks (main),
+including `latency`, `hugr_bytes` and `hugr_nodes` you can use:
+
+```bash
+just bench_compare
+```
 
 ## 💅 Coding Style
 
@@ -89,7 +113,7 @@ just fix
 
 We run coverage checks on the CI. Once you submit a PR, you can review the
 line-by-line coverage report on
-[codecov](https://app.codecov.io/gh/CQCL/guppylang/commits?branch=All%20branches).
+[codecov](https://app.codecov.io/gh/quantinuum/guppylang/commits?branch=All%20branches).
 
 To generate the coverage info locally, simply run:
 
@@ -102,13 +126,13 @@ and open it with your favourite coverage viewer. In VSCode, you can use
 
 ## 🌐 Contributing to Guppy
 
-We welcome contributions to Guppy! Please open [an issue](https://github.com/CQCL/guppylang/issues/new) or [pull request](https://github.com/CQCL/guppylang/compare) if you have any questions or suggestions.
+We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new) or [pull request](https://github.com/quantinuum/guppylang/compare) if you have any questions or suggestions.
 
 PRs should be made against the `main` branch, and should pass all CI checks before being merged. This includes using the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format for the PR title.
 
 The general format of a contribution title should be:
 
-```
+```text
 <type>(<scope>)!: <description>
 ```
 
@@ -159,7 +183,7 @@ the existing release PRs for examples on how to do this. Once the branch is
 ready, create a draft PR so that the release team can review it.
 
 The wheel building process and publication to PyPI is handled by the CI. Just
-create a [github release](https://github.com/CQCL/guppylang/releases/new) from
+create a [github release](https://github.com/quantinuum/guppylang/releases/new) from
 the **unmerged** branch, and the CI will take care of the rest. The release tag
 should follow the format used in the previous releases, e.g. `v0.1.1`.
 

@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:15:13)
+Error: Type mismatch (at $FILE:11:13)
    | 
-13 | @guppy(module)
-14 | def main() -> None:
-15 |     MyStruct(0)
+ 9 | @guppy
+10 | def main() -> None:
+11 |     MyStruct(0)
    |              ^ Expected argument of type `(int, int)`, got `int`
 
 Guppy compilation failed due to 1 previous error

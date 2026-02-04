@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:13:13)
-   | 
-11 | @guppy(module)
-12 | def main() -> None:
-13 |     array(1, False)
-   |              ^^^^^ Expected expression of type `int`, got `bool`
+Error: Type mismatch (at $FILE:7:13)
+  | 
+5 | @guppy
+6 | def main() -> None:
+7 |     array(1, False)
+  |              ^^^^^ Expected expression of type `int`, got `bool`
 
 Guppy compilation failed due to 1 previous error

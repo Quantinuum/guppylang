@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:11:11)
+   | 
+ 9 | @guppy
+10 | def main(n: nat @comptime, m: nat @comptime) -> None:
+11 |     foo(n, array(i for i in range(m)))
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected expression of type `array[int, n]`, got `array[int,
+   |                                       m]`
+
+Guppy compilation failed due to 1 previous error

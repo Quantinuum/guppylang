@@ -4,10 +4,10 @@
 import inspect
 from types import GenericAlias, UnionType
 
-import guppylang
+import guppylang_internals
 
 project = "Guppy Compiler"
-copyright = "2024, Quantinuum"
+copyright = "2025, Quantinuum"
 author = "Quantinuum"
 
 extensions = [
@@ -19,24 +19,16 @@ extensions = [
     "sphinx.ext.intersphinx",
 ]
 
-html_theme = "sphinx_book_theme"
+html_theme = "furo"
 
 html_title = "Guppy compiler development docs"
 
-html_theme_options = {
-    "repository_url": "https://github.com/CQCL/guppylang",
-    "use_repository_button": True,
-    "navigation_with_keys": True,
-    "logo": {
-        "image_light": "_static/Quantinuum_logo_black.png",
-        "image_dark": "_static/Quantinuum_logo_white.png",
-    },
-}
+html_theme_options = {}
 
-html_static_path = ["../_static"]
-html_css_files = ["custom.css"]
+html_static_path = []
 
 autosummary_generate = True
+autosummary_ignore_module_all = False  # Respect __all__ if specified
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
@@ -67,14 +59,14 @@ def _find_aliases(module):
     for name, x in inspect.getmembers(module):
         if _is_type_alias(x):
             aliases[name] = module
-        if inspect.ismodule(x) and x.__name__.startswith("guppylang."):
+        if inspect.ismodule(x) and x.__name__.startswith("guppylang_internals."):
             aliases |= _find_aliases(x)
     return aliases
 
 
 # Generate a mapping from type aliases to their qualified name to ensure that autodoc
 # doesn't unfold them
-_aliases = _find_aliases(guppylang)
+_aliases = _find_aliases(guppylang_internals)
 autodoc_type_aliases = {
     alias: f"~{module.__name__}.{alias}" for alias, module in _aliases.items()
 }

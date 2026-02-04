@@ -1,9 +1,9 @@
-Error: Linearity violation (at $FILE:25:8)
+Error: Drop violation (at $FILE:19:8)
    | 
-23 | 
-24 | @guppy(module)
-25 | def foo(s: MyStruct1 @owned) -> int:
-   |         ^^^^^^^^^^^^^^^^^^^ Field `s.x.q2` with linear type `qubit` is leaked
+17 | 
+18 | @guppy
+19 | def foo(s: MyStruct1 @owned) -> int:
+   |         ^^^^^^^^^^^^^^^^^^^ Field `s.x.q2` with non-droppable type `qubit` is leaked
 
 Help: Make sure that `s.x.q2` is consumed or returned to avoid the leak
 

@@ -1,7 +1,22 @@
-[default.extend-words]
+[type.changelog]
+extend-glob = ["CHANGELOG.md"]
+extend-ignore-re = ["\\[[0-9a-z]{7}\\]\\("] # Ignore git commit hashes
+
+[type.py]
+extend-glob = ["*.py", "*.err"]
+
+[type.py.extend-words]
+typ = "typ"
+inout = "inout"
+inouts = "inouts"
 fle = "fle"
 ine = "ine"
 inot = "inot"
-inout = "inout"
-inouts = "inouts"
 anc = "anc"
+setable = "setable" # Used in error golden values
+
+[type.notebooks]
+extend-glob = ["*.ipynb"]
+
+[type.notebooks.extend-words]
+mor = "mor" # Line noise

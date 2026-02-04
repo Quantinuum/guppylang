@@ -1,0 +1,8 @@
+Error: Invalid self annotation (at $FILE:11:21)
+   | 
+ 9 | class Foo(Generic[T]):
+10 |     @guppy
+11 |     def foo(my_self: int) -> None:
+   |                      ^^^ `my_self` must be of type `Foo[?T]`
+
+Guppy compilation failed due to 1 previous error

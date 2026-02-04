@@ -1,0 +1,8 @@
+Error: Expected an array of qubits (at $FILE:8:23)
+  | 
+6 | @compile_guppy
+7 | def main(xs: array[int, 3]) -> None:
+8 |    state_result("foo", xs)
+  |                        ^^ Expected an array of qubits
+
+Guppy compilation failed due to 1 previous error

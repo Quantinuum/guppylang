@@ -1,8 +1,8 @@
-Error: Duplicate type parameter (at $FILE:17:26)
+Error: Duplicate type parameter (at $FILE:13:26)
    | 
-15 | 
-16 | @guppy.struct(module)
-17 | class MyStruct(Generic[X, X]):
+11 | 
+12 | @guppy.struct
+13 | class MyStruct(Generic[X, X]):
    |                           ^ Type parameter `X` cannot be used multiple times
 
 Guppy compilation failed due to 1 previous error

@@ -1,12 +1,15 @@
-Error: Not owned (at $FILE:11:8)
-   | 
- 9 | @guppy(module)
-10 | def test(q: qubit) -> qubit:
-11 |     r = q
-   |         ^ Cannot move `q` since `test` doesn't own it
-   | 
-10 | def test(q: qubit) -> qubit:
-   |          -------- Argument `q` is only borrowed. Consider taking ownership:
-   |                   `q: qubit @owned`
+Error: Not owned (at $FILE:7:8)
+  | 
+5 | @guppy
+6 | def test(q: qubit) -> qubit:
+7 |     r = q
+  |         ^ Cannot move `q` since `test` doesn't own it
+
+Note:
+  | 
+5 | @guppy
+6 | def test(q: qubit) -> qubit:
+  |          -------- Argument `q` is only borrowed. Consider taking ownership:
+  |                   `q: qubit @owned`
 
 Guppy compilation failed due to 1 previous error

@@ -1,0 +1,8 @@
+Error: Variable not defined (at $FILE:6:25)
+  | 
+4 | 
+5 | @guppy
+6 | def main(xs: "array[int, num]", num: nat @comptime) -> None:
+  |                          ^^^ `num` is not defined
+
+Guppy compilation failed due to 1 previous error
