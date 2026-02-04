@@ -326,7 +326,51 @@ class BBLinearityChecker(ast.NodeVisitor):
         Populates the `use_kind` kwarg of `visit_PlaceNode` in case some of the
         arguments are places.
         """
+        # Track literal subscripts to detect duplicates within this call
+        # Key: (parent_place_id, literal_index_value)
+        # Value: (argument_node, use_kind)
+        literal_subscripts: dict[tuple[PlaceId, int], tuple[AstNode, UseKind]] = {}
+
         for inp, arg in zip(func_ty.inputs, call.args, strict=True):
+            # Check for duplicate literal subscripts BEFORE visiting
+            # Only check simple subscripts where:
+            # - The parent is a Variable (not nested subscripts)
+            # - There are no projections after subscript (no field access)
+            # This avoids false positives for:
+            # - Nested: qs[0][0] vs qs[0][1] (different inner index)
+            # - Fields: ss[0].q1 vs ss[0].q2 (different field)
+            if (
+                isinstance(arg, PlaceNode)
+                and (subscript := contains_subscript(arg.place))
+                and isinstance(subscript.parent, Variable)
+                and subscript == arg.place
+                and (literal_idx := get_literal_index(subscript)) is not None
+            ):
+                # Create tracking key: (variable_id, literal_index)
+                key = (subscript.parent.id, literal_idx)
+
+                # Determine the use kind for this argument
+                use_kind = (
+                    UseKind.BORROW if InputFlags.Inout in inp.flags else UseKind.CONSUME
+                )
+
+                # Check for duplicate
+                if key in literal_subscripts:
+                    prev_arg, prev_use_kind = literal_subscripts[key]
+                    # Only error if the element type is non-copyable
+                    if not subscript.ty.copyable:
+                        err = AlreadyUsedError(arg, subscript, use_kind)
+                        err.add_sub_diagnostic(
+                            AlreadyUsedError.PrevUse(prev_arg, prev_use_kind)
+                        )
+                        if has_explicit_copy(subscript.ty):
+                            err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
+                        raise GuppyError(err)
+                else:
+                    # Track this literal subscript
+                    literal_subscripts[key] = (arg, use_kind)
+
+            # Visit the argument normally (existing behavior)
             if isinstance(arg, PlaceNode):
                 use_kind = (
                     UseKind.BORROW if InputFlags.Inout in inp.flags else UseKind.CONSUME
@@ -708,6 +752,19 @@ def has_explicit_copy(ty: Type) -> bool:
     if not is_array_type(ty):
         return False
     return get_element_type(ty).copyable
+
+
+def get_literal_index(subscript: SubscriptAccess) -> int | None:
+    """Extracts the literal index value from a subscript access.
+
+    Returns the integer index if item_expr is ast.Constant, otherwise None.
+    This allows us to detect duplicate literal subscripts at compile time.
+    """
+    if isinstance(subscript.item_expr, ast.Constant):
+        value = subscript.item_expr.value
+        if isinstance(value, int):
+            return value
+    return None
 
 
 def check_cfg_linearity(

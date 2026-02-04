@@ -156,7 +156,7 @@ def test_multi_subscripts(validate):
     @guppy
     def main(qs: array[qubit, 42] @ owned) -> array[qubit, 42]:
         foo(qs[0], qs[1])
-        foo(qs[0], qs[0])  # Will panic at runtime
+        # Note: foo(qs[0], qs[0]) is now correctly rejected at compile time
         return qs
 
     validate(main.compile_function())

@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:20:35)
+   | 
+18 |     qubits = array((qubit() for _ in range(3)))
+19 |     # This should error - trying to borrow the same element while also consuming it
+20 |     q1, q2 = swap_twice(qubits[0], qubits[0])
+   |                                    ^^^^^^^^^ Subscript `qubits[...]` with non-copyable type `qubit`
+   |                                              cannot be consumed ...
+
+Note:
+   | 
+19 |     # This should error - trying to borrow the same element while also consuming it
+20 |     q1, q2 = swap_twice(qubits[0], qubits[0])
+   |                         --------- Subscript `qubits[...]` already borrowed here
+
+Guppy compilation failed due to 1 previous error
