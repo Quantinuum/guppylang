@@ -333,19 +333,9 @@ class BBLinearityChecker(ast.NodeVisitor):
 
         for inp, arg in zip(func_ty.inputs, call.args, strict=True):
             # Check for duplicate literal subscripts BEFORE visiting
-            # Only check simple subscripts where:
-            # - The parent is a Variable (not nested subscripts)
-            # - There are no projections after subscript (no field access)
-            # This avoids false positives for:
-            # - Nested: qs[0][0] vs qs[0][1] (different inner index)
-            # - Fields: ss[0].q1 vs ss[0].q2 (different field)
-            if (
-                isinstance(arg, PlaceNode)
-                and (subscript := contains_subscript(arg.place))
-                and isinstance(subscript.parent, Variable)
-                and subscript == arg.place
-                and (literal_idx := get_literal_index(subscript)) is not None
-            ):
+            if result := is_simple_literal_subscript(arg):
+                subscript, literal_idx = result
+
                 # Create tracking key: (variable_id, literal_index)
                 key = (subscript.parent.id, literal_idx)
 
@@ -765,6 +755,49 @@ def get_literal_index(subscript: SubscriptAccess) -> int | None:
         if isinstance(value, int):
             return value
     return None
+
+
+def is_simple_literal_subscript(
+    arg: ast.expr,
+) -> tuple[SubscriptAccess, int] | None:
+    """Checks if an argument is a simple literal subscript access.
+
+    A simple literal subscript is one where:
+    - The argument is a PlaceNode
+    - It contains a subscript access
+    - The subscript's parent is a Variable (not nested subscripts)
+    - There are no projections after the subscript (e.g., field accesses)
+    - The index is a literal constant (not a variable)
+
+    Returns a tuple of (subscript, literal_index) if all conditions are met,
+    otherwise None.
+
+    This conservative check avoids false positives for:
+    - Nested subscripts: qs[0][0] vs qs[0][1] (different inner indices)
+    - Field accesses: ss[0].q1 vs ss[0].q2 (different fields)
+    - Dynamic indices: array[i] where i is a variable
+    """
+    if not isinstance(arg, PlaceNode):
+        return None
+
+    subscript = contains_subscript(arg.place)
+    if not subscript:
+        return None
+
+    # Check parent is a Variable (not nested subscripts)
+    if not isinstance(subscript.parent, Variable):
+        return None
+
+    # Check no projections after subscript (e.g., field access)
+    if subscript != arg.place:
+        return None
+
+    # Check for literal index
+    literal_idx = get_literal_index(subscript)
+    if literal_idx is None:
+        return None
+
+    return (subscript, literal_idx)
 
 
 def check_cfg_linearity(
