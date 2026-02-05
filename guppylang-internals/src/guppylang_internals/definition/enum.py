@@ -287,7 +287,7 @@ def check_not_recursive(defn: ParsedEnumDef, ctx: TypeParsingCtx) -> None:
         loc: AstNode | None = None,
     ) -> Type:
         """Dummy method that raises an error if called during type parsing."""
-        raise GuppyError(UnsupportedError(loc, "Recursive definition"))
+        raise GuppyError(UnsupportedError(loc, "Recursive definitions"))
 
     # Save the original check_instantiate method
     original = defn.check_instantiate
