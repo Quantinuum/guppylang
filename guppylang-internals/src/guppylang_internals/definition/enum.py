@@ -172,7 +172,6 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         ctx = TypeParsingCtx(globals, param_var_mapping)
 
         # TODO: not ideal, see `ParsedStructDef.check_instantiate`
-        # TODO: temporarily commented, see best way to do it
         check_not_recursive(self, ctx)
 
         checked_variants: dict[str, EnumVariant[CheckedField]] = {}
@@ -288,7 +287,7 @@ def check_not_recursive(defn: ParsedEnumDef, ctx: TypeParsingCtx) -> None:
         loc: AstNode | None = None,
     ) -> Type:
         """Dummy method that raises an error if called during type parsing."""
-        raise GuppyError(UnsupportedError(loc, "Recursive enums"))
+        raise GuppyError(UnsupportedError(loc, "Recursive definition"))
 
     # Save the original check_instantiate method
     original = defn.check_instantiate

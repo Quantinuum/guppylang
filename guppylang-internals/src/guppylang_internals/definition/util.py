@@ -50,7 +50,7 @@ class DuplicateFieldError(Error):
     )
     class_name: str
     field_name: str
-    class_type: str = "Struct"
+    class_type: str
 
 
 @dataclass(frozen=True)
