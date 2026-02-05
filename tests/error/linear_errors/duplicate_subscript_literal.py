@@ -8,8 +8,8 @@ guppylang.enable_experimental_features()
 
 @guppy
 def foo() -> None:
-    external_reg = array((qubit() for _ in range(2)))
-    cx(external_reg[0], external_reg[0])
+    qubits = array((qubit() for _ in range(2)))
+    cx(qubits[0], qubits[0])
 
 
 foo.compile()
