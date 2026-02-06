@@ -2,6 +2,7 @@ import pytest
 
 from hugr import ops
 
+from guppylang import comptime
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array, owned
 from guppylang.std.mem import mem_swap
@@ -691,3 +692,13 @@ def test_take_put(validate):
     ]
 
     validate(main.compile())
+
+
+# https://github.com/CQCL/hugr/issues/1826
+def test_array_const(validate, run_int_fn):
+    @guppy
+    def main() -> int:
+        bs = comptime([True, False])
+        return int(bs[0])
+
+    run_int_fn(main, expected=1)
