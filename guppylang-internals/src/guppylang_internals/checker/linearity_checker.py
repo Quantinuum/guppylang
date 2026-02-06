@@ -335,32 +335,24 @@ class BBLinearityChecker(ast.NodeVisitor):
             # Check for duplicate literal subscripts BEFORE visiting
             if result := is_simple_literal_subscript(arg):
                 subscript, literal_idx = result
-
-                # Create tracking key: (variable_id, literal_index)
                 key = (subscript.parent.id, literal_idx)
-
-                # Determine the use kind for this argument
                 use_kind = (
                     UseKind.BORROW if InputFlags.Inout in inp.flags else UseKind.CONSUME
                 )
 
-                # Check for duplicate
-                if key in literal_subscripts:
+                if key in literal_subscripts and not subscript.ty.copyable:
                     prev_arg, prev_use_kind = literal_subscripts[key]
-                    # Only error if the element type is non-copyable
-                    if not subscript.ty.copyable:
-                        err = AlreadyUsedError(arg, subscript, use_kind)
-                        err.add_sub_diagnostic(
-                            AlreadyUsedError.PrevUse(prev_arg, prev_use_kind)
-                        )
-                        if has_explicit_copy(subscript.ty):
-                            err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
-                        raise GuppyError(err)
-                else:
-                    # Track this literal subscript
-                    literal_subscripts[key] = (arg, use_kind)
+                    err = AlreadyUsedError(arg, subscript, use_kind)
+                    err.add_sub_diagnostic(
+                       AlreadyUsedError.PrevUse(prev_arg, prev_use_kind)
+                    )
+                    if has_explicit_copy(subscript.ty):
+                       err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
+                    raise GuppyError(err)
+                
+                literal_subscripts[key] = (arg, use_kind)
 
-            # Visit the argument normally (existing behavior)
+            # Visit the argument normally
             if isinstance(arg, PlaceNode):
                 use_kind = (
                     UseKind.BORROW if InputFlags.Inout in inp.flags else UseKind.CONSUME
