@@ -9,7 +9,7 @@ from guppylang.std.num import nat
 from guppylang.std.platform import result
 from tests.util import compile_guppy
 
-from guppylang.std.quantum import qubit, discard, measure, h, discard_array
+from guppylang.std.quantum import qubit, discard, measure, h, cx, discard_array
 
 
 @pytest.mark.skip("Requires `is_to_u` in llvm")
@@ -693,3 +693,37 @@ def test_take_put(validate):
     ]
 
     validate(main.compile())
+
+
+def test_nested_subscript_different_inner_indices(validate):
+    @guppy
+    def main(
+        qs: array[array[qubit, 2], 2] @ owned,
+    ) -> array[array[qubit, 2], 2]:
+        cx(qs[0][0], qs[0][1])
+        return qs
+
+    validate(main.compile_function())
+
+
+def test_field_access_after_subscript(validate):
+    @guppy.struct
+    class QubitPair:
+        q1: qubit
+        q2: qubit
+
+    @guppy
+    def main(ss: array[QubitPair, 2] @ owned) -> array[QubitPair, 2]:
+        cx(ss[0].q1, ss[0].q2)
+        return ss
+
+    validate(main.compile_function())
+
+
+def test_dynamic_index_subscript(validate):
+    @guppy
+    def main(qs: array[qubit, 10] @ owned, i: int, j: int) -> array[qubit, 10]:
+        cx(qs[i], qs[j])
+        return qs
+
+    validate(main.compile_function())

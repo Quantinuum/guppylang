@@ -344,12 +344,12 @@ class BBLinearityChecker(ast.NodeVisitor):
                     prev_arg, prev_use_kind = literal_subscripts[key]
                     err = AlreadyUsedError(arg, subscript, use_kind)
                     err.add_sub_diagnostic(
-                       AlreadyUsedError.PrevUse(prev_arg, prev_use_kind)
+                        AlreadyUsedError.PrevUse(prev_arg, prev_use_kind)
                     )
                     if has_explicit_copy(subscript.ty):
-                       err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
+                        err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
-                
+
                 literal_subscripts[key] = (arg, use_kind)
 
             # Visit the argument normally
