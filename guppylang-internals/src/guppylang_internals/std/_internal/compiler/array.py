@@ -444,7 +444,7 @@ class ArraySwapCompiler(ArrayCompiler):
         idx2 = self.builder.add_op(convert_itousize(), idx2)
 
         # Swap returns Either(left=array, right=array)
-        # Left (case 0) is success, right (case 1) is error
+        # Left (case 0) is failure, right (case 1) is success
         either_result = self.builder.add_op(
             array_swap(self.elem_ty, self.length),
             array,
