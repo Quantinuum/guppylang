@@ -1,5 +1,3 @@
-import pytest
-
 from hugr import ops
 
 from guppylang import comptime
@@ -13,20 +11,13 @@ from tests.util import compile_guppy
 from guppylang.std.quantum import qubit, discard, measure, h, discard_array
 
 
-@pytest.mark.skip("Requires `is_to_u` in llvm")
 def test_len_execute(validate, run_int_fn):
     @guppy
     def main(xs: array[float, 42]) -> int:
         return len(xs)
 
-    compiled = main.compile_function()
-    validate(compiled)
-    if run_int_fn is not None:
-        run_int_fn(compiled, expected=42)
-
-
-def test_len(validate):
-    test_len_execute(validate, None)
+    validate(main.compile_function())
+    run_int_fn(main, expected=42, args=[array(float(i) for i in range(42))])
 
 
 def test_len_linear(validate):
