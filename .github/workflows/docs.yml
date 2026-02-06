@@ -58,8 +58,8 @@ jobs:
         The doc building workflow has failed on the main branch.
 
         [Please investigate](https://github.com/quantinuum/guppylang/actions/runs/${{ github.run_id }}).
-      unique-label: "docs-fail"
-      other-labels: "bug"
+      unique-label: "X-docs-fail"
+      other-labels: "A-documentation"
 
   publish:
     name: Publish docs.

@@ -1,7 +1,6 @@
-import pytest
-
 from hugr import ops
 
+from guppylang import comptime
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array, owned
 from guppylang.std.mem import mem_swap
@@ -12,20 +11,13 @@ from tests.util import compile_guppy
 from guppylang.std.quantum import qubit, discard, measure, h, cx, discard_array
 
 
-@pytest.mark.skip("Requires `is_to_u` in llvm")
 def test_len_execute(validate, run_int_fn):
     @guppy
     def main(xs: array[float, 42]) -> int:
         return len(xs)
 
-    compiled = main.compile_function()
-    validate(compiled)
-    if run_int_fn is not None:
-        run_int_fn(compiled, expected=42)
-
-
-def test_len(validate):
-    test_len_execute(validate, None)
+    validate(main.compile_function())
+    run_int_fn(main, expected=42, args=[array(float(i) for i in range(42))])
 
 
 def test_len_linear(validate):
@@ -727,3 +719,13 @@ def test_dynamic_index_subscript(validate):
         return qs
 
     validate(main.compile_function())
+    
+    
+# https://github.com/CQCL/hugr/issues/1826
+def test_array_const(validate, run_int_fn):
+    @guppy
+    def main() -> int:
+        bs = comptime([True, False])
+        return int(bs[0])
+
+    run_int_fn(main, expected=1)

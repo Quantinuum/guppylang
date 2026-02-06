@@ -17,6 +17,9 @@ on:
   release:
     types:
       - published
+  pull_request:
+    branches:
+      - main
 
 env:
   # Pinned version for the uv package manager
@@ -33,7 +36,7 @@ jobs:
         run: |
           echo "run=$SHOULD_RUN" >> $GITHUB_OUTPUT
         env:
-          SHOULD_RUN: ${{ github.event_name != 'release' || ( github.ref_type == 'tag' && (startsWith(github.ref, 'refs/tags/guppylang-v') || startsWith(github.ref, 'refs/tags/guppylang-internals-v'))) }}
+          SHOULD_RUN: ${{ (github.event_name != 'release' && (github.ref == 'refs/heads/main' || startsWith(github.head_ref, 'release-please-')) ) || ( github.ref_type == 'tag' && (startsWith(github.ref, 'refs/tags/guppylang-v') || startsWith(github.ref, 'refs/tags/guppylang-internals-v'))) }}
 
       - uses: actions/checkout@v6
         if: ${{ steps.check-tag.outputs.run == 'true' }}

@@ -1,0 +1,60 @@
+name: "🔍 Documentation Issue"
+description: Report missing, incorrect, or confusing documentation
+title: "[Docs]: "
+labels: ["A-documentation", "S-needs-triage"]
+projects: ["Quantinuum/23"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve our documentation!
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What kind of documentation issue is this?
+      options:
+        - Missing documentation
+        - Incorrect/outdated documentation
+        - Confusing/unclear documentation
+        - Broken links
+        - Code examples don't work
+        - API reference issue
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation issue?
+      placeholder: |
+        - Language guide section ...
+        - Example notebook ...
+        - API documentation for ...
+        - URL: https://...
+        - etc.
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: Issue Description
+      description: What's wrong or missing?
+      placeholder: Describe the documentation issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How should this be fixed or improved?
+      placeholder: The documentation should say...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information

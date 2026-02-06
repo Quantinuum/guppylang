@@ -25,6 +25,9 @@ updates:
       minor:
         update-types: ["minor"]
       # Major updates still generate individual PRs
+    labels:
+      - "C-maintenance"
+      - "X-dependabot"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -33,3 +36,7 @@ updates:
     commit-message:
       # Use a conventional commit tag
       prefix: "ci(deps)"
+    labels:
+      - "A-ci"
+      - "C-maintenance"
+      - "X-dependabot"
