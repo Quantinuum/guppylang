@@ -719,8 +719,8 @@ def test_dynamic_index_subscript(validate):
         return qs
 
     validate(main.compile_function())
-    
-    
+
+
 # https://github.com/CQCL/hugr/issues/1826
 def test_array_const(validate, run_int_fn):
     @guppy
