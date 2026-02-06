@@ -257,7 +257,6 @@ def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
 
     Exchanges the elements at two indices within the array. This operation
     uses HUGR's native swap operation from the collections.array extension,
-    making it equivalent to using `mem_swap(arr[idx], arr[idx2])`.
 
     The swap happens in-place. Panics if either index is out of bounds.
 
