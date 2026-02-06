@@ -3,6 +3,6 @@ Error: Unsupported (at $FILE:5:22)
 3 | @guppy.enum
 4 | class MyEnum:
 5 |     Variant1 = {"x": "MyStruct"}
-  |                       ^^^^^^^^ Recursive definition are not supported
+  |                       ^^^^^^^^ Recursive definitions are not supported
 
 Guppy compilation failed due to 1 previous error

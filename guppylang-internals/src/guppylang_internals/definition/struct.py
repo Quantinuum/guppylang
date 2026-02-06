@@ -245,7 +245,7 @@ def check_not_recursive(defn: ParsedStructDef, ctx: TypeParsingCtx) -> None:
         args: Sequence[Argument],
         loc: AstNode | None = None,
     ) -> Type:
-        raise GuppyError(UnsupportedError(loc, "Recursive definition"))
+        raise GuppyError(UnsupportedError(loc, "Recursive definitions"))
 
     original = defn.check_instantiate
     object.__setattr__(defn, "check_instantiate", dummy_check_instantiate)

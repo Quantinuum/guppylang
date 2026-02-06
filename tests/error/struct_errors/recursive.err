@@ -3,6 +3,6 @@ Error: Unsupported (at $FILE:6:14)
 4 | @guppy.struct
 5 | class MyStruct:
 6 |     x: "tuple[MyStruct, int]"
-  |               ^^^^^^^^ Recursive definition are not supported
+  |               ^^^^^^^^ Recursive definitions are not supported
 
 Guppy compilation failed due to 1 previous error
