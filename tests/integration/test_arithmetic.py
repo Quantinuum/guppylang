@@ -316,7 +316,8 @@ def test_int_to_nat(run_int_fn) -> None:
     run_int_fn(main, 2)
 
 
-def test_nat_to_int_negative(run_int_fn) -> None:
+# TODO this should be a compile-time error
+def test_int_to_nat_negative(run_int_fn) -> None:
     @guppy
     def main() -> nat:
         return nat(-2)
