@@ -1,0 +1,60 @@
+name: "❓ Question"
+description: Ask a question about Guppy
+title: "[Question]: "
+labels: ["C-question", "S-needs-triage"]
+projects: ["Quantinuum/23"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about Guppy? We're here to help!
+
+        **Note:** For general discussions, consider using [GitHub Discussions](../../discussions) instead.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What would you like to know?
+      placeholder: How do I...?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Topic Area
+      description: What is your question related to?
+      multiple: true
+      options:
+        - Guppy Compiler
+        - Standard library
+        - Other
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to accomplish?
+      placeholder: I'm trying to...
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What I've Tried
+      description: What have you already tried?
+      placeholder: |
+        I've looked at:
+        - Documentation page X
+        - Example Y
+        - ...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any code snippets or additional information
+      placeholder: |
+        ```python
+        # Your code here
+        ```
