@@ -5,7 +5,9 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, TypeAlias
 
+import hugr.tys
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from pydantic_extra_types.mime_types import StrEnum
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.span import SourceMap
@@ -22,6 +24,29 @@ if TYPE_CHECKING:
 RawDef: TypeAlias = "ParsableDef | ParsedDef"
 ParsedDef: TypeAlias = "CheckableDef | CheckedDef"
 CheckedDef: TypeAlias = "CompilableDef | MonomorphizableDef | CompiledDef"
+
+
+class Visibility(StrEnum):
+    PUBLIC = "public"
+    PRIVATE = "private"
+
+    def to_hugr(self) -> hugr.tys.Visibility:
+        match self:
+            case Visibility.PUBLIC:
+                return "Public"
+            case Visibility.PRIVATE:
+                return "Private"
+            case _:
+                raise RuntimeError(f"Unknown visibility: {self}")
+
+
+def infer_visibility(name: str) -> Visibility:
+    """Infers the visibility of a definition based on its name.
+
+    By convention, definitions whose name starts with an underscore are considered
+    private, while all other definitions are considered public.
+    """
+    return Visibility.PRIVATE if name.startswith("_") else Visibility.PUBLIC
 
 
 @dataclass(frozen=True)

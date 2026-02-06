@@ -79,6 +79,7 @@ def compile_local_func_def(
             func,
             mono_args,
             func.ty,
+            func.visibility,
             None,
             func.cfg,
             func_builder,

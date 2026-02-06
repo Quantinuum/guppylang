@@ -17,7 +17,7 @@ from guppylang_internals.checker.cfg_checker import CheckedCFG, check_cfg
 from guppylang_internals.checker.core import Context, Globals, Place, Variable
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
-from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.common import DefId, Visibility
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
@@ -217,7 +217,9 @@ def check_nested_func_def(
 
             from guppylang_internals.definition.function import ParsedFunctionDef
 
-            func = ParsedFunctionDef(def_id, func_def.name, func_def, func_ty, None)
+            func = ParsedFunctionDef(
+                def_id, func_def.name, func_def, func_ty, Visibility.PRIVATE, None
+            )
             DEF_STORE.register_def(func, None)
             ENGINE.parsed[def_id] = func
             globals.f_locals[func_def.name] = GuppyDefinition(func)
@@ -230,6 +232,7 @@ def check_nested_func_def(
         def_id,
         checked_cfg,
         func_ty,
+        func_def.visibility,
         captured,
         name=func_def.name,
         args=func_def.args,
