@@ -25,6 +25,7 @@ from guppylang_internals.checker.errors.generic import (
     UnsupportedError,
 )
 from guppylang_internals.checker.errors.type_errors import WrongNumberOfArgsError
+from guppylang_internals.definition.common import Visibility
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import (
@@ -312,6 +313,7 @@ class CFGBuilder(AstVisitor[BB | None]):
         new_node = NestedFunctionDef(
             cfg,
             func_ty,
+            Visibility.PRIVATE,
             docstring=docstring,
             **dict(ast.iter_fields(node)),
         )

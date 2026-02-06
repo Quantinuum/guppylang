@@ -14,7 +14,7 @@ from guppylang_internals.decorator import (
     custom_type,
     hugr_op,
 )
-from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.common import DefId, Visibility
 from guppylang_internals.definition.const import RawConstDef
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
@@ -93,6 +93,7 @@ class GuppyKwargs(TypedDict, total=False):
     dagger: bool
     power: bool
     max_qubits: int
+    public: bool
 
 
 class _Guppy:
@@ -115,12 +116,13 @@ class _Guppy:
         def dec(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
-            flags, metadata = _parse_kwargs(kwargs)
+            visibility, flags, metadata = _parse_kwargs(kwargs)
             defn = RawFunctionDef(
                 DefId.fresh(),
                 f.__name__,
                 None,
                 f,
+                visibility=visibility,
                 unitary_flags=flags,
                 metadata=metadata,
             )
@@ -301,9 +303,14 @@ class _Guppy:
         def dec(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
-            flags, _ = _parse_kwargs(kwargs)
+            visibility, flags, _ = _parse_kwargs(kwargs)
             defn = RawFunctionDecl(
-                DefId.fresh(), f.__name__, None, f, unitary_flags=flags
+                DefId.fresh(),
+                f.__name__,
+                None,
+                f,
+                visibility=visibility,
+                unitary_flags=flags,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -646,7 +653,9 @@ def _with_optional_kwargs(
 
 
 @hide_trace
-def _parse_kwargs(kwargs: GuppyKwargs) -> tuple[UnitaryFlags, GuppyMetadata]:
+def _parse_kwargs(
+    kwargs: GuppyKwargs,
+) -> tuple[Visibility | None, UnitaryFlags, GuppyMetadata]:
     """Parses the kwargs dict specified in the `@guppy` decorator into `UnitaryFlags`
     and other metadata that will be passed onto the compiled function as is.
     """
@@ -660,13 +669,18 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> tuple[UnitaryFlags, GuppyMetadata]:
     if kwargs.pop("power", False):
         flags |= UnitaryFlags.Power
 
+    visibility = None
+    public = kwargs.pop("public", None)
+    if public is not None:
+        visibility = Visibility.PUBLIC if public else Visibility.PRIVATE
+
     metadata = GuppyMetadata()
     metadata.max_qubits.value = kwargs.pop("max_qubits", None)
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
         raise TypeError(err)
-    return flags, metadata
+    return visibility, flags, metadata
 
 
 guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()

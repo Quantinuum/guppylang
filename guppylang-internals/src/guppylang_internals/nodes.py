@@ -6,6 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.ast_util import AstNode
+from guppylang_internals.definition.common import Visibility
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.const import Const
 from guppylang_internals.tys.subst import Inst
@@ -651,12 +652,21 @@ AnyUnpack = TupleUnpack | ArrayUnpack | IterableUnpack
 class NestedFunctionDef(ast.FunctionDef):
     cfg: "CFG"
     ty: FunctionType
+    visibility: Visibility
     docstring: str | None
 
-    def __init__(self, cfg: "CFG", ty: FunctionType, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        cfg: "CFG",
+        ty: FunctionType,
+        visibility: Visibility,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.ty = ty
+        self.visibility = visibility
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -667,6 +677,7 @@ class CheckedNestedFunctionDef(ast.FunctionDef):
     def_id: "DefId"
     cfg: "CheckedCFG[Place]"
     ty: FunctionType
+    visibility: Visibility
 
     #: Mapping from names to variables captured by this function, together with an AST
     #: node witnessing a use of the captured variable in the function body.
@@ -677,6 +688,7 @@ class CheckedNestedFunctionDef(ast.FunctionDef):
         def_id: "DefId",
         cfg: "CheckedCFG[Place]",
         ty: FunctionType,
+        visibility: Visibility,
         captured: Mapping[str, tuple["Variable", AstNode]],
         *args: Any,
         **kwargs: Any,
@@ -685,6 +697,7 @@ class CheckedNestedFunctionDef(ast.FunctionDef):
         self.def_id = def_id
         self.cfg = cfg
         self.ty = ty
+        self.visibility = visibility
         self.captured = captured
 
     # See MakeIter for explanation
