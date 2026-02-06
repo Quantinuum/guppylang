@@ -14,7 +14,7 @@ from guppylang_internals.checker.expr_checker import (
 from guppylang_internals.definition.custom import CustomCallChecker
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyTypeError
-from guppylang_internals.nodes import GenericParamValue, PlaceNode, StateResultExpr
+from guppylang_internals.nodes import PlaceNode, StateResultExpr
 from guppylang_internals.tys.builtin import (
     get_array_length,
     get_element_type,
@@ -52,8 +52,6 @@ class StateResultChecker(CustomCallChecker):
                 tag_value = ConstValue(string_type(), v)
             case PlaceNode(place=ComptimeVariable(static_value=str(v))):
                 tag_value = ConstValue(string_type(), v)
-            case GenericParamValue() as param_value:
-                tag_value = param_value.param.to_bound().const
             case _:
                 raise GuppyTypeError(ExpectedError(tag, "a string literal"))
         syn_args: list[ast.expr] = [tag]
