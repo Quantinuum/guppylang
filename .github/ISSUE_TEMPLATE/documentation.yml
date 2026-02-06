@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve our documentation!
+        Thank you for helping improve our documentation!
 
   - type: dropdown
     id: doc-type
