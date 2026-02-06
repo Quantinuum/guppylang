@@ -109,7 +109,19 @@ class CFGBuilder(AstVisitor[BB | None]):
             if final_bb.reachable:
                 self.cfg.exit_bb.reachable = True
                 if not returns_none:
-                    raise GuppyError(ExpectedError(nodes[-1], "return statement"))
+                    # Check the number of predecessors of the exit basic block
+                    print("> ", len(self.cfg.exit_bb.predecessors))
+                    # if len(self.cfg.exit_bb.predecessors) == 0:
+                    #     raise GuppyError(ExpectedError(nodes[-1], "return statement (unreachable exit)"))
+                    # ex = self.cfg.exit_bb
+                    # if len(self.cfg.exit_bb.predecessors) == 1:
+                    #     raise GuppyError(ExpectedError(nodes[-1], "return statement"))
+                    # else:
+                    #     # see https://github.com/Quantinuum/guppylang/issues/1348
+                    print(final_bb)
+                    print(final_bb.statements)
+                    node_without_return = final_bb.statements[-1] if final_bb.statements else nodes[-1]
+                    raise GuppyError(ExpectedError(node_without_return, "return statement"))
 
         # Prune the CFG such that there are no jumps from unreachable code back into
         # reachable code. Otherwise, unreachable code could lead to unnecessary type
