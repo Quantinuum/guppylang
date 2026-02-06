@@ -3,11 +3,11 @@ import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from enum import IntEnum
 from typing import TYPE_CHECKING, ClassVar, TypeAlias
 
 import hugr.tys
 from hugr.build.dfg import DefinitionBuilder, OpVar
-from pydantic_extra_types.mime_types import StrEnum
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.span import SourceMap
@@ -26,9 +26,10 @@ ParsedDef: TypeAlias = "CheckableDef | CheckedDef"
 CheckedDef: TypeAlias = "CompilableDef | MonomorphizableDef | CompiledDef"
 
 
-class Visibility(StrEnum):
-    PUBLIC = "public"
-    PRIVATE = "private"
+# TODO use StrEnum once the minimum Python version is raised to 3.11
+class Visibility(IntEnum):
+    PUBLIC = 0
+    PRIVATE = 1
 
     def to_hugr(self) -> hugr.tys.Visibility:
         match self:
