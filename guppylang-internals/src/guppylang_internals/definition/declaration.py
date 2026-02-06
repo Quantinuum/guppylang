@@ -91,8 +91,8 @@ class RawFunctionDecl(ParsableDef):
             func_ast,
             ty,
             self.python_func,
-            visibility,
             docstring,
+            visibility=visibility,
         )
 
 
@@ -103,7 +103,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
     In particular, this means that we have determined a type for the function.
     """
 
-    visibility: Visibility
+    visibility: Visibility = field(kw_only=True)
     defined_at: ast.FunctionDef
     docstring: str | None
 
@@ -143,9 +143,9 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
             self.defined_at,
             self.ty,
             self.python_func,
-            self.visibility,
             self.docstring,
             node,
+            visibility=self.visibility,
         )
 
 
