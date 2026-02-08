@@ -12,6 +12,13 @@ class IllegalComptimeExpressionError(Error):
     span_label: ClassVar[str] = "Expression of type `{python_ty}` is not supported"
     python_ty: type
 
+    @dataclass(frozen=True)
+    class InContainer(Note):
+        message: ClassVar[str] = (
+            "Unsupported value was found inside a `{container_ty.__name__}`"
+        )
+        container_ty: type
+
 
 @dataclass(frozen=True)
 class ComptimeExprNotCPythonError(Error):
