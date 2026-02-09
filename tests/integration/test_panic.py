@@ -82,10 +82,19 @@ def test_panic_with_signal(validate):
     def main(s: int) -> None:
         q = qubit()
         panic("I panicked with signal!", 42, q)
+
+    validate(main)
+    assert any(
+        isinstance(node[1].op, Const)
+        and isinstance(node[1].op.val, IntVal)
+        and node[1].op.val.v == 42
+        for node in main.modules[0].nodes()
+    )
+
+
+def test_panic_with_dynamic_signal(validate):
+    @compile_guppy
+    def main(s: int) -> None:
         panic("I panicked with dynamic signal!", s)
 
     validate(main)
-    for node in main.modules[0].nodes():
-        if isinstance(node[1].op, Const) and isinstance(node[1].op.val, IntVal):
-            # Check that we are using custom signals, not the default 1.
-            assert node[1].op.val.v != 1

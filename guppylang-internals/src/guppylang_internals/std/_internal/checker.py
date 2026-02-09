@@ -26,13 +26,13 @@ from guppylang_internals.definition.custom import (
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
 from guppylang_internals.nodes import (
+    AbortExpr,
+    AbortKind,
     BarrierExpr,
     DesugaredArrayComp,
     DesugaredGeneratorExpr,
-    ExitKind,
     GlobalCall,
     MakeIter,
-    PanicExpr,
     PlaceNode,
 )
 from guppylang_internals.tys.arg import ConstArg, TypeArg
@@ -400,22 +400,22 @@ class NewArrayChecker(CustomCallChecker):
         return with_loc(compr, array_compr), array_type(elt_ty, size)
 
 
-class ExitChecker(CustomCallChecker):
+class AbortChecker(CustomCallChecker):
     """Call checker for the `panic` and `exit` functions."""
 
-    def __init__(self, exit_kind: ExitKind):
+    def __init__(self, exit_kind: AbortKind):
         self.exit_kind = exit_kind
-
-    @dataclass(frozen=True)
-    class NoMessageError(Error):
-        title: ClassVar[str] = "No panic/exit message"
-        span_label: ClassVar[str] = "Missing message argument to panic/exit call"
 
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         match args:
             case []:
-                err = ExitChecker.NoMessageError(self.node)
-                raise GuppyTypeError(err)
+                # This error should never surface to the user as it is caught and
+                # replaced by an overload error.
+                raise GuppyError(
+                    InternalGuppyError(
+                        "Missing arguments should be caught by overload resolution"
+                    )
+                )
             case [msg, *rest]:
                 # Check type of message and synthesize types for additional values.
                 msg, _ = ExprChecker(self.ctx).check(msg, string_type())
@@ -432,7 +432,7 @@ class ExitChecker(CustomCallChecker):
                     signal = with_type(
                         int_type(), with_loc(self.node, ast.Constant(value=1))
                     )
-                node = PanicExpr(
+                node = AbortExpr(
                     kind=self.exit_kind,
                     msg=msg,
                     values=[val[0] for val in vals],

@@ -7,10 +7,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, no_type_check
 
 from guppylang_internals.decorator import custom_function
-from guppylang_internals.nodes import ExitKind
+from guppylang_internals.nodes import AbortKind
 from guppylang_internals.std._internal.checker import (
+    AbortChecker,
     BarrierChecker,
-    ExitChecker,
 )
 from guppylang_internals.std._internal.compiler.platform import (
     ArrayResultCompiler,
@@ -86,7 +86,7 @@ def result(tag: str, value):
 
 
 @custom_function(
-    checker=ExitChecker(ExitKind.Panic),
+    checker=AbortChecker(AbortKind.Panic),
     higher_order_value=False,
     # We need to define a signature manually here for error reporting purposes. This is
     # because we are using a custom checker due to the arbitrary extra inputs that
@@ -103,7 +103,7 @@ def _panic(msg: str, *args) -> None: ...
 
 
 @custom_function(
-    checker=ExitChecker(ExitKind.Panic),
+    checker=AbortChecker(AbortKind.Panic),
     higher_order_value=False,
     signature=FunctionType(
         [
@@ -140,7 +140,7 @@ def panic(msg: str, signal: int = 1, *args):
 
 
 @custom_function(
-    checker=ExitChecker(ExitKind.ExitShot),
+    checker=AbortChecker(AbortKind.ExitShot),
     higher_order_value=False,
     # We need to define a signature manually here for error reporting purposes. This is
     # because we are using a custom checker due to the arbitrary extra inputs that
@@ -157,7 +157,7 @@ def _exit(msg: str, *args) -> None: ...
 
 
 @custom_function(
-    checker=ExitChecker(ExitKind.ExitShot),
+    checker=AbortChecker(AbortKind.ExitShot),
     higher_order_value=False,
     signature=FunctionType(
         [
