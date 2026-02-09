@@ -1,6 +1,6 @@
 """Guppy standard module for quantum operations."""
 
-# mypy: disable-error-code="empty-body, misc, valid-type, no-untyped-def"
+# mypy: disable-error-code="empty-body, misc, valid-type"
 
 from typing import no_type_check
 
@@ -69,6 +69,7 @@ def _h_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_h, _h_array)
+@no_type_check
 def h(q) -> None:
     r"""Hadamard gate command. Accepts a single qubit or an array of qubits.
 
@@ -94,6 +95,7 @@ def _t_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_t, _t_array)
+@no_type_check
 def t(q) -> None:
     r"""T gate. Accepts a single qubit or an array of qubits.
 
@@ -120,6 +122,7 @@ def _s_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_s, _s_array)
+@no_type_check
 def s(q) -> None:
     r"""S gate. Accepts a single qubit or an array of qubits.
 
@@ -146,6 +149,7 @@ def _v_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_v, _v_array)
+@no_type_check
 def v(q) -> None:
     r"""V gate. Accepts a single qubit or an array of qubits.
 
@@ -172,6 +176,7 @@ def _x_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_x, _x_array)
+@no_type_check
 def x(q) -> None:
     r"""X gate. Accepts a single qubit or an array of qubits.
 
@@ -198,6 +203,7 @@ def _y_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_y, _y_array)
+@no_type_check
 def y(q) -> None:
     r"""Y gate. Accepts a single qubit or an array of qubits.
 
@@ -224,6 +230,7 @@ def _z_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_z, _z_array)
+@no_type_check
 def z(q) -> None:
     r"""Z gate. Accepts a single qubit or an array of qubits.
 
@@ -250,6 +257,7 @@ def _tdg_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_tdg, _tdg_array)
+@no_type_check
 def tdg(q) -> None:
     r"""Tdg gate. Accepts a single qubit or an array of qubits.
 
@@ -276,6 +284,7 @@ def _sdg_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_sdg, _sdg_array)
+@no_type_check
 def sdg(q) -> None:
     r"""Sdg gate. Accepts a single qubit or an array of qubits.
 
@@ -302,6 +311,7 @@ def _vdg_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_vdg, _vdg_array)
+@no_type_check
 def vdg(q) -> None:
     r"""Vdg gate. Accepts a single qubit or an array of qubits.
 
@@ -404,6 +414,7 @@ def _cz_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
 
 
 @guppy.overload(_cz, _cz_array)
+@no_type_check
 def cz(control, target) -> None:
     r"""Controlled-Z gate command. Accepts single qubits or arrays of qubits.
 
@@ -435,6 +446,7 @@ def _cy_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
 
 
 @guppy.overload(_cy, _cy_array)
+@no_type_check
 def cy(control, target) -> None:
     r"""Controlled-Y gate command. Accepts single qubits or arrays of qubits.
 
@@ -466,6 +478,7 @@ def _cx_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
 
 
 @guppy.overload(_cx, _cx_array)
+@no_type_check
 def cx(control, target) -> None:
     r"""Controlled-X gate command. Accepts single qubits or arrays of qubits.
 
@@ -537,6 +550,7 @@ def _discard_array(qubits: array[qubit, N] @ owned) -> None:
 
 
 @guppy.overload(_discard, _discard_array)
+@no_type_check
 def discard(q) -> None:
     """Discard a single qubit or an array of qubits."""
 
@@ -553,6 +567,7 @@ def _measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
 
 
 @guppy.overload(_measure, _measure_array)
+@no_type_check
 def measure(q):
     """Measure a single qubit or an array of qubits destructively."""
 
@@ -570,6 +585,7 @@ def _reset_array(qs: array[qubit, N]) -> None:
 
 
 @guppy.overload(_reset, _reset_array)
+@no_type_check
 def reset(q) -> None:
     """Reset a single qubit or an array of qubits to the :math:`|0\\rangle` state."""
 

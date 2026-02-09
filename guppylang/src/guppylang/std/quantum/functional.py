@@ -9,7 +9,7 @@ from typing import no_type_check
 import guppylang.std.quantum as quantum
 from guppylang.decorator import guppy
 
-# mypy: disable-error-code="empty-body, misc, valid-type, no-untyped-def"
+# mypy: disable-error-code="empty-body, misc, valid-type"
 from guppylang.std.angles import angle
 from guppylang.std.array import array
 from guppylang.std.lang import owned
@@ -39,6 +39,7 @@ def _h_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_h, _h_array)
+@no_type_check
 def h(q):
     """Functional Hadamard gate command. Accepts a single qubit or an array."""
 
@@ -59,6 +60,7 @@ def _t_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_t, _t_array)
+@no_type_check
 def t(q):
     """Functional T gate command. Accepts a single qubit or an array."""
 
@@ -79,6 +81,7 @@ def _s_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_s, _s_array)
+@no_type_check
 def s(q):
     """Functional S gate command. Accepts a single qubit or an array."""
 
@@ -99,6 +102,7 @@ def _v_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_v, _v_array)
+@no_type_check
 def v(q):
     """Functional V gate command. Accepts a single qubit or an array."""
 
@@ -119,6 +123,7 @@ def _x_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_x, _x_array)
+@no_type_check
 def x(q):
     """Functional X gate command. Accepts a single qubit or an array."""
 
@@ -139,6 +144,7 @@ def _y_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_y, _y_array)
+@no_type_check
 def y(q):
     """Functional Y gate command. Accepts a single qubit or an array."""
 
@@ -159,6 +165,7 @@ def _z_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_z, _z_array)
+@no_type_check
 def z(q):
     """Functional Z gate command. Accepts a single qubit or an array."""
 
@@ -179,6 +186,7 @@ def _tdg_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_tdg, _tdg_array)
+@no_type_check
 def tdg(q):
     """Functional Tdg gate command. Accepts a single qubit or an array."""
 
@@ -199,6 +207,7 @@ def _sdg_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_sdg, _sdg_array)
+@no_type_check
 def sdg(q):
     """Functional Sdg gate command. Accepts a single qubit or an array."""
 
@@ -219,6 +228,7 @@ def _vdg_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_vdg, _vdg_array)
+@no_type_check
 def vdg(q):
     """Functional Vdg gate command. Accepts a single qubit or an array."""
 
@@ -285,6 +295,7 @@ def _cz_array(
 
 
 @guppy.overload(_cz, _cz_array)
+@no_type_check
 def cz(control, target):
     """Functional CZ gate command. Accepts single qubits or arrays."""
 
@@ -307,6 +318,7 @@ def _cx_array(
 
 
 @guppy.overload(_cx, _cx_array)
+@no_type_check
 def cx(control, target):
     """Functional CX gate command. Accepts single qubits or arrays."""
 
@@ -329,6 +341,7 @@ def _cy_array(
 
 
 @guppy.overload(_cy, _cy_array)
+@no_type_check
 def cy(control, target):
     """Functional CY gate command. Accepts single qubits or arrays."""
 
@@ -364,6 +377,7 @@ def _reset_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 
 
 @guppy.overload(_reset, _reset_array)
+@no_type_check
 def reset(q):
     """Functional Reset command. Accepts a single qubit or an array."""
 
