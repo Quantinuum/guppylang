@@ -191,7 +191,9 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
+        # TODO: NICOLA check_all_args for enum
         check_all_args(self.params, args, self.name, loc)
+
         globals = Globals(DEF_STORE.frames[self.id])
         # TODO: This is quite bad: If we have a cyclic definition this will not
         #  terminate, so we have to check for cycles in every call to `check`. The
@@ -215,11 +217,12 @@ class CheckedEnumDef(TypeDef, CompiledDef):
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
         # TODO
-        raise NotImplementedError
+        return EnumType(args, self)
 
     def generated_methods(self) -> list[CustomFunctionDef]:
         # Generating methods to instantiate enum variants
-        return []
+        # return []
+        raise NotImplementedError
 
 
 def parse_enum_variant(
