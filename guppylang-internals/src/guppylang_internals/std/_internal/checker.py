@@ -23,6 +23,7 @@ from guppylang_internals.checker.expr_checker import (
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
 )
+from guppylang_internals.definition.overloaded import InternalExpectOverloadError
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
 from guppylang_internals.nodes import (
@@ -411,11 +412,7 @@ class AbortChecker(CustomCallChecker):
             case []:
                 # This error should never surface to the user as it is caught and
                 # replaced by an overload error.
-                raise GuppyError(
-                    InternalGuppyError(
-                        "Missing arguments should be caught by overload resolution"
-                    )
-                )
+                raise GuppyError(InternalExpectOverloadError(self.node))
             case [msg, *rest]:
                 # Check type of message and synthesize types for additional values.
                 msg, _ = ExprChecker(self.ctx).check(msg, string_type())

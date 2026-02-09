@@ -78,6 +78,14 @@ class OverloadHigherOrderError(Error):
 
 
 @dataclass(frozen=True)
+class InternalExpectOverloadError(Error):
+    title: ClassVar[str] = "Expected overload error"
+    span_label: ClassVar[str] = (
+        "Error should have been caught and replaced by overload error"
+    )
+
+
+@dataclass(frozen=True)
 class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
     description: str = field(default="overloaded function", init=False)
