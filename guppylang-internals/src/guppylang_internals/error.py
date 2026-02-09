@@ -46,7 +46,7 @@ def exception_hook(hook: ExceptHook) -> Iterator[None]:
     try:
         # Check if we're inside a jupyter notebook since it uses its own exception
         # hook. If we're in a regular interpreter, this line will raise a `NameError`
-        ipython_shell = get_ipython()  # type: ignore[name-defined]  # pyright: ignore[reportUndefinedVariable]
+        ipython_shell = get_ipython()  # type: ignore[name-defined]
 
         def ipython_excepthook(
             shell: Any,
