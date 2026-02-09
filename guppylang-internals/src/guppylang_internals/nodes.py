@@ -204,7 +204,7 @@ class FieldAccessAndDrop(ast.expr):
     )
 
     def __init__(
-        self, value: ast.expr, struct_ty: "StructType", field: "StructField"
+        self, value: ast.expr, struct_ty: "StructType", field: "CheckedField"
     ) -> None:
         super().__init__()
         self.value = value
