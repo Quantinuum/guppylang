@@ -739,13 +739,16 @@ class EnumType(ParametrizedTypeBase):
         from guppylang_internals.tys.subst import Instantiator
 
         inst = Instantiator(self.args)
+
+        # Ensure that the order is consistent
+        variants_list = sorted(self.defn.variants.values(), key=lambda v: v.index)
         return [
             EnumVariant(
                 variant.index,
-                name,
+                variant.name,
                 [CheckedField(f.name, f.ty.transform(inst)) for f in variant.fields],
             )
-            for (name, variant) in self.defn.variants.items()
+            for variant in variants_list
         ]
 
     @cached_property
