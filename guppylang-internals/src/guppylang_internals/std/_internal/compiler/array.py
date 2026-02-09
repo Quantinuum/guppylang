@@ -14,7 +14,6 @@ from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
 from guppylang_internals.std._internal.compiler.prelude import (
-    build_unwrap_left,
     build_unwrap_right,
 )
 from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
@@ -452,8 +451,8 @@ class ArraySwapCompiler(ArrayCompiler):
             idx2,
         )
 
-        # Unwrap the left variant (success case), panic on right (error case)
-        unwrap_node = build_unwrap_left(
+        # Unwrap the right variant (success case), panic on left (failure case)
+        unwrap_node = build_unwrap_right(
             self.builder,
             either_result,
             "Array swap failed (indices out of bounds or already borrowed)",
