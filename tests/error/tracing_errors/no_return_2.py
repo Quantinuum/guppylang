@@ -7,5 +7,4 @@ def test(b: bool) -> int:
         x = 2
 
 
-
 test.compile()
