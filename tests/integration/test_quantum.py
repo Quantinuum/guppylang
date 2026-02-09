@@ -145,6 +145,113 @@ def test_discard_array(validate):
     validate(test.compile_function())
 
 
+def test_1qb_op_array(validate):
+    """Apply single-qubit gates to arrays of qubits."""
+
+    @guppy
+    @no_type_check
+    def test() -> None:
+        qs = array(qubit() for _ in range(5))
+        q.h(qs)
+        q.t(qs)
+        q.s(qs)
+        q.v(qs)
+        q.x(qs)
+        q.y(qs)
+        q.z(qs)
+        q.tdg(qs)
+        q.sdg(qs)
+        q.vdg(qs)
+        q.reset(qs)
+        discard_array(qs)
+
+    validate(test.compile_function())
+
+
+def test_2qb_op_array(validate):
+    """Apply two-qubit gates to arrays of qubits."""
+
+    @guppy
+    @no_type_check
+    def test() -> None:
+        qs1 = array(qubit() for _ in range(5))
+        qs2 = array(qubit() for _ in range(5))
+        q.cx(qs1, qs2)
+        q.cy(qs1, qs2)
+        q.cz(qs1, qs2)
+        discard_array(qs1)
+        discard_array(qs2)
+
+    validate(test.compile_function())
+
+
+def test_measure_overload(validate):
+    """Measure an array of qubits using the overloaded measure function."""
+
+    @guppy
+    def test() -> array[bool, 10]:
+        qs = array(qubit() for _ in range(10))
+        return measure(qs)
+
+    validate(test.compile_function())
+
+
+def test_discard_overload(validate):
+    """Discard an array of qubits using the overloaded discard function."""
+
+    @guppy
+    def test() -> None:
+        qs = array(qubit() for _ in range(10))
+        discard(qs)
+
+    validate(test.compile_function())
+
+
+def test_functional_1qb_array(validate):
+    """Functional single-qubit gates on arrays."""
+
+    @guppy
+    def test() -> array[bool, 5]:
+        qs = array(qubit() for _ in range(5))
+        qs = h(qs)
+        qs = x(qs)
+        qs = z(qs)
+        return measure(qs)
+
+    validate(test.compile_function())
+
+
+def test_functional_2qb_array(validate):
+    """Functional two-qubit gates on arrays."""
+
+    @guppy
+    def test() -> None:
+        qs1 = array(qubit() for _ in range(5))
+        qs2 = array(qubit() for _ in range(5))
+        qs1, qs2 = cx(qs1, qs2)
+        qs1, qs2 = cy(qs1, qs2)
+        qs1, qs2 = cz(qs1, qs2)
+        discard(qs1)
+        discard(qs2)
+
+    validate(test.compile_function())
+
+
+def test_scalar_still_works(validate):
+    """Ensure scalar usage of gates still works after overloading."""
+
+    @guppy
+    def test() -> bool:
+        q1 = qubit()
+        q2 = qubit()
+        q.h(q1)
+        q.cx(q1, q2)
+        discard(q1)
+        return measure(q2)
+
+    validate(test.compile_function())
+
+
 def test_panic_discard(validate):
     """Panic while discarding qubit."""
 
