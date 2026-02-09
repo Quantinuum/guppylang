@@ -243,9 +243,10 @@ class CompilationEngine:
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         self.checked[id] = defn
 
+        from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
 
-        if isinstance(defn, CheckedStructDef):
+        if isinstance(defn, CheckedStructDef | CheckedEnumDef):
             for method_def in defn.generated_methods():
                 DEF_STORE.register_def(method_def, None)
                 DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
