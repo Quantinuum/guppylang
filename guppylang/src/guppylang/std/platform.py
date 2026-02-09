@@ -93,7 +93,7 @@ def result(tag: str, value):
     # can't be represented by a standard Guppy signature.
     signature=FunctionType(
         [
-            FuncInput(string_type(), InputFlags.NoFlags, "message"),
+            FuncInput(string_type(), InputFlags.NoFlags, "msg"),
         ],
         NoneType(),
     ),
@@ -107,7 +107,7 @@ def _panic(msg: str, *args) -> None: ...
     higher_order_value=False,
     signature=FunctionType(
         [
-            FuncInput(string_type(), InputFlags.NoFlags, "message"),
+            FuncInput(string_type(), InputFlags.NoFlags, "msg"),
             FuncInput(int_type(), InputFlags.NoFlags, "signal"),
         ],
         NoneType(),

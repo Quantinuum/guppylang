@@ -6,7 +6,7 @@ Error: Invalid call of overloaded function (at $FILE:7:4)
   |     ^^^^^^^ No variant of overloaded function `panic` takes 0 arguments
 
 Note: Available overloads are:
-  def panic(message: str, ...) -> None
-  def panic(message: str, signal: int, ...) -> None
+  def panic(msg: str, ...) -> None
+  def panic(msg: str, signal: int, ...) -> None
 
 Guppy compilation failed due to 1 previous error
