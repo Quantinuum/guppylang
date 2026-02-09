@@ -1,0 +1,87 @@
+name: "🚀 Performance Issue"
+description: Report a performance problem or suggest an optimization
+title: "[Performance]: "
+labels: ["C-perf", "S-needs-triage"]
+projects: ["Quantinuum/23"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve Guppy's performance!
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue
+      description: Describe the performance problem
+      placeholder: What operation is slow? How slow is it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this performance issue?
+      placeholder: |
+        1. Create a Guppy program with...
+        2. Run operation...
+        3. Observe slowness
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Performance Metrics
+      description: Any measurements you have
+      placeholder: |
+        - Time taken: 10 seconds
+        - Memory usage: 2GB
+        - Input size: 1000 nodes
+      render: markdown
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Performance
+      description: What performance would be acceptable?
+      placeholder: Should complete in less than 1 second
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component has the performance issue?
+      multiple: true
+      options:
+        - Guppy Compiler
+        - Standard library
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: System and version information
+      placeholder: |
+        - guppy version: 0.21.8
+        - Python version: 3.14
+        - OS: Ubuntu 24.04
+        - Hardware: 16GB RAM, 8-core CPU
+      render: markdown
+
+  - type: textarea
+    id: suggestions
+    attributes:
+      label: Optimization Suggestions
+      description: Do you have any ideas for how to improve performance?
+      placeholder: Could potentially optimize by...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Profiling data, benchmarks, or related issues

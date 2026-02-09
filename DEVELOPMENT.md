@@ -171,6 +171,10 @@ To override the version getting released, you must merge a PR to `main` containi
 `Release-As: 0.1.0` in the description.
 Python pre-release versions should be formatted as `0.1.0a1` (or `b1`, `rc1`).
 
+Before merging a release PR, make sure to update the uv lock file by running `uv
+lock` and pushing to the release branch.
+When releasing `guppylang-internals`, also update the dependency version in `guppylang/pyproject.toml`.
+
 ### Patch releases
 
 Sometimes we need to release a patch version to fix a critical bug, but we don't want

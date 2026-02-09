@@ -1,0 +1,10 @@
+Error: Unsupported Python expression (at $FILE:13:14)
+   | 
+11 | def main() -> None:
+12 |     q = qubit()
+13 |     randval = comptime(randints)[get_current_shot()]
+   |               ^^^^^^^^^^^^^^^^^^ Expression of type `<class 'numpy.int64'>` is not supported
+
+Note: Unsupported value was found inside a `list`
+
+Guppy compilation failed due to 1 previous error
