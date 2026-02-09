@@ -109,19 +109,28 @@ class CFGBuilder(AstVisitor[BB | None]):
             if final_bb.reachable:
                 self.cfg.exit_bb.reachable = True
                 if not returns_none:
-                    # Check the number of predecessors of the exit basic block
-                    print("> ", len(self.cfg.exit_bb.predecessors))
-                    # if len(self.cfg.exit_bb.predecessors) == 0:
-                    #     raise GuppyError(ExpectedError(nodes[-1], "return statement (unreachable exit)"))
-                    # ex = self.cfg.exit_bb
-                    # if len(self.cfg.exit_bb.predecessors) == 1:
-                    #     raise GuppyError(ExpectedError(nodes[-1], "return statement"))
-                    # else:
-                    #     # see https://github.com/Quantinuum/guppylang/issues/1348
-                    print(final_bb)
-                    print(final_bb.statements)
-                    node_without_return = final_bb.statements[-1] if final_bb.statements else nodes[-1]
-                    raise GuppyError(ExpectedError(node_without_return, "return statement"))
+                    if len(self.cfg.exit_bb.predecessors) <= 1:
+                        # If <= 1, the missing return is not in some branches,
+                        # thus we can point to the last statement of the function
+                        err = ExpectedError(nodes[-1], "return statement")
+                    else:
+                        # otherwise, the missing return is in some branches,
+                        # thus we need to search for the last statement in
+                        # the branch without return
+                        node_without_return = find_last_statement(final_bb)
+                        node_without_return = (
+                            node_without_return
+                            if node_without_return is not None
+                            else nodes[-1]
+                        )
+                        err = ExpectedError(node_without_return, "return statement")
+                        # We also look for the condition of the branch without return,
+                        # for better error reporting
+                        branch_expr = find_condition(bb=final_bb)
+                        if branch_expr is not None:
+                            expr, idx = branch_expr
+                            err.add_sub_diagnostic(ExpectedError.Branch(expr, idx == 1))
+                    raise GuppyError(err)
 
         # Prune the CFG such that there are no jumps from unreachable code back into
         # reachable code. Otherwise, unreachable code could lead to unnecessary type
@@ -761,3 +770,52 @@ def make_assign(lhs: list[ast.AST], value: ast.expr) -> ast.Assign:
             ast.Tuple(elts=lhs, ctx=ast.Store()),  # type: ignore[arg-type]
         )
     return with_loc(value, ast.Assign(targets=[target], value=value))  # type: ignore[list-item]
+
+
+def find_last_statement(bb: BB, visited: set[BB] | None = None) -> BBStatement | None:
+    """Finds the last statement from the final BB or its predecessors recursively."""
+    if visited is None:
+        visited = set()
+
+    if bb in visited:
+        return None
+    visited.add(bb)
+
+    if bb.statements:
+        return bb.statements[-1]
+
+    cfg = bb.containing_cfg
+    if bb == cfg.entry_bb:
+        return None
+
+    for pred in bb.predecessors:
+        result = find_last_statement(pred, visited)
+        if result is not None:
+            return result
+
+    return None
+
+
+def find_condition(
+    bb: BB, visited: set[BB] | None = None
+) -> tuple[ast.expr, int] | None:
+    """Finds the condition at the top of the wrong branches.
+    To be consistent in case of multiple missing returns, we use a DFS"""
+    if visited is None:
+        visited = set()
+
+    if bb in visited:
+        return None
+    visited.add(bb)
+
+    for pred in bb.predecessors:
+        # check the predecessor first
+        if pred.branch_pred is not None:
+            idx = pred.successors.index(bb)
+            return pred.branch_pred, idx
+        # if the predicate is not in the predecessor, we check recursively
+        result = find_condition(pred, visited)
+        if result is not None:
+            return result
+
+    return None

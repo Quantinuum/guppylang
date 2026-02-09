@@ -44,6 +44,13 @@ class ExpectedError(Error):
     def extra(self) -> str:
         return f", got {self.got}" if self.got else ""
 
+    @dataclass(frozen=True)
+    class Branch(Note):
+        span_label: ClassVar[str] = (
+            "Consider adding a return statement if this expression is `{truth_value}`"
+        )
+        truth_value: bool
+
 
 @dataclass(frozen=True)
 class UnknownModifierError(Error):

@@ -1,0 +1,15 @@
+Error: Expected return statement (at $FILE:6:8)
+  | 
+4 | def foo(b: bool) -> int:
+5 |     if b:
+6 |         y = 9
+  |         ^^^^^ Expected return statement
+
+Note:
+  | 
+4 | def foo(b: bool) -> int:
+5 |     if b:
+  |        - Consider adding a return statement if this expression is
+  |          `True`
+
+Guppy compilation failed due to 1 previous error
