@@ -28,7 +28,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, NoReturn, cast
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from typing_extensions import assert_never
 
@@ -1408,13 +1408,17 @@ def python_value_to_guppy_type(
                 if isinstance(type_hint, TupleType)
                 else len(elts) * [None]
             )
-            tys = [
-                python_value_to_guppy_type(elt, node, globals, hint)
-                for elt, hint in zip(elts, hints, strict=False)
-            ]
-            if any(ty is None for ty in tys):
-                return None
-            return TupleType(cast("list[Type]", tys))
+            tys: list[Type] = []
+            for elt, hint in zip(elts, hints, strict=False):
+                ty = python_value_to_guppy_type(elt, node, globals, hint)
+                if ty is None:
+                    err = IllegalComptimeExpressionError(node, type(elt))
+                    err.add_sub_diagnostic(
+                        IllegalComptimeExpressionError.InContainer(None, tuple)
+                    )
+                    raise GuppyError(err)
+                tys.append(ty)
+            return TupleType(tys)
         case list():
             return _python_list_to_guppy_type(v, node, globals, type_hint)
         case None:
@@ -1456,11 +1460,17 @@ def _python_list_to_guppy_type(
     )
     el_ty = python_value_to_guppy_type(v, node, globals, elt_hint)
     if el_ty is None:
-        return None
+        err = IllegalComptimeExpressionError(node, type(v))
+        err.add_sub_diagnostic(IllegalComptimeExpressionError.InContainer(None, list))
+        raise GuppyError(err)
     for v in rest:
         ty = python_value_to_guppy_type(v, node, globals, elt_hint)
         if ty is None:
-            return None
+            err = IllegalComptimeExpressionError(node, type(v))
+            err.add_sub_diagnostic(
+                IllegalComptimeExpressionError.InContainer(None, list)
+            )
+            raise GuppyError(err)
         if (subst := unify(ty, el_ty, {})) is None:
             raise GuppyError(ComptimeExprIncoherentListError(node))
         el_ty = el_ty.substitute(subst)
