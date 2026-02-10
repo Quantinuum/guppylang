@@ -4,14 +4,16 @@ from guppylang import guppy
 def complex_control_flow(a: int, b: int, c: bool) -> int:
     if a > 10:
         if b < 5:
-            y = a + b
-        else:
             if c:
-                return 10
+                i= 10
             else:
                 x = a - b
+        else:
+            y = a + b
+        i = 9
     else:
         return 40
+                
                 
 
 complex_control_flow.compile()

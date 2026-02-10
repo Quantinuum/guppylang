@@ -125,18 +125,17 @@ class CFGBuilder(AstVisitor[BB | None]):
                         # otherwise, the missing return is in some branches,
                         # thus we need to search for the last statement in
                         # the branch without return
-                        node_without_return = find_last_statement(final_bb)
-                        node_without_return = (
-                            node_without_return
-                            if node_without_return is not None
-                            else nodes[-1]
+                        ast_point, branch_cond = find_missing_return_point(
+                            final_bb, self.cfg
                         )
-                        err = ExpectedError(node_without_return, "return statement")
-                        # We also look for the condition of the branch without return,
+                        err = ExpectedError(
+                            ast_point if ast_point is not None else nodes[-1],
+                            "return statement",
+                        )
+                        # We also looked for the condition of the branch without return,
                         # for better error reporting
-                        branch_expr = find_condition(bb=final_bb)
-                        if branch_expr is not None:
-                            expr, idx = branch_expr
+                        if branch_cond is not None:
+                            expr, idx = branch_cond
                             err.add_sub_diagnostic(Branch(expr, idx == 1))
                     raise GuppyError(err)
 
@@ -780,50 +779,54 @@ def make_assign(lhs: list[ast.AST], value: ast.expr) -> ast.Assign:
     return with_loc(value, ast.Assign(targets=[target], value=value))  # type: ignore[list-item]
 
 
-def find_last_statement(bb: BB, visited: set[BB] | None = None) -> BBStatement | None:
-    """Finds the last statement from the final BB or its predecessors recursively."""
-    if visited is None:
-        visited = set()
+def find_missing_return_point(
+    final_bb: BB, cfg: CFG, visited: set[BB] | None = None
+) -> tuple[BBStatement | None, tuple[ast.expr, int] | None]:
+    """Finds the last statement from the final BB or its predecessors,
+    and the branch condition."""
+    final_statement = None
 
-    if bb in visited:
-        return None
-    visited.add(bb)
+    # walk up the ancestors in the CFG
+    # to find the nearest block with statements
+    # (ancestors contain the final_bb as first element)
+    for fbb_ancestor in cfg.ancestors(final_bb):
+        if fbb_ancestor.statements:
+            # We have found the nearest block with statements,
+            # we can stop the search and look for the condition in the branch
+            # that leads to final_bb.
+            final_statement = fbb_ancestor.statements[-1]
+            # To have a better error message, we also look for the condition
+            # of the branch without return.
+            # However, there may be nested branches without returns.
+            # We need to find which is the most significant condition.
+            # The heuristic (inspired by Rust error messages) finds
+            # the closest branch condition that distinguishes between
+            # the statement block and another branch.
+            for cond_ancestor in itertools.islice(cfg.ancestors(fbb_ancestor), 1, None):
+                if cond_ancestor.branch_pred is not None:
+                    if len(cond_ancestor.successors) != 2:
+                        raise InternalGuppyError(
+                            "The successors for a branch block should be exactly 2."
+                        )
+                    # check if the final statement is in the left
+                    # or right branch of the condition and not in both
+                    in_false_branch = fbb_ancestor in set(
+                        cfg.successors(cond_ancestor.successors[0])
+                    )
+                    in_true_branch = fbb_ancestor in set(
+                        cfg.successors(cond_ancestor.successors[1])
+                    )
+                    if in_false_branch and not in_true_branch:
+                        return final_statement, (cond_ancestor.branch_pred, 0)
+                    elif in_true_branch and not in_false_branch:
+                        return final_statement, (cond_ancestor.branch_pred, 1)
+            return final_statement, None
+        if fbb_ancestor.branch_pred is not None:
+            # We have found a branch condition before finding any statement,
+            # this happen with return inside loops.
+            # Best solution here is give up on finding the missing return point,
+            # considering node[-1] as error point
+            # together with the help on the branch condition.
+            return None, (fbb_ancestor.branch_pred, 0)
 
-    if bb.statements:
-        return bb.statements[-1]
-
-    cfg = bb.containing_cfg
-    if bb == cfg.entry_bb:
-        return None
-
-    for pred in bb.predecessors:
-        result = find_last_statement(pred, visited)
-        if result is not None:
-            return result
-
-    return None
-
-
-def find_condition(
-    bb: BB, visited: set[BB] | None = None
-) -> tuple[ast.expr, int] | None:
-    """Finds the condition at the top of the wrong branches.
-    To be consistent in case of multiple missing returns, we use a DFS"""
-    if visited is None:
-        visited = set()
-
-    if bb in visited:
-        return None
-    visited.add(bb)
-
-    for pred in bb.predecessors:
-        # check the predecessor first
-        if pred.branch_pred is not None:
-            idx = pred.successors.index(bb)
-            return pred.branch_pred, idx
-        # if the predicate is not in the predecessor, we check recursively
-        result = find_condition(pred, visited)
-        if result is not None:
-            return result
-
-    return None
+    return None, None
