@@ -1,6 +1,6 @@
-from guppylang import guppy
+from tests.util import compile_guppy
 
-@guppy
+@compile_guppy
 def while_loop(n: int, x: int, i: int) -> int:
     x  = 0
     while i < n:
@@ -10,4 +10,3 @@ def while_loop(n: int, x: int, i: int) -> int:
         return x
     
 
-while_loop.check()
