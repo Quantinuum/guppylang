@@ -326,7 +326,33 @@ class BBLinearityChecker(ast.NodeVisitor):
         Populates the `use_kind` kwarg of `visit_PlaceNode` in case some of the
         arguments are places.
         """
+        # Track literal subscripts to detect duplicates within this call
+        # Key: (parent_place_id, literal_index_value)
+        # Value: (argument_node, use_kind)
+        literal_subscripts: dict[tuple[PlaceId, int], tuple[AstNode, UseKind]] = {}
+
         for inp, arg in zip(func_ty.inputs, call.args, strict=True):
+            # Check for duplicate literal subscripts BEFORE visiting
+            if result := is_simple_literal_subscript(arg):
+                subscript, literal_idx = result
+                key = (subscript.parent.id, literal_idx)
+                use_kind = (
+                    UseKind.BORROW if InputFlags.Inout in inp.flags else UseKind.CONSUME
+                )
+
+                if key in literal_subscripts and not subscript.ty.copyable:
+                    prev_arg, prev_use_kind = literal_subscripts[key]
+                    err = AlreadyUsedError(arg, subscript, use_kind)
+                    err.add_sub_diagnostic(
+                        AlreadyUsedError.PrevUse(prev_arg, prev_use_kind)
+                    )
+                    if has_explicit_copy(subscript.ty):
+                        err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
+                    raise GuppyError(err)
+
+                literal_subscripts[key] = (arg, use_kind)
+
+            # Visit the argument normally
             if isinstance(arg, PlaceNode):
                 use_kind = (
                     UseKind.BORROW if InputFlags.Inout in inp.flags else UseKind.CONSUME
@@ -708,6 +734,62 @@ def has_explicit_copy(ty: Type) -> bool:
     if not is_array_type(ty):
         return False
     return get_element_type(ty).copyable
+
+
+def get_literal_index(subscript: SubscriptAccess) -> int | None:
+    """Extracts the literal index value from a subscript access.
+
+    Returns the integer index if item_expr is ast.Constant, otherwise None.
+    This allows us to detect duplicate literal subscripts at compile time.
+    """
+    if isinstance(subscript.item_expr, ast.Constant):
+        value = subscript.item_expr.value
+        if isinstance(value, int):
+            return value
+    return None
+
+
+def is_simple_literal_subscript(
+    arg: ast.expr,
+) -> tuple[SubscriptAccess, int] | None:
+    """Checks if an argument is a simple literal subscript access.
+
+    A simple literal subscript is one where:
+    - The argument is a PlaceNode
+    - It contains a subscript access
+    - The subscript's parent is a Variable (not nested subscripts)
+    - There are no projections after the subscript (e.g., field accesses)
+    - The index is a literal constant (not a variable)
+
+    Returns a tuple of (subscript, literal_index) if all conditions are met,
+    otherwise None.
+
+    This conservative check avoids false positives for:
+    - Nested subscripts: qs[0][0] vs qs[0][1] (different inner indices)
+    - Field accesses: ss[0].q1 vs ss[0].q2 (different fields)
+    - Dynamic indices: array[i] where i is a variable
+    """
+    if not isinstance(arg, PlaceNode):
+        return None
+
+    subscript = contains_subscript(arg.place)
+    if not subscript:
+        return None
+
+    # Check parent is a Variable (not nested subscripts)
+    if not isinstance(subscript.parent, Variable):
+        return None
+
+    # Check no projections after subscript (e.g., field access)
+    if subscript != arg.place:
+        return None
+
+    # Check for literal index
+    literal_idx = get_literal_index(subscript)
+    if literal_idx is None:
+        return None
+
+    return (subscript, literal_idx)
 
 
 def check_cfg_linearity(
