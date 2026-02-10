@@ -12,6 +12,9 @@ on:
   merge_group:
     types: [checks_requested]
 
+permissions:
+  pull-requests: write
+
 env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
