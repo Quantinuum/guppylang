@@ -49,10 +49,6 @@ def maybe_qubit() -> Option[qubit]:
     if allocation succeeds or `nothing` if it fails."""
 
 
-# ---------------------------------------------------------------------------
-# Single-qubit gates (scalar + array overloads)
-# ---------------------------------------------------------------------------
-
 N = guppy.nat_var("N")
 
 
@@ -78,6 +74,102 @@ def h(q) -> None:
           \begin{pmatrix}
             1 & 1 \\
             1 & -1
+          \end{pmatrix}
+    """
+
+
+@hugr_op(quantum_op("CZ"), unitary_flags=UnitaryFlags.Unitary)
+@no_type_check
+def _cz(control: qubit, target: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _cz_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
+    for i in range(N):
+        _cz(controls[i], targets[i])
+
+
+@guppy.overload(_cz, _cz_array)
+@no_type_check
+def cz(control, target) -> None:
+    r"""Controlled-Z gate command. Accepts single qubits or arrays of qubits.
+
+    cz(control, target)
+
+    Qubit ordering: [control, target]
+
+    .. math::
+        \mathrm{CZ}=
+          \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & 1 & 0 \\
+            0 & 0 & 0 & -1
+          \end{pmatrix}
+    """
+
+
+@hugr_op(quantum_op("CY"), unitary_flags=UnitaryFlags.Unitary)
+@no_type_check
+def _cy(control: qubit, target: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _cy_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
+    for i in range(N):
+        _cy(controls[i], targets[i])
+
+
+@guppy.overload(_cy, _cy_array)
+@no_type_check
+def cy(control, target) -> None:
+    r"""Controlled-Y gate command. Accepts single qubits or arrays of qubits.
+
+    cy(control, target)
+
+    Qubit ordering: [control, target]
+
+    .. math::
+        \mathrm{CY}=
+          \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & 0 & -i \\
+            0 & 0 & i & 0
+          \end{pmatrix}
+    """
+
+
+@hugr_op(quantum_op("CX"), unitary_flags=UnitaryFlags.Unitary)
+@no_type_check
+def _cx(control: qubit, target: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _cx_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
+    for i in range(N):
+        _cx(controls[i], targets[i])
+
+
+@guppy.overload(_cx, _cx_array)
+@no_type_check
+def cx(control, target) -> None:
+    r"""Controlled-X gate command. Accepts single qubits or arrays of qubits.
+
+    cx(control, target)
+
+    Qubit ordering: [control, target]
+
+    .. math::
+        \mathrm{CX}=
+          \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & 0 & 1 \\
+            0 & 0 & 1 & 0
           \end{pmatrix}
     """
 
@@ -325,11 +417,6 @@ def vdg(q) -> None:
     """
 
 
-# ---------------------------------------------------------------------------
-# Rotation gates (no array overloads for now)
-# ---------------------------------------------------------------------------
-
-
 @custom_function(RotationCompiler("Rz"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def rz(q: qubit, angle: angle) -> None:
@@ -396,112 +483,6 @@ def crz(control: qubit, target: qubit, angle: angle) -> None:
     """
 
 
-# ---------------------------------------------------------------------------
-# Two-qubit gates (scalar + array overloads)
-# ---------------------------------------------------------------------------
-
-
-@hugr_op(quantum_op("CZ"), unitary_flags=UnitaryFlags.Unitary)
-@no_type_check
-def _cz(control: qubit, target: qubit) -> None: ...
-
-
-@guppy
-@no_type_check
-def _cz_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
-    for i in range(N):
-        _cz(controls[i], targets[i])
-
-
-@guppy.overload(_cz, _cz_array)
-@no_type_check
-def cz(control, target) -> None:
-    r"""Controlled-Z gate command. Accepts single qubits or arrays of qubits.
-
-    cz(control, target)
-
-    Qubit ordering: [control, target]
-
-    .. math::
-        \mathrm{CZ}=
-          \begin{pmatrix}
-            1 & 0 & 0 & 0 \\
-            0 & 1 & 0 & 0 \\
-            0 & 0 & 1 & 0 \\
-            0 & 0 & 0 & -1
-          \end{pmatrix}
-    """
-
-
-@hugr_op(quantum_op("CY"), unitary_flags=UnitaryFlags.Unitary)
-@no_type_check
-def _cy(control: qubit, target: qubit) -> None: ...
-
-
-@guppy
-@no_type_check
-def _cy_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
-    for i in range(N):
-        _cy(controls[i], targets[i])
-
-
-@guppy.overload(_cy, _cy_array)
-@no_type_check
-def cy(control, target) -> None:
-    r"""Controlled-Y gate command. Accepts single qubits or arrays of qubits.
-
-    cy(control, target)
-
-    Qubit ordering: [control, target]
-
-    .. math::
-        \mathrm{CY}=
-          \begin{pmatrix}
-            1 & 0 & 0 & 0 \\
-            0 & 1 & 0 & 0 \\
-            0 & 0 & 0 & -i \\
-            0 & 0 & i & 0
-          \end{pmatrix}
-    """
-
-
-@hugr_op(quantum_op("CX"), unitary_flags=UnitaryFlags.Unitary)
-@no_type_check
-def _cx(control: qubit, target: qubit) -> None: ...
-
-
-@guppy
-@no_type_check
-def _cx_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
-    for i in range(N):
-        _cx(controls[i], targets[i])
-
-
-@guppy.overload(_cx, _cx_array)
-@no_type_check
-def cx(control, target) -> None:
-    r"""Controlled-X gate command. Accepts single qubits or arrays of qubits.
-
-    cx(control, target)
-
-    Qubit ordering: [control, target]
-
-    .. math::
-        \mathrm{CX}=
-          \begin{pmatrix}
-            1 & 0 & 0 & 0 \\
-            0 & 1 & 0 & 0 \\
-            0 & 0 & 0 & 1 \\
-            0 & 0 & 1 & 0
-          \end{pmatrix}
-    """
-
-
-# ---------------------------------------------------------------------------
-# Other gates (no array overloads)
-# ---------------------------------------------------------------------------
-
-
 @hugr_op(quantum_op("Toffoli"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
@@ -530,11 +511,6 @@ def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
 @no_type_check
 def project_z(q: qubit) -> bool:
     """Project a single qubit into the Z-basis (a non-destructive measurement)."""
-
-
-# ---------------------------------------------------------------------------
-# Measure, discard, reset (scalar + array overloads)
-# ---------------------------------------------------------------------------
 
 
 @hugr_op(quantum_op("QFree"))

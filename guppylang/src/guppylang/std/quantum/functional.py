@@ -18,11 +18,6 @@ from guppylang.std.quantum import qubit
 N = guppy.nat_var("N")
 
 
-# ---------------------------------------------------------------------------
-# Single-qubit gates (scalar + array overloads)
-# ---------------------------------------------------------------------------
-
-
 @guppy
 @no_type_check
 def _h(q: qubit @ owned) -> qubit:
@@ -42,6 +37,75 @@ def _h_array(qs: array[qubit, N] @ owned) -> array[qubit, N]:
 @no_type_check
 def h(q):
     """Functional Hadamard gate command. Accepts a single qubit or an array."""
+
+
+@guppy
+@no_type_check
+def _cz(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
+    quantum.cz(control, target)
+    return control, target
+
+
+@guppy
+@no_type_check
+def _cz_array(
+    controls: array[qubit, N] @ owned, targets: array[qubit, N] @ owned
+) -> tuple[array[qubit, N], array[qubit, N]]:
+    for i in range(N):
+        quantum.cz(controls[i], targets[i])
+    return controls, targets
+
+
+@guppy.overload(_cz, _cz_array)
+@no_type_check
+def cz(control, target):
+    """Functional CZ gate command. Accepts single qubits or arrays."""
+
+
+@guppy
+@no_type_check
+def _cx(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
+    quantum.cx(control, target)
+    return control, target
+
+
+@guppy
+@no_type_check
+def _cx_array(
+    controls: array[qubit, N] @ owned, targets: array[qubit, N] @ owned
+) -> tuple[array[qubit, N], array[qubit, N]]:
+    for i in range(N):
+        quantum.cx(controls[i], targets[i])
+    return controls, targets
+
+
+@guppy.overload(_cx, _cx_array)
+@no_type_check
+def cx(control, target):
+    """Functional CX gate command. Accepts single qubits or arrays."""
+
+
+@guppy
+@no_type_check
+def _cy(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
+    quantum.cy(control, target)
+    return control, target
+
+
+@guppy
+@no_type_check
+def _cy_array(
+    controls: array[qubit, N] @ owned, targets: array[qubit, N] @ owned
+) -> tuple[array[qubit, N], array[qubit, N]]:
+    for i in range(N):
+        quantum.cy(controls[i], targets[i])
+    return controls, targets
+
+
+@guppy.overload(_cy, _cy_array)
+@no_type_check
+def cy(control, target):
+    """Functional CY gate command. Accepts single qubits or arrays."""
 
 
 @guppy
@@ -233,11 +297,6 @@ def vdg(q):
     """Functional Vdg gate command. Accepts a single qubit or an array."""
 
 
-# ---------------------------------------------------------------------------
-# Rotation gates (no array overloads for now)
-# ---------------------------------------------------------------------------
-
-
 @guppy
 @no_type_check
 def rz(q: qubit @ owned, angle: angle) -> qubit:
@@ -270,85 +329,6 @@ def crz(
     """Functional CRz gate command."""
     quantum.crz(control, target, angle)
     return control, target
-
-
-# ---------------------------------------------------------------------------
-# Two-qubit gates (scalar + array overloads)
-# ---------------------------------------------------------------------------
-
-
-@guppy
-@no_type_check
-def _cz(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
-    quantum.cz(control, target)
-    return control, target
-
-
-@guppy
-@no_type_check
-def _cz_array(
-    controls: array[qubit, N] @ owned, targets: array[qubit, N] @ owned
-) -> tuple[array[qubit, N], array[qubit, N]]:
-    for i in range(N):
-        quantum.cz(controls[i], targets[i])
-    return controls, targets
-
-
-@guppy.overload(_cz, _cz_array)
-@no_type_check
-def cz(control, target):
-    """Functional CZ gate command. Accepts single qubits or arrays."""
-
-
-@guppy
-@no_type_check
-def _cx(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
-    quantum.cx(control, target)
-    return control, target
-
-
-@guppy
-@no_type_check
-def _cx_array(
-    controls: array[qubit, N] @ owned, targets: array[qubit, N] @ owned
-) -> tuple[array[qubit, N], array[qubit, N]]:
-    for i in range(N):
-        quantum.cx(controls[i], targets[i])
-    return controls, targets
-
-
-@guppy.overload(_cx, _cx_array)
-@no_type_check
-def cx(control, target):
-    """Functional CX gate command. Accepts single qubits or arrays."""
-
-
-@guppy
-@no_type_check
-def _cy(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
-    quantum.cy(control, target)
-    return control, target
-
-
-@guppy
-@no_type_check
-def _cy_array(
-    controls: array[qubit, N] @ owned, targets: array[qubit, N] @ owned
-) -> tuple[array[qubit, N], array[qubit, N]]:
-    for i in range(N):
-        quantum.cy(controls[i], targets[i])
-    return controls, targets
-
-
-@guppy.overload(_cy, _cy_array)
-@no_type_check
-def cy(control, target):
-    """Functional CY gate command. Accepts single qubits or arrays."""
-
-
-# ---------------------------------------------------------------------------
-# Other gates (no array overloads)
-# ---------------------------------------------------------------------------
 
 
 @guppy
