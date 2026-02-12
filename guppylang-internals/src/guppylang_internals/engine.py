@@ -257,15 +257,15 @@ class CompilationEngine:
 
         This is the main driver behind `guppy.check()`.
         """
+        self.check([id])
+
+    @pretty_errors
+    def check(self, def_ids: list[DefId]) -> None:
         # Clear previous compilation cache.
         # TODO: In order to maintain results from the previous `check` call we would
         #  need to store and check if any dependencies have changed.
         self.reset()
 
-        self.check([id])
-
-    @pretty_errors
-    def check(self, def_ids: list[DefId]) -> None:
         for def_id in def_ids:
             self.to_check_worklist[def_id] = self.get_parsed(def_id)
 
