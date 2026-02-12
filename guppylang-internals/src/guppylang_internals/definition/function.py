@@ -33,6 +33,8 @@ from guppylang_internals.definition.common import (
     ParsableDef,
     RawDef,
     UnknownSourceError,
+    Visibility,
+    infer_visibility,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
 from guppylang_internals.definition.value import (
@@ -70,6 +72,8 @@ class RawFunctionDef(ParsableDef):
 
     python_func: PyFunc
 
+    visibility: Visibility | None = field(default=None, kw_only=True)
+
     description: str = field(default="function", init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
@@ -84,11 +88,13 @@ class RawFunctionDef(ParsableDef):
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
+        visibility = self.visibility or infer_visibility(self.name)
         return ParsedFunctionDef(
             self.id,
             self.name,
             func_ast,
             ty,
+            visibility,
             docstring,
             self.hugr_name,
             metadata=self.metadata,
@@ -113,6 +119,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
 
     defined_at: ast.FunctionDef
     ty: FunctionType
+    visibility: Visibility
     docstring: str | None
     hugr_name: str | None
 
@@ -129,6 +136,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
             self.name,
             self.defined_at,
             self.ty,
+            self.visibility,
             self.docstring,
             self.hugr_name,
             cfg,
@@ -199,7 +207,11 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         mono_ty = self.ty.instantiate_partial(mono_args)
         hugr_ty = mono_ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            hugr_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            hugr_name,
+            hugr_ty.body.input,
+            hugr_ty.body.output,
+            hugr_ty.params,
+            self.visibility.to_hugr(),
         )
         add_metadata(
             func_def,
@@ -212,6 +224,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             self.defined_at,
             mono_args,
             mono_ty,
+            self.visibility,
             self.docstring,
             hugr_name,
             self.cfg,

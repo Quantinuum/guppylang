@@ -14,7 +14,7 @@ from guppylang_internals.decorator import (
     custom_type,
     hugr_op,
 )
-from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.common import DefId, Visibility
 from guppylang_internals.definition.const import RawConstDef
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
@@ -94,6 +94,7 @@ class GuppyKwargs(TypedDict, total=False):
     power: bool
     max_qubits: int
     hugr_name: str
+    public: bool
 
 
 class _Guppy:
@@ -122,6 +123,7 @@ class _Guppy:
                 f.__name__,
                 None,
                 f,
+                visibility=parsed.visibility,
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
                 hugr_name=parsed.hugr_name,
@@ -309,6 +311,7 @@ class _Guppy:
                 f.__name__,
                 None,
                 f,
+                visibility=parsed.visibility,
                 unitary_flags=parsed.flags,
                 hugr_name=parsed.hugr_name,
             )
@@ -656,6 +659,7 @@ class ParsedGuppyKwargs(NamedTuple):
     flags: UnitaryFlags
     metadata: GuppyMetadata
     hugr_name: str | None
+    visibility: Visibility | None
 
 
 @hide_trace
@@ -678,6 +682,11 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 
     hugr_name = kwargs.pop("hugr_name", None)
 
+    visibility = None
+    public = kwargs.pop("public", None)
+    if public is not None:
+        visibility = Visibility.PUBLIC if public else Visibility.PRIVATE
+
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
         raise TypeError(err)
@@ -686,6 +695,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         flags=flags,
         metadata=metadata,
         hugr_name=hugr_name,
+        visibility=visibility,
     )
 
 

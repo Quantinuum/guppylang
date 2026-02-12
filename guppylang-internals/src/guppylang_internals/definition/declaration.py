@@ -16,7 +16,12 @@ from guppylang_internals.compiler.core import (
     get_parent_type,
     require_monomorphization,
 )
-from guppylang_internals.definition.common import CompilableDef, ParsableDef
+from guppylang_internals.definition.common import (
+    CompilableDef,
+    ParsableDef,
+    Visibility,
+    infer_visibility,
+)
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
@@ -64,6 +69,7 @@ class RawFunctionDecl(ParsableDef):
     """
 
     python_func: PyFunc
+    visibility: Visibility | None = field(default=None, kw_only=True)
     description: str = field(default="function", init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
@@ -76,6 +82,7 @@ class RawFunctionDecl(ParsableDef):
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
+        visibility = self.visibility or infer_visibility(self.name)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         # Make sure we won't need monomorphization to compile this declaration
@@ -88,6 +95,7 @@ class RawFunctionDecl(ParsableDef):
             ty,
             self.python_func,
             docstring,
+            visibility=visibility,
             hugr_name=self.hugr_name,
         )
 
@@ -99,6 +107,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
     In particular, this means that we have determined a type for the function.
     """
 
+    visibility: Visibility = field(kw_only=True)
     defined_at: ast.FunctionDef
     docstring: str | None
 
@@ -133,7 +142,9 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         hugr_name = self.hugr_name or (
             self.name if parent_ty is None else f"{parent_ty.name}.{self.name}"
         )
-        node = module.declare_function(hugr_name, self.ty.to_hugr_poly(ctx))
+        node = module.declare_function(
+            hugr_name, self.ty.to_hugr_poly(ctx), self.visibility.to_hugr()
+        )
         return CompiledFunctionDecl(
             self.id,
             self.name,
@@ -142,6 +153,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
             self.python_func,
             self.docstring,
             node,
+            visibility=self.visibility,
             hugr_name=hugr_name,
         )
 
