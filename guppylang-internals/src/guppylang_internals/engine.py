@@ -274,12 +274,32 @@ class CompilationEngine:
             self.checked[id] = self.get_checked(id)
 
     @pretty_errors
-    def compile(self, id: DefId) -> ModulePointer:
+    def compile_single(self, id: DefId) -> ModulePointer:
         """Top-level function to kick of Hugr compilation of a definition.
 
         This is the function that is invoked by `guppy.compile`.
         """
-        self.check(id)
+        pointer, [compiled_def] = self.compile([id])
+
+        if (
+            isinstance(compiled_def, CompiledHugrNodeDef)
+            and isinstance(compiled_def, CompiledCallableDef)
+            and not isinstance(pointer.module[compiled_def.hugr_node].op, ops.FuncDecl)
+        ):
+            # if compiling a region set it as the HUGR entrypoint can be
+            # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
+            pointer.module.entrypoint = compiled_def.hugr_node
+
+        return pointer
+
+    @pretty_errors
+    def compile(self, def_ids: list[DefId]) -> tuple[ModulePointer, list[CompiledDef]]:
+        """Top-level function to kick of Hugr compilation of a definition.
+
+        This is the function that is invoked by `guppy.compile`.
+        """
+        for def_id in def_ids:
+            self.check(def_id)
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -289,17 +309,10 @@ class CompilationEngine:
         from guppylang_internals.compiler.core import CompilerContext
 
         ctx = CompilerContext(graph)
-        compiled_def = ctx.compile(self.checked[id])
-        self.compiled = ctx.compiled
-
-        if (
-            isinstance(compiled_def, CompiledHugrNodeDef)
-            and isinstance(compiled_def, CompiledCallableDef)
-            and not isinstance(graph.hugr[compiled_def.hugr_node].op, ops.FuncDecl)
-        ):
-            # if compiling a region set it as the HUGR entrypoint can be
-            # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
-            graph.hugr.entrypoint = compiled_def.hugr_node
+        compiled_defs: list[CompiledDef] = []
+        for def_id in def_ids:
+            compiled_defs.append(ctx.compile(self.checked[def_id]))
+            self.compiled = ctx.compiled
 
         # Use cached base extensions and registry, only add additional extensions
         base_extensions = self._get_base_packaged_extensions()
@@ -348,8 +361,11 @@ class CompilationEngine:
             for ext in packaged_extensions
             if ext.name in used_extensions_result.ids()
         ]
-        return ModulePointer(
-            Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+        return (
+            ModulePointer(
+                Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+            ),
+            compiled_defs,
         )
 
 

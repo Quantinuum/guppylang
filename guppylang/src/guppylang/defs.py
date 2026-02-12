@@ -73,7 +73,7 @@ class GuppyDefinition(TracingDefMixin):
 
     def compile(self) -> Package:
         """Compile a Guppy definition to HUGR."""
-        package: Package = ENGINE.compile(self.id).package
+        package: Package = ENGINE.compile_single(self.id).package
         for mod in package.modules:
             _update_generator_metadata(mod)
         return package
