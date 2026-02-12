@@ -213,9 +213,27 @@ def custom_type(
 def wasm_module(
     filename: str,
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
-    wasm_file = pathlib.Path(filename)
+    # Resolve the path relative to the caller's source file directory,
+    # not the current working directory (fixes #1407).
+    caller_file = None
+    frame = inspect.currentframe()
+    while frame:
+        module = inspect.getmodule(frame)
+        if module is None or not getattr(module, "__name__", "").startswith(
+            "guppylang"
+        ):
+            caller_file = frame.f_globals.get("__file__")
+            break
+        frame = frame.f_back
+    if caller_file is not None:
+        caller_dir = pathlib.Path(caller_file).resolve().parent
+        wasm_file = caller_dir / filename
+    else:
+        wasm_file = pathlib.Path(filename)
+
+    resolved = str(wasm_file)
     if wasm_file.is_file():
-        wasm_sigs = decode_wasm_functions(filename)
+        wasm_sigs = decode_wasm_functions(resolved)
     else:
         raise GuppyError(WasmFileNotFound(None, filename))
 
@@ -238,7 +256,7 @@ def wasm_module(
     )
 
     def inner_fun(ty: builtins.type[T]) -> GuppyDefinition:
-        decorator_inner = decorator(filename, None)
+        decorator_inner = decorator(resolved, None)
         return decorator_inner(ty)
 
     return inner_fun
