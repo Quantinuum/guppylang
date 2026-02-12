@@ -876,6 +876,8 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return _unify_args(s, t, subst)
         case StructType() as s, StructType() as t if s.defn == t.defn:
             return _unify_args(s, t, subst)
+        case EnumType() as s, EnumType() as t if s.defn == t.defn:
+            return _unify_args(s, t, subst)
         case _:
             return None
 

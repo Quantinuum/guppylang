@@ -54,9 +54,15 @@ def test_basic_enum(validate):
         Quit = {}  # noqa: RUF012
         Resize = {"width": int, "height": int}  # noqa: RUF012
 
+        @guppy
+        def method(self) -> str:
+            return "42"
+
     @compile_guppy
     def use_enum() -> None:
         variant1 = Message.Resize(2, 3)
         variant2 = Message.Quit()
+        variant1.method()
+        variant2.method()
 
     validate(use_enum)
