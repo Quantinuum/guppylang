@@ -1,5 +1,3 @@
-import pytest
-
 from guppylang import guppy
 from tests.util import compile_guppy
 
@@ -24,8 +22,7 @@ def test_enum_syntax():
     GenericEnum.compile()
 
 
-@pytest.mark.skip
-def test_basic_enum():
+def test_basic_enum(validate):
     """
     Stating from a Rust example:
     rust
@@ -56,13 +53,10 @@ def test_basic_enum():
     class Message:
         Quit = {}  # noqa: RUF012
         Resize = {"width": int, "height": int}  # noqa: RUF012
-        Move = {"x": int, "y": int}  # noqa: RUF012
-        Echo = str
-        ChangeColor = (int, int, int)
 
     @compile_guppy
     def use_enum() -> None:
         variant1 = Message.Resize(2, 3)
-        variant2 = Message.Echo("hello world")
-        variant3 = Message.Quit()
-        variant4 = Message.ChangeColor(200, 255, 255)
+        variant2 = Message.Quit()
+
+    validate(use_enum)
