@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
@@ -202,6 +203,26 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             Package: The compiled package object.
         """
         return super().compile()
+
+
+@dataclass(frozen=True)
+class GuppyLibrary:
+    members: list[DefId]
+
+    def member_ids(self) -> Sequence[DefId]:
+        """Returns the definition IDs of the members of this library."""
+        return self.members
+
+    def compile(self) -> Package:
+        """Compile a Guppy definition to HUGR."""
+        pointer, _ = ENGINE.compile(self.members)
+        for mod in pointer.package.modules:
+            _update_generator_metadata(mod)
+        return pointer.package
+
+    def check(self) -> None:
+        """Type-check all definitions Guppy definition."""
+        ENGINE.check(self.members)
 
 
 @dataclass(frozen=True)
