@@ -261,6 +261,10 @@ class CompilationEngine:
 
     @pretty_errors
     def check(self, def_ids: list[DefId]) -> None:
+        """Top-level function to kick of checking of multiple definitions.
+
+        This is the main driver behind `guppy.library(...).check()`.
+        """
         # Clear previous compilation cache.
         # TODO: In order to maintain results from the previous `check` call we would
         #  need to store and check if any dependencies have changed.
