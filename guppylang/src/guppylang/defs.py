@@ -80,7 +80,7 @@ class GuppyDefinition(TracingDefMixin):
 
     def check(self) -> None:
         """Type-check a Guppy definition."""
-        return ENGINE.check(self.id)
+        return ENGINE.check_single(self.id)
 
 
 @dataclass(frozen=True)

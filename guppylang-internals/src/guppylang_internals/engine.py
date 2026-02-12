@@ -252,7 +252,7 @@ class CompilationEngine:
         return defn
 
     @pretty_errors
-    def check(self, id: DefId) -> None:
+    def check_single(self, id: DefId) -> None:
         """Top-level function to kick of checking of a definition.
 
         This is the main driver behind `guppy.check()`.
@@ -262,16 +262,22 @@ class CompilationEngine:
         #  need to store and check if any dependencies have changed.
         self.reset()
 
-        self.to_check_worklist[id] = self.get_parsed(id)
+        self.check([id])
+
+    @pretty_errors
+    def check(self, def_ids: list[DefId]) -> None:
+        for def_id in def_ids:
+            self.to_check_worklist[def_id] = self.get_parsed(def_id)
+
         while self.types_to_check_worklist or self.to_check_worklist:
             # Types need to be checked first. This is because parsing e.g. a function
             # definition requires instantiating the types in its signature which can
             # only be done if the types have already been checked.
             if self.types_to_check_worklist:
-                id, _ = self.types_to_check_worklist.popitem()
+                def_id, _ = self.types_to_check_worklist.popitem()
             else:
-                id, _ = self.to_check_worklist.popitem()
-            self.checked[id] = self.get_checked(id)
+                def_id, _ = self.to_check_worklist.popitem()
+            self.checked[def_id] = self.get_checked(def_id)
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
@@ -298,8 +304,7 @@ class CompilationEngine:
 
         This is the function that is invoked by `guppy.compile`.
         """
-        for def_id in def_ids:
-            self.check(def_id)
+        self.check(def_ids)
 
         # Prepare Hugr for this module
         graph = hf.Module()
