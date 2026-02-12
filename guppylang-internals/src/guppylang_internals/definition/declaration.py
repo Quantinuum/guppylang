@@ -13,6 +13,7 @@ from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
+    get_parent_type,
     require_monomorphization,
 )
 from guppylang_internals.definition.common import CompilableDef, ParsableDef
@@ -67,6 +68,8 @@ class RawFunctionDecl(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
+    hugr_name: str | None = field(default=None, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
@@ -85,6 +88,7 @@ class RawFunctionDecl(ParsableDef):
             ty,
             self.python_func,
             docstring,
+            hugr_name=self.hugr_name,
         )
 
 
@@ -125,7 +129,11 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         )
         module: hf.Module = module
 
-        node = module.declare_function(self.name, self.ty.to_hugr_poly(ctx))
+        parent_ty = get_parent_type(self)
+        hugr_name = self.hugr_name or (
+            self.name if parent_ty is None else f"{parent_ty.name}.{self.name}"
+        )
+        node = module.declare_function(hugr_name, self.ty.to_hugr_poly(ctx))
         return CompiledFunctionDecl(
             self.id,
             self.name,
@@ -134,6 +142,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
             self.python_func,
             self.docstring,
             node,
+            hugr_name=hugr_name,
         )
 
 

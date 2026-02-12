@@ -76,6 +76,8 @@ class RawFunctionDef(ParsableDef):
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
+    hugr_name: str | None = field(default=None, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
@@ -88,6 +90,7 @@ class RawFunctionDef(ParsableDef):
             func_ast,
             ty,
             docstring,
+            self.hugr_name,
             metadata=self.metadata,
         )
 
@@ -111,6 +114,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
     defined_at: ast.FunctionDef
     ty: FunctionType
     docstring: str | None
+    hugr_name: str | None
 
     description: str = field(default="function", init=False)
 
@@ -126,6 +130,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
             self.defined_at,
             self.ty,
             self.docstring,
+            self.hugr_name,
             cfg,
             metadata=self.metadata,
         )
@@ -187,15 +192,14 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         access to the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
-        if parent_ty is None:
-            hugr_func_name = self.name
-        else:
-            hugr_func_name = f"{parent_ty.name}.{self.name}"
+        hugr_name = self.hugr_name or (
+            self.name if parent_ty is None else f"{parent_ty.name}.{self.name}"
+        )
 
         mono_ty = self.ty.instantiate_partial(mono_args)
         hugr_ty = mono_ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            hugr_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
         add_metadata(
             func_def,
@@ -209,6 +213,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             mono_args,
             mono_ty,
             self.docstring,
+            hugr_name,
             self.cfg,
             func_def,
             metadata=self.metadata,
