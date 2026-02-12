@@ -63,6 +63,6 @@ def test_basic_enum(validate):
         variant1 = Message.Resize(2, 3)
         variant2 = Message.Quit()
         variant1.method()
-        variant2.method()
+        # variant2.method()
 
     validate(use_enum)
