@@ -80,6 +80,7 @@ def compile_local_func_def(
             mono_args,
             func.ty,
             None,
+            None,
             func.cfg,
             func_builder,
         )
