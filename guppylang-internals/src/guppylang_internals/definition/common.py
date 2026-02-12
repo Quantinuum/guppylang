@@ -3,7 +3,7 @@ import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from enum import IntEnum
+from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, TypeAlias
 
 import hugr.tys
@@ -26,10 +26,9 @@ ParsedDef: TypeAlias = "CheckableDef | CheckedDef"
 CheckedDef: TypeAlias = "CompilableDef | MonomorphizableDef | CompiledDef"
 
 
-# TODO use StrEnum once the minimum Python version is raised to 3.11
-class Visibility(IntEnum):
-    PUBLIC = 0
-    PRIVATE = 1
+class Visibility(str, Enum):
+    PUBLIC = "public"
+    PRIVATE = "private"
 
     def to_hugr(self) -> hugr.tys.Visibility:
         match self:
