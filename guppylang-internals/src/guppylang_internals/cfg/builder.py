@@ -25,7 +25,7 @@ from guppylang_internals.checker.errors.generic import (
     UnsupportedError,
 )
 from guppylang_internals.checker.errors.type_errors import WrongNumberOfArgsError
-from guppylang_internals.diagnostic import Error
+from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import (
     check_lists_enabled,
@@ -72,6 +72,14 @@ class UnreachableError(Error):
     span_label: ClassVar[str] = "This code is not reachable"
 
 
+@dataclass(frozen=True)
+class Branch(Note):
+    span_label: ClassVar[str] = (
+        "Consider adding a return statement if this expression is `{truth_value}`"
+    )
+    truth_value: bool
+
+
 class CFGBuilder(AstVisitor[BB | None]):
     """Constructs a CFG from ast nodes."""
 
@@ -109,7 +117,27 @@ class CFGBuilder(AstVisitor[BB | None]):
             if final_bb.reachable:
                 self.cfg.exit_bb.reachable = True
                 if not returns_none:
-                    raise GuppyError(ExpectedError(nodes[-1], "return statement"))
+                    if len(self.cfg.exit_bb.predecessors) <= 1:
+                        # If <= 1, the missing return is not in some branches,
+                        # thus we can point to the last statement of the function
+                        err = ExpectedError(nodes[-1], "return statement")
+                    else:
+                        # otherwise, the missing return is in some branches,
+                        # thus we need to search for the last statement in
+                        # the branch without return
+                        ast_point, branch_cond = find_missing_return_point(
+                            final_bb, self.cfg
+                        )
+                        err = ExpectedError(
+                            ast_point if ast_point is not None else nodes[-1],
+                            "return statement",
+                        )
+                        # We also looked for the condition of the branch without return,
+                        # for better error reporting
+                        if branch_cond is not None:
+                            expr, idx = branch_cond
+                            err.add_sub_diagnostic(Branch(expr, idx == 1))
+                    raise GuppyError(err)
 
         # Prune the CFG such that there are no jumps from unreachable code back into
         # reachable code. Otherwise, unreachable code could lead to unnecessary type
@@ -749,3 +777,56 @@ def make_assign(lhs: list[ast.AST], value: ast.expr) -> ast.Assign:
             ast.Tuple(elts=lhs, ctx=ast.Store()),  # type: ignore[arg-type]
         )
     return with_loc(value, ast.Assign(targets=[target], value=value))  # type: ignore[list-item]
+
+
+def find_missing_return_point(
+    final_bb: BB, cfg: CFG, visited: set[BB] | None = None
+) -> tuple[BBStatement | None, tuple[ast.expr, int] | None]:
+    """Finds the last statement from the final BB or its predecessors,
+    and the branch condition."""
+    final_statement = None
+
+    # walk up the ancestors in the CFG
+    # to find the nearest block with statements
+    # (ancestors contain the final_bb as first element)
+    for fbb_ancestor in cfg.ancestors(final_bb):
+        if fbb_ancestor.statements:
+            # We have found the nearest block with statements,
+            # we can stop the search and look for the condition in the branch
+            # that leads to final_bb.
+            final_statement = fbb_ancestor.statements[-1]
+            # To have a better error message, we also look for the condition
+            # of the branch without return.
+            # However, there may be nested branches without returns.
+            # We need to find which is the most significant condition.
+            # The heuristic (inspired by Rust error messages) finds
+            # the closest branch condition that distinguishes between
+            # the statement block and another branch.
+            for cond_ancestor in itertools.islice(cfg.ancestors(fbb_ancestor), 1, None):
+                if cond_ancestor.branch_pred is not None:
+                    if len(cond_ancestor.successors) != 2:
+                        raise InternalGuppyError(
+                            "The successors for a branch block should be exactly 2."
+                        )
+                    # check if the final statement is in the left
+                    # or right branch of the condition and not in both
+                    in_false_branch = fbb_ancestor in set(
+                        cfg.successors(cond_ancestor.successors[0])
+                    )
+                    in_true_branch = fbb_ancestor in set(
+                        cfg.successors(cond_ancestor.successors[1])
+                    )
+                    if in_false_branch and not in_true_branch:
+                        return final_statement, (cond_ancestor.branch_pred, 0)
+                    elif in_true_branch and not in_false_branch:
+                        return final_statement, (cond_ancestor.branch_pred, 1)
+            return final_statement, None
+        if fbb_ancestor.branch_pred is not None:
+            # We have found a branch condition before finding any statement,
+            # this happen with return inside loops.
+            # Best solution here is give up on finding the missing return point,
+            # considering node[-1] as error point
+            # together with the help on the branch condition.
+            return None, (fbb_ancestor.branch_pred, 0)
+
+    return None, None
