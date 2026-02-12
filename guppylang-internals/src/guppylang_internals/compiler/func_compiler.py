@@ -81,6 +81,7 @@ def compile_local_func_def(
             func.ty,
             func.visibility,
             None,
+            None,
             func.cfg,
             func_builder,
         )

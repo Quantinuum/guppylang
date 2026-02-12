@@ -218,7 +218,13 @@ def check_nested_func_def(
             from guppylang_internals.definition.function import ParsedFunctionDef
 
             func = ParsedFunctionDef(
-                def_id, func_def.name, func_def, func_ty, Visibility.PRIVATE, None
+                def_id,
+                func_def.name,
+                func_def,
+                func_ty,
+                Visibility.PRIVATE,
+                None,
+                hugr_name=None,
             )
             DEF_STORE.register_def(func, None)
             ENGINE.parsed[def_id] = func
