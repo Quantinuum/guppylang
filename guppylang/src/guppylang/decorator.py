@@ -62,6 +62,7 @@ from typing_extensions import Unpack, dataclass_transform, deprecated
 from guppylang.defs import (
     GuppyDefinition,
     GuppyFunctionDefinition,
+    GuppyLibrary,
     GuppyTypeVarDefinition,
 )
 
@@ -425,6 +426,12 @@ class _Guppy:
         if not isinstance(obj, GuppyDefinition):
             raise TypeError(f"Object is not a Guppy definition: {obj}")
         return ModulePointer(obj.compile(), 0)
+
+    def library(self, *members: GuppyDefinition) -> GuppyLibrary:
+        """Defines a Guppy library, which is a collection of Guppy definitions that can
+        be compiled together and linked as a unit."""
+
+        return GuppyLibrary([member.id for member in members])
 
     def pytket(
         self, input_circuit: Any
