@@ -284,6 +284,54 @@ def test_xor(run_int_fn):
     run_int_fn(main2, 0)
 
 
+def test_bool_rand(run_int_fn):
+    @guppy
+    def main1() -> int:
+        x: bool = True
+        return int(x.__rand__(False))
+
+    run_int_fn(main1, 0)
+
+    @guppy
+    def main2() -> int:
+        x: bool = True
+        return int(x.__rand__(True))
+
+    run_int_fn(main2, 1)
+
+
+def test_bool_ror(run_int_fn):
+    @guppy
+    def main1() -> int:
+        x: bool = False
+        return int(x.__ror__(True))
+
+    run_int_fn(main1, 1)
+
+    @guppy
+    def main2() -> int:
+        x: bool = False
+        return int(x.__ror__(False))
+
+    run_int_fn(main2, 0)
+
+
+def test_bool_rxor(run_int_fn):
+    @guppy
+    def main1() -> int:
+        x: bool = True
+        return int(x.__rxor__(True))
+
+    run_int_fn(main1, 0)
+
+    @guppy
+    def main2() -> int:
+        x: bool = True
+        return int(x.__rxor__(False))
+
+    run_int_fn(main2, 1)
+
+
 def test_pow(run_int_fn) -> None:
     @guppy
     def main() -> int:
