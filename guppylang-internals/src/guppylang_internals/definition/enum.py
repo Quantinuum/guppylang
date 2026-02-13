@@ -224,22 +224,40 @@ class CheckedEnumDef(TypeDef, CompiledDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
-        # TODO
+        check_all_args(self.params, args, self.name, loc)
+
         return EnumType(args, self)
 
     def generated_methods(self) -> list[CustomFunctionDef]:
         # Generating methods to instantiate enum variants
         # return []
 
+        @dataclass
         class ConstructorCompiler(CustomCallCompiler):
             """Compiler for the enum variant constructors."""
 
+            idex_variant: int
+            type_enum: EnumType
+
             # TODO: Nicola, Is this the right way to do it?
             def compile(self, args: list[Wire]) -> list[Wire]:
-                return list(self.builder.add(ops.MakeTuple()(*args)))
+                args = list(self.builder.add(ops.MakeTuple()(*args)))
+                args = list(
+                    self.builder.add(
+                        ops.Tag(self.idex_variant, self.type_enum.to_hugr)(*args)
+                    )
+                )
+                return args
+
+
+            # def compile(self, args: list[Wire]) -> list[Wire]:
+            #     return list(self.builder.add(ops.MakeTuple()(*args)))
 
         variants_constructors = []
         for variant_name, variant in self.variants.items():
+            enum_type = EnumType(
+                defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
+            )
             constructor_sig = FunctionType(
                 inputs=[
                     FuncInput(
@@ -249,9 +267,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                     )
                     for f in variant.fields
                 ],
-                output=EnumType(
-                    defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
-                ),
+                output=enum_type,
             )
 
             constructor_def = CustomFunctionDef(
@@ -260,7 +276,9 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 defined_at=self.defined_at,
                 ty=constructor_sig,
                 call_checker=DefaultCallChecker(),
-                call_compiler=ConstructorCompiler(),
+                call_compiler=ConstructorCompiler(  # ),
+                    variant.index, enum_type
+                ),
                 higher_order_value=True,
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,
