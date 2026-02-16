@@ -49,7 +49,6 @@ from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.subst import Inst, Instantiator
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
-    EnumType,
     NumericType,
     StructType,
     TupleType,
@@ -435,17 +434,6 @@ class DFContainer:
             ):
                 self[TupleAccess(place, elem, idx, None)] = elem_port
             self.locals.pop(place.id, None)
-        # # If we have an Enum... TODO: NICOLA
-        # elif isinstance(place.ty, EnumType) and not is_return and False:
-        #     print(port)
-        #     first_variant_field_tys = [field.ty for field in place.ty.variants_as_list[0].fields]
-        #     hugr_elem_tys = [ty.to_hugr(self.ctx) for ty in first_variant_field_tys]
-        #     unpack = self.builder.add_op(ops.UnpackTuple(hugr_elem_tys), port)
-        #     for idx, (elem, elem_port) in enumerate(
-        #         zip(first_variant_field_tys, unpack, strict=True)
-        #     ):
-        #         self[TupleAccess(place, elem, idx,  None)] = elem_port
-        #     self.locals.pop(place.id, None)       
         else:
             self.locals[place.id] = port
 
@@ -743,6 +731,7 @@ def insert_drops(hugr: Hugr[OpVarCov]) -> None:
         # raises an `IncompleteOp` exception. Instead, we query the number of out ports
         # and look them up by index. However, this method is *also* broken when
         # inspecting `FuncDefn` nodes due to https://github.com/quantinuum/hugr/issues/2438.
+        # TODO: NICOLA the issue is closed, still valid?
         if isinstance(data.op, ops.FuncDefn):
             continue
         for i in range(hugr.num_out_ports(node)):

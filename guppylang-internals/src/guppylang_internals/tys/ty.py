@@ -777,6 +777,7 @@ class EnumType(ParametrizedTypeBase):
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Sum:
         """Computes the Hugr representation of the type."""
+
         rows = [[f.ty.to_hugr(ctx) for f in v.fields] for v in self.variants_as_list]
         return ht.Sum(rows)
 

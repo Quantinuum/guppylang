@@ -124,15 +124,6 @@ class ModuleMemberNotFoundError(Error):
     member: str
 
 
-# TODO: NICOLA improve this error (personalize per type)
-# @dataclass(frozen=True)
-# class VariantNotFoundError(Error):
-#     title: ClassVar[str] = "Variant not found"
-#     span_label: ClassVar[str] = "`{enum}` has no variant `{attribute}`"
-#     enum: Type
-#     attribute: str
-
-
 @dataclass(frozen=True)
 class AttributeNotFoundError(Error):
     title: ClassVar[str] = "Attribute not found"

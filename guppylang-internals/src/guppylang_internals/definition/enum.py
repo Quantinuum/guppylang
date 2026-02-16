@@ -235,23 +235,18 @@ class CheckedEnumDef(TypeDef, CompiledDef):
         @dataclass
         class ConstructorCompiler(CustomCallCompiler):
             """Compiler for the enum variant constructors."""
-
             idex_variant: int
             type_enum: EnumType
 
-            # TODO: Nicola, Is this the right way to do it?
-            def compile(self, args: list[Wire]) -> list[Wire]:
-                args = list(self.builder.add(ops.MakeTuple()(*args)))
-                # args = list(
-                #     self.builder.add(
-                #         ops.Tag(self.idex_variant, self.type_enum.to_hugr)(*args)
-                #     )
-                # )
-                return args
+            def compile(self, wires: list[Wire]) -> list[Wire]:
+                return list(
+                    self.builder.add(
+                        ops.Tag(self.idex_variant, self.type_enum.to_hugr(self.ctx))(
+                            *wires
+                        )
+                    )
+                )
 
-
-            # def compile(self, args: list[Wire]) -> list[Wire]:
-            #     return list(self.builder.add(ops.MakeTuple()(*args)))
 
         variants_constructors = []
         for variant_name, variant in self.variants.items():
