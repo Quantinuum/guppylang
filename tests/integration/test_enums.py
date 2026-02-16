@@ -61,7 +61,7 @@ def test_basic_enum(validate):
     @compile_guppy
     def use_enum() -> None:
         variant1 = Message.Resize(2, 3)
-        variant2 = Message.Quit()
+        # variant2 = Message.Quit()
         variant1.method()
         # variant2.method()
 

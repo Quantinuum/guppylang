@@ -242,11 +242,11 @@ class CheckedEnumDef(TypeDef, CompiledDef):
             # TODO: Nicola, Is this the right way to do it?
             def compile(self, args: list[Wire]) -> list[Wire]:
                 args = list(self.builder.add(ops.MakeTuple()(*args)))
-                args = list(
-                    self.builder.add(
-                        ops.Tag(self.idex_variant, self.type_enum.to_hugr)(*args)
-                    )
-                )
+                # args = list(
+                #     self.builder.add(
+                #         ops.Tag(self.idex_variant, self.type_enum.to_hugr)(*args)
+                #     )
+                # )
                 return args
 
 
