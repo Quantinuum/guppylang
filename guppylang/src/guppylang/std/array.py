@@ -96,15 +96,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
         # Example
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        result("a", qs.is_borrowed(3))  # False
-        q = qs.take(3).unwrap()
-        result("a", qs.is_borrowed(3))  # True
-        qs.put(qubit(), 3).unwrap()
-        result("a", qs.is_borrowed(3))  # False
-        ```
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            result("a", qs.is_borrowed(3))  # False
+            q = qs.take(3).unwrap()
+            result("a", qs.is_borrowed(3))  # True
+            qs.put(qubit(), 3).unwrap()
+            result("a", qs.is_borrowed(3))  # False
         """
 
     @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
@@ -127,15 +127,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
         # Example
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        q = qs.take(3)
-        measure(q)  # We're allowed to deallocate since we own `q`
-        # h(qs[3])  # Would panic since qubit 3 has been taken out
-        qs.put(qubit(), 3) # Put a fresh qubit back into the array
-        h(qs[3])
-        ```
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            q = qs.take(3)
+            measure(q)  # We're allowed to deallocate since we own `q`
+            # h(qs[3])  # Would panic since qubit 3 has been taken out
+            qs.put(qubit(), 3) # Put a fresh qubit back into the array
+            h(qs[3])
         """
 
     @guppy
@@ -156,15 +156,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
         # Example
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        q = qs.try_take(3).unwrap()
-        measure(q)  # We're allowed to deallocate since we own `q`
-        # h(qs[3])  # Would panic since qubit 3 has been taken out
-        qs.put(qubit(), 3)  # Put a fresh qubit back into the array
-        h(qs[3])
-        ```
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            q = qs.try_take(3).unwrap()
+            measure(q)  # We're allowed to deallocate since we own `q`
+            # h(qs[3])  # Would panic since qubit 3 has been taken out
+            qs.put(qubit(), 3)  # Put a fresh qubit back into the array
+            h(qs[3])
         """
         if self.is_borrowed(idx):
             return nothing()
@@ -187,14 +187,14 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
         # Example
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        q = qubit()
-        # qs.put(q, 3)  # Would panic as there is already a qubit at index 3
-        measure(qs.take(3))  # Take it out to make space for the new one
-        qs.put(q, 3)
-        h(qs[3])
-        ```
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(10))
+            q = qubit()
+            # qs.put(q, 3)  # Would panic as there is already a qubit at index 3
+            measure(qs.take(3))  # Take it out to make space for the new one
+            qs.put(q, 3)
+            h(qs[3])
         """
 
     @guppy
@@ -273,12 +273,12 @@ def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
         idx: Index of first element to swap
         idx2: Index of second element to swap
 
-    Example:
-    ```python
+    # Example
+
+    .. code-block:: python
         arr = array(10, 20, 30, 40)
         array_swap(arr, 0, 3)
         # arr is now [40, 20, 30, 10]
-    ```
     """
 
 
