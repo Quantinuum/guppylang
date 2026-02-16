@@ -40,8 +40,7 @@ def test_relative_path_from_different_cwd(validate, monkeypatch, tmp_path):
     validate(mod)
 
 
-def test_absolute_path_unaffected(validate):
-    """Absolute paths should continue to work regardless of resolution logic."""
+def test_absolute_path(validate):
 
     @wasm_module(WASM_FILE)
     class AbsWasm:
