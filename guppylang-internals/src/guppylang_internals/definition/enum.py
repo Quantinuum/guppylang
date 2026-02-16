@@ -235,6 +235,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
         @dataclass
         class ConstructorCompiler(CustomCallCompiler):
             """Compiler for the enum variant constructors."""
+
             idex_variant: int
             type_enum: EnumType
 
@@ -246,7 +247,6 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                         )
                     )
                 )
-
 
         variants_constructors = []
         for variant_name, variant in self.variants.items():

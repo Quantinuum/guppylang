@@ -1,14 +1,3 @@
-from guppylang import guppy
-from matplotlib.pyplot import cla
-import pytest
-from tests.util import compile_guppy
-
-from typing import Generic, TYPE_CHECKING
-
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 """
 The syntax is inspired by Rust:
 
@@ -31,6 +20,16 @@ fn main() {
 }
 """
 
+from guppylang import guppy
+import pytest
+from tests.util import compile_guppy
+
+from typing import Generic, TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 # TODO: NICOLA temporary test, to be substituted with `test_basic_enum`
 # when enum implementation is complete
@@ -51,7 +50,9 @@ def test_enum_syntax():
     EmptyEnum.compile()
     GenericEnum.compile()
 
+
 #######################################################################
+
 
 def test_basic_enum(validate):
     @guppy.enum
@@ -70,6 +71,7 @@ def test_basic_enum(validate):
     @guppy.enum
     class DocstringEnum:
         """This is an enum with a docstring!"""
+
         VariantA = {}  # noqa: RUF012
         VariantB = {"x": int}  # noqa: RUF012
 
@@ -126,11 +128,11 @@ def test_backward_ref_enum(validate):
 def test_forward_ref(validate):
     @guppy.enum
     class EnumA:
-        VariantA = {"x": "EnumB"}  # Forward reference
+        VariantA = {"x": "EnumB"}  # Forward reference  # noqa: RUF012
 
     @guppy.enum
     class EnumB:
-        VariantB = {"y": int}
+        VariantB = {"y": int}  # noqa: RUF012
 
     @guppy
     def main(a: EnumA, b: EnumB) -> EnumA:
@@ -139,6 +141,7 @@ def test_forward_ref(validate):
 
     validate(main.compile_function())
 
+
 #
 @pytest.mark.skip
 def test_generic(validate):
@@ -146,18 +149,18 @@ def test_generic(validate):
     T = guppy.type_var("T")
 
     @guppy.enum
-    class EnumA(Generic[T]):
-        VariantA = {"x": tuple[int, T]}
+    class EnumA(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {"x": tuple[int, T]}  # noqa: RUF012
 
     @guppy.enum
     class EnumC:
-        VariantA = {"a": EnumA[int]}
-        VariantB = {"b": EnumA[list[bool]]}
-        VariantC = {"c": "EnumB[float, EnumB[bool, int]]"}
+        VariantA = {"a": EnumA[int]}  # noqa: RUF012
+        VariantB = {"b": EnumA[list[bool]]}  # noqa: RUF012
+        VariantC = {"c": "EnumB[float, EnumB[bool, int]]"}  # noqa: RUF012
 
     @guppy.enum
-    class EnumB(Generic[S, T]):
-        VariantA = {"x": S, "y": EnumA[T]}
+    class EnumB(Generic[S, T]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {"x": S, "y": EnumA[T]}  # noqa: RUF012
 
     @guppy
     def main(a: EnumA[EnumA[float]], b: EnumB[bool, int], c: EnumC) -> None:
@@ -172,12 +175,12 @@ def test_generic(validate):
     validate(main.compile_function())
 
 
-# TODO: Methods now are limited due to the fact that we cannot access to enum fields in 
+# TODO: Methods now are limited due to the fact that we cannot access to enum fields in
 # and we do not have pattern matching
 def test_methods(validate):
     @guppy.enum
     class EnumA:
-        VariantA = {"x": int}
+        VariantA = {"x": int}  # noqa: RUF012
 
         @guppy
         def foo(self: "EnumA", y: int) -> int:
@@ -185,7 +188,7 @@ def test_methods(validate):
 
     @guppy.enum
     class EnumB:
-        VariantA = {"x": int, "y": float}
+        VariantA = {"x": int, "y": float}  # noqa: RUF012
 
         @guppy
         def bar(self: "EnumB", a: EnumA) -> float:
@@ -197,12 +200,12 @@ def test_methods(validate):
 
     validate(main.compile_function())
 
-#TODO: after Generics fix, to remove
-def test_higher_order_easy(validate):
 
+# TODO: after Generics fix, to remove
+def test_higher_order_easy(validate):
     @guppy.enum
-    class Enum():
-        VariantA = {"x": int}
+    class Enum:
+        VariantA = {"x": int}  # noqa: RUF012
 
     @guppy
     def factory(mk_enum: "Callable[[int], Enum]", x: int) -> Enum:
@@ -220,8 +223,8 @@ def test_higher_order(validate):
     T = guppy.type_var("T")
 
     @guppy.enum
-    class Enum(Generic[T]):
-        VariantA = {"x": T}
+    class Enum(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {"x": T}  # noqa: RUF012
 
     @guppy
     def factory(mk_enum: "Callable[[int], Enum[int]]", x: int) -> Enum[int]:
@@ -237,7 +240,7 @@ def test_higher_order(validate):
 def test_wiring(validate):
     @guppy.enum
     class MyEnum:
-        VariantA = {"x": int}
+        VariantA = {"x": int}  # noqa: RUF012
 
     @guppy
     def foo() -> MyEnum:
@@ -250,21 +253,19 @@ def test_wiring(validate):
     validate(foo.compile_function())
 
 
-
 def test_redefine(validate):
     """See https://github.com/quantinuum/guppylang/issues/1107"""
 
     @guppy.enum
     class MyEnum:
-        VariantA = {"x": int}
+        VariantA = {"x": int}  # noqa: RUF012
 
     @guppy.enum
     class MyEnum:  # noqa: F811
-        VariantB = {}
+        VariantB = {}  # noqa: RUF012
 
     @guppy
     def foo() -> MyEnum:
         return MyEnum.VariantB()
 
     validate(foo.compile_function())
-
