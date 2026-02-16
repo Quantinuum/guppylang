@@ -79,7 +79,6 @@ def test_absolute_path_unaffected_by_cwd(validate, monkeypatch, tmp_path):
 
 
 def test_nonexistent_relative_path_error():
-    """A relative path that doesn't exist should still raise WasmFileNotFound."""
     with pytest.raises(GuppyError):
 
         @wasm_module("no_such_file.wasm")
