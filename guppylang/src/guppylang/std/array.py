@@ -212,14 +212,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
         # Example
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        q = qubit()
-        qs.try_put(q, 3).unwrap_nothing()  # Is `nothing` since there's a qubit at idx 3
-        measure(qs.take(3))  # Take it out to make space for the new one
-        qs.try_put(q, 3).unwrap()
-        h(qs[3])
-        ```
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(10))
+            q = qubit()
+            # Is `nothing` since there's a qubit at idx 3
+            qs.try_put(q, 3).unwrap_nothing()
+            measure(qs.take(3))  # Take it out to make space for the new one
+            qs.try_put(q, 3).unwrap()
+            h(qs[3])
         """
         if not self.is_borrowed(idx):
             return err(elem)
@@ -276,6 +277,7 @@ def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
     # Example
 
     .. code-block:: python
+
         arr = array(10, 20, 30, 40)
         array_swap(arr, 0, 3)
         # arr is now [40, 20, 30, 10]
