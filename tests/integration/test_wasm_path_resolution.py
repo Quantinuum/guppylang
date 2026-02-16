@@ -1,8 +1,4 @@
-"""Tests for WASM file path resolution (issue #1407).
-
-Verifies that @wasm_module resolves relative paths relative to the source file
-containing the decorator, not the current working directory.
-"""
+"""Tests for WASM file path resolution."""
 
 from pathlib import Path
 
