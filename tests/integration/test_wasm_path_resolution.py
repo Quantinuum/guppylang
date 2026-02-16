@@ -54,8 +54,7 @@ def test_absolute_path(validate):
     validate(mod)
 
 
-def test_absolute_path_unaffected_by_cwd(validate, monkeypatch, tmp_path):
-    """Absolute paths should work even when cwd is changed."""
+def test_absolute_path_changed_dir(validate, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
 
     @wasm_module(WASM_FILE)
