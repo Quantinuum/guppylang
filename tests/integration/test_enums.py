@@ -31,29 +31,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-# TODO: NICOLA temporary test, to be substituted with `test_basic_enum`
-# when enum implementation is complete
-def test_enum_syntax():
-    @guppy.enum
-    class EmptyEnum:
-        pass
-
-    @guppy.enum
-    class GenericEnum:
-        VariantA = {}  # noqa: RUF012
-        VariantB = {"x": int, "y": float}  # noqa: RUF012
-
-        @guppy
-        def describe(variant: "GenericEnum") -> int:
-            return 42
-
-    EmptyEnum.compile()
-    GenericEnum.compile()
-
-
-#######################################################################
-
-
 def test_basic_enum(validate):
     @guppy.enum
     class EmptyEnum:
@@ -142,8 +119,6 @@ def test_forward_ref(validate):
     validate(main.compile_function())
 
 
-#
-@pytest.mark.skip
 def test_generic(validate):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
@@ -164,13 +139,17 @@ def test_generic(validate):
 
     @guppy
     def main(a: EnumA[EnumA[float]], b: EnumB[bool, int], c: EnumC) -> None:
-        x = EnumA.VariantA((0, False))
-        y = EnumA.VariantA((0, -5))
-        EnumA.VariantA((0, x))
-        EnumB.VariantA(x=42, y=a)
-        EnumC.VariantA(a=y)
-        EnumC.VariantB(b=EnumA.VariantA((0, [])))
-        EnumC.VariantC(c=EnumB.VariantA(x=42.0, y=EnumA.VariantA((4, b))))
+        x = EnumA.VariantA[bool]((0, False))
+        y = EnumA.VariantA[int]((0, -5))
+        EnumA.VariantA[EnumA[bool]]((0, x))
+        EnumB.VariantA[int, EnumA[float]](42, a)
+        EnumC.VariantA(y)
+        EnumC.VariantB(EnumA.VariantA[list[bool]]((0, [])))
+        EnumC.VariantC(
+            EnumB.VariantA[float, EnumB[bool, int]](
+                42.0, EnumA.VariantA[EnumB[bool, int]]((0, b))
+            )
+        )
 
     validate(main.compile_function())
 
@@ -219,6 +198,7 @@ def test_higher_order_easy(validate):
 
 
 @pytest.mark.skip
+# TODO: Generics are partially broken for enums
 def test_higher_order(validate):
     T = guppy.type_var("T")
 

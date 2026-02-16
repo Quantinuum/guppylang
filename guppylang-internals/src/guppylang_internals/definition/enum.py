@@ -263,6 +263,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                     for f in variant.fields
                 ],
                 output=enum_type,
+                params=self.params,
             )
 
             constructor_def = CustomFunctionDef(
