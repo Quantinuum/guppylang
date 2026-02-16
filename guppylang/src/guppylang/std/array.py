@@ -94,7 +94,8 @@ class array(builtins.list[_T], Generic[_T, _n]):
         This is the case whenever a non-copyable element is borrowed, or when an element
         is manually taken out of the array via the `take` method.
 
-        # Example
+        Example
+        -------
 
         .. code-block:: python
 
@@ -125,7 +126,8 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Also see `array.try_take` for a version of this function that does not panic if
         the element has already been taken out.
 
-        # Example
+        Example
+        -------
 
         .. code-block:: python
 
@@ -154,7 +156,8 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Returns the extracted element or `nothing` if the element has already been taken
         out. Panics if the provided index is negative or out of bounds.
 
-        # Example
+        Example
+        -------
 
         .. code-block:: python
 
@@ -185,7 +188,8 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Also see `array.try_put` for a version of this function that does not panic if
         if there is already an element at the given index.
 
-        # Example
+        Example
+        -------
 
         .. code-block:: python
 
@@ -210,7 +214,8 @@ class array(builtins.list[_T], Generic[_T, _n]):
         mutated and the passed replacement element will be returned back in an `err`
         variant. Panics if the provided index is negative or out of bounds.
 
-        # Example
+        Example
+        -------
 
         .. code-block:: python
 
@@ -274,7 +279,8 @@ def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
         idx: Index of first element to swap
         idx2: Index of second element to swap
 
-    # Example
+    Example
+    -------
 
     .. code-block:: python
 
