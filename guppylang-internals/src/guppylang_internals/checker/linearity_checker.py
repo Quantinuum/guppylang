@@ -898,15 +898,24 @@ def check_cfg_linearity(
                 used_later = all(x in live_before[succ] for succ in bb.successors)
                 if not leaf.ty.droppable and not scope.used(x) and not used_later:
                     err = PlaceNotUsedError(scope[x].defined_at, leaf)
-                    # If there are some paths that lead to a consumption, we can give
-                    # a nicer error message by highlighting the branch that leads to
-                    # the leak
-                    if any(x in live_before[succ] for succ in bb.successors):
+                    # If the variable is consumed (not just borrowed) on some
+                    # paths, highlight the branch that leads to the leak.
+                    consumed_succs = set()
+                    for succ in bb.successors:
+                        if x not in live_before[succ]:
+                            continue
+                        use_bb = live_before[succ][x]
+                        if x in scopes[use_bb].used_parent:
+                            use = scopes[use_bb].used_parent[x]
+                            if use.kind not in (UseKind.BORROW, UseKind.COPY):
+                                consumed_succs.add(succ)
+                    if consumed_succs:
                         assert bb.branch_pred is not None
                         [left_succ, _] = bb.successors
                         err.add_sub_diagnostic(
                             PlaceNotUsedError.Branch(
-                                bb.branch_pred, x in live_before[left_succ]
+                                bb.branch_pred,
+                                left_succ in consumed_succs,
                             )
                         )
                     err.add_sub_diagnostic(PlaceNotUsedError.Fix(None))
