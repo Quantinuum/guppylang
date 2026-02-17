@@ -24,7 +24,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
-    load_with_args,
+    load,
     parse_py_func,
 )
 from guppylang_internals.definition.value import (
@@ -195,15 +195,10 @@ class CompiledFunctionDecl(
         """The Hugr node this definition was compiled into."""
         return self.declaration
 
-    def load_with_args(
-        self,
-        dfg: DFContainer,
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load_with_args(dfg, self.ty, self.declaration)
+        return load(dfg, self.ty, self.declaration)
 
     def compile_call(
         self,

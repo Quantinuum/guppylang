@@ -27,7 +27,7 @@ from guppylang_internals.definition.declaration import BodyNotEmptyError
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
-    load_with_args,
+    load,
     parse_py_func,
 )
 from guppylang_internals.definition.ty import TypeDef
@@ -343,15 +343,10 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
-    def load_with_args(
-        self,
-        dfg: DFContainer,
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load_with_args(dfg, self.ty, self.func_def)
+        return load(dfg, self.ty, self.func_def)
 
     def compile_call(
         self,

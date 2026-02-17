@@ -75,22 +75,8 @@ class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, 
         """
 
     @abstractmethod
-    def load_with_args(
-        self,
-        dfg: "DFContainer",
-        ctx: "CompilerContext",
-        node: AstNode,
-    ) -> Wire:
-        """Loads the function into a local Hugr dataflow graph.
-
-        Requires an instantiation for all function parameters.
-        """
-
-    def load(
-        self, dfg: "DFContainer", globals: "CompilerContext", node: AstNode
-    ) -> Wire:
-        """Loads the defined value into a local Hugr dataflow graph."""
-        return self.load_with_args(dfg, globals, node)
+    def load(self, dfg: "DFContainer", ctx: "CompilerContext", node: AstNode) -> Wire:
+        """Loads the function into a local Hugr dataflow graph."""
 
 
 class CallReturnWires(NamedTuple):

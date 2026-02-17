@@ -271,12 +271,7 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
 
     type_args: Inst
 
-    def load_with_args(
-        self,
-        dfg: "DFContainer",
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+    def load(self, dfg: "DFContainer", ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the custom function as a value into a local dataflow graph.
 
         This will place a `FunctionDef` node in the local DFG, and load with a

@@ -237,14 +237,9 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
-    def load_with_args(
-        self,
-        dfg: DFContainer,
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
-        return load_with_args(dfg, self.ty, self.func_def)
+        return load(dfg, self.ty, self.func_def)
 
     def compile_call(
         self,
@@ -261,11 +256,7 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         compile_global_func_def(self, self.func_def, globals)
 
 
-def load_with_args(
-    dfg: DFContainer,
-    ty: FunctionType,
-    func: ToNode,
-) -> Wire:
+def load(dfg: DFContainer, ty: FunctionType, func: ToNode) -> Wire:
     """Loads the function as a value into a local Hugr dataflow graph."""
     return dfg.builder.load_function(func)
 

@@ -455,7 +455,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Dynamic TypeApply not supported yet!")
         defn = self.ctx.build_compiled_def(node.value.def_id, node.inst)
         assert isinstance(defn, CompiledCallableDef)
-        return defn.load_with_args(self.dfg, self.ctx, node)
+        return defn.load(self.dfg, self.ctx, node)
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Wire:
         # The only case that is not desugared by the type checker is the `not` operation

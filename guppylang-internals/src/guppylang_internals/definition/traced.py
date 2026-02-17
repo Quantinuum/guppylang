@@ -112,12 +112,7 @@ class CompiledTracedFunctionDef(
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
-    def load_with_args(
-        self,
-        dfg: DFContainer,
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         type_args: Inst = []  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
