@@ -39,7 +39,7 @@ class AlreadyUsedError(Error):
         prev_kind: UseKind
 
     @dataclass(frozen=True)
-    class FieldPrevUse(Note):
+    class MemberPrevUse(Note):
         span_label: ClassVar[str] = (
             "... since the member `{child_place}` with non-copyable type "
             "`{child_place.ty}` was already {prev_kind.subjunctive} here"

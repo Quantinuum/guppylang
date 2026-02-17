@@ -287,7 +287,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if node.place != place:
                         err = AlreadyUsedError(node, node.place, use_kind)
                         err.add_sub_diagnostic(
-                            AlreadyUsedError.FieldPrevUse(
+                            AlreadyUsedError.MemberPrevUse(
                                 prev_use.node, place, prev_use.kind
                             )
                         )
