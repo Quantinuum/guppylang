@@ -3,6 +3,6 @@ Error: Attribute not found (at $FILE:9:19)
 7 | @guppy
 8 | def main() -> None:
 9 |     msg1 = Message.BadVariant()
-  |                    ^^^^^^^^^^ `Message` has no attribute `BadVariant`
+  |                    ^^^^^^^^^^ `Message` has no variant or method `BadVariant`
 
 Guppy compilation failed due to 1 previous error

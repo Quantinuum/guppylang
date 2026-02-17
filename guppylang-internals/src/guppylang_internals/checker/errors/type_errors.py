@@ -127,9 +127,20 @@ class ModuleMemberNotFoundError(Error):
 @dataclass(frozen=True)
 class AttributeNotFoundError(Error):
     title: ClassVar[str] = "Attribute not found"
-    span_label: ClassVar[str] = "`{ty}` has no attribute `{attribute}`"
+    span_label: ClassVar[str] = "`{ty}` has no {element_name} `{attribute}`"
     ty: Type
     attribute: str
+
+    @property
+    def element_name(self) -> str:
+        from guppylang_internals.tys.ty import EnumType, StructType
+
+        if isinstance(self.ty, StructType):
+            return "field or method"
+        elif isinstance(self.ty, EnumType):
+            return "variant or method"
+        else:
+            return "attribute"
 
 
 @dataclass(frozen=True)
