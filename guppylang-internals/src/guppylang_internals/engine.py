@@ -289,7 +289,7 @@ class CompilationEngine:
 
         This is the function that is invoked by `guppy.compile`.
         """
-        pointer, [compiled_def] = self.compile([id])
+        pointer, [compiled_def] = self._compile([id])
 
         if (
             isinstance(compiled_def, CompiledHugrNodeDef)
@@ -303,7 +303,10 @@ class CompilationEngine:
         return pointer
 
     @pretty_errors
-    def compile(self, def_ids: list[DefId]) -> tuple[ModulePointer, list[CompiledDef]]:
+    def compile(self, def_ids: list[DefId]) -> ModulePointer:
+        return self._compile(def_ids)[0]
+
+    def _compile(self, def_ids: list[DefId]) -> tuple[ModulePointer, list[CompiledDef]]:
         """Top-level function to kick of Hugr compilation of a definition.
 
         This is the function that is invoked by `guppy.compile`.
