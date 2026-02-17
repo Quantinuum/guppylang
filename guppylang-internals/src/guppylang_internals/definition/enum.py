@@ -2,6 +2,7 @@ import ast
 import keyword
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from operator import le
 from typing import ClassVar, Generic, TypeVar
 
 from hugr import Wire, ops
@@ -93,6 +94,16 @@ class RawEnumDef(TypeDef, ParsableDef):
 
         # Look for generic parameters from Python 3.12 style syntax
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
+
+        #TODO: No generic params allowed for now.
+        if len(params) > 0:
+            raise GuppyError(
+                UnsupportedError(
+                    cls_def,
+                    "Generic parameters in enum definitions",
+                    False,
+                )
+            )
 
         # We look for variants in the class body
         variants: dict[str, EnumVariant[UncheckedField]] = {}
