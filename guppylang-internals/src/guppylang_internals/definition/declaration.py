@@ -1,5 +1,6 @@
 import ast
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
+from functools import cached_property
 from typing import ClassVar
 
 from hugr import Node, Wire
@@ -23,6 +24,7 @@ from guppylang_internals.definition.function import (
     load_with_args,
     parse_py_func,
 )
+from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -68,7 +70,22 @@ class RawFunctionDecl(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
-    hugr_name: str | None = field(default=None, kw_only=True)
+    hugr_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_hugr_name: str | None = field(default=None, init=False)
+
+    def __post_init__(self, hugr_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_hugr_name", hugr_name)
+
+    @cached_property
+    def qualified_hugr_name(self) -> str:
+        if self._user_set_hugr_name is not None:
+            return self._user_set_hugr_name
+
+        parent_ty = get_parent_type(self)
+        if parent_ty is not None and isinstance(parent_ty, RawStructDef):
+            return f"{parent_ty.qualified_hugr_name}.{self.python_func.__name__}"
+
+        return f"{self.python_func.__module__}.{self.python_func.__qualname__}"
 
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
@@ -86,14 +103,13 @@ class RawFunctionDecl(ParsableDef):
             self.name,
             func_ast,
             ty,
-            self.python_func,
             docstring,
-            hugr_name=self.hugr_name,
+            self.qualified_hugr_name,
         )
 
 
 @dataclass(frozen=True)
-class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
+class CheckedFunctionDecl(CompilableDef, CallableDef):
     """A function declaration with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function.
@@ -101,6 +117,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
 
     defined_at: ast.FunctionDef
     docstring: str | None
+    hugr_name: str
 
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
@@ -129,20 +146,15 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         )
         module: hf.Module = module
 
-        parent_ty = get_parent_type(self)
-        hugr_name = self.hugr_name or (
-            self.name if parent_ty is None else f"{parent_ty.name}.{self.name}"
-        )
-        node = module.declare_function(hugr_name, self.ty.to_hugr_poly(ctx))
+        node = module.declare_function(self.hugr_name, self.ty.to_hugr_poly(ctx))
         return CompiledFunctionDecl(
             self.id,
             self.name,
             self.defined_at,
             self.ty,
-            self.python_func,
             self.docstring,
+            self.hugr_name,
             node,
-            hugr_name=hugr_name,
         )
 
 
