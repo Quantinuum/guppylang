@@ -264,6 +264,14 @@ class ArrayCompiler(CustomCallCompiler):
             case _:
                 raise InternalGuppyError("Invalid array type args")
 
+    def elem_to_row(self, elem: Wire) -> list[Wire]:
+        """Helper function to unpack an element wire into a row"""
+        from guppylang_internals.compiler.expr_compiler import unpack_wire
+
+        [elem_ty_arg, _] = self.type_args
+        assert isinstance(elem_ty_arg, TypeArg)
+        return unpack_wire(elem, elem_ty_arg.ty, self.builder, self.ctx)
+
 
 class NewArrayCompiler(ArrayCompiler):
     """Compiler for the `array.__new__` function."""
@@ -298,7 +306,7 @@ class ArrayGetitemCompiler(ArrayCompiler):
         )
         elem = build_unwrap_right(self.builder, opt_elem, "Array index out of bounds")
         return CallReturnWires(
-            regular_returns=[elem],
+            regular_returns=self.elem_to_row(elem),
             inout_returns=[arr],
         )
 
@@ -311,7 +319,7 @@ class ArrayGetitemCompiler(ArrayCompiler):
             idx,
         )
         return CallReturnWires(
-            regular_returns=[elem],
+            regular_returns=self.elem_to_row(elem),
             inout_returns=[arr],
         )
 
