@@ -216,6 +216,7 @@ class GuppyLibrary:
     def compile(self) -> Package:
         """Compile a Guppy definition to HUGR."""
         # TODO change all members to be public in the HUGR
+        # TODO force every top level member to be monomorphic
         pointer = ENGINE.compile(self.members)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
