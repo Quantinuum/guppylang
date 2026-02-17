@@ -18,15 +18,25 @@ def test_smoke_test_library(validate):
     def func_1() -> None:
         pass
 
-    @guppy
-    def func_2() -> None:
-        pass
+    @guppy.declare
+    def func_2() -> None: ...
+
+    @guppy.struct
+    class MyStruct:
+        @guppy
+        def member(self) -> None:
+            pass
 
     library = guppy.library(
         func_1,
         func_2,
+        MyStruct,
     )
 
     compiled_library = library.compile()
     validate(compiled_library)
-    assert _func_names(compiled_library) == {"func_1", "func_2"}
+    assert _func_names(compiled_library) == {
+        "tests.integration.test_library.test_smoke_test_library.<locals>.func_1",
+        "tests.integration.test_library.test_smoke_test_library.<locals>.func_2",
+        "tests.integration.test_library.test_smoke_test_library.<locals>.MyStruct.member",
+    }
