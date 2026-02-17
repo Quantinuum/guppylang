@@ -781,6 +781,7 @@ class EnumType(ParametrizedTypeBase):
         return ht.Sum(rows)
 
     def transform(self, transformer: Transformer) -> "Type":
+        """Accepts a transformer on this type."""
         return transformer.transform(self) or EnumType(
             [arg.transform(transformer) for arg in self.args], self.defn
         )

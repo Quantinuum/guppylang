@@ -21,7 +21,6 @@ fn main() {
 """
 
 from guppylang import guppy
-import pytest
 from tests.util import compile_guppy
 
 from typing import Generic, TYPE_CHECKING
@@ -179,27 +178,7 @@ def test_methods(validate):
     validate(main.compile_function())
 
 
-# TODO: after Generics fix, to remove
-def test_higher_order_easy(validate):
-    @guppy.enum
-    class Enum:
-        VariantA = {"x": int}  # noqa: RUF012
-
-    @guppy
-    def factory(mk_enum: "Callable[[int], Enum]", x: int) -> Enum:
-        return mk_enum(x)
-
-    @guppy
-    def main() -> None:
-        factory(Enum.VariantA, 42)
-
-    validate(main.compile_function())
-
-
-@pytest.mark.skip
-# TODO: Generics are partially broken for enums now,
-# skipped until we have a fix for them.
-def test_generic(validate):
+def test_generic_explicit(validate):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
 
@@ -234,7 +213,37 @@ def test_generic(validate):
     validate(main.compile_function())
 
 
-@pytest.mark.skip
+def test_generic_infer(validate):
+    S = guppy.type_var("S")
+    T = guppy.type_var("T")
+
+    @guppy.enum
+    class EnumA(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {"x": tuple[int, T]}  # noqa: RUF012
+
+    @guppy.enum
+    class EnumC:
+        VariantA = {"a": EnumA[int]}  # noqa: RUF012
+        VariantB = {"b": EnumA[list[bool]]}  # noqa: RUF012
+        VariantC = {"c": "EnumB[float, EnumB[bool, int]]"}  # noqa: RUF012
+
+    @guppy.enum
+    class EnumB(Generic[S, T]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {"x": S, "y": EnumA[T]}  # noqa: RUF012
+
+    @guppy
+    def main(a: EnumA[EnumA[float]], b: EnumB[bool, int], c: EnumC) -> None:
+        x = EnumA.VariantA((0, False))
+        y = EnumA.VariantA((0, -5))
+        EnumA.VariantA((0, x))
+        EnumB.VariantA(42, a)
+        EnumC.VariantA(y)
+        EnumC.VariantB(EnumA.VariantA((0, [])))
+        EnumC.VariantC(EnumB.VariantA(42.0, EnumA.VariantA((0, b))))
+
+    validate(main.compile_function())
+
+
 def test_higher_order(validate):
     T = guppy.type_var("T")
 

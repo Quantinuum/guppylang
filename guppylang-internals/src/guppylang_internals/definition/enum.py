@@ -40,6 +40,7 @@ from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
+from guppylang_internals.tys.subst import Instantiator
 from guppylang_internals.tys.ty import (
     EnumType,
     FuncInput,
@@ -93,16 +94,6 @@ class RawEnumDef(TypeDef, ParsableDef):
 
         # Look for generic parameters from Python 3.12 style syntax
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
-
-        # TODO: No generic params allowed for now.
-        if len(params) > 0:
-            raise GuppyError(
-                UnsupportedError(
-                    cls_def,
-                    "Generic parameters in enum definitions",
-                    False,
-                )
-            )
 
         # We look for variants in the class body
         variants: dict[str, EnumVariant[UncheckedField]] = {}
@@ -250,9 +241,16 @@ class CheckedEnumDef(TypeDef, CompiledDef):
             type_enum: EnumType
 
             def compile(self, wires: list[Wire]) -> list[Wire]:
+                # return list(self.builder.add(ops.MakeTuple()(*wires)))
+
+                instantiator = Instantiator(self.type_args)
+                # If we have generic parameters, we need to instantiate the enum type
+                # before converting it to Hugr
+                inst_enum_type = self.type_enum.transform(instantiator)
+                assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
                     self.builder.add(
-                        ops.Tag(self.idex_variant, self.type_enum.to_hugr(self.ctx))(
+                        ops.Tag(self.idex_variant, inst_enum_type.to_hugr(self.ctx))(
                             *wires
                         )
                     )
