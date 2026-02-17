@@ -1,7 +1,8 @@
 import ast
 import inspect
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
@@ -10,7 +11,13 @@ from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.hugr.node_port import ToNode
 
-from guppylang_internals.ast_util import AstNode, annotate_location, with_loc, with_type
+from guppylang_internals.ast_util import (
+    AstNode,
+    annotate_location,
+    parse_source,
+    with_loc,
+    with_type,
+)
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Context, Globals, Place
 from guppylang_internals.checker.errors.generic import ExpectedError
@@ -24,6 +31,7 @@ from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
     PartiallyMonomorphizedArgs,
+    get_parent_type,
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
 from guppylang_internals.definition.common import (
@@ -35,6 +43,7 @@ from guppylang_internals.definition.common import (
     UnknownSourceError,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
+from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -76,7 +85,22 @@ class RawFunctionDef(ParsableDef):
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
-    hugr_name: str | None = field(default=None, kw_only=True)
+    hugr_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_hugr_name: str | None = field(default=None, init=False)
+
+    def __post_init__(self, hugr_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_hugr_name", hugr_name)
+
+    @cached_property
+    def qualified_hugr_name(self) -> str:
+        if self._user_set_hugr_name is not None:
+            return self._user_set_hugr_name
+
+        parent_ty = get_parent_type(self)
+        if parent_ty is not None and isinstance(parent_ty, RawStructDef):
+            return f"{parent_ty.qualified_hugr_name}.{self.python_func.__name__}"
+
+        return f"{self.python_func.__module__}.{self.python_func.__qualname__}"
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
@@ -90,7 +114,7 @@ class RawFunctionDef(ParsableDef):
             func_ast,
             ty,
             docstring,
-            self.hugr_name,
+            self.qualified_hugr_name,
             metadata=self.metadata,
         )
 
@@ -114,7 +138,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
     defined_at: ast.FunctionDef
     ty: FunctionType
     docstring: str | None
-    hugr_name: str | None
+    hugr_name: str
 
     description: str = field(default="function", init=False)
 
@@ -192,14 +216,10 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         access to the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
-        hugr_name = self.hugr_name or (
-            self.name if parent_ty is None else f"{parent_ty.name}.{self.name}"
-        )
-
         mono_ty = self.ty.instantiate_partial(mono_args)
         hugr_ty = mono_ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            hugr_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            self.hugr_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
         add_metadata(
             func_def,
@@ -213,7 +233,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             mono_args,
             mono_ty,
             self.docstring,
-            hugr_name,
+            self.hugr_name,
             self.cfg,
             func_def,
             metadata=self.metadata,
@@ -312,26 +332,3 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     if not isinstance(func_ast, ast.FunctionDef):
         raise GuppyError(ExpectedError(func_ast, "a function definition"))
     return parse_function_with_docstring(func_ast)
-
-
-def parse_source(source_lines: list[str], line_offset: int) -> tuple[str, ast.AST, int]:
-    """Parses a list of source lines into an AST object.
-
-    Also takes care of correctly parsing source that is indented.
-
-    Returns the full source, the parsed AST node, and a potentially updated line number
-    offset.
-    """
-    source = "".join(source_lines)  # Lines already have trailing \n's
-    if source_lines[0][0].isspace():
-        # This means the function is indented, so we cannot parse it straight away.
-        # Running `textwrap.dedent` would mess up the column number in spans. Instead,
-        # we'll just wrap the source into a dummy class definition so the indent becomes
-        # valid
-        cls_node = ast.parse("class _:\n" + source).body[0]
-        assert isinstance(cls_node, ast.ClassDef)
-        node = cls_node.body[0]
-        line_offset -= 1
-    else:
-        node = ast.parse(source).body[0]
-    return source, node, line_offset

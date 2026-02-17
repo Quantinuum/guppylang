@@ -190,7 +190,9 @@ class _Guppy:
         return custom_type(hugr_ty, name, copyable, droppable, bound, params)
 
     @dataclass_transform()
-    def struct(self, cls: builtins.type[T]) -> builtins.type[T]:
+    def struct(
+        self, cls: builtins.type[T], hugr_name: str | None = None
+    ) -> builtins.type[T]:
         """Registers a class as a Guppy struct.
 
         .. code-block:: python
@@ -205,7 +207,7 @@ class _Guppy:
             def add_fields(self: "MyStruct") -> int:
                 return self.field2 + self.field2
         """
-        defn = RawStructDef(DefId.fresh(), cls.__name__, None, cls)
+        defn = RawStructDef(DefId.fresh(), cls.__name__, None, cls, hugr_name=hugr_name)
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
         for val in cls.__dict__.values():
