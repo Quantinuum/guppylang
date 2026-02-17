@@ -272,7 +272,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 defined_at=self.defined_at,
                 ty=constructor_sig,
                 call_checker=DefaultCallChecker(),
-                call_compiler=ConstructorCompiler(  # ),
+                call_compiler=ConstructorCompiler(
                     variant.index, enum_type
                 ),
                 higher_order_value=True,
