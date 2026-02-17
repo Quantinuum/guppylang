@@ -416,7 +416,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             func_ty = func.ty
 
         args = self._compile_call_args(node.args, func_ty)
-        rets = func.compile_call(args, node.type_args, self.dfg, self.ctx, node)
+        rets = func.compile_call(args, self.dfg, self.ctx, node)
         self._update_inout_ports(node.args, iter(rets.inout_returns), func_ty)
         return self._pack_returns(rets.regular_returns, func_ty.output)
 
@@ -455,7 +455,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Dynamic TypeApply not supported yet!")
         defn = self.ctx.build_compiled_def(node.value.def_id, node.inst)
         assert isinstance(defn, CompiledCallableDef)
-        return defn.load_with_args(node.inst, self.dfg, self.ctx, node)
+        return defn.load_with_args(self.dfg, self.ctx, node)
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Wire:
         # The only case that is not desugared by the type checker is the `not` operation
@@ -631,7 +631,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
     ) -> CallReturnWires:
         func = self.ctx.build_compiled_instance_func(ty, method, type_args)
         assert func is not None
-        return func.compile_call(args, type_args, self.dfg, self.ctx, node)
+        return func.compile_call(args, self.dfg, self.ctx, node)
 
     @contextmanager
     def _build_generators(

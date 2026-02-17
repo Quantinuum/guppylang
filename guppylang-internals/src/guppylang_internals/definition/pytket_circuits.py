@@ -48,7 +48,7 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.quantum import from_halfturns_unchecked
 from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, make_opaque
 from guppylang_internals.tys.builtin import array_type, bool_type, float_type
-from guppylang_internals.tys.subst import Inst, Subst
+from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -345,26 +345,24 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
 
     def load_with_args(
         self,
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load_with_args(type_args, dfg, self.ty, self.func_def)
+        return load_with_args(dfg, self.ty, self.func_def)
 
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, type_args, dfg, self.ty, self.func_def)
+        return compile_call(args, dfg, self.ty, self.func_def)
 
 
 def _signature_from_circuit(

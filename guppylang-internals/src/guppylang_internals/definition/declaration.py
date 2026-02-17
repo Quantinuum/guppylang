@@ -197,23 +197,21 @@ class CompiledFunctionDecl(
 
     def load_with_args(
         self,
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load_with_args(type_args, dfg, self.ty, self.declaration)
+        return load_with_args(dfg, self.ty, self.declaration)
 
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, type_args, dfg, self.ty, self.declaration)
+        return compile_call(args, dfg, self.ty, self.declaration)

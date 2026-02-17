@@ -22,7 +22,7 @@ from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.printing import signature_to_str
-from guppylang_internals.tys.subst import Inst, Subst
+from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
 
 
@@ -134,7 +134,6 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: "DFContainer",
         ctx: "CompilerContext",
         node: AstNode,
@@ -147,7 +146,6 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
 
     def load_with_args(
         self,
-        type_args: Inst,
         dfg: "DFContainer",
         ctx: "CompilerContext",
         node: AstNode,

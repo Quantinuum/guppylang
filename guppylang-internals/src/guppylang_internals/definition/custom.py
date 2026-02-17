@@ -273,7 +273,6 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
 
     def load_with_args(
         self,
-        type_args: Inst,
         dfg: "DFContainer",
         ctx: CompilerContext,
         node: AstNode,
@@ -298,7 +297,7 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
         if not already_defined:
             func_dfg = DFContainer(func, ctx, dfg.locals.copy())
             args: list[Wire] = list(func.inputs())
-            returns = self.compile_call(args, type_args, func_dfg, ctx, node)
+            returns = self.compile_call(args, func_dfg, ctx, node)
             func.set_outputs(*returns.regular_returns, *returns.inout_returns)
 
         # Finally, load the function into the local DFG
@@ -307,7 +306,6 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: "DFContainer",
         ctx: CompilerContext,
         node: AstNode,

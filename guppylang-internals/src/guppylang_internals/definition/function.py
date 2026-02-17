@@ -239,24 +239,22 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
 
     def load_with_args(
         self,
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
-        return load_with_args(type_args, dfg, self.ty, self.func_def)
+        return load_with_args(dfg, self.ty, self.func_def)
 
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, type_args, dfg, self.ty, self.func_def)
+        return compile_call(args, dfg, self.ty, self.func_def)
 
     def compile_inner(self, globals: CompilerContext) -> None:
         """Compiles the body of the function."""
@@ -264,7 +262,6 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
 
 
 def load_with_args(
-    type_args: Inst,
     dfg: DFContainer,
     ty: FunctionType,
     func: ToNode,
@@ -275,7 +272,6 @@ def load_with_args(
 
 def compile_call(
     args: list[Wire],
-    type_args: Inst,  # Non-monomorphized type args only
     dfg: DFContainer,
     ty: FunctionType,
     func: ToNode,

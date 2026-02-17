@@ -7,7 +7,7 @@ from hugr import Node, Wire
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.definition.common import CompiledDef, Definition
-from guppylang_internals.tys.subst import Inst, Subst
+from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
 
 if TYPE_CHECKING:
@@ -64,7 +64,6 @@ class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, 
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: "DFContainer",
         ctx: "CompilerContext",
         node: AstNode,
@@ -78,7 +77,6 @@ class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, 
     @abstractmethod
     def load_with_args(
         self,
-        type_args: Inst,
         dfg: "DFContainer",
         ctx: "CompilerContext",
         node: AstNode,
@@ -92,7 +90,7 @@ class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, 
         self, dfg: "DFContainer", globals: "CompilerContext", node: AstNode
     ) -> Wire:
         """Loads the defined value into a local Hugr dataflow graph."""
-        return self.load_with_args([], dfg, globals, node)
+        return self.load_with_args(dfg, globals, node)
 
 
 class CallReturnWires(NamedTuple):
