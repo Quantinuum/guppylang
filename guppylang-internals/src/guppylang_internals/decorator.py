@@ -234,11 +234,8 @@ def wasm_module(
             caller_dir = pathlib.Path(caller_file).resolve().parent
             wasm_path = caller_dir / filename
 
-    wasm_file = wasm_path
-
-    resolved = str(wasm_file)
-    if wasm_file.is_file():
-        wasm_sigs = decode_wasm_functions(resolved)
+    if wasm_path.is_file():
+        wasm_sigs = decode_wasm_functions(str(wasm_path))
     else:
         raise GuppyError(WasmFileNotFound(None, filename))
 
@@ -261,7 +258,7 @@ def wasm_module(
     )
 
     def inner_fun(ty: builtins.type[T]) -> GuppyDefinition:
-        decorator_inner = decorator(resolved, None)
+        decorator_inner = decorator(str(wasm_path), None)
         return decorator_inner(ty)
 
     return inner_fun

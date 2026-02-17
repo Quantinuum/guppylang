@@ -1,10 +1,4 @@
-"""Tests for WASM file path resolution.
-
-See https://github.com/Quantinuum/guppylang/issues/1407.
-
-Verifies that @wasm_module resolves relative paths relative to the source file
-containing the decorator, not the current working directory.
-"""
+"""Tests for WASM file path resolution."""
 
 from pathlib import Path
 
@@ -21,7 +15,9 @@ WASM_FILE = str(RESOURCES_DIR / "test.wasm")
 
 
 def test_relative_path_from_different_cwd(validate, monkeypatch, tmp_path):
-    """Relative paths resolve from the source file's directory, not the cwd."""
+    """A module using @wasm_module with a relative path should work even when
+    the process cwd differs from the module's directory (See https://github.com/Quantinuum/guppylang/issues/1407)."""
+
     # Change cwd to a directory that does NOT contain the wasm file
     monkeypatch.chdir(tmp_path)
 
@@ -42,7 +38,8 @@ def test_relative_path_from_different_cwd(validate, monkeypatch, tmp_path):
 
 
 def test_relative_path_without_cwd_change(validate):
-    """Relative paths resolve correctly without any cwd manipulation."""
+    """A module using @wasm_module with a relative path should work when
+    the process cwd is the project root (See https://github.com/Quantinuum/guppylang/issues/1407)."""
     from tests.resources.test_wasm_def import RelativeWasm
 
     @guppy
@@ -97,7 +94,8 @@ def test_absolute_path_from_different_cwd(validate, monkeypatch, tmp_path):
 
 
 def test_nonexistent_relative_path_error():
-    """A relative path that doesn't exist raises WasmFileNotFound."""
+    """A module using @wasm_module with a relative path that doesn't exist should
+    raise WasmFileNotFound (See https://github.com/Quantinuum/guppylang/issues/1407)."""
     with pytest.raises(GuppyError, match="WasmFileNotFound"):
 
         @wasm_module("no_such_file.wasm")
