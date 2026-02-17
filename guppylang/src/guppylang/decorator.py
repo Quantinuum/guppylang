@@ -66,6 +66,7 @@ from guppylang.defs import (
     GuppyTypeVarDefinition,
 )
 
+K = TypeVar("K")
 S = TypeVar("S")
 T = TypeVar("T")
 F = TypeVar("F", bound=Callable[..., Any])
@@ -94,6 +95,14 @@ class GuppyKwargs(TypedDict, total=False):
     dagger: bool
     power: bool
     max_qubits: int
+    hugr_name: str
+
+
+class GuppyStructKwargs(TypedDict, total=False):
+    """Typed dictionary specifying the optional keyword arguments for the
+    `@guppy.struct` decorator.
+    """
+
     hugr_name: str
 
 
@@ -191,7 +200,9 @@ class _Guppy:
         return custom_type(hugr_ty, name, copyable, droppable, bound, params)
 
     @dataclass_transform()
-    def struct(self, cls: builtins.type[T]) -> builtins.type[T]:
+    def struct(
+        self, *args: Any, **kwargs: Unpack[GuppyStructKwargs]
+    ) -> builtins.type[T]:
         """Registers a class as a Guppy struct.
 
         .. code-block:: python
@@ -206,20 +217,30 @@ class _Guppy:
             def add_fields(self: "MyStruct") -> int:
                 return self.field2 + self.field2
         """
-        defn = RawStructDef(DefId.fresh(), cls.__name__, None, cls)
-        frame = get_calling_frame()
-        DEF_STORE.register_def(defn, frame)
-        for val in cls.__dict__.values():
-            if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
-        # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
-        # However, we need this information to precisely look up the source for the
-        # class later. If it's not there, we can set it from the calling frame:
-        if not hasattr(cls, "__firstlineno__"):
-            cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
-        # We're pretending to return the class unchanged, but in fact we return
-        # a `GuppyDefinition` that handles the comptime logic
-        return GuppyDefinition(defn)  # type: ignore[return-value]
+
+        def dec(cls: builtins.type[T], kwargs: GuppyStructKwargs) -> GuppyDefinition:
+            defn = RawStructDef(
+                DefId.fresh(),
+                cls.__name__,
+                None,
+                cls,
+                hugr_name=kwargs.pop("hugr_name", None),
+            )
+            frame = get_calling_frame()
+            DEF_STORE.register_def(defn, frame)
+            for val in cls.__dict__.values():
+                if isinstance(val, GuppyDefinition):
+                    DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+            # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
+            # set. However, we need this information to precisely look up the source for
+            # the class later. If it's not there, we can set it from the calling frame:
+            if not hasattr(cls, "__firstlineno__"):
+                cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
+            # We're pretending to return the class unchanged, but in fact we return
+            # a `GuppyDefinition` that handles the comptime logic
+            return GuppyDefinition(defn)
+
+        return _with_optional_kwargs(dec, args, kwargs)  # type: ignore[return-value]
 
     def type_var(
         self,
@@ -641,7 +662,7 @@ def get_calling_frame() -> FrameType:
 
 
 def _with_optional_kwargs(
-    decorator: Callable[[S, GuppyKwargs], T], args: tuple[Any, ...], kwargs: GuppyKwargs
+    decorator: Callable[[S, K], T], args: tuple[Any, ...], kwargs: K
 ) -> T | Callable[[S], T]:
     """Helper function to define decorators that may be used directly (`@decorator`) but
     also with optional keyword arguments (`@decorator(kwarg=value)`).
