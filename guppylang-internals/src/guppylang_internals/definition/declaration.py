@@ -198,7 +198,7 @@ class CompiledFunctionDecl(
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load(dfg, self.ty, self.declaration)
+        return load(dfg, self.declaration)
 
     def compile_call(
         self,

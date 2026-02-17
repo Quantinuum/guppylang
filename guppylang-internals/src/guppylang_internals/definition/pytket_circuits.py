@@ -346,7 +346,7 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load(dfg, self.ty, self.func_def)
+        return load(dfg, self.func_def)
 
     def compile_call(
         self,
