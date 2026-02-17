@@ -331,7 +331,6 @@ class CompilationEngine:
             self.compiled = ctx.compiled
 
             for member_id in DEF_STORE.impls[def_id].values():
-                # TODO retrieve mono args when available
                 ctx.compile(self.checked[member_id])
                 self.compiled = ctx.compiled
 
