@@ -2,7 +2,6 @@ import ast
 import keyword
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from operator import le
 from typing import ClassVar, Generic, TypeVar
 
 from hugr import Wire, ops
@@ -95,7 +94,7 @@ class RawEnumDef(TypeDef, ParsableDef):
         # Look for generic parameters from Python 3.12 style syntax
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
-        #TODO: No generic params allowed for now.
+        # TODO: No generic params allowed for now.
         if len(params) > 0:
             raise GuppyError(
                 UnsupportedError(
@@ -283,9 +282,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 defined_at=self.defined_at,
                 ty=constructor_sig,
                 call_checker=DefaultCallChecker(),
-                call_compiler=ConstructorCompiler(
-                    variant.index, enum_type
-                ),
+                call_compiler=ConstructorCompiler(variant.index, enum_type),
                 higher_order_value=True,
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,
