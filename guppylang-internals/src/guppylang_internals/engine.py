@@ -272,8 +272,9 @@ class CompilationEngine:
         from guppylang_internals.definition.struct import CheckedStructDef
 
         if isinstance(defn, CheckedStructDef):
+            frame = DEF_STORE.frames[defn.id]
             for method_def in defn.generated_methods():
-                DEF_STORE.register_def(method_def, None)
+                DEF_STORE.register_def(method_def, frame)
                 DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
 
         return defn
