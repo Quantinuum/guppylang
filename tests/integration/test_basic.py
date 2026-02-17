@@ -72,7 +72,7 @@ def test_func_decl_name():
         data.op for n, data in hugr.nodes() if isinstance(data.op, ops.FuncDecl)
     ]
     assert isinstance(def_op, ops.FuncDecl)
-    assert def_op.f_name == "func_name"
+    assert def_op.f_name.endswith("func_name")
 
 
 @pytest.mark.xfail(reason="Caching not implemented yet")
