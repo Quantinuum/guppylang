@@ -283,6 +283,10 @@ class CompilationEngine:
                 def_id, _ = self.to_check_worklist.popitem()
             self.checked[def_id] = self.get_checked(def_id)
 
+            for member_id in DEF_STORE.impls[def_id].values():
+                if member_id not in self.checked:
+                    self.to_check_worklist[member_id] = self.get_parsed(member_id)
+
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
         """Top-level function to kick of Hugr compilation of a definition.
@@ -325,6 +329,11 @@ class CompilationEngine:
         for def_id in def_ids:
             compiled_defs.append(ctx.compile(self.checked[def_id]))
             self.compiled = ctx.compiled
+
+            for member_id in DEF_STORE.impls[def_id].values():
+                # TODO retrieve mono args when available
+                ctx.compile(self.checked[member_id])
+                self.compiled = ctx.compiled
 
         # Use cached base extensions and registry, only add additional extensions
         base_extensions = self._get_base_packaged_extensions()
