@@ -135,7 +135,6 @@ def test_wiring(validate):
 
 
 def test_redefine(validate):
-
     @guppy.enum
     class MyEnum:
         VariantA = {"x": int}  # noqa: RUF012
