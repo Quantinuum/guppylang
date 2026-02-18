@@ -22,7 +22,8 @@ jobs:
     # Check if we are running on a release PR.
     #
     # release-please always uses this branch name.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'release-please--branches--main--components--guppylang' }}
+    # TODO: Removed if for testing, re-enable before merging
+    #if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'release-please--branches--main--components--guppylang' }}
     strategy:
       fail-fast: false
       matrix:
