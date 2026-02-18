@@ -215,6 +215,12 @@ class _Guppy:
             @guppy
             def add_fields(self: "MyStruct") -> int:
                 return self.field2 + self.field2
+
+            # Add optional parameters
+            @guppy.struct(...)
+            class MyStruct2:
+                field1: int
+                field2: int
         """
 
         def dec(cls: builtins.type[T], kwargs: GuppyStructKwargs) -> GuppyDefinition:
