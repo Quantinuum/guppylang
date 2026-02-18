@@ -2,7 +2,6 @@ import ast
 import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import InitVar, dataclass, field
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
@@ -31,7 +30,6 @@ from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
     PartiallyMonomorphizedArgs,
-    get_parent_type,
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
 from guppylang_internals.definition.common import (
@@ -42,13 +40,14 @@ from guppylang_internals.definition.common import (
     UnknownSourceError,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
-from guppylang_internals.definition.struct import RawStructDef
+from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
@@ -90,30 +89,30 @@ class RawFunctionDef(ParsableDef):
     def __post_init__(self, hugr_name: str | None) -> None:
         object.__setattr__(self, "_user_set_hugr_name", hugr_name)
 
-    @cached_property
-    def qualified_hugr_name(self) -> str:
-        if self._user_set_hugr_name is not None:
-            return self._user_set_hugr_name
-
-        parent_ty = get_parent_type(self)
-        if parent_ty is not None and isinstance(parent_ty, RawStructDef):
-            return f"{parent_ty.qualified_hugr_name}.{self.python_func.__name__}"
-
-        return f"{self.python_func.__module__}.{self.python_func.__qualname__}"
-
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
+
+        hugr_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
+        if self._user_set_hugr_name is not None:
+            hugr_name = self._user_set_hugr_name
+        else:
+            parent_ty_id = DEF_STORE.impl_parents.get(self.id)
+            if parent_ty_id is not None:
+                parent = ENGINE.get_parsed(parent_ty_id)
+                if isinstance(parent, ParsedStructDef):
+                    hugr_name = f"{parent.hugr_name_prefix}.{self.python_func.__name__}"
+
         return ParsedFunctionDef(
             self.id,
             self.name,
             func_ast,
             ty,
             docstring,
-            self.qualified_hugr_name,
+            hugr_name,
             metadata=self.metadata,
         )
 
