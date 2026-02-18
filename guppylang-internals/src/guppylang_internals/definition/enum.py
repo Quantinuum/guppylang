@@ -231,7 +231,6 @@ class CheckedEnumDef(TypeDef, CompiledDef):
 
     def generated_methods(self) -> list[CustomFunctionDef]:
         # Generating methods to instantiate enum variants
-        # return []
 
         @dataclass
         class ConstructorCompiler(CustomCallCompiler):
@@ -241,8 +240,6 @@ class CheckedEnumDef(TypeDef, CompiledDef):
             type_enum: EnumType
 
             def compile(self, wires: list[Wire]) -> list[Wire]:
-                # return list(self.builder.add(ops.MakeTuple()(*wires)))
-
                 instantiator = Instantiator(self.type_args)
                 # If we have generic parameters, we need to instantiate the enum type
                 # before converting it to Hugr
