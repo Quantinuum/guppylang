@@ -60,7 +60,12 @@ def test_static_generic_size(validate):
     n = guppy.nat_var("n")
 
     @guppy
-    def negative() -> SizedIter[Range, n]:
+    def foo() -> SizedIter[Range, n]:
         return range(n)
 
-    validate(negative.compile_function())
+    @guppy
+    def main() -> None:
+        r1: SizedIter[Range, 10] = foo()
+        r2: SizedIter[Range, 0] = foo()
+
+    validate(main.compile_function())

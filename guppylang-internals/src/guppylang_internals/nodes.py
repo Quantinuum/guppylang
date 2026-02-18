@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.core import Place, Variable
     from guppylang_internals.definition.common import DefId
     from guppylang_internals.definition.struct import StructField
-    from guppylang_internals.tys.param import ConstParam
 
 
 class PlaceNode(ast.expr):
@@ -53,25 +52,6 @@ class GlobalName(ast.Name):
         super().__init__(id=id)
         self.id = id
         self.def_id = def_id
-
-    # See MakeIter for explanation
-    __reduce__ = object.__reduce__
-    __reduce_ex__ = object.__reduce_ex__
-
-
-class GenericParamValue(ast.Name):
-    id: str
-    param: "ConstParam"
-
-    _fields = (
-        "id",
-        "param",
-    )
-
-    def __init__(self, id: str, param: "ConstParam") -> None:
-        super().__init__(id=id)
-        self.id = id
-        self.param = param
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__

@@ -12,16 +12,14 @@ from guppylang_internals.span import SourceMap
 
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Globals
-    from guppylang_internals.compiler.core import (
-        CompilerContext,
-        PartiallyMonomorphizedArgs,
-    )
+    from guppylang_internals.compiler.core import CompilerContext
     from guppylang_internals.tys.param import Parameter
+    from guppylang_internals.tys.subst import Inst
 
 
 RawDef: TypeAlias = "ParsableDef | ParsedDef"
-ParsedDef: TypeAlias = "CheckableDef | CheckedDef"
-CheckedDef: TypeAlias = "CompilableDef | MonomorphizableDef | CompiledDef"
+ParsedDef: TypeAlias = "CheckableDef | CheckableGenericDef | CheckedDef"
+CheckedDef: TypeAlias = "CompilableDef | CompiledDef"
 
 
 @dataclass(frozen=True)
@@ -116,6 +114,25 @@ class CheckableDef(Definition):
         """
 
 
+class CheckableGenericDef(Definition):
+    """Abstract base class for definitions that require monomorphization when checking.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the definition.
+        defined_at: The AST node where the definition was defined.
+    """
+
+    @property
+    @abstractmethod
+    def params(self) -> "Sequence[Parameter]":
+        """Generic parameters of this definition."""
+
+    @abstractmethod
+    def check(self, type_args: "Inst", globals: "Globals") -> "CheckedDef":
+        """Type checks a monomorphisation of this definition."""
+
+
 class CompilableDef(Definition):
     """Abstract base class for definitions that still need to be compiled to Hugr.
 
@@ -142,37 +159,6 @@ class CompilableDef(Definition):
         """
 
 
-class MonomorphizableDef(Definition):
-    """Abstract base class for definitions that require monomorphization when compiling
-    to Hugr.
-
-    Args:
-        id: The unique definition identifier.
-        name: The name of the definition.
-        defined_at: The AST node where the definition was defined.
-    """
-
-    @property
-    @abstractmethod
-    def params(self) -> "Sequence[Parameter]":
-        """Generic parameters of this definition."""
-
-    @abstractmethod
-    def monomorphize(
-        self,
-        module: DefinitionBuilder[OpVar],
-        mono_args: "PartiallyMonomorphizedArgs",
-        ctx: "CompilerContext",
-        parent_ty: "RawDef | None" = None,
-    ) -> "MonomorphizedDef":
-        """Adds a Hugr node for the (partially) monomorphized definition to the provided
-        Hugr module.
-
-        See `MonomorphizedDef.compile_inner()` for the hook to compile the inside of the
-        node. This two-step process enables things like mutual recursion.
-        """
-
-
 class CompiledDef(Definition):
     """Abstract base class for definitions that have been added to a Hugr.
 
@@ -188,22 +174,6 @@ class CompiledDef(Definition):
         Opposed to `CompilableDef.compile()`, we have access to all other compiled
         definitions here, which allows things like mutual recursion.
         """
-
-
-@dataclass(frozen=True)
-class MonomorphizedDef(CompiledDef):
-    """Abstract base class for definitions that have been added to a Hugr and have been
-    partially monomorphized.
-
-    Args:
-        id: The unique definition identifier.
-        name: The name of the definition. This will be the same for all monomorphized
-            variants of the definition.
-        defined_at: The AST node where the original polymorphic definition was defined.
-        mono_args: Partial monomorphization of the generic parameters.
-    """
-
-    mono_args: "PartiallyMonomorphizedArgs"
 
 
 @dataclass(frozen=True)

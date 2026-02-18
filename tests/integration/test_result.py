@@ -51,13 +51,19 @@ def test_array_generic(validate):
     n = guppy.nat_var("n")
 
     @guppy
-    def main(
+    def foo(
         w: array[nat, n], x: array[int, n], y: array[float, n], z: array[bool, n]
     ) -> None:
         result("a", w)
         result("b", x)
         result("c", y)
         result("d", z)
+
+    @guppy
+    def main(
+        w: array[nat, 10], x: array[int, 10], y: array[float, 10], z: array[bool, 10]
+    ) -> None:
+        foo(w, x, y, z)
 
     validate(main.compile_function())
 

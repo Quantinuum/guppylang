@@ -1,6 +1,6 @@
 import ast
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
@@ -23,11 +23,14 @@ from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
     GlobalConstId,
-    partially_monomorphize_args,
     qualified_name,
 )
-from guppylang_internals.definition.common import ParsableDef
-from guppylang_internals.definition.value import CallReturnWires, CompiledCallableDef
+from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
+from guppylang_internals.definition.value import (
+    CallableDef,
+    CallReturnWires,
+    CompiledCallableDef,
+)
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import GlobalCall
@@ -37,6 +40,7 @@ from guppylang_internals.std._internal.compiler.tket_bool import (
     make_opaque,
     read_bool,
 )
+from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     FuncInput,
@@ -186,7 +190,7 @@ class RawCustomFunctionDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class CustomFunctionDef(CompiledCallableDef):
+class CustomFunctionDef(CallableDef, CheckableGenericDef):
     """A custom function with parsed and checked signature.
 
     Args:
@@ -213,6 +217,25 @@ class CustomFunctionDef(CompiledCallableDef):
 
     description: str = field(default="function", init=False)
 
+    @property
+    def params(self) -> Sequence[Parameter]:
+        return self.ty.params
+
+    def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
+        mono_ty = self.ty.instantiate(type_args) if self.has_signature else self.ty
+        return CustomMonoFunctionDef(
+            self.id,
+            self.name,
+            self.defined_at,
+            mono_ty,
+            self.call_checker,
+            self.call_compiler,
+            self.higher_order_value,
+            self.higher_order_func_id,
+            self.has_signature,
+            type_args,
+        )
+
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
@@ -235,13 +258,27 @@ class CustomFunctionDef(CompiledCallableDef):
         new_node, ty = self.call_checker.synthesize(args)
         return with_type(ty, with_loc(node, new_node)), ty
 
-    def load_with_args(
-        self,
-        type_args: Inst,
-        dfg: "DFContainer",
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+
+@dataclass(frozen=True)
+class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
+    """A custom function with instantiated generic type parameters.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the definition.
+        defined_at: The AST node where the definition was defined.
+        ty: The type of the function. This may be a dummy value if `has_signature` is
+            false.
+        call_checker: The custom call checker.
+        call_compiler: The custom call compiler.
+        higher_order_value: Whether the function may be used as a higher-order value.
+        has_signature: Whether the function has a declared signature.
+        type_args: Instantation of the generic paramaters of this function.
+    """
+
+    type_args: Inst
+
+    def load(self, dfg: "DFContainer", ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the custom function as a value into a local dataflow graph.
 
         This will place a `FunctionDef` node in the local DFG, and load with a
@@ -251,44 +288,33 @@ class CustomFunctionDef(CompiledCallableDef):
         # TODO: This should be raised during checking, not compilation!
         if not self.higher_order_value:
             raise GuppyError(NotHigherOrderError(node, self.name))
-        assert len(self.ty.params) == len(type_args)
 
-        # Partially monomorphize the function if required
-        mono_args, rem_args = partially_monomorphize_args(
-            self.ty.params, type_args, ctx
-        )
-
-        # We create a generic `FunctionDef` that takes some inputs, compiles a call to
-        # the function, and returns the results
+        # We create a monomorphic `FunctionDef` that takes some inputs, compiles a call
+        # to the function, and returns the results
         func, already_defined = ctx.declare_global_func(
             self.higher_order_func_id,
-            self.ty.instantiate_partial(mono_args).to_hugr_poly(ctx),
-            mono_args,
+            self.ty.to_hugr_poly(ctx),
+            self.type_args,
         )
         if not already_defined:
-            with ctx.set_monomorphized_args(mono_args):
-                func_dfg = DFContainer(func, ctx, dfg.locals.copy())
-                args: list[Wire] = list(func.inputs())
-                generic_ty_args = [param.to_bound() for param in self.ty.params]
-                returns = self.compile_call(args, generic_ty_args, func_dfg, ctx, node)
-                func.set_outputs(*returns.regular_returns, *returns.inout_returns)
+            func_dfg = DFContainer(func, ctx, dfg.locals.copy())
+            args: list[Wire] = list(func.inputs())
+            returns = self.compile_call(args, func_dfg, ctx, node)
+            func.set_outputs(*returns.regular_returns, *returns.inout_returns)
 
         # Finally, load the function into the local DFG
-        mono_ty = self.ty.instantiate(type_args).to_hugr(ctx)
-        hugr_ty_args = [ta.to_hugr(ctx) for ta in rem_args]
-        return dfg.builder.load_function(func, mono_ty, hugr_ty_args)
+        return dfg.builder.load_function(func)
 
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: "DFContainer",
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         if self.has_signature:
-            concrete_ty = self.ty.instantiate(type_args)
+            concrete_ty = self.ty
         else:
             assert isinstance(node, GlobalCall)
             concrete_ty = FunctionType(
@@ -297,7 +323,7 @@ class CustomFunctionDef(CompiledCallableDef):
             )
         hugr_ty = concrete_ty.to_hugr(ctx)
 
-        self.call_compiler._setup(type_args, dfg, ctx, node, hugr_ty, self)
+        self.call_compiler._setup(self.type_args, dfg, ctx, node, hugr_ty, self)
         return self.call_compiler.compile_with_inouts(args)
 
 
@@ -348,7 +374,7 @@ class CustomInoutCallCompiler(ABC):
     ctx: CompilerContext
     node: AstNode
     ty: ht.FunctionType
-    func: CustomFunctionDef | None
+    func: CustomMonoFunctionDef | None
 
     def _setup(
         self,
@@ -357,7 +383,7 @@ class CustomInoutCallCompiler(ABC):
         ctx: CompilerContext,
         node: AstNode,
         hugr_ty: ht.FunctionType,
-        func: CustomFunctionDef | None,
+        func: CustomMonoFunctionDef | None,
     ) -> None:
         self.type_args = type_args
         self.dfg = dfg

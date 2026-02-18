@@ -102,7 +102,12 @@ def test_generic_size(validate):
     def test(xs: array[int, n] @ owned) -> array[int, n]:
         return array(x + 1 for x in xs)
 
-    validate(test.compile_function())
+    @guppy
+    def main() -> None:
+        test(array(1, 2, 3))
+        test(array())
+
+    validate(main.compile_function())
 
 
 def test_generic_elem(validate):
@@ -112,7 +117,13 @@ def test_generic_elem(validate):
     def foo(x: T) -> array[T, 10]:
         return array(x for _ in range(10))
 
-    validate(foo.compile_function())
+    @guppy
+    def main() -> None:
+        foo(1)
+        foo(True)
+        foo(1.5)
+
+    validate(main.compile_function())
 
 
 def test_borrow(validate):
@@ -125,7 +136,12 @@ def test_borrow(validate):
     def test(q: qubit) -> array[int, n]:
         return array(foo(q) for _ in range(n))
 
-    validate(test.compile_function())
+    @guppy
+    def main(q: qubit) -> None:
+        test[3](q)
+        test[0](q)
+
+    validate(main.compile_function())
 
 
 def test_borrow_twice(validate):
@@ -138,7 +154,12 @@ def test_borrow_twice(validate):
     def test(q: qubit) -> array[int, n]:
         return array(foo(q) + foo(q) for _ in range(n))
 
-    validate(test.compile_function())
+    @guppy
+    def main(q: qubit) -> None:
+        test[3](q)
+        test[0](q)
+
+    validate(main.compile_function())
 
 
 def test_borrow_struct(validate):
@@ -156,7 +177,12 @@ def test_borrow_struct(validate):
     def test(s: MyStruct) -> array[int, n]:
         return array(foo(s) for _ in range(n))
 
-    validate(test.compile_function())
+    @guppy
+    def main(s: MyStruct) -> None:
+        test[3](s)
+        test[0](s)
+
+    validate(main.compile_function())
 
 
 def test_borrow_and_consume(validate):
@@ -172,4 +198,9 @@ def test_borrow_and_consume(validate):
     def test(qs: array[qubit, n] @ owned) -> array[int, n]:
         return array(foo(q) + bar(q) for q in qs)
 
-    validate(test.compile_function())
+    @guppy
+    def main() -> None:
+        test(array(qubit(), qubit(), qubit()))
+        test(array())
+
+    validate(main.compile_function())

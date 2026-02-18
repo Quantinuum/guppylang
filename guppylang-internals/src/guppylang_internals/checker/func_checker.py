@@ -6,6 +6,7 @@ node straight from the Python AST. We build a CFG, check it, and return a
 """
 
 import ast
+import copy
 import sys
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, ClassVar, cast
@@ -31,6 +32,7 @@ from guppylang_internals.tys.parsing import (
     type_from_ast,
     type_with_flags_from_ast,
 )
+from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     ExistentialTypeVar,
     FuncInput,
@@ -131,9 +133,14 @@ class SelfParamsShadowedError(Error):
 
 
 def check_global_func_def(
-    func_def: ast.FunctionDef, ty: FunctionType, globals: Globals
+    func_def: ast.FunctionDef,
+    generic_ty: FunctionType,
+    type_args: Inst,
+    globals: Globals,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
+    ty = generic_ty.instantiate(type_args)
+    func_def = copy.deepcopy(func_def)
     args = func_def.args.args
     returns_none = isinstance(ty.output, NoneType)
     assert all(inp.name is not None for inp in ty.inputs)
@@ -146,10 +153,10 @@ def check_global_func_def(
         # Comptime inputs are turned into generic args, so are not included here
         if InputFlags.Comptime not in inp.flags
     ]
-    generic_params = {
-        param.name: param.with_idx(i) for i, param in enumerate(ty.params)
+    generic_args = {
+        param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    return check_cfg(cfg, inputs, ty.output, generic_params, func_def.name, globals)
+    return check_cfg(cfg, inputs, ty.output, generic_args, func_def.name, globals)
 
 
 def check_nested_func_def(
@@ -217,8 +224,10 @@ def check_nested_func_def(
 
             from guppylang_internals.definition.function import ParsedFunctionDef
 
+            assert ctx.globals.def_id is not None
+            parent_frame = DEF_STORE.frames[ctx.globals.def_id]
             func = ParsedFunctionDef(def_id, func_def.name, func_def, func_ty, None)
-            DEF_STORE.register_def(func, None)
+            DEF_STORE.register_def(func, parent_frame)
             ENGINE.parsed[def_id] = func
             globals.f_locals[func_def.name] = GuppyDefinition(func)
         else:
@@ -237,6 +246,12 @@ def check_nested_func_def(
         decorator_list=func_def.decorator_list,
         returns=func_def.returns,
         type_comment=func_def.type_comment,
+    )
+
+    from guppylang_internals.definition.function import CheckedFunctionDef
+
+    ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
+        def_id, func_def.name, func_def, func_ty, func_def.docstring, checked_cfg
     )
     return with_loc(func_def, checked_def)
 
@@ -289,7 +304,9 @@ def check_signature(
     # Figure out if this is a method
     self_defn: TypeDef | None = None
     if def_id is not None and def_id in DEF_STORE.impl_parents:
-        self_defn = cast("TypeDef", ENGINE.get_checked(DEF_STORE.impl_parents[def_id]))
+        self_defn = cast(
+            "TypeDef", ENGINE.get_checked(DEF_STORE.impl_parents[def_id], None)
+        )
         assert isinstance(self_defn, TypeDef)
 
     inputs = []

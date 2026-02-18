@@ -1,7 +1,9 @@
 from collections import defaultdict
+from collections.abc import Sequence
+from dataclasses import dataclass
 from enum import Enum
 from types import FrameType
-from typing import TYPE_CHECKING
+from typing import ClassVar
 
 import hugr
 import hugr.build.function as hf
@@ -12,6 +14,7 @@ from hugr.package import ModulePointer, Package
 import guppylang_internals
 from guppylang_internals.definition.common import (
     CheckableDef,
+    CheckableGenericDef,
     CheckedDef,
     CompiledDef,
     DefId,
@@ -24,8 +27,10 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
-from guppylang_internals.error import pretty_errors
+from guppylang_internals.diagnostic import Error
+from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
@@ -42,10 +47,9 @@ from guppylang_internals.tys.builtin import (
     string_type_def,
     tuple_type_def,
 )
+from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import FunctionType
-
-if TYPE_CHECKING:
-    from guppylang_internals.compiler.core import MonoDefId
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     callable_type_def,
@@ -65,6 +69,20 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
+
+
+#: Monomorphic instantiation of the generic parameters of definitions.
+#:
+#: This is similar to the `Inst` type, however we use a tuple here since the
+#: instantiation is required to be hashable.
+MonoArgs = tuple[Argument, ...]
+
+#: Identifier for a monomorphized version of a definition.
+#:
+#: Kinds of definitions that are never generic (e.g. constant definitions) and
+#: definitions without generic parameters (e.g. a non-generic function definition) are
+#: registered with an empty tuple () as `MonoArgs`.
+MonoDefId = tuple[DefId, MonoArgs]
 
 
 class CoreMetadataKeys(Enum):
@@ -139,12 +157,14 @@ class CompilationEngine:
     """
 
     parsed: dict[DefId, ParsedDef]
-    checked: dict[DefId, CheckedDef]
+    checked: dict["MonoDefId", CheckedDef]
     compiled: dict["MonoDefId", CompiledDef]
     additional_extensions: list[Extension]
 
     types_to_check_worklist: dict[DefId, ParsedDef]
-    to_check_worklist: dict[DefId, ParsedDef]
+    to_check_worklist: dict["MonoDefId", ParsedDef]
+
+    to_compile_worklist: dict["MonoDefId", CheckedDef]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_packaged_extensions: list[Extension] | None = None
@@ -218,16 +238,20 @@ class CompilationEngine:
             return self.parsed[id]
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
-            defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
+            defn = defn.parse(Globals(defn.id), DEF_STORE.sources)
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
             self.types_to_check_worklist[id] = defn
-        else:
-            self.to_check_worklist[id] = defn
+        elif isinstance(defn, CheckableDef):
+            self.to_check_worklist[id, ()] = defn
+        # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
+        # since we don't know the generic instantiation yet. It will be added when
+        # we're checking a use of the definition (e.g. a call). See for example
+        # `ParsedFunctionDef.check_call`.
         return defn
 
     @pretty_errors
-    def get_checked(self, id: DefId) -> CheckedDef:
+    def get_checked(self, id: DefId, mono_args: MonoArgs | None) -> CheckedDef:
         """Look up the checked version of a definition by its id.
 
         Parses and checks the definition if it hasn't been parsed/checked yet. Also
@@ -235,21 +259,34 @@ class CompilationEngine:
         """
         from guppylang_internals.checker.core import Globals
 
-        if id in self.checked:
-            return self.checked[id]
+        mono_args = mono_args or ()
+        if (id, mono_args) in self.checked:
+            return self.checked[id, mono_args]
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
-            defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
-        self.checked[id] = defn
+            defn = defn.check(Globals(defn.id))
+        elif isinstance(defn, CheckableGenericDef):
+            defn = defn.check(mono_args, Globals(defn.id))
+        self.checked[id, mono_args] = defn
 
         from guppylang_internals.definition.struct import CheckedStructDef
 
         if isinstance(defn, CheckedStructDef):
+            frame = DEF_STORE.frames[defn.id]
             for method_def in defn.generated_methods():
-                DEF_STORE.register_def(method_def, None)
+                DEF_STORE.register_def(method_def, frame)
                 DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
 
         return defn
+
+    def register_generic_use(self, defn: CheckableGenericDef, type_args: Inst) -> None:
+        """Tells the engine that an instantiation of a generic definition has been
+        used.
+
+        Adds the instantiation to the worklist and ensures that it will be checked.
+        """
+        mono_args = tuple(type_args)
+        self.to_check_worklist[defn.id, mono_args] = defn
 
     @pretty_errors
     def check(self, id: DefId) -> None:
@@ -262,16 +299,20 @@ class CompilationEngine:
         #  need to store and check if any dependencies have changed.
         self.reset()
 
-        self.to_check_worklist[id] = self.get_parsed(id)
+        entry_defn = self.get_parsed(id)
+        entry_mono_args = check_valid_entry_point(entry_defn)
+        self.to_check_worklist[id, entry_mono_args] = entry_defn
+
         while self.types_to_check_worklist or self.to_check_worklist:
             # Types need to be checked first. This is because parsing e.g. a function
             # definition requires instantiating the types in its signature which can
             # only be done if the types have already been checked.
             if self.types_to_check_worklist:
                 id, _ = self.types_to_check_worklist.popitem()
+                mono_args: MonoArgs = ()
             else:
-                id, _ = self.to_check_worklist.popitem()
-            self.checked[id] = self.get_checked(id)
+                (id, mono_args), _ = self.to_check_worklist.popitem()
+            self.checked[id, mono_args] = self.get_checked(id, mono_args)
 
     @pretty_errors
     def compile(self, id: DefId) -> ModulePointer:
@@ -289,7 +330,8 @@ class CompilationEngine:
         from guppylang_internals.compiler.core import CompilerContext
 
         ctx = CompilerContext(graph)
-        compiled_def = ctx.compile(self.checked[id])
+        entry_mono_args = check_valid_entry_point(self.get_parsed(id))
+        compiled_def = ctx.compile(self.checked[id, entry_mono_args], entry_mono_args)
         self.compiled = ctx.compiled
 
         if (
@@ -351,6 +393,44 @@ class CompilationEngine:
         return ModulePointer(
             Package(modules=[graph.hugr], extensions=packaged_extensions), 0
         )
+
+
+@dataclass(frozen=True)
+class EntryMonomorphizeError(Error):
+    title: ClassVar[str] = "Invalid entry point"
+    span_label: ClassVar[str] = (
+        "{thing} is not a valid compilation entry point since the value{plural_s} of "
+        "its generic parameter{plural_s} {params_str} {is_are} not known"
+    )
+    thing: str
+    params: Sequence[Parameter]
+
+    @property
+    def plural_s(self) -> str:
+        return "s" if len(self.params) > 1 else ""
+
+    @property
+    def is_are(self) -> str:
+        return "are" if len(self.params) > 1 else "is"
+
+    @property
+    def params_str(self) -> str:
+        return ", ".join(f"`{p.name}`" for p in self.params)
+
+
+def check_valid_entry_point(defn: ParsedDef) -> MonoArgs:
+    """Checks if the given definition is a valid compilation entry-point.
+
+    In particular, ensures that the definition doesn't depend on generic parameters and
+    returns the `MonoArgs` key that should be used for further compilation.
+    """
+    if isinstance(defn, CheckableGenericDef) and defn.params:
+        assert defn.defined_at is not None
+        description = f"{defn.description.capitalize()} `{defn.name}`"
+        raise GuppyError(
+            EntryMonomorphizeError(defn.defined_at, description, defn.params)
+        )
+    return ()
 
 
 ENGINE: CompilationEngine = CompilationEngine()

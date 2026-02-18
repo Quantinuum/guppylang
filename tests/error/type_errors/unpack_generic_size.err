@@ -1,12 +1,8 @@
-Error: Unpackable (at $FILE:10:13)
+Error: Too many values to unpack (at $FILE:10:4)
    | 
  8 | @guppy
  9 | def foo(xs: array[int, n]) -> int:
 10 |     a, *bs = xs
-   |              ^^ Expression of type `array[int, n]` cannot be unpacked
-
-Note: Unpacking of iterable types like `array[int, n]` is only allowed if the
-number of items yielded by the iterator is statically known. Here, the number of
-items `n` is generic and can change between different function invocations.
+   |     ^^^^^^ Unexpected assignment target (expected 0, got at least 1)
 
 Guppy compilation failed due to 1 previous error

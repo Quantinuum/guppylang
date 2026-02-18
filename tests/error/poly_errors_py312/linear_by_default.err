@@ -1,15 +1,15 @@
-Error: Copy violation (at $FILE:8:14)
+Error: Copy violation (at $FILE:9:14)
   | 
-6 | def main[T](x: T @ owned) -> tuple[T, T]:
-7 |     # T is not copyable
-8 |     return x, x
-  |               ^ Variable `x` with non-copyable type `T` cannot be returned
-  |                 ...
+7 | def foo[T](x: T @ owned) -> tuple[T, T]:
+8 |     # T is not copyable
+9 |     return x, x
+  |               ^ Variable `x` with non-copyable type `qubit` cannot be
+  |                 returned ...
 
 Note:
   | 
-7 |     # T is not copyable
-8 |     return x, x
+8 |     # T is not copyable
+9 |     return x, x
   |            - Variable `x` already returned here
 
 Guppy compilation failed due to 1 previous error

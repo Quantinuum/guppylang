@@ -27,7 +27,7 @@ from guppylang_internals.definition.declaration import BodyNotEmptyError
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
-    load_with_args,
+    load,
     parse_py_func,
 )
 from guppylang_internals.definition.ty import TypeDef
@@ -48,7 +48,7 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.quantum import from_halfturns_unchecked
 from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, make_opaque
 from guppylang_internals.tys.builtin import array_type, bool_type, float_type
-from guppylang_internals.tys.subst import Inst, Subst
+from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -343,28 +343,21 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
-    def load_with_args(
-        self,
-        type_args: Inst,
-        dfg: DFContainer,
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load_with_args(type_args, dfg, self.ty, self.func_def)
+        return load(dfg, self.func_def)
 
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, type_args, dfg, self.ty, self.func_def)
+        return compile_call(args, dfg, self.ty, self.func_def)
 
 
 def _signature_from_circuit(
@@ -380,7 +373,7 @@ def _signature_from_circuit(
     assert isinstance(qubit, GuppyDefinition)
     qubit_ty = cast("TypeDef", qubit.wrapped).check_instantiate([])
 
-    angle_defn = ENGINE.get_checked(angle.id)  # type: ignore[attr-defined]
+    angle_defn = ENGINE.get_checked(angle.id, None)  # type: ignore[attr-defined]
     assert isinstance(angle_defn, TypeDef)
     angle_ty = angle_defn.check_instantiate([])
 
