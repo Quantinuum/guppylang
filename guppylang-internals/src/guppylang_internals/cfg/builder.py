@@ -355,6 +355,7 @@ class CFGBuilder(AstVisitor[BB | None]):
 
         e = node.context_expr
         modifier: Modifier
+        # TODO: NICOLA how this will work with the improvement?
         match e:
             case ast.Name(id="dagger"):
                 modifier = Dagger(e)
