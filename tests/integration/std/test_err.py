@@ -1,7 +1,10 @@
+from typing import TYPE_CHECKING
 from guppylang.decorator import guppy
 from guppylang.std.err import Result, ok, err
 from guppylang.std.platform import result, panic
-from guppylang.std.quantum import qubit  # noqa: TC002
+
+if TYPE_CHECKING:
+    from guppylang.std.quantum import qubit
 
 
 def test_ok(run_int_fn):

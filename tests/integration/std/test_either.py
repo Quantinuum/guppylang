@@ -1,8 +1,12 @@
+from typing import TYPE_CHECKING
+
 from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.either import Either, left, right
 from guppylang.std.platform import panic, result
-from guppylang.std.quantum import qubit  # noqa: TC002
+
+if TYPE_CHECKING:
+    from guppylang.std.quantum import qubit
 
 
 def test_left(run_int_fn):

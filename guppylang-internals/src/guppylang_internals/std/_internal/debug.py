@@ -62,6 +62,7 @@ class StateResultChecker(CustomCallChecker):
             raise GuppyTypeError(self.MissingQubitsError(self.node))
 
         from guppylang.defs import GuppyDefinition
+
         from guppylang.std.quantum import qubit
 
         assert isinstance(qubit, GuppyDefinition)

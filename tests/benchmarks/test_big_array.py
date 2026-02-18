@@ -2,8 +2,9 @@ from typing import no_type_check
 
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array, py
-from guppylang.std.quantum import cx, discard_array, h, qubit
 from hugr.package import Package
+
+from guppylang.std.quantum import cx, discard_array, h, qubit
 
 n_q = 20
 n_a = 5
