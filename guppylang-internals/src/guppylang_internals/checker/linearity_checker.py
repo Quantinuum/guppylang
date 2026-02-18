@@ -281,10 +281,21 @@ class BBLinearityChecker(ast.NodeVisitor):
             for place in leaf_places(node.place):
                 x = place.id
                 if (prev_use := self.scope.used(x)) and not place.ty.copyable:
-                    err = AlreadyUsedError(node, place, use_kind)
-                    err.add_sub_diagnostic(
-                        AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
-                    )
+                    # When the user's expression (node.place) differs from the
+                    # conflicting leaf (place), report the error about the parent
+                    # and explain which child was already moved.
+                    if node.place != place:
+                        err = AlreadyUsedError(node, node.place, use_kind)
+                        err.add_sub_diagnostic(
+                            AlreadyUsedError.MemberPrevUse(
+                                prev_use.node, place, prev_use.kind
+                            )
+                        )
+                    else:
+                        err = AlreadyUsedError(node, place, use_kind)
+                        err.add_sub_diagnostic(
+                            AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
+                        )
                     if has_explicit_copy(place.ty):
                         err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
