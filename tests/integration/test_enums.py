@@ -135,7 +135,6 @@ def test_wiring(validate):
 
 
 def test_redefine(validate):
-    """See https://github.com/quantinuum/guppylang/issues/1107"""
 
     @guppy.enum
     class MyEnum:

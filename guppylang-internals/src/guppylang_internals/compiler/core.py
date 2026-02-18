@@ -731,7 +731,6 @@ def insert_drops(hugr: Hugr[OpVarCov]) -> None:
         # raises an `IncompleteOp` exception. Instead, we query the number of out ports
         # and look them up by index. However, this method is *also* broken when
         # inspecting `FuncDefn` nodes due to https://github.com/quantinuum/hugr/issues/2438.
-        # TODO: NICOLA the issue is closed, still valid?
         if isinstance(data.op, ops.FuncDefn):
             continue
         for i in range(hugr.num_out_ports(node)):

@@ -236,18 +236,18 @@ class CheckedEnumDef(TypeDef, CompiledDef):
         class ConstructorCompiler(CustomCallCompiler):
             """Compiler for the enum variant constructors."""
 
-            idex_variant: int
-            type_enum: EnumType
+            variant_idx: int
+            enum_ty: EnumType
 
             def compile(self, wires: list[Wire]) -> list[Wire]:
                 instantiator = Instantiator(self.type_args)
                 # If we have generic parameters, we need to instantiate the enum type
                 # before converting it to Hugr
-                inst_enum_type = self.type_enum.transform(instantiator)
+                inst_enum_type = self.enum_ty.transform(instantiator)
                 assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
                     self.builder.add(
-                        ops.Tag(self.idex_variant, inst_enum_type.to_hugr(self.ctx))(
+                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx))(
                             *wires
                         )
                     )

@@ -464,9 +464,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
             # We need a special case for enums since they don't have a `__new__` method,
             # but they have a special constructor for each variant.
-            # Moreover, a new enum is defined as EnumName.Variant, here
-            # since we are visiting `EnumName` we need to return the output type of any
-            # of the possible constructors.
+            # A new enum is defined as `EnumName.Variant()`, however, since we are
+            # visiting `EnumName` we do not know which variant is being instantiated.
+            # Luckily, all the variant constructors have the same output type (the enum
+            # type), so we can pick the first constructor to get the output type.
             case ParsedEnumDef() as defn:
                 if len(defn.variants) == 0:
                     raise GuppyError(UnexpectedError(node, "empty enum initialization"))
