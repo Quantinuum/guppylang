@@ -13,7 +13,7 @@ def _func_names(package: Package) -> set[str]:
 
 
 def test_func_hugr_name_annotated():
-    """Asserts that annotated HUGR func names are correctly passed to the HUGR nodes."""
+    """Asserts that annotated function `hugr_name`s are passed to the HUGR nodes."""
 
     @guppy(hugr_name="some.qualified.name")
     def main_def() -> None:
@@ -27,7 +27,7 @@ def test_func_hugr_name_annotated():
 
 
 def test_func_hugr_name_inferred():
-    """Asserts that inferred HUGR func names are correctly passed to the HUGR nodes."""
+    """Asserts that inferred function `hugr_name`s are passed to the HUGR nodes."""
 
     @guppy
     def crazy_def() -> None:
@@ -45,7 +45,7 @@ def test_func_hugr_name_inferred():
 
 
 def test_struct_member_hugr_name_annotated():
-    """Asserts that inferred HUGR func names are correctly passed to the HUGR nodes."""
+    """Asserts that inferred function `hugr_name`s are passed to the HUGR nodes."""
 
     @guppy.struct
     class MySuperbStruct:
@@ -71,7 +71,7 @@ def test_struct_member_hugr_name_annotated():
 
 
 def test_struct_member_hugr_name_inferred():
-    """Asserts that inferred HUGR func names are correctly passed to the HUGR nodes."""
+    """Asserts that inferred function `hugr_name`s are passed to the HUGR nodes."""
 
     @guppy.struct
     class MySuperbStruct:
@@ -97,8 +97,8 @@ def test_struct_member_hugr_name_inferred():
 
 
 def test_struct_member_hugr_name_supported():
-    """Asserts that HUGR func names of struct members that are derived through
-    providing a hugr_name to the struct are correctly inferred."""
+    """Asserts that function `hugr_name`s of struct members that are derived through
+    providing a `hugr_name` to the struct are correctly inferred."""
 
     @guppy.struct(hugr_name="my.superb.qualifier")
     class MySuperbStruct:
