@@ -130,8 +130,8 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
         name: The name of the function.
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
-        python_scope: The Python scope where the function was defined.
         docstring: The docstring of the function.
+        hugr_name: The name that the Hugr node for this function will receive.
     """
 
     defined_at: ast.FunctionDef
@@ -189,8 +189,8 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         name: The name of the function.
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
-        python_scope: The Python scope where the function was defined.
         docstring: The docstring of the function.
+        hugr_name: The name that the Hugr node for this function will receive.
         cfg: The type- and linearity-checked CFG for the function body.
     """
 
@@ -250,8 +250,8 @@ class CompiledFunctionDef(
         defined_at: The AST node where the function was defined.
         mono_args: Partial monomorphization of the generic type parameters.
         ty: The type of the function after partial monomorphization.
-        python_scope: The Python scope where the function was defined.
         docstring: The docstring of the function.
+        hugr_name: The name of the Hugr node corresponding to this function.
         cfg: The type- and linearity-checked CFG for the function body.
         func_def: The Hugr function definition.
     """

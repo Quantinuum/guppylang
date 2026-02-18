@@ -1,7 +1,18 @@
+import pytest
 from hugr.ops import FuncDefn, FuncDecl
 from hugr.package import Package
 
 from guppylang import guppy
+
+
+@pytest.fixture
+def qualifier(request) -> str:
+    """Provides the common qualifier for functions defined in the current test."""
+
+    def tmp() -> None:
+        pass
+
+    return f"{tmp.__module__}.{request.node.originalname}"
 
 
 def _func_names(package: Package) -> set[str]:
@@ -12,8 +23,20 @@ def _func_names(package: Package) -> set[str]:
     }
 
 
+def _func_names_excluding_main(package: Package, qualifier: str) -> set[str]:
+    func_names = _func_names(package)
+    try:
+        func_names.remove(f"{qualifier}.<locals>.main")
+    except KeyError:
+        raise AssertionError(
+            f"Main function name `{qualifier}.<locals>.main` not found in package."
+        )
+
+    return func_names
+
+
 def test_func_hugr_name_annotated():
-    """Asserts that annotated HUGR func names are correctly passed to the HUGR nodes."""
+    """Asserts that annotated function `hugr_name`s are passed to the HUGR nodes."""
 
     @guppy(hugr_name="some.qualified.name")
     def main_def() -> None:
@@ -26,8 +49,8 @@ def test_func_hugr_name_annotated():
     assert _func_names(main_dec.compile()) == {"some.other.qualified.name"}
 
 
-def test_func_hugr_name_inferred():
-    """Asserts that inferred HUGR func names are correctly passed to the HUGR nodes."""
+def test_func_hugr_name_inferred(qualifier):
+    """Asserts that inferred function `hugr_name`s are passed to the HUGR nodes."""
 
     @guppy
     def crazy_def() -> None:
@@ -36,16 +59,12 @@ def test_func_hugr_name_inferred():
     @guppy.declare
     def crazy_dec() -> None: ...
 
-    assert _func_names(crazy_def.compile()) == {
-        "tests.integration.test_hugr_name.test_func_hugr_name_inferred.<locals>.crazy_def"
-    }
-    assert _func_names(crazy_dec.compile()) == {
-        "tests.integration.test_hugr_name.test_func_hugr_name_inferred.<locals>.crazy_dec"
-    }
+    assert _func_names(crazy_def.compile()) == {f"{qualifier}.<locals>.crazy_def"}
+    assert _func_names(crazy_dec.compile()) == {f"{qualifier}.<locals>.crazy_dec"}
 
 
-def test_struct_member_hugr_name_annotated():
-    """Asserts that inferred HUGR func names are correctly passed to the HUGR nodes."""
+def test_struct_member_hugr_name_annotated(qualifier):
+    """Asserts that inferred function `hugr_name`s are passed to the HUGR nodes."""
 
     @guppy.struct
     class MySuperbStruct:
@@ -63,15 +82,14 @@ def test_struct_member_hugr_name_annotated():
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names(main.compile()) == {
-        "tests.integration.test_hugr_name.test_struct_member_hugr_name_annotated.<locals>.main",
+    assert _func_names_excluding_main(main.compile(), qualifier) == {
         "totally_qualified_override_name",
         "superbly_qualified_override_name",
     }
 
 
-def test_struct_member_hugr_name_inferred():
-    """Asserts that inferred HUGR func names are correctly passed to the HUGR nodes."""
+def test_struct_member_hugr_name_inferred(qualifier):
+    """Asserts that inferred function `hugr_name`s are passed to the HUGR nodes."""
 
     @guppy.struct
     class MySuperbStruct:
@@ -89,16 +107,15 @@ def test_struct_member_hugr_name_inferred():
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names(main.compile()) == {
-        "tests.integration.test_hugr_name.test_struct_member_hugr_name_inferred.<locals>.main",
-        "tests.integration.test_hugr_name.test_struct_member_hugr_name_inferred.<locals>.MySuperbStruct.some_name_that_is_crazy",
-        "tests.integration.test_hugr_name.test_struct_member_hugr_name_inferred.<locals>.MySuperbStruct.some_other_name_that_is_crazy",
+    assert _func_names_excluding_main(main.compile(), qualifier) == {
+        f"{qualifier}.<locals>.MySuperbStruct.some_name_that_is_crazy",
+        f"{qualifier}.<locals>.MySuperbStruct.some_other_name_that_is_crazy",
     }
 
 
-def test_struct_member_hugr_name_supported():
-    """Asserts that HUGR func names of struct members that are derived through
-    providing a hugr_name to the struct are correctly inferred."""
+def test_struct_member_hugr_name_supported(qualifier):
+    """Asserts that function `hugr_name`s of struct members that are derived through
+    providing a `hugr_name` to the struct are correctly inferred."""
 
     @guppy.struct(hugr_name="my.superb.qualifier")
     class MySuperbStruct:
@@ -117,8 +134,7 @@ def test_struct_member_hugr_name_supported():
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names(main.compile()) == {
-        "tests.integration.test_hugr_name.test_struct_member_hugr_name_supported.<locals>.main",
+    assert _func_names_excluding_main(main.compile(), qualifier) == {
         "my.superb.qualifier.some_name_that_is_crazy",
         "the.override.still.works",
     }
@@ -143,7 +159,7 @@ class FileLevelStruct:
     def crazy_name_decl(self) -> None: ...
 
 
-def test_file_level_members():
+def test_file_level_members(qualifier):
     """Asserts that file level function and struct member names qualify correctly."""
 
     @guppy
@@ -155,8 +171,7 @@ def test_file_level_members():
         file_level_decl()
         file_level_defn()
 
-    assert _func_names(main.compile()) == {
-        "tests.integration.test_hugr_name.test_file_level_members.<locals>.main",
+    assert _func_names_excluding_main(main.compile(), qualifier) == {
         "tests.integration.test_hugr_name.file_level_defn",
         "tests.integration.test_hugr_name.file_level_decl",
         "tests.integration.test_hugr_name.FileLevelStruct.crazy_name_defn",
