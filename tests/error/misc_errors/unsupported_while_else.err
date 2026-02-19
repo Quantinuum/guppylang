@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:10:8)
+   | 
+ 8 |         i += 1
+ 9 |     else:
+10 |         print(i)
+   |         ^^^^^^^^ Loop else clauses are not supported
+
+Guppy compilation failed due to 1 previous error

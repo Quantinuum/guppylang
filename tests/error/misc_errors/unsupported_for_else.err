@@ -1,8 +1,8 @@
-Error: Unsupported (at $FILE:8:8)
+Error: Unsupported (at $FILE:9:8)
   | 
-6 |         pass
-7 |     else:
-8 |         print(i)
+7 |         pass
+8 |     else:
+9 |         print(i)
   |         ^^^^^^^^ Loop else clauses are not supported
 
 Guppy compilation failed due to 1 previous error
