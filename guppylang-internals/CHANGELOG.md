@@ -3,6 +3,48 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.30.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.29.0...guppylang-internals-v0.30.0) (2026-02-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revert experimental features break ([#1510](https://github.com/Quantinuum/guppylang/issues/1510))
+
+### Features
+
+* Improve error message for failed borrows due to failed leaf borrows  ([#1501](https://github.com/Quantinuum/guppylang/issues/1501)) ([4d484c0](https://github.com/Quantinuum/guppylang/commit/4d484c005356f489ffa0de0448f1e5ea2ebcf990))
+
+
+### Bug Fixes
+
+* Misleading error message for leaked qubits ([#1497](https://github.com/Quantinuum/guppylang/issues/1497)) ([bfd432a](https://github.com/Quantinuum/guppylang/commit/bfd432a9d522221fecb7dcc50448df2ed213e732))
+* Resolve relative wasm file paths from calling file ([#1496](https://github.com/Quantinuum/guppylang/issues/1496)) ([424b05d](https://github.com/Quantinuum/guppylang/commit/424b05d6baa764bf84aafc0fb92f8bb7355f6167))
+* Revert experimental features break ([#1510](https://github.com/Quantinuum/guppylang/issues/1510)) ([45b6e93](https://github.com/Quantinuum/guppylang/commit/45b6e93b4f5fafa80b57e7d647f5d5e107323030))
+
+## [0.29.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.28.0...guppylang-internals-v0.29.0) (2026-02-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* Experimental features should only be set globally ([#1489](https://github.com/Quantinuum/guppylang/issues/1489))
+* Allow panicking with different signal values ([#1461](https://github.com/Quantinuum/guppylang/issues/1461))
+
+### Features
+
+* Add function to swap two array elements that lowers to hugr swap op ([#1459](https://github.com/Quantinuum/guppylang/issues/1459)) ([15da521](https://github.com/Quantinuum/guppylang/commit/15da521d27354d294dd7f69c4494f9a1bc4d7032))
+* Allow panicking with different signal values ([#1461](https://github.com/Quantinuum/guppylang/issues/1461)) ([e624d4f](https://github.com/Quantinuum/guppylang/commit/e624d4f8b99dc2db7207f3148e8b2e378cfeb648))
+* Compile time array indexing linearity check for literal indices ([#1469](https://github.com/Quantinuum/guppylang/issues/1469)) ([e384b52](https://github.com/Quantinuum/guppylang/commit/e384b52c40f051248f205d704f79084777a0cfea))
+
+
+### Bug Fixes
+
+* Misleading error message when trying to load a list of numpy integers using comptime ([#1484](https://github.com/Quantinuum/guppylang/issues/1484)) ([0c270c8](https://github.com/Quantinuum/guppylang/commit/0c270c87bdeeaf85169bc0451fd6f47d3462b98c))
+
+
+### Code Refactoring
+
+* Experimental features should only be set globally ([#1489](https://github.com/Quantinuum/guppylang/issues/1489)) ([de0a318](https://github.com/Quantinuum/guppylang/commit/de0a3188653ca47c74301bfdfd8f623137ac43b2))
+
 ## [0.28.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.27.0...guppylang-internals-v0.28.0) (2026-02-04)
 
 

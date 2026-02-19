@@ -3,13 +3,14 @@ Error: Copy violation (at $FILE:13:16)
 11 | @guppy
 12 | def foo(s: MyStruct @owned) -> tuple[qubit, MyStruct]:
 13 |     return s.q, s
-   |                 ^ Field `s.q` with non-copyable type `qubit` cannot be
+   |                 ^ Variable `s` with non-copyable type `MyStruct` cannot be
    |                   returned ...
 
 Note:
    | 
 12 | def foo(s: MyStruct @owned) -> tuple[qubit, MyStruct]:
 13 |     return s.q, s
-   |            --- Field `s.q` already returned here
+   |            --- ... since the member `s.q` with non-copyable type `qubit`
+   |                was already returned here
 
 Guppy compilation failed due to 1 previous error

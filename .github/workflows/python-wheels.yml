@@ -20,6 +20,7 @@ on:
   pull_request:
     branches:
       - main
+  merge_group:
 
 env:
   # Pinned version for the uv package manager

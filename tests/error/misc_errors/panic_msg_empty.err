@@ -1,10 +1,12 @@
-Error: No panic message (at $FILE:7:4)
+Error: Invalid call of overloaded function (at $FILE:7:4)
   | 
 5 | @compile_guppy
 6 | def foo(x: int) -> None:
 7 |     panic()
-  |     ^^^^^^^ Missing message argument to panic call
+  |     ^^^^^^^ No variant of overloaded function `panic` takes 0 arguments
 
-Note: Add a message: `panic("message")`
+Note: Available overloads are:
+  def panic(msg: str, ...) -> None
+  def panic(msg: str, signal: int, ...) -> None
 
 Guppy compilation failed due to 1 previous error

@@ -7,15 +7,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, no_type_check
 
 from guppylang_internals.decorator import custom_function
+from guppylang_internals.nodes import AbortKind
 from guppylang_internals.std._internal.checker import (
+    AbortChecker,
     BarrierChecker,
-    ExitChecker,
-    PanicChecker,
 )
 from guppylang_internals.std._internal.compiler.platform import (
     ArrayResultCompiler,
     ResultCompiler,
 )
+from guppylang_internals.tys.builtin import int_type, string_type
+from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags, NoneType
 
 from guppylang import guppy
 
@@ -83,31 +85,109 @@ def result(tag: str, value):
     """
 
 
-@custom_function(checker=PanicChecker(), higher_order_value=False)
-def panic(msg: str, *args):
-    """Panic, throwing an error with the given message, and immediately exit the
-    program, aborting any subsequent shots.
+@custom_function(
+    checker=AbortChecker(AbortKind.Panic),
+    higher_order_value=False,
+    # We need to define a signature manually here for error reporting purposes. This is
+    # because we are using a custom checker due to the arbitrary extra inputs that
+    # can't be represented by a standard Guppy signature.
+    signature=FunctionType(
+        [
+            FuncInput(string_type(), InputFlags.NoFlags, "msg"),
+        ],
+        NoneType(),
+    ),
+    has_var_args=True,
+)
+def _panic(msg: str, *args) -> None: ...
 
-    Return type is arbitrary, as this function never returns.
 
-    Args:
-        msg: The message to display. Must be a string literal.
-        args: Arbitrary extra inputs, will not affect the message. Only useful for
-        consuming linear values.
-    """
+@custom_function(
+    checker=AbortChecker(AbortKind.Panic),
+    higher_order_value=False,
+    signature=FunctionType(
+        [
+            FuncInput(string_type(), InputFlags.NoFlags, "msg"),
+            FuncInput(int_type(), InputFlags.NoFlags, "signal"),
+        ],
+        NoneType(),
+    ),
+    has_var_args=True,
+)
+def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
 
 
-@custom_function(checker=ExitChecker(), higher_order_value=False)
-def exit(msg: str, signal: int, *args):
-    """Exit, reporting the given message and signal, and immediately exit the
-    program. Subsequent shots may still run.
+@guppy.overload(_panic, _panic_with_signal)
+def panic(msg: str, signal: int = 1, *args):
+    """Panic, throwing an error with the given message (and signal if given), and
+    immediately exit the program, aborting any subsequent shots.
+
+    If the first value after the message is an integer, it is treated as the signal.
+    Therefore, an integer cannot be the first extra input unless a signal is provided.
+    Since extra inputs are meant to be linear values, integers shouldn't be passed as
+    extra inputs anyway.
 
     Return type is arbitrary, as this function never returns.
 
     On Quantinuum systems only signals in the range 1<=signal<=1000 are supported.
 
     Args:
-        msg: The message to display. Must be a string literal.
+        message: The message to display. Must be a string literal.
+        signal: An optional integer for distinguishing different failure modes.
+        args: Arbitrary extra inputs, will not affect the message. Only useful for
+        consuming linear values.
+    """
+
+
+@custom_function(
+    checker=AbortChecker(AbortKind.ExitShot),
+    higher_order_value=False,
+    # We need to define a signature manually here for error reporting purposes. This is
+    # because we are using a custom checker due to the arbitrary extra inputs that
+    # can't be represented by a standard Guppy signature.
+    signature=FunctionType(
+        [
+            FuncInput(string_type(), InputFlags.NoFlags, "message"),
+        ],
+        NoneType(),
+    ),
+    has_var_args=True,
+)
+def _exit(msg: str, *args) -> None: ...
+
+
+@custom_function(
+    checker=AbortChecker(AbortKind.ExitShot),
+    higher_order_value=False,
+    signature=FunctionType(
+        [
+            FuncInput(string_type(), InputFlags.NoFlags, "message"),
+            FuncInput(int_type(), InputFlags.NoFlags, "signal"),
+        ],
+        NoneType(),
+    ),
+    has_var_args=True,
+)
+def _exit_with_signal(msg: str, signal: int, *args) -> None: ...
+
+
+@guppy.overload(_exit, _exit_with_signal)
+def exit(msg: str, signal: int = 1, *args):
+    """Exit, reporting the given message (and signal if given), and immediately exit the
+    program. Subsequent shots may still run.
+
+    If the first value after the message is an integer, it is treated as the signal.
+    Therefore, an integer cannot be the first extra input unless a signal is provided.
+    Since extra inputs are meant to be linear values, integers shouldn't be passed as
+    extra inputs anyway.
+
+    Return type is arbitrary, as this function never returns.
+
+    On Quantinuum systems only signals in the range 1<=signal<=1000 are supported.
+
+    Args:
+        message: The message to display. Must be a string literal.
+        signal: An optional integer for distinguishing different failure modes.
         args: Arbitrary extra inputs, will not affect the message. Only useful for
         consuming linear values.
     """

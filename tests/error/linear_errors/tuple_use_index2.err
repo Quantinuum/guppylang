@@ -3,13 +3,14 @@ Error: Copy violation (at $FILE:17:11)
 15 |     s = S((qubit(), 1))
 16 |     use(s.t[0])
 17 |     return s
-   |            ^ Tuple index `s.t[0]` with non-copyable type `qubit` cannot
-   |              be returned ...
+   |            ^ Variable `s` with non-copyable type `S` cannot be returned
+   |              ...
 
 Note:
    | 
 15 |     s = S((qubit(), 1))
 16 |     use(s.t[0])
-   |         ------ Tuple index `s.t[0]` already consumed here
+   |         ------ ... since the member `s.t[0]` with non-copyable type `qubit`
+   |                was already consumed here
 
 Guppy compilation failed due to 1 previous error

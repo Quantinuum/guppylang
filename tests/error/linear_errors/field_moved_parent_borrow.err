@@ -1,0 +1,16 @@
+Error: Copy violation (at $FILE:19:7)
+   | 
+17 | def my_foo(main_register: Register[4]) -> None:
+18 |     register = main_register.register
+19 |     if main_register.anything():
+   |        ^^^^^^^^^^^^^ Variable `main_register` with non-copyable type
+   |                      `Register[4]` cannot be borrowed ...
+
+Note:
+   | 
+17 | def my_foo(main_register: Register[4]) -> None:
+18 |     register = main_register.register
+   |                ---------------------- ... since the member `main_register.register` with non-
+   |                                       copyable type `array[qubit, 4]` was already moved here
+
+Guppy compilation failed due to 1 previous error

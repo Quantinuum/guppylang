@@ -447,15 +447,15 @@ class ComptimeExpr(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class ExitKind(Enum):
+class AbortKind(Enum):
     ExitShot = 0  # Exit the current shot
     Panic = 1  # Panic the program ending all shots
 
 
-class PanicExpr(ast.expr):
+class AbortExpr(ast.expr):
     """A `panic(msg, *args)` or `exit(msg, *args)` expression ."""
 
-    kind: ExitKind
+    kind: AbortKind
     signal: ast.expr
     msg: ast.expr
     values: list[ast.expr]
@@ -463,7 +463,7 @@ class PanicExpr(ast.expr):
     _fields = ("kind", "signal", "msg", "values")
 
     def __init__(
-        self, kind: ExitKind, signal: ast.expr, msg: ast.expr, values: list[ast.expr]
+        self, kind: AbortKind, signal: ast.expr, msg: ast.expr, values: list[ast.expr]
     ) -> None:
         super().__init__()
         self.kind = kind

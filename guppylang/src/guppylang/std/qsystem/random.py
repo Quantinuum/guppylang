@@ -19,8 +19,8 @@ from guppylang_internals.std._internal.util import external_op
 
 from guppylang import guppy
 from guppylang.std.angles import angle, pi
+from guppylang.std.array import array_swap
 from guppylang.std.builtins import array, owned, panic
-from guppylang.std.mem import mem_swap
 from guppylang.std.option import Option
 
 SHUFFLE_N = guppy.nat_var("SHUFFLE_N")
@@ -95,10 +95,8 @@ class RNG:
         for k in range(SHUFFLE_N):
             i = SHUFFLE_N - 1 - k
             j = self.random_int_bounded(i + 1)
-            # TODO use array swap once lowering implemented
-            # https://github.com/quantinuum/guppylang/issues/924
             if i != j:
-                mem_swap(array[i], array[j])
+                array_swap(array, i, j)
 
 
 @guppy.struct

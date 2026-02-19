@@ -1,6 +1,9 @@
-from guppylang import guppy
+from guppylang import guppy, qubit
 from guppylang.std.builtins import panic, exit, comptime
 from tests.util import compile_guppy
+
+from hugr.ops import Const
+from hugr.std.int import IntVal
 
 
 def test_basic(validate):
@@ -72,3 +75,33 @@ def test_dynamic(validate):
         exit(s, i + 1)
 
     validate(main)
+
+
+def test_panic_with_signal(validate):
+    @compile_guppy
+    def main(s: int) -> None:
+        q = qubit()
+        panic("I panicked with signal!", 42, q)
+
+    validate(main)
+    # The only integer constant in the HUGR should be the given signal (if the panic
+    # checker didn't use it, the default would be 1 instead).
+    assert any(
+        isinstance(node[1].op, Const)
+        and isinstance(node[1].op.val, IntVal)
+        and node[1].op.val.v == 42
+        for node in main.modules[0].nodes()
+    )
+
+
+def test_panic_with_dynamic_signal(validate):
+    @compile_guppy
+    def main(s: int) -> None:
+        panic("I panicked with dynamic signal!", s)
+
+    validate(main)
+    # With a dynamic signal there should be no integer constants at all in the HUGR.
+    assert not any(
+        isinstance(node[1].op, Const) and isinstance(node[1].op.val, IntVal)
+        for node in main.modules[0].nodes()
+    )

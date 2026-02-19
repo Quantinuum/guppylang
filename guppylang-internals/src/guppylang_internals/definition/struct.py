@@ -4,7 +4,6 @@ import linecache
 import sys
 from collections.abc import Sequence
 from dataclasses import InitVar, dataclass, field
-from functools import cached_property
 from types import FrameType
 from typing import ClassVar
 
@@ -123,13 +122,6 @@ class RawStructDef(TypeDef, ParsableDef):
     def __post_init__(self, hugr_name: str | None) -> None:
         object.__setattr__(self, "_user_set_hugr_name", hugr_name)
 
-    @cached_property
-    def qualified_hugr_name(self) -> str:
-        if self._user_set_hugr_name is not None:
-            return self._user_set_hugr_name
-
-        return f"{self.python_class.__module__}.{self.python_class.__qualname__}"
-
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedStructDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
         frame = DEF_STORE.frames[self.id]
@@ -210,7 +202,14 @@ class RawStructDef(TypeDef, ParsableDef):
             x = overridden.pop()
             raise GuppyError(DuplicateFieldError(used_func_names[x], self.name, x))
 
-        return ParsedStructDef(self.id, self.name, cls_def, params, fields)
+        hugr_name_prefix = (
+            self._user_set_hugr_name
+            or f"{self.python_class.__module__}.{self.python_class.__qualname__}"
+        )
+
+        return ParsedStructDef(
+            self.id, self.name, cls_def, params, fields, hugr_name_prefix
+        )
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -225,6 +224,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[UncheckedStructField]
+    hugr_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""
