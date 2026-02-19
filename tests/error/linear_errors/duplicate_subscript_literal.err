@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:9:18)
+  | 
+7 | def foo() -> None:
+8 |     qubits = array((qubit() for _ in range(2)))
+9 |     cx(qubits[0], qubits[0])
+  |                   ^^^^^^^^^ Subscript `qubits[...]` with non-copyable type `qubit`
+  |                             cannot be borrowed ...
+
+Note:
+  | 
+8 |     qubits = array((qubit() for _ in range(2)))
+9 |     cx(qubits[0], qubits[0])
+  |        --------- Subscript `qubits[...]` already borrowed here
+
+Guppy compilation failed due to 1 previous error

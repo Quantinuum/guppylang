@@ -86,6 +86,7 @@ def custom_function(
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    has_var_args: bool = False,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
 
@@ -109,6 +110,7 @@ def custom_function(
             higher_order_value,
             signature,
             unitary_flags,
+            has_var_args,
         )
         DEF_STORE.register_def(func, get_calling_frame())
         return GuppyFunctionDefinition(func)
@@ -211,9 +213,29 @@ def custom_type(
 def wasm_module(
     filename: str,
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
-    wasm_file = pathlib.Path(filename)
-    if wasm_file.is_file():
-        wasm_sigs = decode_wasm_functions(filename)
+    wasm_path = pathlib.Path(filename)
+
+    # Absolute paths are used as-is; relative paths are resolved against the
+    # caller's source file directory (not the current working directory).
+    if not wasm_path.is_absolute():
+        # Walk up the call stack past guppylang-internal frames to find the
+        # user's source file.  We skip frames whose module name starts with
+        # "guppylang" so that the decorator works regardless of how deeply it
+        # is called from within the library.
+        caller_file = None
+        frame = inspect.currentframe()
+        while frame:
+            module = inspect.getmodule(frame)
+            if module is None or not module.__name__.startswith("guppylang"):
+                caller_file = frame.f_globals.get("__file__")
+                break
+            frame = frame.f_back
+        if caller_file is not None:
+            caller_dir = pathlib.Path(caller_file).resolve().parent
+            wasm_path = caller_dir / filename
+
+    if wasm_path.is_file():
+        wasm_sigs = decode_wasm_functions(str(wasm_path))
     else:
         raise GuppyError(WasmFileNotFound(None, filename))
 
@@ -236,7 +258,7 @@ def wasm_module(
     )
 
     def inner_fun(ty: builtins.type[T]) -> GuppyDefinition:
-        decorator_inner = decorator(filename, None)
+        decorator_inner = decorator(str(wasm_path), None)
         return decorator_inner(ty)
 
     return inner_fun

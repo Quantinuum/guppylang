@@ -24,6 +24,7 @@ from guppylang_internals.std._internal.compiler.array import (
     ArrayGetitemCompiler,
     ArrayIsBorrowedCompiler,
     ArraySetitemCompiler,
+    ArraySwapCompiler,
     NewArrayCompiler,
 )
 from guppylang_internals.std._internal.compiler.frozenarray import (
@@ -93,17 +94,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
         This is the case whenever a non-copyable element is borrowed, or when an element
         is manually taken out of the array via the `take` method.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        result("a", qs.is_borrowed(3))  # False
-        q = qs.take(3).unwrap()
-        result("a", qs.is_borrowed(3))  # True
-        qs.put(qubit(), 3).unwrap()
-        result("a", qs.is_borrowed(3))  # False
-        ```
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            result("a", qs.is_borrowed(3))  # False
+            q = qs.take(3).unwrap()
+            result("a", qs.is_borrowed(3))  # True
+            qs.put(qubit(), 3).unwrap()
+            result("a", qs.is_borrowed(3))  # False
         """
 
     @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
@@ -124,17 +123,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Also see `array.try_take` for a version of this function that does not panic if
         the element has already been taken out.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        q = qs.take(3)
-        measure(q)  # We're allowed to deallocate since we own `q`
-        # h(qs[3])  # Would panic since qubit 3 has been taken out
-        qs.put(qubit(), 3) # Put a fresh qubit back into the array
-        h(qs[3])
-        ```
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            q = qs.take(3)
+            measure(q)  # We're allowed to deallocate since we own `q`
+            # h(qs[3])  # Would panic since qubit 3 has been taken out
+            qs.put(qubit(), 3) # Put a fresh qubit back into the array
+            h(qs[3])
         """
 
     @guppy
@@ -153,17 +150,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Returns the extracted element or `nothing` if the element has already been taken
         out. Panics if the provided index is negative or out of bounds.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        q = qs.try_take(3).unwrap()
-        measure(q)  # We're allowed to deallocate since we own `q`
-        # h(qs[3])  # Would panic since qubit 3 has been taken out
-        qs.put(qubit(), 3)  # Put a fresh qubit back into the array
-        h(qs[3])
-        ```
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            q = qs.try_take(3).unwrap()
+            measure(q)  # We're allowed to deallocate since we own `q`
+            # h(qs[3])  # Would panic since qubit 3 has been taken out
+            qs.put(qubit(), 3)  # Put a fresh qubit back into the array
+            h(qs[3])
         """
         if self.is_borrowed(idx):
             return nothing()
@@ -184,16 +179,14 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Also see `array.try_put` for a version of this function that does not panic if
         if there is already an element at the given index.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        q = qubit()
-        # qs.put(q, 3)  # Would panic as there is already a qubit at index 3
-        measure(qs.take(3))  # Take it out to make space for the new one
-        qs.put(q, 3)
-        h(qs[3])
-        ```
+            qs = array(qubit() for _ in range(10))
+            q = qubit()
+            # qs.put(q, 3)  # Would panic as there is already a qubit at index 3
+            measure(qs.take(3))  # Take it out to make space for the new one
+            qs.put(q, 3)
+            h(qs[3])
         """
 
     @guppy
@@ -209,16 +202,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
         mutated and the passed replacement element will be returned back in an `err`
         variant. Panics if the provided index is negative or out of bounds.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        q = qubit()
-        qs.try_put(q, 3).unwrap_nothing()  # Is `nothing` since there's a qubit at idx 3
-        measure(qs.take(3))  # Take it out to make space for the new one
-        qs.try_put(q, 3).unwrap()
-        h(qs[3])
-        ```
+            qs = array(qubit() for _ in range(10))
+            q = qubit()
+            # Is `nothing` since there's a qubit at idx 3
+            qs.try_put(q, 3).unwrap_nothing()
+            measure(qs.take(3))  # Take it out to make space for the new one
+            qs.try_put(q, 3).unwrap()
+            h(qs[3])
         """
         if not self.is_borrowed(idx):
             return err(elem)
@@ -254,6 +246,30 @@ class ArrayIter(Generic[L, n]):
 
 @custom_function(ArrayDiscardAllUsedCompiler())
 def _array_discard_all_used(xs: array[L, n] @ owned) -> None: ...
+
+
+@custom_function(ArraySwapCompiler())
+def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
+    """Swap two elements in an array at indices idx and idx2.
+
+    Exchanges the elements at two indices within the array. This operation
+    uses HUGR's native swap operation from the collections.array extension,
+
+    The swap happens in-place. Panics if either index is out of bounds.
+
+    Works with both copyable and linear types (like qubits).
+
+    Args:
+        arr: The array to modify
+        idx: Index of first element to swap
+        idx2: Index of second element to swap
+
+    .. code-block:: python
+
+        arr = array(10, 20, 30, 40)
+        array_swap(arr, 0, 3)
+        # arr is now [40, 20, 30, 10]
+    """
 
 
 @extend_type(frozenarray_type_def)

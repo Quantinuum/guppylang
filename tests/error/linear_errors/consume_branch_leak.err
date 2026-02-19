@@ -1,0 +1,17 @@
+Error: Drop violation (at $FILE:8:4)
+  | 
+6 | @guppy
+7 | def foo(b: bool) -> None:
+8 |     q = qubit()
+  |     ^ Variable `q` with non-droppable type `qubit` may be leaked
+  |       ...
+
+Note:
+  | 
+8 |     q = qubit()
+9 |     if b:
+  |        - if this expression is `False`
+
+Help: Make sure that `q` is consumed or returned to avoid the leak
+
+Guppy compilation failed due to 1 previous error

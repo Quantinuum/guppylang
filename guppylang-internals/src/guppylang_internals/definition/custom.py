@@ -117,6 +117,10 @@ class RawCustomFunctionDef(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags)
 
+    # Whether the custom function accepts a variable number of arguments (not supported
+    # in Guppy functions in general but some custom functions make use of them).
+    has_var_args: bool = field(default=False)
+
     description: str = field(default="function", init=False)
 
     def parse(self, globals: "Globals", sources: SourceMap) -> "CustomFunctionDef":
@@ -150,6 +154,7 @@ class RawCustomFunctionDef(ParsableDef):
             self.higher_order_value,
             GlobalConstId.fresh(self.name),
             sig is not None,
+            self.has_var_args,
         )
 
     def _get_signature(
@@ -194,6 +199,7 @@ class CustomFunctionDef(CompiledCallableDef):
         call_compiler: The custom call compiler.
         higher_order_value: Whether the function may be used as a higher-order value.
         has_signature: Whether the function has a declared signature.
+
     """
 
     defined_at: AstNode | None
@@ -203,6 +209,7 @@ class CustomFunctionDef(CompiledCallableDef):
     higher_order_value: bool
     higher_order_func_id: GlobalConstId
     has_signature: bool
+    has_var_args: bool = field(default=False)
 
     description: str = field(default="function", init=False)
 
