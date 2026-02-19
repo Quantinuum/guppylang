@@ -3,6 +3,13 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.30.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.30.0...guppylang-internals-v0.30.1) (2026-02-19)
+
+
+### Bug Fixes
+
+* Raise UnsupportedError for else clauses of loops ([#1514](https://github.com/Quantinuum/guppylang/issues/1514)) ([4a07f74](https://github.com/Quantinuum/guppylang/commit/4a07f74080a611efa25e6496b641e9423911cc3e))
+
 ## [0.30.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.29.0...guppylang-internals-v0.30.0) (2026-02-18)
 
 
