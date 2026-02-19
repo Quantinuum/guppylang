@@ -1,0 +1,15 @@
+Error: Expected return statement (at $FILE:13:8)
+   | 
+11 |         else:
+12 |             y = a + b
+13 |         i = 9
+   |         ^^^^^ Expected return statement
+
+Note:
+   | 
+ 4 | def complex_control_flow(a: int, b: int, c: bool) -> int:
+ 5 |     if a > 10:
+   |        ------ Consider adding a return statement if this expression is
+   |               `True`
+
+Guppy compilation failed due to 1 previous error

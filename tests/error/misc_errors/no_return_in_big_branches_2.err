@@ -1,0 +1,15 @@
+Error: Expected return statement (at $FILE:7:12)
+  | 
+5 |     if a > 10:
+6 |         if b < 5:
+7 |             y = a + b
+  |             ^^^^^^^^^ Expected return statement
+
+Note:
+  | 
+5 |     if a > 10:
+6 |         if b < 5:
+  |            ----- Consider adding a return statement if this expression is
+  |                  `True`
+
+Guppy compilation failed due to 1 previous error
