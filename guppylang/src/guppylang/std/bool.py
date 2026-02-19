@@ -8,7 +8,7 @@ from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
-from guppylang_internals.std._internal.checker import DunderChecker
+from guppylang_internals.std._internal.checker import DunderChecker, ReversingChecker
 from guppylang_internals.std._internal.util import bool_logic_op
 from guppylang_internals.tys.builtin import bool_type_def
 
@@ -61,3 +61,12 @@ class bool:
 
     @hugr_op(bool_logic_op("xor"))
     def __xor__(self: bool, other: bool) -> bool: ...
+
+    @custom_function(checker=ReversingChecker())
+    def __rand__(self: bool, other: bool) -> bool: ...
+
+    @custom_function(checker=ReversingChecker())
+    def __ror__(self: bool, other: bool) -> bool: ...
+
+    @custom_function(checker=ReversingChecker())
+    def __rxor__(self: bool, other: bool) -> bool: ...
