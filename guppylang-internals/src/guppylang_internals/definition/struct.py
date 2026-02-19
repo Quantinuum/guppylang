@@ -3,13 +3,13 @@ import inspect
 import linecache
 import sys
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from types import FrameType
 from typing import ClassVar
 
 from hugr import Wire, ops
 
-from guppylang_internals.ast_util import AstNode, annotate_location
+from guppylang_internals.ast_util import AstNode, annotate_location, parse_source
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
     ExpectedError,
@@ -29,7 +29,6 @@ from guppylang_internals.definition.custom import (
     CustomFunctionDef,
     DefaultCallChecker,
 )
-from guppylang_internals.definition.function import parse_source
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error, Help, Note
@@ -117,6 +116,12 @@ class RawStructDef(TypeDef, ParsableDef):
     python_class: type
     params: None = field(default=None, init=False)  # Params not known yet
 
+    hugr_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_hugr_name: str | None = field(default=None, init=False)
+
+    def __post_init__(self, hugr_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_hugr_name", hugr_name)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedStructDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
         frame = DEF_STORE.frames[self.id]
@@ -197,7 +202,14 @@ class RawStructDef(TypeDef, ParsableDef):
             x = overridden.pop()
             raise GuppyError(DuplicateFieldError(used_func_names[x], self.name, x))
 
-        return ParsedStructDef(self.id, self.name, cls_def, params, fields)
+        hugr_name_prefix = (
+            self._user_set_hugr_name
+            or f"{self.python_class.__module__}.{self.python_class.__qualname__}"
+        )
+
+        return ParsedStructDef(
+            self.id, self.name, cls_def, params, fields, hugr_name_prefix
+        )
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -212,6 +224,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[UncheckedStructField]
+    hugr_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""

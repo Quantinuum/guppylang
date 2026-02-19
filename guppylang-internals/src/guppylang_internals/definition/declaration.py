@@ -1,5 +1,5 @@
 import ast
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import ClassVar
 
 from hugr import Node, Wire
@@ -22,6 +22,7 @@ from guppylang_internals.definition.function import (
     load_with_args,
     parse_py_func,
 )
+from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -29,6 +30,7 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.diagnostic import Error
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
@@ -67,12 +69,28 @@ class RawFunctionDecl(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
+    hugr_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_hugr_name: str | None = field(default=None, init=False)
+
+    def __post_init__(self, hugr_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_hugr_name", hugr_name)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
+        hugr_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
+        if self._user_set_hugr_name is not None:
+            hugr_name = self._user_set_hugr_name
+        else:
+            parent_ty_id = DEF_STORE.impl_parents.get(self.id)
+            if parent_ty_id is not None:
+                parent = ENGINE.get_parsed(parent_ty_id)
+                if isinstance(parent, ParsedStructDef):
+                    hugr_name = f"{parent.hugr_name_prefix}.{self.python_func.__name__}"
+
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         # Make sure we won't need monomorphization to compile this declaration
@@ -83,13 +101,13 @@ class RawFunctionDecl(ParsableDef):
             self.name,
             func_ast,
             ty,
-            self.python_func,
             docstring,
+            hugr_name,
         )
 
 
 @dataclass(frozen=True)
-class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
+class CheckedFunctionDecl(CompilableDef, CallableDef):
     """A function declaration with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function.
@@ -97,6 +115,7 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
 
     defined_at: ast.FunctionDef
     docstring: str | None
+    hugr_name: str
 
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
@@ -125,14 +144,14 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         )
         module: hf.Module = module
 
-        node = module.declare_function(self.name, self.ty.to_hugr_poly(ctx))
+        node = module.declare_function(self.hugr_name, self.ty.to_hugr_poly(ctx))
         return CompiledFunctionDecl(
             self.id,
             self.name,
             self.defined_at,
             self.ty,
-            self.python_func,
             self.docstring,
+            self.hugr_name,
             node,
         )
 
