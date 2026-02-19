@@ -3,6 +3,6 @@ Error: Attribute not found (at $FILE:12:6)
 10 | @guppy
 11 | def foo(s: MyStruct) -> None:
 12 |     s.z = 2
-   |       ^ `MyStruct` has no attribute `z`
+   |       ^ `MyStruct` has no field or method `z`
 
 Guppy compilation failed due to 1 previous error

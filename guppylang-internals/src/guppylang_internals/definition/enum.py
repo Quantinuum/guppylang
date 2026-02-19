@@ -4,19 +4,25 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Generic, TypeVar
 
+from hugr import Wire, ops
+
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
+from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,
     CompiledDef,
+    DefId,
     ParsableDef,
 )
 from guppylang_internals.definition.custom import (
+    CustomCallCompiler,
     CustomFunctionDef,
+    DefaultCallChecker,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
@@ -34,8 +40,12 @@ from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
+from guppylang_internals.tys.subst import Instantiator
 from guppylang_internals.tys.ty import (
     EnumType,
+    FuncInput,
+    FunctionType,
+    InputFlags,
     Type,
 )
 
@@ -192,6 +202,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
         check_all_args(self.params, args, self.name, loc)
+
         globals = Globals(DEF_STORE.frames[self.id])
         # TODO: This is quite bad: If we have a cyclic definition this will not
         #  terminate, so we have to check for cycles in every call to `check`. The
@@ -214,12 +225,66 @@ class CheckedEnumDef(TypeDef, CompiledDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> Type:
         """Checks if the enum can be instantiated with the given arguments."""
-        # TODO
-        raise NotImplementedError
+        check_all_args(self.params, args, self.name, loc)
+
+        return EnumType(args, self)
 
     def generated_methods(self) -> list[CustomFunctionDef]:
         # Generating methods to instantiate enum variants
-        return []
+
+        @dataclass
+        class ConstructorCompiler(CustomCallCompiler):
+            """Compiler for the enum variant constructors."""
+
+            variant_idx: int
+            enum_ty: EnumType
+
+            def compile(self, wires: list[Wire]) -> list[Wire]:
+                instantiator = Instantiator(self.type_args)
+                # If we have generic parameters, we need to instantiate the enum type
+                # before converting it to Hugr
+                inst_enum_type = self.enum_ty.transform(instantiator)
+                assert isinstance(inst_enum_type, EnumType)  # for mypy
+                return list(
+                    self.builder.add(
+                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx))(
+                            *wires
+                        )
+                    )
+                )
+
+        variants_constructors = []
+        for variant_name, variant in self.variants.items():
+            enum_type = EnumType(
+                defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
+            )
+            constructor_sig = FunctionType(
+                inputs=[
+                    FuncInput(
+                        f.ty,
+                        InputFlags.Owned if f.ty.linear else InputFlags.NoFlags,
+                        f.name,
+                    )
+                    for f in variant.fields
+                ],
+                output=enum_type,
+                params=self.params,
+            )
+
+            constructor_def = CustomFunctionDef(
+                id=DefId.fresh(),
+                name=variant_name,
+                defined_at=self.defined_at,
+                ty=constructor_sig,
+                call_checker=DefaultCallChecker(),
+                call_compiler=ConstructorCompiler(variant.index, enum_type),
+                higher_order_value=True,
+                higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
+                has_signature=True,
+            )
+            variants_constructors.append(constructor_def)
+
+        return variants_constructors
 
 
 def parse_enum_variant(

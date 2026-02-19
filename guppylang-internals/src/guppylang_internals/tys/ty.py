@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
@@ -732,21 +732,29 @@ class EnumType(ParametrizedTypeBase):
     defn: "CheckedEnumDef"
 
     @cached_property
-    def variants(self) -> list["EnumVariant[CheckedField]"]:
-        """The variants of this enum type."""
+    def variants_as_list(self) -> list["EnumVariant[CheckedField]"]:
+        """The list variants of this enum type."""
         from guppylang_internals.definition.enum import EnumVariant
         from guppylang_internals.definition.util import CheckedField
         from guppylang_internals.tys.subst import Instantiator
 
         inst = Instantiator(self.args)
+
+        # Ensure that the order is consistent
+        variants_list = sorted(self.defn.variants.values(), key=lambda v: v.index)
         return [
             EnumVariant(
                 variant.index,
-                name,
+                variant.name,
                 [CheckedField(f.name, f.ty.transform(inst)) for f in variant.fields],
             )
-            for (name, variant) in self.defn.variants.items()
+            for variant in variants_list
         ]
+
+    @cached_property
+    def variant_as_dict(self) -> Mapping[str, "EnumVariant[CheckedField]"]:
+        """The mapping from variant names to variants of this enum type."""
+        return self.defn.variants
 
     @cached_property
     def intrinsically_copyable(self) -> bool:
@@ -754,7 +762,7 @@ class EnumType(ParametrizedTypeBase):
 
         An enum is copyable only if ALL payload types in ALL variants are copyable.
         """
-        return all(all(f.ty.copyable for f in v.fields) for v in self.variants)
+        return all(all(f.ty.copyable for f in v.fields) for v in self.variants_as_list)
 
     @cached_property
     def intrinsically_droppable(self) -> bool:
@@ -762,17 +770,18 @@ class EnumType(ParametrizedTypeBase):
 
         An enum is droppable only if ALL payload types in ALL variants are droppable.
         """
-        return all(all(f.ty.droppable for f in v.fields) for v in self.variants)
+        return all(all(f.ty.droppable for f in v.fields) for v in self.variants_as_list)
 
     def cast(self) -> "Type":
         return self
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Sum:
         """Computes the Hugr representation of the type."""
-        rows = [[f.ty.to_hugr(ctx) for f in v.fields] for v in self.variants]
+        rows = [[f.ty.to_hugr(ctx) for f in v.fields] for v in self.variants_as_list]
         return ht.Sum(rows)
 
     def transform(self, transformer: Transformer) -> "Type":
+        """Accepts a transformer on this type."""
         return transformer.transform(self) or EnumType(
             [arg.transform(transformer) for arg in self.args], self.defn
         )
@@ -867,6 +876,8 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
         case OpaqueType() as s, OpaqueType() as t if s.defn == t.defn:
             return _unify_args(s, t, subst)
         case StructType() as s, StructType() as t if s.defn == t.defn:
+            return _unify_args(s, t, subst)
+        case EnumType() as s, EnumType() as t if s.defn == t.defn:
             return _unify_args(s, t, subst)
         case _:
             return None

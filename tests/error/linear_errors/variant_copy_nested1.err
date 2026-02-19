@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:24:11)
+   | 
+22 |     s = MyEnum1.VariantA(MyEnum2.VariantA(qubit(), qubit()))
+23 |     use(s)
+24 |     return s
+   |            ^ Variable `s` with non-copyable type `MyEnum1` cannot be
+   |              returned ...
+
+Note:
+   | 
+22 |     s = MyEnum1.VariantA(MyEnum2.VariantA(qubit(), qubit()))
+23 |     use(s)
+   |         - Variable `s` already consumed here
+
+Guppy compilation failed due to 1 previous error

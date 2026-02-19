@@ -65,7 +65,11 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeUnknownError,
     IllegalComptimeExpressionError,
 )
-from guppylang_internals.checker.errors.generic import ExpectedError, UnsupportedError
+from guppylang_internals.checker.errors.generic import (
+    ExpectedError,
+    UnexpectedError,
+    UnsupportedError,
+)
 from guppylang_internals.checker.errors.linearity import NonDroppableForBreakError
 from guppylang_internals.checker.errors.type_errors import (
     AttributeNotFoundError,
@@ -139,6 +143,7 @@ from guppylang_internals.tys.param import ConstParam, TypeParam, check_all_args
 from guppylang_internals.tys.parsing import arg_from_ast
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
+    EnumType,
     ExistentialTypeVar,
     FuncInput,
     FunctionType,
@@ -451,10 +456,29 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def _check_global(
         self, defn: Definition, name: str, node: ast.expr
     ) -> tuple[ast.expr, Type]:
+        from guppylang_internals.definition.enum import ParsedEnumDef
+
         """Checks a global definition in an expression position."""
         match defn:
             case ValueDef() as defn:
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
+            # We need a special case for enums since they don't have a `__new__` method,
+            # but they have a special constructor for each variant.
+            # A new enum is defined as `EnumName.Variant()`, however, since we are
+            # visiting `EnumName` we do not know which variant is being instantiated.
+            # Luckily, all the variant constructors have the same output type (the enum
+            # type), so we can pick the first constructor to get the output type.
+            case ParsedEnumDef() as defn:
+                if len(defn.variants) == 0:
+                    raise GuppyError(UnexpectedError(node, "empty enum initialization"))
+                constr = self.ctx.globals.get_instance_func(
+                    defn, next(iter(defn.variants.keys()))
+                )
+                if constr is None:
+                    raise InternalGuppyError(
+                        "Valid variants should be available in `ctx.globals`"
+                    )
+                return node, constr.ty.output
             # For types, we return their `__new__` constructor
             case TypeDef() as defn if constr := self.ctx.globals.get_instance_func(
                 defn, "__new__"
@@ -503,6 +527,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 ModuleMemberNotFoundError(attr_span, module.__name__, node.attr)
             )
         node.value, ty = self.synthesize(node.value)
+
         if isinstance(ty, StructType) and node.attr in ty.field_dict:
             field = ty.field_dict[node.attr]
             expr: ast.expr
@@ -515,6 +540,16 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # you loose access to all fields besides `a`).
                 expr = FieldAccessAndDrop(value=node.value, struct_ty=ty, field=field)
             return with_loc(node, expr), field.ty
+        elif isinstance(ty, EnumType) and node.attr in ty.variant_as_dict:
+            # get the type of the variant constructor
+            if variant_constr := self.ctx.globals.get_instance_func(ty, node.attr):
+                return with_loc(
+                    node, GlobalName(id=node.attr, def_id=variant_constr.id)
+                ), variant_constr.ty
+            else:
+                raise InternalGuppyError(
+                    "Valid variants should be available in `ctx.globals`"
+                )
         elif func := self.ctx.globals.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
