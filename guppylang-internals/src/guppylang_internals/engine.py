@@ -252,34 +252,70 @@ class CompilationEngine:
         return defn
 
     @pretty_errors
-    def check(self, id: DefId) -> None:
+    def check_single(self, id: DefId) -> None:
         """Top-level function to kick of checking of a definition.
 
         This is the main driver behind `guppy.check()`.
+        """
+        self.check([id])
+
+    @pretty_errors
+    def check(self, def_ids: list[DefId]) -> None:
+        """Top-level function to kick of checking of multiple definitions.
+
+        This is the main driver behind `guppy.library(...).check()`.
         """
         # Clear previous compilation cache.
         # TODO: In order to maintain results from the previous `check` call we would
         #  need to store and check if any dependencies have changed.
         self.reset()
 
-        self.to_check_worklist[id] = self.get_parsed(id)
+        for def_id in def_ids:
+            self.to_check_worklist[def_id] = self.get_parsed(def_id)
+
         while self.types_to_check_worklist or self.to_check_worklist:
             # Types need to be checked first. This is because parsing e.g. a function
             # definition requires instantiating the types in its signature which can
             # only be done if the types have already been checked.
             if self.types_to_check_worklist:
-                id, _ = self.types_to_check_worklist.popitem()
+                def_id, _ = self.types_to_check_worklist.popitem()
             else:
-                id, _ = self.to_check_worklist.popitem()
-            self.checked[id] = self.get_checked(id)
+                def_id, _ = self.to_check_worklist.popitem()
+            self.checked[def_id] = self.get_checked(def_id)
+
+            for member_id in DEF_STORE.impls[def_id].values():
+                if member_id not in self.checked:
+                    self.to_check_worklist[member_id] = self.get_parsed(member_id)
 
     @pretty_errors
-    def compile(self, id: DefId) -> ModulePointer:
+    def compile_single(self, id: DefId) -> ModulePointer:
         """Top-level function to kick of Hugr compilation of a definition.
 
         This is the function that is invoked by `guppy.compile`.
         """
-        self.check(id)
+        pointer, [compiled_def] = self._compile([id])
+
+        if (
+            isinstance(compiled_def, CompiledHugrNodeDef)
+            and isinstance(compiled_def, CompiledCallableDef)
+            and not isinstance(pointer.module[compiled_def.hugr_node].op, ops.FuncDecl)
+        ):
+            # if compiling a region set it as the HUGR entrypoint can be
+            # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
+            pointer.module.entrypoint = compiled_def.hugr_node
+
+        return pointer
+
+    @pretty_errors
+    def compile(self, def_ids: list[DefId]) -> ModulePointer:
+        return self._compile(def_ids)[0]
+
+    def _compile(self, def_ids: list[DefId]) -> tuple[ModulePointer, list[CompiledDef]]:
+        """Top-level function to kick of Hugr compilation of a definition.
+
+        This is the function that is invoked by `guppy.compile`.
+        """
+        self.check(def_ids)
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -289,17 +325,14 @@ class CompilationEngine:
         from guppylang_internals.compiler.core import CompilerContext
 
         ctx = CompilerContext(graph)
-        compiled_def = ctx.compile(self.checked[id])
-        self.compiled = ctx.compiled
+        compiled_defs: list[CompiledDef] = []
+        for def_id in def_ids:
+            compiled_defs.append(ctx.compile(self.checked[def_id]))
+            self.compiled = ctx.compiled
 
-        if (
-            isinstance(compiled_def, CompiledHugrNodeDef)
-            and isinstance(compiled_def, CompiledCallableDef)
-            and not isinstance(graph.hugr[compiled_def.hugr_node].op, ops.FuncDecl)
-        ):
-            # if compiling a region set it as the HUGR entrypoint can be
-            # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
-            graph.hugr.entrypoint = compiled_def.hugr_node
+            for member_id in DEF_STORE.impls[def_id].values():
+                ctx.compile(self.checked[member_id])
+                self.compiled = ctx.compiled
 
         # Use cached base extensions and registry, only add additional extensions
         base_extensions = self._get_base_packaged_extensions()
@@ -348,8 +381,11 @@ class CompilationEngine:
             for ext in packaged_extensions
             if ext.name in used_extensions_result.ids()
         ]
-        return ModulePointer(
-            Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+        return (
+            ModulePointer(
+                Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+            ),
+            compiled_defs,
         )
 
 
