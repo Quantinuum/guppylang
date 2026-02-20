@@ -407,6 +407,8 @@ class CFGBuilder(AstVisitor[BB | None]):
     def generic_visit(self, node: ast.AST, bb: BB, jumps: Jumps) -> BB | None:
         # When adding support for new statements, we have to remember to use the
         # ExprBuilder to transform all included expressions!
+
+        # TODO: NICOLA Here we need to add support for match statements
         raise GuppyError(UnsupportedError(node, "This statement", singular=True))
 
 

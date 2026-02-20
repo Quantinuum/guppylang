@@ -88,7 +88,7 @@ def pretty_errors(f: FuncT) -> FuncT:
         excty: type[BaseException], err: BaseException, traceback: TracebackType | None
     ) -> None:
         """Custom `excepthook` that intercepts `GuppyExceptions` for pretty printing."""
-        if isinstance(err, GuppyError):
+        if isinstance(err, GuppyError):# and False:
             from guppylang_internals.diagnostic import DiagnosticsRenderer
             from guppylang_internals.engine import DEF_STORE
 
