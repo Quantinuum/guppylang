@@ -46,6 +46,7 @@ from guppylang_internals.nodes import (
     Power,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import NoneType, UnitaryFlags
 
 # In order to build expressions, need an endless stream of unique temporary variables
@@ -345,6 +346,15 @@ class CFGBuilder(AstVisitor[BB | None]):
         bb.statements.append(new_node)
         return bb
 
+    @hide_trace
+    def visit_Match(self, node: ast.Match, bb: BB, jumps: Jumps) -> BB | None:
+        case_bb, continue_bb = self.cfg.new_bb(), self.cfg.new_bb()
+        subject_node = node.subject
+
+
+        print(ast.dump(node, indent=2))
+        raise NotImplementedError("Aaaaaaa")
+
     def _handle_withitem(self, node: ast.withitem) -> Modifier:
         # Check that `as` notation is not used
         if node.optional_vars is not None:
@@ -529,11 +539,11 @@ class BranchBuilder(AstVisitor[None]):
         self.cfg = cfg
 
     @staticmethod
-    def add_branch(node: ast.expr, cfg: CFG, bb: BB, true_bb: BB, false_bb: BB) -> None:
+    def add_branch(cond_node: ast.expr, cfg: CFG, root_bb: BB, true_bb: BB, false_bb: BB) -> None:
         """Builds an expression and branches to `true_bb` or `false_bb`, depending on
         the truth value of the expression."""
         builder = BranchBuilder(cfg)
-        builder.visit(node, bb, true_bb, false_bb)
+        builder.visit(cond_node, root_bb, true_bb, false_bb)
 
     def visit_Constant(
         self, node: ast.Constant, bb: BB, true_bb: BB, false_bb: BB
