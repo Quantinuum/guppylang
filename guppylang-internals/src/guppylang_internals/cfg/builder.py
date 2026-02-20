@@ -1,5 +1,6 @@
 import ast
 import copy
+from hmac import new
 import itertools
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -348,10 +349,26 @@ class CFGBuilder(AstVisitor[BB | None]):
 
     @hide_trace
     def visit_Match(self, node: ast.Match, bb: BB, jumps: Jumps) -> BB | None:
-        case_bb, continue_bb = self.cfg.new_bb(), self.cfg.new_bb()
+        # case_bb, continue_bb = self.cfg.new_bb(), self.cfg.new_bb()
         subject_node = node.subject
+        # BranchBuilder.add_branch(subject_node, self.cfg, bb, case_bb, continue_bb)
+        # Valid match statements must have at least one case
+        # assert len(node.cases) > 0
+        # case_bb = self.visit_stmts(node.cases[0].body, case_bb, jumps)
 
-
+        case_bbs = []
+        root_bb = bb
+        for node_case in node.cases:
+            case_bb = self.cfg.new_bb()
+            continue_bb = self.cfg.new_bb()
+            #TODO: NICOLA We need to manipolate the subject node
+            BranchBuilder.add_branch(
+                subject_node, self.cfg, root_bb, case_bb, continue_bb
+            )
+            case_bb = self.visit_stmts(node_case.body, case_bb, jumps)
+            root_bb = continue_bb
+        
+        print(self.cfg)
         print(ast.dump(node, indent=2))
         raise NotImplementedError("Aaaaaaa")
 
@@ -539,9 +556,12 @@ class BranchBuilder(AstVisitor[None]):
         self.cfg = cfg
 
     @staticmethod
-    def add_branch(cond_node: ast.expr, cfg: CFG, root_bb: BB, true_bb: BB, false_bb: BB) -> None:
+    def add_branch(
+        cond_node: ast.expr, cfg: CFG, root_bb: BB, true_bb: BB, false_bb: BB
+    ) -> None:
         """Builds an expression and branches to `true_bb` or `false_bb`, depending on
         the truth value of the expression."""
+        # TODO: NICOLA Add a case where we are branching under a `match`
         builder = BranchBuilder(cfg)
         builder.visit(cond_node, root_bb, true_bb, false_bb)
 
