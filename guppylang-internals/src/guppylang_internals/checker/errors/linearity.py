@@ -39,6 +39,15 @@ class AlreadyUsedError(Error):
         prev_kind: UseKind
 
     @dataclass(frozen=True)
+    class MemberPrevUse(Note):
+        span_label: ClassVar[str] = (
+            "... since the member `{child_place}` with non-copyable type "
+            "`{child_place.ty}` was already {prev_kind.subjunctive} here"
+        )
+        child_place: Place
+        prev_kind: UseKind
+
+    @dataclass(frozen=True)
     class MakeCopy(Help):
         message: ClassVar[str] = (
             "Consider copying `{place}` instead of moving it: `{place}.copy()`"
