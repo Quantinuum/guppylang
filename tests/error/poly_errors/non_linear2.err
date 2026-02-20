@@ -1,9 +1,8 @@
-Error: Not defined for linear argument (at $FILE:15:4)
+Error: Type mismatch (at $FILE:15:8)
    | 
 13 | @guppy
 14 | def main() -> None:
 15 |     foo(h)
-   |     ^^^^^^ Cannot instantiate copyable type parameter `T` in type
-   |            `forall T. (T -> T) -> None` with non-copyable type `qubit`
+   |         ^ Expected argument of type `?T -> ?T`, got `() -> None`
 
 Guppy compilation failed due to 1 previous error

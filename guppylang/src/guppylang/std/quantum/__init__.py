@@ -49,10 +49,25 @@ def maybe_qubit() -> Option[qubit]:
     if allocation succeeds or `nothing` if it fails."""
 
 
+N = guppy.nat_var("N")
+
+
 @hugr_op(quantum_op("H"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def h(q: qubit) -> None:
-    r"""Hadamard gate command
+def _h(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _h_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _h(qs[i])
+
+
+@guppy.overload(_h, _h_array)
+@no_type_check
+def h(q) -> None:
+    r"""Hadamard gate command. Accepts a single qubit or an array of qubits.
 
     .. math::
         \mathrm{H}= \frac{1}{\sqrt{2}}
@@ -65,8 +80,20 @@ def h(q: qubit) -> None:
 
 @hugr_op(quantum_op("CZ"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def cz(control: qubit, target: qubit) -> None:
-    r"""Controlled-Z gate command.
+def _cz(control: qubit, target: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _cz_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
+    for i in range(N):
+        _cz(controls[i], targets[i])
+
+
+@guppy.overload(_cz, _cz_array)
+@no_type_check
+def cz(control, target) -> None:
+    r"""Controlled-Z gate command. Accepts single qubits or arrays of qubits.
 
     cz(control, target)
 
@@ -85,8 +112,20 @@ def cz(control: qubit, target: qubit) -> None:
 
 @hugr_op(quantum_op("CY"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def cy(control: qubit, target: qubit) -> None:
-    r"""Controlled-Y gate command.
+def _cy(control: qubit, target: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _cy_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
+    for i in range(N):
+        _cy(controls[i], targets[i])
+
+
+@guppy.overload(_cy, _cy_array)
+@no_type_check
+def cy(control, target) -> None:
+    r"""Controlled-Y gate command. Accepts single qubits or arrays of qubits.
 
     cy(control, target)
 
@@ -105,8 +144,20 @@ def cy(control: qubit, target: qubit) -> None:
 
 @hugr_op(quantum_op("CX"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def cx(control: qubit, target: qubit) -> None:
-    r"""Controlled-X gate command.
+def _cx(control: qubit, target: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _cx_array(controls: array[qubit, N], targets: array[qubit, N]) -> None:
+    for i in range(N):
+        _cx(controls[i], targets[i])
+
+
+@guppy.overload(_cx, _cx_array)
+@no_type_check
+def cx(control, target) -> None:
+    r"""Controlled-X gate command. Accepts single qubits or arrays of qubits.
 
     cx(control, target)
 
@@ -125,8 +176,20 @@ def cx(control: qubit, target: qubit) -> None:
 
 @hugr_op(quantum_op("T"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def t(q: qubit) -> None:
-    r"""T gate.
+def _t(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _t_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _t(qs[i])
+
+
+@guppy.overload(_t, _t_array)
+@no_type_check
+def t(q) -> None:
+    r"""T gate. Accepts a single qubit or an array of qubits.
 
     .. math::
         \mathrm{T}=
@@ -140,8 +203,20 @@ def t(q: qubit) -> None:
 
 @hugr_op(quantum_op("S"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def s(q: qubit) -> None:
-    r"""S gate.
+def _s(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _s_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _s(qs[i])
+
+
+@guppy.overload(_s, _s_array)
+@no_type_check
+def s(q) -> None:
+    r"""S gate. Accepts a single qubit or an array of qubits.
 
     .. math::
         \mathrm{S}=
@@ -155,8 +230,20 @@ def s(q: qubit) -> None:
 
 @hugr_op(quantum_op("V"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def v(q: qubit) -> None:
-    r"""V gate.
+def _v(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _v_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _v(qs[i])
+
+
+@guppy.overload(_v, _v_array)
+@no_type_check
+def v(q) -> None:
+    r"""V gate. Accepts a single qubit or an array of qubits.
 
     .. math::
       \mathrm{V}= \frac{1}{\sqrt{2}}
@@ -170,8 +257,20 @@ def v(q: qubit) -> None:
 
 @hugr_op(quantum_op("X"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def x(q: qubit) -> None:
-    r"""X gate.
+def _x(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _x_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _x(qs[i])
+
+
+@guppy.overload(_x, _x_array)
+@no_type_check
+def x(q) -> None:
+    r"""X gate. Accepts a single qubit or an array of qubits.
 
     .. math::
         \mathrm{X}=
@@ -185,8 +284,20 @@ def x(q: qubit) -> None:
 
 @hugr_op(quantum_op("Y"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def y(q: qubit) -> None:
-    r"""Y gate.
+def _y(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _y_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _y(qs[i])
+
+
+@guppy.overload(_y, _y_array)
+@no_type_check
+def y(q) -> None:
+    r"""Y gate. Accepts a single qubit or an array of qubits.
 
     .. math::
         \mathrm{Y}=
@@ -200,8 +311,20 @@ def y(q: qubit) -> None:
 
 @hugr_op(quantum_op("Z"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def z(q: qubit) -> None:
-    r"""Z gate.
+def _z(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _z_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _z(qs[i])
+
+
+@guppy.overload(_z, _z_array)
+@no_type_check
+def z(q) -> None:
+    r"""Z gate. Accepts a single qubit or an array of qubits.
 
     .. math::
         \mathrm{Z}=
@@ -215,8 +338,20 @@ def z(q: qubit) -> None:
 
 @hugr_op(quantum_op("Tdg"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def tdg(q: qubit) -> None:
-    r"""Tdg gate.
+def _tdg(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _tdg_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _tdg(qs[i])
+
+
+@guppy.overload(_tdg, _tdg_array)
+@no_type_check
+def tdg(q) -> None:
+    r"""Tdg gate. Accepts a single qubit or an array of qubits.
 
     .. math::
         \mathrm{T}^\dagger=
@@ -230,8 +365,20 @@ def tdg(q: qubit) -> None:
 
 @hugr_op(quantum_op("Sdg"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def sdg(q: qubit) -> None:
-    r"""Sdg gate.
+def _sdg(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _sdg_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _sdg(qs[i])
+
+
+@guppy.overload(_sdg, _sdg_array)
+@no_type_check
+def sdg(q) -> None:
+    r"""Sdg gate. Accepts a single qubit or an array of qubits.
 
     .. math::
         \mathrm{S}^\dagger=
@@ -245,8 +392,20 @@ def sdg(q: qubit) -> None:
 
 @hugr_op(quantum_op("Vdg"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
-def vdg(q: qubit) -> None:
-    r"""Vdg gate.
+def _vdg(q: qubit) -> None: ...
+
+
+@guppy
+@no_type_check
+def _vdg_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _vdg(qs[i])
+
+
+@guppy.overload(_vdg, _vdg_array)
+@no_type_check
+def vdg(q) -> None:
+    r"""Vdg gate. Accepts a single qubit or an array of qubits.
 
     .. math::
       \mathrm{V}^\dagger= \frac{1}{\sqrt{2}}
@@ -356,38 +515,61 @@ def project_z(q: qubit) -> bool:
 
 @hugr_op(quantum_op("QFree"))
 @no_type_check
-def discard(q: qubit @ owned) -> None:
-    """Discard a single qubit."""
+def _discard(q: qubit @ owned) -> None: ...
+
+
+@guppy
+@no_type_check
+def _discard_array(qubits: array[qubit, N] @ owned) -> None:
+    for q in qubits:
+        _discard(q)
+
+
+@guppy.overload(_discard, _discard_array)
+@no_type_check
+def discard(q) -> None:
+    """Discard a single qubit or an array of qubits."""
 
 
 @hugr_op(quantum_op("MeasureFree"))
 @no_type_check
-def measure(q: qubit @ owned) -> bool:
-    """Measure a single qubit destructively."""
+def _measure(q: qubit @ owned) -> bool: ...
+
+
+@guppy
+@no_type_check
+def _measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
+    return array(_measure(q) for q in qubits)
+
+
+@guppy.overload(_measure, _measure_array)
+@no_type_check
+def measure(q):
+    """Measure a single qubit or an array of qubits destructively."""
 
 
 @hugr_op(quantum_op("Reset"))
 @no_type_check
-def reset(q: qubit) -> None:
-    """Reset a single qubit to the :math:`|0\rangle` state."""
-
-
-N = guppy.nat_var("N")
+def _reset(q: qubit) -> None: ...
 
 
 @guppy
 @no_type_check
-def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
-    """Measure an array of qubits, returning an array of bools."""
-    return array(measure(q) for q in qubits)
+def _reset_array(qs: array[qubit, N]) -> None:
+    for i in range(N):
+        _reset(qs[i])
 
 
-@guppy
+@guppy.overload(_reset, _reset_array)
 @no_type_check
-def discard_array(qubits: array[qubit, N] @ owned) -> None:
-    """Discard an array of qubits."""
-    for q in qubits:
-        discard(q)
+def reset(q) -> None:
+    """Reset a single qubit or an array of qubits to the :math:`|0\\rangle` state."""
+
+
+# Backward-compatible aliases
+measure_array = _measure_array
+discard_array = _discard_array
+reset_array = _reset_array
 
 
 # -------NON-PRIMITIVE-------
