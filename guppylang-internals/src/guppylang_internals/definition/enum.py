@@ -112,10 +112,35 @@ class RawEnumDef(TypeDef, ParsableDef):
                 # Enum variant are declared via dictionary, where key are the variant
                 # fields and values are types;
                 # e.g. `variant = {"a": int, ...}
-                # We do not support:
-                #  - multi assignment: a = b = 1 are not supported
-                #  - inline assignment e.g. v1, v2 = {}, {}
-                # - variant=function(...)? [this is more a metaprogramming feature]
+                
+                # Multi-target assignments like `a = b = {...}` are not supported
+                case _, ast.Assign(targets=[_, _, *_]) as node:
+                    raise GuppyError(UnsupportedError(node, "Multi-target assignments"))
+                # Inline tuple unpacking: `v1, v2 = {}, {}`
+                case (
+                    _,
+                    ast.Assign(
+                        targets=[ast.Tuple(elts=target_names)],
+                        value=ast.Tuple(elts=dict_values),
+                    ) as node,
+                ) if len(target_names) == len(dict_values) and all(
+                    isinstance(t, ast.Name) and isinstance(v, ast.Dict)
+                    for t, v in zip(target_names, dict_values)
+                ):
+                    for target_name_node, dict_node in zip(target_names, dict_values):
+                        assert isinstance(target_name_node, ast.Name)  # for mypy
+                        assert isinstance(dict_node, ast.Dict)  # for mypy
+                        variant_name = target_name_node.id
+                        if variant_name in variants:
+                            raise GuppyError(
+                                DuplicateVariantError(
+                                    target_name_node, self.name, variant_name
+                                )
+                            )
+                        variants[variant_name] = parse_enum_variant(
+                            variant_index, variant_name, dict_node
+                        )
+                        variant_index += 1
                 case (
                     _,
                     ast.Assign(

@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:6:4)
+  | 
+4 | @guppy.enum
+5 | class MyEnum:
+6 |     A = B = {}  # noqa: RUF012
+  |     ^^^^^^^^^^ Multi-target assignments are not supported
+
+Guppy compilation failed due to 1 previous error
