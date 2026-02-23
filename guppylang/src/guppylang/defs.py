@@ -220,7 +220,6 @@ class GuppyLibrary:
 
     def compile(self) -> Package:
         """Compile a Guppy definition to HUGR."""
-        # TODO change all members to be public in the HUGR
         pointer = ENGINE.compile(self.members)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
