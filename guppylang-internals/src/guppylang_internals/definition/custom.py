@@ -24,7 +24,6 @@ from guppylang_internals.compiler.core import (
     DFContainer,
     GlobalConstId,
     partially_monomorphize_args,
-    qualified_name,
 )
 from guppylang_internals.definition.common import ParsableDef
 from guppylang_internals.definition.value import CallReturnWires, CompiledCallableDef
@@ -518,8 +517,9 @@ class CopyInoutCompiler(CustomInoutCallCompiler):
     def _handle_affine_type(self, ty: ht.Type, arg: Wire) -> list[Wire]:
         match ty:
             case ht.ExtType(type_def=type_def, args=type_args):
-                if qualified_name(type_def) == qualified_name(
-                    BORROW_ARRAY_EXTENSION.get_type("borrow_array")
+                if (
+                    type_def.qualified_name()
+                    == BORROW_ARRAY_EXTENSION.get_type("borrow_array").qualified_name()
                 ):
                     assert len(type_args) == 2
                     # Manually instantiate here to avoid circular import and use
