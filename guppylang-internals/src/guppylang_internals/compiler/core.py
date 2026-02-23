@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops
-from hugr import ext as he
 from hugr import tys as ht
 from hugr.build import function as hf
 from hugr.build.dfg import DP, DefinitionBuilder, DfBase
@@ -670,20 +669,11 @@ def track_hugr_side_effects() -> Iterator[None]:
         Hugr.add_node = hugr_add_node  # type: ignore[method-assign]
 
 
-def qualified_name(type_def: he.TypeDef) -> str:
-    """Returns the qualified name of a Hugr extension type.
-    TODO: Remove once upstreamed, see https://github.com/quantinuum/hugr/issues/2426
-    """
-    if type_def._extension is not None:
-        return f"{type_def._extension.name}.{type_def.name}"
-    return type_def.name
-
-
 #: List of linear extension types that correspond to affine Guppy types and thus require
 #: insertion of an explicit drop operation.
 AFFINE_EXTENSION_TYS: list[str] = [
-    qualified_name(ARRAY_EXTENSION.get_type("array")),
-    qualified_name(BORROW_ARRAY_EXTENSION.get_type("borrow_array")),
+    ARRAY_EXTENSION.get_type("array").qualified_name(),
+    BORROW_ARRAY_EXTENSION.get_type("borrow_array").qualified_name(),
 ]
 
 
@@ -694,7 +684,7 @@ def requires_drop(ty: ht.Type) -> bool:
     """
     match ty:
         case ht.ExtType(type_def=type_def, args=args):
-            return qualified_name(type_def) in AFFINE_EXTENSION_TYS or any(
+            return type_def.qualified_name() in AFFINE_EXTENSION_TYS or any(
                 requires_drop(arg.ty) for arg in args if isinstance(arg, ht.TypeTypeArg)
             )
         case ht.Opaque(id=name, extension=extension, args=args):
