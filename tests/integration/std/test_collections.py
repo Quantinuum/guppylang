@@ -7,6 +7,8 @@ from guppylang.std.collections import (
     Queue,
     empty_queue,
 )
+import pytest
+from guppylang.emulator import EmulatorError
 
 
 def test_stack(run_int_fn) -> None:
@@ -137,3 +139,36 @@ def test_queue_iter(run_int_fn) -> None:
         # multiplier * value for ordered values in the queue
         sum((i + 1) * x for i, x in enumerate(list(range(10)))),
     )
+
+
+def test_queue_full() -> None:
+    @guppy
+    def main() -> None:
+        queue: Queue[int, 1] = empty_queue()
+        for i in range(2):
+            queue = queue.push(i)
+
+        queue.discard_empty()
+
+    with pytest.raises(
+        EmulatorError, match=r"Panic \(#1001\): Queue.push: max size reached"
+    ):
+        main.emulator(n_qubits=0).stabilizer_sim().with_seed(42).run()
+
+
+def test_queue_empty() -> None:
+    @guppy
+    def main() -> None:
+        queue: Queue[int, 1] = empty_queue()
+        for i in range(1):
+            queue = queue.push(i)
+
+        for _ in range(2):
+            _, queue = queue.pop()
+
+        queue.discard_empty()
+
+    with pytest.raises(
+        EmulatorError, match=r"Panic \(#1001\): Queue.pop: queue is empty"
+    ):
+        main.emulator(n_qubits=0).stabilizer_sim().with_seed(42).run()
