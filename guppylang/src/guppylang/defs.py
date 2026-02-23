@@ -13,13 +13,16 @@ from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
-from guppylang_internals.engine import ENGINE, CoreMetadataKeys
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import TracingDefMixin
 from guppylang_internals.tracing.util import hide_trace
+from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
+from hugr.metadata import HugrGenerator
 from hugr.package import Package
+from semver import Version
 
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
@@ -43,12 +46,10 @@ Out = TypeVar("Out")
 def _update_generator_metadata(hugr: Hugr[Any]) -> None:
     """Update the generator metadata of a Hugr to be
     guppylang rather than just internals."""
-    key = CoreMetadataKeys.GENERATOR.value
-
-    hugr.module_root.metadata[key] = {
-        "name": f"guppylang (guppylang-internals-v{guppylang_internals.__version__})",
-        "version": guppylang.__version__,
-    }
+    hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
+        name=f"guppylang (guppylang-internals-v{guppylang_internals.__version__})",
+        version=Version.parse(guppylang.__version__),
+    )
 
 
 @dataclass(frozen=True)
