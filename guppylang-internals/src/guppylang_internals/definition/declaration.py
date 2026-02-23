@@ -84,12 +84,10 @@ class RawFunctionDecl(ParsableDef):
         hugr_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
         if self._user_set_hugr_name is not None:
             hugr_name = self._user_set_hugr_name
-        else:
-            parent_ty_id = DEF_STORE.impl_parents.get(self.id)
-            if parent_ty_id is not None:
-                parent = ENGINE.get_parsed(parent_ty_id)
-                if isinstance(parent, ParsedStructDef):
-                    hugr_name = f"{parent.hugr_name_prefix}.{self.python_func.__name__}"
+        elif (parent_ty_id := DEF_STORE.impl_parents.get(self.id)) is not None:
+            parent = ENGINE.get_parsed(parent_ty_id)
+            if isinstance(parent, ParsedStructDef):
+                hugr_name = f"{parent.hugr_name_prefix}.{self.python_func.__name__}"
 
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))

@@ -218,7 +218,7 @@ class _Guppy:
                 return self.field2 + self.field2
 
             # Add optional parameters
-            @guppy.struct(...)
+            @guppy.struct(hugr_name="my_struct")
             class MyStruct2:
                 field1: int
                 field2: int
