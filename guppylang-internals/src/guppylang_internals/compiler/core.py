@@ -151,9 +151,14 @@ class CompilerContext(ToHugrContext):
 
     checked_globals: Globals
 
+    #: The definitions that should be exported (i.e. made public) in the currently
+    #: built Hugr module.
+    exported_defs: set[DefId]
+
     def __init__(
         self,
         module: DefinitionBuilder[ops.Module],
+        exported_defs: set[DefId],
     ) -> None:
         self.module = module
         self.worklist = {}
@@ -161,6 +166,7 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.checked_globals = Globals(None)
         self.current_mono_args = None
+        self.exported_defs: set[DefId] = exported_defs
 
     @contextmanager
     def set_monomorphized_args(

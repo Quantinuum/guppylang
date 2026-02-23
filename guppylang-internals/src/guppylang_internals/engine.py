@@ -324,7 +324,14 @@ class CompilationEngine:
         # Lower definitions to Hugr
         from guppylang_internals.compiler.core import CompilerContext
 
-        ctx = CompilerContext(graph)
+        exported_defs = set()
+        for def_id in def_ids:
+            exported_defs.add(def_id)
+            # TODO automatic member inclusion should be based on the automatic
+            # collection when available
+            exported_defs.update(DEF_STORE.impls[def_id].values())
+
+        ctx = CompilerContext(graph, exported_defs)
         compiled_defs: list[CompiledDef] = []
         for def_id in def_ids:
             compiled_defs.append(ctx.compile(self.checked[def_id]))
