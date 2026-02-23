@@ -972,7 +972,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "hugr", git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&rev=0ab742f4502f12e9ef0b9dd8f3fe767c10150983" },
+    { name = "hugr", git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&rev=3dacad485c1004a84b22e8a1de0f86fb7087e05b" },
     { name = "pytket", specifier = ">=1.34" },
     { name = "tket", specifier = ">=0.12.7" },
     { name = "tket-exts", specifier = "~=0.12.0" },
@@ -984,7 +984,7 @@ provides-extras = ["pytket"]
 [[package]]
 name = "hugr"
 version = "0.15.4"
-source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&rev=0ab742f4502f12e9ef0b9dd8f3fe767c10150983#0ab742f4502f12e9ef0b9dd8f3fe767c10150983" }
+source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&rev=3dacad485c1004a84b22e8a1de0f86fb7087e05b#3dacad485c1004a84b22e8a1de0f86fb7087e05b" }
 dependencies = [
     { name = "graphviz" },
     { name = "pydantic" },
