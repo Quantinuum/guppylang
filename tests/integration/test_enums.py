@@ -268,12 +268,17 @@ def test_tuple_unpacking_variants(validate):
     @guppy.enum
     class TupleEnumWithFields:
         Left, Right = {"x": int}, {"y": float}  # noqa: RUF012
+        
+    @guppy
+    def method(self) -> None:
+        pass
 
     @guppy
     def main() -> None:
-        _a = TupleEnum.A()
-        _b = TupleEnum.B()
-        _left = TupleEnumWithFields.Left(1)
-        _right = TupleEnumWithFields.Right(1.0)
+        a = TupleEnum.A()
+        b = TupleEnum.B()
+        left = TupleEnumWithFields.Left(1)
+        left.method()
+        right = TupleEnumWithFields.Right(1.0)
 
     validate(main.compile_function())

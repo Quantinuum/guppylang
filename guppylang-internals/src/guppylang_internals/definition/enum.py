@@ -115,7 +115,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                 
                 # Multi-target assignments like `a = b = {...}` are not supported
                 case _, ast.Assign(targets=[_, _, *_]) as node:
-                    raise GuppyError(UnsupportedError(node, "Multi-target assignments"))
+                    raise GuppyError(UnsupportedError(node, "Multi assignments"))
                 # Inline tuple unpacking: `v1, v2 = {}, {}`
                 case (
                     _,
@@ -125,9 +125,9 @@ class RawEnumDef(TypeDef, ParsableDef):
                     ) as node,
                 ) if len(target_names) == len(dict_values) and all(
                     isinstance(t, ast.Name) and isinstance(v, ast.Dict)
-                    for t, v in zip(target_names, dict_values)
+                    for t, v in zip(target_names, dict_values, strict=True)
                 ):
-                    for target_name_node, dict_node in zip(target_names, dict_values):
+                    for target_name_node, dict_node in zip(target_names, dict_values, strict=True):
                         assert isinstance(target_name_node, ast.Name)  # for mypy
                         assert isinstance(dict_node, ast.Dict)  # for mypy
                         variant_name = target_name_node.id
