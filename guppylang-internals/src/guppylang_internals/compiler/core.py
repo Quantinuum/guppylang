@@ -12,6 +12,7 @@ from hugr.build import function as hf
 from hugr.build.dfg import DP, DefinitionBuilder, DfBase
 from hugr.hugr.base import OpVarCov
 from hugr.hugr.node_port import ToNode
+from hugr.metadata import NodeMetadata
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
@@ -617,7 +618,7 @@ def track_hugr_side_effects() -> Iterator[None]:
         op: ops.Op,
         parent: ToNode | None = None,
         num_outs: int | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | NodeMetadata | None = None,
     ) -> Node:
         """Monkey-patched version of `Hugr.add_node` that takes care of implicitly
         inserting state order edges between operations that could have side-effects.
