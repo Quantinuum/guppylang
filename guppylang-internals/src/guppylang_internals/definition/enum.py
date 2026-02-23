@@ -127,8 +127,9 @@ class RawEnumDef(TypeDef, ParsableDef):
                     isinstance(t, ast.Name) and isinstance(v, ast.Dict)
                     for t, v in zip(target_names, dict_values, strict=True)
                 ):
-                    for target_name_node, dict_node in zip(target_names, dict_values,
-                                                           strict=True):
+                    for target_name_node, dict_node in zip(
+                        target_names, dict_values, strict=True
+                    ):
                         assert isinstance(target_name_node, ast.Name)  # for mypy
                         assert isinstance(dict_node, ast.Dict)  # for mypy
                         variant_name = target_name_node.id
