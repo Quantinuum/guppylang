@@ -368,8 +368,8 @@ class CFGBuilder(AstVisitor[BB | None]):
             case_bb = self.visit_stmts(node_case.body, case_bb, jumps)
             root_bb = continue_bb
         
-        print(self.cfg)
-        print(ast.dump(node, indent=2))
+        print(self.cfg.cfg_as_string())
+        # print(ast.dump(node, indent=2))
         raise NotImplementedError("Aaaaaaa")
 
     def _handle_withitem(self, node: ast.withitem) -> Modifier:

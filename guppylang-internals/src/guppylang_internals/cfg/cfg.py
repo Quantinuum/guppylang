@@ -126,3 +126,30 @@ class CFG(BaseCFG[BB]):
             stats, def_ass_before, maybe_ass_before, include_unreachable=True
         ).run_unpacked(self.bbs)
         return stats
+    
+
+    def cfg_as_string(self) -> str:
+        """Returns information about each reachable BB in BFS order starting from entry_bb as a string."""
+        queue = deque([self.entry_bb])
+        visited = set()
+        lines = []
+        print('here')
+        while queue:
+            bb = queue.popleft()
+            if bb in visited:
+                continue
+            visited.add(bb)
+            statements_inline = "; ".join(str(stmt) for stmt in bb.statements)
+            preds_ids = [p.idx for p in bb.predecessors]
+            succs_ids = [s.idx for s in bb.successors]
+            lines.append(
+                "___________________\n"
+                f"BB id: {bb.idx}\n"
+                f"  Statements: {statements_inline}\n"
+                f"  Predecessors: {preds_ids}\n"
+                f"  Successors: {succs_ids}\n"
+                f"  prec_branches: {bb.branch_pred}\n"
+                "------------------"
+            )
+            queue.extend(bb.successors)
+        return "\n".join(lines)
