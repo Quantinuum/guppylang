@@ -983,8 +983,8 @@ provides-extras = ["pytket"]
 
 [[package]]
 name = "hugr"
-version = "0.15.1"
-source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=mr%2Ffeat%2Fallow-visibility-in-bindings#55adaf21bd739e7e8f85071519163e550739e6f0" }
+version = "0.15.4"
+source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=mr%2Ffeat%2Fallow-visibility-in-bindings#1f5ac407dd743b3411a7db5e4851ff0ee31a09f4" }
 dependencies = [
     { name = "graphviz" },
     { name = "pydantic" },
