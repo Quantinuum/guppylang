@@ -258,3 +258,27 @@ def test_higher_order(validate):
         factory(Enum.VariantA, 42)
 
     validate(main.compile_function())
+
+
+def test_tuple_unpacking_variants(validate):
+    @guppy.enum
+    class TupleEnum:
+        A, B = {}, {}
+
+    @guppy.enum
+    class TupleEnumWithFields:
+        Left, Right = {"x": int}, {"y": float}
+
+        @guppy
+        def method(self) -> None:
+            pass
+
+    @guppy
+    def main() -> None:
+        a = TupleEnum.A()
+        b = TupleEnum.B()
+        left = TupleEnumWithFields.Left(1)
+        left.method()
+        right = TupleEnumWithFields.Right(1.0)
+
+    validate(main.compile_function())
