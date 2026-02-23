@@ -141,6 +141,7 @@ def check_global_func_def(
     check_invalid_under_dagger(func_def, ty.unitary_flags)
     # TODO: NICOLA Here we can see the cfg
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
+    print(cfg.cfg_as_string())
     inputs = [
         Variable(cast("str", inp.name), inp.ty, loc, inp.flags, is_func_input=True)
         for inp, loc in zip(ty.inputs, args, strict=True)

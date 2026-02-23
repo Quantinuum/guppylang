@@ -84,6 +84,7 @@ def check_cfg(
     *places* rather than just variables.
     """
     # First, we need to run program analysis
+    # TODO: NICOLA(1) From here we also need to integrate the match
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
     cfg.analyze(ass_before, ass_before, [v.name for v in inout_vars])
@@ -230,7 +231,7 @@ def check_bb(
     # If we branch, we also have to check the branch predicate
     if len(bb.successors) > 1:
         assert bb.branch_pred is not None
-        # TODO: From here we need to integrate the match
+        # TODO: NICOLA(2) From here we need to integrate the match
         bb.branch_pred, ty = ExprSynthesizer(ctx).synthesize(bb.branch_pred)
         bb.branch_pred, _ = to_bool(bb.branch_pred, ty, ctx)
 

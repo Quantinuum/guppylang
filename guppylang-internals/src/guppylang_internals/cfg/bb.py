@@ -97,6 +97,7 @@ class BB(ABC):
         for s in self.statements:
             visitor.visit(s)
         if self.branch_pred is not None:
+            # TODO: NICOLA(1.5) Check this for match statements as well
             visitor.visit(self.branch_pred)
         self._vars = visitor.stats
         return visitor.stats

@@ -128,7 +128,6 @@ class CFGBuilder(AstVisitor[BB | None]):
                     pred.dummy_successors.remove(bb)
                 bb.dummy_predecessors = []
 
-        print(self.cfg.cfg_as_string())
         return self.cfg
 
     def visit_stmts(self, nodes: list[ast.stmt], bb: BB, jumps: Jumps) -> BB | None:
@@ -436,8 +435,6 @@ class CFGBuilder(AstVisitor[BB | None]):
     def generic_visit(self, node: ast.AST, bb: BB, jumps: Jumps) -> BB | None:
         # When adding support for new statements, we have to remember to use the
         # ExprBuilder to transform all included expressions!
-
-        # TODO: NICOLA Here we need to add support for match statements
         raise GuppyError(UnsupportedError(node, "This statement", singular=True))
 
 
@@ -563,7 +560,6 @@ class BranchBuilder(AstVisitor[None]):
     ) -> None:
         """Builds an expression and branches to `true_bb` or `false_bb`, depending on
         the truth value of the expression."""
-        # TODO: NICOLA Add a case where we are branching under a `match`
         builder = BranchBuilder(cfg)
         builder.visit(cond_node, root_bb, true_bb, false_bb)
 
