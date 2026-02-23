@@ -4,6 +4,8 @@ from guppylang.std.collections import (
     empty_stack,
     PriorityQueue,
     empty_priority_queue,
+    Queue,
+    empty_queue,
 )
 
 
@@ -92,4 +94,46 @@ def test_priority_queue_iter(run_int_fn) -> None:
         main,
         # multiplier * value for ordered values in priority queue
         sum((m + 1) * v for m, v in enumerate(reversed(list(range(10))))),
+    )
+
+
+def test_queue(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        queue: Queue[int, 10] = empty_queue()
+        for i in range(10):
+            queue = queue.push(i)
+        s = 0
+        i = 1
+        while len(queue) > 0:
+            x, queue = queue.pop()
+            s += x * i
+            i += 1
+        queue.discard_empty()
+        return s
+
+    run_int_fn(
+        main,
+        # multiplier * value for ordered values in the queue
+        sum((i + 1) * x for i, x in enumerate(list(range(10)))),
+    )
+
+
+def test_queue_iter(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        queue: Queue[int, 10] = empty_queue()
+        for i in range(10):
+            queue = queue.push(i)
+        s = 0
+        i = 1
+        for x in queue:
+            s += x * i
+            i += 1
+        return s
+
+    run_int_fn(
+        main,
+        # multiplier * value for ordered values in the queue
+        sum((i + 1) * x for i, x in enumerate(list(range(10)))),
     )
