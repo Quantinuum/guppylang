@@ -38,6 +38,9 @@ dependencies = [
     "tket >= 0.12.7",
 ]
 
+[project.uv.sources]
+hugr.workspace = true
+
 [project.optional-dependencies]
 pytket = []
 
