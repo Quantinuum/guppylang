@@ -42,7 +42,7 @@ dependencies = [
 pytket = []
 
 [project.uv.sources]
-selene-hugr-qis-compiler = { git = "https://github.com/Quantinuum/tket2", subdirectory = "qis-compiler", rev = "9a017bb12438549cc0be66645ef61d696a323bee" }
+selene-hugr-qis-compiler = { git = "https://github.com/Quantinuum/tket2", subdirectory = "qis-compiler", rev = "aa1f6324dd26b2be7627fcffd32c65b2e106b2d4" }
 
 [project.urls]
 homepage = "https://github.com/quantinuum/guppylang"
