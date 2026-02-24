@@ -1,12 +1,7 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from dataclasses import dataclass
 
-from hugr.metadata import Metadata
-
-# Type alias for json values.
-# See <https://github.com/python/typing/issues/182#issuecomment-1320974824>
-JsonType = str | int | float | bool | None | Mapping[str, "JsonType"] | list["JsonType"]
+from hugr.metadata import JsonType, Metadata
 
 
 @dataclass
@@ -51,6 +46,7 @@ class DICompileUnit(DebugRecord):
         return {
             "directory": self.directory,
             "filename": self.filename,
+            # TODO: Fix table conversion / typing.
             "file_table": self.file_table,
         }
 

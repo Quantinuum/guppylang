@@ -1,4 +1,5 @@
 from collections import defaultdict
+from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,7 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
+from guppylang_internals.debug_info import DICompileUnit, HugrDebugInfo
 from guppylang_internals.definition.common import (
     CheckableDef,
     CheckedDef,
@@ -28,6 +30,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.error import pretty_errors
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tracing.util import get_calling_frame
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
@@ -279,6 +282,18 @@ class CompilationEngine:
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
+
+        # Add debug info about the module to the root node
+        frame = get_calling_frame()
+        assert frame is not None
+        filename = frame.f_code.co_filename
+        module_info = DICompileUnit(
+            directory=Path.cwd().as_uri(),
+            # We know this file is always the first entry in the file table.
+            filename=0,
+            file_table=[filename],
+        )
+        graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
 
         # Lower definitions to Hugr
         from guppylang_internals.compiler.core import CompilerContext
