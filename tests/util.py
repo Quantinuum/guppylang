@@ -31,5 +31,6 @@ def dump_llvm(package: PackagePointer):
 def get_wasm_file() -> str:
     return str(Path(__file__).parent.resolve() / "resources/test.wasm")
 
+
 def get_h2_wasm_file() -> str:
     return str(Path(__file__).parent.resolve() / "resources/test.h2.wasm")

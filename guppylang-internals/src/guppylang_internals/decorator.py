@@ -48,9 +48,9 @@ from guppylang_internals.wasm_util import (
     ConcreteWasmModule,
     WasmFileNotFound,
     WasmFunctionNotInFile,
+    WasmPlatform,
     WasmSignatureError,
     decode_wasm_functions,
-    WasmPlatform,
 )
 
 if TYPE_CHECKING:
@@ -268,13 +268,17 @@ def wasm_module(
 
 
 def ext_module_decorator(
-    type_def: Callable[[DefId, str, ast.AST | None, str, WasmPlatform, str | None], OpaqueTypeDef],
+    type_def: Callable[
+        [DefId, str, ast.AST | None, str, WasmPlatform, str | None], OpaqueTypeDef
+    ],
     init_compiler: CustomInoutCallCompiler,
     discard_compiler: CustomInoutCallCompiler,
     init_arg: bool,  # Whether the init function should take a nat argument
     wasm_sigs: ConcreteWasmModule
     | None = None,  # For @wasm_module, we must be passed a parsed wasm file
-) -> Callable[[str, WasmPlatform, str | None], Callable[[builtins.type[T]], GuppyDefinition]]:
+) -> Callable[
+    [str, WasmPlatform, str | None], Callable[[builtins.type[T]], GuppyDefinition]
+]:
     def fun(
         filename: str, wasm_plat: WasmPlatform, module: str | None
     ) -> Callable[[builtins.type[T]], GuppyDefinition]:

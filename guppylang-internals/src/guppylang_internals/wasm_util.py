@@ -19,6 +19,7 @@ class WasmPlatform(Enum):
     Helios = "Helios"
     H2 = "H2"
 
+
 # The thing to be imported elsewhere
 @dataclass
 class ConcreteWasmModule:
@@ -89,11 +90,13 @@ def decode_type_default(ty: wt.ValType) -> Type | None:
     else:
         return None
 
+
 def decode_type_i32_only(ty: wt.ValType) -> Type | None:
     if ty == wt.ValType.i32():
         return NumericType(NumericType.Kind.Int)
     else:
         return None
+
 
 def decode_type(wasm_platform: WasmPlatform, ty: wt.ValType) -> Type | None:
     match wasm_platform:
@@ -104,8 +107,7 @@ def decode_type(wasm_platform: WasmPlatform, ty: wt.ValType) -> Type | None:
 
 
 def decode_sig(
-    wasm_platform: WasmPlatform,
-    params: list[wt.ValType], output: wt.ValType | None
+    wasm_platform: WasmPlatform, params: list[wt.ValType], output: wt.ValType | None
 ) -> FunctionType | str:
     # Function args in wasm are called "params"
     my_params: list[FuncInput] = []
@@ -123,7 +125,9 @@ def decode_sig(
         return FunctionType(my_params, NoneType())
 
 
-def decode_wasm_functions(filename: str, wasm_platform: WasmPlatform) -> ConcreteWasmModule:
+def decode_wasm_functions(
+    filename: str, wasm_platform: WasmPlatform
+) -> ConcreteWasmModule:
     engine = wt.Engine()
     mod = wt.Module.from_file(engine, filename)
 

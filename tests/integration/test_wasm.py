@@ -164,7 +164,6 @@ def test_wasm_functions_h2(validate, h2_wasm_file):
         @wasm
         def init(self: "MyWasm") -> None: ...
 
-
     @guppy
     def main() -> int:
         mod = MyWasm(1)
