@@ -14,6 +14,29 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.21.9](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.8...guppylang-v0.21.9) (2026-02-18)
+
+
+### Features
+
+* Add function to swap two array elements that lowers to hugr swap op ([#1459](https://github.com/Quantinuum/guppylang/issues/1459)) ([15da521](https://github.com/Quantinuum/guppylang/commit/15da521d27354d294dd7f69c4494f9a1bc4d7032))
+* Add missing bool methods (__rxor__, __rand__, __ror__) ([#1498](https://github.com/Quantinuum/guppylang/issues/1498)) ([6078136](https://github.com/Quantinuum/guppylang/commit/6078136b26d0155cd663bf3ee245f97fd0e56a33))
+* Allow panicking with different signal values ([#1461](https://github.com/Quantinuum/guppylang/issues/1461)) ([e624d4f](https://github.com/Quantinuum/guppylang/commit/e624d4f8b99dc2db7207f3148e8b2e378cfeb648))
+* Compile time array bounds check for literal indices ([#1438](https://github.com/Quantinuum/guppylang/issues/1438)) ([d2dd890](https://github.com/Quantinuum/guppylang/commit/d2dd890951c7ef06d6baf98b2f55acef86a53a25))
+* Lower nat to int conversion to `iu_to_s` hugr op ([#1480](https://github.com/Quantinuum/guppylang/issues/1480)) ([2ba5720](https://github.com/Quantinuum/guppylang/commit/2ba57202db6e6f7a72f80238742c671c823f59aa))
+* Make tket a non-optional dependency ([#1440](https://github.com/Quantinuum/guppylang/issues/1440)) ([4af4360](https://github.com/Quantinuum/guppylang/commit/4af4360495c9d6155e69310d5bfb8f22953fc1ff))
+
+
+### Bug Fixes
+
+* Improve docstring formatting array methods ([#1499](https://github.com/Quantinuum/guppylang/issues/1499)) ([4b8ce4c](https://github.com/Quantinuum/guppylang/commit/4b8ce4c06762f7d9627457d8571b5a27fed9ae38))
+* Upgrade selene-sim version to fix state ordering bug ([#1444](https://github.com/Quantinuum/guppylang/issues/1444)) ([d976df9](https://github.com/Quantinuum/guppylang/commit/d976df90410e0452202671c481a28163e5f8aae5))
+
+
+### Documentation
+
+* Add API docs for std modules ([#1428](https://github.com/Quantinuum/guppylang/issues/1428)) ([7b38fc6](https://github.com/Quantinuum/guppylang/commit/7b38fc61e0996c2a2bc8fbd1180c7a0cc6ac2312))
+
 ## [0.21.8](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.7...guppylang-v0.21.8) (2026-01-09)
 
 ### Features
