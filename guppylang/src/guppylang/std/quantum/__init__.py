@@ -402,13 +402,13 @@ def ch(control: qubit, target: qubit) -> None:
 
     Qubit ordering: [control, target]
 
-    .. math::
-        \mathrm{CH} = \frac{1}{\sqrt{2}}
+     .. math::
+        \mathrm{CH} =
           \begin{pmatrix}
             1 & 0 & 0 & 0 \\
             0 & 1 & 0 & 0 \\
-            0 & 0 & 1 & 1 \\
-            0 & 0 & 1 & -1
+            0 & 0 &  \frac{1}{\sqrt{2}} &  \frac{1}{\sqrt{2}} \\
+            0 & 0 &  \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}}
         \end{pmatrix}
     """
     # based on https://quantumcomputing.stackexchange.com/a/15737
