@@ -402,7 +402,7 @@ def ch(control: qubit, target: qubit) -> None:
 
     Qubit ordering: [control, target]
 
-     .. math::
+    .. math::
         \mathrm{CH} =
           \begin{pmatrix}
             1 & 0 & 0 & 0 \\
