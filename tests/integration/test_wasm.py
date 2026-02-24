@@ -1,6 +1,7 @@
 from guppylang import guppy
 from guppylang_internals.decorator import wasm, wasm_module
 from guppylang.std.qsystem.wasm import spawn_wasm_contexts
+from guppylang_internals.wasm_util import WasmPlatform
 
 
 def test_wasm_functions(validate, wasm_file):
@@ -149,3 +150,28 @@ def test_lookup_by_name(validate, wasm_file):
                     pass
     assert "lookup_by_name" in ops
     assert "lookup_by_id" not in ops
+
+
+def test_wasm_functions_h2(validate, h2_wasm_file):
+    @wasm_module(h2_wasm_file, WasmPlatform.H2)
+    class MyWasm:
+        @wasm
+        def add_one(self: "MyWasm", x: int) -> int: ...
+
+        @wasm
+        def multi(self: "MyWasm", x: int, y: int) -> int: ...
+
+        @wasm
+        def init(self: "MyWasm") -> None: ...
+
+
+    @guppy
+    def main() -> int:
+        mod = MyWasm(1)
+        two = mod.add_one(1)
+        six = mod.multi(2, 3)
+        mod.discard()
+        return two + six
+
+    mod = main.compile_function()
+    validate(mod)
