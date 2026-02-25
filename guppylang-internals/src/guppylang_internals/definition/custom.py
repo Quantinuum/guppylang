@@ -212,7 +212,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     higher_order_value: bool
     higher_order_func_id: GlobalConstId
     has_signature: bool
-    has_var_args: bool = field(default=False)
+    has_var_args: bool
 
     description: str = field(default="function", init=False)
 
@@ -232,6 +232,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             self.higher_order_value,
             self.higher_order_func_id,
             self.has_signature,
+            self.has_var_args,
             type_args,
         )
 
