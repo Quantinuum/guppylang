@@ -82,7 +82,7 @@ class WasmSigMismatchError(Error):
         actual: str
 
 
-def decode_type_default(ty: wt.ValType) -> Type | None:
+def decode_type_helios(ty: wt.ValType) -> Type | None:
     if ty == wt.ValType.i64():
         return NumericType(NumericType.Kind.Int)
     elif ty == wt.ValType.f64():
@@ -101,7 +101,7 @@ def decode_type_i32_only(ty: wt.ValType) -> Type | None:
 def decode_type(wasm_platform: WasmPlatform, ty: wt.ValType) -> Type | None:
     match wasm_platform:
         case WasmPlatform.Helios:
-            return decode_type_default(ty)
+            return decode_type_helios(ty)
         case WasmPlatform.H2:
             return decode_type_i32_only(ty)
 
