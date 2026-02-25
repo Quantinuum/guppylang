@@ -1,3 +1,65 @@
+## MATCH SPEC
+
+
+```java
+pattern = MatchValue(expr value)
+        | MatchSingleton(constant value)
+        | MatchSequence(pattern* patterns)
+        | MatchMapping(expr* keys, pattern* patterns, identifier? rest)
+        | MatchClass(expr cls, pattern* patterns, identifier* kwd_attrs, pattern* kwd_patterns)
+
+        | MatchStar(identifier? name)
+        // The optional "rest" MatchMapping parameter handles capturing extra mapping keys
+
+        | MatchAs(pattern? pattern, identifier? name)
+        | MatchOr(pattern* patterns)
+```
+
+
+### Pattern Examples
+
+```python
+# MatchValue
+    case 42:        # OK
+    case ClassName: # OK
+
+# MatchAs without binding
+    case _:                # OK
+
+# MatchClass
+    case Point()      # OK
+    case Point(3, 4): # NO FOR NOW
+    case Point(x=3, y=4): # NO FOR NOW
+    case Point(x=A, y=B) # NO FOR NOW
+
+
+# MatchSingleton
+    case None: # NO FOR NOW
+
+# MatchSequence
+    case [a, b, c]: # NO FOR NOW
+
+# MatchMapping
+    case {"key1": v1, "key2": v2, **rest}: # NO FOR NOW
+
+
+# MatchStar
+    case [*rest]:          # NO FOR NOW
+
+# MatchAs with binding 
+    case x:                # NO FOR NOW
+    case ClassName() as var: # NO FOR NOW
+
+
+# MatchOr OK
+    case Direction.North | Direction.South:  # No FOR NOW
+
+# Match with guard
+    case Direction.North(A=steps) if steps > 10: # NO FOR NOW
+
+```
+
+
 ## WORKING FEATURE
 
 
@@ -79,6 +141,8 @@ def main(north: Direction, x:int) -> None:
             x = 66
         case Class() as var: # ERROR: match-as not supported
             x = 55
+        case Point(x, y): # Error: value must be constants
+            z = 44
 
 
 @guppy
@@ -86,6 +150,14 @@ def main(north: Enum[int], x:int) -> None:
     match north:
         case Point(): # ERROR: different type
             z = 66
+
+    match i:
+        case _: # Error: python do not allow this, good!
+            return "One"
+        case 1 | x: # Same here, python do not allow this, good!
+            return "1 or x"        
+        case 2: 
+            return f"Two" 
 
 ```
 
@@ -98,15 +170,6 @@ In Python, from this:
 
 ```python
 
- match i:
-    case 0:
-        return "Zero"
-    case 1:
-        return "One"
-    case x:
-        return f"No match for {x}"
-    case 3:
-        return "Three"
 ```
 
 we have:
@@ -144,3 +207,13 @@ warning: unreachable pattern
 ### ...
 
 and other stuff
+
+
+```python
+
+    match x:
+        case _ if a > 0: # Is this fine?
+            ...
+        case ClassName() as x:
+            ...
+```

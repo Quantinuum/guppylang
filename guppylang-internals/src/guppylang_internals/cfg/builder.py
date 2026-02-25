@@ -67,6 +67,7 @@ class Jumps(NamedTuple):
     break_bb: BB | None
 
 
+# TODO: NICOLA improve this
 @dataclass(frozen=True)
 class UnreachableError(Error):
     title: ClassVar[str] = "Unreachable"
@@ -354,23 +355,41 @@ class CFGBuilder(AstVisitor[BB | None]):
         case_bbs = []
         root_bb = bb
         for node_case in node.cases:
+            check_match_supported(node_case)
+            pattern = node_case.pattern
             case_bb = self.cfg.new_bb()
             continue_bb = self.cfg.new_bb()
-            pattern = node_case.pattern
-            match_pattern = MatchCasePattern(pattern, subject_node)
-            BranchBuilder.add_branch(
-                match_pattern, self.cfg, root_bb, case_bb, continue_bb
-            )
+            # We check if we are in a catch-all case,
+            if isinstance(pattern, ast.MatchAs):
+                # if yes we do not need to branch, thus we create a branch under
+                # an always true condition (the add_branch will do all the magic)
+                BranchBuilder.add_branch(
+                    ast.parse("True", mode="eval").body,
+                    self.cfg,
+                    root_bb,
+                    case_bb,
+                    continue_bb,
+                )
+            else:
+                match_pattern = MatchCasePattern(pattern, subject_node)
+                BranchBuilder.add_branch(
+                    match_pattern, self.cfg, root_bb, case_bb, continue_bb
+                )
             case_bb = self.visit_stmts(node_case.body, case_bb, jumps)
-            if case_bb is not None:
-                case_bbs.append(case_bb)
             root_bb = continue_bb
 
-        # We do at least one for iteration, continue_bb is always defined.
+            if case_bb is not None:
+                case_bbs.append(case_bb)
+
+        # If we exit after a catch all match, we do not have a continue_bb,
+        # otherwise we have it.
+        # I'm assuming that the cases can be not exhaustive.
+        # If they are exhaustive, the last continue_bb is always not reachable.
+        # continue_bb is always defined, since we do at least one iteration
         case_bbs.append(continue_bb)
 
-        # I'm assuming that the cases can be not exhaustive.
-        # If they are exhaustive, the last continue_bb is not reachable.
+        if len(case_bbs) == 0:
+            return None
         return self.cfg.new_bb(*case_bbs)
 
     def _handle_withitem(self, node: ast.withitem) -> Modifier:
@@ -779,3 +798,20 @@ def make_assign(lhs: list[ast.AST], value: ast.expr) -> ast.Assign:
             ast.Tuple(elts=lhs, ctx=ast.Store()),  # type: ignore[arg-type]
         )
     return with_loc(value, ast.Assign(targets=[target], value=value))  # type: ignore[list-item]
+
+
+def check_match_supported(node: ast.match_case) -> None:
+    """Checks if the given `ast.Match` node uses any unsupported features, and raises an
+    error if it does."""
+    # To improve while we add more features.
+    match node.pattern:
+        case (
+            ast.MatchValue() | ast.MatchAs(pattern=None) | ast.MatchClass(kwd_attrs=[])
+        ):
+            if node.guard is not None:
+                raise GuppyError(
+                    UnsupportedError(node.guard, "Guards in match cases", singular=True)
+                )
+            return
+
+    raise GuppyError(UnsupportedError(node.pattern, "THIS pattern", singular=True))
