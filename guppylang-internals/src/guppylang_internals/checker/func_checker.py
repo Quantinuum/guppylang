@@ -139,7 +139,7 @@ def check_global_func_def(
     assert all(inp.name is not None for inp in ty.inputs)
 
     check_invalid_under_dagger(func_def, ty.unitary_flags)
-    # TODO: NICOLA Here we can see the cfg
+    # TODO: NICOLa Here we can see the cfg
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
     # print(cfg.cfg_as_string())
     inputs = [
