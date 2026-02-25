@@ -1,7 +1,6 @@
-import pytest
-
 from hugr import ops
 
+from guppylang import comptime
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array, owned
 from guppylang.std.mem import mem_swap
@@ -10,23 +9,16 @@ from guppylang.std.platform import result
 from guppylang_internals.std._internal.compiler.arithmetic import UnsignedIntVal
 from tests.util import compile_guppy
 
-from guppylang.std.quantum import qubit, discard, measure, h, discard_array
+from guppylang.std.quantum import qubit, discard, measure, h, cx, discard_array
 
 
-@pytest.mark.skip("Requires `is_to_u` in llvm")
 def test_len_execute(validate, run_int_fn):
     @guppy
     def main(xs: array[float, 42]) -> int:
         return len(xs)
 
-    compiled = main.compile_function()
-    validate(compiled)
-    if run_int_fn is not None:
-        run_int_fn(compiled, expected=42)
-
-
-def test_len(validate):
-    test_len_execute(validate, None)
+    validate(main.compile_function())
+    run_int_fn(main, expected=42, args=[array(float(i) for i in range(42))])
 
 
 def test_len_linear(validate):
@@ -163,7 +155,9 @@ def test_multi_subscripts(validate):
     @guppy
     def main(qs: array[qubit, 42] @ owned) -> array[qubit, 42]:
         foo(qs[0], qs[1])
-        foo(qs[0], qs[0])  # Will panic at runtime
+        # Note: `foo(qs[0], qs[0])` is rejected at compile time
+        i = 0
+        foo(qs[i], qs[i])  # Will panic at runtime
         return qs
 
     validate(main.compile_function())
@@ -698,3 +692,71 @@ def test_take_put(validate):
     ]
 
     validate(main.compile())
+
+
+def test_nested_subscript_different_inner_indices(validate):
+    """Smoketest for checking duplicate subscript accesses:
+    Asserts that nested subscript accesses with duplicate outer subscripts
+    are still allowed."""
+
+    @guppy
+    def main(
+        qs: array[array[qubit, 2], 2] @ owned,
+    ) -> array[array[qubit, 2], 2]:
+        cx(qs[0][0], qs[0][1])
+        return qs
+
+    validate(main.compile_function())
+
+
+def test_field_access_after_subscript(validate):
+    """Smoketest for checking duplicate subscript accesses:
+    Asserts that field accesses with duplicate subscripts
+    are still allowed."""
+
+    @guppy.struct
+    class QubitPair:
+        q1: qubit
+        q2: qubit
+
+    @guppy
+    def main(ss: array[QubitPair, 2] @ owned) -> array[QubitPair, 2]:
+        cx(ss[0].q1, ss[0].q2)
+        return ss
+
+    validate(main.compile_function())
+
+
+def test_dynamic_index_subscript(validate):
+    """Smoketest for checking duplicate subscript accesses:
+    Asserts that dynamic accesses with duplicate subscripts
+    are still allowed."""
+
+    @guppy
+    def main(qs: array[qubit, 10] @ owned, i: int, j: int) -> array[qubit, 10]:
+        cx(qs[i], qs[j])
+        return qs
+
+    validate(main.compile_function())
+
+
+def test_mixed_static_dynamic_index_subscript(validate):
+    """Smoketest for checking duplicate subscript accesses:
+    Asserts that mixing a static and a dynamic index is still allowed."""
+
+    @guppy
+    def main(qs: array[qubit, 10] @ owned, i: int) -> array[qubit, 10]:
+        cx(qs[0], qs[i])
+        return qs
+
+    validate(main.compile_function())
+
+
+# https://github.com/CQCL/hugr/issues/1826
+def test_array_const(validate, run_int_fn):
+    @guppy
+    def main() -> int:
+        bs = comptime([True, False])
+        return int(bs[0])
+
+    run_int_fn(main, expected=1)

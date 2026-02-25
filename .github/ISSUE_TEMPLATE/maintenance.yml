@@ -1,0 +1,70 @@
+name: "🔧 Maintenance Task"
+description: Report a maintenance or infrastructure task
+title: "[Maintenance]: "
+labels: ["C-maintenance", "S-needs-triage"]
+projects: ["Quantinuum/23"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for maintenance tasks, infrastructure improvements, or technical debt.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the maintenance task
+      placeholder: What needs to be done?
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this maintenance task needed?
+      placeholder: |
+        - What problem does this address?
+        - What are the benefits of completing this task?
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is the scope of this task?
+      placeholder: |
+        - What files/modules will be affected?
+        - What are the major steps involved?
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component is affected?
+      multiple: true
+      options:
+        - CI/Build System
+        - Testing Infrastructure
+        - Documentation Build
+        - Dependencies
+        - Repository Structure
+        - Development Tooling
+        - Other
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this task?
+      options:
+        - Low - Nice to have
+        - Medium - Should be done soon
+        - High - Important for project health
+        - Critical - Blocking other work
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the maintenance task
+      placeholder: Add any other context, links to related issues, or references here

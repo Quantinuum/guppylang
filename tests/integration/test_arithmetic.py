@@ -1,4 +1,7 @@
+import pytest
+
 from guppylang.decorator import guppy
+from guppylang.emulator import EmulatorError
 from guppylang.std.angles import angle, pi
 from guppylang.std.builtins import nat
 from tests.util import compile_guppy
@@ -281,6 +284,54 @@ def test_xor(run_int_fn):
     run_int_fn(main2, 0)
 
 
+def test_bool_rand(run_int_fn):
+    @guppy
+    def main1() -> int:
+        x: bool = True
+        return int(x.__rand__(False))
+
+    run_int_fn(main1, 0)
+
+    @guppy
+    def main2() -> int:
+        x: bool = True
+        return int(x.__rand__(True))
+
+    run_int_fn(main2, 1)
+
+
+def test_bool_ror(run_int_fn):
+    @guppy
+    def main1() -> int:
+        x: bool = False
+        return int(x.__ror__(True))
+
+    run_int_fn(main1, 1)
+
+    @guppy
+    def main2() -> int:
+        x: bool = False
+        return int(x.__ror__(False))
+
+    run_int_fn(main2, 0)
+
+
+def test_bool_rxor(run_int_fn):
+    @guppy
+    def main1() -> int:
+        x: bool = True
+        return int(x.__rxor__(True))
+
+    run_int_fn(main1, 0)
+
+    @guppy
+    def main2() -> int:
+        x: bool = True
+        return int(x.__rxor__(False))
+
+    run_int_fn(main2, 1)
+
+
 def test_pow(run_int_fn) -> None:
     @guppy
     def main() -> int:
@@ -295,6 +346,32 @@ def test_float_to_int(run_int_fn) -> None:
         return int(-2.75)
 
     run_int_fn(main, -2)
+
+
+def test_nat_to_int(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        return int(nat(2))
+
+    run_int_fn(main, 2)
+
+
+def test_int_to_nat(run_int_fn) -> None:
+    @guppy
+    def main() -> nat:
+        return nat(2)
+
+    run_int_fn(main, 2)
+
+
+# TODO this should be a compile-time error
+def test_int_to_nat_negative(run_int_fn) -> None:
+    @guppy
+    def main() -> nat:
+        return nat(-2)
+
+    with pytest.raises(EmulatorError, match="is_to_u called on negative value"):
+        run_int_fn(main, None)
 
 
 def test_float_to_nat(run_int_fn) -> None:

@@ -1,0 +1,59 @@
+name: "💡 Feature Request"
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["C-feature-request", "S-needs-triage"]
+projects: ["Quantinuum/23"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please provide details below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Is your feature request related to a problem?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component should this feature be added to?
+      multiple: true
+      options:
+        - Guppy Compiler
+        - Standard library
+        - CI/Build System
+        - Documentation
+        - Other
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Effort Estimate
+      description: How complex do you think this feature would be to implement?
+      options:
+        - Easy - Small change or addition
+        - Medium - Moderate complexity
+        - Hard - Significant effort required
+        - Unknown
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, code examples, or references
+      placeholder: |
+        Example usage:
+        ```python
+        # Your example here
+        ```

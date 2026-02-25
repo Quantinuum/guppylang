@@ -20,7 +20,7 @@ from guppylang_internals.definition.custom import (
 )
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.nodes import ExitKind
+from guppylang_internals.nodes import AbortKind
 from guppylang_internals.tys.subst import Inst
 
 if TYPE_CHECKING:
@@ -60,10 +60,10 @@ class ErrorVal(hv.ExtensionValue):
 
 
 def panic(
-    inputs: list[ht.Type], outputs: list[ht.Type], kind: ExitKind = ExitKind.Panic
+    inputs: list[ht.Type], outputs: list[ht.Type], kind: AbortKind = AbortKind.Panic
 ) -> ops.ExtOp:
     """Returns an operation that panics."""
-    name = "panic" if kind == ExitKind.Panic else "exit"
+    name = "panic" if kind == AbortKind.Panic else "exit"
     op_def = hugr.std.PRELUDE.get_op(name)
     args: list[ht.TypeArg] = [
         ht.ListArg([ht.TypeTypeArg(ty) for ty in inputs]),
@@ -94,7 +94,7 @@ def build_panic(
     *args: Wire,
 ) -> Node:
     """Builds a panic operation."""
-    op = panic(in_tys, out_tys, ExitKind.Panic)
+    op = panic(in_tys, out_tys, AbortKind.Panic)
     return builder.add_op(op, err, *args)
 
 

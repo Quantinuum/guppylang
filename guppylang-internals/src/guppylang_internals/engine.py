@@ -1,15 +1,17 @@
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import Enum
 from types import FrameType
 from typing import ClassVar
 
 import hugr
 import hugr.build.function as hf
 from hugr import ops
+from hugr.envelope import ExtensionDesc, GeneratorDesc
 from hugr.ext import Extension, ExtensionRegistry
+from hugr.metadata import HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
+from semver import Version
 
 import guppylang_internals
 from guppylang_internals.definition.common import (
@@ -83,13 +85,6 @@ MonoArgs = tuple[Argument, ...]
 #: definitions without generic parameters (e.g. a non-generic function definition) are
 #: registered with an empty tuple () as `MonoArgs`.
 MonoDefId = tuple[DefId, MonoArgs]
-
-
-class CoreMetadataKeys(Enum):
-    """Core HUGR metadata keys used by Guppy."""
-
-    USED_EXTENSIONS = "core.used_extensions"
-    GENERATOR = "core.generator"
 
 
 class DefinitionStore:
@@ -364,26 +359,23 @@ class CompilationEngine:
 
         # Set metadata for used extensions
         used_exts_meta = [
-            {
-                "name": ext.name,
-                "version": str(ext.version),
-            }
+            ExtensionDesc(name=ext.name, version=ext.version)
             for ext in used_extensions_result.used_extensions.extensions.values()
         ]
         # Add unresolved extensions as well, but we only have the names
         used_exts_meta.extend(
-            {
-                "name": ext,
-            }
-            for ext in used_extensions_result.unresolved_extensions
+            [
+                # TODO: Remove dummy version once optional in Hugr.
+                ExtensionDesc(
+                    name=ext_name, version=Version(major=0, prerelease="unknown")
+                )
+                for ext_name in used_extensions_result.unresolved_extensions
+            ]
         )
-        graph.hugr.module_root.metadata[CoreMetadataKeys.USED_EXTENSIONS.value] = (
-            used_exts_meta
+        graph.hugr.module_root.metadata[HugrUsedExtensions] = used_exts_meta
+        graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
+            name="guppylang", version=Version.parse(guppylang_internals.__version__)
         )
-        graph.hugr.module_root.metadata[CoreMetadataKeys.GENERATOR.value] = {
-            "name": "guppylang",
-            "version": guppylang_internals.__version__,
-        }
         # only package used extensions
         packaged_extensions = [
             ext

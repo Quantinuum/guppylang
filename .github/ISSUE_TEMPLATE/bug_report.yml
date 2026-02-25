@@ -1,0 +1,74 @@
+name: "🐛 Bug Report"
+description: Report a bug or unexpected behaviour
+title: "[Bug]: "
+labels: ["C-bugfix", "S-needs-triage"]
+projects: ["Quantinuum/23"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug! Please fill out the information below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: What went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behaviour
+      placeholder: |
+        1. Create a Guppy program with...
+        2. Run operation...
+        3. See error
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behaviour
+      description: What did you expect to happen?
+      placeholder: What should have happened?
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behaviour
+      description: What actually happened?
+      placeholder: Include error messages, stack traces, etc.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component is affected?
+      multiple: true
+      options:
+        - Guppy Compiler
+        - Standard library
+        - CI/Build System
+        - Documentation
+        - Other
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Relevant version information
+      placeholder: |
+        - guppy version: 0.21.8
+        - Python version: 3.14
+        - OS: Ubuntu 24.04
+      render: markdown
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem
+      placeholder: Add any other context, screenshots, or related issues here
