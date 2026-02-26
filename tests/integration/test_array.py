@@ -687,6 +687,26 @@ def test_take_put(validate):
     validate(main.compile())
 
 
+def test_discard_borrowed(validate):
+
+    @guppy
+    def main() -> None:
+        qubits = array(qubit())
+        result("before_take", qubits.is_borrowed(0))
+        q = qubits.take(0)
+        result("after_take", qubits.is_borrowed(0))
+        q.discard()
+        discard_array(qubits)
+
+    res = main.emulator(1).coinflip_sim().run().results[0].entries
+    assert res == [
+        ("before_take", 0),
+        ("after_take", 1),
+    ]
+
+    validate(main.compile())
+
+
 def test_nested_subscript_different_inner_indices(validate):
     """Smoketest for checking duplicate subscript accesses:
     Asserts that nested subscript accesses with duplicate outer subscripts

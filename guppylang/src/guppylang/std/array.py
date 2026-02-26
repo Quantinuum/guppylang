@@ -217,6 +217,11 @@ class array(builtins.list[_T], Generic[_T, _n]):
         self.put(elem, idx)
         return ok(None)
 
+    @guppy
+    def discard_all_taken(self: array[L, n]@owned) -> None:
+        """Discards all elements of the array that have been taken"""
+        _array_discard_all_used(self)
+
     def __new__(cls, *args: _T) -> builtins.list[_T]:  # type: ignore[no-redef]
         # Runtime array constructor that is used for comptime. We return an actual list
         # in line with the comptime unpacking logic that turns arrays into lists.
