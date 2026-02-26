@@ -59,6 +59,7 @@ from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to
 if TYPE_CHECKING:
     from hugr.tys import Visibility
 
+    from guppylang_internals.definition.declaration import RawFunctionDecl
     from guppylang_internals.tys.param import Parameter
 
 PyFunc = Callable[..., Any]
@@ -185,33 +186,10 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
 
     def stub(self) -> ast.FunctionDef:
         """Generates a stub function declaration with an empty body."""
-        if not hasattr(self.defined_at, "file"):
-            # Should be set in `ast_util.annotate_location(...)`.
-            raise InternalGuppyError("Source file not set for function definition.")
-        import_map = DEF_STORE.sources.imports[self.defined_at.file]
         raw_def = DEF_STORE.raw_defs[self.id]
         assert isinstance(raw_def, RawFunctionDef)
 
-        func_def = deepcopy(self.defined_at)
-        func_def.body = [
-            *(
-                [ast.Expr(ast.Constant(raw_def.python_func.__doc__))]
-                if raw_def.python_func.__doc__
-                else []
-            ),
-            ast.Expr(ast.Constant(...)),
-        ]
-        # TODO register all used imports from function args and return type
-        #  (and type params?)
-        func_def.decorator_list = [raw_def.generate_guppy_declare_decorator(import_map)]
-
-        # We cannot know these values
-        func_def.lineno = -1
-        func_def.col_offset = -1
-        func_def.end_lineno = -1
-        func_def.end_col_offset = -1
-
-        return func_def
+        return generate_stub_from_def(raw_def, self.defined_at)
 
 
 @dataclass(frozen=True)
@@ -373,3 +351,33 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     if not isinstance(func_ast, ast.FunctionDef):
         raise GuppyError(ExpectedError(func_ast, "a function definition"))
     return parse_function_with_docstring(func_ast)
+
+
+def generate_stub_from_def(
+    raw_def: "RawFunctionDef | RawFunctionDecl", source_def: ast.FunctionDef
+) -> ast.FunctionDef:
+    if not hasattr(source_def, "file"):
+        # Should be set in `ast_util.annotate_location(...)`.
+        raise InternalGuppyError("Source file not set for source def.")
+    import_map = DEF_STORE.sources.imports[source_def.file]
+
+    func_def = deepcopy(source_def)
+    func_def.body = [
+        *(
+            [ast.Expr(ast.Constant(raw_def.python_func.__doc__))]
+            if raw_def.python_func.__doc__
+            else []
+        ),
+        ast.Expr(ast.Constant(...)),
+    ]
+    # TODO register all used imports from function args and return type
+    #  (and type params?)
+    func_def.decorator_list = [raw_def.generate_guppy_declare_decorator(import_map)]
+
+    # We cannot know these values
+    func_def.lineno = -1
+    func_def.col_offset = -1
+    func_def.end_lineno = -1
+    func_def.end_col_offset = -1
+
+    return func_def

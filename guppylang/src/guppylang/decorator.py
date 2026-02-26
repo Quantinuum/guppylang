@@ -106,34 +106,62 @@ class GuppyStructKwargs(TypedDict, total=False):
     link_name: str
 
 
+def _generate_guppy_declare_decorator(
+    parsed: "ParsedGuppyKwargs", import_map: ImportMap
+) -> ast.expr:
+    """Generates an AST expression that reconstructs this function definition as a
+    call to the `@guppy.declare` decorator with the same parameters as the original
+    definition.
+    """
+    kwargs = [
+        ast.keyword(keyword, ast.Constant(value))  # type: ignore[arg-type]
+        for keyword, value in unparse_kwargs(parsed).items()
+    ]
+
+    # Workaround to get the name of the exported decorator symbol
+    decorator_name_str = f"{guppy=}".split("=")[0]
+    import_map.use(decorator_name_str)
+    decorator = ast.Attribute(
+        ast.Name(id=decorator_name_str, ctx=ast.Load()),
+        attr=_Guppy.declare.__name__,
+        ctx=ast.Load(),
+    )
+    if len(kwargs) == 0:
+        return decorator
+
+    return ast.Call(func=decorator, args=[], keywords=kwargs)
+
+
 class _RawReconstructableFunctionDef(RawFunctionDef):
     def generate_guppy_declare_decorator(self, import_map: ImportMap) -> ast.expr:
         """Generates an AST expression that reconstructs this function definition as a
         call to the `@guppy.declare` decorator with the same parameters as the original
         definition.
         """
-        parsed = ParsedGuppyKwargs(
-            flags=self.unitary_flags,
-            metadata=self.metadata or GuppyMetadata(),
-            link_name=self._user_set_link_name,
+        return _generate_guppy_declare_decorator(
+            ParsedGuppyKwargs(
+                flags=self.unitary_flags,
+                metadata=self.metadata or GuppyMetadata(),
+                link_name=self._user_set_link_name,
+            ),
+            import_map,
         )
-        kwargs = [
-            ast.keyword(keyword, ast.Constant(value))  # type: ignore[arg-type]
-            for keyword, value in unparse_kwargs(parsed).items()
-        ]
 
-        # Workaround to get the name of the exported decorator symbol
-        decorator_name_str = f"{guppy=}".split("=")[0]
-        import_map.use(decorator_name_str)
-        decorator = ast.Attribute(
-            ast.Name(id=decorator_name_str, ctx=ast.Load()),
-            attr=_Guppy.declare.__name__,
-            ctx=ast.Load(),
+
+class _RawReconstructableFunctionDecl(RawFunctionDecl):
+    def generate_guppy_declare_decorator(self, import_map: ImportMap) -> ast.expr:
+        """Generates an AST expression that reconstructs this function declaration as a
+        call to the `@guppy.declare` decorator with the same parameters as the original
+        declaration.
+        """
+        return _generate_guppy_declare_decorator(
+            ParsedGuppyKwargs(
+                flags=self.unitary_flags,
+                metadata=GuppyMetadata(),
+                link_name=self._user_set_link_name,
+            ),
+            import_map,
         )
-        if len(kwargs) == 0:
-            return decorator
-
-        return ast.Call(func=decorator, args=[], keywords=kwargs)
 
 
 class _Guppy:
@@ -362,7 +390,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
-            defn = RawFunctionDecl(
+            defn = _RawReconstructableFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
                 None,

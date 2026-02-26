@@ -12,6 +12,7 @@ from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
 from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.declaration import CheckedFunctionDecl
 from guppylang_internals.definition.function import CheckedFunctionDef, RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
@@ -235,6 +236,10 @@ class GuppyLibrary:
             checked_def = ENGINE.get_checked(member)
             match checked_def:
                 case CheckedFunctionDef():
+                    stub_asts_by_module.setdefault(checked_def.module, []).append(
+                        checked_def.stub()
+                    )
+                case CheckedFunctionDecl():
                     stub_asts_by_module.setdefault(checked_def.module, []).append(
                         checked_def.stub()
                     )
