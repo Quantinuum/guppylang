@@ -69,11 +69,11 @@ class RawFunctionDecl(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
-    hugr_name: InitVar[str | None] = field(default=None, kw_only=True)
-    _user_set_hugr_name: str | None = field(default=None, init=False)
+    link_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_link_name: str | None = field(default=None, init=False)
 
-    def __post_init__(self, hugr_name: str | None) -> None:
-        object.__setattr__(self, "_user_set_hugr_name", hugr_name)
+    def __post_init__(self, link_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_link_name", link_name)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
@@ -81,13 +81,13 @@ class RawFunctionDecl(ParsableDef):
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
-        hugr_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
-        if self._user_set_hugr_name is not None:
-            hugr_name = self._user_set_hugr_name
+        link_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
+        if self._user_set_link_name is not None:
+            link_name = self._user_set_link_name
         elif (parent_ty_id := DEF_STORE.impl_parents.get(self.id)) is not None:
             parent = ENGINE.get_parsed(parent_ty_id)
             if isinstance(parent, ParsedStructDef):
-                hugr_name = f"{parent.hugr_name_prefix}.{self.python_func.__name__}"
+                link_name = f"{parent.link_name_prefix}.{self.python_func.__name__}"
 
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
@@ -100,7 +100,7 @@ class RawFunctionDecl(ParsableDef):
             func_ast,
             ty,
             docstring,
-            hugr_name,
+            link_name,
         )
 
 
@@ -113,7 +113,7 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
 
     defined_at: ast.FunctionDef
     docstring: str | None
-    hugr_name: str
+    link_name: str
 
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
@@ -142,14 +142,14 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
         )
         module: hf.Module = module
 
-        node = module.declare_function(self.hugr_name, self.ty.to_hugr_poly(ctx))
+        node = module.declare_function(self.link_name, self.ty.to_hugr_poly(ctx))
         return CompiledFunctionDecl(
             self.id,
             self.name,
             self.defined_at,
             self.ty,
             self.docstring,
-            self.hugr_name,
+            self.link_name,
             node,
         )
 
