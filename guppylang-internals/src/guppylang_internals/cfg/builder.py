@@ -804,10 +804,9 @@ def find_missing_return_point(
             # the statement block and another branch.
             for cond_ancestor in itertools.islice(cfg.ancestors(fbb_ancestor), 1, None):
                 if cond_ancestor.branch_pred is not None:
+                    # Not the case now, but it may happen with the match case statement
                     if len(cond_ancestor.successors) != 2:
-                        raise InternalGuppyError(
-                            "The successors for a branch block should be exactly 2."
-                        )
+                        break
                     # check if the final statement is in the left
                     # or right branch of the condition and not in both
                     in_false_branch = fbb_ancestor in set(
