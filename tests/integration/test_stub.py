@@ -11,6 +11,7 @@ def _run_stub_test(file, snapshot):
 
     module_name = f"tests.integration.stub.{file.stem}"
     module = importlib.import_module(module_name)
+    # Collect top level functions defined in the module
     library = guppy.library(
         *[item for name, item in module.__dict__.items() if name.startswith("lib_")],
     )
