@@ -384,7 +384,7 @@ def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
 
 @guppy
 @no_type_check
-def discard_array[N: nat](qubits: array[qubit, N] @ owned) -> None:
+def discard_array(qubits: array[qubit, N] @ owned) -> None:
     """Discard an array of qubits."""
     for i in range(N):
         if not qubits.is_borrowed(i):
