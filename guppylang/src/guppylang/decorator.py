@@ -94,7 +94,7 @@ class GuppyKwargs(TypedDict, total=False):
     dagger: bool
     power: bool
     max_qubits: int
-    hugr_name: str
+    link_name: str
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -102,7 +102,7 @@ class GuppyStructKwargs(TypedDict, total=False):
     `@guppy.struct` decorator.
     """
 
-    hugr_name: str
+    link_name: str
 
 
 class _Guppy:
@@ -133,7 +133,7 @@ class _Guppy:
                 f,
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
-                hugr_name=parsed.hugr_name,
+                link_name=parsed.link_name,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -217,7 +217,7 @@ class _Guppy:
                 return self.field2 + self.field2
 
             # Add optional parameters
-            @guppy.struct(hugr_name="my_struct")
+            @guppy.struct(link_name="my_struct")
             class MyStruct2:
                 field1: int
                 field2: int
@@ -229,7 +229,7 @@ class _Guppy:
                 cls.__name__,
                 None,
                 cls,
-                hugr_name=kwargs.pop("hugr_name", None),
+                link_name=kwargs.pop("link_name", None),
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
@@ -337,7 +337,7 @@ class _Guppy:
                 None,
                 f,
                 unitary_flags=parsed.flags,
-                hugr_name=parsed.hugr_name,
+                link_name=parsed.link_name,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -682,7 +682,7 @@ def _with_optional_kwargs(
 class ParsedGuppyKwargs(NamedTuple):
     flags: UnitaryFlags
     metadata: GuppyMetadata
-    hugr_name: str | None
+    link_name: str | None
 
 
 @hide_trace
@@ -703,7 +703,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     metadata = GuppyMetadata()
     metadata.max_qubits.value = kwargs.pop("max_qubits", None)
 
-    hugr_name = kwargs.pop("hugr_name", None)
+    link_name = kwargs.pop("link_name", None)
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
@@ -712,7 +712,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     return ParsedGuppyKwargs(
         flags=flags,
         metadata=metadata,
-        hugr_name=hugr_name,
+        link_name=link_name,
     )
 
 

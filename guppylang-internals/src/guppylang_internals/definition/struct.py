@@ -116,11 +116,11 @@ class RawStructDef(TypeDef, ParsableDef):
     python_class: type
     params: None = field(default=None, init=False)  # Params not known yet
 
-    hugr_name: InitVar[str | None] = field(default=None, kw_only=True)
-    _user_set_hugr_name: str | None = field(default=None, init=False)
+    link_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_link_name: str | None = field(default=None, init=False)
 
-    def __post_init__(self, hugr_name: str | None) -> None:
-        object.__setattr__(self, "_user_set_hugr_name", hugr_name)
+    def __post_init__(self, link_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_link_name", link_name)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedStructDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
@@ -202,13 +202,13 @@ class RawStructDef(TypeDef, ParsableDef):
             x = overridden.pop()
             raise GuppyError(DuplicateFieldError(used_func_names[x], self.name, x))
 
-        hugr_name_prefix = (
-            self._user_set_hugr_name
+        link_name_prefix = (
+            self._user_set_link_name
             or f"{self.python_class.__module__}.{self.python_class.__qualname__}"
         )
 
         return ParsedStructDef(
-            self.id, self.name, cls_def, params, fields, hugr_name_prefix
+            self.id, self.name, cls_def, params, fields, link_name_prefix
         )
 
     def check_instantiate(
@@ -224,7 +224,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[UncheckedStructField]
-    hugr_name_prefix: str
+    link_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""

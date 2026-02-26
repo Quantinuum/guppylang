@@ -83,11 +83,11 @@ class RawFunctionDef(ParsableDef):
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
-    hugr_name: InitVar[str | None] = field(default=None, kw_only=True)
-    _user_set_hugr_name: str | None = field(default=None, init=False)
+    link_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_link_name: str | None = field(default=None, init=False)
 
-    def __post_init__(self, hugr_name: str | None) -> None:
-        object.__setattr__(self, "_user_set_hugr_name", hugr_name)
+    def __post_init__(self, link_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_link_name", link_name)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
@@ -96,13 +96,13 @@ class RawFunctionDef(ParsableDef):
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
 
-        hugr_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
-        if self._user_set_hugr_name is not None:
-            hugr_name = self._user_set_hugr_name
+        link_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
+        if self._user_set_link_name is not None:
+            link_name = self._user_set_link_name
         elif (parent_ty_id := DEF_STORE.impl_parents.get(self.id)) is not None:
             parent = ENGINE.get_parsed(parent_ty_id)
             if isinstance(parent, ParsedStructDef):
-                hugr_name = f"{parent.hugr_name_prefix}.{self.python_func.__name__}"
+                link_name = f"{parent.link_name_prefix}.{self.python_func.__name__}"
 
         return ParsedFunctionDef(
             self.id,
@@ -110,7 +110,7 @@ class RawFunctionDef(ParsableDef):
             func_ast,
             ty,
             docstring,
-            hugr_name,
+            link_name,
             metadata=self.metadata,
         )
 
@@ -128,13 +128,13 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
         docstring: The docstring of the function.
-        hugr_name: The name that the Hugr node for this function will receive.
+        link_name: The name that the Hugr node for this function will receive.
     """
 
     defined_at: ast.FunctionDef
     ty: FunctionType
     docstring: str | None
-    hugr_name: str
+    link_name: str
 
     description: str = field(default="function", init=False)
 
@@ -150,7 +150,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
             self.defined_at,
             self.ty,
             self.docstring,
-            self.hugr_name,
+            self.link_name,
             cfg,
             metadata=self.metadata,
         )
@@ -187,7 +187,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
         docstring: The docstring of the function.
-        hugr_name: The name that the Hugr node for this function will receive.
+        link_name: The name that the Hugr node for this function will receive.
         cfg: The type- and linearity-checked CFG for the function body.
     """
 
@@ -214,7 +214,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         mono_ty = self.ty.instantiate_partial(mono_args)
         hugr_ty = mono_ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            self.hugr_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            self.link_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
         add_metadata(
             func_def,
@@ -228,7 +228,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             mono_args,
             mono_ty,
             self.docstring,
-            self.hugr_name,
+            self.link_name,
             self.cfg,
             func_def,
             metadata=self.metadata,
@@ -248,7 +248,7 @@ class CompiledFunctionDef(
         mono_args: Partial monomorphization of the generic type parameters.
         ty: The type of the function after partial monomorphization.
         docstring: The docstring of the function.
-        hugr_name: The name of the Hugr node corresponding to this function.
+        link_name: The name of the Hugr node corresponding to this function.
         cfg: The type- and linearity-checked CFG for the function body.
         func_def: The Hugr function definition.
     """

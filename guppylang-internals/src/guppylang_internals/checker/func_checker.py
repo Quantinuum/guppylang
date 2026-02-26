@@ -224,8 +224,8 @@ def check_nested_func_def(
                 func_ty,
                 None,
                 # Even though global, this function will be private to the built hugr,
-                # so the hugr name does not really matter.
-                hugr_name=func_def.name,
+                # so the link name does not really matter.
+                link_name=func_def.name,
             )
             DEF_STORE.register_def(func, None)
             ENGINE.parsed[def_id] = func
