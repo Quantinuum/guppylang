@@ -244,7 +244,10 @@ class GuppyLibrary:
                         checked_def.stub()
                     )
                 case _:
-                    continue
+                    raise NotImplementedError(
+                        f"Cannot yet generate stubs for definitions of type "
+                        f"{type(checked_def)}!"
+                    )
 
         module_stubs: dict[str, str] = {}
         for module_name, stub_asts in stub_asts_by_module.items():
