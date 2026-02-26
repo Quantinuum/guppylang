@@ -1,6 +1,7 @@
 import ast
 import inspect
 from collections.abc import Callable, Sequence
+from copy import deepcopy
 from dataclasses import InitVar, dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,7 @@ from hugr.hugr.node_port import ToNode
 
 from guppylang_internals.ast_util import (
     AstNode,
+    ImportMap,
     annotate_location,
     parse_source,
     with_loc,
@@ -48,7 +50,7 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
@@ -113,8 +115,12 @@ class RawFunctionDef(ParsableDef):
             ty,
             docstring,
             link_name,
+            module=self.python_func.__module__,
             metadata=self.metadata,
         )
+
+    def generate_guppy_declare_decorator(self, import_map: ImportMap) -> ast.expr:
+        raise NotImplementedError("Must be implemented by a subclass!")
 
 
 @dataclass(frozen=True)
@@ -137,6 +143,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
     ty: FunctionType
     docstring: str | None
     link_name: str
+    module: str | None = field(default=None, kw_only=True)
 
     description: str = field(default="function", init=False)
 
@@ -154,6 +161,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
             self.docstring,
             self.link_name,
             cfg,
+            module=self.module,
             metadata=self.metadata,
         )
 
@@ -174,6 +182,36 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return with_type(ty, node), ty
+
+    def stub(self) -> ast.FunctionDef:
+        """Generates a stub function declaration with an empty body."""
+        if not hasattr(self.defined_at, "file"):
+            # Should be set in `ast_util.annotate_location(...)`.
+            raise InternalGuppyError("Source file not set for function definition.")
+        import_map = DEF_STORE.sources.imports[self.defined_at.file]
+        raw_def = DEF_STORE.raw_defs[self.id]
+        assert isinstance(raw_def, RawFunctionDef)
+
+        func_def = deepcopy(self.defined_at)
+        func_def.body = [
+            *(
+                [ast.Expr(ast.Constant(raw_def.python_func.__doc__))]
+                if raw_def.python_func.__doc__
+                else []
+            ),
+            ast.Expr(ast.Constant(...)),
+        ]
+        # TODO register all used imports from function args and return type
+        #  (and type params?)
+        func_def.decorator_list = [raw_def.generate_guppy_declare_decorator(import_map)]
+
+        # We cannot know these values
+        func_def.lineno = -1
+        func_def.col_offset = -1
+        func_def.end_lineno = -1
+        func_def.end_col_offset = -1
+
+        return func_def
 
 
 @dataclass(frozen=True)
@@ -238,6 +276,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             self.link_name,
             self.cfg,
             func_def,
+            module=self.module,
             metadata=self.metadata,
         )
 
