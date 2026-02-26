@@ -218,7 +218,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         return ok(None)
 
     @guppy
-    def discard_all_taken(self: array[L, n]@owned) -> None:
+    def discard_all_taken(self: array[L, n] @ owned) -> None:
         """Discards all elements of the array that have been taken"""
         _array_discard_all_used(self)
 
