@@ -63,8 +63,8 @@ class DuplicateVariantError(Error):
 @dataclass(frozen=True)
 class VariantFormHint(Help):
     message: ClassVar[str] = (
-        'Enum can contain only variants of the form `VariantName = {{"var1": Type1, ...}}`'  # noqa: E501
-        "or `@guppy` annotated methods"
+        "Enum can contain only variants of the form "
+        '`VariantName = {{"var1": Type1, ...}}` or `@guppy` annotated methods'
     )
 
 

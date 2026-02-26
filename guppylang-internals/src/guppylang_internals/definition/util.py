@@ -82,7 +82,8 @@ class RepeatedTypeParamError(Error):
 
 @dataclass(frozen=True)
 class UncheckedField:
-    """A single field on a struct or enum variant whose type has not been checked yet."""  # noqa: E501
+    """A single field on a struct or enum variant
+    whose type has not been checked yet."""
 
     name: str
     type_ast: ast.expr
