@@ -53,6 +53,7 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys.parsing import _parse_delayed_annotation
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
@@ -358,6 +359,11 @@ def _mark_names_used(expr: ast.expr, import_map: ImportMap) -> None:
     for node in ast.walk(expr):
         if isinstance(node, ast.Name):
             import_map.use(node.id)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            parsed = _parse_delayed_annotation(node.value, node)
+            _mark_names_used(parsed, import_map)
+        else:
+            continue
 
 
 def generate_stub_from_def(
