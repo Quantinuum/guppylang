@@ -17,7 +17,7 @@ from guppylang_internals.definition.function import CheckedFunctionDef, RawFunct
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError, pretty_errors
+from guppylang_internals.error import GuppyError, InternalGuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import TracingDefMixin
 from guppylang_internals.tracing.util import hide_trace
@@ -236,10 +236,20 @@ class GuppyLibrary:
             checked_def = ENGINE.get_checked(member)
             match checked_def:
                 case CheckedFunctionDef():
+                    if checked_def.module is None:
+                        raise InternalGuppyError(
+                            "Checked definition has no associated module, cannot "
+                            "generate stub!"
+                        )
                     stub_asts_by_module.setdefault(checked_def.module, []).append(
                         checked_def.stub()
                     )
                 case CheckedFunctionDecl():
+                    if checked_def.module is None:
+                        raise InternalGuppyError(
+                            "Checked definition has no associated module, cannot "
+                            "generate stub!"
+                        )
                     stub_asts_by_module.setdefault(checked_def.module, []).append(
                         checked_def.stub()
                     )
@@ -252,7 +262,11 @@ class GuppyLibrary:
         module_stubs: dict[str, str] = {}
         for module_name, stub_asts in stub_asts_by_module.items():
             module = importlib.import_module(module_name)
-            import_map = DEF_STORE.sources.imports[module.__file__]
+            imports = (
+                DEF_STORE.sources.imports[module.__file__].dump_ast()
+                if module.__file__ is not None
+                else []
+            )
 
             module_ast = ast.Module(
                 [
@@ -261,7 +275,7 @@ class GuppyLibrary:
                         if module.__doc__
                         else []
                     ),
-                    *import_map.dump_ast(),
+                    *imports,
                     *stub_asts,
                 ],
                 type_ignores=[],
