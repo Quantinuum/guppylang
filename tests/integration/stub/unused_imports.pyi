@@ -1,4 +1,4 @@
-"""Basic tests for generating Guppy stubs."""
+"""Whether imports are correctly marked as used / unused by stubs."""
 from guppylang import guppy
 from guppylang.std.array import array, frozenarray
 from guppylang.std.angles import angle

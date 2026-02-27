@@ -1,9 +1,9 @@
-"""Basic tests for generating Guppy stubs."""
+"""Whether imports are correctly marked as used / unused by stubs."""
 
 from guppylang import guppy, comptime
-from ast import Module  # noqa: F401, this should be removed in the stub
-from guppylang.std.quantum import qubit, discard  # Should be removed in the stub
-from guppylang.std.array import array, array_swap, frozenarray  # noqa: F401 One of the aliases gets removed.
+from ast import Module  # noqa: F401
+from guppylang.std.quantum import qubit, discard
+from guppylang.std.array import array, array_swap, frozenarray  # noqa: F401
 from guppylang.std.angles import angle
 from guppylang.std.num import nat
 
