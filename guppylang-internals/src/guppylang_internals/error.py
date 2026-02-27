@@ -76,6 +76,21 @@ def exception_hook(hook: ExceptHook) -> Iterator[None]:
     sys.excepthook = old_hook
 
 
+@contextmanager
+def saved_exception_hook() -> Iterator[None]:
+    """Restores `sys.excepthook` to its current value after the 'with' block exits.
+
+    Unlike `exception_hook`, this does not install a new hook — it simply guarantees
+    that any changes made inside the block (e.g. by `@hide_trace`-decorated callables)
+    are rolled back when the block exits, whether normally or via an exception.
+    """
+    old_hook = sys.excepthook
+    try:
+        yield
+    finally:
+        sys.excepthook = old_hook
+
+
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
