@@ -353,6 +353,13 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     return parse_function_with_docstring(func_ast)
 
 
+def _mark_names_used(expr: ast.expr, import_map: ImportMap) -> None:
+    """Marks all names used in the given expression as used in the import map."""
+    for node in ast.walk(expr):
+        if isinstance(node, ast.Name):
+            import_map.use(node.id)
+
+
 def generate_stub_from_def(
     raw_def: "RawFunctionDef | RawFunctionDecl", source_def: ast.FunctionDef
 ) -> ast.FunctionDef:
@@ -362,6 +369,11 @@ def generate_stub_from_def(
     import_map = DEF_STORE.sources.imports[source_def.file]
 
     func_def = deepcopy(source_def)
+    for arg in func_def.args.args:
+        if arg.annotation is not None:
+            _mark_names_used(arg.annotation, import_map)
+    if func_def.returns is not None:
+        _mark_names_used(func_def.returns, import_map)
     func_def.body = [
         *(
             [ast.Expr(ast.Constant(raw_def.python_func.__doc__))]
