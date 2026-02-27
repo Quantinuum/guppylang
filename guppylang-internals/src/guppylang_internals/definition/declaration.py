@@ -6,7 +6,13 @@ from hugr import Node, Wire
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder, OpVar
 
-from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc, with_type
+from guppylang_internals.ast_util import (
+    AstNode,
+    ImportMap,
+    has_empty_body,
+    with_loc,
+    with_type,
+)
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
@@ -19,6 +25,7 @@ from guppylang_internals.definition.common import CompilableDef, ParsableDef
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
+    generate_stub_from_def,
     load_with_args,
     parse_py_func,
 )
@@ -101,7 +108,11 @@ class RawFunctionDecl(ParsableDef):
             ty,
             docstring,
             link_name,
+            module=self.python_func.__module__,
         )
+
+    def generate_guppy_declare_decorator(self, import_map: ImportMap) -> ast.expr:
+        raise NotImplementedError("Must be implemented by a subclass!")
 
 
 @dataclass(frozen=True)
@@ -114,6 +125,7 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
     defined_at: ast.FunctionDef
     docstring: str | None
     link_name: str
+    module: str | None = field(default=None, kw_only=True)
 
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
@@ -151,7 +163,15 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
             self.docstring,
             self.link_name,
             node,
+            module=self.module,
         )
+
+    def stub(self) -> ast.FunctionDef:
+        """Generates a stub function declaration with an empty body."""
+        raw_def = DEF_STORE.raw_defs[self.id]
+        assert isinstance(raw_def, RawFunctionDecl)
+
+        return generate_stub_from_def(raw_def, self.defined_at)
 
 
 @dataclass(frozen=True)

@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 from types import FrameType
 from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
 
-from guppylang_internals.ast_util import annotate_location
+from guppylang_internals.ast_util import ImportMap, annotate_location
 from guppylang_internals.compiler.core import (
     CompilerContext,
 )
@@ -106,6 +106,64 @@ class GuppyStructKwargs(TypedDict, total=False):
     link_name: str
 
 
+def _generate_guppy_declare_decorator(
+    parsed: "ParsedGuppyKwargs", import_map: ImportMap
+) -> ast.expr:
+    """Generates an AST expression that reconstructs this function definition as a
+    call to the `@guppy.declare` decorator with the same parameters as the original
+    definition.
+    """
+    kwargs = [
+        ast.keyword(keyword, ast.Constant(value))  # type: ignore[arg-type]
+        for keyword, value in unparse_kwargs(parsed).items()
+    ]
+
+    # Workaround to get the name of the exported decorator symbol
+    decorator_name_str = f"{guppy=}".split("=")[0]
+    import_map.use(decorator_name_str)
+    decorator = ast.Attribute(
+        ast.Name(id=decorator_name_str, ctx=ast.Load()),
+        attr=_Guppy.declare.__name__,
+        ctx=ast.Load(),
+    )
+    if len(kwargs) == 0:
+        return decorator
+
+    return ast.Call(func=decorator, args=[], keywords=kwargs)
+
+
+class _RawReconstructableFunctionDef(RawFunctionDef):
+    def generate_guppy_declare_decorator(self, import_map: ImportMap) -> ast.expr:
+        """Generates an AST expression that reconstructs this function definition as a
+        call to the `@guppy.declare` decorator with the same parameters as the original
+        definition.
+        """
+        return _generate_guppy_declare_decorator(
+            ParsedGuppyKwargs(
+                flags=self.unitary_flags,
+                metadata=self.metadata or GuppyMetadata(),
+                link_name=self._user_set_link_name,
+            ),
+            import_map,
+        )
+
+
+class _RawReconstructableFunctionDecl(RawFunctionDecl):
+    def generate_guppy_declare_decorator(self, import_map: ImportMap) -> ast.expr:
+        """Generates an AST expression that reconstructs this function declaration as a
+        call to the `@guppy.declare` decorator with the same parameters as the original
+        declaration.
+        """
+        return _generate_guppy_declare_decorator(
+            ParsedGuppyKwargs(
+                flags=self.unitary_flags,
+                metadata=GuppyMetadata(),
+                link_name=self._user_set_link_name,
+            ),
+            import_map,
+        )
+
+
 class _Guppy:
     """Class for the `@guppy` decorator."""
 
@@ -127,7 +185,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
-            defn = RawFunctionDef(
+            defn = _RawReconstructableFunctionDef(
                 DefId.fresh(),
                 f.__name__,
                 None,
@@ -332,7 +390,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
-            defn = RawFunctionDecl(
+            defn = _RawReconstructableFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
                 None,
@@ -721,6 +779,33 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         metadata=metadata,
         link_name=link_name,
     )
+
+
+def unparse_kwargs(parsed: ParsedGuppyKwargs) -> GuppyKwargs:
+    """Unparses the given `ParsedGuppyKwargs` back into a form that can be passed to the
+    `@guppy` decorator.
+    """
+    kwargs = GuppyKwargs()
+    match parsed.flags:
+        case UnitaryFlags.NoFlags:
+            pass
+        case UnitaryFlags.Unitary:
+            kwargs["unitary"] = True
+        case value:
+            if value & UnitaryFlags.Control:  # type: ignore[operator]
+                kwargs["control"] = True
+            if value & UnitaryFlags.Dagger:  # type: ignore[operator]
+                kwargs["dagger"] = True
+            if value & UnitaryFlags.Power:  # type: ignore[operator]
+                kwargs["power"] = True
+
+    if parsed.metadata.max_qubits.value is not None:
+        kwargs["max_qubits"] = parsed.metadata.max_qubits.value
+
+    if parsed.link_name is not None:
+        kwargs["link_name"] = parsed.link_name
+
+    return kwargs
 
 
 guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()

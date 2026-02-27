@@ -3,9 +3,10 @@
 import ast
 import linecache
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TypeAlias
 
-from guppylang_internals.ast_util import get_file, get_line_offset
+from guppylang_internals.ast_util import ImportMap, get_file, get_line_offset
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.ipython_inspect import normalize_ipython_dummy_files
 
@@ -137,9 +138,11 @@ class SourceMap:
     """
 
     sources: dict[str, SourceLines]
+    imports: dict[str, ImportMap]
 
     def __init__(self) -> None:
         self.sources = {}
+        self.imports = {}
 
     def add_file(self, file: str, content: str | None = None) -> None:
         """Registers a new source file."""
@@ -147,6 +150,30 @@ class SourceMap:
             self.sources[file] = [line.rstrip() for line in linecache.getlines(file)]
         else:
             self.sources[file] = content.splitlines(keepends=False)
+
+        with Path(file).open() as f:
+            file_source = f.read()
+        source_file_ast = ast.parse(file_source, file)
+        imports = ImportMap()
+
+        def process_stmt(stmt: ast.stmt) -> None:
+            match stmt:
+                case ast.Import(names) | ast.ImportFrom(_, names, _):
+                    for alias in names:
+                        if alias.asname is not None:
+                            imports.register_import(alias.asname, stmt, alias)
+                        else:
+                            imports.register_import(alias.name, stmt, alias)
+                case ast.If(ast.Name("TYPE_CHECKING"), body, _):
+                    for type_checking_stmt in body:
+                        process_stmt(type_checking_stmt)
+                case _:
+                    pass
+
+        for top_level_stmt in source_file_ast.body:
+            process_stmt(top_level_stmt)
+
+        self.imports[file] = imports
 
     def span_lines(self, span: Span, prefix_lines: int = 0) -> list[str]:
         return self.sources[span.file][
