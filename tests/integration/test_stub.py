@@ -1,9 +1,26 @@
 import importlib
+import importlib.util
+import importlib.machinery
 import pathlib
+import sys
+import types
+from pathlib import Path
 
 import pytest
 
 from guppylang import guppy
+
+
+def import_from_path(
+    module_name: str, file_path: Path
+) -> tuple[types.ModuleType, importlib.machinery.ModuleSpec]:
+    loader = importlib.machinery.SourceFileLoader(module_name, str(file_path))
+    spec = importlib.util.spec_from_file_location(
+        module_name, str(file_path), loader=loader
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    return module, spec
 
 
 def _run_stub_test(file, snapshot):
@@ -24,8 +41,19 @@ def _run_stub_test(file, snapshot):
         + ", ".join(stubs.keys())
     )
 
+    stub_file = file.with_suffix(".pyi")
     snapshot.snapshot_dir = str(file.parent)
-    snapshot.assert_match(stubs[module_name], file.with_suffix(".pyi").name)
+    snapshot.assert_match(stubs[module_name], stub_file.name)
+
+    # Test whether stubs can be imported, e.g. to test whether all required names are
+    # defined in import statements.
+    module, spec = import_from_path(file.stem, stub_file.resolve())
+    try:
+        spec.loader.exec_module(module)
+    except Exception as e:  # noqa: BLE001
+        pytest.fail(
+            f"Type stubs were generated, but are bad! Exception during import: {e!s}"
+        )
 
 
 path = pathlib.Path(__file__).parent.resolve() / "stub"

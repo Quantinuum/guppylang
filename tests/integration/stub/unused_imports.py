@@ -3,7 +3,7 @@
 from guppylang import guppy
 from ast import Module  # noqa: F401, this should be removed in the stub
 from guppylang.std.quantum import qubit, discard  # Should be removed in the stub
-from guppylang.std.array import array, array_swap  # One of the aliases gets removed.
+from guppylang.std.array import array, array_swap  # noqa: F401 One of the aliases gets removed.
 
 
 @guppy
