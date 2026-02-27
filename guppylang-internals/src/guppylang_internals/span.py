@@ -155,7 +155,8 @@ class SourceMap:
             file_source = f.read()
         source_file_ast = ast.parse(file_source, file)
         imports = ImportMap()
-        for stmt in source_file_ast.body:
+
+        def process_stmt(stmt: ast.stmt) -> None:
             match stmt:
                 case ast.Import(names) | ast.ImportFrom(_, names, _):
                     for alias in names:
@@ -163,8 +164,14 @@ class SourceMap:
                             imports.register_import(alias.asname, stmt, alias)
                         else:
                             imports.register_import(alias.name, stmt, alias)
+                case ast.If(ast.Name("TYPE_CHECKING"), body, _):
+                    for type_checking_stmt in body:
+                        process_stmt(type_checking_stmt)
                 case _:
                     pass
+
+        for top_level_stmt in source_file_ast.body:
+            process_stmt(top_level_stmt)
 
         self.imports[file] = imports
 

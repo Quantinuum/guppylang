@@ -1,11 +1,15 @@
 """Whether imports are correctly marked as used / unused by stubs."""
 
+from typing import TYPE_CHECKING
+
 from guppylang import guppy, comptime
 from ast import Module  # noqa: F401
 from guppylang.std.quantum import qubit, discard
 from guppylang.std.array import array, array_swap, frozenarray  # noqa: F401
 from guppylang.std.angles import angle
-from guppylang.std.num import nat
+
+if TYPE_CHECKING:
+    from guppylang.std.num import nat
 
 
 @guppy
