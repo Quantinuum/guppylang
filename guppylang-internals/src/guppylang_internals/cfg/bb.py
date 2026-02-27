@@ -250,7 +250,7 @@ class VariableVisitor(ast.NodeVisitor):
         self.visit(node.subject)
 
     def visit_MatchClass(self, node: ast.MatchClass) -> None:
-        pass  # TODO: NICOLa (not needed now)
+        pass  # TODO: NICOLa (no variable now here)
 
     def visit_MatchAs(self, node: ast.MatchAs) -> None:
-        pass  # TODO: NICOLa (not needed now)
+        pass  # TODO: NICOLa (no variable now here)

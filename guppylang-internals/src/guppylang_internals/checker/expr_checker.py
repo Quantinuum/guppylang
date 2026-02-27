@@ -868,11 +868,14 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
 
-    def visit_MatchCasePattern(self, node: MatchPred) -> tuple[ast.expr, Type]:
+    def visit_MatchPred(self, node: MatchPred) -> tuple[ast.expr, Type]:
         # TODO: NICOLA(3)
         node.subject, subj_ty = self.synthesize(node.subject)
-        node.pattern = PatternChecker(self.ctx).check(node.pattern, subj_ty)
-
+        cheked_patterns = []
+        for pattern in node.patterns:
+            pattern = PatternChecker(self.ctx).check(pattern, subj_ty)
+            cheked_patterns.append(pattern)
+        node.patterns = cheked_patterns
         return node, bool_type()
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> tuple[ast.expr, Type]:
@@ -932,16 +935,6 @@ class PatternChecker(AstVisitor[ast.pattern]):
     def visit_MatchValue(self, node: ast.MatchValue, given_ty: Type) -> ast.pattern:
         node.value, val_ty = ExprSynthesizer(self.ctx).synthesize(node.value)
         node_ty = self._synthesize_type(node.value, val_ty, True)
-        """TODO: Nicola see if needed
-        Check if subj_ty and patt_type are the same.
-        if not _is_type_compatible(patt_ty, given_ty):
-            raise GuppyTypeError(
-                TypeMismatchError(node, given_ty, patt_ty, "pattern")
-            )
-
-        return node, {}"""
-
-        # unify use
         subst = unify(node_ty, given_ty, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, node_ty, given_ty, "pattern"))

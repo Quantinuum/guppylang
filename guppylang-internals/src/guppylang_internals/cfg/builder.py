@@ -668,7 +668,7 @@ class BranchBuilder(AstVisitor[None]):
         self.cfg.link(bb, true_bb)
 
 
-class PatternBuilder(AstVisitor[ast.pattern, BB]):
+class PatternBuilder(AstVisitor[tuple[ast.pattern, BB]]):
     cfg: CFG
 
     def __init__(self, cfg: CFG) -> None:

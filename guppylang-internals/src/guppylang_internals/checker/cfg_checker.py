@@ -86,7 +86,7 @@ def check_cfg(
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
-    # TODO: NICOLA(F) not working here!
+    # TODO: NICOLa(F) to update with new feature!
     cfg.analyze(ass_before, ass_before, [v.name for v in inout_vars])
 
     # We start by compiling the entry BB
