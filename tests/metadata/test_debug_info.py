@@ -1,4 +1,4 @@
-from guppylang_internals.debug_info import HugrDebugInfo
+from guppylang_internals.metadata.debug_info import HugrDebugInfo
 
 from guppylang import guppy
 

@@ -8,7 +8,7 @@ from guppylang_internals.checker.modifier_checker import non_copyable_front_othe
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
-from guppylang_internals.definition.metadata import add_metadata
+from guppylang_internals.metadata.common import add_metadata
 from guppylang_internals.nodes import CheckedModifiedBlock, PlaceNode
 from guppylang_internals.std._internal.compiler.array import (
     array_new,

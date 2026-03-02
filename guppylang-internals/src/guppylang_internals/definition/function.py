@@ -34,7 +34,6 @@ from guppylang_internals.definition.common import (
     RawDef,
     UnknownSourceError,
 )
-from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -42,6 +41,7 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import GuppyError
+from guppylang_internals.metadata.common import GuppyMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst

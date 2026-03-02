@@ -13,7 +13,6 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
-from guppylang_internals.debug_info import DICompileUnit, HugrDebugInfo
 from guppylang_internals.definition.common import (
     CheckableDef,
     CheckedDef,
@@ -29,6 +28,7 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import pretty_errors
+from guppylang_internals.metadata.debug_info import DICompileUnit, HugrDebugInfo
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tracing.util import get_calling_frame
 from guppylang_internals.tys.builtin import (
