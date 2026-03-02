@@ -478,7 +478,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     raise InternalGuppyError(
                         "Valid variants should be available in `ctx.globals`"
                     )
-                return node, constr.ty.output
+                return with_loc(
+                    node, GlobalName(id=name, def_id=defn.id)
+                ), constr.ty.output
             # For types, we return their `__new__` constructor
             case TypeDef() as defn if constr := self.ctx.globals.get_instance_func(
                 defn, "__new__"
