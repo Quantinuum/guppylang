@@ -91,7 +91,6 @@ def check_cfg(
 
     # We start by compiling the entry BB
     checked_cfg: CheckedCFG[Variable] = CheckedCFG([v.ty for v in inputs], return_ty)
-    # TODO: NICOLA(1) From here we also need to integrate the match
     checked_cfg.entry_bb = check_bb(
         cfg.entry_bb, checked_cfg, inputs, return_ty, generic_params, globals
     )
@@ -156,6 +155,7 @@ def check_cfg(
     # Finally, run the linearity check
     from guppylang_internals.checker.linearity_checker import check_cfg_linearity
 
+    # TODO: NICOLA(1) From here we also need to integrate the match
     linearity_checked_cfg = check_cfg_linearity(checked_cfg, func_name, globals)
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
@@ -232,7 +232,6 @@ def check_bb(
     # If we branch, we also have to check the branch predicate
     if len(bb.successors) > 1:
         assert bb.branch_pred is not None
-        # TODO: NICOLA(2) From here we need to integrate the match
         bb.branch_pred, ty = ExprSynthesizer(ctx).synthesize(bb.branch_pred)
         bb.branch_pred, _ = to_bool(bb.branch_pred, ty, ctx)
 
@@ -326,6 +325,8 @@ def diagnose_maybe_undefined(
     Returns the branch condition and a flag whether the value being `True` leads to the
     undefined path. Returns `None` if no such branch can be found.
     """
+    # TODO: NICOLa(F) this function should work also with match,
+    # i.e. branching on more than 2 successors.
     assert x in cfg.maybe_ass_before[bb]
     # Find all BBs that can reach this BB and which ones of those assign `x`
     ancestors = list(cfg.ancestors(bb))

@@ -89,7 +89,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.common import Definition, ParsedDef
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
@@ -509,18 +509,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         # TODO: NICOLa clear this stuff
         # from guppylang_internals.engine import ENGINE
 
-        # A `value.attr` attribute access. Unfortunately, the `attr` is just a string,
-        # not an AST node, so we have to compute its span by hand. This is fine since
-        # linebreaks are not allowed in the identifier following the `.`
-        # The only exception are attributes accesses that are generated during
-        # desugaring (for example for iterators in `for` loops). Since those just
-        # inherit the span of the sugared code, we could have line breaks there.
-        # See https://github.com/quantinuum/guppylang/issues/1301
-        span = to_span(node)
-        if span.start.line == span.end.line:
-            attr_span = Span(span.end.shift_left(len(node.attr)), span.end)
-        else:
-            attr_span = span
+        attr_span = build_attr_span(node)
         if module := self._is_python_module(node.value):
             if node.attr in module.__dict__:
                 val = module.__dict__[node.attr]
@@ -871,8 +860,14 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
 
     def visit_MatchPred(self, node: MatchPred) -> tuple[ast.expr, Type]:
-        # TODO: NICOLA(3)
+        # TODO: NICOLa(F): what other types we support here? arrays? Option?
         node.subject, subj_ty = self.synthesize(node.subject)
+        if not isinstance(subj_ty, (StructType, EnumType)):
+            raise GuppyTypeError(
+                ExpectedError(
+                    node.subject, "a struct or enum type TODO ERROR0", got=subj_ty
+                )
+            )
         checked_patterns = []
         for pattern in node.patterns:
             pattern = PatternChecker(self.ctx).check(pattern, subj_ty)
@@ -915,24 +910,33 @@ class PatternChecker(AstVisitor[ast.pattern]):
         return with_type(given_ty, pattern)
         # return pattern
 
-    def _synthesize_type(self, node: ast.expr, ty: Type, value_expected: bool) -> Type:
-        from guppylang_internals.definition.custom import CustomFunctionDef
+    def _check_class_type(self, node: ast.Name, class_type: str) -> ParsedDef:
+        """Checks that the given node corresponds to a global class definition."""
+        if node.id in self.ctx.locals:
+            raise GuppyTypeError(
+                ExpectedError(
+                    node, f"a {class_type} class", got="a variable TODO ERROR4"
+                )
+            )
+        if node.id not in self.ctx.globals:
+            raise GuppyTypeError(
+                ExpectedError(
+                    node, f"a {class_type} class", got="undefined TODO ERROR5"
+                )
+            )
 
-        # self.ctx.globals[]
-        # If we have a function call we need to check that is a constructor
-        got = ""
-        if isinstance(ty, FunctionType):
-            got = "a function call"
-            if isinstance(node, GlobalName):
-                defn = ENGINE.get_parsed(node.def_id)
-                if isinstance(defn, CustomFunctionDef) and defn.is_constructor:
-                    return ty.output
-        elif value_expected:
-            # if we are visiting a MatchValue pattern, we can also accept a value,
-            # thus we return the type of the value
-            return ty
+        return self.ctx.globals[node.id]
 
-        raise GuppyTypeError(ExpectedError(node, "a value or a class", got))
+    def _check_def_against_type(
+        self, node: ast.Name, defn: ParsedDef, given_ty: Type
+    ) -> None:
+        """Checks that the given definition corresponds to the given type,
+        by comparing the IDs"""
+        if defn.id != given_ty.defn.id:
+            _, node_ty = ExprSynthesizer(self.ctx).synthesize(node)
+            raise GuppyTypeError(
+                TypeMismatchError(node, node_ty, given_ty, "pattern TODOO5")
+            )
 
     def _check_pattern_args(
         self, pattern: ast.MatchClass, exp_arg_tys: list[Type]
@@ -943,9 +947,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
         return pattern
 
     def visit_MatchAs(self, node: ast.MatchAs, given_ty: Type) -> ast.pattern:
-        # case _ had already been handled during CFG construction,
-        # we may have MatchAs pattern inside another pattern (for name binding)
-        # e.g case Class(x): -> pattern=MatchClass(..., patterns=MatchAs(name='x'))
+        # Only case _ or _ inside another pattern are allowed
         if node.name is not None:
             self.generic_visit(node, given_ty)
 
@@ -966,86 +968,47 @@ class PatternChecker(AstVisitor[ast.pattern]):
     def visit_MatchClass(self, node: ast.MatchClass, given_ty: Type) -> ast.pattern:
         match node.cls:
             case ast.Attribute(value=ast.Name(), attr=attr):
-                node.cls.value, value_ty = ExprSynthesizer(self.ctx).synthesize(
-                    node.cls.value
-                )
+                from guppylang_internals.definition.enum import ParsedEnumDef
 
-                if not isinstance(value_ty, EnumType):
+                class_def = self._check_class_type(node.cls.value, "enum")
+
+                # Only enums can be matched with attribute syntax
+                if not isinstance(class_def, ParsedEnumDef):
                     raise GuppyTypeError(
                         ExpectedError(
                             node.cls.value, "an enum class", got="TODO ERROR2"
                         )
                     )
+                self._check_def_against_type(node.cls.value, class_def, given_ty)
 
-                subst = unify(value_ty, given_ty, {})
-                if subst is None:
+                if attr not in given_ty.variant_as_dict:
+                    attr_span = build_attr_span(node.cls, offset=2)
                     raise GuppyTypeError(
-                        TypeMismatchError(node, given_ty, value_ty, "pattern TODOO5")
+                        AttributeNotFoundError(attr_span, given_ty, attr)
                     )
 
-                if attr not in value_ty.variant_as_dict:
-                    # TODO: NICola, see if merging this code with above
-                    span = to_span(node)
-                    if span.start.line == span.end.line:
-                        attr_span = Span(span.end.shift_left(len(attr) + 2), span.end)
-                    else:
-                        attr_span = span
-                    raise GuppyTypeError(
-                        AttributeNotFoundError(attr_span, value_ty, attr)
-                    )
-
+                assert isinstance(given_ty, EnumType)
                 node = self._check_pattern_args(
-                    node, [f.ty for f in value_ty.variant_as_dict[attr].fields]
+                    node, [f.ty for f in given_ty.variant_as_dict[attr].fields]
                 )
 
-            case ast.Name() as name:
-                class_def = self.ctx.globals[name.id]
+            case ast.Name():
                 from guppylang_internals.definition.struct import ParsedStructDef
 
+                class_def = self._check_class_type(node.cls, "struct")
+                # We allow matching against a struct using the class name syntax
                 if not isinstance(class_def, ParsedStructDef):
                     raise GuppyTypeError(
                         ExpectedError(node.cls, "a struct class", got="TODO ERROR4")
                     )
-                if class_def.id != given_ty.defn.id:
-                    _, node_ty = ExprSynthesizer(self.ctx).synthesize(node.cls)
-                    raise GuppyTypeError(
-                        TypeMismatchError(node, node_ty, given_ty, "pattern TODOO5")
-                    )
+
+                self._check_def_against_type(node.cls, class_def, given_ty)
 
                 assert isinstance(given_ty, StructType)
                 node = self._check_pattern_args(node, [f.ty for f in given_ty.fields])
 
-                # node.cls, cls_ty = ExprSynthesizer(self.ctx).synthesize(node.cls)
-                # if not isinstance(cls_ty, StructType):
-                #     raise GuppyTypeError(
-                #         ExpectedError(node.cls, "a struct class", got="TODO ERROR4")
-                #     )
-
-                # node = self._check_pattern_args(node, [f.ty for f in cls_ty.fields])
-
             case _:
-                raise GuppyError(
-                    ExpectedError(node, "a value or a class (TODO ERROR3)")
-                )
-
-        # node.cls, cls_ty = ExprSynthesizer(self.ctx).synthesize(node.cls)
-        # node_ty = self._synthesize_type(node.cls, cls_ty, False)
-        # subst = unify(node_ty, given_ty, {})
-        # if subst is None:
-        #     raise GuppyTypeError(TypeMismatchError(node, node_ty, given_ty, "pattern"))
-        # assert subst == {}
-
-        # if len(node.patterns) > 0:
-        #     # We are considering `case Class(1,2,..)`.
-        #     # We need to check the constructor call.
-        #     # From the previous step, we know that `cls_ty` is a function type
-        #     assert isinstance(cls_ty, FunctionType)
-
-        #     check_num_args(len(cls_ty.inputs), len(node.patterns), node)
-
-        #     for patt_arg, input_ty in zip(node.patterns, cls_ty.inputs, strict=True):
-        #         patt_arg = self.visit(patt_arg, input_ty.ty)
-
+                raise GuppyError(ExpectedError(node, "a value or a class TODO ERROR3"))
         return node
 
     def generic_visit(self, node: ast.pattern, given_ty: Type) -> NoReturn:
@@ -1691,3 +1654,22 @@ def _python_list_to_guppy_type(
             raise GuppyError(ComptimeExprIncoherentListError(node))
         el_ty = el_ty.substitute(subst)
     return frozenarray_type(el_ty, len(vs))
+
+
+def build_attr_span(node: ast.Attribute, offset: int = 0) -> Span:
+    """Builds a span for the attribute in an `ast.Attribute` node.
+
+    A `value.attr` attribute access. Unfortunately, the `attr` is just a string,
+    not an AST node, so we have to compute its span by hand. This is fine since
+    linebreaks are not allowed in the identifier following the `.`
+    The only exception are attributes accesses that are generated during
+    desugaring (for example for iterators in `for` loops). Since those just
+    inherit the span of the sugared code, we could have line breaks there.
+    See https://github.com/quantinuum/guppylang/issues/1301"""
+    span = to_span(node)
+    if span.start.line == span.end.line:
+        attr_span = Span(span.end.shift_left(len(node.attr) + offset), span.end)
+    else:
+        attr_span = span
+
+    return attr_span
