@@ -148,7 +148,7 @@ def qfree(q: qubit @ owned) -> None: ...
 @hugr_op(quantum_op("LazyMeasureLeaked", ext=QSYSTEM_EXTENSION))
 @no_type_check
 def _measure_leaked(q: qubit @ owned) -> Future[int]:
-    """Measure the quibit or return 2 if it is leaked."""
+    """Measure the qubit or return 2 if it is leaked."""
 
 
 @guppy
