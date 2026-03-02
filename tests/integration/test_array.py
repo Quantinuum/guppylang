@@ -691,14 +691,14 @@ def test_discard_borrowed(validate):
 
     @guppy
     def main() -> None:
-        qubits = array(qubit())
+        qubits = array(qubit(), qubit())
         result("before_take", qubits.is_borrowed(0))
         q = qubits.take(0)
         result("after_take", qubits.is_borrowed(0))
         q.discard()
-        discard_array(qubits)
+        discard_array(qubits)  # Here, not all qubits in the array are taken out yet
 
-    res = main.emulator(1).coinflip_sim().run().results[0].entries
+    res = main.emulator(2).coinflip_sim().run().results[0].entries
     assert res == [
         ("before_take", 0),
         ("after_take", 1),
