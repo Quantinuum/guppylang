@@ -61,6 +61,7 @@ from guppylang_internals.nodes import (
     GlobalCall,
     InoutReturnSentinel,
     LocalCall,
+    MatchPred,
     PartialApply,
     PlaceNode,
     StateResultExpr,
@@ -714,6 +715,10 @@ class BBLinearityChecker(ast.NodeVisitor):
             if InputFlags.Inout in var.flags:
                 self._reassign_single_inout_arg(var, var.defined_at or use)
 
+    def visit_MatchPred(self, node: MatchPred) -> None:
+        # TODO: NICOLA(2) - Implement linearity checking for pattern matching
+        pass
+
 
 def leaf_places(place: Place) -> Iterator[Place]:
     """Returns all leaf descendant projections of a place."""
@@ -922,13 +927,15 @@ def check_cfg_linearity(
                                 consumed_succs.add(succ)
                     if consumed_succs:
                         assert bb.branch_pred is not None
-                        [left_succ, _] = bb.successors
-                        err.add_sub_diagnostic(
-                            PlaceNotUsedError.Branch(
-                                bb.branch_pred,
-                                left_succ in consumed_succs,
+                        # TODO: NICOLa(F): consider doingn
+                        if len(bb.successors) == 2:
+                            [left_succ, _] = bb.successors
+                            err.add_sub_diagnostic(
+                                PlaceNotUsedError.Branch(
+                                    bb.branch_pred,
+                                    left_succ in consumed_succs,
+                                )
                             )
-                        )
                     err.add_sub_diagnostic(PlaceNotUsedError.Fix(None))
                     raise GuppyError(err)
 
