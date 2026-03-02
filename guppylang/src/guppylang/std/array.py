@@ -219,7 +219,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
     @guppy
     def discard_all_taken(self: array[L, n] @ owned) -> None:
-        """Discards all elements of the array that have been taken"""
+        """Discards array assuming that all elements been taken out."""
         _array_discard_all_used(self)
 
     def __new__(cls, *args: _T) -> builtins.list[_T]:  # type: ignore[no-redef]
