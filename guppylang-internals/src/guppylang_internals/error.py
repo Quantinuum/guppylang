@@ -61,9 +61,8 @@ def exception_hook(hook: ExceptHook) -> Iterator[None]:
         old_exc_tuple = ipython_shell.custom_exceptions
         ipython_shell.set_custom_exc((Exception,), ipython_excepthook)
         yield
-        ipython_shell.set_custom_exc(
-            old_exc_tuple, lambda shell, *args, **kwargs: old_hook(*args, **kwargs)
-        )
+        ipython_shell.CustomTB = old_hook
+        ipython_shell.custom_exceptions = old_exc_tuple
     except NameError:
         pass
     else:
@@ -74,6 +73,21 @@ def exception_hook(hook: ExceptHook) -> Iterator[None]:
     sys.excepthook = hook
     yield
     sys.excepthook = old_hook
+
+
+@contextmanager
+def saved_exception_hook() -> Iterator[None]:
+    """Restores `sys.excepthook` to its current value after the 'with' block exits.
+
+    Unlike `exception_hook`, this does not install a new hook — it simply guarantees
+    that any changes made inside the block (e.g. by `@hide_trace`-decorated callables)
+    are rolled back when the block exits, whether normally or via an exception.
+    """
+    old_hook = sys.excepthook
+    try:
+        yield
+    finally:
+        sys.excepthook = old_hook
 
 
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
