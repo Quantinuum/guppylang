@@ -63,7 +63,7 @@ jobs:
 
       - name: Upload the built guppylang-internals package as an artifact
         if: ${{ steps.check-tag.outputs.run == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build-guppylang-internals-sdist
           path: |
@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload the built guppylang package as an artifact
         if: ${{ steps.check-tag.outputs.run == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build-guppylang-sdist
           path: |
