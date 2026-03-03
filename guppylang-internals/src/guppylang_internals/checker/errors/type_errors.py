@@ -367,3 +367,10 @@ class IntOverflowError(Error):
     @property
     def signed_unsigned(self) -> str:
         return "signed" if self.signed else "unsigned"
+
+
+@dataclass(frozen=True)
+class ClassNotDefinedError(Error):
+    title: ClassVar[str] = "Class not defined"
+    span_label: ClassVar[str] = "`{cls}` is not defined"
+    cls: str

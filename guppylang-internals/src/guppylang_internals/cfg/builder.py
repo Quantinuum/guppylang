@@ -682,7 +682,9 @@ class PatternBuilder(AstVisitor[tuple[ast.pattern, BB]]):
         # Name binding is not supported in patterns,
         # we only support the wildcard pattern `_`
         if node.name is not None:
-            self.generic_visit(node, bb)
+            raise GuppyError(
+                UnsupportedError(node, "Aliasing in patterns", singular=True)
+            )
 
         return node, bb
 

@@ -165,6 +165,7 @@ def check_cfg(
     return linearity_checked_cfg
 
 
+# TODO: NICOLa move it in an utility file
 @dataclass(frozen=True)
 class VarNotDefinedError(Error):
     title: ClassVar[str] = "Variable not defined"
@@ -172,6 +173,7 @@ class VarNotDefinedError(Error):
     var: str
 
 
+# TODO: NICOLa move it in an utility file
 @dataclass(frozen=True)
 class VarMaybeNotDefinedError(Error):
     title: ClassVar[str] = "Variable not defined"
@@ -191,6 +193,7 @@ class VarMaybeNotDefinedError(Error):
         return s
 
 
+# TODO: NICOLa move it in an utility file
 @dataclass(frozen=True)
 class BranchTypeError(Error):
     title: ClassVar[str] = "Different types"
