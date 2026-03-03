@@ -28,7 +28,11 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import pretty_errors
-from guppylang_internals.metadata.debug_info import DICompileUnit, HugrDebugInfo
+from guppylang_internals.metadata.debug_info import (
+    DICompileUnit,
+    HugrDebugInfo,
+    StringTable,
+)
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tracing.util import get_calling_frame
 from guppylang_internals.tys.builtin import (
@@ -283,22 +287,17 @@ class CompilationEngine:
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
 
-        # Add debug info about the module to the root node
-        frame = get_calling_frame()
-        assert frame is not None
-        filename = frame.f_code.co_filename
-        module_info = DICompileUnit(
-            directory=Path.cwd().as_uri(),
-            # We know this file is always the first entry in the file table.
-            filename=0,
-            file_table=[filename],
-        )
-        graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
-
         # Lower definitions to Hugr
         from guppylang_internals.compiler.core import CompilerContext
 
-        ctx = CompilerContext(graph)
+        # Set up string tables for metadata serialization. We know that the first entry
+        # in the table is always the file containing the Hugr entrypoint.
+        frame = get_calling_frame()
+        assert frame is not None
+        filename = frame.f_code.co_filename
+        file_table = StringTable([filename])
+
+        ctx = CompilerContext(graph, file_table)
         compiled_def = ctx.compile(self.checked[id])
         self.compiled = ctx.compiled
 
@@ -310,6 +309,15 @@ class CompilationEngine:
             # if compiling a region set it as the HUGR entrypoint can be
             # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
             graph.hugr.entrypoint = compiled_def.hugr_node
+
+        # Add debug info about the module to the root node
+        module_info = DICompileUnit(
+            directory=Path.cwd().as_uri(),
+            # We know this file is always the first entry in the file table.
+            filename=ctx.metadata_file_table.get_index(filename),
+            file_table=ctx.metadata_file_table.table,
+        )
+        graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
 
         # Use cached base extensions and registry, only add additional extensions
         base_extensions = self._get_base_packaged_extensions()

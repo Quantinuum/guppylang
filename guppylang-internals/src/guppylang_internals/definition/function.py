@@ -10,7 +10,13 @@ from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.hugr.node_port import ToNode
 
-from guppylang_internals.ast_util import AstNode, annotate_location, with_loc, with_type
+from guppylang_internals.ast_util import (
+    AstNode,
+    annotate_location,
+    get_file,
+    with_loc,
+    with_type,
+)
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Context, Globals, Place
 from guppylang_internals.checker.errors.generic import ExpectedError
@@ -42,6 +48,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import GuppyMetadata, add_metadata
+from guppylang_internals.metadata.debug_info import DISubprogram
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
@@ -197,6 +204,12 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         func_def = module.module_root_builder().define_function(
             hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
+        subprogram = DISubprogram(
+            file=ctx.metadata_file_table.get_index(get_file(self.defined_at)),
+            line_no=self.defined_at.lineno,
+            scope_line=self.defined_at.body[0].lineno,
+        )
+        self.metadata.set_debug_info(subprogram)
         add_metadata(
             func_def,
             self.metadata,

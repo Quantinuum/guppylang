@@ -40,6 +40,7 @@ from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.metadata.debug_info import StringTable
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import nat_type
@@ -151,9 +152,12 @@ class CompilerContext(ToHugrContext):
 
     checked_globals: Globals
 
+    metadata_file_table: StringTable
+
     def __init__(
         self,
         module: DefinitionBuilder[ops.Module],
+        file_table: StringTable | None = None,
     ) -> None:
         self.module = module
         self.worklist = {}
@@ -161,6 +165,9 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.checked_globals = Globals(None)
         self.current_mono_args = None
+        self.metadata_file_table = (
+            file_table if file_table is not None else StringTable([])
+        )
 
     @contextmanager
     def set_monomorphized_args(

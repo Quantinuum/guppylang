@@ -41,7 +41,7 @@ class GuppyMetadata:
         return self._node_metadata
 
     def set_debug_info(self, debug_info: DebugRecord) -> None:
-        self._node_metadata[HugrDebugInfo.KEY] = debug_info
+        self._node_metadata[HugrDebugInfo.KEY] = debug_info.to_json()
 
     def set_max_qubits(self, max_qubits: int) -> None:
         self._node_metadata[MetadataMaxQubits.KEY] = max_qubits
