@@ -61,9 +61,8 @@ def exception_hook(hook: ExceptHook) -> Iterator[None]:
         old_exc_tuple = ipython_shell.custom_exceptions
         ipython_shell.set_custom_exc((Exception,), ipython_excepthook)
         yield
-        ipython_shell.set_custom_exc(
-            old_exc_tuple, lambda shell, *args, **kwargs: old_hook(*args, **kwargs)
-        )
+        ipython_shell.CustomTB = old_hook
+        ipython_shell.custom_exceptions = old_exc_tuple
     except NameError:
         pass
     else:
