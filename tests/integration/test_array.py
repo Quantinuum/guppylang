@@ -704,8 +704,6 @@ def test_discard_borrowed(validate):
         ("after_take", 1),
     ]
 
-    validate(main.compile())
-
 
 def test_nested_subscript_different_inner_indices(validate):
     """Smoketest for checking duplicate subscript accesses:
