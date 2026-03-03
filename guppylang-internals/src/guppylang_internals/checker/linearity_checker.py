@@ -718,9 +718,8 @@ class BBLinearityChecker(ast.NodeVisitor):
     def visit_MatchPred(self, node: MatchPred) -> None:
         # TODO: NICOLA(2) - Implement linearity checking for pattern matching
         # For now, we just check the subject, the guards is not supported and
-        # the patterns does not cointain any places (alias are not supported)
+        # the patterns does not contain any places (alias are not supported)
         self.visit(node.subject)
-        pass
 
 
 def leaf_places(place: Place) -> Iterator[Place]:
