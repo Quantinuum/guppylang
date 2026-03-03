@@ -11,7 +11,6 @@ from guppylang_internals.tys.ty import (
     NumericType,
     OpaqueType,
     StructType,
-    SumType,
     TupleType,
     Type,
 )
@@ -123,11 +122,6 @@ class TypePrinter:
         return f"({args})"
 
     @_visit.register
-    def _visit_SumType(self, ty: SumType, inside_row: bool) -> str:
-        args = ", ".join(self._visit(arg, True) for arg in ty.args)
-        return f"Sum[{args}]"
-
-    @_visit.register
     def _visit_NoneType(self, ty: NoneType, inside_row: bool) -> str:
         return "None"
 
@@ -163,12 +157,13 @@ def _wrap(s: str, inside_row: bool) -> str:
     return f"({s})" if inside_row else s
 
 
-def signature_to_str(name: str, sig: FunctionType) -> str:
+def signature_to_str(name: str, sig: FunctionType, has_var_args: bool = False) -> str:
     """Displays a function signature in Python syntax including the function name."""
     assert sig.input_names is not None
     s = f"def {name}("
     s += ", ".join(
-        f"{name}: {inp.ty}{TypePrinter._print_flags(inp.flags)}"
-        for name, inp in zip(sig.input_names, sig.inputs, strict=True)
+        f"{inp.name}: {inp.ty}{TypePrinter._print_flags(inp.flags)}"
+        for inp in sig.inputs
     )
+    s += ", ..." if has_var_args else ""
     return s + ") -> " + str(sig.output)

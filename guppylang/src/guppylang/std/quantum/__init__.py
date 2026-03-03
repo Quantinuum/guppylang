@@ -10,6 +10,7 @@ from guppylang_internals.std._internal.compiler.quantum import (
     RotationCompiler,
 )
 from guppylang_internals.std._internal.util import quantum_op
+from guppylang_internals.tys.ty import UnitaryFlags
 from hugr import tys as ht
 
 from guppylang import guppy
@@ -48,7 +49,7 @@ def maybe_qubit() -> Option[qubit]:
     if allocation succeeds or `nothing` if it fails."""
 
 
-@hugr_op(quantum_op("H"))
+@hugr_op(quantum_op("H"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def h(q: qubit) -> None:
     r"""Hadamard gate command
@@ -62,7 +63,7 @@ def h(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CZ"))
+@hugr_op(quantum_op("CZ"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def cz(control: qubit, target: qubit) -> None:
     r"""Controlled-Z gate command.
@@ -82,7 +83,7 @@ def cz(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CY"))
+@hugr_op(quantum_op("CY"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def cy(control: qubit, target: qubit) -> None:
     r"""Controlled-Y gate command.
@@ -102,7 +103,7 @@ def cy(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CX"))
+@hugr_op(quantum_op("CX"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def cx(control: qubit, target: qubit) -> None:
     r"""Controlled-X gate command.
@@ -122,7 +123,7 @@ def cx(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("T"))
+@hugr_op(quantum_op("T"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def t(q: qubit) -> None:
     r"""T gate.
@@ -137,7 +138,7 @@ def t(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("S"))
+@hugr_op(quantum_op("S"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def s(q: qubit) -> None:
     r"""S gate.
@@ -152,7 +153,7 @@ def s(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("V"))
+@hugr_op(quantum_op("V"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def v(q: qubit) -> None:
     r"""V gate.
@@ -167,7 +168,7 @@ def v(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("X"))
+@hugr_op(quantum_op("X"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def x(q: qubit) -> None:
     r"""X gate.
@@ -182,7 +183,7 @@ def x(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Y"))
+@hugr_op(quantum_op("Y"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def y(q: qubit) -> None:
     r"""Y gate.
@@ -197,7 +198,7 @@ def y(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Z"))
+@hugr_op(quantum_op("Z"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def z(q: qubit) -> None:
     r"""Z gate.
@@ -212,7 +213,7 @@ def z(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Tdg"))
+@hugr_op(quantum_op("Tdg"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def tdg(q: qubit) -> None:
     r"""Tdg gate.
@@ -227,7 +228,7 @@ def tdg(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Sdg"))
+@hugr_op(quantum_op("Sdg"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def sdg(q: qubit) -> None:
     r"""Sdg gate.
@@ -242,7 +243,7 @@ def sdg(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Vdg"))
+@hugr_op(quantum_op("Vdg"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def vdg(q: qubit) -> None:
     r"""Vdg gate.
@@ -257,7 +258,7 @@ def vdg(q: qubit) -> None:
     """
 
 
-@custom_function(RotationCompiler("Rz"))
+@custom_function(RotationCompiler("Rz"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def rz(q: qubit, angle: angle) -> None:
     r"""Rz gate.
@@ -273,7 +274,7 @@ def rz(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("Rx"))
+@custom_function(RotationCompiler("Rx"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def rx(q: qubit, angle: angle) -> None:
     r"""Rx gate.
@@ -288,7 +289,7 @@ def rx(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("Ry"))
+@custom_function(RotationCompiler("Ry"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def ry(q: qubit, angle: angle) -> None:
     r"""Ry gate.
@@ -303,7 +304,7 @@ def ry(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("CRz"))
+@custom_function(RotationCompiler("CRz"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def crz(control: qubit, target: qubit, angle: angle) -> None:
     r"""Controlled-Rz gate command.
@@ -323,7 +324,7 @@ def crz(control: qubit, target: qubit, angle: angle) -> None:
     """
 
 
-@hugr_op(quantum_op("Toffoli"))
+@hugr_op(quantum_op("Toffoli"), unitary_flags=UnitaryFlags.Unitary)
 @no_type_check
 def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
     r"""A Toffoli gate command. Also sometimes known as a CCX gate.
@@ -402,12 +403,12 @@ def ch(control: qubit, target: qubit) -> None:
     Qubit ordering: [control, target]
 
     .. math::
-        \mathrm{CH} = \frac{1}{\sqrt{2}}
+        \mathrm{CH} =
           \begin{pmatrix}
             1 & 0 & 0 & 0 \\
             0 & 1 & 0 & 0 \\
-            0 & 0 & 1 & 1 \\
-            0 & 0 & 1 & -1
+            0 & 0 &  \frac{1}{\sqrt{2}} &  \frac{1}{\sqrt{2}} \\
+            0 & 0 &  \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}}
         \end{pmatrix}
     """
     # based on https://quantumcomputing.stackexchange.com/a/15737

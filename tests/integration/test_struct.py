@@ -177,7 +177,7 @@ def test_field_access_and_drop(validate):
 
 
 def test_redefine(validate):
-    """See https://github.com/CQCL/guppylang/issues/1107"""
+    """See https://github.com/quantinuum/guppylang/issues/1107"""
 
     @guppy.struct
     class MyStruct:

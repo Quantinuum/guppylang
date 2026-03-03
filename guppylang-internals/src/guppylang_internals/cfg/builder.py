@@ -46,7 +46,7 @@ from guppylang_internals.nodes import (
     Power,
 )
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.ty import NoneType
+from guppylang_internals.tys.ty import NoneType, UnitaryFlags
 
 # In order to build expressions, need an endless stream of unique temporary variables
 # to store intermediate results
@@ -78,7 +78,13 @@ class CFGBuilder(AstVisitor[BB | None]):
     cfg: CFG
     globals: Globals
 
-    def build(self, nodes: list[ast.stmt], returns_none: bool, globals: Globals) -> CFG:
+    def build(
+        self,
+        nodes: list[ast.stmt],
+        returns_none: bool,
+        globals: Globals,
+        unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    ) -> CFG:
         """Builds a CFG from a list of ast nodes.
 
         We also require the expected number of return ports for the whole CFG. This is
@@ -86,6 +92,7 @@ class CFGBuilder(AstVisitor[BB | None]):
         variables.
         """
         self.cfg = CFG()
+        self.cfg.unitary_flags = unitary_flags
         self.globals = globals
 
         final_bb = self.visit_stmts(
@@ -147,27 +154,52 @@ class CFGBuilder(AstVisitor[BB | None]):
         return bb_opt
 
     def _build_node_value(self, node: BBStatement, bb: BB) -> BB:
-        """Utility method for building a node containing a `value` expression.
+        """Utility method for building a nodes `value` expression, if available.
 
         Builds the expression and mutates `node.value` to point to the built expression.
-        Returns the BB in which the expression is available and adds the node to it.
+        Returns the BB in which the expression is available.
         """
         if (
             not isinstance(node, NestedFunctionDef | ModifiedBlock)
             and node.value is not None
         ):
             node.value, bb = ExprBuilder.build(node.value, self.cfg, bb)
-        bb.statements.append(node)
+        return bb
+
+    def _build_node_targets(self, node: BBStatement, bb: BB) -> BB:
+        """Utility method for building a nodes `target` or `targets` expressions,
+        depending on the node type.
+
+        Builds the expressions and mutates the elements of `node.targets` to point to
+        the built expressions. Returns the BB in which the expressions are available.
+        """
+        if isinstance(node, ast.Assign):
+            for i, target in enumerate(node.targets):
+                node.targets[i], bb = ExprBuilder.build(target, self.cfg, bb)
+        elif isinstance(node, ast.AugAssign | ast.AnnAssign):
+            new_target, bb = ExprBuilder.build(node.target, self.cfg, bb)
+            if not isinstance(new_target, ast.Name | ast.Attribute | ast.Subscript):
+                raise InternalGuppyError("Unexpected type for built expression.")
+            node.target = new_target
         return bb
 
     def visit_Assign(self, node: ast.Assign, bb: BB, jumps: Jumps) -> BB | None:
-        return self._build_node_value(node, bb)
+        bb = self._build_node_value(node, bb)
+        bb = self._build_node_targets(node, bb)
+        bb.statements.append(node)
+        return bb
 
     def visit_AugAssign(self, node: ast.AugAssign, bb: BB, jumps: Jumps) -> BB | None:
-        return self._build_node_value(node, bb)
+        bb = self._build_node_value(node, bb)
+        bb = self._build_node_targets(node, bb)
+        bb.statements.append(node)
+        return bb
 
     def visit_AnnAssign(self, node: ast.AnnAssign, bb: BB, jumps: Jumps) -> BB | None:
-        return self._build_node_value(node, bb)
+        bb = self._build_node_value(node, bb)
+        bb = self._build_node_targets(node, bb)
+        bb.statements.append(node)
+        return bb
 
     def visit_Expr(self, node: ast.Expr, bb: BB, jumps: Jumps) -> BB | None:
         # This is an expression statement where the value is discarded
@@ -198,6 +230,8 @@ class CFGBuilder(AstVisitor[BB | None]):
             return self.cfg.new_bb(then_bb, else_bb)
 
     def visit_While(self, node: ast.While, bb: BB, jumps: Jumps) -> BB | None:
+        if node.orelse:
+            raise GuppyError(UnsupportedError(node.orelse[0], "Loop else clauses"))
         head_bb = self.cfg.new_bb(bb)
         body_bb, tail_bb = self.cfg.new_bb(), self.cfg.new_bb()
         BranchBuilder.add_branch(node.test, self.cfg, head_bb, body_bb, tail_bb)
@@ -216,6 +250,8 @@ class CFGBuilder(AstVisitor[BB | None]):
         return tail_bb
 
     def visit_For(self, node: ast.For, bb: BB, jumps: Jumps) -> BB | None:
+        if node.orelse:
+            raise GuppyError(UnsupportedError(node.orelse[0], "Loop else clauses"))
         template = """
             it = make_iter
             while True:
@@ -255,6 +291,7 @@ class CFGBuilder(AstVisitor[BB | None]):
 
     def visit_Return(self, node: ast.Return, bb: BB, jumps: Jumps) -> BB | None:
         bb = self._build_node_value(node, bb)
+        bb.statements.append(node)
         self.cfg.link(bb, jumps.return_bb)
         return None
 
@@ -273,6 +310,7 @@ class CFGBuilder(AstVisitor[BB | None]):
 
         func_ty = check_signature(node, self.globals)
         returns_none = isinstance(func_ty.output, NoneType)
+        # No UnitaryFlags are assigned to nested functions
         cfg = CFGBuilder().build(node.body, returns_none, self.globals)
 
         new_node = NestedFunctionDef(
@@ -299,6 +337,13 @@ class CFGBuilder(AstVisitor[BB | None]):
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
             modifier = self._handle_withitem(item)
             new_node.push_modifier(modifier)
+
+        # FIXME: Currently, the unitary flags is not set correctly if there are nested
+        # `with` blocks. This is because the outer block's unitary flags are not
+        # propagated to the outer block. The following line should calculate the sum
+        # of the unitary flags of the outer block and modifiers applied in this
+        # `with` block.
+        cfg.unitary_flags = new_node.flags()
 
         set_location_from(new_node, node)
         bb.statements.append(new_node)
@@ -557,7 +602,7 @@ class BranchBuilder(AstVisitor[None]):
                     comparators[:-1], node.ops, comparators[1:], strict=True
                 )
             ]
-            conj = ast.BoolOp(op=ast.And(), values=values)
+            conj = ast.BoolOp(op=ast.And(), values=values)  # type: ignore[arg-type]
             set_location_from(conj, node)
             self.visit_BoolOp(conj, bb, true_bb, false_bb)
         else:
@@ -653,6 +698,9 @@ def is_comptime_expression(node: ast.AST) -> ComptimeExpr | None:
 
     Otherwise, returns `None`.
     """
+    if isinstance(node, ComptimeExpr):
+        return node
+
     if (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
@@ -664,8 +712,8 @@ def is_comptime_expression(node: ast.AST) -> ComptimeExpr | None:
             case [arg]:
                 pass
             case args:
-                arg = with_loc(node, ast.Tuple(elts=args, ctx=ast.Load))
-        return with_loc(node, ComptimeExpr(value=arg))
+                arg = with_loc(node, ast.Tuple(elts=args, ctx=ast.Load))  # type: ignore[arg-type]
+        return with_loc(node, ComptimeExpr(arg))
     return None
 
 
@@ -686,7 +734,7 @@ def is_illegal_in_list_comp(node: ast.AST) -> bool:
 
 def make_var(name: str, loc: ast.AST | None = None) -> ast.Name:
     """Creates an `ast.Name` node."""
-    node = ast.Name(id=name, ctx=ast.Load)
+    node = ast.Name(id=name, ctx=ast.Load)  # type: ignore[arg-type]
     if loc is not None:
         set_location_from(node, loc)
     return node
@@ -700,5 +748,8 @@ def make_assign(lhs: list[ast.AST], value: ast.expr) -> ast.Assign:
     if len(lhs) == 1:
         target = lhs[0]
     else:
-        target = with_loc(value, ast.Tuple(elts=lhs, ctx=ast.Store()))
-    return with_loc(value, ast.Assign(targets=[target], value=value))
+        target = with_loc(
+            value,
+            ast.Tuple(elts=lhs, ctx=ast.Store()),  # type: ignore[arg-type]
+        )
+    return with_loc(value, ast.Assign(targets=[target], value=value))  # type: ignore[list-item]

@@ -1,9 +1,0 @@
-Error: WASM signature error (at $FILE:9:4)
-  | 
-7 | class Foo:
-8 |     @wasm
-9 |     def foo(self: "Foo", x: qubit) -> qubit: ...
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ WASM function signature contained an unsupported type:
-  |                                                  `qubit`
-
-Guppy compilation failed due to 1 previous error

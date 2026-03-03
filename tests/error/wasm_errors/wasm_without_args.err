@@ -1,0 +1,8 @@
+Error: WASM signature error (at $FILE:9:4)
+  | 
+7 | class WasmModule:
+8 |     @wasm
+9 |     def nothing() -> int: ...
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^ First argument to WASM function should be a WASM module.
+
+Guppy compilation failed due to 1 previous error

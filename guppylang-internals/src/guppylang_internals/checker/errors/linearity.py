@@ -33,7 +33,18 @@ class AlreadyUsedError(Error):
 
     @dataclass(frozen=True)
     class PrevUse(Note):
-        span_label: ClassVar[str] = "since it was already {prev_kind.subjunctive} here"
+        span_label: ClassVar[str] = (
+            "{place.describe} already {prev_kind.subjunctive} here"
+        )
+        prev_kind: UseKind
+
+    @dataclass(frozen=True)
+    class MemberPrevUse(Note):
+        span_label: ClassVar[str] = (
+            "... since the member `{child_place}` with non-copyable type "
+            "`{child_place.ty}` was already {prev_kind.subjunctive} here"
+        )
+        child_place: Place
         prev_kind: UseKind
 
     @dataclass(frozen=True)
@@ -55,7 +66,9 @@ class ComprAlreadyUsedError(Error):
 
     @dataclass(frozen=True)
     class PrevUse(Note):
-        span_label: ClassVar[str] = "since it was already {prev_kind.subjunctive} here"
+        span_label: ClassVar[str] = (
+            "{place.describe} already {prev_kind.subjunctive} here"
+        )
         prev_kind: UseKind
 
 

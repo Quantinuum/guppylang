@@ -24,7 +24,7 @@ from guppylang_internals.compiler.core import (
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.compiler.stmt_compiler import StmtCompiler
 from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, read_bool
-from guppylang_internals.tys.ty import SumType, row_to_type, type_to_row
+from guppylang_internals.tys.ty import type_to_row
 
 
 def compile_cfg(
@@ -38,7 +38,7 @@ def compile_cfg(
     # TODO: This mutates the CFG in-place which leads to problems when trying to lower
     #  the same function to Hugr twice. For now we just check that the return vars
     #  haven't already been inserted, but we should figure out a better way to handle
-    #  this: https://github.com/CQCL/guppylang/issues/428
+    #  this: https://github.com/quantinuum/guppylang/issues/428
     if all(
         not is_return_var(v.name)
         for v in cfg.exit_bb.sig.input_row
@@ -52,7 +52,7 @@ def compile_cfg(
     # unreachable
     out_tys = [place.ty.to_hugr(ctx) for place in cfg.exit_bb.sig.input_row]
     # TODO: Use proper API for this once it's added in hugr-py:
-    #  https://github.com/CQCL/hugr/issues/1816
+    #  https://github.com/quantinuum/hugr/issues/1816
     builder._exit_op._cfg_outputs = out_tys
     builder.parent_op._outputs = out_tys
     builder.parent_node = builder.hugr._update_node_outs(
@@ -111,7 +111,7 @@ def compile_bb(
         pred_ty = builder.hugr.port_type(branch_port.out_port())
         assert pred_ty == OpaqueBool
         branch_port = dfg.builder.add_op(read_bool(), branch_port)
-        branch_port = cast(Wire, branch_port)
+        branch_port = cast("Wire", branch_port)
     else:
         # Even if we don't branch, we still have to add a `Sum(())` predicates
         branch_port = dfg.builder.add_op(ops.Tag(0, ht.UnitSum(1)))
@@ -194,13 +194,14 @@ def choose_vars_for_tuple_sum(
     constructs a TupleSum value of type `Sum(#s1, #s2, ...)`.
     """
     assert all(v.ty.droppable for var_row in output_vars for v in var_row)
-    tys = [[v.ty for v in var_row] for var_row in output_vars]
-    sum_type = SumType([row_to_type(row) for row in tys]).to_hugr(dfg.ctx)
+    sum_type = ht.Sum(
+        [[v.ty.to_hugr(dfg.ctx) for v in var_row] for var_row in output_vars]
+    )
 
     # We pass all values into the conditional instead of relying on non-local edges.
     # This is because we can't handle them in lower parts of the stack yet :/
     # TODO: Reinstate use of non-local edges.
-    #  See https://github.com/CQCL/guppylang/issues/963
+    #  See https://github.com/quantinuum/guppylang/issues/963
     all_vars = {v.id: dfg[v] for var_row in output_vars for v in var_row}
     all_vars_wires = list(all_vars.values())
     all_vars_idxs = {x: i for i, x in enumerate(all_vars.keys())}

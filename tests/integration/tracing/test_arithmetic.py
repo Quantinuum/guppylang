@@ -111,12 +111,12 @@ def test_float(validate, run_float_fn_approx):
     def div(x: float, y: float) -> float:
         return 100 / (x / (y / 2))
 
-    # TODO: Requires lowering of `ffloor` op: https://github.com/CQCL/hugr/issues/1905
+    # TODO: Requires lowering of `ffloor` op: https://github.com/quantinuum/hugr/issues/1905
     # @guppy.comptime
     # def floordiv(x: float, y: float) -> float:
     #     return 100 // (x // (y // 2))
 
-    # TODO: Requires lowering of `fpow` op: https://github.com/CQCL/hugr/issues/1905
+    # TODO: Requires lowering of `fpow` op: https://github.com/quantinuum/hugr/issues/1905
     # @guppy.comptime
     # def pow(x: float, y: float) -> float:
     #     return 4 ** (x ** (y ** 0.5))
@@ -128,10 +128,10 @@ def test_float(validate, run_float_fn_approx):
     run_float_fn_approx(mul, -27.0, args=[3, -4.5])
     run_float_fn_approx(div, 400.0, args=[0.5, 4])
 
-    # TODO: Requires lowering of `ffloor` op: https://github.com/CQCL/hugr/issues/1905
+    # TODO: Requires lowering of `ffloor` op: https://github.com/quantinuum/hugr/issues/1905
     # emulate_float_fn_approx(div, ..., [...])
 
-    # TODO: Requires lowering of `fpow` op: https://github.com/CQCL/hugr/issues/1905
+    # TODO: Requires lowering of `fpow` op: https://github.com/quantinuum/hugr/issues/1905
     # emulate_float_fn_approx(pow, ..., [...])
 
 

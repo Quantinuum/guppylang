@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:13:14)
 13 |     return s, s.q
    |               ^^^ Field `s.q` with non-copyable type `qubit` cannot be
    |                   returned ...
+
+Note:
    | 
+12 | def foo(s: MyStruct @owned) -> tuple[MyStruct, qubit]:
 13 |     return s, s.q
-   |            - since it was already returned here
+   |            - Field `s.q` already returned here
 
 Guppy compilation failed due to 1 previous error

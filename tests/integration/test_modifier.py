@@ -101,7 +101,7 @@ def test_nested_modifiers(validate):
 def test_free_linear_variable_in_modifier(validate):
     T = guppy.type_var("T", copyable=False, droppable=False)
 
-    @guppy.declare
+    @guppy.declare(control=True)
     def use(a: T) -> None: ...
 
     @guppy.declare
@@ -122,9 +122,6 @@ def test_free_copyable_variable_in_modifier(validate):
 
     @guppy.declare
     def use(a: T) -> None: ...
-
-    @guppy.declare
-    def discard(a: T @ owned) -> None: ...
 
     @guppy
     def bar(q: array[qubit, 3]) -> None:

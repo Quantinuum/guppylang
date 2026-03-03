@@ -273,13 +273,16 @@ class CheckedStructDef(TypeDef, CompiledDef):
 
         constructor_sig = FunctionType(
             inputs=[
-                FuncInput(f.ty, InputFlags.Owned if f.ty.linear else InputFlags.NoFlags)
+                FuncInput(
+                    f.ty,
+                    InputFlags.Owned if f.ty.linear else InputFlags.NoFlags,
+                    f.name,
+                )
                 for f in self.fields
             ],
             output=StructType(
                 defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
             ),
-            input_names=[f.name for f in self.fields],
             params=self.params,
         )
         constructor_def = CustomFunctionDef(
@@ -317,7 +320,7 @@ def parse_py_class(
         raise GuppyError(UnknownSourceError(None, cls))
 
     # We can't rely on `inspect.getsourcelines` since it doesn't work properly for
-    # classes prior to Python 3.13. See https://github.com/CQCL/guppylang/issues/1107.
+    # classes prior to Python 3.13. See https://github.com/quantinuum/guppylang/issues/1107.
     # Instead, we reproduce the behaviour of Python >= 3.13 using the `__firstlineno__`
     # attribute. See https://github.com/python/cpython/blob/3.13/Lib/inspect.py#L1052.
     # In the decorator, we make sure that `__firstlineno__` is set, even if we're not

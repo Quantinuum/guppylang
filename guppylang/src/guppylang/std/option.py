@@ -1,3 +1,5 @@
+"""Guppy standard library for option type and its operations"""
+
 from typing import Generic, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type

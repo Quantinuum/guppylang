@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops
-from hugr import ext as he
 from hugr import tys as ht
 from hugr.build import function as hf
 from hugr.build.dfg import DP, DefinitionBuilder, DfBase
 from hugr.hugr.base import OpVarCov
 from hugr.hugr.node_port import ToNode
+from hugr.metadata import NodeMetadata
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
@@ -31,12 +31,14 @@ from guppylang_internals.definition.common import (
     CompilableDef,
     CompiledDef,
     DefId,
+    Definition,
     MonomorphizableDef,
+    RawDef,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.arg import ConstArg, TypeArg
@@ -185,7 +187,7 @@ class CompilerContext(ToHugrContext):
         #  make the call to `ENGINE.get_checked` below fail. For now, let's just short-
         #  cut if the function doesn't take any generic params (as is the case for all
         #  nested functions).
-        #  See https://github.com/CQCL/guppylang/issues/1032
+        #  See https://github.com/quantinuum/guppylang/issues/1032
         if (def_id, ()) in self.compiled:
             assert type_args == []
             return self.compiled[def_id, ()], type_args
@@ -199,7 +201,7 @@ class CompilerContext(ToHugrContext):
                     params, type_args, self
                 )
                 compile_outer = lambda: monomorphizable.monomorphize(  # noqa: E731 (assign-lambda)
-                    self.module, mono_args, self
+                    self.module, mono_args, self, get_parent_type(monomorphizable)
                 )
             case CompilableDef() as compilable:
                 compile_outer = lambda: compilable.compile_outer(self.module, self)  # noqa: E731
@@ -227,7 +229,9 @@ class CompilerContext(ToHugrContext):
                     raise GuppyError(err)
                 # Thus, the partial monomorphization for the entry point is always empty
                 entry_mono_args = tuple(None for _ in params)
-                entry_compiled = defn.monomorphize(self.module, entry_mono_args, self)
+                entry_compiled = defn.monomorphize(
+                    self.module, entry_mono_args, self, get_parent_type(defn)
+                )
             case CompilableDef() as defn:
                 entry_compiled = defn.compile_outer(self.module, self)
             case CompiledDef() as defn:
@@ -247,7 +251,7 @@ class CompilerContext(ToHugrContext):
 
         # Insert explicit drops for affine types
         # TODO: This is a quick workaround until we can properly insert these drops
-        # during linearity checking. See https://github.com/CQCL/guppylang/issues/1082
+        # during linearity checking. See https://github.com/quantinuum/guppylang/issues/1082
         insert_drops(self.module.hugr)
 
         return entry_compiled
@@ -371,7 +375,7 @@ class DFContainer:
         ctx: CompilerContext,
         locals: CompiledLocals | None = None,
     ) -> None:
-        generic_builder = cast(DfBase[ops.DfParentOp], builder)
+        generic_builder = cast("DfBase[ops.DfParentOp]", builder)
         if locals is None:
             locals = {}
         self.builder = generic_builder
@@ -465,6 +469,15 @@ def return_var(n: int) -> str:
 def is_return_var(x: str) -> bool:
     """Checks whether the given name is a dummy return variable."""
     return x.startswith("%ret")
+
+
+def get_parent_type(defn: Definition) -> "RawDef | None":
+    """Returns the RawDef registered as the parent of `child` in the DEF_STORE,
+    or None if it has no parent."""
+    if parent_ty_id := DEF_STORE.impl_parents.get(defn.id):
+        return DEF_STORE.raw_defs[parent_ty_id]
+    else:
+        return None
 
 
 def require_monomorphization(params: Sequence[Parameter]) -> set[Parameter]:
@@ -605,7 +618,7 @@ def track_hugr_side_effects() -> Iterator[None]:
         op: ops.Op,
         parent: ToNode | None = None,
         num_outs: int | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | NodeMetadata | None = None,
     ) -> Node:
         """Monkey-patched version of `Hugr.add_node` that takes care of implicitly
         inserting state order edges between operations that could have side-effects.
@@ -657,20 +670,11 @@ def track_hugr_side_effects() -> Iterator[None]:
         Hugr.add_node = hugr_add_node  # type: ignore[method-assign]
 
 
-def qualified_name(type_def: he.TypeDef) -> str:
-    """Returns the qualified name of a Hugr extension type.
-    TODO: Remove once upstreamed, see https://github.com/CQCL/hugr/issues/2426
-    """
-    if type_def._extension is not None:
-        return f"{type_def._extension.name}.{type_def.name}"
-    return type_def.name
-
-
 #: List of linear extension types that correspond to affine Guppy types and thus require
 #: insertion of an explicit drop operation.
 AFFINE_EXTENSION_TYS: list[str] = [
-    qualified_name(ARRAY_EXTENSION.get_type("array")),
-    qualified_name(BORROW_ARRAY_EXTENSION.get_type("borrow_array")),
+    ARRAY_EXTENSION.get_type("array").qualified_name(),
+    BORROW_ARRAY_EXTENSION.get_type("borrow_array").qualified_name(),
 ]
 
 
@@ -681,7 +685,7 @@ def requires_drop(ty: ht.Type) -> bool:
     """
     match ty:
         case ht.ExtType(type_def=type_def, args=args):
-            return qualified_name(type_def) in AFFINE_EXTENSION_TYS or any(
+            return type_def.qualified_name() in AFFINE_EXTENSION_TYS or any(
                 requires_drop(arg.ty) for arg in args if isinstance(arg, ht.TypeTypeArg)
             )
         case ht.Opaque(id=name, extension=extension, args=args):
@@ -711,14 +715,14 @@ def drop_op(ty: ht.Type) -> ops.ExtOp:
 def insert_drops(hugr: Hugr[OpVarCov]) -> None:
     """Inserts explicit drop ops for unconnected ports into the Hugr.
     TODO: This is a quick workaround until we can properly insert these drops during
-      linearity checking. See https://github.com/CQCL/guppylang/issues/1082
+      linearity checking. See https://github.com/quantinuum/guppylang/issues/1082
     """
     for node in hugr:
         data = hugr[node]
         # Iterating over `node.outputs()` doesn't work reliably since it sometimes
         # raises an `IncompleteOp` exception. Instead, we query the number of out ports
         # and look them up by index. However, this method is *also* broken when
-        # inspecting `FuncDefn` nodes due to https://github.com/CQCL/hugr/issues/2438.
+        # inspecting `FuncDefn` nodes due to https://github.com/quantinuum/hugr/issues/2438.
         if isinstance(data.op, ops.FuncDefn):
             continue
         for i in range(hugr.num_out_ports(node)):

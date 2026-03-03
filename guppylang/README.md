@@ -1,10 +1,10 @@
 # Guppy
 
 [![pypi][]](https://pypi.org/project/guppylang/)
-[![codecov][]](https://codecov.io/gh/CQCL/guppylang)
+[![codecov][]](https://codecov.io/gh/quantinuum/guppylang)
 [![py-version][]](https://pypi.org/project/guppylang/)
 
-  [codecov]: https://img.shields.io/codecov/c/gh/CQCL/guppylang?logo=codecov
+  [codecov]: https://img.shields.io/codecov/c/gh/quantinuum/guppylang?logo=codecov
   [py-version]: https://img.shields.io/pypi/pyversions/guppylang
   [pypi]: https://img.shields.io/pypi/v/guppylang
 
@@ -38,7 +38,7 @@ teleport.check()
 
 More examples and tutorials are available [here][examples].
 
-[examples]: https://github.com/CQCL/guppylang/tree/main/examples
+[examples]: https://github.com/quantinuum/guppylang/tree/main/examples
 
 ## Install
 
@@ -52,7 +52,7 @@ pip install guppylang
 
 See [DEVELOPMENT.md] information on how to develop and contribute to this package.
 
-  [DEVELOPMENT.md]: https://github.com/CQCL/guppylang/blob/main/DEVELOPMENT.md
+  [DEVELOPMENT.md]: https://github.com/quantinuum/guppylang/blob/main/DEVELOPMENT.md
 
 ## License
 

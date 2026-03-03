@@ -3,7 +3,7 @@ from guppylang.std.builtins import owned
 from guppylang.std.option import Option
 from guppylang.std.quantum import qubit, measure
 
-from guppylang.std.quantum_functional import cx, t, h, project_z
+from guppylang.std.quantum.functional import cx, t, h, project_z
 from guppylang_internals.decorator import custom_type
 from guppylang_internals.tys.ty import NoneType
 
@@ -27,7 +27,7 @@ def test_assign(validate):
 
 
 def test_linear_return_order(validate):
-    # See https://github.com/CQCL-DEV/guppy/issues/35
+    # See https://github.com/quantinuum/guppy/issues/35
 
     @guppy
     def test(q: qubit @ owned) -> tuple[qubit, bool]:

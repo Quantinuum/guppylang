@@ -31,8 +31,10 @@ from guppylang_internals.definition.common import (
     MonomorphizableDef,
     MonomorphizedDef,
     ParsableDef,
+    RawDef,
     UnknownSourceError,
 )
+from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -43,7 +45,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import FunctionType, Type, type_to_row
+from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
 if TYPE_CHECKING:
     from guppylang_internals.tys.param import Parameter
@@ -70,11 +72,24 @@ class RawFunctionDef(ParsableDef):
 
     description: str = field(default="function", init=False)
 
+    unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
+
+    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
-        ty = check_signature(func_ast, globals, self.id)
-        return ParsedFunctionDef(self.id, self.name, func_ast, ty, docstring)
+        ty = check_signature(
+            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+        )
+        return ParsedFunctionDef(
+            self.id,
+            self.name,
+            func_ast,
+            ty,
+            docstring,
+            metadata=self.metadata,
+        )
 
 
 @dataclass(frozen=True)
@@ -99,6 +114,8 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
 
     description: str = field(default="function", init=False)
 
+    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
+
     def check(self, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
         # Add python variable scope to the globals
@@ -110,6 +127,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
             self.ty,
             self.docstring,
             cfg,
+            metadata=self.metadata,
         )
 
     def check_call(
@@ -160,6 +178,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         module: DefinitionBuilder[OpVar],
         mono_args: "PartiallyMonomorphizedArgs",
         ctx: "CompilerContext",
+        parent_ty: "RawDef | None" = None,
     ) -> "CompiledFunctionDef":
         """Adds a Hugr `FuncDefn` node for the (partially) monomorphized function to the
         Hugr.
@@ -168,10 +187,20 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         access to the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
+        if parent_ty is None:
+            hugr_func_name = self.name
+        else:
+            hugr_func_name = f"{parent_ty.name}.{self.name}"
+
         mono_ty = self.ty.instantiate_partial(mono_args)
         hugr_ty = mono_ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            self.name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+        )
+        add_metadata(
+            func_def,
+            self.metadata,
+            additional_metadata={"unitary": self.ty.unitary_flags.value},
         )
         return CompiledFunctionDef(
             self.id,
@@ -182,6 +211,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             self.docstring,
             self.cfg,
             func_def,
+            metadata=self.metadata,
         )
 
 

@@ -1,7 +1,8 @@
 import builtins
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import range, SizedIter, Range, py
+from guppylang.std.builtins import range, SizedIter, py
+from guppylang.std.iter import Range
 
 
 def test_range(run_int_fn):

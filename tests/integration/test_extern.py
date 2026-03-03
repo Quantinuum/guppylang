@@ -48,7 +48,7 @@ def test_extern_tuple(validate):
     validate(main.compile_function())
 
 
-@pytest.mark.skip("See https://github.com/CQCL/guppylang/issues/827")
+@pytest.mark.skip("See https://github.com/quantinuum/guppylang/issues/827")
 def test_extern_conditional_assign(validate):
     x = guppy._extern("x", ty="int")
 

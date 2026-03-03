@@ -59,7 +59,7 @@ def test_redefine_after_error(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skip("See https://github.com/CQCL/guppylang/issues/456")
+@pytest.mark.skip("See https://github.com/quantinuum/guppylang/issues/456")
 def test_struct_redefinition(validate):
     @guppy.struct
     class Test:
@@ -76,7 +76,7 @@ def test_struct_redefinition(validate):
     validate(main.compile_function())
 
 
-@pytest.mark.skip("See https://github.com/CQCL/guppylang/issues/456")
+@pytest.mark.skip("See https://github.com/quantinuum/guppylang/issues/456")
 def test_struct_method_redefinition(validate):
     @guppy.struct
     class Test:

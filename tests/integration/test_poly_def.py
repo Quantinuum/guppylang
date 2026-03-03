@@ -132,7 +132,7 @@ def test_type_apply(validate):
 
 
 def test_custom_func_higher_order(validate):
-    # See https://github.com/CQCL/guppylang/issues/970
+    # See https://github.com/quantinuum/guppylang/issues/970
     T = guppy.type_var("T")
 
     @guppy

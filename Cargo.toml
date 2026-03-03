@@ -5,8 +5,8 @@ members = ["miette-py"]
 [workspace.package]
 rust-version = "1.75"
 edition = "2021"
-homepage = "https://github.com/CQCL/hugr"
-repository = "https://github.com/CQCL/hugr"
+homepage = "https://github.com/quantinuum/hugr"
+repository = "https://github.com/quantinuum/hugr"
 license = "Apache-2.0"
 
 [workspace.lints.rust]

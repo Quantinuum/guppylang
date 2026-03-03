@@ -71,7 +71,7 @@ def check_modified_block(
     # This name could be printed in error messages, for example,
     # when the linearity checker fails in the modifier body
     checked_cfg = check_cfg(cfg, inputs, NoneType(), {}, "__modified__()", globals)
-    func_ty = check_modified_block_signature(checked_cfg.input_tys)
+    func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)
 
     checked_modifier = CheckedModifiedBlock(
         def_id,
@@ -94,9 +94,12 @@ def _set_inout_if_non_copyable(var: Variable) -> Variable:
         return var
 
 
-def check_modified_block_signature(input_tys: list[Type]) -> FunctionType:
+def check_modified_block_signature(
+    modified_block: ModifiedBlock, input_tys: list[Type]
+) -> FunctionType:
     """Check and create the signature of a function definition for a body
     of a `With` block."""
+    unitary_flags = modified_block.flags()
 
     func_ty = FunctionType(
         [
@@ -104,6 +107,7 @@ def check_modified_block_signature(input_tys: list[Type]) -> FunctionType:
             for t in input_tys
         ],
         NoneType(),
+        unitary_flags=unitary_flags,
     )
     return func_ty
 

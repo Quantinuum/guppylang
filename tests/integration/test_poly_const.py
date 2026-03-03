@@ -49,7 +49,7 @@ def test_bool(validate, run_int_fn):
     run_int_fn(main, 101)
 
 
-@pytest.mark.xfail(reason="https://github.com/CQCL/guppylang/issues/1030")
+@pytest.mark.xfail(reason="https://github.com/quantinuum/guppylang/issues/1030")
 def test_int(validate):
     IT = guppy.const_var("IT", "int§")
 
@@ -117,7 +117,7 @@ def test_float(validate, run_float_fn_approx):
     run_float_fn_approx(main, 10.5)
 
 
-@pytest.mark.xfail(reason="https://github.com/CQCL/guppylang/issues/1030")
+@pytest.mark.xfail(reason="https://github.com/quantinuum/guppylang/issues/1030")
 def test_string(validate):
     S = guppy.const_var("S", "str")
 

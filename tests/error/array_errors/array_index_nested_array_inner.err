@@ -1,0 +1,8 @@
+Error: Index out of bounds (at $FILE:7:23)
+  | 
+5 | def main() -> int:
+6 |       matrix = array(array(i + j for i in range(10)) for j in range(5))
+7 |       return matrix[0][20]
+  |                        ^^ Array index 20 is out of bounds for array of size 10.
+
+Guppy compilation failed due to 1 previous error

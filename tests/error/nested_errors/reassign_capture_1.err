@@ -5,7 +5,10 @@ Error: Illegal assignment (at $FILE:9:8)
 9 |         y += 2
   |         ^^^^^^ Variable `y` may not be assigned to since `y` is captured
   |                from an outer scope
+
+Note:
   | 
+5 | def foo(x: int) -> int:
 6 |     y = x + 1
   |     - `y` defined here
 

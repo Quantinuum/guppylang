@@ -12,6 +12,7 @@ from guppylang_internals.cfg.analysis import (
 )
 from guppylang_internals.cfg.bb import BB, BBStatement, VariableStats
 from guppylang_internals.nodes import InoutReturnSentinel
+from guppylang_internals.tys.ty import UnitaryFlags
 
 T = TypeVar("T", bound=BB)
 
@@ -29,6 +30,7 @@ class BaseCFG(Generic[T]):
 
     #: Set of variables defined in this CFG
     assigned_somewhere: set[str]
+    unitary_flags: UnitaryFlags
 
     def __init__(
         self, bbs: list[T], entry_bb: T | None = None, exit_bb: T | None = None
@@ -42,6 +44,7 @@ class BaseCFG(Generic[T]):
         self.ass_before = {}
         self.maybe_ass_before = {}
         self.assigned_somewhere = set()
+        self.unitary_flags = UnitaryFlags.NoFlags
 
     def ancestors(self, *bbs: T) -> Iterator[T]:
         """Returns an iterator over all ancestors of the given BBs in BFS order."""
@@ -115,7 +118,7 @@ class CFG(BaseCFG[BB]):
         # initial value in the liveness analysis. This solves the edge case that
         # borrowed variables should be considered live, even if the exit is actually
         # unreachable (to avoid linearity violations later).
-        inout_live = {x: self.exit_bb for x in inout_vars}
+        inout_live = dict.fromkeys(inout_vars, self.exit_bb)
         self.live_before = LivenessAnalysis(
             stats, initial=inout_live, include_unreachable=True
         ).run(self.bbs)

@@ -37,15 +37,15 @@ def test_array_access(validate):
     @compile_guppy
     def main() -> None:
         qs = array(qubit() for _ in range(4))
+        h(qs[0])
         h(qs[1])
+        state_result("a", qs[0], qs[1], qs[2])
+        state_result("b", qs[0])
         h(qs[2])
-        state_result("a", qs[1], qs[2], qs[3])
-        state_result("b", qs[1])
-        h(qs[3])
 
-        cx(qs[1], qs[2])
-        state_result("c", qs[2], qs[3])
-        cx(qs[3], qs[4])
+        cx(qs[0], qs[1])
+        state_result("c", qs[1], qs[2])
+        cx(qs[2], qs[3])
         discard_array(qs)
 
     validate(main)

@@ -12,6 +12,13 @@ class IllegalComptimeExpressionError(Error):
     span_label: ClassVar[str] = "Expression of type `{python_ty}` is not supported"
     python_ty: type
 
+    @dataclass(frozen=True)
+    class InContainer(Note):
+        message: ClassVar[str] = (
+            "Unsupported value was found inside a `{container_ty.__name__}`"
+        )
+        container_ty: type
+
 
 @dataclass(frozen=True)
 class ComptimeExprNotCPythonError(Error):
@@ -42,18 +49,6 @@ class ComptimeExprEvalError(Error):
 class ComptimeExprIncoherentListError(Error):
     title: ClassVar[str] = "Unsupported list"
     span_label: ClassVar[str] = "List contains elements with different types"
-
-
-@dataclass(frozen=True)
-class TketNotInstalled(Error):
-    title: ClassVar[str] = "Tket not installed"
-    span_label: ClassVar[str] = (
-        "Experimental pytket compatibility requires `tket` to be installed"
-    )
-
-    @dataclass(frozen=True)
-    class InstallInstruction(Help):
-        message: ClassVar[str] = "Install tket: `pip install tket`"
 
 
 @dataclass(frozen=True)

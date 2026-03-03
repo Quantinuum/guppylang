@@ -127,7 +127,7 @@ def test_if_expr_double_type_change(validate):
 
 
 def test_if_use_reassign(validate):
-    # See https://github.com/CQCL/guppylang/issues/1023
+    # See https://github.com/quantinuum/guppylang/issues/1023
 
     @compile_guppy
     def foo(b: bool) -> None:

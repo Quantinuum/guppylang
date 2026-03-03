@@ -4,7 +4,10 @@ Error: Different types (at $FILE:8:8)
 7 |     0 if (y := x) else (y := 6)
 8 |     z = y
   |         ^ Variable `y` may refer to different types
+
+Notes:
   | 
+6 |     y = 4
 7 |     0 if (y := x) else (y := 6)
   |           - This is of type `bool`
   | 

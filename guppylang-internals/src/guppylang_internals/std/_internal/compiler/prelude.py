@@ -20,7 +20,7 @@ from guppylang_internals.definition.custom import (
 )
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.nodes import ExitKind
+from guppylang_internals.nodes import AbortKind
 from guppylang_internals.tys.subst import Inst
 
 if TYPE_CHECKING:
@@ -60,16 +60,24 @@ class ErrorVal(hv.ExtensionValue):
 
 
 def panic(
-    inputs: list[ht.Type], outputs: list[ht.Type], kind: ExitKind = ExitKind.Panic
+    inputs: list[ht.Type], outputs: list[ht.Type], kind: AbortKind = AbortKind.Panic
 ) -> ops.ExtOp:
     """Returns an operation that panics."""
-    name = "panic" if kind == ExitKind.Panic else "exit"
+    name = "panic" if kind == AbortKind.Panic else "exit"
     op_def = hugr.std.PRELUDE.get_op(name)
     args: list[ht.TypeArg] = [
         ht.ListArg([ht.TypeTypeArg(ty) for ty in inputs]),
         ht.ListArg([ht.TypeTypeArg(ty) for ty in outputs]),
     ]
     sig = ht.FunctionType([error_type(), *inputs], outputs)
+    return ops.ExtOp(op_def, sig, args)
+
+
+def make_error() -> ops.ExtOp:
+    """Returns an operation that makes an error."""
+    op_def = hugr.std.PRELUDE.get_op("MakeError")
+    args: list[ht.TypeArg] = []
+    sig = ht.FunctionType([ht.USize(), hugr.std.prelude.STRING_T], [error_type()])
     return ops.ExtOp(op_def, sig, args)
 
 
@@ -86,18 +94,18 @@ def build_panic(
     *args: Wire,
 ) -> Node:
     """Builds a panic operation."""
-    op = panic(in_tys, out_tys, ExitKind.Panic)
+    op = panic(in_tys, out_tys, AbortKind.Panic)
     return builder.add_op(op, err, *args)
 
 
-def build_error(builder: DfBase[P], signal: int, msg: str) -> Wire:
+def build_static_error(builder: DfBase[P], signal: int, msg: str) -> Wire:
     """Constructs and loads a static error value."""
     val = ErrorVal(signal, msg)
     return builder.load(builder.add_const(val))
 
 
 # TODO: Common up build_unwrap_right and build_unwrap_left below once
-#  https://github.com/CQCL/hugr/issues/1596 is fixed
+#  https://github.com/quantinuum/hugr/issues/1596 is fixed
 
 
 def build_unwrap_right(
@@ -111,7 +119,7 @@ def build_unwrap_right(
     assert isinstance(result_ty, ht.Sum)
     [left_tys, right_tys] = result_ty.variant_rows
     with conditional.add_case(0) as case:
-        error = build_error(case, error_signal, error_msg)
+        error = build_static_error(case, error_signal, error_msg)
         case.set_outputs(*build_panic(case, left_tys, right_tys, error, *case.inputs()))
     with conditional.add_case(1) as case:
         case.set_outputs(*case.inputs())
@@ -134,7 +142,7 @@ def build_unwrap_left(
     with conditional.add_case(0) as case:
         case.set_outputs(*case.inputs())
     with conditional.add_case(1) as case:
-        error = build_error(case, error_signal, error_msg)
+        error = build_static_error(case, error_signal, error_msg)
         case.set_outputs(*build_panic(case, right_tys, left_tys, error, *case.inputs()))
     return conditional.to_node()
 

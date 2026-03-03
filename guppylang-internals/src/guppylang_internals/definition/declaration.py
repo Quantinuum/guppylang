@@ -34,7 +34,7 @@ from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import Type
+from guppylang_internals.tys.ty import Type, UnitaryFlags
 
 
 @dataclass(frozen=True)
@@ -65,10 +65,14 @@ class RawFunctionDecl(ParsableDef):
     python_func: PyFunc
     description: str = field(default="function", init=False)
 
+    unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
-        ty = check_signature(func_ast, globals, self.id)
+        ty = check_signature(
+            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+        )
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         # Make sure we won't need monomorphization to compile this declaration
@@ -116,9 +120,9 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledFunctionDecl":
         """Adds a Hugr `FuncDecl` node for this function to the Hugr."""
-        assert isinstance(
-            module, hf.Module
-        ), "Functions can only be declared in modules"
+        assert isinstance(module, hf.Module), (
+            "Functions can only be declared in modules"
+        )
         module: hf.Module = module
 
         node = module.declare_function(self.name, self.ty.to_hugr_poly(ctx))

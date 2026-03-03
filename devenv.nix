@@ -7,7 +7,7 @@
 
   ]
   ++ lib.optionals pkgs.stdenv.isDarwin (
-    [ pkgs.zlib ]
+    [ pkgs.zlib pkgs.xz ]
   );
 
   enterShell = ''

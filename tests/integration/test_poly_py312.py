@@ -29,7 +29,7 @@ def test_struct(validate):
 
 
 def test_inner_frame(validate):
-    """See https://github.com/CQCL/guppylang/issues/1116"""
+    """See https://github.com/quantinuum/guppylang/issues/1116"""
 
     def make():
         @guppy.struct

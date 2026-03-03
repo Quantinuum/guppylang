@@ -1,13 +1,8 @@
 """Tests for using python expressions in guppy functions."""
 
-from importlib.util import find_spec
-
-
 from guppylang.decorator import guppy
 from guppylang.std.builtins import py, comptime, array, frozenarray, nat, owned
 from tests.util import compile_guppy
-
-tket_installed = find_spec("tket") is not None
 
 
 def test_basic(validate):
@@ -65,7 +60,7 @@ def test_redeclare_after(validate):
 def test_tuple(validate):
     @compile_guppy
     def foo() -> int:
-        x, y = comptime((1, False))
+        x, _y = comptime((1, False))
         return x
 
     validate(foo)
@@ -74,7 +69,7 @@ def test_tuple(validate):
 def test_tuple_implicit(validate):
     @compile_guppy
     def foo() -> int:
-        x, y = comptime(1, False)
+        x, _y = comptime(1, False)
         return x
 
     validate(foo)
@@ -132,7 +127,7 @@ def test_strings(validate):
 
 
 def test_comprehension(validate):
-    """See https://github.com/CQCL/guppylang/issues/1207"""
+    """See https://github.com/quantinuum/guppylang/issues/1207"""
     py_lst = [x for x in range(10)]
 
     @guppy
@@ -159,3 +154,33 @@ def test_func_type_arg(validate):
     validate(foo.compile_function())
     validate(bar.compile_function())
     validate(Baz.compile())
+
+
+def test_subscript_assign(validate):
+    n = 5
+
+    @guppy
+    def subscript(xs: array[int, 10]) -> None:
+        xs[comptime(n)] = 0
+
+    validate(subscript.compile_function())
+
+
+def test_subscript_augmenting_assign(validate):
+    n = 5
+
+    @guppy
+    def subscript(xs: array[int, 10]) -> None:
+        xs[comptime(n)] += 0
+
+    validate(subscript.compile_function())
+
+
+def test_subscript_annotated_assign(validate):
+    n = 5
+
+    @guppy
+    def subscript(xs: array[int, 10]) -> None:
+        xs[comptime(n)]: int = 0
+
+    validate(subscript.compile_function())

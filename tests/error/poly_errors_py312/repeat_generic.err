@@ -4,7 +4,10 @@ Error: Generic parameters already specified (at $FILE:17:18)
 16 | @guppy.struct
 17 | class MyStruct[S](Generic[T]):
    |                   ^^^^^^^^^^ Duplicate specification of generic parameters
+
+Note:
    | 
+16 | @guppy.struct
 17 | class MyStruct[S](Generic[T]):
    |                - Parameters of `MyStruct` are already specified here
 

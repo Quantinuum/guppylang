@@ -23,3 +23,14 @@ class EmulatorError(Exception):
     def failed_shot_index(self) -> int:
         """The index of the shot that failed."""
         return len(self.completed_shots.results)
+
+
+class EmulatorBuildError(Exception):
+    underlying_exception: Exception | None
+
+    def __init__(self, underlying_exception: Exception | None = None):
+        super().__init__(
+            "Building the emulator failed with the following exception: "
+            + str(underlying_exception)
+        )
+        self.underlying_exception = underlying_exception

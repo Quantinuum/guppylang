@@ -4,7 +4,7 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import owned
 from guppylang.std.option import Option
 from guppylang.std.quantum import qubit
-from guppylang.std.quantum_functional import h, cx
+from guppylang.std.quantum.functional import h, cx
 from guppylang_internals.decorator import custom_type
 
 from guppylang_internals.tys.ty import NoneType
@@ -227,9 +227,7 @@ def test_linear_next_nonlinear_iter(validate):
 
 def test_nonlinear_next_linear_iter(validate):
     @custom_type(
-        tys.Opaque(
-            extension="prelude", id="qubit", args=[], bound=tys.TypeBound.Linear
-        ),
+        tys.Qubit,
         copyable=False,
         droppable=False,
     )

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
 from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
@@ -97,7 +97,7 @@ class TypeBase(ToHugr[ht.Type], Transformable["Type"], ABC):
 
         # We use a custom printer that takes care of inserting parentheses and choosing
         # unique names
-        return TypePrinter().visit(cast(Type, self))
+        return TypePrinter().visit(cast("Type", self))
 
 
 @dataclass(frozen=True)
@@ -369,12 +369,31 @@ class InputFlags(Flag):
     Comptime = auto()
 
 
+class UnitaryFlags(Flag):
+    """Flags that can be set on functions to indicate their unitary properties.
+
+    The flags indicate under which conditions a function can be used
+    in a unitary context.
+    """
+
+    NoFlags = 0
+    Control = auto()
+    Dagger = auto()
+    Power = auto()
+
+    Unitary = Control | Dagger | Power
+
+
 @dataclass(frozen=True)
 class FuncInput:
     """A single input of a function type."""
 
     ty: "Type"
     flags: InputFlags
+
+    #: Name of this input, or `None` if it is an unnamed argument (e.g. inside a
+    #: `Callable`). We use `compare=False` because names are not visible to the caller.
+    name: str | None = field(default=None, compare=False)
 
 
 @dataclass(frozen=True, init=False)
@@ -384,7 +403,6 @@ class FunctionType(ParametrizedTypeBase):
     inputs: Sequence[FuncInput]
     output: "Type"
     params: Sequence[Parameter]
-    input_names: Sequence[str] | None
     comptime_args: Sequence[ConstArg]
 
     args: Sequence[Argument] = field(init=False)
@@ -394,13 +412,15 @@ class FunctionType(ParametrizedTypeBase):
     intrinsically_droppable: bool = field(default=True, init=True)
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
 
+    unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
+
     def __init__(
         self,
         inputs: Sequence[FuncInput],
         output: "Type",
-        input_names: Sequence[str] | None = None,
         params: Sequence[Parameter] | None = None,
         comptime_args: Sequence[ConstArg] | None = None,
+        unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
     ) -> None:
         # We need a custom __init__ to set the args
         args: list[Argument] = [TypeArg(inp.ty) for inp in inputs]
@@ -416,12 +436,19 @@ class FunctionType(ParametrizedTypeBase):
             ]
         args += comptime_args
 
+        # Either all inputs must have unique names, or none of them have names
+        names = {inp.name for inp in inputs if inp.name is not None}
+        if len(names) not in (0, len(inputs)):
+            raise InternalGuppyError(
+                "Tried to construct FunctionType with invalid input names"
+            )
+
         object.__setattr__(self, "args", args)
         object.__setattr__(self, "comptime_args", comptime_args)
         object.__setattr__(self, "inputs", inputs)
         object.__setattr__(self, "output", output)
-        object.__setattr__(self, "input_names", input_names or [])
         object.__setattr__(self, "params", params)
+        object.__setattr__(self, "unitary_flags", unitary_flags)
 
     @property
     def parametrized(self) -> bool:
@@ -435,6 +462,16 @@ class FunctionType(ParametrizedTypeBase):
             # Ensures that we don't look inside quantifiers
             return set()
         return super().bound_vars
+
+    @cached_property
+    def input_names(self) -> Sequence[str] | None:
+        """Names of all inputs or `None` if there are unnamed inputs."""
+        names: list[str] = []
+        for inp in self.inputs:
+            if inp.name is None:
+                return None
+            names.append(inp.name)
+        return names
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
@@ -494,12 +531,8 @@ class FunctionType(ParametrizedTypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or FunctionType(
-            [
-                FuncInput(inp.ty.transform(transformer), inp.flags)
-                for inp in self.inputs
-            ],
+            [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
             self.output.transform(transformer),
-            self.input_names,
             self.params,
         )
 
@@ -529,13 +562,12 @@ class FunctionType(ParametrizedTypeBase):
 
         inst = Instantiator(full_inst)
         return FunctionType(
-            [FuncInput(inp.ty.transform(inst), inp.flags) for inp in self.inputs],
+            [replace(inp, ty=inp.ty.transform(inst)) for inp in self.inputs],
             self.output.transform(inst),
-            self.input_names,
             remaining_params,
             # Comptime type arguments also need to be instantiated
             comptime_args=[
-                cast(ConstArg, arg.transform(inst)) for arg in self.comptime_args
+                cast("ConstArg", arg.transform(inst)) for arg in self.comptime_args
             ],
         )
 
@@ -547,6 +579,18 @@ class FunctionType(ParametrizedTypeBase):
         """Instantiates all parameters with existential variables."""
         exs = [param.to_existential() for param in self.params]
         return self.instantiate([arg for arg, _ in exs]), [var for _, var in exs]
+
+    def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
+        """Returns a copy of this function type with the specified unitary flags."""
+        # N.B. we can't use `dataclasses.replace` here since `FunctionType` has a custom
+        # constructor
+        return FunctionType(
+            self.inputs,
+            self.output,
+            self.params,
+            self.comptime_args,
+            flags,
+        )
 
 
 @dataclass(frozen=True, init=False)
@@ -589,53 +633,6 @@ class TupleType(ParametrizedTypeBase):
         """Accepts a transformer on this type."""
         return transformer.transform(self) or TupleType(
             [ty.transform(transformer) for ty in self.element_types], self.preserve
-        )
-
-
-@dataclass(frozen=True, init=False)
-class SumType(ParametrizedTypeBase):
-    """Type of sums.
-
-    Note that this type is only used internally when constructing the Hugr. Users cannot
-    write down this type.
-    """
-
-    element_types: Sequence["Type"]
-
-    def __init__(self, element_types: Sequence["Type"]) -> None:
-        # We need a custom __init__ to set the args
-        args = [TypeArg(ty) for ty in element_types]
-        object.__setattr__(self, "args", args)
-        object.__setattr__(self, "element_types", element_types)
-
-    @property
-    def intrinsically_copyable(self) -> bool:
-        """Whether objects of this type can be implicitly copied."""
-        return True
-
-    @property
-    def intrinsically_droppable(self) -> bool:
-        """Whether objects of this type can be dropped."""
-        return True
-
-    def cast(self) -> "Type":
-        """Casts an implementor of `TypeBase` into a `Type`."""
-        return self
-
-    def to_hugr(self, ctx: ToHugrContext) -> ht.Sum:
-        """Computes the Hugr representation of the type."""
-        rows = [type_to_row(ty) for ty in self.element_types]
-        if all(len(row) == 0 for row in rows):
-            return ht.UnitSum(size=len(rows))
-        elif len(rows) == 1:
-            return ht.Tuple(*row_to_hugr(rows[0], ctx))
-        else:
-            return ht.Sum(variant_rows=rows_to_hugr(rows, ctx))
-
-    def transform(self, transformer: Transformer) -> "Type":
-        """Accepts a transformer on this type."""
-        return transformer.transform(self) or SumType(
-            [ty.transform(transformer) for ty in self.element_types]
         )
 
 
@@ -727,9 +724,8 @@ class StructType(ParametrizedTypeBase):
 
 
 #: The type of parametrized Guppy types.
-ParametrizedType: TypeAlias = (
-    FunctionType | TupleType | SumType | OpaqueType | StructType
-)
+ParametrizedType: TypeAlias = FunctionType | TupleType | OpaqueType | StructType
+
 
 #: The type of Guppy types.
 #:
@@ -811,8 +807,6 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return _unify_args(s, t, subst)
         case TupleType() as s, TupleType() as t:
             return _unify_args(s, t, subst)
-        case SumType() as s, SumType() as t:
-            return _unify_args(s, t, subst)
         case OpaqueType() as s, OpaqueType() as t if s.defn == t.defn:
             return _unify_args(s, t, subst)
         case StructType() as s, StructType() as t if s.defn == t.defn:
@@ -881,6 +875,8 @@ def function_tensor_signature(tys: list[FunctionType]) -> FunctionType:
     outputs: list[Type] = []
     for fun_ty in tys:
         assert not fun_ty.parametrized
-        inputs.extend(fun_ty.inputs)
+        # Forget the function input names since they might be non-unique across the
+        # tensored functions
+        inputs.extend([replace(inp, name=None) for inp in fun_ty.inputs])
         outputs.extend(type_to_row(fun_ty.output))
     return FunctionType(inputs, row_to_type(outputs))

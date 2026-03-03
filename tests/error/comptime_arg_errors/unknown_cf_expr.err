@@ -4,7 +4,10 @@ Error: Not known at compile-time (at $FILE:12:15)
 11 | def main(b: bool) -> nat:
 12 |     return foo(nat(1) if b else nat(2))
    |                ^^^^^^^^^^^^^^^^^^^^^^^ Value of this argument must be known at compile-time
+
+Note:
    | 
+11 | def main(b: bool) -> nat:
 12 |     return foo(nat(1) if b else nat(2))
    |                ----------------------- This expression involves a dynamic computation, so its value
    |                                        is not statically known

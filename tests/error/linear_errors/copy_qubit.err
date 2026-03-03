@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:8:14)
 8 |     return q, q
   |               ^ Variable `q` with non-copyable type `qubit` cannot be
   |                 returned ...
+
+Note:
   | 
+7 | def foo(q: qubit @owned) -> tuple[qubit, qubit]:
 8 |     return q, q
-  |            - since it was already returned here
+  |            - Variable `q` already returned here
 
 Guppy compilation failed due to 1 previous error

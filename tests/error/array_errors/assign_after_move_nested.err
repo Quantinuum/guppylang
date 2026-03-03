@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:9:3)
 9 |    xs[0][0] = 0
   |    ^^ Variable `xs` with non-copyable type `array[array[int, 3],
   |       2]` cannot be borrowed ...
+
+Note:
   | 
+7 |    xs = array(array(1, 2, 3), array(1, 2, 3))
 8 |    ys = xs
-  |         -- since it was already moved here
+  |         -- Variable `xs` already moved here
 
 Guppy compilation failed due to 1 previous error

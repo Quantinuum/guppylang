@@ -24,7 +24,6 @@ from guppylang_internals.compiler.core import (
     DFContainer,
     GlobalConstId,
     partially_monomorphize_args,
-    qualified_name,
 )
 from guppylang_internals.definition.common import ParsableDef
 from guppylang_internals.definition.value import CallReturnWires, CompiledCallableDef
@@ -44,6 +43,7 @@ from guppylang_internals.tys.ty import (
     InputFlags,
     NoneType,
     Type,
+    UnitaryFlags,
     type_to_row,
 )
 
@@ -114,6 +114,12 @@ class RawCustomFunctionDef(ParsableDef):
 
     signature: FunctionType | None
 
+    unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags)
+
+    # Whether the custom function accepts a variable number of arguments (not supported
+    # in Guppy functions in general but some custom functions make use of them).
+    has_var_args: bool = field(default=False)
+
     description: str = field(default="function", init=False)
 
     def parse(self, globals: "Globals", sources: SourceMap) -> "CustomFunctionDef":
@@ -131,11 +137,12 @@ class RawCustomFunctionDef(ParsableDef):
         """
         from guppylang_internals.definition.function import parse_py_func
 
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        func_ast, _docstring = parse_py_func(self.python_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         sig = self.signature or self._get_signature(func_ast, globals)
         ty = sig or FunctionType([], NoneType())
+        ty = ty.with_unitary_flags(self.unitary_flags)
         return CustomFunctionDef(
             self.id,
             self.name,
@@ -146,6 +153,7 @@ class RawCustomFunctionDef(ParsableDef):
             self.higher_order_value,
             GlobalConstId.fresh(self.name),
             sig is not None,
+            self.has_var_args,
         )
 
     def _get_signature(
@@ -190,6 +198,7 @@ class CustomFunctionDef(CompiledCallableDef):
         call_compiler: The custom call compiler.
         higher_order_value: Whether the function may be used as a higher-order value.
         has_signature: Whether the function has a declared signature.
+
     """
 
     defined_at: AstNode | None
@@ -199,6 +208,7 @@ class CustomFunctionDef(CompiledCallableDef):
     higher_order_value: bool
     higher_order_func_id: GlobalConstId
     has_signature: bool
+    has_var_args: bool = field(default=False)
 
     description: str = field(default="function", init=False)
 
@@ -475,7 +485,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
             for res in result
         ]
         return CallReturnWires(
-            regular_returns=converted_result,
+            regular_returns=converted_result,  # type: ignore[arg-type]
             inout_returns=[],
         )
 
@@ -507,8 +517,9 @@ class CopyInoutCompiler(CustomInoutCallCompiler):
     def _handle_affine_type(self, ty: ht.Type, arg: Wire) -> list[Wire]:
         match ty:
             case ht.ExtType(type_def=type_def, args=type_args):
-                if qualified_name(type_def) == qualified_name(
-                    BORROW_ARRAY_EXTENSION.get_type("borrow_array")
+                if (
+                    type_def.qualified_name()
+                    == BORROW_ARRAY_EXTENSION.get_type("borrow_array").qualified_name()
                 ):
                     assert len(type_args) == 2
                     # Manually instantiate here to avoid circular import and use

@@ -1,9 +1,0 @@
-Error: WASM signature error (at $FILE:8:4)
-  | 
-6 | class Foo:
-7 |     @wasm
-8 |     def foo(self: "Foo") -> bool: ...
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ WASM function signature contained an unsupported type:
-  |                                       `bool`
-
-Guppy compilation failed due to 1 previous error

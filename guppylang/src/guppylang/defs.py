@@ -4,24 +4,31 @@ These are the objects returned by the `@guppy` decorator. They should not be con
 with the compiler-internal definition objects in the `definitions` module.
 """
 
-import ast
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
+from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
-from guppylang_internals.engine import ENGINE, CoreMetadataKeys
-from guppylang_internals.error import GuppyError
+from guppylang_internals.engine import ENGINE
+from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import TracingDefMixin
 from guppylang_internals.tracing.util import hide_trace
+from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
+from hugr.metadata import HugrGenerator
 from hugr.package import Package
+from semver import Version
 
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
+from guppylang.emulator.exceptions import EmulatorBuildError
+
+if TYPE_CHECKING:
+    import ast
 
 __all__ = ("GuppyDefinition", "GuppyFunctionDefinition", "GuppyTypeVarDefinition")
 
@@ -33,12 +40,10 @@ Out = TypeVar("Out")
 def _update_generator_metadata(hugr: Hugr[Any]) -> None:
     """Update the generator metadata of a Hugr to be
     guppylang rather than just internals."""
-    key = CoreMetadataKeys.GENERATOR.value
-
-    hugr.module_root.metadata[key] = {
-        "name": f"guppylang (guppylang-internals-v{guppylang_internals.__version__})",
-        "version": guppylang.__version__,
-    }
+    hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
+        name=f"guppylang (guppylang-internals-v{guppylang_internals.__version__})",
+        version=Version.parse(guppylang.__version__),
+    )
 
 
 @dataclass(frozen=True)
@@ -85,10 +90,10 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
     @hide_trace
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Out:
-        return cast(Out, super().__call__(*args, **kwargs))
+        return cast("Out", super().__call__(*args, **kwargs))
 
     def emulator(
-        self, n_qubits: int, builder: EmulatorBuilder | None = None
+        self, n_qubits: int | None = None, builder: EmulatorBuilder | None = None
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
@@ -99,7 +104,9 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
 
         Args:
-            n_qubits: The number of qubits to allocate for the function.
+            n_qubits: The number of qubits to allocate for the function. If it is not
+            provided, the function has to declare the maximum number of qubits it needs
+            in the decorator, e.g. `@guppy(max_qubits=5)`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
             instance. If not provided, the default `EmulatorBuilder` will be used.
 
@@ -109,7 +116,33 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         mod = self.compile()
 
         builder = builder or EmulatorBuilder()
-        return builder.build(mod, n_qubits=n_qubits)
+        qubits = n_qubits
+        if (
+            isinstance(self.wrapped, RawFunctionDef)
+            and self.wrapped.metadata is not None
+        ):
+            hinted_qubits = self.wrapped.metadata.max_qubits.value
+            if qubits is None:
+                qubits = hinted_qubits
+            elif hinted_qubits is not None and qubits < hinted_qubits:
+                raise EmulatorBuildError(
+                    ValueError(
+                        f"Number of qubits requested ({qubits}) is insufficient to "
+                        "cover the maximum number of qubits hinted on the "
+                        f"entrypoint ({hinted_qubits})."
+                    )
+                )
+
+        if qubits is None:
+            raise EmulatorBuildError(
+                ValueError(
+                    "Number of qubits to be used must be specified, either as an "
+                    f"argument to `{self.emulator.__name__}` or hinted on the "
+                    "entrypoint function using `@guppy(max_qubits=...)`."
+                )
+            )
+
+        return builder.build(mod, n_qubits=qubits)
 
     def compile(self) -> Package:
         """
@@ -126,6 +159,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
         return self.compile_entrypoint()
 
+    @pretty_errors
     def compile_entrypoint(self) -> Package:
         """
         Compiles an execution entrypoint function definition to a HUGR package
@@ -145,7 +179,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             and len(compiled_def.ty.inputs) > 0
         ):
             # Check if the entrypoint has arguments
-            defined_at = cast(ast.FunctionDef, compiled_def.defined_at)
+            defined_at = cast("ast.FunctionDef", compiled_def.defined_at)
             start = to_span(defined_at.args.args[0])
             end = to_span(defined_at.args.args[-1])
             span = Span(start=start.start, end=end.end)

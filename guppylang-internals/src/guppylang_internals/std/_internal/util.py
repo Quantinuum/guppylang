@@ -129,7 +129,7 @@ def int_op(
     # Ideally we'd be able to derive the arguments from the input/output types,
     # but the amount of variables does not correlate with the signature for the
     # integer ops in hugr :/
-    # https://github.com/CQCL/hugr/blob/bfa13e59468feb0fc746677ea3b3a4341b2ed42e/hugr-core/src/std_extensions/arithmetic/int_ops.rs#L116
+    # https://github.com/quantinuum/hugr/blob/bfa13e59468feb0fc746677ea3b3a4341b2ed42e/hugr-core/src/std_extensions/arithmetic/int_ops.rs#L116
     #
     # For now, we just instantiate every type argument to a 64-bit integer.
     args: list[ht.TypeArg] = [int_arg() for _ in range(n_vars)]

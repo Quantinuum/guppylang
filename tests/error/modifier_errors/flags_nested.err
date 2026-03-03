@@ -1,0 +1,8 @@
+Error: Unitary constraint violation (at $FILE:15:12)
+   | 
+13 |     with dagger:
+14 |         with power(2):
+15 |             foo(q)
+   |             ^^^^^^ This function cannot be called in a dagger context
+
+Guppy compilation failed due to 1 previous error

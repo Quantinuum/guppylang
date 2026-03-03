@@ -4,7 +4,10 @@ Error: Not owned (at $FILE:7:8)
 6 | def test(q: qubit) -> qubit:
 7 |     r = q
   |         ^ Cannot move `q` since `test` doesn't own it
+
+Note:
   | 
+5 | @guppy
 6 | def test(q: qubit) -> qubit:
   |          -------- Argument `q` is only borrowed. Consider taking ownership:
   |                   `q: qubit @owned`

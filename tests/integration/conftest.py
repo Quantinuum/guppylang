@@ -21,6 +21,18 @@ def export_test_cases_dir(request):
 
 
 @pytest.fixture
+def wasm_file(request) -> str:
+    test_dir = Path(request.fspath).parents[1]
+    return test_dir / Path("resources/test.wasm")
+
+
+@pytest.fixture
+def h2_wasm_file(request) -> str:
+    test_dir = Path(request.fspath).parents[1]
+    return test_dir / Path("resources/test.h2.wasm")
+
+
+@pytest.fixture
 def validate(request, export_test_cases_dir: Path):
     def validate_impl(package: Package | PackagePointer | Hugr, name=None):
         if isinstance(package, PackagePointer):

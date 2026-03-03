@@ -5,7 +5,10 @@ Error: Drop violation (at $FILE:12:4)
 12 |     s = MyStruct(qubit())
    |     ^ Field `s.q` with non-droppable type `qubit` may be leaked
    |       ...
+
+Note:
    | 
+12 |     s = MyStruct(qubit())
 13 |     if b:
    |        - if this expression is `False`
 

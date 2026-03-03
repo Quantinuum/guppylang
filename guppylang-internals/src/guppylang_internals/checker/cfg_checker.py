@@ -149,11 +149,17 @@ def check_cfg(
     checked_cfg.maybe_ass_before = {
         compiled[bb]: cfg.maybe_ass_before[bb] for bb in required_bbs
     }
+    checked_cfg.unitary_flags = cfg.unitary_flags
 
     # Finally, run the linearity check
     from guppylang_internals.checker.linearity_checker import check_cfg_linearity
 
     linearity_checked_cfg = check_cfg_linearity(checked_cfg, func_name, globals)
+
+    from guppylang_internals.checker.unitary_checker import check_cfg_unitary
+
+    check_cfg_unitary(linearity_checked_cfg, cfg.unitary_flags)
+
     return linearity_checked_cfg
 
 

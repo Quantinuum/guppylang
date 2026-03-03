@@ -5,7 +5,10 @@ Error: Copy violation (at $FILE:9:15)
 9 |         return q
   |                ^ Variable `q` with non-copyable type qubit cannot be used
   |                  here since `q` is captured from an outer scope
+
+Note:
   | 
+6 | @guppy
 7 | def foo(q: qubit @owned) -> qubit:
   |         --------------- `q` defined here
 

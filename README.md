@@ -1,12 +1,12 @@
-![](https://raw.githubusercontent.com/CQCL/guppylang/refs/heads/main/assets/guppy_logo.svg)
+![](https://raw.githubusercontent.com/quantinuum/guppylang/refs/heads/main/assets/guppy_logo.svg)
 
 # Guppy
 
 [![pypi][]](https://pypi.org/project/guppylang/)
-[![codecov][]](https://codecov.io/gh/CQCL/guppylang)
+[![codecov][]](https://codecov.io/gh/quantinuum/guppylang)
 [![py-version][]](https://pypi.org/project/guppylang/)
 
-  [codecov]: https://img.shields.io/codecov/c/gh/CQCL/guppylang?logo=codecov
+  [codecov]: https://img.shields.io/codecov/c/gh/quantinuum/guppylang?logo=codecov
   [py-version]: https://img.shields.io/pypi/pyversions/guppylang
   [pypi]: https://img.shields.io/pypi/v/guppylang
 
@@ -60,7 +60,7 @@ pip install guppylang
 
 ## Development
 
-See [DEVELOPMENT.md](https://github.com/CQCL/guppylang/blob/main/DEVELOPMENT.md) for instructions on setting up the development environment.
+See [DEVELOPMENT.md](https://github.com/quantinuum/guppylang/blob/main/DEVELOPMENT.md) for instructions on setting up the development environment.
 
 ## License
 

@@ -5,7 +5,7 @@ from guppylang_internals.diagnostic import Error, Help, Note
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.parameter import ParamDef
-    from guppylang_internals.tys.ty import Type
+    from guppylang_internals.tys.ty import Type, UnitaryFlags
 
 
 @dataclass(frozen=True)
@@ -182,3 +182,25 @@ class InvalidFlagError(Error):
 class FlagNotAllowedError(Error):
     title: ClassVar[str] = "Invalid annotation"
     span_label: ClassVar[str] = "`@` type annotations are not allowed in this position"
+
+
+@dataclass(frozen=True)
+class UnitaryCallError(Error):
+    title: ClassVar[str] = "Unitary constraint violation"
+    span_label: ClassVar[str] = (
+        "This function cannot be called in a {render_flags} context"
+    )
+    flags: "UnitaryFlags"
+
+    @property
+    def render_flags(self) -> str:
+        from guppylang_internals.tys.ty import UnitaryFlags
+
+        if self.flags == UnitaryFlags.Dagger:
+            return "dagger"
+        elif self.flags == UnitaryFlags.Control:
+            return "control"
+        elif self.flags == UnitaryFlags.Power:
+            return "power"
+        else:
+            return "unitary"

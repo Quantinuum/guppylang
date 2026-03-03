@@ -47,7 +47,6 @@ from guppylang_internals.tys.ty import (
     NumericType,
     OpaqueType,
     StructType,
-    SumType,
     TupleType,
     Type,
 )
@@ -360,7 +359,7 @@ class Globals:
         match ty:
             case TypeDef() as type_defn:
                 pass
-            case BoundTypeVar() | ExistentialTypeVar() | SumType():
+            case BoundTypeVar() | ExistentialTypeVar():
                 return None
             case NumericType(kind):
                 match kind:
@@ -385,7 +384,7 @@ class Globals:
             case _:
                 return assert_never(ty)
 
-        type_defn = cast(TypeDef, ENGINE.get_checked(type_defn.id))
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id))
         if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
             def_id = DEF_STORE.impls[type_defn.id][name]
             defn = ENGINE.get_parsed(def_id)

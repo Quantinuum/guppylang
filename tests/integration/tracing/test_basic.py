@@ -110,7 +110,7 @@ def test_expr_id(run_int_fn):
 
 
 def test_inout_type_infer(validate):
-    """See https://github.com/CQCL/guppylang/issues/1249"""
+    """See https://github.com/quantinuum/guppylang/issues/1249"""
     n = 10
 
     @guppy.comptime
@@ -119,7 +119,7 @@ def test_inout_type_infer(validate):
         rng = RNG(0)
         rng.shuffle(id)
         # After the shuffle, all list elements should be Guppy objects.
-        # See https://github.com/CQCL/guppylang/issues/1251
+        # See https://github.com/quantinuum/guppylang/issues/1251
         assert all(isinstance(x, GuppyObject) for x in id)
         rng.discard()
 
@@ -134,5 +134,17 @@ def mem_swap_array(validate):
         mem_swap(xs, ys)
         assert isinstance(xs[0], GuppyObject)
         assert isinstance(ys[0], GuppyObject)
+
+    validate(main.compile_function())
+
+
+def test_comptime_arg_call(validate):
+    @guppy
+    def foo(x: int @ comptime) -> int:
+        return x
+
+    @guppy.comptime
+    def main() -> None:
+        foo(42)
 
     validate(main.compile_function())

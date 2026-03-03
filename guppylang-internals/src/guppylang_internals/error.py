@@ -104,4 +104,4 @@ def pretty_errors(f: FuncT) -> FuncT:
         with exception_hook(hook):
             return f(*args, **kwargs)
 
-    return cast(FuncT, pretty_errors_wrapped)
+    return cast("FuncT", pretty_errors_wrapped)

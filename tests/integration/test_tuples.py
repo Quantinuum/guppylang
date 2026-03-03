@@ -1,5 +1,6 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, owned, mem_swap
+from guppylang.std.builtins import array, owned
+from guppylang.std.mem import mem_swap
 from guppylang.std.quantum import qubit, discard, h, x
 
 

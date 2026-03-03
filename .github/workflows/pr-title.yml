@@ -15,6 +15,6 @@ on:
 jobs:
     check-title:
         name: check-title
-        uses: CQCL/hugrverse-actions/.github/workflows/pr-title.yml@main
+        uses: quantinuum/hugrverse-actions/.github/workflows/pr-title.yml@main
         secrets:
             GITHUB_PAT: ${{ secrets.HUGRBOT_PAT }}

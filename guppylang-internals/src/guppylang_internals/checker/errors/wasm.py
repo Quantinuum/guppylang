@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from guppylang_internals.diagnostic import Error
+from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.tys.ty import Type
 
 
@@ -13,10 +13,13 @@ class WasmError(Error):
 @dataclass(frozen=True)
 class FirstArgNotModule(WasmError):
     span_label: ClassVar[str] = (
-        "First argument to WASM function should be a reference to a WASM module."
-        " Found `{ty}` instead"
+        "First argument to WASM function should be a WASM module."
     )
-    ty: Type
+
+    @dataclass(frozen=True)
+    class GotOtherType(Note):
+        span_label: ClassVar[str] = "Found `{ty}` instead."
+        ty: Type
 
 
 @dataclass(frozen=True)

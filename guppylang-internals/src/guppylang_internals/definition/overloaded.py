@@ -1,7 +1,8 @@
 import ast
+import copy
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import ClassVar, NoReturn
+from typing import ClassVar, NamedTuple, NoReturn
 
 from hugr import Wire
 
@@ -12,6 +13,7 @@ from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
     DefId,
 )
+from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -23,6 +25,11 @@ from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.printing import signature_to_str
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type
+
+
+class OverloadVariant(NamedTuple):
+    func_ty: FunctionType
+    has_var_args: bool
 
 
 @dataclass(frozen=True)
@@ -51,12 +58,13 @@ class OverloadNoMatchError(Error):
 @dataclass(frozen=True)
 class AvailableOverloadsHint(Note):
     func_name: str
-    variants: list[FunctionType]
+    variants: list[OverloadVariant]
 
     @property
     def rendered_message(self) -> str:
         return "Available overloads are:\n" + "\n".join(
-            f"  {signature_to_str(self.func_name, ty)}" for ty in self.variants
+            f"  {signature_to_str(self.func_name, sig.func_ty, sig.has_var_args)}"
+            for sig in self.variants
         )
 
 
@@ -70,6 +78,14 @@ class OverloadHigherOrderError(Error):
 
 
 @dataclass(frozen=True)
+class InternalExpectOverloadError(Error):
+    title: ClassVar[str] = "Expected overload error"
+    span_label: ClassVar[str] = (
+        "Error should have been caught and replaced by overload error"
+    )
+
+
+@dataclass(frozen=True)
 class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
     description: str = field(default="overloaded function", init=False)
@@ -80,25 +96,35 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
-        available_sigs: list[FunctionType] = []
+        available_sigs: list[OverloadVariant] = []
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)
-            available_sigs.append(defn.ty)
+            has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
+            available_sigs.append(OverloadVariant(defn.ty, has_var_args))
             with suppress(GuppyError):
-                return defn.check_call(args, ty, node, ctx)
+                # check_call may modify args and node,
+                # thus we deepcopy them before passing in the function
+                node_copy = copy.deepcopy(node)
+                args_copy = copy.deepcopy(args)
+                return defn.check_call(args_copy, ty, node_copy, ctx)
         return self._call_error(args, node, ctx, available_sigs, ty)
 
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
-        available_sigs: list[FunctionType] = []
+        available_sigs: list[OverloadVariant] = []
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)
-            available_sigs.append(defn.ty)
+            has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
+            available_sigs.append(OverloadVariant(defn.ty, has_var_args))
             with suppress(GuppyError):
-                return defn.synthesize_call(args, node, ctx)
+                # synthesize_call may modify args and node,
+                # thus we deepcopy them before passing in the function
+                node_copy = copy.deepcopy(node)
+                args_copy = copy.deepcopy(args)
+                return defn.synthesize_call(args_copy, node_copy, ctx)
         return self._call_error(args, node, ctx, available_sigs)
 
     def _call_error(
@@ -106,7 +132,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         args: list[ast.expr],
         node: AstNode,
         ctx: "Context",
-        available_sigs: list[FunctionType],
+        available_sigs: list[OverloadVariant],
         return_ty: Type | None = None,
     ) -> NoReturn:
         if args and not return_ty:

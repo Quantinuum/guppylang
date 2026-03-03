@@ -15,7 +15,6 @@ from hugr import val as hv
 from hugr.build import function as hf
 from hugr.build.cond_loop import Conditional
 from hugr.build.dfg import DP, DfBase
-from typing_extensions import assert_never
 
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -23,7 +22,6 @@ from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
-    RESULT_EXTENSION,
     CompilerBase,
     CompilerContext,
     DFContainer,
@@ -40,20 +38,19 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import (
+    AbortExpr,
+    AbortKind,
     BarrierExpr,
     DesugaredArrayComp,
     DesugaredGenerator,
     DesugaredListComp,
-    ExitKind,
     FieldAccessAndDrop,
     GenericParamValue,
     GlobalCall,
     GlobalName,
     LocalCall,
-    PanicExpr,
     PartialApply,
     PlaceNode,
-    ResultExpr,
     StateResultExpr,
     SubscriptAccessAndDrop,
     TensorCall,
@@ -66,7 +63,6 @@ from guppylang_internals.std._internal.compiler.arithmetic import (
     convert_itousize,
 )
 from guppylang_internals.std._internal.compiler.array import (
-    array_clone,
     array_map,
     array_new,
     array_to_std_array,
@@ -80,8 +76,8 @@ from guppylang_internals.std._internal.compiler.list import (
     list_new,
 )
 from guppylang_internals.std._internal.compiler.prelude import (
-    build_error,
     build_panic,
+    make_error,
     panic,
 )
 from guppylang_internals.std._internal.compiler.tket_bool import (
@@ -93,14 +89,12 @@ from guppylang_internals.std._internal.compiler.tket_bool import (
 )
 from guppylang_internals.tys.arg import ConstArg
 from guppylang_internals.tys.builtin import (
-    array_type,
     bool_type,
     get_element_type,
     int_type,
-    is_bool_type,
     is_frozenarray_type,
 )
-from guppylang_internals.tys.const import ConstValue
+from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
@@ -150,9 +144,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """
         old = self.dfg
         # Check that the input names are unique
-        assert len({inp.place.id for inp in inputs}) == len(
-            inputs
-        ), "Inputs are not unique"
+        assert len({inp.place.id for inp in inputs}) == len(inputs), (
+            "Inputs are not unique"
+        )
         self.dfg = DFContainer(builder, self.ctx, self.dfg.locals.copy())
         hugr_input = builder.input_node
         for input_node, wire in zip(inputs, hugr_input, strict=True):
@@ -331,14 +325,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def _pack_returns(self, returns: Sequence[Wire], return_ty: Type) -> Wire:
         """Groups function return values into a tuple"""
-        if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
-            types = type_to_row(return_ty)
-            assert len(returns) == len(types)
-            return self._pack_tuple(returns, types)
-        assert (
-            len(returns) == 1
-        ), f"Expected a single return value. Got {returns}. return type {return_ty}"
-        return returns[0]
+        return pack_returns(returns, return_ty, self.builder, self.ctx)
 
     def _update_inout_ports(
         self,
@@ -400,9 +387,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 func, func_ty, remaining_args
             )
             rets.extend(outs)
-        assert (
-            remaining_args == []
-        ), "Not all function arguments were consumed after a tensor call"
+        assert remaining_args == [], (
+            "Not all function arguments were consumed after a tensor call"
+        )
         return self._pack_returns(rets, node.tensor_ty.output)
 
     def _compile_tensor_with_leftovers(
@@ -535,82 +522,56 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         tuple_port = self.visit(node.value)
         return self._unpack_tuple(tuple_port, node.tuple_ty.element_types)[node.index]
 
-    def visit_ResultExpr(self, node: ResultExpr) -> Wire:
-        value_wire = self.visit(node.value)
-        base_ty = node.base_ty.to_hugr(self.ctx)
-        extra_args: list[ht.TypeArg] = []
-        if isinstance(node.base_ty, NumericType):
-            match node.base_ty.kind:
-                case NumericType.Kind.Nat:
-                    base_name = "uint"
-                    extra_args = [ht.BoundedNatArg(n=NumericType.INT_WIDTH)]
-                case NumericType.Kind.Int:
-                    base_name = "int"
-                    extra_args = [ht.BoundedNatArg(n=NumericType.INT_WIDTH)]
-                case NumericType.Kind.Float:
-                    base_name = "f64"
-                case kind:
-                    assert_never(kind)
-        else:
-            # The only other valid base type is bool
-            assert is_bool_type(node.base_ty)
-            base_name = "bool"
-        if node.array_len is not None:
-            op_name = f"result_array_{base_name}"
-            size_arg = node.array_len.to_arg().to_hugr(self.ctx)
-            extra_args = [size_arg, *extra_args]
-            # As `borrow_array`s used by Guppy are linear, we need to clone it (knowing
-            # that all elements in it are copyable) to avoid linearity violations when
-            # both passing it to the result operation and returning it (as an inout
-            # argument).
-            value_wire, inout_wire = self.builder.add_op(
-                array_clone(base_ty, size_arg), value_wire
-            )
-            func_ty = FunctionType(
-                [
-                    FuncInput(
-                        array_type(node.base_ty, node.array_len), InputFlags.Inout
-                    ),
-                ],
-                NoneType(),
-            )
-            self._update_inout_ports(node.args, iter([inout_wire]), func_ty)
-            if is_bool_type(node.base_ty):
-                # We need to coerce a read on all the array elements if they are bools.
-                array_read = array_read_bool(self.ctx)
-                array_read = self.builder.load_function(array_read)
-                map_op = array_map(OpaqueBool, size_arg, ht.Bool)
-                value_wire = self.builder.add_op(map_op, value_wire, array_read)
-                base_ty = ht.Bool
-            # Turn `borrow_array` into regular `array`
-            value_wire = self.builder.add_op(
-                array_to_std_array(base_ty, size_arg), value_wire
-            )
-            hugr_ty: ht.Type = hugr.std.collections.array.Array(base_ty, size_arg)
-        else:
-            if is_bool_type(node.base_ty):
-                base_ty = ht.Bool
-                value_wire = self.builder.add_op(read_bool(), value_wire)
-            op_name = f"result_{base_name}"
-            hugr_ty = base_ty
+    def _visit_result_tag(self, tag: Const, loc: ast.expr) -> str:
+        """Helper method to resolve the tag string in `state_result` expressions.
 
-        sig = ht.FunctionType(input=[hugr_ty], output=[])
-        args = [ht.StringArg(node.tag), *extra_args]
-        op = ops.ExtOp(RESULT_EXTENSION.get_op(op_name), signature=sig, args=args)
+        Also takes care of checking that the tag fits into the maximum tag length.
+        Once we go ahead with https://github.com/quantinuum/guppylang/discussions/1299,
+        this can be moved into type checking.
+        """
+        from guppylang_internals.std._internal.compiler.platform import (
+            TAG_MAX_LEN,
+            TooLongError,
+        )
 
-        self.builder.add_op(op, value_wire)
-        return self._pack_returns([], NoneType())
+        is_generic: BoundConstVar | None = None
+        match tag:
+            case ConstValue(value=str(v)):
+                tag_value = v
+            case BoundConstVar(idx=idx) as var:
+                assert self.ctx.current_mono_args is not None
+                match self.ctx.current_mono_args[idx]:
+                    case ConstArg(const=ConstValue(value=str(v))):
+                        tag_value = v
+                        is_generic = var
+                    case _:
+                        raise InternalGuppyError("Unexpected tag monomorphization")
+            case _:
+                raise InternalGuppyError("Unexpected tag value")
 
-    def visit_PanicExpr(self, node: PanicExpr) -> Wire:
-        err = build_error(self.builder, node.signal, node.msg)
+        if len(tag_value.encode("utf-8")) > TAG_MAX_LEN:
+            err = TooLongError(loc)
+            err.add_sub_diagnostic(TooLongError.Hint(None))
+            if is_generic:
+                err.add_sub_diagnostic(
+                    TooLongError.GenericHint(None, is_generic.display_name, tag_value)
+                )
+            raise GuppyError(err)
+        return tag_value
+
+    def visit_AbortExpr(self, node: AbortExpr) -> Wire:
+        signal = self.visit(node.signal)
+        signal_usize = self.builder.add_op(convert_itousize(), signal)
+        msg = self.visit(node.msg)
+        err = self.builder.add_op(make_error(), signal_usize, msg)
         in_tys = [get_type(e).to_hugr(self.ctx) for e in node.values]
         out_tys = [ty.to_hugr(self.ctx) for ty in type_to_row(get_type(node))]
         args = [self.visit(e) for e in node.values]
         match node.kind:
-            case ExitKind.Panic:
+            case AbortKind.Panic:
                 h_node = build_panic(self.builder, in_tys, out_tys, err, *args)
-            case ExitKind.ExitShot:
-                op = panic(in_tys, out_tys, ExitKind.ExitShot)
+            case AbortKind.ExitShot:
+                op = panic(in_tys, out_tys, AbortKind.ExitShot)
                 h_node = self.builder.add_op(op, err, *args)
         return self._pack_returns(list(h_node.outputs()), get_type(node))
 
@@ -627,12 +588,13 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return self._pack_returns([], NoneType())
 
     def visit_StateResultExpr(self, node: StateResultExpr) -> Wire:
+        tag_value = self._visit_result_tag(node.tag_value, node.tag_expr)
         num_qubits_arg = (
             node.array_len.to_arg().to_hugr(self.ctx)
             if node.array_len
             else ht.BoundedNatArg(len(node.args) - 1)
         )
-        args = [ht.StringArg(node.tag), num_qubits_arg]
+        args = [ht.StringArg(tag_value), num_qubits_arg]
         sig = ht.FunctionType(
             [standard_array_type(ht.Qubit, num_qubits_arg)],
             [standard_array_type(ht.Qubit, num_qubits_arg)],
@@ -789,6 +751,35 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:
     """Turns an expression into a row expressions by unpacking top-level tuples."""
     return expr.elts if isinstance(expr, ast.Tuple) else [expr]
+
+
+def pack_returns(
+    returns: Sequence[Wire],
+    return_ty: Type,
+    builder: DfBase[ops.DfParentOp],
+    ctx: CompilerContext,
+) -> Wire:
+    """Groups function return values into a tuple"""
+    if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
+        types = type_to_row(return_ty)
+        assert len(returns) == len(types)
+        hugr_tys = [t.to_hugr(ctx) for t in types]
+        return builder.add_op(ops.MakeTuple(hugr_tys), *returns)
+    assert len(returns) == 1, (
+        f"Expected a single return value. Got {returns}. return type {return_ty}"
+    )
+    return returns[0]
+
+
+def unpack_wire(
+    wire: Wire, return_ty: Type, builder: DfBase[ops.DfParentOp], ctx: CompilerContext
+) -> list[Wire]:
+    """The inverse of `pack_returns`"""
+    if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
+        types = type_to_row(return_ty)
+        hugr_tys = [t.to_hugr(ctx) for t in types]
+        return list(builder.add_op(ops.UnpackTuple(hugr_tys), wire).outputs())
+    return [wire]
 
 
 def instantiation_needs_unpacking(func_ty: FunctionType, inst: Inst) -> bool:

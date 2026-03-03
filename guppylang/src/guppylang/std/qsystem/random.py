@@ -1,3 +1,6 @@
+"""Guppy standard library for random number generation and
+discrete probability distributions."""
+
 # mypy: disable-error-code="no-any-return"
 from typing import Generic, no_type_check
 
@@ -16,7 +19,8 @@ from guppylang_internals.std._internal.util import external_op
 
 from guppylang import guppy
 from guppylang.std.angles import angle, pi
-from guppylang.std.builtins import array, mem_swap, owned, panic
+from guppylang.std.array import array_swap
+from guppylang.std.builtins import array, owned, panic
 from guppylang.std.option import Option
 
 SHUFFLE_N = guppy.nat_var("SHUFFLE_N")
@@ -35,7 +39,7 @@ class RNG:
     """Random number generator."""
 
     @guppy  # type: ignore[misc] # Unsupported decorated constructor type; Self argument missing for a non-static method (or an invalid type for self)
-    def __new__(seed: int) -> "RNG":
+    def __new__(seed: int) -> "RNG":  # noqa: PYI034
         """Create a new random number generator using a seed."""
         return _new_rng_context(seed).unwrap()
 
@@ -91,10 +95,8 @@ class RNG:
         for k in range(SHUFFLE_N):
             i = SHUFFLE_N - 1 - k
             j = self.random_int_bounded(i + 1)
-            # TODO use array swap once lowering implemented
-            # https://github.com/CQCL/guppylang/issues/924
             if i != j:
-                mem_swap(array[i], array[j])
+                array_swap(array, i, j)
 
 
 @guppy.struct

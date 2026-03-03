@@ -19,10 +19,10 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -38,8 +38,7 @@ jobs:
           just bench_compare \
               --token '${{ secrets.BENCHER_API_TOKEN }}' \
               --branch "$GITHUB_HEAD_REF" \
-              --start-point "$GITHUB_BASE_REF" \
-              --start-point-hash '${{ github.event.pull_request.base.sha }}' \
+              --start-point "main" \
               --start-point-clone-thresholds \
               --start-point-reset \
               --start-point-max-versions 1 \

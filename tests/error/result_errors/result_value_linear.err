@@ -1,10 +1,19 @@
-Error: Invalid Result (at $FILE:8:18)
+Error: Invalid call of overloaded function (at $FILE:8:11)
   | 
 6 | @guppy
 7 | def foo(q: qubit) -> None:
 8 |     result("foo", q)
-  |                   ^ Expression of type `qubit` is not a valid result.
+  |            ^^^^^^^^ No variant of overloaded function `result` takes arguments
+  |                     `str`, `qubit`
 
-Note: Only numeric values or arrays thereof are allowed as results
+Note: Available overloads are:
+  def result(tag: str @comptime, value: int) -> None
+  def result(tag: str @comptime, value: nat) -> None
+  def result(tag: str @comptime, value: bool) -> None
+  def result(tag: str @comptime, value: float) -> None
+  def result(tag: str @comptime, value: array[int, n]) -> None
+  def result(tag: str @comptime, value: array[nat, n]) -> None
+  def result(tag: str @comptime, value: array[bool, n]) -> None
+  def result(tag: str @comptime, value: array[float, n]) -> None
 
 Guppy compilation failed due to 1 previous error

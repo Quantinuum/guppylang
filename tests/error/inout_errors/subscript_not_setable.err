@@ -6,7 +6,7 @@ Error: Not able to borrow subscripted elements (at $FILE:19:8)
    |         ^^^^ Expression of type `MyImmutableContainer` is not able to
    |              borrow subscripted elements
 
-Help: Implement missing method: `__setitem__: (MyImmutableContainer, int, qubit
+Help: Implement missing method: `__setitem__: (MyImmutableContainer, ?T, qubit
 @owned) -> None`
 
 Guppy compilation failed due to 1 previous error

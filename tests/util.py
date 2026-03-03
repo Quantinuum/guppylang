@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from guppylang.decorator import custom_guppy_decorator, guppy
 
 if TYPE_CHECKING:
-    from hugr.package import Package, PackagePointer
-
     from guppylang.defs import GuppyFunctionDefinition
+    from hugr.package import Package, PackagePointer
 
 
 @custom_guppy_decorator
@@ -26,3 +26,11 @@ def dump_llvm(package: PackagePointer):
 
     except ImportError:
         pass
+
+
+def get_wasm_file() -> str:
+    return str(Path(__file__).parent.resolve() / "resources/test.wasm")
+
+
+def get_h2_wasm_file() -> str:
+    return str(Path(__file__).parent.resolve() / "resources/test.h2.wasm")

@@ -21,13 +21,14 @@ can be used to infer a type for an expression.
 """
 
 import ast
+import copy
 import sys
 import traceback
 from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, NoReturn, cast
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from typing_extensions import assert_never
 
@@ -43,6 +44,7 @@ from guppylang_internals.ast_util import (
 )
 from guppylang_internals.cfg.builder import is_tmp_var, tmp_vars
 from guppylang_internals.checker.core import (
+    ComptimeVariable,
     Context,
     DummyEvalDict,
     FieldAccess,
@@ -84,6 +86,7 @@ from guppylang_internals.checker.errors.type_errors import (
     WrongNumberOfArgsError,
 )
 from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
 from guppylang_internals.error import (
@@ -233,7 +236,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if actual := get_type_opt(expr):
             expr, subst, inst = check_type_against(actual, ty, expr, self.ctx, kind)
             if inst:
-                expr = with_loc(expr, TypeApply(value=expr, tys=inst))
+                expr = with_loc(expr, TypeApply(expr, inst))
             return with_type(ty.substitute(subst), expr), subst
 
         # When checking against a variable, we have to synthesize
@@ -369,7 +372,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Apply instantiation of quantified type variables
         if inst:
-            node = with_loc(node, TypeApply(value=node, inst=inst))
+            node = with_loc(node, TypeApply(node, inst))
 
         return node, subst
 
@@ -406,23 +409,27 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(IllegalConstant(node, type(node.value)))
         return node, ty
 
+    def _check_generic_param(self, name: str, node: ast.expr) -> tuple[ast.expr, Type]:
+        """Helper method to check a generic parameter (ConstParam or TypeParam)."""
+        param = self.ctx.generic_params[name]
+        match param:
+            case ConstParam() as param:
+                ast_node = with_loc(node, GenericParamValue(id=name, param=param))
+                return ast_node, param.ty
+            case TypeParam() as param:
+                raise GuppyError(
+                    ExpectedError(node, "a value", got=f"type `{param.name}`")
+                )
+            case _:
+                return assert_never(param)
+
     def visit_Name(self, node: ast.Name) -> tuple[ast.expr, Type]:
         x = node.id
         if x in self.ctx.locals:
             var = self.ctx.locals[x]
             return with_loc(node, PlaceNode(place=var)), var.ty
         elif x in self.ctx.generic_params:
-            param = self.ctx.generic_params[x]
-            match param:
-                case ConstParam() as param:
-                    ast_node = with_loc(node, GenericParamValue(id=x, param=param))
-                    return ast_node, param.ty
-                case TypeParam() as param:
-                    raise GuppyError(
-                        ExpectedError(node, "a value", got=f"type `{param.name}`")
-                    )
-                case _:
-                    return assert_never(param)
+            return self._check_generic_param(x, node)
         elif x in self.ctx.globals:
             match self.ctx.globals[x]:
                 case Definition() as defn:
@@ -453,6 +460,16 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 defn, "__new__"
             ):
                 return with_loc(node, GlobalName(id=name, def_id=constr.id)), constr.ty
+            # Handle parameter definitions (e.g., nat_var) that may be imported
+            case ParamDef():
+                # Check if this parameter is in our generic_params
+                # (e.g., used in type signature)
+                if name in self.ctx.generic_params:
+                    return self._check_generic_param(name, node)
+                # If not in generic_params, it's being used outside its scope
+                raise GuppyError(
+                    ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
+                )
             case defn:
                 raise GuppyError(
                     ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
@@ -460,6 +477,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_Attribute(self, node: ast.Attribute) -> tuple[ast.expr, Type]:
         from guppylang.defs import GuppyDefinition
+
         from guppylang_internals.engine import ENGINE
 
         # A `value.attr` attribute access. Unfortunately, the `attr` is just a string,
@@ -468,7 +486,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         # The only exception are attributes accesses that are generated during
         # desugaring (for example for iterators in `for` loops). Since those just
         # inherit the span of the sugared code, we could have line breaks there.
-        # See https://github.com/CQCL/guppylang/issues/1301
+        # See https://github.com/quantinuum/guppylang/issues/1301
         span = to_span(node)
         if span.start.line == span.end.line:
             attr_span = Span(span.end.shift_left(len(node.attr)), span.end)
@@ -503,12 +521,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             )
             # Make a closure by partially applying the `self` argument
             # TODO: Try to infer some type args based on `self`
-            result_ty = FunctionType(
-                func.ty.inputs[1:],
-                func.ty.output,
-                func.ty.input_names[1:] if func.ty.input_names else None,
-                func.ty.params,
-            )
+            result_ty = FunctionType(func.ty.inputs[1:], func.ty.output, func.ty.params)
             return with_loc(node, PartialApply(func=name, args=[node.value])), result_ty
         raise GuppyTypeError(AttributeNotFoundError(attr_span, ty, node.attr))
 
@@ -997,11 +1010,13 @@ def type_check_args(
         new_args.append(a)
     assert next(comptime_args, None) is None
 
-    # If the argument check succeeded, this means that we must have found instantiations
-    # for all unification variables occurring in the input types
-    assert all(
-        set.issubset(inp.ty.unsolved_vars, subst.keys()) for inp in func_ty.inputs
-    )
+    # Check whether we have found instantiations for all unification variables occurring
+    # in the input types
+    for inp in func_ty.inputs:
+        if not set.issubset(inp.ty.unsolved_vars, subst.keys()):
+            raise GuppyTypeInferenceError(
+                TypeInferenceError(node, inp.ty.substitute(subst))
+            )
 
     # We also have to check that we found instantiations for all vars in the return type
     if not set.issubset(func_ty.output.unsolved_vars, subst.keys()):
@@ -1035,7 +1050,14 @@ def check_place_assignable(
             exp_sig = FunctionType(
                 [
                     FuncInput(parent.ty, InputFlags.Inout),
-                    FuncInput(item.ty, InputFlags.NoFlags),
+                    FuncInput(
+                        # Due to potential coercions that were applied during the
+                        # `__getitem__` call (e.g. coercing a nat index to int), we're
+                        # not allowed to rely on `item.ty` here.
+                        # See https://github.com/CQCL/guppylang/issues/1356
+                        ExistentialTypeVar.fresh("T", True, True),
+                        InputFlags.NoFlags,
+                    ),
                     FuncInput(ty, InputFlags.Owned),
                 ],
                 NoneType(),
@@ -1071,6 +1093,8 @@ def check_comptime_arg(
     const: Const
     match arg:
         case ast.Constant(value=v):
+            const = ConstValue(ty, v)
+        case PlaceNode(place=ComptimeVariable(ty=ty, static_value=v)):
             const = ConstValue(ty, v)
         case GenericParamValue(param=const_param):
             const = const_param.to_bound().const
@@ -1157,19 +1181,25 @@ def check_call(
     #  However the bad case, e.g. `x: int = foo(foo(...foo(?)...))`, shouldn't be common
     #  in practice. Can we do better than that?
 
-    # First, try to synthesize
-    res: tuple[Type, Inst] | None = None
+    # synthesize_call may modify args and node in place,
+    # hence we deepcopy them before passing in the function
+    node_copy = copy.deepcopy(node)
+    inputs_copy = copy.deepcopy(inputs)
+
     try:
         inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx)
-        res = synth, inst
-    except GuppyTypeInferenceError:
-        pass
-    if res is not None:
-        synth, inst = res
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
-        return inputs, subst, inst
+        else:
+            return inputs, subst, inst
+    except GuppyTypeInferenceError:
+        pass
+
+    # Restore the state of these values from before they were potentially
+    # modified by `synthesize_call`.
+    inputs = inputs_copy
+    node = node_copy
 
     # If synthesis fails, we try again, this time also using information from the
     # expected return type
@@ -1258,7 +1288,7 @@ def instantiate_poly(node: ast.expr, ty: FunctionType, inst: Inst) -> ast.expr:
             assert full_ty.params == ty.params
             node.func = instantiate_poly(node.func, full_ty, inst)
         else:
-            node = with_loc(node, TypeApply(value=with_type(ty, node), inst=inst))
+            node = with_loc(node, TypeApply(with_type(ty, node), inst))
         return with_type(ty.instantiate(inst), node)
     return with_type(ty, node)
 
@@ -1378,13 +1408,17 @@ def python_value_to_guppy_type(
                 if isinstance(type_hint, TupleType)
                 else len(elts) * [None]
             )
-            tys = [
-                python_value_to_guppy_type(elt, node, globals, hint)
-                for elt, hint in zip(elts, hints, strict=False)
-            ]
-            if any(ty is None for ty in tys):
-                return None
-            return TupleType(cast(list[Type], tys))
+            tys: list[Type] = []
+            for elt, hint in zip(elts, hints, strict=False):
+                ty = python_value_to_guppy_type(elt, node, globals, hint)
+                if ty is None:
+                    err = IllegalComptimeExpressionError(node, type(elt))
+                    err.add_sub_diagnostic(
+                        IllegalComptimeExpressionError.InContainer(None, tuple)
+                    )
+                    raise GuppyError(err)
+                tys.append(ty)
+            return TupleType(tys)
         case list():
             return _python_list_to_guppy_type(v, node, globals, type_hint)
         case None:
@@ -1426,11 +1460,17 @@ def _python_list_to_guppy_type(
     )
     el_ty = python_value_to_guppy_type(v, node, globals, elt_hint)
     if el_ty is None:
-        return None
+        err = IllegalComptimeExpressionError(node, type(v))
+        err.add_sub_diagnostic(IllegalComptimeExpressionError.InContainer(None, list))
+        raise GuppyError(err)
     for v in rest:
         ty = python_value_to_guppy_type(v, node, globals, elt_hint)
         if ty is None:
-            return None
+            err = IllegalComptimeExpressionError(node, type(v))
+            err.add_sub_diagnostic(
+                IllegalComptimeExpressionError.InContainer(None, list)
+            )
+            raise GuppyError(err)
         if (subst := unify(ty, el_ty, {})) is None:
             raise GuppyError(ComptimeExprIncoherentListError(node))
         el_ty = el_ty.substitute(subst)

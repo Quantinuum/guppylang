@@ -328,7 +328,7 @@ def _list_new_classical(
     builder: DfBase[ops.DfParentOp], elem_type: ht.Type, args: list[Wire]
 ) -> Wire:
     # This may be simplified in the future with a `new` or `with_capacity` list op
-    # See https://github.com/CQCL/hugr/issues/1508
+    # See https://github.com/quantinuum/hugr/issues/1508
     lst = builder.load(ListVal([], elem_ty=elem_type))
     push_op = list_push(elem_type)
     for elem in args:

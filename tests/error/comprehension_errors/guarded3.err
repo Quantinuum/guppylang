@@ -5,7 +5,10 @@ Error: Drop violation (at $FILE:19:21)
 19 |     return [s.q2 for s in qs if bar(s.q1)]
    |                      ^ Field `s.q2` with non-droppable type `qubit` may be leaked
    |                        ...
+
+Note:
    | 
+18 | def foo(qs: list[MyStruct] @owned) -> list[qubit]:
 19 |     return [s.q2 for s in qs if bar(s.q1)]
    |                                 --------- if this expression is `False`
 

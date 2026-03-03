@@ -16,7 +16,7 @@ from guppylang_internals.std._internal.compiler.either import (
 from guppylang_internals.tys.param import TypeParam
 
 from guppylang import guppy
-from guppylang.std.builtins import owned
+from guppylang.std.lang import owned
 from guppylang.std.option import Option
 
 L = guppy.type_var("L", copyable=False, droppable=False)
