@@ -231,6 +231,25 @@ class array(builtins.list[_T], Generic[_T, _n]):
             qs.discard_all_taken() # Succeeds since all qubits have been taken out
         """
 
+    @guppy
+    @no_type_check
+    def try_discard_all_taken(self: array[L, n] @ owned) -> Result[None, array[L, n]]:
+        """Similar to `discard_all_taken`, but instead of panicking returns the
+        unmodified array when not all elements have been taken out.
+
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(2))
+            discard(qs.take(0))
+            # Does not panic, even though not all elements have been taken out.
+            qs = qs.try_discard_all_taken()
+        """
+        for i in range(n):
+            if not self.is_borrowed(i):
+                return err(self)
+        self.discard_all_taken()
+        return ok(None)
+
     def __new__(cls, *args: _T) -> builtins.list[_T]:  # type: ignore[no-redef]
         # Runtime array constructor that is used for comptime. We return an actual list
         # in line with the comptime unpacking logic that turns arrays into lists.
