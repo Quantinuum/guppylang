@@ -6,6 +6,10 @@ from pathlib import Path
 example_notebooks = list(
     (Path(__file__).parent.parent.parent / "examples").glob("*.ipynb")
 )
+
+example_notebooks.remove(
+    Path(__file__).parent.parent.parent / "examples" / "qaoa_maxcut_example.ipynb"
+)
 # Turn paths into strings, otherwise pytest doesn't display the names
 example_notebooks = [str(f) for f in example_notebooks]
 
@@ -21,10 +25,6 @@ def test_example_notebooks(nb_regression, notebook: Path):
 
 integration_notebooks = list((Path(__file__).parent / "notebooks").glob("*.ipynb"))
 
-
-integration_notebooks.remove(
-    Path(__file__).parent.parent.parent / "examples" / "qaoa_maxcut_example.ipynb"
-)
 
 # Turn paths into strings, otherwise pytest doesn't display the names
 integration_notebooks = [str(f) for f in integration_notebooks]
