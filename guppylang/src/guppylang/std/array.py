@@ -217,10 +217,19 @@ class array(builtins.list[_T], Generic[_T, _n]):
         self.put(elem, idx)
         return ok(None)
 
-    @guppy
+    @custom_function(ArrayDiscardAllUsedCompiler())
     def discard_all_taken(self: array[L, n] @ owned) -> None:
-        """Discards array assuming that all elements been taken out."""
-        _array_discard_all_used(self)
+        """Discards array assuming that all elements have been taken out, and panics if
+        that is not the case.
+
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(2))
+            discard(qs.take(0))
+            discard(qs.take(1))
+            # qs.put(qubit(), 1) # Would make the call below panic
+            qs.discard_all_taken() # Succeeds since all qubits have been taken out
+        """
 
     def __new__(cls, *args: _T) -> builtins.list[_T]:  # type: ignore[no-redef]
         # Runtime array constructor that is used for comptime. We return an actual list
@@ -245,12 +254,8 @@ class ArrayIter(Generic[L, n]):
         if self.i < int(n):
             elem = self.xs.take(self.i)
             return some((elem, ArrayIter(self.xs, self.i + 1)))
-        _array_discard_all_used(self.xs)
+        self.xs.discard_all_taken()
         return nothing()
-
-
-@custom_function(ArrayDiscardAllUsedCompiler())
-def _array_discard_all_used(xs: array[L, n] @ owned) -> None: ...
 
 
 @custom_function(ArraySwapCompiler())
