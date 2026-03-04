@@ -77,7 +77,7 @@ class DISubprogram(DebugRecord):
 
     file: int  # Index into the string table for filenames.
     line_no: int  # First line of the function definition.
-    scope_line: int | None  # First line of the function body.
+    scope_line: int | None = None # First line of the function body.
 
     def to_json(self) -> dict[str, str]:
         return (

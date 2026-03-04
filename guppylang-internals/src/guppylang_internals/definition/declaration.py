@@ -2,11 +2,18 @@ import ast
 from dataclasses import dataclass, field
 from typing import ClassVar
 
+from guppylang_internals.metadata.debug_info import DISubprogram, HugrDebugInfo
 from hugr import Node, Wire
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder, OpVar
 
-from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc, with_type
+from guppylang_internals.ast_util import (
+    AstNode,
+    get_file,
+    has_empty_body,
+    with_loc,
+    with_type,
+)
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
@@ -126,6 +133,11 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         module: hf.Module = module
 
         node = module.declare_function(self.name, self.ty.to_hugr_poly(ctx))
+        subprogram = DISubprogram(
+            file=ctx.metadata_file_table.get_index(get_file(self.defined_at)),
+            line_no=self.defined_at.lineno,
+        )
+        node.metadata[HugrDebugInfo] = subprogram
         return CompiledFunctionDecl(
             self.id,
             self.name,
