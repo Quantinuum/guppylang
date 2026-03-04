@@ -20,3 +20,6 @@ extend-glob = ["*.ipynb"]
 
 [type.notebooks.extend-words]
 mor = "mor" # Line noise
+
+[default.extend-identifiers]
+NDArray = "NDArray"
