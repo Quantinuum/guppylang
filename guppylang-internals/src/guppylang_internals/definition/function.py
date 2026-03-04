@@ -54,7 +54,7 @@ from guppylang_internals.metadata.debug_info import (
     HugrDebugInfo,
 )
 from guppylang_internals.nodes import GlobalCall
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
@@ -210,8 +210,8 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         )
         metadata = DISubprogram(
             file=ctx.metadata_file_table.get_index(get_file(self.defined_at)),
-            line_no=self.defined_at.lineno,
-            scope_line=self.defined_at.body[0].lineno,
+            line_no=to_span(self.defined_at).start.line,
+            scope_line=to_span(self.defined_at.body[0]).start.line,
         )
         self.metadata.set_debug_info(metadata)
         add_metadata(
@@ -308,9 +308,10 @@ def compile_call(
     type_args = [arg.to_hugr(dfg.ctx) for arg in type_args]
     num_returns = len(type_to_row(ty.output))
     call = dfg.builder.call(func, *args, instantiation=func_ty, type_args=type_args)
+    loc = to_span(call_ast).start
     call.metadata[HugrDebugInfo] = DILocation(
-        line_no=call_ast.lineno,
-        column=call_ast.col_offset,
+        line_no=loc.line,
+        column=loc.column,
     )
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),

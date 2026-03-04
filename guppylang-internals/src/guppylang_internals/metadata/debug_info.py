@@ -77,7 +77,7 @@ class DISubprogram(DebugRecord):
 
     file: int  # Index into the string table for filenames.
     line_no: int  # First line of the function definition.
-    scope_line: int | None = None # First line of the function body.
+    scope_line: int | None = None  # First line of the function body.
 
     def to_json(self) -> dict[str, str]:
         return (
@@ -86,6 +86,7 @@ class DISubprogram(DebugRecord):
                 "line_no": str(self.line_no),
                 "scope_line": str(self.scope_line),
             }
+            # Declarations have no function body so could have no scope_line.
             if self.scope_line is not None
             else {
                 "file": str(self.file),
@@ -102,7 +103,7 @@ class DISubprogram(DebugRecord):
             if key not in value:
                 msg = f"Expected DISubprogram to have a '{key}' key but got {value}"
                 raise TypeError(msg)
-        # Declarations have no function body so no scope_line.
+        # Declarations have no function body so could have no scope_line.
         scope_line = int(value["scope_line"]) if "scope_line" in value else None
         return DISubprogram(
             file=int(value["file"]),
@@ -134,12 +135,13 @@ class DILocation(DebugRecord):
             if key not in value:
                 msg = f"Expected DILocation to have a '{key}' key but got {value}"
                 raise TypeError(msg)
-        return DILocation(column=int(value["column"]), line_no=int(value["line"]))
+        return DILocation(column=int(value["column"]), line_no=int(value["line_no"]))
 
 
 @dataclass
 class StringTable:
     """Utility class for managing a string table for debug info serialization."""
+
     table: list[str]
 
     def get_index(self, s: str) -> int:

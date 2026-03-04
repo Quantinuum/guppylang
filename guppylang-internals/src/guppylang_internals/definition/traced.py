@@ -33,7 +33,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.debug_info import DILocation, HugrDebugInfo
 from guppylang_internals.nodes import GlobalCall
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, type_to_row
 
@@ -140,9 +140,10 @@ class CompiledTracedFunctionDef(
         call = dfg.builder.call(
             self.func_def, *args, instantiation=func_ty, type_args=type_args
         )
+        loc = to_span(node).start
         call.metadata[HugrDebugInfo] = DILocation(
-            line_no=node.lineno,
-            column=node.col_offset,
+            line_no=loc.line,
+            column=loc.column,
         )
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
