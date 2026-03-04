@@ -11,6 +11,8 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
+    "sphinx_copybutton",
+    "myst_parser",
 ]
 
 html_theme = "furo"
