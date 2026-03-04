@@ -113,13 +113,13 @@ class CFGBuilder(AstVisitor[BB | None]):
         # If we're still in a basic block after compiling the whole body, we have to add
         # an implicit void return
         if final_bb is not None:
-            self.cfg.link(final_bb, self.cfg.exit_bb)
             if final_bb.reachable:
                 self.cfg.exit_bb.reachable = True
                 if not returns_none:
-                    if len(self.cfg.exit_bb.predecessors) <= 1:
-                        # If <= 1, the missing return is not in some branches,
-                        # thus we can point to the last statement of the function
+                    if len(self.cfg.exit_bb.predecessors) == 0:
+                        # If the exit BB has no predecessor, then the function contains
+                        # no return statements, so we can point to the last statement
+                        # in the function
                         err = ExpectedError(nodes[-1], "return statement")
                     else:
                         # otherwise, the missing return is in some branches,
@@ -138,6 +138,7 @@ class CFGBuilder(AstVisitor[BB | None]):
                             expr, idx = branch_cond
                             err.add_sub_diagnostic(Branch(expr, idx == 1))
                     raise GuppyError(err)
+            self.cfg.link(final_bb, self.cfg.exit_bb)
 
         # Prune the CFG such that there are no jumps from unreachable code back into
         # reachable code. Otherwise, unreachable code could lead to unnecessary type
@@ -780,10 +781,27 @@ def make_assign(lhs: list[ast.AST], value: ast.expr) -> ast.Assign:
 
 
 def find_missing_return_point(
-    final_bb: BB, cfg: CFG, visited: set[BB] | None = None
+    final_bb: BB, cfg: CFG
 ) -> tuple[BBStatement | None, tuple[ast.expr, int] | None]:
-    """Finds the last statement from the final BB or its predecessors,
-    and the branch condition."""
+    """Finds the last statement from the final BB or its predecessors, and the branch
+    condition. It walks up the ancestors of the given final basic block to locate the
+    nearest block containing statements, and attempts to find the most relevant branch
+    condition that distinguishes the path without a return.
+
+    Returns:
+        A tuple where
+            - The first element is the last statement found in the nearest ancestor
+            - The second element is a tuple containing:
+                - The AST expression representing the branch condition that leads to
+                the missing return.
+                - 0 or 1 indicating which branch leads to the missing return, 0 means
+                the missing return is on the "false" branch, 1 means it is on the "true"
+                branch.
+
+    Returns None in the first element if no statement is found in any ancestor block.
+    Returns None in the second element if no relevant branch condition is found.
+
+    """
     final_statement = None
 
     # walk up the ancestors in the CFG
@@ -799,33 +817,38 @@ def find_missing_return_point(
             # of the branch without return.
             # However, there may be nested branches without returns.
             # We need to find which is the most significant condition.
-            # The heuristic (inspired by Rust error messages) finds
-            # the closest branch condition that distinguishes between
+            # The heuristic (inspired by Rust error messages, e.g
+            # https://play.rust-lang.org/?version=stable&mode=debug&edition=2024&gist=6b3fdc70d03ced70d3ce793b2be1c1a7)
+            # finds the closest branch condition that distinguishes between
             # the statement block and another branch.
             for cond_ancestor in itertools.islice(cfg.ancestors(fbb_ancestor), 1, None):
                 if cond_ancestor.branch_pred is not None:
-                    # Not the case now, but it may happen with the match case statement
-                    if len(cond_ancestor.successors) != 2:
-                        break
-                    # check if the final statement is in the left
-                    # or right branch of the condition and not in both
-                    in_false_branch = fbb_ancestor in set(
-                        cfg.successors(cond_ancestor.successors[0])
-                    )
-                    in_true_branch = fbb_ancestor in set(
-                        cfg.successors(cond_ancestor.successors[1])
-                    )
-                    if in_false_branch and not in_true_branch:
-                        return final_statement, (cond_ancestor.branch_pred, 0)
-                    elif in_true_branch and not in_false_branch:
-                        return final_statement, (cond_ancestor.branch_pred, 1)
+                    # Check in which branch the final statement is
+                    in_branches = [
+                        i
+                        for i, cond_succ in enumerate(cond_ancestor.successors)
+                        if any(
+                            succ == fbb_ancestor for succ in cfg.successors(cond_succ)
+                        )
+                    ]
+                    # Only return if the branch is unique
+                    if len(in_branches) == 1:
+                        return final_statement, (
+                            cond_ancestor.branch_pred,
+                            # Give us the index of the branch, so we can point
+                            # to the correct condition in the error message
+                            in_branches[0],
+                        )
             return final_statement, None
         if fbb_ancestor.branch_pred is not None:
             # We have found a branch condition before finding any statement,
-            # this happen with return inside loops.
+            # this happens with return inside loops.
             # Best solution here is give up on finding the missing return point,
             # considering node[-1] as error point
             # together with the help on the branch condition.
+            # Since the return statement is inside a loop, we suggest to add a return
+            # when the loop condition is false, thus we point to the false branch
+            # (returning 0)
             return None, (fbb_ancestor.branch_pred, 0)
 
     return None, None
