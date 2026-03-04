@@ -2,7 +2,6 @@ import ast
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from guppylang_internals.metadata.debug_info import DISubprogram, HugrDebugInfo
 from hugr import Node, Wire
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder, OpVar
@@ -37,6 +36,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError
+from guppylang_internals.metadata.debug_info import DISubprogram, HugrDebugInfo
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.param import Parameter
@@ -133,11 +133,11 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         module: hf.Module = module
 
         node = module.declare_function(self.name, self.ty.to_hugr_poly(ctx))
-        subprogram = DISubprogram(
+        metadata = DISubprogram(
             file=ctx.metadata_file_table.get_index(get_file(self.defined_at)),
             line_no=self.defined_at.lineno,
         )
-        node.metadata[HugrDebugInfo] = subprogram
+        node.metadata[HugrDebugInfo] = metadata
         return CompiledFunctionDecl(
             self.id,
             self.name,
@@ -183,4 +183,4 @@ class CompiledFunctionDecl(
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, type_args, dfg, self.ty, self.declaration)
+        return compile_call(args, type_args, dfg, self.ty, self.declaration, node)

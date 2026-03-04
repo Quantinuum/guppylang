@@ -48,7 +48,11 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import GuppyMetadata, add_metadata
-from guppylang_internals.metadata.debug_info import DISubprogram
+from guppylang_internals.metadata.debug_info import (
+    DILocation,
+    DISubprogram,
+    HugrDebugInfo,
+)
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
@@ -204,12 +208,12 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         func_def = module.module_root_builder().define_function(
             hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
-        subprogram = DISubprogram(
+        metadata = DISubprogram(
             file=ctx.metadata_file_table.get_index(get_file(self.defined_at)),
             line_no=self.defined_at.lineno,
             scope_line=self.defined_at.body[0].lineno,
         )
-        self.metadata.set_debug_info(subprogram)
+        self.metadata.set_debug_info(metadata)
         add_metadata(
             func_def,
             self.metadata,
@@ -272,7 +276,7 @@ class CompiledFunctionDef(
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, type_args, dfg, self.ty, self.func_def)
+        return compile_call(args, type_args, dfg, self.ty, self.func_def, node)
 
     def compile_inner(self, globals: CompilerContext) -> None:
         """Compiles the body of the function."""
@@ -297,12 +301,17 @@ def compile_call(
     dfg: DFContainer,
     ty: FunctionType,
     func: ToNode,
+    call_ast: AstNode,
 ) -> CallReturnWires:
     """Compiles a call to the function."""
     func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
     type_args = [arg.to_hugr(dfg.ctx) for arg in type_args]
     num_returns = len(type_to_row(ty.output))
     call = dfg.builder.call(func, *args, instantiation=func_ty, type_args=type_args)
+    call.metadata[HugrDebugInfo] = DILocation(
+        line_no=call_ast.lineno,
+        column=call_ast.col_offset,
+    )
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),

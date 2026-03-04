@@ -31,6 +31,7 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import GuppyError
+from guppylang_internals.metadata.debug_info import DILocation, HugrDebugInfo
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
@@ -138,6 +139,10 @@ class CompiledTracedFunctionDef(
         num_returns = len(type_to_row(self.ty.output))
         call = dfg.builder.call(
             self.func_def, *args, instantiation=func_ty, type_args=type_args
+        )
+        call.metadata[HugrDebugInfo] = DILocation(
+            line_no=node.lineno,
+            column=node.col_offset,
         )
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),

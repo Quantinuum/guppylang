@@ -364,7 +364,7 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, type_args, dfg, self.ty, self.func_def)
+        return compile_call(args, type_args, dfg, self.ty, self.func_def, node)
 
 
 def _signature_from_circuit(
