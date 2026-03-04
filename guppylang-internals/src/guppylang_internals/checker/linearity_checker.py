@@ -719,7 +719,23 @@ class BBLinearityChecker(ast.NodeVisitor):
         # TODO: NICOLA(2) - Implement linearity checking for pattern matching
         # For now, we just check the subject, the guards is not supported and
         # the patterns does not contain any places (alias are not supported)
-        self.visit(node.subject)
+        match node.subject:
+            case PlaceNode() as place_node:
+                # match PlaceNode it is the same as having match(PlaceNode),
+                # where PlaceNode is borrowed if not copiable but without the
+                # `_reassign_single_inout_arg` since the variable is only readed.
+                ty = get_type(place_node)
+                use_kind = UseKind.COPY if ty.copyable else UseKind.BORROW
+                self.visit_PlaceNode(place_node, use_kind=use_kind)
+                self._reassign_single_inout_arg(
+                    place_node.place, place_node.place.defined_at or place_node
+                )
+            case _:
+                self.visit(node.subject)
+        # TODO: NICOla
+        # No need to visit the patterns since they cannot contain any places alias are
+        # not supported. We will have to update this to implement linearity checking
+        # for patterns and guards if we allow them
 
 
 def leaf_places(place: Place) -> Iterator[Place]:

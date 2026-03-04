@@ -867,11 +867,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         # TODO: NICOLa(F): what other types we support here? arrays? Option?
         node.subject, subj_ty = self.synthesize(node.subject)
         if not isinstance(subj_ty, (StructType, EnumType)):
-            raise GuppyTypeError(
-                ExpectedError(
-                    node.subject,
-                    "a struct or enum type TODO ERROR0",
-                )
+            raise GuppyError(
+                UnsupportedError(node.subject, f"Pattern matching on {subj_ty}", True)
             )
         checked_patterns = []
         for pattern in node.patterns:
