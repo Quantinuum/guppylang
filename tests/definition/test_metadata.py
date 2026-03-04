@@ -88,3 +88,14 @@ def test_add_metadata_property_max_qubits():
     add_metadata(mock_hugr_node, guppy_metadata)
 
     assert mock_hugr_node.metadata == {"tket.hint.max_qubits": 5}
+
+
+def test_add_metadata_property_inline():
+    mock_hugr_node = Mock()
+    mock_hugr_node.metadata = {}
+
+    guppy_metadata = GuppyMetadata()
+    guppy_metadata.inline.value = "always"
+    add_metadata(mock_hugr_node, guppy_metadata)
+
+    assert mock_hugr_node.metadata == {"tket.inline": "always"}

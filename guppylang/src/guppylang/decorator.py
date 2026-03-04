@@ -3,7 +3,7 @@ import builtins
 import inspect
 from collections.abc import Callable, Sequence
 from types import FrameType
-from typing import Any, ParamSpec, TypedDict, TypeVar, cast, overload
+from typing import Any, Literal, ParamSpec, TypedDict, TypeVar, cast, overload
 
 from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.compiler.core import (
@@ -93,6 +93,7 @@ class GuppyKwargs(TypedDict, total=False):
     dagger: bool
     power: bool
     max_qubits: int
+    inline: Literal["always"]
 
 
 class _Guppy:
@@ -662,6 +663,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> tuple[UnitaryFlags, GuppyMetadata]:
 
     metadata = GuppyMetadata()
     metadata.max_qubits.value = kwargs.pop("max_qubits", None)
+    metadata.inline.value = kwargs.pop("inline", None)
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
