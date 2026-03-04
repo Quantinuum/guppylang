@@ -917,7 +917,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
 
     def _check_class_type(
         self, node: ast.Name, class_type: str
-    ) -> ParsedDef | PythonObject:
+    ) -> "ParsedDef | PythonObject":
         """Checks that the given node corresponds to a global class definition."""
         if node.id in self.ctx.locals:
             raise GuppyTypeError(

@@ -1,0 +1,8 @@
+Error: Attribute not found (at $FILE:14:16)
+   | 
+12 | def main(p: Enum, x: int) -> None:
+13 |     match p:
+14 |         case Enum.East():
+   |                 ^^^^^^ `Enum` has no variant or method `East`
+
+Guppy compilation failed due to 1 previous error

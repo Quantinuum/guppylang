@@ -1,0 +1,8 @@
+Error: Not enough arguments (at $FILE:14:13)
+   | 
+12 | def main(p: Enum, x: int) -> None:
+13 |     match p:
+14 |         case Enum.North():
+   |              ^^^^^^^^^^^^ Expected 1, got 0
+
+Guppy compilation failed due to 1 previous error

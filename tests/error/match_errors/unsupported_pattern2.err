@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:12:13)
+   | 
+10 | def main(p: Point) -> None:
+11 |     match p:
+12 |         case Point(_, _) as x:
+   |              ^^^^^^^^^^^^^^^^ Aliasing in patterns is not supported
+
+Guppy compilation failed due to 1 previous error

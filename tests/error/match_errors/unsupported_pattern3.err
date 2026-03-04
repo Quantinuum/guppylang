@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:7:18)
+  | 
+5 | def main(x: int, a: int) -> None:
+6 |     match x:
+7 |         case _ if a > 0:
+  |                   ^^^^^ Guarded patterns is not supported
+
+Guppy compilation failed due to 1 previous error

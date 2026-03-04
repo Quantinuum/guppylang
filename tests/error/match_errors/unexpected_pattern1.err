@@ -1,0 +1,8 @@
+Error: Expected literal (at $FILE:12:13)
+   | 
+10 | def f(e: Enum) -> None:
+11 |     match e:
+12 |         case Enum.North:
+   |              ^^^^^^^^^^ Expected literal
+
+Guppy compilation failed due to 1 previous error

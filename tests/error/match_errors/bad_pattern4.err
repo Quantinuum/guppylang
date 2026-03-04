@@ -1,0 +1,8 @@
+Error: Expected a struct class (at $FILE:12:13)
+   | 
+10 |     MyStruct = 42
+11 |     match s:
+12 |         case MyStruct():
+   |              ^^^^^^^^ Expected a struct class, got a local variable
+
+Guppy compilation failed due to 1 previous error

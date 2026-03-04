@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:15:19)
+   | 
+13 | def main(d: Point[T]) -> None:
+14 |     match d:
+15 |         case Point(1):
+   |                    ^ Expected pattern of type `T`, got `int`
+
+Guppy compilation failed due to 1 previous error

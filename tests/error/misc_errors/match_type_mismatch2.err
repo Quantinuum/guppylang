@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:24:19)
+   | 
+22 | def main() -> None:
+23 |     match Point(Enum.North(3), 5):
+24 |         case Point(EnumGen.Var(7), _):
+   |                    ^^^^^^^ Expected pattern of type `Enum[int]`, got `EnumGen[T]`
+
+Guppy compilation failed due to 1 previous error

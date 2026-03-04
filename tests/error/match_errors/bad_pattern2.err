@@ -1,0 +1,8 @@
+Error: Expected a enum class (at $FILE:15:13)
+   | 
+13 | def main(north: Enum, x: int) -> None:
+14 |     match north:
+15 |         case north.method():
+   |              ^^^^^ Expected a enum class, got a local variable
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,8 @@
+Error: Variable not defined (at $FILE:15:10)
+   | 
+13 | @compile_guppy
+14 | def main(north: Enum, x: int) -> None:
+15 |     match p:
+   |           ^ `p` is not defined
+
+Guppy compilation failed due to 1 previous error

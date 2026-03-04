@@ -1,0 +1,8 @@
+Error: Expected a struct class (at $FILE:15:13)
+   | 
+13 | def main(north: Enum) -> None:
+14 |     match north:
+15 |         case g():  # ERROR: match on a function
+   |              ^ Expected a struct class, got a function call
+
+Guppy compilation failed due to 1 previous error

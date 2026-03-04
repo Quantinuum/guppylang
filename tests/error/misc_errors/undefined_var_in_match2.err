@@ -1,0 +1,8 @@
+Error: Class not defined (at $FILE:17:13)
+   | 
+15 | def main(north: Enum, x: int) -> None:
+16 |     match north:
+17 |         case p():
+   |              ^ `p` is not defined
+
+Guppy compilation failed due to 1 previous error
