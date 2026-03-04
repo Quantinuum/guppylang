@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from guppylang_internals.span import ToSpan, to_span
 from hugr.metadata import JsonType, Metadata
 
 
@@ -136,6 +137,13 @@ class DILocation(DebugRecord):
                 msg = f"Expected DILocation to have a '{key}' key but got {value}"
                 raise TypeError(msg)
         return DILocation(column=int(value["column"]), line_no=int(value["line_no"]))
+
+
+def make_location_record(node: ToSpan) -> DILocation:
+    """Creates a DILocation metadata record for `node`."""
+    return DILocation(
+        line_no=to_span(node).start.line, column=to_span(node).start.column
+    )
 
 
 @dataclass

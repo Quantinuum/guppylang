@@ -29,6 +29,11 @@ from guppylang_internals.definition.common import ParsableDef
 from guppylang_internals.definition.value import CallReturnWires, CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.metadata.debug_info import (
+    DILocation,
+    HugrDebugInfo,
+    make_location_record,
+)
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.std._internal.compiler.tket_bool import (
@@ -297,7 +302,15 @@ class CustomFunctionDef(CompiledCallableDef):
         hugr_ty = concrete_ty.to_hugr(ctx)
 
         self.call_compiler._setup(type_args, dfg, ctx, node, hugr_ty, self)
-        return self.call_compiler.compile_with_inouts(args)
+        wires = self.call_compiler.compile_with_inouts(args)
+        if wires.regular_returns:
+            # If the call returns something, we can find the op node which produced the
+            # return values by following the wire of one of the returns and attaching
+            # debug info to the parent we found.
+            wires.regular_returns[0].out_port().node.metadata[HugrDebugInfo] = (
+                make_location_record(node)
+            )
+        return wires
 
 
 class CustomCallChecker(ABC):

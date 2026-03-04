@@ -52,6 +52,7 @@ from guppylang_internals.metadata.debug_info import (
     DILocation,
     DISubprogram,
     HugrDebugInfo,
+    make_location_record,
 )
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
@@ -308,11 +309,7 @@ def compile_call(
     type_args = [arg.to_hugr(dfg.ctx) for arg in type_args]
     num_returns = len(type_to_row(ty.output))
     call = dfg.builder.call(func, *args, instantiation=func_ty, type_args=type_args)
-    loc = to_span(call_ast).start
-    call.metadata[HugrDebugInfo] = DILocation(
-        line_no=loc.line,
-        column=loc.column,
-    )
+    call.metadata[HugrDebugInfo] = make_location_record(call_ast)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),
