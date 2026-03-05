@@ -254,7 +254,7 @@ class UnwrapOpCompiler(CustomInoutCallCompiler):
             output=[ht.Either([error_type()], self.ty.output)],
         )
         op = self.op(opt_func_type, self.type_args, self.ctx)
-        either = self.builder.add_op(op, *args)
+        either = self.add_op(op, *args)
         result = unwrap_result(self.builder, self.ctx, either)
         return CallReturnWires(regular_returns=[result], inout_returns=[])
 
@@ -269,7 +269,7 @@ class BarrierCompiler(CustomCallCompiler):
             [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
         )
 
-        barrier_n = self.builder.add_op(op, *args)
+        barrier_n = self.add_op(op, *args)
 
         return CallReturnWires(
             regular_returns=[], inout_returns=[barrier_n[i] for i in range(len(tys))]

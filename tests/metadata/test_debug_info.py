@@ -1,12 +1,14 @@
+from guppylang.std.debug import state_result
 from guppylang_internals.metadata.debug_info import (
     DICompileUnit,
     DILocation,
     DISubprogram,
     HugrDebugInfo,
 )
-from hugr.ops import Call, FuncDecl, FuncDefn
+from hugr.ops import Call, ExtOp, FuncDecl, FuncDefn
 
 from guppylang import guppy
+from guppylang.std.quantum import discard, qubit
 from tests.resources.metadata_example import bar, baz
 
 
@@ -51,8 +53,8 @@ def test_subprogram():
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
                 assert debug_info.file == 0
-                assert debug_info.line_no == 33
-                assert debug_info.scope_line == 34
+                assert debug_info.line_no == 35
+                assert debug_info.scope_line == 36
             case "bar":
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
@@ -79,5 +81,19 @@ def test_call_location():
         if isinstance(node_data.op, Call):
             assert HugrDebugInfo in node.metadata
             debug_info = DILocation.from_json(node.metadata[HugrDebugInfo.KEY])
-            assert debug_info.line_no == 75
+            assert debug_info.line_no == 77
             assert debug_info.column == 8
+
+
+def test_custom_function():
+    @guppy
+    def foo() -> None:
+        q = qubit()
+        state_result("tag", q)
+        discard(q)
+
+    hugr = foo.compile().modules[0]
+    for node, node_data in hugr.nodes():
+        if isinstance(node_data.op, ExtOp) and "unpack" not in node_data.op.name():
+            assert HugrDebugInfo in node.metadata
+

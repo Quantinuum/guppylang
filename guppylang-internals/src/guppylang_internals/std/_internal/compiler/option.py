@@ -39,7 +39,7 @@ class OptionConstructor(OptionCompiler, CustomCallCompiler):
         self.tag = tag
 
     def compile(self, args: list[Wire]) -> list[Wire]:
-        return [self.builder.add_op(ops.Tag(self.tag, self.option_ty), *args)]
+        return [self.add_op(ops.Tag(self.tag, self.option_ty), *args)]
 
 
 class OptionTestCompiler(OptionCompiler):

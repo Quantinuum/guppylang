@@ -1,8 +1,10 @@
+import ast
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from guppylang_internals.span import ToSpan, to_span
 from hugr.metadata import JsonType, Metadata
+
+from guppylang_internals.span import to_span
 
 
 @dataclass
@@ -139,7 +141,7 @@ class DILocation(DebugRecord):
         return DILocation(column=int(value["column"]), line_no=int(value["line_no"]))
 
 
-def make_location_record(node: ToSpan) -> DILocation:
+def make_location_record(node: ast.AST) -> DILocation:
     """Creates a DILocation metadata record for `node`."""
     return DILocation(
         line_no=to_span(node).start.line, column=to_span(node).start.column

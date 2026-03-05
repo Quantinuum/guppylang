@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
-from hugr import Wire, ops
+from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr.build.dfg import DfBase
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
@@ -29,11 +29,6 @@ from guppylang_internals.definition.common import ParsableDef
 from guppylang_internals.definition.value import CallReturnWires, CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.metadata.debug_info import (
-    DILocation,
-    HugrDebugInfo,
-    make_location_record,
-)
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.std._internal.compiler.tket_bool import (
@@ -302,15 +297,7 @@ class CustomFunctionDef(CompiledCallableDef):
         hugr_ty = concrete_ty.to_hugr(ctx)
 
         self.call_compiler._setup(type_args, dfg, ctx, node, hugr_ty, self)
-        wires = self.call_compiler.compile_with_inouts(args)
-        if wires.regular_returns:
-            # If the call returns something, we can find the op node which produced the
-            # return values by following the wire of one of the returns and attaching
-            # debug info to the parent we found.
-            wires.regular_returns[0].out_port().node.metadata[HugrDebugInfo] = (
-                make_location_record(node)
-            )
-        return wires
+        return self.call_compiler.compile_with_inouts(args)
 
 
 class CustomCallChecker(ABC):
@@ -391,6 +378,13 @@ class CustomInoutCallCompiler(ABC):
         """The hugr dataflow builder."""
         return self.dfg.builder
 
+    def add_op(self, op: ops.DataflowOp, *args: Wire) -> Node:
+        """Adds an op to the current builder ensuring debug information is added if
+        available."""
+        from guppylang_internals.compiler.expr_compiler import add_op
+
+        return add_op(self.builder, op, *args, ast_node=self.node)
+
 
 class CustomCallCompiler(CustomInoutCallCompiler, ABC):
     """Abstract base class for custom function call compilers with only owned args."""
@@ -399,7 +393,11 @@ class CustomCallCompiler(CustomInoutCallCompiler, ABC):
     def compile(self, args: list[Wire]) -> list[Wire]:
         """Compiles a custom function call and returns the resulting ports.
 
-        Use the provided `self.builder` to add nodes to the Hugr graph.
+        Use `self.add_op` to add nodes to the Hugr graph.
+
+        If you want to add a different builder than `self.builder`while still ensuring
+        debug information is attached during compilation, import `add_op` from
+        `expr_compiler` and pass `self.node` to it.
         """
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
@@ -449,7 +447,7 @@ class OpCompiler(CustomInoutCallCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         op = self.op(self.ty, self.type_args, self.ctx)
-        node = self.builder.add_op(op, *args)
+        node = self.add_op(op, *args)
         num_returns = (
             len(type_to_row(self.func.ty.output)) if self.func else len(self.ty.output)
         )
@@ -484,15 +482,15 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         hugr_op_ty = ht.FunctionType(converted_in, converted_out)
         op = self.op(hugr_op_ty, self.type_args, self.ctx)
         converted_args = [
-            self.builder.add_op(read_bool(), arg)
+            self.add_op(read_bool(), arg)
             if self.builder.hugr.port_type(arg.out_port()) == OpaqueBool
             else arg
             for arg in args
         ]
-        node = self.builder.add_op(op, *converted_args)
+        node = self.add_op(op, *converted_args)
         result = list(node.outputs())
         converted_result = [
-            self.builder.add_op(make_opaque(), res)
+            self.add_op(make_opaque(), res)
             if self.builder.hugr.port_type(res.out_port()) == ht.Bool
             else res
             for res in result
@@ -541,7 +539,7 @@ class CopyInoutCompiler(CustomInoutCallCompiler):
                         type_args,
                         ht.FunctionType(self.ty.input, self.ty.output),
                     )
-                    return list(self.builder.add_op(clone_op, arg))
+                    return list(self.add_op(clone_op, arg))
             case _:
                 pass
         raise InternalGuppyError(

@@ -77,8 +77,8 @@ class EitherConstructor(EitherCompiler, CustomCallCompiler):
         assert isinstance(inp_arg, TypeArg)
         [inp] = args
         # Unpack the single input into a row
-        inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx)
-        return [self.builder.add_op(ops.Tag(self.tag, ty), *inp_row)]
+        inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx, self.node)
+        return [self.add_op(ops.Tag(self.tag, ty), *inp_row)]
 
 
 class EitherTestCompiler(EitherCompiler):
@@ -113,7 +113,8 @@ class EitherToOptionCompiler(EitherCompiler, CustomCallCompiler):
             with cond.add_case(i) as case:
                 if i == self.tag:
                     out = case.add_op(
-                        ops.Tag(1, ht.Option(*target_tys)), *case.inputs()
+                        ops.Tag(1, ht.Option(*target_tys)),
+                        *case.inputs(),
                     )
                 else:
                     out = case.add_op(ops.Tag(0, ht.Option(*target_tys)))
@@ -140,4 +141,4 @@ class EitherUnwrapCompiler(EitherCompiler, CustomCallCompiler):
         # Pack outputs into a single wire. We're not allowed to return a row since the
         # signature has a generic return type (also see `TupleType.preserve`)
         return_ty = get_type(self.node)
-        return [pack_returns(list(out), return_ty, self.builder, self.ctx)]
+        return [pack_returns(list(out), return_ty, self.builder, self.ctx, self.node)]

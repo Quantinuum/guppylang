@@ -112,8 +112,8 @@ class ListGetitemCompiler(CustomCallCompiler):
         elem_ty: ht.Type,
     ) -> CallReturnWires:
         """Lowers a call to `list.__getitem__` for classical lists."""
-        idx = self.builder.add_op(convert_itousize(), idx)
-        result = self.builder.add_op(list_get(elem_ty), list_wire, idx)
+        idx = self.add_op(convert_itousize(), idx)
+        result = self.add_op(list_get(elem_ty), list_wire, idx)
         elem = build_unwrap(self.builder, result, "List index out of bounds")
         return CallReturnWires(regular_returns=[elem], inout_returns=[list_wire])
 
@@ -128,9 +128,9 @@ class ListGetitemCompiler(CustomCallCompiler):
         # implementation of the list type ensures that linear element types are turned
         # into optionals.
         elem_opt_ty = ht.Option(elem_ty)
-        none = self.builder.add_op(ops.Tag(0, elem_opt_ty))
-        idx = self.builder.add_op(convert_itousize(), idx)
-        list_wire, result = self.builder.add_op(
+        none = self.add_op(ops.Tag(0, elem_opt_ty))
+        idx = self.add_op(convert_itousize(), idx)
+        list_wire, result = self.add_op(
             list_set(elem_opt_ty), list_wire, idx, none
         )
         elem_opt = build_unwrap_right(self.builder, result, "List index out of bounds")
@@ -167,8 +167,8 @@ class ListSetitemCompiler(CustomCallCompiler):
         elem_ty: ht.Type,
     ) -> CallReturnWires:
         """Lowers a call to `list.__setitem__` for classical lists."""
-        idx = self.builder.add_op(convert_itousize(), idx)
-        list_wire, result = self.builder.add_op(list_set(elem_ty), list_wire, idx, elem)
+        idx = self.add_op(convert_itousize(), idx)
+        list_wire, result = self.add_op(list_set(elem_ty), list_wire, idx, elem)
         # Unwrap the result, but we don't have to hold onto the returned old value
         build_unwrap_right(self.builder, result, "List index out of bounds")
         return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
@@ -183,9 +183,9 @@ class ListSetitemCompiler(CustomCallCompiler):
         """Lowers a call to `array.__setitem__` for linear arrays."""
         # Embed the element into an optional
         elem_opt_ty = ht.Option(elem_ty)
-        elem = self.builder.add_op(ops.Some(elem_ty), elem)
-        idx = self.builder.add_op(convert_itousize(), idx)
-        list_wire, result = self.builder.add_op(
+        elem = self.add_op(ops.Some(elem_ty), elem)
+        idx = self.add_op(convert_itousize(), idx)
+        list_wire, result = self.add_op(
             list_set(elem_opt_ty), list_wire, idx, elem
         )
         old_elem_opt = build_unwrap_right(
@@ -223,7 +223,7 @@ class ListPopCompiler(CustomCallCompiler):
         elem_ty: ht.Type,
     ) -> CallReturnWires:
         """Lowers a call to `list.pop` for classical lists."""
-        list_wire, result = self.builder.add_op(list_pop(elem_ty), list_wire)
+        list_wire, result = self.add_op(list_pop(elem_ty), list_wire)
         elem = build_unwrap(self.builder, result, "List index out of bounds")
         return CallReturnWires(regular_returns=[elem], inout_returns=[list_wire])
 
@@ -234,7 +234,7 @@ class ListPopCompiler(CustomCallCompiler):
     ) -> CallReturnWires:
         """Lowers a call to `list.pop` for linear lists."""
         elem_opt_ty = ht.Option(elem_ty)
-        list_wire, result = self.builder.add_op(list_pop(elem_opt_ty), list_wire)
+        list_wire, result = self.add_op(list_pop(elem_opt_ty), list_wire)
         elem_opt = build_unwrap(self.builder, result, "List index out of bounds")
         elem = build_unwrap(
             self.builder, elem_opt, "Linear list element has already been used"
@@ -264,7 +264,7 @@ class ListPushCompiler(CustomCallCompiler):
         elem_ty: ht.Type,
     ) -> CallReturnWires:
         """Lowers a call to `list.push` for classical lists."""
-        list_wire = self.builder.add_op(list_push(elem_ty), list_wire, elem)
+        list_wire = self.add_op(list_push(elem_ty), list_wire, elem)
         return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
 
     def build_linear_push(
@@ -276,8 +276,8 @@ class ListPushCompiler(CustomCallCompiler):
         """Lowers a call to `list.push` for linear lists."""
         # Wrap element into an optional
         elem_opt_ty = ht.Option(elem_ty)
-        elem_opt = self.builder.add_op(ops.Some(elem_ty), elem)
-        list_wire = self.builder.add_op(list_push(elem_opt_ty), list_wire, elem_opt)
+        elem_opt = self.add_op(ops.Some(elem_ty), elem)
+        list_wire = self.add_op(list_push(elem_opt_ty), list_wire, elem_opt)
         return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
@@ -307,8 +307,8 @@ class ListLengthCompiler(CustomCallCompiler):
         elem_ty = elem_ty_arg.ty.to_hugr(self.ctx)
         if elem_ty_arg.ty.linear:
             elem_ty = ht.Option(elem_ty)
-        list_wire, length = self.builder.add_op(list_length(elem_ty), list_wire)
-        length = self.builder.add_op(convert_ifromusize(), length)
+        list_wire, length = self.add_op(list_length(elem_ty), list_wire)
+        length = self.add_op(convert_ifromusize(), length)
         return CallReturnWires(regular_returns=[length], inout_returns=[list_wire])
 
     def compile(self, args: list[Wire]) -> list[Wire]:

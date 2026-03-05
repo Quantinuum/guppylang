@@ -66,11 +66,11 @@ class ResultCompiler(CustomCallCompiler):
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         # Bool results need an extra conversion into regular hugr bools
         if is_bool_type(ty):
-            value = self.builder.add_op(read_bool(), value)
+            value = self.add_op(read_bool(), value)
             hugr_ty = tys.Bool
         op = RESULT_EXTENSION.get_op(self.op_name)
         sig = tys.FunctionType(input=[hugr_ty], output=[])
-        self.builder.add_op(op.instantiate(args, sig), value)
+        self.add_op(op.instantiate(args, sig), value)
         return []
 
 
@@ -97,17 +97,17 @@ class ArrayResultCompiler(CustomInoutCallCompiler):
         # argument).
         hugr_elem_ty = elem_ty.to_hugr(self.ctx)
         hugr_size = size_arg.to_hugr(self.ctx)
-        arr, out_arr = self.builder.add_op(array_clone(hugr_elem_ty, hugr_size), arr)
+        arr, out_arr = self.add_op(array_clone(hugr_elem_ty, hugr_size), arr)
         # For bool arrays, we furthermore need to coerce a read on all the array
         # elements
         if is_bool_type(elem_ty):
             array_read = array_read_bool(self.ctx)
             array_read = self.builder.load_function(array_read)
             map_op = array_map(OpaqueBool, hugr_size, tys.Bool)
-            arr = self.builder.add_op(map_op, arr, array_read).out(0)
+            arr = self.add_op(map_op, arr, array_read).out(0)
             hugr_elem_ty = tys.Bool
         # Turn `borrow_array` into regular `array`
-        arr = self.builder.add_op(array_to_std_array(hugr_elem_ty, hugr_size), arr).out(
+        arr = self.add_op(array_to_std_array(hugr_elem_ty, hugr_size), arr).out(
             0
         )
 
@@ -117,7 +117,7 @@ class ArrayResultCompiler(CustomInoutCallCompiler):
         if self.with_int_width:
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         op = ops.ExtOp(RESULT_EXTENSION.get_op(self.op_name), signature=sig, args=args)
-        self.builder.add_op(op, arr)
+        self.add_op(op, arr)
         return CallReturnWires([], [out_arr])
 
 

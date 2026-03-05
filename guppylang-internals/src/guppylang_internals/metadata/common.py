@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import JsonType, Metadata, NodeMetadata
+from hugr.metadata import JsonType, Metadata
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
@@ -28,7 +28,7 @@ class ReservedMetadataKeysError(Fatal):
 
 
 @dataclass
-class GuppyMetadata:
+class FunctionMetadata:
     """Class for storing metadata to be attached to Hugr nodes during compilation."""
 
     _node_metadata: dict[str, JsonType] = field(default_factory=dict)
@@ -47,7 +47,9 @@ class GuppyMetadata:
         self._node_metadata[MetadataMaxQubits.KEY] = max_qubits
 
     def get_debug_info(self) -> DebugRecord | None:
-        return self._node_metadata.get(HugrDebugInfo.KEY)
+        if HugrDebugInfo.KEY not in self._node_metadata:
+            return None
+        return DebugRecord.from_json(self._node_metadata.get(HugrDebugInfo.KEY))
 
     def get_max_qubits(self) -> int | None:
         return self._node_metadata.get(MetadataMaxQubits.KEY)
@@ -59,7 +61,7 @@ class GuppyMetadata:
 
 def add_metadata(
     node: ToNode,
-    metadata: GuppyMetadata | None = None,
+    metadata: FunctionMetadata | None = None,
     *,
     additional_metadata: dict[str, Any] | None = None,
 ) -> None:
@@ -73,7 +75,7 @@ def add_metadata(
                 node.metadata[key] = metadata_dict[key]
 
     if additional_metadata is not None:
-        reserved_keys = GuppyMetadata.reserved_keys()
+        reserved_keys = FunctionMetadata.reserved_keys()
         used_reserved_keys = reserved_keys.intersection(additional_metadata.keys())
         if len(used_reserved_keys) > 0:
             raise GuppyError(ReservedMetadataKeysError(None, keys=used_reserved_keys))

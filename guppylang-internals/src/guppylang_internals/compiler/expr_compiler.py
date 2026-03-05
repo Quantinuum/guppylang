@@ -9,14 +9,14 @@ import hugr.std.float
 import hugr.std.int
 import hugr.std.logic
 import hugr.std.prelude
-from hugr import Wire, ops
+from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.build import function as hf
 from hugr.build.cond_loop import Conditional
 from hugr.build.dfg import DP, DfBase
 
-from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
+from guppylang_internals.ast_util import AstNode, AstVisitor, get_file, get_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
@@ -37,6 +37,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.metadata.debug_info import HugrDebugInfo, make_location_record
 from guppylang_internals.nodes import (
     AbortExpr,
     AbortKind,
@@ -129,6 +130,12 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """
         return [self.compile(e, dfg) for e in expr_to_row(expr)]
 
+    def add_op(
+        self, op: ops.DataflowOp, /, *args: Wire, ast_node: AstNode | None = None
+    ) -> Node:
+        """Adds an op to the builder, with optional debug info."""
+        return add_op(self.builder, op, *args, ast_node=ast_node)
+
     @property
     def builder(self) -> DfBase[ops.DfParentOp]:
         """The current Hugr dataflow graph builder."""
@@ -214,7 +221,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         cond_wire = self.visit(cond)
         cond_ty = self.builder.hugr.port_type(cond_wire.out_port())
         if cond_ty == OpaqueBool:
-            cond_wire = self.builder.add_op(read_bool(), cond_wire)
+            cond_wire = self.add_op(read_bool(), cond_wire)
         conditional = self.builder.add_conditional(
             cond_wire, *(self.visit(inp) for inp in inputs)
         )
@@ -286,8 +293,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 load_nat = hugr.std.PRELUDE.get_op("load_nat").instantiate(
                     [arg], ht.FunctionType([], [ht.USize()])
                 )
-                usize = self.builder.add_op(load_nat)
-                return self.builder.add_op(convert_ifromusize(), usize)
+                usize = self.add_op(load_nat, ast_node=node)
+                return self.add_op(convert_ifromusize(), usize, ast_node=node)
             case ty:
                 # Look up monomorphization
                 match self.ctx.current_mono_args[node.param.idx]:
@@ -316,12 +323,12 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
     def _unpack_tuple(self, wire: Wire, types: Sequence[Type]) -> Sequence[Wire]:
         """Add a tuple unpack operation to the graph"""
         types = [t.to_hugr(self.ctx) for t in types]
-        return list(self.builder.add_op(ops.UnpackTuple(types), wire))
+        return list(self.add_op(ops.UnpackTuple(types), wire))
 
     def _pack_tuple(self, wires: Sequence[Wire], types: Sequence[Type]) -> Wire:
         """Add a tuple pack operation to the graph"""
         types = [t.to_hugr(self.ctx) for t in types]
-        return self.builder.add_op(ops.MakeTuple(types), *wires)
+        return self.add_op(ops.MakeTuple(types), *wires)
 
     def _pack_returns(self, returns: Sequence[Wire], return_ty: Type) -> Wire:
         """Groups function return values into a tuple"""
@@ -363,8 +370,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         num_returns = len(type_to_row(func_ty.output))
 
         args = self._compile_call_args(node.args, func_ty)
-        call = self.builder.add_op(
-            ops.CallIndirect(func_ty.to_hugr(self.ctx)), func, *args
+        call = self.add_op(
+            ops.CallIndirect(func_ty.to_hugr(self.ctx)), func, *args, ast_node=node
         )
         regular_returns = list(call[:num_returns])
         inout_returns = call[num_returns:]
@@ -420,7 +427,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             num_returns = len(type_to_row(func_ty.output))
             consumed_args, other_args = args[0:input_len], args[input_len:]
             consumed_wires = self._compile_call_args(consumed_args, func_ty)
-            call = self.builder.add_op(
+            call = self.add_op(
                 ops.CallIndirect(func_ty.to_hugr(self.ctx)), func, *consumed_wires
             )
             regular_returns: list[Wire] = list(call[:num_returns])
@@ -472,8 +479,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             func_ty.to_hugr(self.ctx),
             [get_type(arg).to_hugr(self.ctx) for arg in node.args],
         )
-        return self.builder.add_op(
-            op, self.visit(node.func), *(self.visit(arg) for arg in node.args)
+        return self.add_op(
+            op,
+            self.visit(node.func),
+            *(self.visit(arg) for arg in node.args),
+            ast_node=node,
         )
 
     def visit_TypeApply(self, node: TypeApply) -> Wire:
@@ -503,7 +513,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # since it is not implemented via a dunder method
         if isinstance(node.op, ast.Not):
             arg = self.visit(node.operand)
-            return self.builder.add_op(not_op(), arg)
+            return self.add_op(not_op(), arg, ast_node=node)
 
         raise InternalGuppyError("Node should have been removed during type checking.")
 
@@ -561,9 +571,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_AbortExpr(self, node: AbortExpr) -> Wire:
         signal = self.visit(node.signal)
-        signal_usize = self.builder.add_op(convert_itousize(), signal)
+        signal_usize = self.add_op(convert_itousize(), signal, ast_node=node)
         msg = self.visit(node.msg)
-        err = self.builder.add_op(make_error(), signal_usize, msg)
+        err = self.add_op(make_error(), signal_usize, msg, ast_node=node)
         in_tys = [get_type(e).to_hugr(self.ctx) for e in node.values]
         out_tys = [ty.to_hugr(self.ctx) for ty in type_to_row(get_type(node))]
         args = [self.visit(e) for e in node.values]
@@ -572,7 +582,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 h_node = build_panic(self.builder, in_tys, out_tys, err, *args)
             case AbortKind.ExitShot:
                 op = panic(in_tys, out_tys, AbortKind.ExitShot)
-                h_node = self.builder.add_op(op, err, *args)
+                h_node = self.add_op(op, err, *args, ast_node=node)
         return self._pack_returns(list(h_node.outputs()), get_type(node))
 
     def visit_BarrierExpr(self, node: BarrierExpr) -> Wire:
@@ -582,7 +592,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             ht.FunctionType.endo(hugr_tys),
         )
 
-        barrier_n = self.builder.add_op(op, *(self.visit(e) for e in node.args))
+        barrier_n = self.add_op(op, *(self.visit(e) for e in node.args), ast_node=node)
 
         self._update_inout_ports(node.args, iter(barrier_n), node.func_ty)
         return self._pack_returns([], NoneType())
@@ -605,18 +615,22 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         if not node.array_len:
             # If the input is a sequence of qubits, we pack them into an array.
             qubits_in = [self.visit(e) for e in node.args[1:]]
-            qubit_arr_in = self.builder.add_op(
-                array_new(ht.Qubit, len(node.args) - 1), *qubits_in
+            qubit_arr_in = self.add_op(
+                array_new(ht.Qubit, len(node.args) - 1), *qubits_in, ast_node=node
             )
             # Turn into standard array from borrow array.
-            qubit_arr_in = self.builder.add_op(
-                array_to_std_array(ht.Qubit, num_qubits_arg), qubit_arr_in
+            qubit_arr_in = self.add_op(
+                array_to_std_array(ht.Qubit, num_qubits_arg),
+                qubit_arr_in,
+                ast_node=node,
             )
 
-            qubit_arr_out = self.builder.add_op(op, qubit_arr_in)
+            qubit_arr_out = self.add_op(op, qubit_arr_in, ast_node=node)
 
-            qubit_arr_out = self.builder.add_op(
-                std_array_to_array(ht.Qubit, num_qubits_arg), qubit_arr_out
+            qubit_arr_out = self.add_op(
+                std_array_to_array(ht.Qubit, num_qubits_arg),
+                qubit_arr_out,
+                ast_node=node,
             )
             qubits_out = unpack_array(self.builder, qubit_arr_out)
         else:
@@ -655,8 +669,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         count_var = Variable(next(tmp_vars), int_type(), node)
         hugr_elt_ty = node.elt_ty.to_hugr(self.ctx)
         # Initialise empty array.
-        self.dfg[array_var] = self.builder.add_op(
-            barray_new_all_borrowed(hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx))
+        self.dfg[array_var] = self.add_op(
+            barray_new_all_borrowed(
+                hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx)
+            ),
         )
         self.dfg[count_var] = self.builder.load(
             hugr.std.int.IntVal(0, width=NumericType.INT_WIDTH)
@@ -664,7 +680,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         with self._build_generators([node.generator], [array_var, count_var]):
             elt = self.visit(node.elt)
             array, count = self.dfg[array_var], self.dfg[count_var]
-            idx = self.builder.add_op(convert_itousize(), count)
+            idx = self.add_op(convert_itousize(), count)
             self.dfg[array_var] = self.builder.add_op(
                 barray_return(hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx)),
                 array,
@@ -748,6 +764,20 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         raise InternalGuppyError("Node should have been removed during type checking.")
 
 
+def add_op(
+    builder: DfBase[ops.DfParentOp],
+    op: ops.DataflowOp,
+    /,
+    *args: Wire,
+    ast_node: AstNode | None = None,
+) -> Node:
+    """Adds an op to the builder, with optional debug info."""
+    op_node = builder.add_op(op, *args)
+    if ast_node is not None and get_file(ast_node) is not None:
+        op_node.metadata[HugrDebugInfo] = make_location_record(ast_node)
+    return op_node
+
+
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:
     """Turns an expression into a row expressions by unpacking top-level tuples."""
     return expr.elts if isinstance(expr, ast.Tuple) else [expr]
@@ -758,13 +788,14 @@ def pack_returns(
     return_ty: Type,
     builder: DfBase[ops.DfParentOp],
     ctx: CompilerContext,
+    ast_node: AstNode | None = None,
 ) -> Wire:
     """Groups function return values into a tuple"""
     if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
         types = type_to_row(return_ty)
         assert len(returns) == len(types)
         hugr_tys = [t.to_hugr(ctx) for t in types]
-        return builder.add_op(ops.MakeTuple(hugr_tys), *returns)
+        return add_op(builder, ops.MakeTuple(hugr_tys), *returns, ast_node=ast_node)
     assert len(returns) == 1, (
         f"Expected a single return value. Got {returns}. return type {return_ty}"
     )
@@ -772,13 +803,21 @@ def pack_returns(
 
 
 def unpack_wire(
-    wire: Wire, return_ty: Type, builder: DfBase[ops.DfParentOp], ctx: CompilerContext
+    wire: Wire,
+    return_ty: Type,
+    builder: DfBase[ops.DfParentOp],
+    ctx: CompilerContext,
+    ast_node: AstNode | None = None,
 ) -> list[Wire]:
     """The inverse of `pack_returns`"""
     if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
         types = type_to_row(return_ty)
         hugr_tys = [t.to_hugr(ctx) for t in types]
-        return list(builder.add_op(ops.UnpackTuple(hugr_tys), wire).outputs())
+        return list(
+            add_op(
+                builder, ops.UnpackTuple(hugr_tys), wire, ast_node=ast_node
+            ).outputs()
+        )
     return [wire]
 
 
@@ -885,6 +924,7 @@ def apply_array_op_with_conversions(
     size_arg: ht.TypeArg,
     input_array: Wire,
     convert_bool: bool = False,
+    ast_node: AstNode | None = None,
 ) -> Wire:
     """Applies common transformations to a Guppy array input before it can be passed to
     a Hugr op operating on a standard Hugr array, and then reverses them again on the
@@ -898,20 +938,28 @@ def apply_array_op_with_conversions(
         array_read = array_read_bool(ctx)
         array_read = builder.load_function(array_read)
         map_op = array_map(OpaqueBool, size_arg, ht.Bool)
-        input_array = builder.add_op(map_op, input_array, array_read)
+        input_array = add_op(
+            builder, map_op, input_array, array_read, ast_node=ast_node
+        )
         elem_ty = ht.Bool
 
-    input_array = builder.add_op(array_to_std_array(elem_ty, size_arg), input_array)
+    input_array = add_op(
+        builder, array_to_std_array(elem_ty, size_arg), input_array, ast_node=ast_node
+    )
 
-    result_array = builder.add_op(op, input_array)
+    result_array = add_op(builder, op, input_array, ast_node=ast_node)
 
-    result_array = builder.add_op(std_array_to_array(elem_ty, size_arg), result_array)
+    result_array = add_op(
+        builder, std_array_to_array(elem_ty, size_arg), result_array, ast_node=ast_node
+    )
 
     if convert_bool:
         array_make_opaque = array_make_opaque_bool(ctx)
         array_make_opaque = builder.load_function(array_make_opaque)
         map_op = array_map(ht.Bool, size_arg, OpaqueBool)
-        result_array = builder.add_op(map_op, result_array, array_make_opaque)
+        result_array = add_op(
+            builder, map_op, result_array, array_make_opaque, ast_node=ast_node
+        )
         elem_ty = OpaqueBool
 
     return result_array

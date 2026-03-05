@@ -292,7 +292,7 @@ class NewArrayCompiler(ArrayCompiler):
 
     def build_linear_array(self, elems: list[Wire]) -> Wire:
         """Lowers a call to `array.__new__` for linear arrays."""
-        return self.builder.add_op(array_new(self.elem_ty, len(elems)), *elems)
+        return self.add_op(array_new(self.elem_ty, len(elems)), *elems)
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         if self.elem_ty.type_bound() == ht.TypeBound.Linear:
@@ -306,7 +306,7 @@ class ArrayGetitemCompiler(ArrayCompiler):
 
     def _build_classical_getitem(self, array: Wire, idx: Wire) -> CallReturnWires:
         """Constructs `__getitem__` for classical arrays."""
-        idx = self.builder.add_op(convert_itousize(), idx)
+        idx = self.add_op(convert_itousize(), idx)
 
         opt_elem, arr = self.builder.add_op(
             array_get(self.elem_ty, self.length),
@@ -321,8 +321,8 @@ class ArrayGetitemCompiler(ArrayCompiler):
 
     def _build_linear_getitem(self, array: Wire, idx: Wire) -> CallReturnWires:
         """Constructs `array.__getitem__` for linear arrays."""
-        idx = self.builder.add_op(convert_itousize(), idx)
-        arr, elem = self.builder.add_op(
+        idx = self.add_op(convert_itousize(), idx)
+        arr, elem = self.add_op(
             barray_borrow(self.elem_ty, self.length),
             array,
             idx,
@@ -360,8 +360,8 @@ class ArraySetitemCompiler(ArrayCompiler):
         self, array: Wire, idx: Wire, elem: Wire
     ) -> CallReturnWires:
         """Constructs `__setitem__` for classical arrays."""
-        idx = self.builder.add_op(convert_itousize(), idx)
-        result = self.builder.add_op(
+        idx = self.add_op(convert_itousize(), idx)
+        result = self.add_op(
             array_set(self.elem_ty, self.length),
             array,
             idx,
@@ -378,8 +378,8 @@ class ArraySetitemCompiler(ArrayCompiler):
         self, array: Wire, idx: Wire, elem: Wire
     ) -> CallReturnWires:
         """Constructs `array.__setitem__` for linear arrays."""
-        idx = self.builder.add_op(convert_itousize(), idx)
-        arr = self.builder.add_op(
+        idx = self.add_op(convert_itousize(), idx)
+        arr = self.add_op(
             barray_return(self.elem_ty, self.length),
             array,
             idx,
@@ -410,7 +410,7 @@ class ArrayDiscardAllUsedCompiler(ArrayCompiler):
     def compile(self, args: list[Wire]) -> list[Wire]:
         if self.elem_ty.type_bound() == ht.TypeBound.Linear:
             [arr] = args
-            self.builder.add_op(
+            self.add_op(
                 barray_discard_all_borrowed(self.elem_ty, self.length),
                 arr,
             )
@@ -422,11 +422,11 @@ class ArrayIsBorrowedCompiler(ArrayCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [array, idx] = args
-        idx = self.builder.add_op(convert_itousize(), idx)
-        array, b = self.builder.add_op(
+        idx = self.add_op(convert_itousize(), idx)
+        array, b = self.add_op(
             barray_is_borrowed(self.elem_ty, self.length), array, idx
         )
-        b = self.builder.add_op(make_opaque(), b)
+        b = self.add_op(make_opaque(), b)
         return CallReturnWires(regular_returns=[b], inout_returns=[array])
 
     def compile(self, args: list[Wire]) -> list[Wire]:
@@ -439,12 +439,12 @@ class ArraySwapCompiler(ArrayCompiler):
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [array, idx1, idx2] = args
 
-        idx1 = self.builder.add_op(convert_itousize(), idx1)
-        idx2 = self.builder.add_op(convert_itousize(), idx2)
+        idx1 = self.add_op(convert_itousize(), idx1)
+        idx2 = self.add_op(convert_itousize(), idx2)
 
         # Swap returns Either(left=array, right=array)
         # Left (case 0) is failure, right (case 1) is success
-        either_result = self.builder.add_op(
+        either_result = self.add_op(
             array_swap(self.elem_ty, self.length),
             array,
             idx1,

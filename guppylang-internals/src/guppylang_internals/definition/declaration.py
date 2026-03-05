@@ -8,7 +8,6 @@ from hugr.build.dfg import DefinitionBuilder, OpVar
 
 from guppylang_internals.ast_util import (
     AstNode,
-    get_file,
     has_empty_body,
     with_loc,
     with_type,
@@ -26,6 +25,7 @@ from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
     load_with_args,
+    make_subprogram_record,
     parse_py_func,
 )
 from guppylang_internals.definition.value import (
@@ -36,9 +36,9 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.debug_info import DISubprogram, HugrDebugInfo
+from guppylang_internals.metadata.debug_info import HugrDebugInfo
 from guppylang_internals.nodes import GlobalCall
-from guppylang_internals.span import SourceMap, to_span
+from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import Type, UnitaryFlags
@@ -133,11 +133,9 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         module: hf.Module = module
 
         node = module.declare_function(self.name, self.ty.to_hugr_poly(ctx))
-        metadata = DISubprogram(
-            file=ctx.metadata_file_table.get_index(get_file(self.defined_at)),
-            line_no=to_span(self.defined_at).start.line,
+        node.metadata[HugrDebugInfo] = make_subprogram_record(
+            self.defined_at, ctx, is_decl=True
         )
-        node.metadata[HugrDebugInfo] = metadata
         return CompiledFunctionDecl(
             self.id,
             self.name,

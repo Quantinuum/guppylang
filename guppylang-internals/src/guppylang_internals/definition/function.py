@@ -47,9 +47,8 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.common import GuppyMetadata, add_metadata
+from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.metadata.debug_info import (
-    DILocation,
     DISubprogram,
     HugrDebugInfo,
     make_location_record,
@@ -86,7 +85,7 @@ class RawFunctionDef(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
-    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
@@ -126,7 +125,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
 
     description: str = field(default="function", init=False)
 
-    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     def check(self, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
@@ -209,12 +208,8 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         func_def = module.module_root_builder().define_function(
             hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
-        metadata = DISubprogram(
-            file=ctx.metadata_file_table.get_index(get_file(self.defined_at)),
-            line_no=to_span(self.defined_at).start.line,
-            scope_line=to_span(self.defined_at.body[0]).start.line,
-        )
-        self.metadata.set_debug_info(metadata)
+        assert self.metadata is not None
+        self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
         add_metadata(
             func_def,
             self.metadata,
@@ -350,3 +345,26 @@ def parse_source(source_lines: list[str], line_offset: int) -> tuple[str, ast.AS
     else:
         node = ast.parse(source).body[0]
     return source, node, line_offset
+
+
+# Note: Defined here as opposed to in `metadata.debug_info` to avoid circular imports
+# due to using `CompilerContext` (not an issue for `make_location_record`).
+def make_subprogram_record(
+    node: ast.FunctionDef, ctx: CompilerContext, is_decl: bool = False
+) -> DISubprogram:
+    """Create a DISubprogram debug record for `node`, which should be a function
+    definition or declaration."""
+    filename = get_file(node)
+    # If we can't fine a file for a node, we default to 0 which corresponds to the
+    # entrypoint file.
+    file_idx = ctx.metadata_file_table.get_index(filename) if filename else 0
+    if is_decl or not node.body:
+        return DISubprogram(
+            file=file_idx, line_no=to_span(node).start.line, scope_line=None
+        )
+    else:
+        return DISubprogram(
+            file=file_idx,
+            line_no=to_span(node).start.line,
+            scope_line=to_span(node.body[0]).start.line,
+        )
