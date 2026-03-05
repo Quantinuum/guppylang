@@ -723,14 +723,16 @@ class BBLinearityChecker(ast.NodeVisitor):
         match node.subject:
             case PlaceNode() as place_node:
                 # match PlaceNode it is the same as having match(PlaceNode),
-                # where PlaceNode is borrowed if not copiable but without the
-                # `_reassign_single_inout_arg` since the variable is only readed.
+                # where PlaceNode is borrowed.
                 use_kind = UseKind.COPY if subj_ty.copyable else UseKind.BORROW
                 self.visit_PlaceNode(place_node, use_kind=use_kind)
                 self._reassign_single_inout_arg(
                     place_node.place, place_node.place.defined_at or place_node
                 )
             case _:
+                # Otherwise match expr is the same as having match(expr) or match
+                # tmp := expr, thus we need to check if expr does not create a tmp that
+                # would be implicitly dropped
                 self.visit(node.subject)
                 if not subj_ty.droppable:
                     err = UnnamedExprNotUsedError(node.subject, subj_ty)
