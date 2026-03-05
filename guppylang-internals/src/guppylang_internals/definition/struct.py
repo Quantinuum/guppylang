@@ -237,7 +237,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
         check_all_args(self.params, args, self.name, loc)
         # Obtain a checked version of this struct definition so we can construct a
         # `StructType` instance
-        globals = Globals(DEF_STORE.frames[self.id])
+        globals = Globals(self.id)
         # TODO: This is quite bad: If we have a cyclic definition this will not
         #  terminate, so we have to check for cycles in every call to `check`. The
         #  proper way to deal with this is changing `StructType` such that it only
@@ -295,6 +295,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             higher_order_value=True,
             higher_order_func_id=GlobalConstId.fresh(f"{self.name}.__new__"),
             has_signature=True,
+            has_var_args=False,
         )
         return [constructor_def]
 

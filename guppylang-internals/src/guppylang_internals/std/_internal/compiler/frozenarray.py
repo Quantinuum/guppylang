@@ -11,6 +11,7 @@ from hugr.std.collections.static_array import EXTENSION, StaticArray
 from guppylang_internals.compiler.core import (
     GlobalConstId,
 )
+from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.std._internal.compiler.arithmetic import (
     INT_T,
@@ -62,7 +63,7 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
         elem_ty = ty_arg.ty.to_hugr(self.ctx)
         inst = ht.FunctionType([StaticArray(elem_ty), INT_T], [elem_ty])
         type_args = [ht.TypeTypeArg(elem_ty)]
-        elem = self.builder.call(
+        out = self.builder.call(
             self.getitem_func(), *args, instantiation=inst, type_args=type_args
         )
-        return [elem]
+        return unpack_wire(out, ty_arg.ty, self.builder, self.ctx)

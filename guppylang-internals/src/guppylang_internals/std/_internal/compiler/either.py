@@ -4,8 +4,7 @@ from collections.abc import Sequence
 from hugr import Wire, ops
 from hugr import tys as ht
 
-from guppylang_internals.ast_util import get_type
-from guppylang_internals.compiler.expr_compiler import pack_returns, unpack_wire
+from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
@@ -137,7 +136,4 @@ class EitherUnwrapCompiler(EitherCompiler, CustomCallCompiler):
             out = build_unwrap_right(
                 self.builder, either, "Either.unwrap_right: value is `left`"
             )
-        # Pack outputs into a single wire. We're not allowed to return a row since the
-        # signature has a generic return type (also see `TupleType.preserve`)
-        return_ty = get_type(self.node)
-        return [pack_returns(list(out), return_ty, self.builder, self.ctx)]
+        return list(out.outputs())

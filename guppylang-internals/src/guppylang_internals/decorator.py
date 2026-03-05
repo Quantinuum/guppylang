@@ -365,6 +365,7 @@ def ext_module_decorator(
                 True,
                 GlobalConstId.fresh(f"{cls.__name__}.__new__"),
                 True,
+                False,
             )
             discard = CustomFunctionDef(
                 DefId.fresh(),
@@ -376,6 +377,7 @@ def ext_module_decorator(
                 False,
                 GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
                 True,
+                False,
             )
             DEF_STORE.register_def(call_method, get_calling_frame())
             DEF_STORE.register_impl(ext_module.id, "__new__", call_method.id)
