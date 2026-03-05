@@ -50,7 +50,7 @@ The following are not yet supported:
 
 ## Compiling a library and creating stubs
 
-Once a library object is created, it can be compiled into a hugr package, which can be distributed and used
+Once a library object is created, it can be compiled into a Hugr package, which can be distributed and used
 independently of the source code:
 
 ```python
@@ -65,7 +65,7 @@ with open("library.hugr", "wb") as f:
     f.write(hugr_package.to_bytes())
 ```
 
-However, this hugr package does not expose an interface that can be programmed against by consumers of the library *in
+However, this Hugr package does not expose an interface that can be programmed against by consumers of the library *in
 Guppy*. For this, the library author must define *stubs* for all exposed functions, utilising `@guppy.declare(...)`
 decorators.
 
@@ -94,7 +94,7 @@ subsequently reference the stubs in the library function definitions for easier 
 [proposal](proposals/impls.md) for that).
 
 Finally, these stubs (in `*.pyi` files) should be distributed using regular Python packaging mechanisms, so that users
-of the library can install and program against them. This distribution may or may not contain the hugr package as well.
+of the library can install and program against them. This distribution may or may not contain the Hugr package as well.
 
 ## Using a library
 
@@ -122,20 +122,20 @@ def main() -> None:
     consumer_func()
 ```
 
-In this case, the consumer aims to create an executable hugr package (e.g. by calling `main.compile()` and creating a
-package with a single, argument-less entrypoint). However, the created hugr package is incomplete: It lacks the function
+In this case, the consumer aims to create an executable Hugr package (e.g. by calling `main.compile()` and creating a
+package with a single, argument-less entrypoint). However, the created Hugr package is incomplete: It lacks the function
 bodies of the library functions, and thus cannot be executed.
 
-Thus, `hugr-py` MUST provide means to link the library hugr package into the consumer hugr package. For convenience, the
-library hugr package may be provided to the consumer program executor, so that it can be automatically linked in before
+Thus, `hugr-py` MUST provide means to link the library Hugr package into the consumer Hugr package. For convenience, the
+library Hugr package may be provided to the consumer program executor, so that it can be automatically linked in before
 lowering to QIR. For example, using selene, this may look like:
 
 ```python
 main.emulator(n_qubits=0, libraries=[hugr_package]).with_shots(100).run()
 ```
 
-Currently, hugr packages have to be manually downloaded / imported from whatever distribution mechanism the library
-author chose. In the future, library authors may opt to distribute hugr packages in Python wheels as well, and have
+Currently, Hugr packages have to be manually downloaded / imported from whatever distribution mechanism the library
+author chose. In the future, library authors may opt to distribute Hugr packages in Python wheels as well, and have
 consuming code auto-collect these from the Python environment (see the [proposal](proposals/discovery.md) for this).
 
 ```{note}
