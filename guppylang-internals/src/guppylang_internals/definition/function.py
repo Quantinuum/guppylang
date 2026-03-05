@@ -32,6 +32,7 @@ from guppylang_internals.compiler.core import (
     PartiallyMonomorphizedArgs,
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
     MonomorphizableDef,
@@ -208,8 +209,9 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         func_def = module.module_root_builder().define_function(
             hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
-        assert self.metadata is not None
-        self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
+        if debug_mode_enabled():
+            assert self.metadata is not None
+            self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
         add_metadata(
             func_def,
             self.metadata,
@@ -304,7 +306,8 @@ def compile_call(
     type_args = [arg.to_hugr(dfg.ctx) for arg in type_args]
     num_returns = len(type_to_row(ty.output))
     call = dfg.builder.call(func, *args, instantiation=func_ty, type_args=type_args)
-    call.metadata[HugrDebugInfo] = make_location_record(call_ast)
+    if debug_mode_enabled():
+        call.metadata[HugrDebugInfo] = make_location_record(call_ast)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),

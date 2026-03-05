@@ -28,6 +28,7 @@ from guppylang_internals.compiler.core import (
     GlobalConstId,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -773,7 +774,7 @@ def add_op(
 ) -> Node:
     """Adds an op to the builder, with optional debug info."""
     op_node = builder.add_op(op, *args)
-    if ast_node is not None and get_file(ast_node) is not None:
+    if debug_mode_enabled() and ast_node is not None and get_file(ast_node) is not None:
         op_node.metadata[HugrDebugInfo] = make_location_record(ast_node)
     return op_node
 

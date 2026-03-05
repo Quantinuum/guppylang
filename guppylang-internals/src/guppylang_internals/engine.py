@@ -13,6 +13,7 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
     CheckedDef,
@@ -311,13 +312,14 @@ class CompilationEngine:
             graph.hugr.entrypoint = compiled_def.hugr_node
 
         # Add debug info about the module to the root node
-        module_info = DICompileUnit(
-            directory=Path.cwd().as_uri(),
-            # We know this file is always the first entry in the file table.
-            filename=ctx.metadata_file_table.get_index(filename),
-            file_table=ctx.metadata_file_table.table,
-        )
-        graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
+        if debug_mode_enabled():
+            module_info = DICompileUnit(
+                directory=Path.cwd().as_uri(),
+                # We know this file is always the first entry in the file table.
+                filename=ctx.metadata_file_table.get_index(filename),
+                file_table=ctx.metadata_file_table.table,
+            )
+            graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
 
         # Use cached base extensions and registry, only add additional extensions
         base_extensions = self._get_base_packaged_extensions()

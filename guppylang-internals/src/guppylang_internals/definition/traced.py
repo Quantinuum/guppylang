@@ -19,11 +19,15 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CompilableDef,
     ParsableDef,
 )
-from guppylang_internals.definition.function import parse_py_func
+from guppylang_internals.definition.function import (
+    make_subprogram_record,
+    parse_py_func,
+)
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -31,7 +35,11 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.debug_info import DILocation, HugrDebugInfo, make_location_record
+from guppylang_internals.metadata.debug_info import (
+    DILocation,
+    HugrDebugInfo,
+    make_location_record,
+)
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.subst import Inst, Subst
@@ -92,6 +100,8 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         func_def = module.module_root_builder().define_function(
             self.name, func_type.body.input, func_type.body.output, func_type.params
         )
+        if debug_mode_enabled():
+            func_def.metadata[HugrDebugInfo] = make_subprogram_record(self.defined_at)
         return CompiledTracedFunctionDef(
             self.id,
             self.name,
@@ -140,7 +150,8 @@ class CompiledTracedFunctionDef(
         call = dfg.builder.call(
             self.func_def, *args, instantiation=func_ty, type_args=type_args
         )
-        call.metadata[HugrDebugInfo] = make_location_record(node)
+        if debug_mode_enabled():
+            call.metadata[HugrDebugInfo] = make_location_record(node)
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
             inout_returns=list(call[num_returns:]),

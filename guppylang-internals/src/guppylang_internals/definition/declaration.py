@@ -20,6 +20,7 @@ from guppylang_internals.compiler.core import (
     DFContainer,
     require_monomorphization,
 )
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import CompilableDef, ParsableDef
 from guppylang_internals.definition.function import (
     PyFunc,
@@ -133,9 +134,10 @@ class CheckedFunctionDecl(RawFunctionDecl, CompilableDef, CallableDef):
         module: hf.Module = module
 
         node = module.declare_function(self.name, self.ty.to_hugr_poly(ctx))
-        node.metadata[HugrDebugInfo] = make_subprogram_record(
-            self.defined_at, ctx, is_decl=True
-        )
+        if debug_mode_enabled():
+            node.metadata[HugrDebugInfo] = make_subprogram_record(
+                self.defined_at, ctx, is_decl=True
+            )
         return CompiledFunctionDecl(
             self.id,
             self.name,
