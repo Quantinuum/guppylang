@@ -217,7 +217,16 @@ def check_nested_func_def(
 
             from guppylang_internals.definition.function import ParsedFunctionDef
 
-            func = ParsedFunctionDef(def_id, func_def.name, func_def, func_ty, None)
+            func = ParsedFunctionDef(
+                def_id,
+                func_def.name,
+                func_def,
+                func_ty,
+                None,
+                # Even though global, this function will be private to the built hugr,
+                # so the link name does not really matter.
+                link_name=func_def.name,
+            )
             DEF_STORE.register_def(func, None)
             ENGINE.parsed[def_id] = func
             globals.f_locals[func_def.name] = GuppyDefinition(func)

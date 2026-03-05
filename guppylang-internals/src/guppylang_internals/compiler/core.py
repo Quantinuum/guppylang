@@ -151,9 +151,14 @@ class CompilerContext(ToHugrContext):
 
     checked_globals: Globals
 
+    #: The definitions that should be exported (i.e. made public) in the currently
+    #: built Hugr module.
+    exported_defs: set[DefId]
+
     def __init__(
         self,
         module: DefinitionBuilder[ops.Module],
+        exported_defs: set[DefId],
     ) -> None:
         self.module = module
         self.worklist = {}
@@ -161,6 +166,7 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.checked_globals = Globals(None)
         self.current_mono_args = None
+        self.exported_defs: set[DefId] = exported_defs
 
     @contextmanager
     def set_monomorphized_args(
@@ -201,7 +207,7 @@ class CompilerContext(ToHugrContext):
                     params, type_args, self
                 )
                 compile_outer = lambda: monomorphizable.monomorphize(  # noqa: E731 (assign-lambda)
-                    self.module, mono_args, self, get_parent_type(monomorphizable)
+                    self.module, mono_args, self
                 )
             case CompilableDef() as compilable:
                 compile_outer = lambda: compilable.compile_outer(self.module, self)  # noqa: E731
@@ -229,9 +235,7 @@ class CompilerContext(ToHugrContext):
                     raise GuppyError(err)
                 # Thus, the partial monomorphization for the entry point is always empty
                 entry_mono_args = tuple(None for _ in params)
-                entry_compiled = defn.monomorphize(
-                    self.module, entry_mono_args, self, get_parent_type(defn)
-                )
+                entry_compiled = defn.monomorphize(self.module, entry_mono_args, self)
             case CompilableDef() as defn:
                 entry_compiled = defn.compile_outer(self.module, self)
             case CompiledDef() as defn:
