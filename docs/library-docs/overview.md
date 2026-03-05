@@ -43,6 +43,22 @@ library = guppy.library(
 )
 ```
 
+For private functions, the name their Hugr nodes receive is not important.
+However, public functions need to have a stable (and unique) name for the Hugr to be valid and useful.
+Guppy includes a default name inference mechanism based on the fully qualified name of the function (including any
+parent types and the module path), but it is also possible to explicitly specify the name (e.g. to avoid conflicts, make
+a backward-compatible change, or to provide a more user-friendly name) using the `link_name` argument of the `@guppy`
+decorator:
+
+```python
+from guppylang import guppy
+
+
+@guppy(link_name="my.custom.link.name")
+def my_func() -> None:
+    pass
+```
+
 The following are not yet supported:
 
 - Exporting generic functions of any kind (see the [proposal](proposals/generic.md))

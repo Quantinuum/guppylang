@@ -6,7 +6,8 @@ There are existing stub generators for Python (like [
 `stubgen` from `mypy`](https://mypy.readthedocs.io/en/stable/stubgen.html), tooling from [
 `pyright`](https://github.com/microsoft/pyright/blob/main/docs/type-stubs.md#generating-type-stubs-from-command-line),
 and more), but these usually do not fit the needs of Guppy libraries, since we not only need to transform signatures,
-but also make sure that we use `@guppy.declare` instead of `@guppy`.
+but also make sure that we use `@guppy.declare` instead of `@guppy`. Link names should be explicitly specified in the
+stubs, to make them independent of changes in the default link name inference mechanisms.
 
 These stub generators are often meant to provide a start for writing stubs for the library, but often require manual
 labor to clean, fix, and clarify generated code.
