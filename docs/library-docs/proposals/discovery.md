@@ -72,3 +72,8 @@ main.emulator(n_qubits=..., libraries=discover_hugr_packages()).with_shots(100).
 
 Optionally, omission of `libraries` may lead to internal calls to automatic discovery, and other means of configuring
 the used Hugr packages may be provided as well (e.g. environment variables, or a configuration file).
+
+## Open questions
+
+- How does a user sort out which Hugr packages to use with multiple Hugr packages for the same stubs installed?
+  It is unclear how this case can be discovered (e.g. for a nice error message if they do not choose).
