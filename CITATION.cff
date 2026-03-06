@@ -35,7 +35,9 @@ preferred-citation:
   year: 2024
   collection-title: "Informal Proceedings of the Fourth International Workshop on Programming Languages for Quantum Computing (PLanQC '24)"
   identifiers:
-  doi: "arXiv:2510.12582"
+  archiveprefix: arXiv,
+  eprint: 2510.12582,
   description: "arXiv preprint"
   url: "https://github.com/quantinuum/guppylang"
 
+Koch, M., Lawrence, A., Singhal, K., Sivarajah, S., & Duncan, R. (2024). Guppy: Pythonic Quantum-Classical Programming [Conference paper]. Informal Proceedings of the Fourth International Workshop on Programming Languages for Quantum Computing (PLanQC '24). https://doi.org/arXiv:2510.12582
