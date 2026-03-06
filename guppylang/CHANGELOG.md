@@ -14,6 +14,29 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.22.0](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.9...guppylang-v0.22.0) (2026-03-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* Update `hugr-py` dependency incl. switching to core metadata  ([#1525](https://github.com/Quantinuum/guppylang/issues/1525))
+
+### Features
+
+* Add a FiFo queue to the standard library ([#1524](https://github.com/Quantinuum/guppylang/issues/1524)) ([b85f4ac](https://github.com/Quantinuum/guppylang/commit/b85f4ac08db46f86e40769e26d6ac0bdd4e1bc46))
+* Allow discarding arrays with taken elements ([#1534](https://github.com/Quantinuum/guppylang/issues/1534)) ([34293ed](https://github.com/Quantinuum/guppylang/commit/34293ed7dd23c2bb4655083297502662282fdfad))
+
+
+### Documentation
+
+* Fix docstring typo for measure leaked operation ([#1538](https://github.com/Quantinuum/guppylang/issues/1538)) ([d752510](https://github.com/Quantinuum/guppylang/commit/d7525106719af13d050d412fd5477e9ed21e39a6))
+* fix typo in API docs for CH gate definition ([#1529](https://github.com/Quantinuum/guppylang/issues/1529)) ([ef01803](https://github.com/Quantinuum/guppylang/commit/ef01803ca223ad36b40b2bf0140d225d05484fb0))
+
+
+### Miscellaneous Chores
+
+* Update `hugr-py` dependency incl. switching to core metadata  ([#1525](https://github.com/Quantinuum/guppylang/issues/1525)) ([51a0297](https://github.com/Quantinuum/guppylang/commit/51a0297b3f9c671705e806fb5efec2daac2444f2))
+
 ## [0.21.9](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.8...guppylang-v0.21.9) (2026-02-18)
 
 
