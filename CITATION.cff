@@ -1,6 +1,21 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "Guppy"
+authors:
+      - family-names: Koch
+        given-names: Mark
+      - family-names: Borgna
+        given-names: Agustín
+      - family-names: Roy
+        given-names: Craig
+      - family-names: Lawrence
+        given-names: Alan
+      - family-names: Singhal
+        given-names: Kartik
+      - family-names: Sivarajah
+        given-names: Seyon
+      - family-names: Duncan
+        given-names: Ross
 url: "https://github.com/quantinuum/guppylang"
 repository-code: "https://github.com/quantinuum/guppylang"
 type: software
