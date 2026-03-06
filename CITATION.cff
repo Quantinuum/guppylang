@@ -1,4 +1,4 @@
-# If you update this file, please also update the CITATIONs.bib file.
+# If you update this file, please also update the CITATIONS.bib file.
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "Guppy"
