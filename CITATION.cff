@@ -1,3 +1,4 @@
+# If you update this file, please also update the CITATIONs.bib file.
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "Guppy"
@@ -19,7 +20,7 @@ authors:
 url: "https://github.com/quantinuum/guppylang"
 repository-code: "https://github.com/quantinuum/guppylang"
 type: software
-references:
+preferred-citation:
   - type: conference-paper
     title: "Guppy: Pythonic Quantum-Classical Programming"
     authors:
