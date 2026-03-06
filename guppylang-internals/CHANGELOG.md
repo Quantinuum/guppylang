@@ -3,6 +3,36 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.31.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.30.0...guppylang-internals-v0.31.0) (2026-03-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* Allow validation of wasm for h2 platform ([#1532](https://github.com/Quantinuum/guppylang/issues/1532))
+* Update `hugr-py` dependency incl. switching to core metadata  ([#1525](https://github.com/Quantinuum/guppylang/issues/1525))
+* Remove upstreamed qualified name function for type defs ([#1522](https://github.com/Quantinuum/guppylang/issues/1522))
+
+### Features
+
+* Allow validation of wasm for h2 platform ([#1532](https://github.com/Quantinuum/guppylang/issues/1532)) ([d4db24f](https://github.com/Quantinuum/guppylang/commit/d4db24f8a55d464541787d74ee15e54c79ab23dd))
+* Improve error message for passing non-comptime values into comptime ([#1527](https://github.com/Quantinuum/guppylang/issues/1527)) ([f9be3bb](https://github.com/Quantinuum/guppylang/commit/f9be3bb9300e2765a3187bff49998f2d87d538c0))
+
+
+### Bug Fixes
+
+* Raise UnsupportedError for else clauses of loops ([#1514](https://github.com/Quantinuum/guppylang/issues/1514)) ([4a07f74](https://github.com/Quantinuum/guppylang/commit/4a07f74080a611efa25e6496b641e9423911cc3e))
+* Resolve very deep recursion inside replaced Jupyter traceback renderer ([#1544](https://github.com/Quantinuum/guppylang/issues/1544)) ([981d64a](https://github.com/Quantinuum/guppylang/commit/981d64a1af5d71e300ca523bb33c845fdea89007))
+
+
+### Miscellaneous Chores
+
+* Update `hugr-py` dependency incl. switching to core metadata  ([#1525](https://github.com/Quantinuum/guppylang/issues/1525)) ([51a0297](https://github.com/Quantinuum/guppylang/commit/51a0297b3f9c671705e806fb5efec2daac2444f2))
+
+
+### Code Refactoring
+
+* Remove upstreamed qualified name function for type defs ([#1522](https://github.com/Quantinuum/guppylang/issues/1522)) ([a770b89](https://github.com/Quantinuum/guppylang/commit/a770b8977b84584f15caac758f3e29d87cda47cc))
+
 ## [0.30.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.29.0...guppylang-internals-v0.30.0) (2026-02-18)
 
 
