@@ -701,6 +701,21 @@ class PatternBuilder(AstVisitor[tuple[ast.pattern, BB]]):
 
         return node, bb
 
+    def visit_MatchSingleton(
+        self, node: ast.MatchSingleton, bb: BB
+    ) -> tuple[ast.pattern, BB]:
+        # Singleton patterns are 'None', 'True', and 'False'.
+        # We don't need special handling for them since they are just constants,
+        # thus we overwrite the node with a MatchValue one
+
+        new_node = ast.MatchValue(
+            value=ast.Constant(
+                value=node.value, lineno=node.lineno, col_offset=node.col_offset
+            )  # type: ignore[call-arg]
+        )
+        set_location_from(new_node, node)
+        return self.visit_MatchValue(new_node, bb)
+
     def generic_visit(self, node: ast.pattern, bb: BB) -> NoReturn:
         """Called if no explicit visitor function exists for a node."""
         raise GuppyError(UnsupportedError(node, "This pattern", singular=True))
