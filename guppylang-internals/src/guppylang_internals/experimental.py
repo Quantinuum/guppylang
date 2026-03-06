@@ -1,5 +1,6 @@
 from ast import expr
 from dataclasses import dataclass
+from types import TracebackType
 from typing import ClassVar
 
 from guppylang_internals.ast_util import AstNode
@@ -10,25 +11,52 @@ from guppylang_internals.error import GuppyError
 EXPERIMENTAL_FEATURES_ENABLED = False
 
 
-def are_experimental_features_enabled() -> bool:
-    """Whether experimental Guppy features are enabled."""
-    return EXPERIMENTAL_FEATURES_ENABLED
+class enable_experimental_features:
+    """Enables experimental Guppy features.
+
+    Can be used as a context manager to enable experimental features in a `with` block.
+    """
+
+    def __init__(self) -> None:
+        global EXPERIMENTAL_FEATURES_ENABLED
+        self.original = EXPERIMENTAL_FEATURES_ENABLED
+        EXPERIMENTAL_FEATURES_ENABLED = True
+
+    def __enter__(self) -> None:
+        pass
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        global EXPERIMENTAL_FEATURES_ENABLED
+        EXPERIMENTAL_FEATURES_ENABLED = self.original
 
 
-def enable_experimental_features() -> None:
-    """Enables experimental Guppy features."""
-    set_experimental_features_enabled(True)
+class disable_experimental_features:
+    """Disables experimental Guppy features.
 
+    Can be used as a context manager to enable experimental features in a `with` block.
+    """
 
-def disable_experimental_features() -> None:
-    """Disables experimental Guppy features."""
-    set_experimental_features_enabled(False)
+    def __init__(self) -> None:
+        global EXPERIMENTAL_FEATURES_ENABLED
+        self.original = EXPERIMENTAL_FEATURES_ENABLED
+        EXPERIMENTAL_FEATURES_ENABLED = False
 
+    def __enter__(self) -> None:
+        pass
 
-def set_experimental_features_enabled(enabled: bool) -> None:
-    """Sets whether experimental Guppy features are enabled."""
-    global EXPERIMENTAL_FEATURES_ENABLED
-    EXPERIMENTAL_FEATURES_ENABLED = enabled
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        global EXPERIMENTAL_FEATURES_ENABLED
+        EXPERIMENTAL_FEATURES_ENABLED = self.original
 
 
 @dataclass(frozen=True)

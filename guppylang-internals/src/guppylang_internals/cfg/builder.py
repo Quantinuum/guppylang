@@ -230,6 +230,8 @@ class CFGBuilder(AstVisitor[BB | None]):
             return self.cfg.new_bb(then_bb, else_bb)
 
     def visit_While(self, node: ast.While, bb: BB, jumps: Jumps) -> BB | None:
+        if node.orelse:
+            raise GuppyError(UnsupportedError(node.orelse[0], "Loop else clauses"))
         head_bb = self.cfg.new_bb(bb)
         body_bb, tail_bb = self.cfg.new_bb(), self.cfg.new_bb()
         BranchBuilder.add_branch(node.test, self.cfg, head_bb, body_bb, tail_bb)
@@ -248,6 +250,8 @@ class CFGBuilder(AstVisitor[BB | None]):
         return tail_bb
 
     def visit_For(self, node: ast.For, bb: BB, jumps: Jumps) -> BB | None:
+        if node.orelse:
+            raise GuppyError(UnsupportedError(node.orelse[0], "Loop else clauses"))
         template = """
             it = make_iter
             while True:
