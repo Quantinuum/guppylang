@@ -18,8 +18,6 @@ authors:
       - family-names: Duncan
         given-names: Ross
 url: "https://github.com/quantinuum/guppylang"
-repository-code: "https://github.com/quantinuum/guppylang"
-type: software
 preferred-citation:
   - type: conference-paper
     title: "Guppy: Pythonic Quantum-Classical Programming"
