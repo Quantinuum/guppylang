@@ -142,7 +142,42 @@ In this case, the consumer aims to create an executable Hugr package (e.g. by ca
 package with a single, argument-less entrypoint). However, the created Hugr package is incomplete: It lacks the function
 bodies of the library functions, and thus cannot be executed.
 
-Thus, `hugr-py` MUST provide means to link the library Hugr package into the consumer Hugr package. For convenience, the
+Thus, `hugr-py` MUST provide means to link the library Hugr package into the consumer Hugr package. The proposed
+mechanism for this is to allow operations on Hugr packages that (a) allow to add modules and extensions from other
+packages, and (b) allow to combine multiple modules inside the same package into a single module. In code, this may look
+like:
+
+```python
+from hugr.package import Package
+
+package_a: Package = ...
+package_b: Package = ...
+package_c: Package = ...
+
+# (a) add modules and extensions from other packages
+package_a.add_from(package_b).add_from(package_c)
+
+# (b) combine multiple modules into a single module inside the package
+package_a.link_modules()
+# Now package_a contains a single module with all the functions
+# from package_a, package_b, and package_c
+```
+
+There are no guarantees about the order of modules being linked together, or whether that is pairwise or all at once.
+A package may also expose more fine-grained control over the linking process, for example by allowing to "link" in
+entire packages, steering the reduction ordering:
+
+```python
+# Extensions and modules are added from package_b,
+# and its module is linked into the module of package_a
+package_a.link(package_b)
+
+# In the future, keywords may be added to allow e.g. privatization of all
+# functions from package_b (i.e. swallowing), so for example:
+package_a.link(package_b, privatize=True)
+```
+
+For convenience, the
 library Hugr package may be provided to the consumer program executor, so that it can be automatically linked in before
 compiling to binary. For example, using selene, this may look like:
 
