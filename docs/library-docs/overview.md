@@ -144,7 +144,7 @@ bodies of the library functions, and thus cannot be executed.
 
 Thus, `hugr-py` MUST provide means to link the library Hugr package into the consumer Hugr package. For convenience, the
 library Hugr package may be provided to the consumer program executor, so that it can be automatically linked in before
-lowering to QIR. For example, using selene, this may look like:
+compiling to binary. For example, using selene, this may look like:
 
 ```python
 main.emulator(n_qubits=0, libraries=[hugr_package]).with_shots(100).run()
