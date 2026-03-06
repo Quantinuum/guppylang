@@ -1,5 +1,10 @@
 [dependency-groups]
-docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
+docs = [
+    "furo>=2024.8.6",
+    "myst-parser>=4.0.1",
+    "sphinx >=7.2.6,<9",
+    "sphinx-copybutton>=0.5.2",
+]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
