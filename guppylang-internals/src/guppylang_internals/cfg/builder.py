@@ -327,7 +327,13 @@ class CFGBuilder(AstVisitor[BB | None]):
         check_modifiers_enabled(node)
         self._validate_modified_block(node)
 
-        cfg = CFGBuilder().build(node.body, True, self.globals)
+        # Pre-compute this block's modifier flags and combine them with any flags
+        # already accumulated from enclosing `with` blocks (stored in
+        # `self.cfg.unitary_flags`).  Passing the combined value into `build()` lets
+        # every inner CFG see the full modifier context it is compiled under, which is
+        # necessary for correct unitary checking of deeply nested `with` blocks.
+        accumulated_flags = self.cfg.unitary_flags | self._peek_flags(node.items)
+        cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
         new_node = ModifiedBlock(
             cfg=cfg,
             **dict(ast.iter_fields(node)),
@@ -338,16 +344,27 @@ class CFGBuilder(AstVisitor[BB | None]):
             modifier = self._handle_withitem(item)
             new_node.push_modifier(modifier)
 
-        # FIXME: Currently, the unitary flags is not set correctly if there are nested
-        # `with` blocks. This is because the outer block's unitary flags are not
-        # propagated to the outer block. The following line should calculate the sum
-        # of the unitary flags of the outer block and modifiers applied in this
-        # `with` block.
-        cfg.unitary_flags = new_node.flags()
-
         set_location_from(new_node, node)
         bb.statements.append(new_node)
         return bb
+
+    def _peek_flags(self, items: list[ast.withitem]) -> UnitaryFlags:
+        """Pre-computes which modifier flags are introduced by the given with-items.
+
+        This inspects the syntactic form of each context expression without doing full
+        expression building, matching the same patterns as `_handle_withitem`.
+        """
+        flags = UnitaryFlags.NoFlags
+        for item in items:
+            e = item.context_expr
+            match e:
+                case ast.Name(id="dagger") | ast.Call(func=ast.Name(id="dagger")):
+                    flags |= UnitaryFlags.Dagger
+                case ast.Call(func=ast.Name(id="control")):
+                    flags |= UnitaryFlags.Control
+                case ast.Call(func=ast.Name(id="power")):
+                    flags |= UnitaryFlags.Power
+        return flags
 
     def _handle_withitem(self, node: ast.withitem) -> Modifier:
         # Check that `as` notation is not used

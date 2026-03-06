@@ -130,3 +130,84 @@ def test_free_copyable_variable_in_modifier(validate):
             use(a)
 
     validate(bar.compile_function())
+
+
+def test_nested_dagger_power_valid(validate):
+    """Nested dagger+power: function supporting both flags is valid."""
+
+    @guppy(dagger=True, power=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def bar(q: qubit) -> None:
+        with dagger:
+            with power(2):
+                foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_nested_control_dagger_valid(validate):
+    """Nested control+dagger: function supporting both flags is valid."""
+
+    @guppy(control=True, dagger=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def bar(ctrl: qubit, q: qubit) -> None:
+        with control(ctrl):
+            with dagger:
+                foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_nested_power_control_valid(validate):
+    """Nested power+control: function supporting both flags is valid."""
+
+    @guppy(power=True, control=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def bar(ctrl: qubit, q: qubit) -> None:
+        with power(2):
+            with control(ctrl):
+                foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_nested_triple_all_flags_valid(validate):
+    """Triple nesting with a function supporting all unitary flags is valid."""
+
+    @guppy(dagger=True, control=True, power=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def bar(ctrl: qubit, q: qubit) -> None:
+        with dagger:
+            with control(ctrl):
+                with power(2):
+                    foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_nested_same_modifier_valid(validate):
+    """Double-nesting the same modifier (dagger) with a dagger-supporting function."""
+
+    @guppy(dagger=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def bar(q: qubit) -> None:
+        with dagger:
+            with dagger:
+                foo(q)
+
+    validate(bar.compile_function())
