@@ -39,6 +39,7 @@ preferred-citation:
         value: "arXiv:2510.12582"
         description: "arXiv preprint"
     url: "https://github.com/quantinuum/guppylang"
+references:
   - type: conference-paper
     title: "Imperative Quantum Programming with Ownership and Borrowing in Guppy"
     authors:
