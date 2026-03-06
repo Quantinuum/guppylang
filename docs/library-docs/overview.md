@@ -177,6 +177,10 @@ package_a.link(package_b)
 package_a.link(package_b, privatize=True)
 ```
 
+```{note}
+It is yet unclear whether this process should be done in-place or producing copies (which may cause a significant slowdown).
+```
+
 For convenience, the
 library Hugr package may be provided to the consumer program executor, so that it can be automatically linked in before
 compiling to binary. For example, using selene, this may look like:
