@@ -1,0 +1,51 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Guppy"
+url: "https://github.com/quantinuum/guppylang"
+repository-code: "https://github.com/quantinuum/guppylang"
+type: software
+references:
+  - type: conference-paper
+    title: "Guppy: Pythonic Quantum-Classical Programming"
+    authors:
+      - family-names: Koch
+        given-names: Mark
+      - family-names: Lawrence
+        given-names: Alan
+      - family-names: Singhal
+        given-names: Kartik
+      - family-names: Sivarajah
+        given-names: Seyon
+      - family-names: Duncan
+        given-names: Ross
+    year: 2024
+    collection-title: "Informal Proceedings of the Fourth International Workshop on Programming Languages for Quantum Computing (PLanQC '24)"
+    identifiers:
+      - type: other
+        value: "arXiv:2510.12582"
+        description: "arXiv preprint"
+    url: "https://github.com/quantinuum/guppylang"
+  - type: conference-paper
+    title: "Imperative Quantum Programming with Ownership and Borrowing in Guppy"
+    authors:
+      - family-names: Koch
+        given-names: Mark
+      - family-names: Borgna
+        given-names: Agustín
+      - family-names: Roy
+        given-names: Craig
+      - family-names: Lawrence
+        given-names: Alan
+      - family-names: Singhal
+        given-names: Kartik
+      - family-names: Sivarajah
+        given-names: Seyon
+      - family-names: Duncan
+        given-names: Ross
+    year: 2025
+    collection-title: "Informal Proceedings of the Fifth International Workshop on Programming Languages for Quantum Computing (PLanQC '25)"
+    identifiers:
+      - type: other
+        value: "arXiv:2510.13082"
+        description: "arXiv preprint"
+    url: "https://github.com/quantinuum/guppylang"
