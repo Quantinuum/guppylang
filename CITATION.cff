@@ -34,8 +34,5 @@ preferred-citation:
     given-names: Ross
   year: 2024
   collection-title: "Informal Proceedings of the Fourth International Workshop on Programming Languages for Quantum Computing (PLanQC '24)"
-  identifiers:
-  archiveprefix: arXiv,
-  eprint: 2510.12582,
-  description: "arXiv preprint"
+  description: "arXiv preprint arXiv:2510.12582"
   url: "https://github.com/quantinuum/guppylang"
