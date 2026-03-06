@@ -39,28 +39,4 @@ preferred-citation:
         value: "arXiv:2510.12582"
         description: "arXiv preprint"
     url: "https://github.com/quantinuum/guppylang"
-references:
-  - type: conference-paper
-    title: "Imperative Quantum Programming with Ownership and Borrowing in Guppy"
-    authors:
-      - family-names: Koch
-        given-names: Mark
-      - family-names: Borgna
-        given-names: Agustín
-      - family-names: Roy
-        given-names: Craig
-      - family-names: Lawrence
-        given-names: Alan
-      - family-names: Singhal
-        given-names: Kartik
-      - family-names: Sivarajah
-        given-names: Seyon
-      - family-names: Duncan
-        given-names: Ross
-    year: 2025
-    collection-title: "Informal Proceedings of the Fifth International Workshop on Programming Languages for Quantum Computing (PLanQC '25)"
-    identifiers:
-      - type: other
-        value: "arXiv:2510.13082"
-        description: "arXiv preprint"
-    url: "https://github.com/quantinuum/guppylang"
+
