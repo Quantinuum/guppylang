@@ -974,7 +974,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "hugr", git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=mr%2Ffeat%2Fallow-visibility-in-bindings" },
+    { name = "hugr", git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=main" },
     { name = "pytket", specifier = ">=1.34" },
     { name = "tket", specifier = ">=0.12.7" },
     { name = "tket-exts", specifier = "~=0.12.0" },
@@ -986,7 +986,7 @@ provides-extras = ["pytket"]
 [[package]]
 name = "hugr"
 version = "0.15.4"
-source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=mr%2Ffeat%2Fallow-visibility-in-bindings#6663248e757ed30d0ce42f2f9d320fa761a8f77f" }
+source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=main#7c71a27d24e29b798b5cb18b723d35f187e70159" }
 dependencies = [
     { name = "graphviz" },
     { name = "pydantic" },
