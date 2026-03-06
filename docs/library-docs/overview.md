@@ -7,7 +7,7 @@ In contrast to the usual executable Hugr packages (like those produced from comp
 library Hugr packages feature (usually multiple) *public* functions, possibly with arguments and non-``None`` return
 types.
 
-A developer may define a bunch of functions beyond this collection, for example for internally sharing functionality
+A developer may define several functions beyond this collection, for example for internally sharing functionality
 between the public functions. Furthermore, developers may want to create different libraries / Hugr packages from a
 single codebase, requiring to export different public functions in each such library.
 In Guppy, a library is defined by calling the ``guppy.library(...)`` function, passing the functions to be exported as
