@@ -418,9 +418,8 @@ class DFContainer:
         # store the leaf wires.
         is_return = isinstance(place, Variable) and is_return_var(place.name)
         if isinstance(place.ty, StructType) and not is_return:
-            unpack = self.builder.add_op(
-                ops.UnpackTuple([t.ty.to_hugr(self.ctx) for t in place.ty.fields]), port
-            )
+            hugr_fields_ty = [t.ty.to_hugr(self.ctx) for t in place.ty.fields]
+            unpack = self.builder.add_op(ops.UnpackTuple(hugr_fields_ty), port)
             for field, field_port in zip(place.ty.fields, unpack, strict=True):
                 self[FieldAccess(place, field, None)] = field_port
             # If we had a previous wire assigned to this place, we need forget about it.
