@@ -52,6 +52,7 @@ from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
     AnyCall,
     BarrierExpr,
+    CheckedMatch,
     CheckedModifiedBlock,
     CheckedNestedFunctionDef,
     DesugaredArrayComp,
@@ -62,7 +63,7 @@ from guppylang_internals.nodes import (
     InoutReturnSentinel,
     LocalCall,
     MatchEnum,
-    MatchLitteral,
+    MatchLiteral,
     MatchStruct,
     PartialApply,
     PlaceNode,
@@ -70,7 +71,6 @@ from guppylang_internals.nodes import (
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
-    CheckedMatch,
 )
 from guppylang_internals.tys.builtin import get_element_type, is_array_type
 from guppylang_internals.tys.ty import (
@@ -751,7 +751,7 @@ class BBLinearityChecker(ast.NodeVisitor):
     def visit_MatchStruct(self, node: MatchStruct) -> None:
         self._check_match_subject(node.subject)
 
-    def visit_MatchLitteral(self, node: MatchLitteral) -> None:
+    def visit_MatchLiteral(self, node: MatchLiteral) -> None:
         self._check_match_subject(node.subject)
 
 

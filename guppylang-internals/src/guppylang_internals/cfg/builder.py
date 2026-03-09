@@ -714,7 +714,7 @@ class PatternBuilder(AstVisitor[tuple[ast.pattern, BB]]):
         new_node = ast.MatchValue(
             value=ast.Constant(
                 value=node.value, lineno=node.lineno, col_offset=node.col_offset
-            )  # type: ignore[call-arg]
+            )
         )
         set_location_from(new_node, node)
         return self.visit_MatchValue(new_node, bb)

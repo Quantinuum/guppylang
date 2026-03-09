@@ -3,7 +3,7 @@
 import ast
 from collections.abc import Mapping
 from enum import Enum
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.span import Span, to_span
@@ -898,7 +898,7 @@ class MatchStruct(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class MatchLitteral(ast.expr):
+class MatchLiteral(ast.expr):
     """A Node representing a checked pattern match on a literal value
     against a list of patterns"""
 
@@ -916,4 +916,4 @@ class MatchLitteral(ast.expr):
 
 
 # Used with some isinstance checks
-CheckedMatch = MatchEnum | MatchStruct | MatchLitteral
+CheckedMatch = MatchEnum | MatchStruct | MatchLiteral

@@ -120,7 +120,7 @@ from guppylang_internals.nodes import (
     LocalCall,
     MakeIter,
     MatchEnum,
-    MatchLitteral,
+    MatchLiteral,
     MatchStruct,
     PartialApply,
     PlaceNode,
@@ -868,13 +868,14 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     ) -> tuple[ast.expr, Type]:
         # TODO: NICOLa(F): what other types we support here? arrays? Option?
         subject, subj_ty = self.synthesize(node.subject)
+        checked_node: ast.expr
         match subj_ty:
             case StructType():
                 checked_node = with_loc(node, MatchStruct(subject))
             case EnumType():
                 checked_node = with_loc(node, MatchEnum(subject))
             case NumericType() | OpaqueType(defn=OpaqueTypeDef(name="bool" | "str")):
-                checked_node = with_loc(node, MatchLitteral(subject))
+                checked_node = with_loc(node, MatchLiteral(subject))
             case _:
                 raise GuppyError(
                     UnsupportedError(

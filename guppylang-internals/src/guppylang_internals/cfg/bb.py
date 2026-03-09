@@ -14,7 +14,7 @@ from guppylang_internals.nodes import (
     DesugaredGeneratorExpr,
     DesugaredListComp,
     MatchEnum,
-    MatchLitteral,
+    MatchLiteral,
     MatchStruct,
     ModifiedBlock,
     NestedFunctionDef,
@@ -254,5 +254,5 @@ class VariableVisitor(ast.NodeVisitor):
     def visit_MatchStruct(self, node: MatchStruct) -> None:
         self.visit(node.subject)
 
-    def visit_MatchLitteral(self, node: MatchLitteral) -> None:
+    def visit_MatchLiteral(self, node: MatchLiteral) -> None:
         self.visit(node.subject)
