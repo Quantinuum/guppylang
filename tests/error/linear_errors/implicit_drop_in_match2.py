@@ -12,4 +12,5 @@ class Point:
 def main(p: Point @owned) -> None: # pyright: ignore[reportInvalidTypeForm]
     match p:
         case Point(_, _):
-            pass
+            b = p.x
+

@@ -3,7 +3,7 @@
 import ast
 from collections.abc import Mapping
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.span import Span, to_span
@@ -845,25 +845,75 @@ class CheckedModifiedBlock(ast.With):
         return len(self.power) > 0
 
 
-class MatchPred(ast.expr):
-    """A Node representing the condition of one case in the match statement."""
+class UncheckedMatchPred(ast.expr):
+    """A Node representing a patteern match on subject against a list of patterns"""
 
-    match_node: ast.stmt  # TODO: NICOLa, see if we need this
     subject: ast.expr
     patterns: list[ast.pattern]
 
     _fields = ("patterns", "subject")
 
-    def __init__(
-        self, match_node: ast.stmt, subject: ast.expr, patterns: list[ast.pattern]
-    ) -> None:
-        # TODO: NICOLa, I save the parent in the super for error reporting purposes,
-        # but all the checking and errors should be personalised for the match
-        # If you need this define the missing method manually referring to pattern
-        super().__init__(**match_node.__dict__)
+    def __init__(self, subject: ast.expr, patterns: list[ast.pattern]) -> None:
+        super().__init__()
         self.patterns = patterns
         self.subject = subject
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
+
+
+class MatchEnum(ast.expr):
+    """A Node representing a checked pattern match on an enum
+    value against a list of patterns"""
+
+    subject: ast.expr
+    patterns: list[ast.pattern]
+
+    _fields = ("patterns", "subject")
+
+    def __init__(self, subject: ast.expr) -> None:
+        super().__init__()
+        self.subject = subject
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
+class MatchStruct(ast.expr):
+    """A Node representing a checked pattern match on a struct value
+    against a list of patterns"""
+
+    subject: ast.expr
+    patterns: list[ast.pattern]
+
+    _fields = ("patterns", "subject")
+
+    def __init__(self, subject: ast.expr) -> None:
+        super().__init__()
+        self.subject = subject
+
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
+class MatchLitteral(ast.expr):
+    """A Node representing a checked pattern match on a literal value
+    against a list of patterns"""
+
+    subject: ast.expr
+    patterns: list[ast.pattern]
+
+    _fields = ("patterns", "subject")
+
+    def __init__(self, subject: ast.expr) -> None:
+        super().__init__()
+        self.subject = subject
+
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
+# Used with some isinstance checks
+CheckedMatch = MatchEnum | MatchStruct | MatchLitteral

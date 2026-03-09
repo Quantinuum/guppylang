@@ -61,13 +61,16 @@ from guppylang_internals.nodes import (
     GlobalCall,
     InoutReturnSentinel,
     LocalCall,
-    MatchPred,
+    MatchEnum,
+    MatchLitteral,
+    MatchStruct,
     PartialApply,
     PlaceNode,
     StateResultExpr,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
+    CheckedMatch,
 )
 from guppylang_internals.tys.builtin import get_element_type, is_array_type
 from guppylang_internals.tys.ty import (
@@ -715,11 +718,11 @@ class BBLinearityChecker(ast.NodeVisitor):
             if InputFlags.Inout in var.flags:
                 self._reassign_single_inout_arg(var, var.defined_at or use)
 
-    def visit_MatchPred(self, node: MatchPred) -> None:
+    def _check_match_subject(self, subject: ast.expr) -> None:
         # For now, we just check the subject, the guards is not supported and
         # the patterns does not contain any places (alias are not supported)
-        subj_ty = get_type(node.subject)
-        match node.subject:
+        subj_ty = get_type(subject)
+        match subject:
             case PlaceNode() as place_node:
                 # match PlaceNode it is the same as having match(PlaceNode),
                 # where PlaceNode is borrowed.
@@ -732,16 +735,24 @@ class BBLinearityChecker(ast.NodeVisitor):
                 # Otherwise match expr is the same as having match(expr) or match
                 # tmp := expr, thus we need to check if expr does not create a tmp that
                 # would be implicitly dropped
-                self.visit(node.subject)
+                self.visit(subject)
                 if not subj_ty.droppable:
-                    err = UnnamedExprNotUsedError(node.subject, subj_ty)
+                    err = UnnamedExprNotUsedError(subject, subj_ty)
                     err.add_sub_diagnostic(UnnamedExprNotUsedError.Fix(None))
                     raise GuppyTypeError(err)
 
-        # TODO: NICOla
-        # No need to visit the patterns since they cannot contain any places alias are
-        # not supported. We will have to update this to implement linearity checking
-        # for patterns and guards if we allow them
+    # TODO: NICOla
+    # No need to visit the patterns since they cannot contain any places alias are
+    # not supported. We will have to update this to implement linearity checking
+    # for patterns and guards if we allow them
+    def visit_MatchEnum(self, node: MatchEnum) -> None:
+        self._check_match_subject(node.subject)
+
+    def visit_MatchStruct(self, node: MatchStruct) -> None:
+        self._check_match_subject(node.subject)
+
+    def visit_MatchLitteral(self, node: MatchLitteral) -> None:
+        self._check_match_subject(node.subject)
 
 
 def leaf_places(place: Place) -> Iterator[Place]:
@@ -953,7 +964,7 @@ def check_cfg_linearity(
                         assert bb.branch_pred is not None
                         # TODO: NICOLa(F): consider improving
                         if len(bb.successors) == 2 and not isinstance(
-                            bb.branch_pred, MatchPred
+                            bb.branch_pred, CheckedMatch
                         ):
                             [left_succ, _] = bb.successors
                             err.add_sub_diagnostic(
