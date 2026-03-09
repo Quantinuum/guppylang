@@ -197,7 +197,6 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 outer_func = module.module_root_builder().define_function(
                     self.name, func_type.body.input, func_type.body.output
                 )
-                # Mark both inner and outer function with the same location metadata.
                 if debug_mode_enabled():
                     # Function stub case.
                     if self.defined_at is not None:
