@@ -163,6 +163,10 @@ package_a.link_modules()
 # from package_a, package_b, and package_c
 ```
 
+Whenever two or more modules are linked together, the resulting module will keep the *single* non-module entrypoint
+across all modules, if it exists. When more than one module has a non-module entrypoint (i.e. more than one module is
+executable), an error is raised.
+
 There are no guarantees about the order of modules being linked together, or whether that is pairwise or all at once.
 A package may also expose more fine-grained control over the linking process, for example by allowing to "link" in
 entire packages, steering the reduction ordering:
