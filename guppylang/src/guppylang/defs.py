@@ -99,7 +99,10 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         return cast("Out", super().__call__(*args, **kwargs))
 
     def emulator(
-        self, n_qubits: int | None = None, builder: EmulatorBuilder | None = None
+        self,
+        n_qubits: int | None = None,
+        builder: EmulatorBuilder | None = None,
+        libs: list[Package] | None = None,
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
@@ -115,11 +118,17 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             in the decorator, e.g. `@guppy(max_qubits=5)`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
             instance. If not provided, the default `EmulatorBuilder` will be used.
+            libs: An optional list of additional HUGR packages to link with the compiled
+            function. This can be used to provide additional library functions that the
+            function being compiled depends on.
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
         mod = self.compile()
+
+        if libs is not None:
+            mod = mod.link(*libs)
 
         builder = builder or EmulatorBuilder()
         qubits = n_qubits
