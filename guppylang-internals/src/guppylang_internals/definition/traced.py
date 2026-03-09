@@ -36,12 +36,11 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.debug_info import (
-    DILocation,
     HugrDebugInfo,
     make_location_record,
 )
 from guppylang_internals.nodes import GlobalCall
-from guppylang_internals.span import SourceMap, to_span
+from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, type_to_row
 
@@ -101,7 +100,9 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
             self.name, func_type.body.input, func_type.body.output, func_type.params
         )
         if debug_mode_enabled():
-            func_def.metadata[HugrDebugInfo] = make_subprogram_record(self.defined_at)
+            func_def.metadata[HugrDebugInfo] = make_subprogram_record(
+                self.defined_at, ctx
+            )
         return CompiledTracedFunctionDef(
             self.id,
             self.name,

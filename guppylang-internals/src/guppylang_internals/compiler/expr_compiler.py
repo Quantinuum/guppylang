@@ -633,14 +633,20 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 qubit_arr_out,
                 ast_node=node,
             )
-            qubits_out = unpack_array(self.builder, qubit_arr_out)
+            qubits_out = unpack_array(self.builder, qubit_arr_out, ast_node=node)
         else:
             # If the input is an array of qubits, we need to convert to a standard
             # array.
             qubits_in = [self.visit(node.args[1])]
             qubits_out = [
                 apply_array_op_with_conversions(
-                    self.ctx, self.builder, op, ht.Qubit, num_qubits_arg, qubits_in[0]
+                    self.ctx,
+                    self.builder,
+                    op,
+                    ht.Qubit,
+                    num_qubits_arg,
+                    qubits_in[0],
+                    ast_node=node,
                 )
             ]
 

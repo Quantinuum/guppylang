@@ -9,6 +9,7 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -248,13 +249,19 @@ def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
 P = TypeVar("P", bound=ops.DfParentOp)
 
 
-def unpack_array(builder: DfBase[P], array: Wire) -> list[Wire]:
+def unpack_array(
+    builder: DfBase[P], array: Wire, ast_node: AstNode | None = None
+) -> list[Wire]:
     """Unpacks a fixed length array into its elements."""
+    from guppylang_internals.compiler.expr_compiler import add_op
+
     array_ty = builder.hugr.port_type(array.out_port())
     assert isinstance(array_ty, ht.ExtType)
     match array_ty.args:
         case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
-            res = builder.add_op(array_unpack(elem_ty, length), array)
+            res = add_op(
+                builder, array_unpack(elem_ty, length), array, ast_node=ast_node
+            )
             return [res[i] for i in range(length)]
         case _:
             raise InternalGuppyError("Invalid array type args")
@@ -308,7 +315,7 @@ class ArrayGetitemCompiler(ArrayCompiler):
         """Constructs `__getitem__` for classical arrays."""
         idx = self.add_op(convert_itousize(), idx)
 
-        opt_elem, arr = self.builder.add_op(
+        opt_elem, arr = self.add_op(
             array_get(self.elem_ty, self.length),
             array,
             idx,
