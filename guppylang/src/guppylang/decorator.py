@@ -235,8 +235,7 @@ class _Guppy:
             def my_func() -> None:
                 with dagger():
                     # quantum operations here will be daggered
-                    pass
-        TODO: NICOLA
+
         """
         defn = RawModifierDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()

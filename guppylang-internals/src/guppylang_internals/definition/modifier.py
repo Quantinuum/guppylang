@@ -19,9 +19,8 @@ PyFunc = Callable[..., Any]
 class RawModifierDef(ParsableDef):
     """A raw modifier definition provided by the user.
 
-    Modifiers are special classes used in `with` statements to modify the behavior
-    of quantum operations (e.g., dagger, control, etc.).
-    TODO: NICOLA - update all the doc string
+    Modifiers are special classes used in `with` statements. This definition is used
+    only to detect unexpected errors
     """
 
     python_func: PyFunc
@@ -36,7 +35,10 @@ class RawModifierDef(ParsableDef):
 
 @dataclass(frozen=True)
 class ParsedModifierDef(CheckableDef):
-    """A parsed modifier definition."""
+    """A parsed modifier definition.
+
+    Modifiers are special classes used in `with` statements. This definition is used
+    only to detect unexpected errors"""
 
     description: str = field(default="modifier", init=False)
 

@@ -239,7 +239,7 @@ class GuppyTypeVarDefinition(GuppyDefinition):
 class GuppyModifierDefinition(GuppyDefinition):
     """Definition of a Guppy modifier.
 
-    Modifiers are special classes used in `with` statements to modify the behavior
-    of quantum operations (e.g., dagger, control, etc.).
-    TODO: NICOLA
+    Modifiers are special keywords used in `with` statements. Here we define an empty
+    class to be able to detect if we are using this modifier outside a `with` statement
+    and raise an error in that case.
     """
