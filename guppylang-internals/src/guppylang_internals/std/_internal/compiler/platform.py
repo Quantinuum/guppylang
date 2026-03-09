@@ -107,9 +107,7 @@ class ArrayResultCompiler(CustomInoutCallCompiler):
             arr = self.add_op(map_op, arr, array_read).out(0)
             hugr_elem_ty = tys.Bool
         # Turn `borrow_array` into regular `array`
-        arr = self.add_op(array_to_std_array(hugr_elem_ty, hugr_size), arr).out(
-            0
-        )
+        arr = self.add_op(array_to_std_array(hugr_elem_ty, hugr_size), arr).out(0)
 
         hugr_ty = hugr.std.collections.array.Array(hugr_elem_ty, hugr_size)
         sig = tys.FunctionType(input=[hugr_ty], output=[])

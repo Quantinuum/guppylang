@@ -130,9 +130,7 @@ class ListGetitemCompiler(CustomCallCompiler):
         elem_opt_ty = ht.Option(elem_ty)
         none = self.add_op(ops.Tag(0, elem_opt_ty))
         idx = self.add_op(convert_itousize(), idx)
-        list_wire, result = self.add_op(
-            list_set(elem_opt_ty), list_wire, idx, none
-        )
+        list_wire, result = self.add_op(list_set(elem_opt_ty), list_wire, idx, none)
         elem_opt = build_unwrap_right(self.builder, result, "List index out of bounds")
         elem = build_unwrap(
             self.builder, elem_opt, "Linear list element has already been used"
@@ -185,9 +183,7 @@ class ListSetitemCompiler(CustomCallCompiler):
         elem_opt_ty = ht.Option(elem_ty)
         elem = self.add_op(ops.Some(elem_ty), elem)
         idx = self.add_op(convert_itousize(), idx)
-        list_wire, result = self.add_op(
-            list_set(elem_opt_ty), list_wire, idx, elem
-        )
+        list_wire, result = self.add_op(list_set(elem_opt_ty), list_wire, idx, elem)
         old_elem_opt = build_unwrap_right(
             self.builder, result, "List index out of bounds"
         )

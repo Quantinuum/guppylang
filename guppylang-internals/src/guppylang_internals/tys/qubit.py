@@ -16,6 +16,7 @@ def qubit_ty() -> Type:
     it might result in circular imports.
     """
     from guppylang.defs import GuppyDefinition
+
     from guppylang.std.quantum import qubit
 
     assert isinstance(qubit, GuppyDefinition)

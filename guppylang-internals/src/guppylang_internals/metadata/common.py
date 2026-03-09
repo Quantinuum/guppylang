@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import JsonType, Metadata
+from hugr.metadata import JsonType
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
