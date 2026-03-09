@@ -1,6 +1,7 @@
 import ast
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import cast
 
 from hugr.metadata import JsonType, Metadata
 
@@ -49,8 +50,7 @@ class DICompileUnit(DebugRecord):
         return {
             "directory": self.directory,
             "filename": self.filename,
-            # TODO: Fix table conversion / typing.
-            "file_table": self.file_table,
+            "file_table": cast("list[JsonType]", self.file_table),
         }
 
     @classmethod

@@ -771,8 +771,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         raise InternalGuppyError("Node should have been removed during type checking.")
 
 
+P = TypeVar("P", bound=ops.DfParentOp)
+
+
 def add_op(
-    builder: DfBase[ops.DfParentOp],
+    builder: DfBase[P],
     op: ops.DataflowOp,
     /,
     *args: Wire,

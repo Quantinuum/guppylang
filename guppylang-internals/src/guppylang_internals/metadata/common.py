@@ -32,9 +32,9 @@ class FunctionMetadata:
     """Class for storing metadata to be attached to Hugr nodes during compilation."""
 
     _node_metadata: dict[str, JsonType] = field(default_factory=dict)
-    _RESERVED_KEYS: ClassVar[frozenset[type[Metadata[Any]]]] = {
-        HugrDebugInfo,
-        MetadataMaxQubits,
+    _RESERVED_KEYS: ClassVar[set[str]] = {
+        HugrDebugInfo.KEY,
+        MetadataMaxQubits.KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -52,11 +52,13 @@ class FunctionMetadata:
         return DebugRecord.from_json(self._node_metadata.get(HugrDebugInfo.KEY))
 
     def get_max_qubits(self) -> int | None:
-        return self._node_metadata.get(MetadataMaxQubits.KEY)
+        qubits = self._node_metadata.get(MetadataMaxQubits.KEY)
+        assert qubits is None or isinstance(qubits, int)
+        return qubits
 
     @classmethod
     def reserved_keys(cls) -> set[str]:
-        return {t.KEY for t in cls._RESERVED_KEYS}
+        return cls._RESERVED_KEYS
 
 
 def add_metadata(

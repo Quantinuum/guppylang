@@ -201,6 +201,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 if debug_mode_enabled():
                     # Function stub case.
                     if self.defined_at is not None:
+                        assert isinstance(self.defined_at, ast.FunctionDef)
                         func_metadata = make_subprogram_record(
                             self.defined_at, ctx, is_decl=True
                         )
