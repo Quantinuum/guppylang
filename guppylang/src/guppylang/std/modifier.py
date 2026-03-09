@@ -1,19 +1,21 @@
-# TODO: NICOLA Here we need to implement the actual modifiers
+from guppylang.decorator import guppy
+
+
+@guppy.modifier
 class Example:
-    def __enter__(self):
-        print("enter")
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        print("exit")
+    pass
 
 
-from ..decorator import guppy
-
-
-@guppy
+@guppy.modifier
 class dagger:
-    def __enter__(self):
-        print("enter")
+    pass
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        print("exit")
+
+@guppy.modifier
+class control:
+    pass
+
+
+@guppy.modifier
+class power:
+    pass

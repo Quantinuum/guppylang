@@ -66,7 +66,11 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeUnknownError,
     IllegalComptimeExpressionError,
 )
-from guppylang_internals.checker.errors.generic import ExpectedError, UnsupportedError
+from guppylang_internals.checker.errors.generic import (
+    ExpectedError,
+    InvalidError,
+    UnsupportedError,
+)
 from guppylang_internals.checker.errors.linearity import NonDroppableForBreakError
 from guppylang_internals.checker.errors.type_errors import (
     AttributeNotFoundError,
@@ -87,6 +91,7 @@ from guppylang_internals.checker.errors.type_errors import (
     WrongNumberOfArgsError,
 )
 from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.modifier import ParsedModifierDef
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
@@ -435,6 +440,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             return self._check_generic_param(x, node)
         elif x in self.ctx.globals:
             match self.ctx.globals[x]:
+                case ParsedModifierDef() as mod_def:
+                    raise GuppyError(InvalidError(node, "expression", mod_def.name))
                 case Definition() as defn:
                     return self._check_global(defn, x, node)
                 case PythonObject():

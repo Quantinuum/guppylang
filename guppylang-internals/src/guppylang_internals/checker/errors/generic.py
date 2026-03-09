@@ -74,3 +74,15 @@ class InvalidUnderDagger(Error):
     @dataclass(frozen=True)
     class Dagger(Note):
         span_label: ClassVar[str] = "dagger modifier is used here"
+
+
+@dataclass(frozen=True)
+class InvalidError(Error):
+    title: ClassVar[str] = "Invalid {thing}"
+    span_label: ClassVar[str] = "Invalid {thing}: {extra}"
+    thing: str
+    name: str = ""
+
+    @property
+    def extra(self) -> str:
+        return f"`{self.name}` cannot be used here" if self.name else ""

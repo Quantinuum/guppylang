@@ -27,6 +27,7 @@ from guppylang_internals.definition.function import (
     RawFunctionDef,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata
+from guppylang_internals.definition.modifier import RawModifierDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
@@ -216,6 +217,37 @@ class _Guppy:
             cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
+        return GuppyDefinition(defn)  # type: ignore[return-value]
+
+    def modifier(self, cls: builtins.type[T]) -> builtins.type[T]:
+        """Registers a class as a Guppy modifier.
+
+        Modifiers are used with `with` statements to modify quantum operations.
+
+        .. code-block:: python
+            from guppylang import guppy
+
+            @guppy.modifier
+            class dagger:
+                pass
+
+            @guppy
+            def my_func() -> None:
+                with dagger():
+                    # quantum operations here will be daggered
+                    pass
+        TODO: NICOLA
+        """
+        defn = RawModifierDef(DefId.fresh(), cls.__name__, None, cls)
+        frame = get_calling_frame()
+        DEF_STORE.register_def(defn, frame)
+        # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
+        # However, we need this information to precisely look up the source for the
+        # class later. If it's not there, we can set it from the calling frame:
+        if not hasattr(cls, "__firstlineno__"):
+            cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
+        # We're pretending to return the class unchanged, but in fact we return
+        # a `GuppyModifierDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
     def type_var(

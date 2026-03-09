@@ -30,7 +30,12 @@ from guppylang.emulator.exceptions import EmulatorBuildError
 if TYPE_CHECKING:
     import ast
 
-__all__ = ("GuppyDefinition", "GuppyFunctionDefinition", "GuppyTypeVarDefinition")
+__all__ = (
+    "GuppyDefinition",
+    "GuppyFunctionDefinition",
+    "GuppyModifierDefinition",
+    "GuppyTypeVarDefinition",
+)
 
 
 P = ParamSpec("P")
@@ -228,3 +233,13 @@ class GuppyTypeVarDefinition(GuppyDefinition):
         if hasattr(self._ty_var, name):
             return getattr(self._ty_var, name)
         return object.__getattribute__(self, name)
+
+
+@dataclass(frozen=True)
+class GuppyModifierDefinition(GuppyDefinition):
+    """Definition of a Guppy modifier.
+
+    Modifiers are special classes used in `with` statements to modify the behavior
+    of quantum operations (e.g., dagger, control, etc.).
+    TODO: NICOLA
+    """
