@@ -9,7 +9,6 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
-from guppylang_internals.ast_util import AstNode
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -22,6 +21,8 @@ from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
     from hugr.build.dfg import DfBase
+
+    from guppylang_internals.ast_util import AstNode
 
 
 # ------------------------------------------------------

@@ -1,9 +1,9 @@
 """File used to test the filename table in debug info metadata."""
 
+from guppylang.std.quantum import qubit
 from pytket import Circuit
 
 from guppylang import guppy
-from guppylang.std.quantum import qubit
 
 
 @guppy

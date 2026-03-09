@@ -1,4 +1,6 @@
+from guppylang.std import array
 from guppylang.std.debug import state_result
+from guppylang.std.quantum import discard, discard_array, qubit
 from guppylang_internals.debug_mode import turn_off_debug_mode, turn_on_debug_mode
 from guppylang_internals.metadata.debug_info import (
     DICompileUnit,
@@ -9,8 +11,6 @@ from guppylang_internals.metadata.debug_info import (
 from hugr.ops import Call, ExtOp, FuncDecl, FuncDefn, MakeTuple
 
 from guppylang import guppy
-from guppylang.std import array
-from guppylang.std.quantum import discard, discard_array, qubit
 from tests.resources.metadata_example import (
     bar,
     baz,
