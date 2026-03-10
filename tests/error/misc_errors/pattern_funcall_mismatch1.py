@@ -9,5 +9,5 @@ class Point:
 @compile_guppy
 def main(p: Point, x: int) -> None:
     match p:
-        case Point("_","2"):
+        case Point(_,2.4):
             z = 66

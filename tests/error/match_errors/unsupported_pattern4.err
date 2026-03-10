@@ -1,6 +1,6 @@
 Error: Unsupported (at $FILE:13:13)
    | 
-11 | def main(x: int, a: int) -> None:
+11 | def main(x: Enum) -> None:
 12 |     match x:
 13 |         case Enum.North() | Enum.South():
    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^ This pattern is not supported

@@ -2,7 +2,7 @@ Error: Type mismatch (at $FILE:11:24)
    | 
  9 | def main(p: Enum, x: int) -> None:
 10 |     match p:
-11 |         case Enum.North("2"):
-   |                         ^^^ Expected pattern of type `int`, got `str`
+11 |         case Enum.North(2.5):
+   |                         ^^^ Expected pattern of type `int`, got `float`
 
 Guppy compilation failed due to 1 previous error

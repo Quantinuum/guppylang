@@ -3,13 +3,13 @@ from tests.util import compile_guppy
 
 @guppy.enum
 class Enum:
-    North = {}
+    North = {"s": str}
     South = {}
 
 
 @compile_guppy
 def main(x: Enum) -> None:
     match x:
-        case Enum.North() | Enum.South():
+        case Enum.North("fail"):
             pass
 

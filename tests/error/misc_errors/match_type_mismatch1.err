@@ -2,7 +2,7 @@ Error: Type mismatch (at $FILE:20:30)
    | 
 18 | def main() -> None:
 19 |     match Point(Enum.North(3), 5):
-20 |         case Point(Enum.North("7"), _):
-   |                               ^^^ Expected pattern of type `int`, got `str`
+20 |         case Point(Enum.North(4.5), _):
+   |                               ^^^ Expected pattern of type `int`, got `float`
 
 Guppy compilation failed due to 1 previous error

@@ -17,6 +17,6 @@ class Point(Generic[T]):
 @compile_guppy
 def main() -> None:
     match Point(Enum.North(3), 5):
-        case Point(Enum.North("7"), _):
+        case Point(Enum.North(4.5), _):
             pass
 

@@ -8,5 +8,5 @@ class Enum:
 @compile_guppy
 def main(p: Enum, x: int) -> None:
     match p:
-        case Enum.North("2"):
+        case Enum.North(2.5):
             z = 66
