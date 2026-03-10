@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import ClassVar, TypeAlias
 
 from guppylang_internals.definition.common import DefId
@@ -9,11 +9,12 @@ from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.const import BoundConstVar
+from guppylang_internals.tys.const import BoundConstVar, ExistentialConstVar
 from guppylang_internals.tys.protocol import ProtocolInst
-from guppylang_internals.tys.subst import Inst, PartialInst, Subst
+from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
+    ExistentialTypeVar,
     FunctionType,
     Type,
     unify,
@@ -72,7 +73,14 @@ def _unify_args(
     xs: Sequence[ExistentialVar], ys: Sequence[Argument], subst: Subst | None
 ) -> Subst | None:
     for x, y in zip(xs, ys, strict=True):
-        subst = unify(x, y.ty, subst)
+        ## CR TODO: What are we doing about the protocols here??
+        match x, y:
+            case ExistentialTypeVar(), TypeArg(ty=ty):
+                subst = unify(x, ty, subst)
+            case ExistentialConstVar(), ConstArg(const=const):
+                subst = unify(x, const, subst)
+            case _:
+                raise "bad kinding in unify"
     return subst
 
 
@@ -84,7 +92,7 @@ def _instantiate_self(
     assert isinstance(self_ty, BoundTypeVar)
     [bound] = self_ty.implements
     assert bound.def_id == proto_inst.def_id
-    partial_inst: PartialInst = [None for _ in proto_func.params]
+    partial_inst: list[Argument | None] = [None for _ in proto_func.params]
     # Instantiate all self type occurrences in protocol methods with the type we assume
     # is implementing the protocol.
     for proto_arg, bound_arg in zip(proto_inst.type_args, bound.type_args, strict=True):
@@ -98,13 +106,14 @@ def _instantiate_self(
 
 
 def _substitute_proto_inst_args(proto: ProtocolInst, subst: Subst) -> ProtocolInst:
-    for arg, idx in enumerate(proto.type_args):
+    args = list(proto.type_args)
+    for idx, arg in enumerate(proto.type_args):
         match arg:
             case TypeArg(ty=ty):
-                proto.type_args[idx] = ty.substitute(subst).to_arg()
+                args[idx] = ty.substitute(subst).to_arg()
             case ConstArg(const=const):
-                proto.type_args[idx] = const.substitute(subst).to_arg()
-    return proto
+                args[idx] = const.substitute(subst).to_arg()
+    return replace(proto, type_args=args)
 
 
 def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
@@ -128,11 +137,11 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
         [(_, subst)] = candidates
         return AssumptionImplProof(
             _substitute_proto_inst_args(protocol, subst),
-            ty.substitute(subst),
+            ty,  # Substituting seems bad??
         ), subst
 
     subst = {}
-    member_impls = {}
+    member_impls: dict[str, tuple[DefId, Inst]] = {}
     for name, proto_sig in protocol_def.members.items():
         assert isinstance(proto_sig, FunctionType)
         # Partially instantiate proto_sig with `protocol.type_args` and `ty`.
@@ -141,7 +150,8 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
         if not func:
             raise GuppyError(
                 ProtocolMemberMissing(
-                    impl_name=ty.display_name,
+                    protocol_def.defined_at,  # CR TODO: Could this span be better?
+                    impl_name=str(ty),
                     proto_name=protocol_def.name,
                     member_name=name,
                 )
@@ -156,7 +166,7 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
             raise Exception("Signature Mismatch")
         if any(x not in subst for x in impl_vars):
             raise Exception("Unresolved variables in implementation")
-        member_impls[name] = (func.id, [subst[x] for x in impl_vars])
+        member_impls[name] = (func.id, [subst[x].to_arg() for x in impl_vars])
 
     if any(x not in subst for arg in protocol.type_args for x in arg.unsolved_vars):
         raise Exception("Couldn't figure out variables in protocol")
