@@ -50,8 +50,6 @@ def test_missing_impl_existing_lib():
 
 
 def test_impl_provided():
-    """Asserts that even with a library that provides a function implementation, if the
-    library is not explicitly included the function is still missing."""
 
     @guppy.declare(link_name="super_adder")
     def decl(x: int) -> int: ...
@@ -86,9 +84,32 @@ def test_impl_provided_second_lib():
     assert results == [("result", 10)]
 
 
+def test_unused_func_missing_impl():
+    """Asserts that when a function is declared but not used (and so not included in the
+    Hugr), it does not matter if the library is missing a function implementation."""
+
+    @guppy.declare(link_name="func1")
+    def decl_1(x: int) -> int: ...
+
+    @guppy.declare(link_name="func2")
+    def decl_2(x: int) -> int: ...
+
+    @guppy(link_name="func1")
+    def func(x: int) -> int:
+        return x + 1
+
+    # Missing an implementation for func2
+    lib = guppy.library(func).compile()
+
+    @guppy
+    def main() -> None:
+        result("result", decl_1(5))
+
+    results = main.emulator(n_qubits=1, libs=[lib]).run().results[0].entries
+    assert results == [("result", 6)]
+
+
 def test_duplicate_defn():
-    """Asserts that even with a library that provides a function implementation, if the
-    library is not explicitly included the function is still missing."""
 
     @guppy.declare(link_name="super_adder")
     def decl(x: int) -> int: ...
