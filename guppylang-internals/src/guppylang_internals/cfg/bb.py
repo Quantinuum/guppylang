@@ -13,9 +13,7 @@ from guppylang_internals.nodes import (
     DesugaredGenerator,
     DesugaredGeneratorExpr,
     DesugaredListComp,
-    MatchEnum,
-    MatchLiteral,
-    MatchStruct,
+    MatchPred,
     ModifiedBlock,
     NestedFunctionDef,
 )
@@ -245,14 +243,8 @@ class VariableVisitor(ast.NodeVisitor):
             if x not in assigned_before_in_bb
         }
 
-    # Since there are no variables bound in match patterns for now,
-    # we can just visit the subject to mark the variables used in it.
-    # TODO: NICOLa
-    def visit_MatchEnum(self, node: MatchEnum) -> None:
+    def visit_MatchPred(self, node: MatchPred) -> None:
         self.visit(node.subject)
-
-    def visit_MatchStruct(self, node: MatchStruct) -> None:
-        self.visit(node.subject)
-
-    def visit_MatchLiteral(self, node: MatchLiteral) -> None:
-        self.visit(node.subject)
+        # Since there are no variables bound in match patterns for now,
+        # we can just visit the subject to mark the variables used in it.
+        # TODO: NICOLa

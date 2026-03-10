@@ -52,7 +52,6 @@ from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
     AnyCall,
     BarrierExpr,
-    CheckedMatch,
     CheckedModifiedBlock,
     CheckedNestedFunctionDef,
     DesugaredArrayComp,
@@ -62,9 +61,7 @@ from guppylang_internals.nodes import (
     GlobalCall,
     InoutReturnSentinel,
     LocalCall,
-    MatchEnum,
-    MatchLiteral,
-    MatchStruct,
+    MatchPred,
     PartialApply,
     PlaceNode,
     StateResultExpr,
@@ -718,11 +715,13 @@ class BBLinearityChecker(ast.NodeVisitor):
             if InputFlags.Inout in var.flags:
                 self._reassign_single_inout_arg(var, var.defined_at or use)
 
-    def _check_match_subject(self, subject: ast.expr) -> None:
-        # For now, we just check the subject, the guards is not supported and
-        # the patterns does not contain any places (alias are not supported)
-        subj_ty = get_type(subject)
-        match subject:
+    def visit_MatchPred(self, node: MatchPred) -> None:
+        # Since there are no variables bound in match patterns for now,
+        # we can just visit the subject to mark the variables used in it.
+        # TODO: NICOLa
+
+        subj_ty = get_type(node.subject)
+        match node.subject:
             case PlaceNode() as place_node:
                 # match PlaceNode it is the same as having match(PlaceNode),
                 # where PlaceNode is borrowed.
@@ -735,24 +734,11 @@ class BBLinearityChecker(ast.NodeVisitor):
                 # Otherwise match expr is the same as having match(expr) or match
                 # tmp := expr, thus we need to check if expr does not create a tmp that
                 # would be implicitly dropped
-                self.visit(subject)
+                self.visit(node.subject)
                 if not subj_ty.droppable:
-                    err = UnnamedExprNotUsedError(subject, subj_ty)
+                    err = UnnamedExprNotUsedError(node.subject, subj_ty)
                     err.add_sub_diagnostic(UnnamedExprNotUsedError.Fix(None))
                     raise GuppyTypeError(err)
-
-    # TODO: NICOla
-    # No need to visit the patterns since they cannot contain any places alias are
-    # not supported. We will have to update this to implement linearity checking
-    # for patterns and guards if we allow them
-    def visit_MatchEnum(self, node: MatchEnum) -> None:
-        self._check_match_subject(node.subject)
-
-    def visit_MatchStruct(self, node: MatchStruct) -> None:
-        self._check_match_subject(node.subject)
-
-    def visit_MatchLiteral(self, node: MatchLiteral) -> None:
-        self._check_match_subject(node.subject)
 
 
 def leaf_places(place: Place) -> Iterator[Place]:
@@ -964,7 +950,7 @@ def check_cfg_linearity(
                         assert bb.branch_pred is not None
                         # TODO: NICOLa(F): consider improving
                         if len(bb.successors) == 2 and not isinstance(
-                            bb.branch_pred, CheckedMatch
+                            bb.branch_pred, MatchPred
                         ):
                             [left_succ, _] = bb.successors
                             err.add_sub_diagnostic(

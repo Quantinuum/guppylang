@@ -845,7 +845,7 @@ class CheckedModifiedBlock(ast.With):
         return len(self.power) > 0
 
 
-class UncheckedMatchPred(ast.expr):
+class MatchPred(ast.expr):
     """A Node representing a patteern match on subject against a list of patterns"""
 
     subject: ast.expr
@@ -863,57 +863,56 @@ class UncheckedMatchPred(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class MatchEnum(ast.expr):
+class MatchEnum(ast.pattern):
     """A Node representing a checked pattern match on an enum
     value against a list of patterns"""
 
-    subject: ast.expr
+    enum: ast.Attribute
     patterns: list[ast.pattern]
 
     _fields = ("patterns", "subject")
 
-    def __init__(self, subject: ast.expr) -> None:
+    def __init__(self, subject: ast.expr, patterns: list[ast.pattern]) -> None:
         super().__init__()
         self.subject = subject
+        self.patterns = patterns
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
 
 
-class MatchStruct(ast.expr):
+class MatchStruct(ast.pattern):
     """A Node representing a checked pattern match on a struct value
     against a list of patterns"""
 
-    subject: ast.expr
+    struct: ast.Name
     patterns: list[ast.pattern]
 
     _fields = ("patterns", "subject")
 
-    def __init__(self, subject: ast.expr) -> None:
+    def __init__(self, subject: ast.expr, patterns: list[ast.pattern]) -> None:
         super().__init__()
         self.subject = subject
+        self.patterns = patterns
 
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
 
 
-class MatchLiteral(ast.expr):
+class MatchLiteral(ast.pattern):
     """A Node representing a checked pattern match on a literal value
     against a list of patterns"""
 
-    subject: ast.expr
-    patterns: list[ast.pattern]
+    value: ast.expr
+    equality_function: "DefId"
 
-    _fields = ("patterns", "subject")
+    _fields = ("equality_function", "value")
 
-    def __init__(self, subject: ast.expr) -> None:
+    def __init__(self, value: ast.expr, equality_function: "DefId") -> None:
         super().__init__()
-        self.subject = subject
+        self.value = value
+        self.equality_function = equality_function
 
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
-
-
-# Used with some isinstance checks
-CheckedMatch = MatchEnum | MatchStruct | MatchLiteral

@@ -93,7 +93,7 @@ from guppylang_internals.checker.errors.type_errors import (
 )
 from guppylang_internals.definition.common import Definition, ParsedDef
 from guppylang_internals.definition.parameter import ParamDef
-from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
+from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
@@ -121,6 +121,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     MatchEnum,
     MatchLiteral,
+    MatchPred,
     MatchStruct,
     PartialApply,
     PlaceNode,
@@ -128,7 +129,6 @@ from guppylang_internals.nodes import (
     TensorCall,
     TupleAccessAndDrop,
     TypeApply,
-    UncheckedMatchPred,
 )
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.arg import TypeArg
@@ -694,6 +694,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 "BB contains chained comparison. Should have been removed during CFG "
                 "construction."
             )
+        #    b      Eq()     c
         left_expr, [op], [right_expr] = node.left, node.ops, node.comparators
         return self._synthesize_binary(left_expr, right_expr, op, node)
 
@@ -863,33 +864,23 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
 
-    def visit_UncheckedMatchPred(
-        self, node: UncheckedMatchPred
-    ) -> tuple[ast.expr, Type]:
+    def visit_MatchPred(self, node: MatchPred) -> tuple[ast.expr, Type]:
         # TODO: NICOLa(F): what other types we support here? arrays? Option?
-        subject, subj_ty = self.synthesize(node.subject)
-        checked_node: ast.expr
-        match subj_ty:
-            case StructType():
-                checked_node = with_loc(node, MatchStruct(subject))
-            case EnumType():
-                checked_node = with_loc(node, MatchEnum(subject))
-            case NumericType() | OpaqueType(defn=OpaqueTypeDef(name="bool")):
-                checked_node = with_loc(node, MatchLiteral(subject))
-            case _:
-                raise GuppyError(
-                    UnsupportedError(
-                        node.subject, f"Pattern matching on {subj_ty}", True
-                    )
-                )
+        node.subject, subj_ty = self.synthesize(node.subject)
 
+        if not isinstance(subj_ty, (StructType, EnumType, NumericType)) and not (
+            isinstance(subj_ty, OpaqueType) and subj_ty.defn.name == "bool"
+        ):
+            raise GuppyError(
+                UnsupportedError(node.subject, f"Pattern matching on {subj_ty}", True)
+            )
         checked_patterns = []
         for pattern in node.patterns:
             pattern = PatternChecker(self.ctx).check(pattern, subj_ty)
             checked_patterns.append(pattern)
 
-        checked_node.patterns = checked_patterns
-        return checked_node, bool_type()
+        node.patterns = checked_patterns
+        return node, bool_type()
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> tuple[ast.expr, Type]:
         raise InternalGuppyError(
@@ -959,13 +950,13 @@ class PatternChecker(AstVisitor[ast.pattern]):
 
             raise GuppyTypeError(TypeMismatchError(node, exp_ty, node_ty, "pattern"))
 
-    def _check_pattern_args(
-        self, pattern: ast.MatchClass, exp_arg_tys: list[Type]
-    ) -> ast.MatchClass:
-        check_num_args(len(exp_arg_tys), len(pattern.patterns), pattern)
-        for arg, exp_ty in zip(pattern.patterns, exp_arg_tys, strict=True):
-            arg = self.check(arg, exp_ty)
-        return pattern
+    def _check_patterns_args(
+        self, patterns: list[ast.pattern], exp_arg_tys: list[Type]
+    ) -> list[ast.pattern]:
+        checked_patterns = []
+        for pattern, exp_ty in zip(patterns, exp_arg_tys, strict=True):
+            checked_patterns.append(self.check(pattern, exp_ty))
+        return checked_patterns
 
     def visit_MatchAs(self, node: ast.MatchAs, exp_ty: Type) -> ast.pattern:
         # Only case _ or _ inside another pattern are allowed
@@ -990,7 +981,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
             raise GuppyTypeError(
                 UnsupportedError(
                     node.value,
-                    f"Litterals of type {val_ty}",
+                    f"Literals of type {val_ty}",
                     False,
                     "in pattern matching",
                 )
@@ -1000,7 +991,11 @@ class PatternChecker(AstVisitor[ast.pattern]):
             raise GuppyTypeError(TypeMismatchError(node, exp_ty, val_ty, "pattern"))
         assert subst == {}
 
-        return node
+        # Get the __eq__ function for this type
+        eq_func = self.ctx.globals.get_instance_func(val_ty, "__eq__")
+        assert eq_func is not None, f"Type {val_ty} must have __eq__ method"
+
+        return MatchLiteral(node.value, eq_func.id)
 
     def visit_MatchClass(self, node: ast.MatchClass, exp_ty: Type) -> ast.pattern:
         """MatchClass captures patterns of the form:
@@ -1028,11 +1023,11 @@ class PatternChecker(AstVisitor[ast.pattern]):
                     raise GuppyTypeError(
                         AttributeNotFoundError(attr_span, exp_ty, attr)
                     )
+                exp_arg_tys = [f.ty for f in exp_ty.variant_as_dict[attr].fields]
+                check_num_args(len(exp_arg_tys), len(node.patterns), node)
+                checked_patterns = self._check_patterns_args(node.patterns, exp_arg_tys)
 
-                node = self._check_pattern_args(
-                    node, [f.ty for f in exp_ty.variant_as_dict[attr].fields]
-                )
-
+                return MatchEnum(with_type(exp_ty, node.cls), checked_patterns)
             case ast.Name():
                 from guppylang_internals.definition.struct import ParsedStructDef
 
@@ -1042,17 +1037,17 @@ class PatternChecker(AstVisitor[ast.pattern]):
                     raise GuppyTypeError(
                         ExpectedError(node.cls, "a struct class", "a function call")
                     )
-
                 self._check_def_against_type(node.cls, class_def, exp_ty)
-
                 assert isinstance(exp_ty, StructType)
-                node = self._check_pattern_args(node, [f.ty for f in exp_ty.fields])
+                exp_arg_tys = [f.ty for f in exp_ty.fields]
+                check_num_args(len(exp_arg_tys), len(node.patterns), node)
+                checked_patterns = self._check_patterns_args(node.patterns, exp_arg_tys)
 
+                return MatchStruct(with_type(exp_ty, node.cls), checked_patterns)
             case _:
                 raise GuppyError(
                     ExpectedError(node, "a struct or enum class", "a function call")
                 )
-        return node
 
     def generic_visit(self, node: ast.pattern, exp_ty: Type) -> NoReturn:
         """Called if no explicit visitor function exists for a node."""
