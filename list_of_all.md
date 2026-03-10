@@ -28,12 +28,17 @@ pattern =
 
 # MatchValue - MatchValue(expr value)
     case 42:               # OK (B, C)
+    case True:             # OK (B, C)
+    case "hello":          # NO FOR NOW: we do not have .eq for strings
     case EnumName.Variant: # FORBIDDEN: Match bindings cannot shadow class variants
 
 
 # MatchClass - MatchClass(expr cls, pattern* patterns)
     case Point.Variant(_, _)      # OK (B,C)
     case Point.Variant(3, 4): # OK (B, C)
+    case Struct(1, 2) # OK (B, C)
+    case Struct(True, _) # OK (B, C)
+    case Struct("x", "y") # NO FOR NOW: we do not have .eq for strings
 
 # MatchClass - MatchClass(expr cls, pattern* patterns, identifier* kwd_attrs, pattern* kwd_patterns)
     case EnumName.Point(x, y): # NO FOR NOW

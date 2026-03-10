@@ -874,7 +874,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 checked_node = with_loc(node, MatchStruct(subject))
             case EnumType():
                 checked_node = with_loc(node, MatchEnum(subject))
-            case NumericType() | OpaqueType(defn=OpaqueTypeDef(name="bool" | "str")):
+            case NumericType() | OpaqueType(defn=OpaqueTypeDef(name="bool")):
                 checked_node = with_loc(node, MatchLiteral(subject))
             case _:
                 raise GuppyError(
@@ -977,12 +977,24 @@ class PatternChecker(AstVisitor[ast.pattern]):
     def visit_MatchValue(self, node: ast.MatchValue, exp_ty: Type) -> ast.pattern:
         """MatchValue captures patterns of the form:
         - `case 2`
-        - `case "hello"`
-        - `case EnumName.Variant` (this case raise a GuppyError)"""
+        - `case "hello"` (strings are not supported as we miss __eq__ method)
+        - `case EnumName.Variant` (this case raise a GuppyError)
+            -> use `case EnumName.Variant()` instead"""
         if not isinstance(node.value, ast.Constant):
             raise GuppyError(ExpectedError(node.value, "literal"))
 
         node.value, val_ty = ExprSynthesizer(self.ctx).synthesize(node.value)
+        if not isinstance(val_ty, (NumericType)) and not (
+            isinstance(val_ty, OpaqueType) and val_ty.defn.name == "bool"
+        ):
+            raise GuppyTypeError(
+                UnsupportedError(
+                    node.value,
+                    f"Litterals of type {val_ty}",
+                    False,
+                    "in pattern matching",
+                )
+            )
         subst = unify(val_ty, exp_ty, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, exp_ty, val_ty, "pattern"))

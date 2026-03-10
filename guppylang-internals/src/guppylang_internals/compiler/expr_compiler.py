@@ -49,6 +49,7 @@ from guppylang_internals.nodes import (
     GlobalCall,
     GlobalName,
     LocalCall,
+    MatchLiteral,
     PartialApply,
     PlaceNode,
     StateResultExpr,
@@ -431,7 +432,14 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Tensor element wasn't function or tuple")
 
     def visit_GlobalCall(self, node: GlobalCall) -> Wire:
+        print(node)
+        print("def id: ", node.def_id)
+        print("type args: ", node.type_args)
+        for a in node.args:
+            print("arg: ", a)
+
         func, rem_args = self.ctx.build_compiled_def(node.def_id, node.type_args)
+        print("func: ", func)
         assert isinstance(func, CompiledCallableDef)
 
         if isinstance(func, CustomFunctionDef) and not func.has_signature:
@@ -746,6 +754,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_Compare(self, node: ast.Compare) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")
+
+    def visit_MatchLiteral(self, node: MatchLiteral) -> Wire:
+        raise InternalGuppyError("TODDOOOOO")
 
 
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:
