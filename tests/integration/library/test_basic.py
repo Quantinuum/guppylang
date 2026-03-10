@@ -2,6 +2,7 @@ import pytest
 
 from guppylang import guppy
 from guppylang.defs import GuppyLibrary
+from guppylang.emulator import EmulatorBuilder
 from guppylang.std.platform import result
 from guppylang.std.lang import comptime
 
@@ -126,3 +127,20 @@ def test_duplicate_defn():
         match=r"Source \(Node\([0-9]+\)\) and target \(Node\([0-9]+\)\) both contained FuncDefn with same public name super_adder",  # noqa: E501
     ):
         main.emulator(n_qubits=1, libs=[adder_lib_1, adder_lib_2])
+
+
+def test_pre_compile():
+    @guppy.declare(link_name="super_adder")
+    def decl(x: int) -> int: ...
+
+    adder_lib = gen_adder_library(name="super_adder", value=10).compile()
+
+    @guppy
+    def main() -> None:
+        result("result", decl(5))
+
+    main_pkg = main.compile()
+
+    emulator = EmulatorBuilder().build(main_pkg.link(adder_lib), n_qubits=1)
+    results = emulator.run().results[0].entries
+    assert results == [("result", 15)]
