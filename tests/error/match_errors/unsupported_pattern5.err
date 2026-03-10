@@ -3,7 +3,7 @@ Error: Unsupported (at $FILE:13:24)
 11 | def main(x: Enum) -> None:
 12 |     match x:
 13 |         case Enum.North("fail"):
-   |                         ^^^^^^ Litterals of type str are not supported in in pattern
+   |                         ^^^^^^ Literals of type str are not supported in in pattern
    |                                matching
 
 Guppy compilation failed due to 1 previous error
