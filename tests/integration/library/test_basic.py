@@ -1,0 +1,107 @@
+import pytest
+
+from guppylang import guppy
+from guppylang.defs import GuppyLibrary
+from guppylang.std.platform import result
+from guppylang.std.lang import comptime
+
+
+def gen_adder_library(*, name: str, value: int) -> GuppyLibrary:
+    @guppy(link_name=name)
+    def func(x: int) -> int:
+        return x + comptime(value)
+
+    return guppy.library(func)
+
+
+def test_missing_impl():
+    @guppy.declare(link_name="super_adder")
+    def decl(x: int) -> int: ...
+
+    @guppy
+    def main() -> None:
+        result("result", decl(5))
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"undefined symbol: ___hugr__.super_adder",
+    ):
+        main.emulator(n_qubits=1)
+
+
+def test_missing_impl_existing_lib():
+    """Asserts that even with a library that provides a function implementation, if the
+    library is not explicitly included the function is still missing."""
+
+    @guppy.declare(link_name="super_adder")
+    def decl(x: int) -> int: ...
+
+    _ = gen_adder_library(name="super_adder", value=10).compile()
+
+    @guppy
+    def main() -> None:
+        result("result", decl(5))
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"undefined symbol: ___hugr__.super_adder",
+    ):
+        main.emulator(n_qubits=1)
+
+
+def test_impl_provided():
+    """Asserts that even with a library that provides a function implementation, if the
+    library is not explicitly included the function is still missing."""
+
+    @guppy.declare(link_name="super_adder")
+    def decl(x: int) -> int: ...
+
+    adder_lib = gen_adder_library(name="super_adder", value=10).compile()
+
+    @guppy
+    def main() -> None:
+        result("result", decl(5))
+
+    emulator = main.emulator(n_qubits=1, libs=[adder_lib])
+    results = emulator.run().results[0].entries
+    assert results == [("result", 15)]
+
+
+def test_impl_provided_second_lib():
+    """Asserts that even with a second library that provides a function implementation,
+    only including one library does not result in an error, and the correct
+    implementation is used."""
+
+    @guppy.declare(link_name="super_adder")
+    def decl(x: int) -> int: ...
+
+    adder_lib = gen_adder_library(name="super_adder", value=5).compile()
+    _ = gen_adder_library(name="super_adder", value=20).compile()
+
+    @guppy
+    def main() -> None:
+        result("result", decl(5))
+
+    results = main.emulator(n_qubits=1, libs=[adder_lib]).run().results[0].entries
+    assert results == [("result", 10)]
+
+
+def test_duplicate_defn():
+    """Asserts that even with a library that provides a function implementation, if the
+    library is not explicitly included the function is still missing."""
+
+    @guppy.declare(link_name="super_adder")
+    def decl(x: int) -> int: ...
+
+    adder_lib_1 = gen_adder_library(name="super_adder", value=5).compile()
+    adder_lib_2 = gen_adder_library(name="super_adder", value=20).compile()
+
+    @guppy
+    def main() -> None:
+        result("result", decl(5))
+
+    with pytest.raises(
+        Exception,  # For some reason we cannot import HugrLinkingError here
+        match=r"Source \(Node\([0-9]+\)\) and target \(Node\([0-9]+\)\) both contained FuncDefn with same public name super_adder",  # noqa: E501
+    ):
+        main.emulator(n_qubits=1, libs=[adder_lib_1, adder_lib_2])
