@@ -241,3 +241,34 @@ def test_combined_with_items_nested(validate):
                 foo(q)
 
     validate(bar.compile_function())
+
+
+def test_triple_dagger(validate):
+    """Three daggers: odd count means dagger context is still active."""
+
+    @guppy(dagger=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def bar(q: qubit) -> None:
+        with dagger, dagger, dagger:
+            foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_double_dagger_cancel_nested_power(validate):
+    """Cancelled daggers in outer block don't impose dagger constraint on nested."""
+
+    @guppy(power=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def bar(q: qubit) -> None:
+        with dagger, dagger:
+            with power(2):
+                foo(q)
+
+    validate(bar.compile_function())

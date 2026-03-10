@@ -1,7 +1,7 @@
 """Custom AST nodes used by Guppy"""
 
 import ast
-from collections.abc import Iterator, Mapping
+from collections.abc import Mapping
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -746,16 +746,13 @@ class Modifiers:
     dagger: list[Dagger]
     control: list[Control]
     power: list[Power]
-    _all: list[Modifier]
 
     def __init__(self) -> None:
         self.dagger = []
         self.control = []
         self.power = []
-        self._all = []
 
     def push(self, modifier: Modifier) -> None:
-        self._all.append(modifier)
         if isinstance(modifier, Dagger):
             self.dagger.append(modifier)
         elif isinstance(modifier, Control):
@@ -774,15 +771,9 @@ class Modifiers:
             result |= UnitaryFlags.Power
         return result
 
-    def __iter__(self) -> Iterator[Modifier]:
-        return iter(self._all)
-
 
 class ModifiedBlock(ast.With):
     cfg: "CFG"
-    dagger: list[Dagger]
-    control: list[Control]
-    power: list[Power]
 
     def __init__(
         self, cfg: "CFG", modifiers: "Modifiers", *args: Any, **kwargs: Any
@@ -790,9 +781,18 @@ class ModifiedBlock(ast.With):
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.modifiers = modifiers
-        self.dagger = modifiers.dagger
-        self.control = modifiers.control
-        self.power = modifiers.power
+
+    @property
+    def dagger(self) -> list[Dagger]:
+        return self.modifiers.dagger
+
+    @property
+    def control(self) -> list[Control]:
+        return self.modifiers.control
+
+    @property
+    def power(self) -> list[Power]:
+        return self.modifiers.power
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -827,9 +827,6 @@ class ModifiedBlock(ast.With):
 class CheckedModifiedBlock(ast.With):
     def_id: "DefId"
     cfg: "CheckedCFG[Place]"
-    dagger: list[Dagger]
-    control: list[Control]
-    power: list[Power]
 
     #: The type of the body of With block.
     ty: FunctionType
@@ -852,9 +849,18 @@ class CheckedModifiedBlock(ast.With):
         self.ty = ty
         self.captured = captured
         self.modifiers = modifiers
-        self.dagger = modifiers.dagger
-        self.control = modifiers.control
-        self.power = modifiers.power
+
+    @property
+    def dagger(self) -> list[Dagger]:
+        return self.modifiers.dagger
+
+    @property
+    def control(self) -> list[Control]:
+        return self.modifiers.control
+
+    @property
+    def power(self) -> list[Power]:
+        return self.modifiers.power
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
