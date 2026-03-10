@@ -129,6 +129,28 @@ def test_duplicate_defn():
         main.emulator(n_qubits=1, libs=[adder_lib_1, adder_lib_2])
 
 
+def test_unused_func_duplicate_defn():
+    """Asserts that duplicate definitions for unused functions still cause linkage to
+    fail, since the resulting Hugr is not well-formed."""
+
+    @guppy.declare(link_name="super_adder")
+    def decl(x: int) -> int: ...
+
+    lib_1 = gen_adder_library(name="super_adder", value=5).compile()
+    lib_2 = gen_adder_library(name="super_adder", value=20).compile()
+
+    @guppy
+    def main() -> None:
+        # Never use the decl
+        result("result", 1)
+
+    with pytest.raises(
+        Exception,  # For some reason we cannot import HugrLinkingError here
+        match=r"Source \(Node\([0-9]+\)\) and target \(Node\([0-9]+\)\) both contained FuncDefn with same public name super_adder",  # noqa: E501
+    ):
+        main.emulator(n_qubits=1, libs=[lib_1, lib_2])
+
+
 def test_pre_compile():
     @guppy.declare(link_name="super_adder")
     def decl(x: int) -> int: ...
