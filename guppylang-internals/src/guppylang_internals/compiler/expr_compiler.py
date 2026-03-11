@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
-from typing import Any, Final, TypeGuard, TypeVar
+from typing import Any, Final, TypeGuard, TypeVar, cast
 
 import hugr
 import hugr.std.collections.array
@@ -28,7 +28,7 @@ from guppylang_internals.compiler.core import (
     GlobalConstId,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
-from guppylang_internals.definition.custom import CustomFunctionDef
+from guppylang_internals.definition.custom import BoolOpCompiler, CustomFunctionDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -253,9 +253,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             yield
 
     def visit_Constant(self, node: ast.Constant) -> Wire:
-        if value := python_value_to_hugr(node.value, get_type(node), self.ctx):
-            return self.builder.load(value)
-        raise InternalGuppyError("Unsupported constant expression in compiler")
+        return load_constant_wire(node, self.ctx, self.builder)
 
     def visit_PlaceNode(self, node: PlaceNode) -> Wire:
         if subscript := contains_subscript(node.place):
@@ -755,95 +753,108 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError(
                 "Match predicate with no patterns should not exist"
             )
-            # if (
-            #     len(node.patterns) == 1
-            #     or (
-            #         len(node.patterns) == 2
-            #         and isinstance(node.patterns[1], ast.MatchAs)
-            #         and node.patterns[1].name is None
-            #     )
-            # ):
-            # In this case we can compile directly the single pattern
-            # and return the result (a boolean wire)
-            # return PatternCompiler(self.ctx).compile(node.patterns[0], self.dfg, wire)
 
-        print(len(node.patterns))
-        cond = self._build_conditional_for_pattern(node.patterns, subject_wire)
+        # TODO: Nicola Update when add alias
+        # If the last pattern is a wildcard we have one pattern per successor, otherwise
+        # the else branch does not correspond to any pattern
+        num_branches = (
+            len(node.patterns)
+            if isinstance(node.patterns[-1], ast.MatchAs)
+            else len(node.patterns) + 1
+        )
+        tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
+
+        cond = self._build_conditional_for_pattern(
+            patterns=node.patterns,
+            subj_wire=subject_wire,
+            tag_sum_ty=tag_sum_ty,
+            tag_index=0,
+            builder=self.dfg.builder,
+        )
         return cond
 
     def _build_conditional_for_pattern(
-        self, patterns: list[ast.pattern], wire: Wire, tag_index=0
+        self,
+        patterns: list[ast.pattern],
+        subj_wire: Wire,
+        tag_sum_ty: ht.Sum,
+        tag_index: int,
+        builder: DfBase[ops.DfParentOp],
     ) -> Wire:
         """Helper method to build a nested `Conditional` representing
         the pattern match"""
 
-        # TODO: NICOLA(00) - This return is not good
-        if len(patterns) == 0:
-            return wire
+        # Base case: If there are no more patterns to check, or we found a MatchAs()
+        # we simply add the tag: we are in the else case, no check need,
+        # just tag the succesor
+        if not patterns or isinstance(patterns[0], ast.MatchAs):
+            return builder.add_op(ops.Tag(tag_index, tag_sum_ty))
 
         [pattern, *patterns] = patterns
         # this wire comes from the check if the subject against the pattern
-        is_pattern_wire = PatternCompiler(self.ctx).compile(pattern, self.dfg, wire)
+        is_pattern_wire = PatternCompiler(self.ctx).compile(pattern, builder, subj_wire)
 
-        is_pattern_wire = self.builder.add_op(
-            read_bool(),
-            is_pattern_wire,  # Here happen the tagging
-        )
-        port_type = self.builder.hugr.port_type(is_pattern_wire.out_port())
-        assert port_type == ht.Bool
-        with self.builder.add_conditional(
-            is_pattern_wire,
-        ) as conditional:
-            with conditional.add_case(0) as case:
-                tag = case.add_op(ops.Tag(0, port_type))
-                case.set_outputs(tag)
+        # We add a conditional on the `is_pattern_wire` wire
+        with builder.add_conditional(is_pattern_wire, subj_wire) as cond:
+            with cond.add_case(1) as case_matched:
+                # True case: we matched the pattern, we point to the next block
+                branch_tag = case_matched.add_op(ops.Tag(tag_index, tag_sum_ty))
+                case_matched.set_outputs(branch_tag)
 
-            with conditional.add_case(1) as case:
+            with cond.add_case(0) as case_continue:
+                # False case: we didn't match the pattern, we need to check the next one
+                subj_wire = case_continue.inputs()[0]
                 inner_cond = self._build_conditional_for_pattern(
-                    patterns, wire, tag_index + 1
+                    patterns=patterns,
+                    subj_wire=subj_wire,
+                    tag_sum_ty=tag_sum_ty,
+                    tag_index=tag_index + 1,
+                    builder=cast("DfBase[ops.DfParentOp]", case_continue),
                 )
-                case.set_outputs(inner_cond)
-                # match port_type:
-                #     case ht.Bool:
-                #         with conditional.add_case(i) as case:
-                #             tag = case.add_op(ops.Tag(i, port_type))
-                #             case.set_outputs(tag)
-                #     case ht.Sum():
-                #         pass
-                #     case _:
-                #         assert_never(is_pattern_wire)
-        return conditional.out(0)
+                case_continue.set_outputs(inner_cond)
+
+            return cond
 
 
 class PatternCompiler(CompilerBase, AstVisitor[Wire]):
     """A compiler for patterns to Hugr"""
 
-    dfg: DFContainer
+    builder: DfBase[ops.DfParentOp]
     subj_wire: Wire
 
-    def compile(self, pattern: ast.pattern, dfg: DFContainer, subj_wire: Wire) -> Wire:
-        self.dfg = dfg
+    def compile(
+        self, pattern: ast.pattern, dfg: DfBase[ops.DfParentOp], subj_wire: Wire
+    ) -> Wire:
+        self.builder = dfg
         self.subj_wire = subj_wire
         return self.visit(pattern)
 
     def visit_MatchLiteral(self, node: MatchLiteral) -> Wire:
-        # Get the compiled equality function
-        eq_func, rem_args = self.ctx.build_compiled_def(
+        """If we find a Literal we need to build an equality check between the subject
+        and the value represented by the litteral"""
+
+        # We first get the wire containg the subject
+        value_wire = load_constant_wire(node.constant, self.ctx, self.builder)
+
+        # Then we need to build the hHugr of the equality check:
+        # we get the compiled equality function
+        eq_func, type_args = self.ctx.build_compiled_def(
             node.equality_function, type_args=[]
         )
+        assert isinstance(eq_func, CustomFunctionDef)
+        assert eq_func.has_signature
+        concrete_ty = eq_func.ty.instantiate(type_args)
+        hugr_ty = concrete_ty.to_hugr(self.ctx)
+        # we extract the call_compiler to build the hugr call
+        call_compiler = eq_func.call_compiler
+        assert isinstance(call_compiler, BoolOpCompiler)
+        call_compiler._light_setup(type_args, self.ctx, hugr_ty)
+        rets = call_compiler.compile_with_in([value_wire, self.subj_wire], self.builder)
+        # we get the wires corresponding to the call result:
+        # the equality function returns a boolean indicating if they're equal
+        assert len(rets) == 1
 
-        # Compile the literal value to a wire
-        value_wire = ExprCompiler(self.ctx).compile(node.value, self.dfg)
-
-        assert isinstance(eq_func, CompiledCallableDef)
-
-        # Call the equality function with subject and literal value
-        args = [self.subj_wire, value_wire]
-        rets = eq_func.compile_call(args, rem_args, self.dfg, self.ctx, node)
-
-        # The equality function returns a boolean indicating if they're equal
-        assert len(rets.regular_returns) == 1
-        return rets.regular_returns[0]
+        return rets[0]
 
 
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:
@@ -1013,3 +1024,12 @@ def apply_array_op_with_conversions(
         elem_ty = OpaqueBool
 
     return result_array
+
+
+def load_constant_wire(
+    node: ast.Constant, ctx: CompilerContext, builder: DfBase[ops.DfParentOp]
+) -> Wire:
+    """Load a Constant"""
+    if value := python_value_to_hugr(node.value, get_type(node), ctx):
+        return builder.load(value)
+    raise InternalGuppyError("Unsupported constant expression in compiler")

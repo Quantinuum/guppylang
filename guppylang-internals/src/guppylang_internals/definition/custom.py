@@ -463,7 +463,22 @@ class BoolOpCompiler(CustomInoutCallCompiler):
     ) -> None:
         self.op = op
 
-    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+    def _light_setup(
+        self,
+        type_args: Inst,
+        ctx: CompilerContext,
+        hugr_ty: ht.FunctionType,
+    ) -> None:
+        """A light setup function to be used when we only need to compile_with_in"""
+        self.type_args = type_args
+        self.ctx = ctx
+        self.ty = hugr_ty
+
+    def compile_with_in(
+        self, args: list[Wire], builder: DfBase[ops.DfParentOp]
+    ) -> list[Wire]:
+        """Compile the boolean operation.
+        Using a custom builder is useful for pattern match compilation"""
         converted_in = [ht.Bool if inp == OpaqueBool else inp for inp in self.ty.input]
         converted_out = [
             ht.Bool if out == OpaqueBool else out for out in self.ty.output
@@ -471,13 +486,18 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         hugr_op_ty = ht.FunctionType(converted_in, converted_out)
         op = self.op(hugr_op_ty, self.type_args, self.ctx)
         converted_args = [
-            self.builder.add_op(read_bool(), arg)
-            if self.builder.hugr.port_type(arg.out_port()) == OpaqueBool
+            builder.add_op(read_bool(), arg)
+            if builder.hugr.port_type(arg.out_port()) == OpaqueBool
             else arg
             for arg in args
         ]
-        node = self.builder.add_op(op, *converted_args)
-        result = list(node.outputs())
+        node = builder.add_op(op, *converted_args)
+        return list(node.outputs())
+
+    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+        """A function to compile a boolean operation (such as __eq__, __ge__, ...) that
+        also converts the output back to the opaque bool"""
+        result = self.compile_with_in(args, self.builder)
         converted_result = [
             self.builder.add_op(make_opaque(), res)
             if self.builder.hugr.port_type(res.out_port()) == ht.Bool
@@ -485,7 +505,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
             for res in result
         ]
         return CallReturnWires(
-            regular_returns=converted_result,  # type: ignore[arg-type]
+            regular_returns=converted_result,
             inout_returns=[],
         )
 

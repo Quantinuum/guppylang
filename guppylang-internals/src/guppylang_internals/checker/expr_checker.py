@@ -994,7 +994,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
         # Get the __eq__ function for this type
         eq_func = self.ctx.globals.get_instance_func(val_ty, "__eq__")
         assert eq_func is not None, f"Type {val_ty} must have __eq__ method"
-
+        assert isinstance(node.value, ast.Constant)
         return MatchLiteral(node.value, eq_func.id)
 
     def visit_MatchClass(self, node: ast.MatchClass, exp_ty: Type) -> ast.pattern:

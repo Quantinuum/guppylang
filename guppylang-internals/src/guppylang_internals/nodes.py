@@ -907,14 +907,14 @@ class MatchLiteral(ast.pattern):
     equality_function is the DefId of the equality function to use for comparing the
     literal value with the subject."""
 
-    value: ast.expr
+    constant: ast.Constant
     equality_function: "DefId"
 
     _fields = ("equality_function", "value")
 
-    def __init__(self, value: ast.expr, equality_function: "DefId") -> None:
+    def __init__(self, value: ast.Constant, equality_function: "DefId") -> None:
         super().__init__()
-        self.value = value
+        self.constant = value
         self.equality_function = equality_function
 
     __reduce__ = object.__reduce__
