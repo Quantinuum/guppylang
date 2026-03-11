@@ -761,13 +761,22 @@ class Modifiers:
             assert isinstance(modifier, Power)
             self.power.append(modifier)
 
+    def has_dagger(self) -> bool:
+        return len(self.dagger) % 2 == 1
+
+    def has_control(self) -> bool:
+        return len(self.control) > 0
+
+    def has_power(self) -> bool:
+        return len(self.power) > 0
+
     def flags(self) -> UnitaryFlags:
         result = UnitaryFlags.NoFlags
-        if len(self.dagger) % 2 == 1:
+        if self.has_dagger():
             result |= UnitaryFlags.Dagger
-        if self.control:
+        if self.has_control():
             result |= UnitaryFlags.Control
-        if self.power:
+        if self.has_power():
             result |= UnitaryFlags.Power
         return result
 
@@ -798,14 +807,14 @@ class ModifiedBlock(ast.With):
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
 
-    def is_dagger(self) -> bool:
-        return len(self.dagger) % 2 == 1
+    def has_dagger(self) -> bool:
+        return self.modifiers.has_dagger()
 
-    def is_control(self) -> bool:
-        return len(self.control) > 0
+    def has_control(self) -> bool:
+        return self.modifiers.has_control()
 
-    def is_power(self) -> bool:
-        return len(self.power) > 0
+    def has_power(self) -> bool:
+        return self.modifiers.has_power()
 
     def span_ctxt_manager(self) -> Span:
         return Span(
@@ -815,11 +824,11 @@ class ModifiedBlock(ast.With):
 
     def flags(self) -> UnitaryFlags:
         flags = UnitaryFlags.NoFlags
-        if self.is_dagger():
+        if self.has_dagger():
             flags |= UnitaryFlags.Dagger
-        if self.is_control():
+        if self.has_control():
             flags |= UnitaryFlags.Control
-        if self.is_power():
+        if self.has_power():
             flags |= UnitaryFlags.Power
         return flags
 
@@ -871,10 +880,10 @@ class CheckedModifiedBlock(ast.With):
         return f"__WithBlock__({self.def_id})"
 
     def has_dagger(self) -> bool:
-        return len(self.dagger) % 2 == 1
+        return self.modifiers.has_dagger()
 
     def has_control(self) -> bool:
-        return any(len(c.ctrl) > 0 for c in self.control)
+        return self.modifiers.has_control()
 
     def has_power(self) -> bool:
-        return len(self.power) > 0
+        return self.modifiers.has_power()
