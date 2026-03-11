@@ -45,7 +45,3 @@ class ParsedModifierDef(CheckableDef):
     def check(self, globals: "Globals") -> NoReturn:
         """Modifiers don't need checking, this should not be called."""
         raise InternalGuppyError("ParsedModifierDef.check() should not be called")
-
-    def parse(self, globals: "Globals", sources: "SourceMap") -> NoReturn:
-        """Modifiers are already parsed, this should not be called."""
-        raise InternalGuppyError("ParsedModifierDef.parse() should not be called")
