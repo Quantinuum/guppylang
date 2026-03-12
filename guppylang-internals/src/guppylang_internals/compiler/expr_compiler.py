@@ -762,6 +762,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             if isinstance(node.patterns[-1], ast.MatchAs)
             else len(node.patterns) + 1
         )
+        # TODO: Nicola
+        #  With alias, we need to the type of the alias variable instead of unit
         tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
 
         cond = self._build_conditional_for_pattern(
