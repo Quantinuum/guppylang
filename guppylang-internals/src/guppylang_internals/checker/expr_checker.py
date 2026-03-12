@@ -1302,6 +1302,11 @@ def to_bool(node: ast.expr, node_ty: Type, ctx: Context) -> tuple[ast.expr, Type
         return node, node_ty
     synth = ExprSynthesizer(ctx)
     exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Inout)], bool_type())
+    # TODO: This handles the special case of Measurement types and is fine while we
+    # don't have any other non_copyable types that implement `__bool__`, but we should
+    # handle this differently in the future.
+    if not node_ty.copyable:
+        exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Owned)], bool_type())
     return synth.synthesize_instance_func(node, [], "__bool__", "truthy", exp_sig, True)
 
 

@@ -111,7 +111,7 @@ def test_lazy_measure_conditional(validate, run_int_fn):  # type: ignore[no-unty
     def test() -> int:
         q = qubit()
         x(q)
-        if lazy_measure(q).read():
+        if lazy_measure(q):
             return 1
         return 0
 

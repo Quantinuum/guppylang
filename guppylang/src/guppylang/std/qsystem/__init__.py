@@ -218,6 +218,12 @@ class Measurement:
         """Read the result of the measurement, consuming it."""
         return self._measurement.read().make_opaque()
 
+    @guppy
+    @no_type_check
+    def __bool__(self: "Measurement" @ owned) -> bool:
+        """Allow treating a Measurement as a boolean in conditionals."""
+        return self._measurement.read().make_opaque()
+
 
 # ------------------------------------------------------
 # --------- Internal definitions -----------------------
