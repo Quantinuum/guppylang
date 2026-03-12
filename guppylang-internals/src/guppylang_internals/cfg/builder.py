@@ -40,11 +40,11 @@ from guppylang_internals.nodes import (
     DesugaredListComp,
     IterNext,
     MakeIter,
-    MatchPred,
     ModifiedBlock,
     Modifier,
     NestedFunctionDef,
     Power,
+    UncheckedMatchPred,
 )
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.ty import NoneType, UnitaryFlags
@@ -357,7 +357,7 @@ class CFGBuilder(AstVisitor[BB | None]):
         case_bbs = []
         pattern_nodes: list[ast.pattern] = []
         node.subject, bb = ExprBuilder.build(node.subject, self.cfg, bb)
-        match_pred = with_loc(node, MatchPred(node.subject, pattern_nodes))
+        match_pred = with_loc(node, UncheckedMatchPred(node.subject, pattern_nodes))
         bb.branch_pred = match_pred
         for node_case in node.cases:
             node_case.pattern, bb = PatternBuilder(self.cfg).visit(

@@ -61,13 +61,13 @@ from guppylang_internals.nodes import (
     GlobalCall,
     InoutReturnSentinel,
     LocalCall,
-    MatchPred,
     PartialApply,
     PlaceNode,
     StateResultExpr,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
+    UncheckedMatchPred,
 )
 from guppylang_internals.tys.builtin import get_element_type, is_array_type
 from guppylang_internals.tys.ty import (
@@ -715,7 +715,8 @@ class BBLinearityChecker(ast.NodeVisitor):
             if InputFlags.Inout in var.flags:
                 self._reassign_single_inout_arg(var, var.defined_at or use)
 
-    def visit_MatchPred(self, node: MatchPred) -> None:
+    # TODO: NICOLA(000) FIX THIS TOMORROW
+    def visit_MatchPred(self, node: UncheckedMatchPred) -> None:
         # Since there are no variables bound in match patterns for now,
         # we can just visit the subject to mark the variables used in it.
         # TODO: NICOLa
@@ -950,7 +951,7 @@ def check_cfg_linearity(
                         assert bb.branch_pred is not None
                         # TODO: NICOLa(F): consider improving
                         if len(bb.successors) == 2 and not isinstance(
-                            bb.branch_pred, MatchPred
+                            bb.branch_pred, UncheckedMatchPred
                         ):
                             [left_succ, _] = bb.successors
                             err.add_sub_diagnostic(

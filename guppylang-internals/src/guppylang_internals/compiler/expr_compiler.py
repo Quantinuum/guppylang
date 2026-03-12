@@ -1,4 +1,5 @@
 import ast
+from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from typing import Any, Final, TypeGuard, TypeVar, cast
@@ -49,8 +50,11 @@ from guppylang_internals.nodes import (
     GlobalCall,
     GlobalName,
     LocalCall,
+    MatchEnum,
     MatchLiteral,
-    MatchPred,
+    MatchOverEnum,
+    MatchOverLiteral,
+    MatchOverStruct,
     PartialApply,
     PlaceNode,
     StateResultExpr,
@@ -58,6 +62,7 @@ from guppylang_internals.nodes import (
     TensorCall,
     TupleAccessAndDrop,
     TypeApply,
+    UncheckedMatchPred,
 )
 from guppylang_internals.std._internal.compiler.arithmetic import (
     UnsignedIntVal,
@@ -100,6 +105,7 @@ from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
+    EnumType,
     FuncInput,
     FunctionType,
     InputFlags,
@@ -747,13 +753,63 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
     def visit_Compare(self, node: ast.Compare) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")
 
-    def visit_MatchPred(self, node: MatchPred) -> Wire:
+    def visit_MatchOverEnum(self, node: MatchOverEnum) -> Wire:
         subject_wire = self.visit(node.subject)
         if len(node.patterns) == 0:
             raise InternalGuppyError(
                 "Match predicate with no patterns should not exist"
             )
+        # TODO: Nicola Update when add alias
+        # If the last pattern is a wildcard we have one pattern per successor, otherwise
+        # the else branch does not correspond to any pattern
+        num_branches = (
+            len(node.patterns)
+            if isinstance(node.patterns[-1], ast.MatchAs)
+            else len(node.patterns) + 1
+        )
+        # TODO: Nicola
+        #  With alias, we need to the type of the alias variable instead of unit
+        tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
+        enum_ty = get_type(node.subject)
 
+        # We are matching on an enum, we need a single flat conditional on all
+        # the variants
+        # TODO: See the order of the patterns
+
+        # if an enum variant is not present in any case, it means that it point to
+        # the else branch.
+
+        default_number = len(node.patterns) - 1
+
+        # Map: variant_idx -> position in node.patterns
+        # defaults to default_number (the else branch) for unmatched variants
+        variant_to_pos: defaultdict[int, int] = defaultdict(lambda: default_number)
+        for i, p in enumerate(node.patterns):
+            # if the last pattern is a wildcard, we do not consider it
+            if isinstance(p, MatchEnum):
+                variant_to_pos[p.variant_idx] = i
+
+        with self.dfg.builder.add_conditional(subject_wire) as cond:
+            for var in enum_ty.variants_as_list:
+                with cond.add_case(var.index) as case:
+                    tag = case.add_op(ops.Tag(variant_to_pos[var.index], tag_sum_ty))
+                    case.set_outputs(tag)
+
+            # TODO: Nicola If the match is exhaustive, we have an unreachable else branch,
+            # we should detect it before, at least for simple cases
+            return cond
+
+    def visit_MatchOverStruct(self, node: MatchOverStruct) -> None:
+        raise InternalGuppyError(
+            "Match over struct should have been desugared during type checking."
+        )
+
+    def visit_MatchOverLiteral(self, node: MatchOverLiteral) -> None:
+        subject_wire = self.visit(node.subject)
+        if len(node.patterns) == 0:
+            raise InternalGuppyError(
+                "Match predicate with no patterns should not exist"
+            )
         # TODO: Nicola Update when add alias
         # If the last pattern is a wildcard we have one pattern per successor, otherwise
         # the else branch does not correspond to any pattern
@@ -766,16 +822,28 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         #  With alias, we need to the type of the alias variable instead of unit
         tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
 
-        cond = self._build_conditional_for_pattern(
+        patt_comp = PatternCompiler(self.ctx, self.dfg)
+
+        # We are matching on a literal, we need nesteded conditionals
+        out_wire = patt_comp._build_conditional_for_pattern_under_equivalence(
             patterns=node.patterns,
             subj_wire=subject_wire,
             tag_sum_ty=tag_sum_ty,
             tag_index=0,
             builder=self.dfg.builder,
         )
-        return cond
 
-    def _build_conditional_for_pattern(
+        return out_wire
+
+
+class PatternCompiler(CompilerBase):
+    dfg: DFContainer
+
+    def __init__(self, ctx: CompilerContext, dfg: DFContainer) -> None:
+        super().__init__(ctx)
+        self.dfg = dfg
+
+    def _build_conditional_for_pattern_under_equivalence(
         self,
         patterns: list[ast.pattern],
         subj_wire: Wire,
@@ -794,7 +862,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         [pattern, *patterns] = patterns
         # this wire comes from the check if the subject against the pattern
-        is_pattern_wire = PatternCompiler(self.ctx).compile(pattern, builder, subj_wire)
+        is_pattern_wire = PatternVisitor(self.ctx).compile(
+            pattern, builder, self.dfg, subj_wire
+        )
 
         # We add a conditional on the `is_pattern_wire` wire
         with builder.add_conditional(is_pattern_wire, subj_wire) as cond:
@@ -806,7 +876,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             with cond.add_case(0) as case_continue:
                 # False case: we didn't match the pattern, we need to check the next one
                 subj_wire = case_continue.inputs()[0]
-                inner_cond = self._build_conditional_for_pattern(
+                inner_cond = self._build_conditional_for_pattern_under_equivalence(
                     patterns=patterns,
                     subj_wire=subj_wire,
                     tag_sum_ty=tag_sum_ty,
@@ -818,16 +888,22 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             return cond
 
 
-class PatternCompiler(CompilerBase, AstVisitor[Wire]):
+class PatternVisitor(CompilerBase, AstVisitor[Wire]):
     """A compiler for patterns to Hugr"""
 
+    dfg: DFContainer
     builder: DfBase[ops.DfParentOp]
     subj_wire: Wire
 
     def compile(
-        self, pattern: ast.pattern, dfg: DfBase[ops.DfParentOp], subj_wire: Wire
+        self,
+        pattern: ast.pattern,
+        builder: DfBase[ops.DfParentOp],
+        dfg: DFContainer,
+        subj_wire: Wire,
     ) -> Wire:
-        self.builder = dfg
+        self.builder = builder
+        self.dfg = dfg
         self.subj_wire = subj_wire
         return self.visit(pattern)
 
@@ -857,6 +933,9 @@ class PatternCompiler(CompilerBase, AstVisitor[Wire]):
         assert len(rets) == 1
 
         return rets[0]
+
+    def visit_MatchEnum(self, node: MatchEnum) -> Wire:
+        return self.subj_wire
 
 
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:

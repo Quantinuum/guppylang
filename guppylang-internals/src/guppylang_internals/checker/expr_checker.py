@@ -121,7 +121,9 @@ from guppylang_internals.nodes import (
     MakeIter,
     MatchEnum,
     MatchLiteral,
-    MatchPred,
+    MatchOverEnum,
+    MatchOverLiteral,
+    MatchOverStruct,
     MatchStruct,
     PartialApply,
     PlaceNode,
@@ -129,6 +131,7 @@ from guppylang_internals.nodes import (
     TensorCall,
     TupleAccessAndDrop,
     TypeApply,
+    UncheckedMatchPred,
 )
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.arg import TypeArg
@@ -203,6 +206,8 @@ binary_table: dict[type[AstOp], tuple[str, str, str]] = {
     ast.Gt:       ("__gt__",       "__lt__",        ">"),
     ast.GtE:      ("__ge__",       "__le__",        ">="),
 }  # fmt: skip
+
+CheckedPatterns = list[MatchEnum | MatchStruct | MatchLiteral]
 
 
 class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
@@ -864,7 +869,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
 
-    def visit_MatchPred(self, node: MatchPred) -> tuple[ast.expr, Type]:
+    def visit_UncheckedMatchPred(
+        self, node: UncheckedMatchPred
+    ) -> tuple[ast.expr, Type]:
         # TODO: NICOLa(F): what other types we support here? arrays? Option?
         node.subject, subj_ty = self.synthesize(node.subject)
 
@@ -874,13 +881,29 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(
                 UnsupportedError(node.subject, f"Pattern matching on {subj_ty}", True)
             )
+
+        # TODO: Nicola after the PR refactor
+        new_node: ast.expr
+        if isinstance(subj_ty, EnumType):
+            new_node = with_loc(node, MatchOverEnum(node.subject, subj_ty))
+        elif isinstance(subj_ty, StructType):
+            new_node = with_loc(node, MatchOverStruct(node.subject, subj_ty))
+        elif isinstance(subj_ty, NumericType) or (
+            isinstance(subj_ty, OpaqueType) and subj_ty.defn.name == "bool"
+        ):
+            new_node = with_loc(node, MatchOverLiteral(node.subject, subj_ty))
+        else:
+            raise InternalGuppyError(
+                f"Unsupported subject type for pattern matching: {subj_ty}"
+            )
+
         checked_patterns = []
         for pattern in node.patterns:
             pattern = PatternChecker(self.ctx).check(pattern, subj_ty)
             checked_patterns.append(pattern)
 
-        node.patterns = checked_patterns
-        return node, bool_type()
+        new_node.patterns = checked_patterns
+        return new_node, bool_type()
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> tuple[ast.expr, Type]:
         raise InternalGuppyError(
@@ -1027,7 +1050,11 @@ class PatternChecker(AstVisitor[ast.pattern]):
                 check_num_args(len(exp_arg_tys), len(node.patterns), node)
                 checked_patterns = self._check_patterns_args(node.patterns, exp_arg_tys)
 
-                return MatchEnum(with_type(exp_ty, node.cls), checked_patterns)
+                return MatchEnum(
+                    with_type(exp_ty, node.cls),
+                    checked_patterns,
+                    exp_ty.variant_as_dict[attr].index,
+                )
             case ast.Name():
                 from guppylang_internals.definition.struct import ParsedStructDef
 

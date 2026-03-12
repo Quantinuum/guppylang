@@ -845,8 +845,9 @@ class CheckedModifiedBlock(ast.With):
         return len(self.power) > 0
 
 
-class MatchPred(ast.expr):
-    """A Node representing a patteern match on subject against a list of patterns"""
+class UncheckedMatchPred(ast.expr):
+    """A Node representing a patteern match on subject against a list of patterns
+    before checking"""
 
     subject: ast.expr
     patterns: list[ast.pattern]
@@ -868,14 +869,37 @@ class MatchEnum(ast.pattern):
     value against a list of patterns"""
 
     enum: ast.Attribute
+    variant_idx: int
     patterns: list[ast.pattern]
 
     _fields = ("patterns", "subject")
 
-    def __init__(self, subject: ast.expr, patterns: list[ast.pattern]) -> None:
+    def __init__(
+        self, subject: ast.expr, patterns: list[ast.pattern], variant_idx: int
+    ) -> None:
         super().__init__()
         self.subject = subject
         self.patterns = patterns
+        self.variant_idx = variant_idx
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
+class MatchOverEnum(ast.expr):
+    """A Node representing a pattern match on subject against an enum pattern"""
+
+    subject: ast.expr
+    type: Type
+    patterns: list[ast.pattern]
+
+    _fields = ("subject", "type", "patterns")
+
+    def __init__(self, subject: ast.expr, type: Type) -> None:
+        super().__init__()
+        self.subject = subject
+        self.type = type
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -900,6 +924,25 @@ class MatchStruct(ast.pattern):
     __reduce_ex__ = object.__reduce_ex__
 
 
+class MatchOverStruct(ast.expr):
+    """A Node representing a pattern match on subject against a struct pattern"""
+
+    subject: ast.expr
+    type: Type
+    patterns: list[ast.pattern]
+
+    _fields = ("subject", "type", "patterns")
+
+    def __init__(self, subject: ast.expr, type: Type) -> None:
+        super().__init__()
+        self.subject = subject
+        self.type = type
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
 class MatchLiteral(ast.pattern):
     """A Node representing a checked pattern match on a literal value
     against a list of patterns
@@ -919,3 +962,25 @@ class MatchLiteral(ast.pattern):
 
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
+
+
+class MatchOverLiteral(ast.expr):
+    """A Node representing a pattern match on subject against a literal pattern"""
+
+    subject: ast.expr
+    type: Type
+    patterns: list[ast.pattern]
+
+    _fields = ("subject", "type", "patterns")
+
+    def __init__(self, subject: ast.expr, type: Type) -> None:
+        super().__init__()
+        self.subject = subject
+        self.type = type
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
+CheckedMatchPred = MatchOverEnum | MatchOverStruct | MatchOverLiteral
