@@ -765,7 +765,7 @@ class Modifiers:
         return len(self.dagger) % 2 == 1
 
     def has_control(self) -> bool:
-        return len(self.control) > 0
+        return any(len(c.ctrl) > 0 for c in self.control)
 
     def has_power(self) -> bool:
         return len(self.power) > 0
