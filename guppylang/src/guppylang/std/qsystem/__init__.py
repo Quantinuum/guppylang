@@ -3,9 +3,8 @@
 from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, hugr_op
-from guppylang_internals.definition.custom import BoolOpCompiler
+from guppylang_internals.std._internal.compiler.qsystem import Bool
 from guppylang_internals.std._internal.compiler.quantum import (
-    InoutMeasureCompiler,
     InoutMeasureResetCompiler,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import QSYSTEM_EXTENSION
@@ -190,6 +189,34 @@ class MaybeLeaked:
     @no_type_check
     def discard(self: "MaybeLeaked @ owned") -> None:
         self._measurement.discard()
+
+
+@hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_EXTENSION))
+@no_type_check
+def _lazy_measure(q: qubit @ owned) -> Future[Bool]:
+    """Measure a qubit destructively, returning a future for the result."""
+
+
+@guppy
+@no_type_check
+def lazy_measure(q: qubit @ owned) -> "Measurement":
+    """Measure a qubit destructively, returning a Measurement for the result."""
+    return Measurement(_lazy_measure(q))
+
+
+@guppy.struct
+@no_type_check
+class Measurement:
+    """Represents the result of a lazy measurement, which may not be available until
+    later in the program."""
+
+    _measurement: Future[Bool]  # type: ignore[type-arg]
+
+    @guppy
+    @no_type_check
+    def read(self: "Measurement" @ owned) -> bool:
+        """Read the result of the measurement, consuming it."""
+        return self._measurement.read().make_opaque()
 
 
 # ------------------------------------------------------

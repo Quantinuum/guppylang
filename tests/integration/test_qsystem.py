@@ -3,9 +3,9 @@ from guppylang.std.angles import angle
 from guppylang.std.builtins import owned, array
 from guppylang.std.qsystem.random import make_discrete_distribution, RNG
 
-from guppylang.std.qsystem import MaybeLeaked, measure_leaked
+from guppylang.std.qsystem import MaybeLeaked, lazy_measure, measure_leaked
 from guppylang.std.qsystem.utils import get_current_shot
-from guppylang.std.quantum import qubit, measure_array
+from guppylang.std.quantum import qubit, measure_array, x
 from guppylang.std.qsystem.functional import (
     phased_x,
     zz_phase,
@@ -91,3 +91,29 @@ def test_measure_leaked(validate):  # type: ignore[no-untyped-def]
         return b
 
     validate(test.compile_function())
+
+
+def test_lazy_measure(validate):  # type: ignore[no-untyped-def]
+    """Validate the behaviour of a measurement function returning a future."""
+
+    @guppy
+    def test(q: qubit @ owned) -> bool:
+        f = lazy_measure(q)
+        return f.read()
+
+    validate(test.compile_function())
+
+
+def test_lazy_measure_conditional(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    """Validate the behaviour of a measurement function returning a future."""
+
+    @guppy
+    def test() -> int:
+        q = qubit()
+        x(q)
+        if lazy_measure(q).read():
+            return 1
+        return 0
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=1)
