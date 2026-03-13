@@ -52,6 +52,7 @@ from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
     AnyCall,
     BarrierExpr,
+    CheckedMatchPred,
     CheckedModifiedBlock,
     CheckedNestedFunctionDef,
     DesugaredArrayComp,
@@ -741,9 +742,6 @@ class BBLinearityChecker(ast.NodeVisitor):
                     err.add_sub_diagnostic(UnnamedExprNotUsedError.Fix(None))
                     raise GuppyTypeError(err)
 
-    def visit_UncheckedMatchPred(self, node: UncheckedMatchPred) -> None:
-        self._visit_match_pred(node, node.subject)
-
     def visit_MatchOverEnum(self, node: MatchOverEnum) -> None:
         self._visit_match_pred(node, node.subject)
 
@@ -752,8 +750,6 @@ class BBLinearityChecker(ast.NodeVisitor):
 
     def visit_MatchOverLiteral(self, node: MatchOverLiteral) -> None:
         self._visit_match_pred(node, node.subject)
-        
-        
 
 
 def leaf_places(place: Place) -> Iterator[Place]:
@@ -965,7 +961,7 @@ def check_cfg_linearity(
                         assert bb.branch_pred is not None
                         # TODO: NICOLa(F): consider improving
                         if len(bb.successors) == 2 and not isinstance(
-                            bb.branch_pred, UncheckedMatchPred
+                            bb.branch_pred, CheckedMatchPred
                         ):
                             [left_succ, _] = bb.successors
                             err.add_sub_diagnostic(

@@ -76,7 +76,6 @@ from guppylang_internals.checker.errors.type_errors import (
     AttributeNotFoundError,
     BadProtocolError,
     BinaryOperatorNotDefinedError,
-    ClassNotDefinedError,
     ConstMismatchError,
     IllegalConstant,
     IntOverflowError,
@@ -948,8 +947,10 @@ class PatternChecker(AstVisitor[ast.pattern]):
                 ExpectedError(node, f"a {class_type} class", got="a local variable")
             )
         if node.id not in self.ctx.globals:
-            raise GuppyTypeError(ClassNotDefinedError(node, node.id))
-
+            raise InternalGuppyError(
+                "Undefined global variable should have been caught by program analysis:"
+                f" `{node.id}`"
+            )
         return self.ctx.globals[node.id]
 
     def _check_def_against_type(
