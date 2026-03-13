@@ -62,7 +62,6 @@ from guppylang_internals.nodes import (
     TensorCall,
     TupleAccessAndDrop,
     TypeApply,
-    UncheckedMatchPred,
 )
 from guppylang_internals.std._internal.compiler.arithmetic import (
     UnsignedIntVal,
@@ -105,7 +104,6 @@ from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
-    EnumType,
     FuncInput,
     FunctionType,
     InputFlags,

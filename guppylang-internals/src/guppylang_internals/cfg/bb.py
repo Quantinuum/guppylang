@@ -18,7 +18,6 @@ from guppylang_internals.nodes import (
     MatchOverStruct,
     ModifiedBlock,
     NestedFunctionDef,
-    UncheckedMatchPred,
 )
 
 if TYPE_CHECKING:

@@ -61,6 +61,9 @@ from guppylang_internals.nodes import (
     GlobalCall,
     InoutReturnSentinel,
     LocalCall,
+    MatchOverEnum,
+    MatchOverLiteral,
+    MatchOverStruct,
     PartialApply,
     PlaceNode,
     StateResultExpr,
@@ -715,14 +718,11 @@ class BBLinearityChecker(ast.NodeVisitor):
             if InputFlags.Inout in var.flags:
                 self._reassign_single_inout_arg(var, var.defined_at or use)
 
-    # TODO: NICOLA(000) FIX THIS TOMORROW
-    def visit_MatchPred(self, node: UncheckedMatchPred) -> None:
+    def _visit_match_pred(self, node: ast.expr, subject: ast.expr) -> None:
         # Since there are no variables bound in match patterns for now,
         # we can just visit the subject to mark the variables used in it.
-        # TODO: NICOLa
-
-        subj_ty = get_type(node.subject)
-        match node.subject:
+        subj_ty = get_type(subject)
+        match subject:
             case PlaceNode() as place_node:
                 # match PlaceNode it is the same as having match(PlaceNode),
                 # where PlaceNode is borrowed.
@@ -735,11 +735,25 @@ class BBLinearityChecker(ast.NodeVisitor):
                 # Otherwise match expr is the same as having match(expr) or match
                 # tmp := expr, thus we need to check if expr does not create a tmp that
                 # would be implicitly dropped
-                self.visit(node.subject)
+                self.visit(subject)
                 if not subj_ty.droppable:
-                    err = UnnamedExprNotUsedError(node.subject, subj_ty)
+                    err = UnnamedExprNotUsedError(subject, subj_ty)
                     err.add_sub_diagnostic(UnnamedExprNotUsedError.Fix(None))
                     raise GuppyTypeError(err)
+
+    def visit_UncheckedMatchPred(self, node: UncheckedMatchPred) -> None:
+        self._visit_match_pred(node, node.subject)
+
+    def visit_MatchOverEnum(self, node: MatchOverEnum) -> None:
+        self._visit_match_pred(node, node.subject)
+
+    def visit_MatchOverStruct(self, node: MatchOverStruct) -> None:
+        self._visit_match_pred(node, node.subject)
+
+    def visit_MatchOverLiteral(self, node: MatchOverLiteral) -> None:
+        self._visit_match_pred(node, node.subject)
+        
+        
 
 
 def leaf_places(place: Place) -> Iterator[Place]:

@@ -23,7 +23,7 @@ from guppylang_internals.compiler.core import (
 )
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.compiler.stmt_compiler import StmtCompiler
-from guppylang_internals.nodes import UncheckedMatchPred
+from guppylang_internals.nodes import CheckedMatchPred
 from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, read_bool
 from guppylang_internals.tys.ty import type_to_row
 
@@ -105,7 +105,7 @@ def compile_bb(
     dfg = StmtCompiler(ctx).compile_stmts(bb.statements, dfg)
 
     # If we branch, we also have to compile the branch predicate
-    if len(bb.successors) == 2 and not isinstance(bb.branch_pred, UncheckedMatchPred):
+    if len(bb.successors) == 2 and not isinstance(bb.branch_pred, CheckedMatchPred):
         # we are branching under an if then else,
         # or under a match statement with 1 case + else
         assert bb.branch_pred is not None
@@ -121,9 +121,8 @@ def compile_bb(
             branch_port = cast("Wire", branch_port)
         else:
             assert pred_ty == ht.Bool, f"Unexpected predicate type: {pred_ty}"
-    elif isinstance(bb.branch_pred, UncheckedMatchPred):
+    elif isinstance(bb.branch_pred, CheckedMatchPred):
         # we are branching under a match statement
-        assert isinstance(bb.branch_pred, UncheckedMatchPred)
         branch_port = ExprCompiler(ctx).compile(bb.branch_pred, dfg)
     else:
         # Even if we don't branch, we still have to add a `Sum(())` predicates
