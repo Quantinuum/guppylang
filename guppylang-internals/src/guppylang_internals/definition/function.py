@@ -56,9 +56,19 @@ from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.declaration import RawFunctionDecl
     from guppylang_internals.tys.param import Parameter
 
 PyFunc = Callable[..., Any]
+
+
+def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
+    if (parent_ty_id := DEF_STORE.impl_parents.get(raw_def.id)) is not None:
+        parent = ENGINE.get_parsed(parent_ty_id)
+        if isinstance(parent, ParsedStructDef):
+            return f"{parent.link_name_prefix}.{raw_def.python_func.__name__}"
+
+    return f"{raw_def.python_func.__module__}.{raw_def.python_func.__qualname__}"
 
 
 @dataclass(frozen=True)
@@ -93,14 +103,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
-
-        link_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
-        if self._user_set_link_name is not None:
-            link_name = self._user_set_link_name
-        elif (parent_ty_id := DEF_STORE.impl_parents.get(self.id)) is not None:
-            parent = ENGINE.get_parsed(parent_ty_id)
-            if isinstance(parent, ParsedStructDef):
-                link_name = f"{parent.link_name_prefix}.{self.python_func.__name__}"
+        link_name = self._user_set_link_name or default_func_link_name(self)
 
         return ParsedFunctionDef(
             self.id,
