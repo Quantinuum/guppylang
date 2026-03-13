@@ -874,7 +874,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         # TODO: NICOLa(F): what other types we support here? arrays? Option?
         node.subject, subj_ty = self.synthesize(node.subject)
 
-        if not isinstance(subj_ty, (StructType, EnumType, NumericType)) and not (
+        if not isinstance(subj_ty, StructType | EnumType | NumericType) and not (
             isinstance(subj_ty, OpaqueType) and subj_ty.defn.name == "bool"
         ):
             raise GuppyError(
@@ -959,7 +959,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
         """Checks that the given definition corresponds to the given type,
         by comparing the IDs"""
         if not (
-            isinstance(exp_ty, (StructType, EnumType)) and defn.id == exp_ty.defn.id
+            isinstance(exp_ty, StructType | EnumType) and defn.id == exp_ty.defn.id
         ):
             from guppylang_internals.definition.enum import ParsedEnumDef
             from guppylang_internals.definition.struct import ParsedStructDef

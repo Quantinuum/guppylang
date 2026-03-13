@@ -71,7 +71,6 @@ from guppylang_internals.nodes import (
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
-    UncheckedMatchPred,
 )
 from guppylang_internals.tys.builtin import get_element_type, is_array_type
 from guppylang_internals.tys.ty import (
