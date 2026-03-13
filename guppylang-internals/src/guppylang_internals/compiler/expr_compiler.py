@@ -42,6 +42,7 @@ from guppylang_internals.nodes import (
     AbortExpr,
     AbortKind,
     BarrierExpr,
+    CheckedMatchPred,
     DesugaredArrayComp,
     DesugaredGenerator,
     DesugaredListComp,
@@ -446,10 +447,15 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         else:
             func_ty = func.ty.instantiate(rem_args)
 
+        print("Visiting ", func.name)
         args = self._compile_call_args(node.args, func_ty)
         rets = func.compile_call(args, rem_args, self.dfg, self.ctx, node)
+        print(rets)
         self._update_inout_ports(node.args, iter(rets.inout_returns), func_ty)
-        return self._pack_returns(rets.regular_returns, func_ty.output)
+        a = self._pack_returns(rets.regular_returns, func_ty.output)
+        print(a, self.builder.hugr.port_type(a.out_port()))
+        print("...")
+        return a
 
     def _compile_call_args(
         self, args: list[ast.expr], func_ty: FunctionType
@@ -751,7 +757,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
     def visit_Compare(self, node: ast.Compare) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")
 
-    def visit_MatchOverEnum(self, node: MatchOverEnum) -> Wire:
+    def pre_process_match(self, node: CheckedMatchPred) -> tuple[Wire, ht.Sum]:
         subject_wire = self.visit(node.subject)
         if len(node.patterns) == 0:
             raise InternalGuppyError(
@@ -768,7 +774,12 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # TODO: Nicola
         #  With alias, we need to the type of the alias variable instead of unit
         tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
-        enum_ty = get_type(node.subject)
+
+        return subject_wire, tag_sum_ty
+
+    def visit_MatchOverEnum(self, node: MatchOverEnum) -> Wire:
+        subject_wire, tag_sum_ty = self.pre_process_match(node)
+        enum_ty = node.type
 
         # We are matching on an enum, we need a single flat conditional on all
         # the variants
@@ -797,29 +808,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             # branch we should detect it before, at least for simple cases
             return cond
 
-    def visit_MatchOverStruct(self, node: MatchOverStruct) -> None:
-        raise InternalGuppyError(
-            "Match over struct should have been desugared during type checking."
-        )
-
-    def visit_MatchOverLiteral(self, node: MatchOverLiteral) -> None:
-        subject_wire = self.visit(node.subject)
-        if len(node.patterns) == 0:
-            raise InternalGuppyError(
-                "Match predicate with no patterns should not exist"
-            )
-        # TODO: Nicola Update when add alias
-        # If the last pattern is a wildcard we have one pattern per successor, otherwise
-        # the else branch does not correspond to any pattern
-        num_branches = (
-            len(node.patterns)
-            if isinstance(node.patterns[-1], ast.MatchAs)
-            else len(node.patterns) + 1
-        )
-        # TODO: Nicola
-        #  With alias, we need to the type of the alias variable instead of unit
-        tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
-
+    def visit_MatchOverLiteral(self, node: MatchOverLiteral) -> Wire:
+        subject_wire, tag_sum_ty = self.pre_process_match(node)
         patt_comp = PatternCompiler(self.ctx, self.dfg)
 
         # We are matching on a literal, we need nesteded conditionals
@@ -832,6 +822,19 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         )
 
         return out_wire
+
+    def visit_MatchOverStruct(self, node: MatchOverStruct) -> None:
+        subject_wire, tag_sum_ty = self.pre_process_match(node)
+        struct_type = node.type
+        print(self.dfg.builder.hugr.port_type(subject_wire.out_port()))
+        print(type(subject_wire))
+
+        # TODO: you may have to unpack
+        # see _unpack_tuple
+
+        raise InternalGuppyError(
+            "Match over struct should have been desugared during type checking."
+        )
 
 
 class PatternCompiler(CompilerBase):
@@ -854,7 +857,7 @@ class PatternCompiler(CompilerBase):
 
         # Base case: If there are no more patterns to check, or we found a MatchAs()
         # we simply add the tag: we are in the else case, no check need,
-        # just tag the succesor
+        # just tag the successor
         if not patterns or isinstance(patterns[0], ast.MatchAs):
             return builder.add_op(ops.Tag(tag_index, tag_sum_ty))
 
@@ -907,9 +910,9 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
 
     def visit_MatchLiteral(self, node: MatchLiteral) -> Wire:
         """If we find a Literal we need to build an equality check between the subject
-        and the value represented by the litteral"""
+        and the value represented by the literal"""
 
-        # We first get the wire containg the subject
+        # We first get the wire containing the subject
         value_wire = load_constant_wire(node.constant, self.ctx, self.builder)
 
         # Then we need to build the hHugr of the equality check:

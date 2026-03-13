@@ -10,6 +10,7 @@ from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.const import Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
+    EnumType,
     FunctionType,
     StructType,
     TupleType,
@@ -891,12 +892,12 @@ class MatchOverEnum(ast.expr):
     """A Node representing a pattern match on subject against an enum pattern"""
 
     subject: ast.expr
-    type: Type
+    type: EnumType
     patterns: list[ast.pattern]
 
     _fields = ("subject", "type", "patterns")
 
-    def __init__(self, subject: ast.expr, type: Type) -> None:
+    def __init__(self, subject: ast.expr, type: EnumType) -> None:
         super().__init__()
         self.subject = subject
         self.type = type
@@ -928,7 +929,7 @@ class MatchOverStruct(ast.expr):
     """A Node representing a pattern match on subject against a struct pattern"""
 
     subject: ast.expr
-    type: Type
+    type: StructType
     patterns: list[ast.pattern]
 
     _fields = ("subject", "type", "patterns")
