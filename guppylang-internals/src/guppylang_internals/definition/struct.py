@@ -3,7 +3,7 @@ import inspect
 import linecache
 import sys
 from collections.abc import Sequence
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from types import FrameType
 from typing import ClassVar
 
@@ -23,6 +23,7 @@ from guppylang_internals.definition.common import (
     DefId,
     ParsableDef,
     UnknownSourceError,
+    UserProvidedLinkName,
 )
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -110,17 +111,11 @@ class NonGuppyMethodError(Error):
 
 
 @dataclass(frozen=True)
-class RawStructDef(TypeDef, ParsableDef):
+class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw struct type definition that has not been parsed yet."""
 
     python_class: type
     params: None = field(default=None, init=False)  # Params not known yet
-
-    link_name: InitVar[str | None] = field(default=None, kw_only=True)
-    _user_set_link_name: str | None = field(default=None, init=False)
-
-    def __post_init__(self, link_name: str | None) -> None:
-        object.__setattr__(self, "_user_set_link_name", link_name)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedStructDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
