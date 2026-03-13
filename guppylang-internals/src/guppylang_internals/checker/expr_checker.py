@@ -1051,10 +1051,13 @@ class PatternChecker(AstVisitor[ast.pattern]):
                 check_num_args(len(exp_arg_tys), len(node.patterns), node)
                 checked_patterns = self._check_patterns_args(node.patterns, exp_arg_tys)
 
-                return MatchEnum(
-                    with_type(exp_ty, node.cls),
-                    checked_patterns,
-                    exp_ty.variant_as_dict[attr].index,
+                return with_loc(
+                    node,
+                    MatchEnum(
+                        with_type(exp_ty, node.cls),
+                        checked_patterns,
+                        exp_ty.variant_as_dict[attr].index,
+                    ),
                 )
             case ast.Name():
                 from guppylang_internals.definition.struct import ParsedStructDef
@@ -1070,8 +1073,15 @@ class PatternChecker(AstVisitor[ast.pattern]):
                 exp_arg_tys = [f.ty for f in exp_ty.fields]
                 check_num_args(len(exp_arg_tys), len(node.patterns), node)
                 checked_patterns = self._check_patterns_args(node.patterns, exp_arg_tys)
+                and_func = self.ctx.globals.get_instance_func(bool_type(), "__and__")
+                assert and_func is not None, "bool type should have __and__ method"
 
-                return MatchStruct(with_type(exp_ty, node.cls), checked_patterns)
+                return with_loc(
+                    node,
+                    MatchStruct(
+                        with_type(exp_ty, node.cls), checked_patterns, and_func.id
+                    ),
+                )
             case _:
                 raise GuppyError(
                     ExpectedError(node, "a struct or enum class", "a function call")

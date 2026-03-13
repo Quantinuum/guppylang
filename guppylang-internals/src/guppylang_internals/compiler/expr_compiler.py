@@ -29,7 +29,11 @@ from guppylang_internals.compiler.core import (
     GlobalConstId,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
-from guppylang_internals.definition.custom import BoolOpCompiler, CustomFunctionDef
+from guppylang_internals.definition.custom import (
+    BoolOpCompiler,
+    CustomFunctionDef,
+    OpCompiler,
+)
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -56,6 +60,7 @@ from guppylang_internals.nodes import (
     MatchOverEnum,
     MatchOverLiteral,
     MatchOverStruct,
+    MatchStruct,
     PartialApply,
     PlaceNode,
     StateResultExpr,
@@ -111,6 +116,7 @@ from guppylang_internals.tys.ty import (
     NoneType,
     NumericType,
     OpaqueType,
+    StructType,
     TupleType,
     Type,
     type_to_row,
@@ -447,14 +453,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         else:
             func_ty = func.ty.instantiate(rem_args)
 
-        print("Visiting ", func.name)
         args = self._compile_call_args(node.args, func_ty)
         rets = func.compile_call(args, rem_args, self.dfg, self.ctx, node)
-        print(rets)
         self._update_inout_ports(node.args, iter(rets.inout_returns), func_ty)
         a = self._pack_returns(rets.regular_returns, func_ty.output)
-        print(a, self.builder.hugr.port_type(a.out_port()))
-        print("...")
         return a
 
     def _compile_call_args(
@@ -779,7 +781,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_MatchOverEnum(self, node: MatchOverEnum) -> Wire:
         subject_wire, tag_sum_ty = self.pre_process_match(node)
-        enum_ty = node.type
+        enum_ty = node.enum_type
+        print(enum_ty)
 
         # We are matching on an enum, we need a single flat conditional on all
         # the variants
@@ -823,18 +826,21 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         return out_wire
 
-    def visit_MatchOverStruct(self, node: MatchOverStruct) -> None:
+    def visit_MatchOverStruct(self, node: MatchOverStruct) -> Wire:
         subject_wire, tag_sum_ty = self.pre_process_match(node)
-        struct_type = node.type
-        print(self.dfg.builder.hugr.port_type(subject_wire.out_port()))
-        print(type(subject_wire))
 
-        # TODO: you may have to unpack
-        # see _unpack_tuple
+        patt_comp = PatternCompiler(self.ctx, self.dfg)
 
-        raise InternalGuppyError(
-            "Match over struct should have been desugared during type checking."
+        # We are matching on a literal, we need nesteded conditionals
+        out_wire = patt_comp._build_conditional_for_pattern_under_equivalence(
+            patterns=node.patterns,
+            subj_wire=subject_wire,
+            tag_sum_ty=tag_sum_ty,
+            tag_index=0,
+            builder=self.dfg.builder,
         )
+
+        return out_wire
 
 
 class PatternCompiler(CompilerBase):
@@ -863,9 +869,15 @@ class PatternCompiler(CompilerBase):
 
         [pattern, *patterns] = patterns
         # this wire comes from the check if the subject against the pattern
-        is_pattern_wire = PatternVisitor(self.ctx).compile(
-            pattern, builder, self.dfg, subj_wire
+        is_pattern_wire = PatternVisitor(self.ctx, builder, self.dfg).compile(
+            pattern, subj_wire
         )
+
+        if is_pattern_wire is None:
+            return builder.add_op(ops.Tag(tag_index, tag_sum_ty))
+
+        tt = self.dfg.builder.hugr.port_type(is_pattern_wire.out_port())
+        print(tt)
 
         # We add a conditional on the `is_pattern_wire` wire
         with builder.add_conditional(is_pattern_wire, subj_wire) as cond:
@@ -894,18 +906,24 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
 
     dfg: DFContainer
     builder: DfBase[ops.DfParentOp]
-    subj_wire: Wire
+    input_wire: Wire
+
+    def __init__(
+        self,
+        ctx: CompilerContext,
+        builder: DfBase[ops.DfParentOp],
+        dfg: DFContainer,
+    ) -> None:
+        super().__init__(ctx)
+        self.builder = builder
+        self.dfg = dfg
 
     def compile(
         self,
         pattern: ast.pattern,
-        builder: DfBase[ops.DfParentOp],
-        dfg: DFContainer,
-        subj_wire: Wire,
-    ) -> Wire:
-        self.builder = builder
-        self.dfg = dfg
-        self.subj_wire = subj_wire
+        input_wire: Wire,
+    ) -> Wire | None:
+        self.input_wire = input_wire
         return self.visit(pattern)
 
     def visit_MatchLiteral(self, node: MatchLiteral) -> Wire:
@@ -928,15 +946,67 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
         call_compiler = eq_func.call_compiler
         assert isinstance(call_compiler, BoolOpCompiler)
         call_compiler._light_setup(type_args, self.ctx, hugr_ty)
-        rets = call_compiler.compile_with_in([value_wire, self.subj_wire], self.builder)
+        rets = call_compiler.compile_with_in(
+            [value_wire, self.input_wire], self.builder
+        )
         # we get the wires corresponding to the call result:
         # the equality function returns a boolean indicating if they're equal
         assert len(rets) == 1
 
         return rets[0]
 
+    def visit_MatchStruct(self, node: MatchStruct) -> Wire | None:
+        struct_type = get_type(node.struct)
+        assert isinstance(struct_type, StructType)
+        # TODO: change when we will have aliases
+        node_to_consider = [
+            (idx, pattern)
+            for idx, pattern in enumerate(node.patterns)
+            if not isinstance(pattern, ast.MatchAs)
+        ]
+        if len(node_to_consider) == 0:
+            return None
+
+        hugr_types = [f.ty.to_hugr(self.ctx) for f in struct_type.fields]
+        fields_wire = list(
+            self.builder.add_op(ops.UnpackTuple(hugr_types), self.input_wire).outputs()
+        )
+
+        compiled_wires = [
+            wire
+            for idx, pattern in node_to_consider
+            if (wire := self.compile(pattern, fields_wire[idx])) is not None
+        ]
+
+        if not compiled_wires:
+            return None
+        if len(compiled_wires) == 1:
+            return compiled_wires[0]
+
+        and_func_def, type_args = self.ctx.build_compiled_def(
+            node.and_func, type_args=[]
+        )
+        assert isinstance(and_func_def, CustomFunctionDef)
+        assert and_func_def.has_signature
+        hugr_ty = and_func_def.ty.instantiate(type_args).to_hugr(self.ctx)
+        # concrete_ty = and_func_def.ty.instantiate(type_args)
+        # hugr_ty = concrete_ty.to_hugr(self.ctx)
+        # # we extract the call_compiler to build the hugr call
+        # call_compiler = and_func_def.call_compiler
+
+        result = compiled_wires[0]
+        for wire in compiled_wires[1:]:
+            assert isinstance(and_func_def.call_compiler, OpCompiler)
+            and_op = and_func_def.call_compiler.op(hugr_ty, type_args, self.ctx)
+            rets = list(self.builder.add_op(and_op, result, wire).outputs())
+            assert len(rets) == 1
+            result = rets[0]
+            assert self.builder.hugr.port_type(result) == OpaqueBool
+            result = self.builder.add_op(read_bool(), result)
+        return result
+
     def visit_MatchEnum(self, node: MatchEnum) -> Wire:
-        return self.subj_wire
+        return self.input_wire
 
 
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:

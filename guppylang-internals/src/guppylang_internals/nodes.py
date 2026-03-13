@@ -873,13 +873,13 @@ class MatchEnum(ast.pattern):
     variant_idx: int
     patterns: list[ast.pattern]
 
-    _fields = ("patterns", "subject")
+    _fields = ("patterns", "enum")
 
     def __init__(
-        self, subject: ast.expr, patterns: list[ast.pattern], variant_idx: int
+        self, enum: ast.Attribute, patterns: list[ast.pattern], variant_idx: int
     ) -> None:
         super().__init__()
-        self.subject = subject
+        self.enum = enum
         self.patterns = patterns
         self.variant_idx = variant_idx
 
@@ -892,15 +892,15 @@ class MatchOverEnum(ast.expr):
     """A Node representing a pattern match on subject against an enum pattern"""
 
     subject: ast.expr
-    type: EnumType
+    enum_type: EnumType
     patterns: list[ast.pattern]
 
-    _fields = ("subject", "type", "patterns")
+    _fields = ("subject", "enum_type", "patterns")
 
-    def __init__(self, subject: ast.expr, type: EnumType) -> None:
+    def __init__(self, subject: ast.expr, enum_type: EnumType) -> None:
         super().__init__()
         self.subject = subject
-        self.type = type
+        self.enum_type = enum_type
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -913,13 +913,17 @@ class MatchStruct(ast.pattern):
 
     struct: ast.Name
     patterns: list[ast.pattern]
+    and_func: "DefId"
 
-    _fields = ("patterns", "subject")
+    _fields = ("patterns", "struct", "and_func")
 
-    def __init__(self, subject: ast.expr, patterns: list[ast.pattern]) -> None:
+    def __init__(
+        self, struct: ast.Name, patterns: list[ast.pattern], and_func: "DefId"
+    ) -> None:
         super().__init__()
-        self.subject = subject
         self.patterns = patterns
+        self.struct = struct
+        self.and_func = and_func
 
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
@@ -929,15 +933,15 @@ class MatchOverStruct(ast.expr):
     """A Node representing a pattern match on subject against a struct pattern"""
 
     subject: ast.expr
-    type: StructType
+    struct_type: StructType
     patterns: list[ast.pattern]
 
     _fields = ("subject", "type", "patterns")
 
-    def __init__(self, subject: ast.expr, type: Type) -> None:
+    def __init__(self, subject: ast.expr, struct_type: StructType) -> None:
         super().__init__()
         self.subject = subject
-        self.type = type
+        self.type = struct_type
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -954,11 +958,11 @@ class MatchLiteral(ast.pattern):
     constant: ast.Constant
     equality_function: "DefId"
 
-    _fields = ("equality_function", "value")
+    _fields = ("equality_function", "constant")
 
-    def __init__(self, value: ast.Constant, equality_function: "DefId") -> None:
+    def __init__(self, constant: ast.Constant, equality_function: "DefId") -> None:
         super().__init__()
-        self.constant = value
+        self.constant = constant
         self.equality_function = equality_function
 
     __reduce__ = object.__reduce__
