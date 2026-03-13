@@ -62,6 +62,14 @@ class RawFunctionDecl(ParsableDef):
 
     The raw declaration stores exactly what the user has written (i.e. the AST), without
     any additional checking or parsing.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the function.
+        defined_at: The AST node where the function was defined.
+        python_func: The Python function object corresponding to the declaration.
+        link_name: The external name for this declaration, applied to the Hugr node and
+            other representations
     """
 
     python_func: PyFunc
@@ -109,6 +117,15 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
     """A function declaration with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the function.
+        defined_at: The AST node where the function was declared.
+        ty: The type of the function.
+        docstring: The docstring of the function.
+        link_name: The external name for this declaration, applied to the Hugr node and
+            other representations
     """
 
     defined_at: ast.FunctionDef
@@ -158,7 +175,18 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
 class CompiledFunctionDecl(
     CheckedFunctionDecl, CompiledCallableDef, CompiledHugrNodeDef
 ):
-    """A function declaration with a corresponding Hugr node."""
+    """A function declaration with a corresponding Hugr node.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the function.
+        defined_at: The AST node where the function was declared.
+        ty: The type of the function.
+        docstring: The docstring of the function.
+        link_name: The external name for this declaration, applied to the Hugr node and
+            other representations
+        declaration: The Hugr node corresponding to this function declaration.
+    """
 
     declaration: Node
 

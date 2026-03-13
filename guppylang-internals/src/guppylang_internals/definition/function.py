@@ -73,6 +73,9 @@ class RawFunctionDef(ParsableDef):
         name: The name of the function.
         defined_at: The AST node where the function was defined.
         python_func: The Python function to be defined.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
     """
 
     python_func: PyFunc
@@ -128,7 +131,9 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
         docstring: The docstring of the function.
-        link_name: The name that the Hugr node for this function will receive.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
     """
 
     defined_at: ast.FunctionDef
@@ -187,7 +192,9 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
         docstring: The docstring of the function.
-        link_name: The name that the Hugr node for this function will receive.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
         cfg: The type- and linearity-checked CFG for the function body.
     """
 
@@ -248,7 +255,9 @@ class CompiledFunctionDef(
         mono_args: Partial monomorphization of the generic type parameters.
         ty: The type of the function after partial monomorphization.
         docstring: The docstring of the function.
-        link_name: The name of the Hugr node corresponding to this function.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
         cfg: The type- and linearity-checked CFG for the function body.
         func_def: The Hugr function definition.
     """
