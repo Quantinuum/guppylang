@@ -122,7 +122,7 @@ class _Guppy:
         GuppyFunctionDefinition[P, T]
         | Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]
     ):
-        def dec(
+        def decorator(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
@@ -138,7 +138,7 @@ class _Guppy:
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 
-        return _with_optional_kwargs(dec, args, kwargs)
+        return _with_optional_kwargs(decorator, args, kwargs)
 
     @overload
     def comptime(
@@ -168,7 +168,7 @@ class _Guppy:
                     print(f"({s1}, {s2})")
         """
 
-        def dec(
+        def decorator(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             _ = _parse_kwargs(kwargs)  # TODO: Pass flags to RawTracedFunctionDef
@@ -176,7 +176,7 @@ class _Guppy:
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 
-        return _with_optional_kwargs(dec, args, kwargs)
+        return _with_optional_kwargs(decorator, args, kwargs)
 
     @deprecated("Use @guppylang_internal.decorator.extend_type instead.")
     def extend_type(self, defn: TypeDef) -> Callable[[type], type]:
@@ -223,7 +223,9 @@ class _Guppy:
                 field2: int
         """
 
-        def dec(cls: builtins.type[T], kwargs: GuppyStructKwargs) -> GuppyDefinition:
+        def decorator(
+            cls: builtins.type[T], kwargs: GuppyStructKwargs
+        ) -> GuppyDefinition:
             defn = RawStructDef(
                 DefId.fresh(),
                 cls.__name__,
@@ -245,7 +247,7 @@ class _Guppy:
             # a `GuppyDefinition` that handles the comptime logic
             return GuppyDefinition(defn)
 
-        return _with_optional_kwargs(dec, args, kwargs)  # type: ignore[return-value]
+        return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
 
     def type_var(
         self,
@@ -327,7 +329,7 @@ class _Guppy:
     ):
         """Declares a Guppy function without defining it."""
 
-        def dec(
+        def decorator(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
@@ -342,7 +344,7 @@ class _Guppy:
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 
-        return _with_optional_kwargs(dec, args, kwargs)
+        return _with_optional_kwargs(decorator, args, kwargs)
 
     def overload(
         self, *funcs: Any
@@ -402,7 +404,7 @@ class _Guppy:
                 )
             func_ids.append(func.id)
 
-        def dec(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
+        def decorator(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
             dummy_sig = FunctionType([], NoneType())
             defn = OverloadedFunctionDef(
                 DefId.fresh(), f.__name__, None, dummy_sig, func_ids
@@ -410,7 +412,7 @@ class _Guppy:
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 
-        return dec
+        return decorator
 
     def constant(self, name: str, ty: str, value: hv.Value) -> T:  # type: ignore[type-var]  # Since we're returning a free type variable
         """Adds a constant to a module, backed by a `hugr.val.Value`."""
