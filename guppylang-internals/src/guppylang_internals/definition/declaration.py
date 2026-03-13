@@ -1,5 +1,5 @@
 import ast
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from typing import ClassVar
 
 from hugr import Node, Wire
@@ -15,7 +15,11 @@ from guppylang_internals.compiler.core import (
     DFContainer,
     require_monomorphization,
 )
-from guppylang_internals.definition.common import CompilableDef, ParsableDef
+from guppylang_internals.definition.common import (
+    CompilableDef,
+    ParsableDef,
+    UserProvidedLinkName,
+)
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
@@ -57,7 +61,7 @@ class MonomorphizeError(Error):
 
 
 @dataclass(frozen=True)
-class RawFunctionDecl(ParsableDef):
+class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     """A raw function declaration provided by the user.
 
     The raw declaration stores exactly what the user has written (i.e. the AST), without
@@ -76,12 +80,6 @@ class RawFunctionDecl(ParsableDef):
     description: str = field(default="function", init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
-
-    link_name: InitVar[str | None] = field(default=None, kw_only=True)
-    _user_set_link_name: str | None = field(default=None, init=False)
-
-    def __post_init__(self, link_name: str | None) -> None:
-        object.__setattr__(self, "_user_set_link_name", link_name)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""

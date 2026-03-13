@@ -2,7 +2,7 @@ import ast
 import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 from typing import TYPE_CHECKING, ClassVar, TypeAlias
 
 from hugr.build.dfg import DefinitionBuilder, OpVar
@@ -212,3 +212,20 @@ class UnknownSourceError(Fatal):
         "Unable to look up the source code for Python object `{obj}`"
     )
     obj: object
+
+
+@dataclass(frozen=True)
+class UserProvidedLinkName:
+    """Abstract base class for classes where a user may provide a link name, but it may
+    not end up as the link name that is used throughout the compilation pipeline.
+
+    For example, a user providing `None` as a link name to a RawFunctionDef results in
+    the ParsedFunctionDef having an automatically generated link name. This class
+    discourages accessing the link name prematurely, when it has not yet been finalized.
+    """
+
+    link_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_link_name: str | None = field(default=None, init=False)
+
+    def __post_init__(self, link_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_link_name", link_name)

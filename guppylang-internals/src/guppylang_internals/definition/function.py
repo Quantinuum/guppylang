@@ -1,7 +1,7 @@
 import ast
 import inspect
 from collections.abc import Callable, Sequence
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
@@ -38,6 +38,7 @@ from guppylang_internals.definition.common import (
     MonomorphizedDef,
     ParsableDef,
     UnknownSourceError,
+    UserProvidedLinkName,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
 from guppylang_internals.definition.struct import ParsedStructDef
@@ -61,7 +62,7 @@ PyFunc = Callable[..., Any]
 
 
 @dataclass(frozen=True)
-class RawFunctionDef(ParsableDef):
+class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     """A raw function definition provided by the user.
 
     The raw definition stores exactly what the user has written (i.e. the AST), without
@@ -85,12 +86,6 @@ class RawFunctionDef(ParsableDef):
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)
-
-    link_name: InitVar[str | None] = field(default=None, kw_only=True)
-    _user_set_link_name: str | None = field(default=None, init=False)
-
-    def __post_init__(self, link_name: str | None) -> None:
-        object.__setattr__(self, "_user_set_link_name", link_name)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
