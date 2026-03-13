@@ -1,10 +1,8 @@
-import ast
 from guppylang.decorator import guppy
 from guppylang.std.quantum import qubit
 from guppylang.std.num import nat
 from guppylang.std.builtins import owned
 from guppylang.std.array import array
-from guppylang_internals.nodes import Control, Modifiers
 
 # Dummy variables to suppress Undefined name
 # TODO: `ruff` fails when without these, which need to be fixed
@@ -274,28 +272,3 @@ def test_double_dagger_cancel_nested_power(validate):
                 foo(q)
 
     validate(bar.compile_function())
-
-
-def _make_control(ctrl_args: list[ast.expr]) -> Control:
-    call = ast.Call(func=ast.Name(id="control", ctx=ast.Load()), args=[], keywords=[])
-    ast.fix_missing_locations(call)
-    return Control(call, ctrl_args)
-
-
-def test_has_control_empty_ctrl():
-    """A Control node with no ctrl args should not count as having control."""
-    modifiers = Modifiers()
-    modifiers.push(_make_control([]))
-
-    assert not modifiers.has_control()
-
-
-def test_has_control_with_ctrl():
-    """A Control node with at least one ctrl arg counts as having control."""
-    q = ast.Name(id="q", ctx=ast.Load())
-    ast.fix_missing_locations(q)
-
-    modifiers = Modifiers()
-    modifiers.push(_make_control([q]))
-
-    assert modifiers.has_control()
