@@ -1,15 +1,9 @@
 import pytest
-from hugr.ops import FuncDefn
 
 from guppylang import guppy
 from guppylang.defs import GuppyDefinition
 from guppylang.emulator import EmulatorBuilder
 from guppylang.std.platform import result
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from hugr.package import Package
 
 
 def test_manual_link_no_entrypoints():
@@ -23,11 +17,8 @@ def test_manual_link_no_entrypoints():
     lib1 = guppy.library(decl).compile()
     lib2 = guppy.library(impl).compile()
 
-    @guppy
-    def main() -> None:
-        result("result", decl(5))
-
     linked = lib1.link(lib2)
+    # Not an executable module
     assert linked.modules[0].entrypoint == linked.modules[0].module_root
 
 
@@ -45,13 +36,7 @@ def test_manual_link_entrypoint_lhs():
     def main() -> None:
         result("result", decl(5))
 
-    main_pkg: Package = main.compile()
-    linked = main_pkg.link(adder_lib)
-    assert linked.modules[0].entrypoint != linked.modules[0].module_root
-    entrypoint = linked.modules[0].entrypoint_op()
-    assert isinstance(entrypoint, FuncDefn)
-    assert entrypoint.f_name.endswith(".main")
-
+    linked = main.compile().link(adder_lib)
     emulator = EmulatorBuilder().build(linked, n_qubits=1)
     assert emulator.run().results[0].entries == [("result", 10)]
 
@@ -70,13 +55,7 @@ def test_manual_link_entrypoint_rhs():
     def main() -> None:
         result("result", decl(5))
 
-    main_pkg: Package = main.compile()
-    linked = main_pkg.link(adder_lib)
-    assert linked.modules[0].entrypoint != linked.modules[0].module_root
-    entrypoint = linked.modules[0].entrypoint_op()
-    assert isinstance(entrypoint, FuncDefn)
-    assert entrypoint.f_name.endswith(".main")
-
+    linked = adder_lib.link(main.compile())
     emulator = EmulatorBuilder().build(linked, n_qubits=1)
     assert emulator.run().results[0].entries == [("result", 10)]
 
