@@ -2,13 +2,20 @@
 
 from typing import no_type_check
 
-from guppylang_internals.decorator import custom_function, hugr_op
-from guppylang_internals.std._internal.compiler.qsystem import Bool
+from guppylang_internals.decorator import custom_function, custom_type, hugr_op
+from guppylang_internals.std._internal.compiler.qsystem import (
+    ReadFutureBoolCompiler,
+    future_bool_type,
+)
 from guppylang_internals.std._internal.compiler.quantum import (
     InoutMeasureResetCompiler,
 )
-from guppylang_internals.std._internal.compiler.tket_exts import QSYSTEM_EXTENSION
+from guppylang_internals.std._internal.compiler.tket_exts import (
+    FUTURES_EXTENSION,
+    QSYSTEM_EXTENSION,
+)
 from guppylang_internals.std._internal.util import quantum_op
+from hugr import tys as ht
 
 from guppylang import guppy
 from guppylang.std import angles
@@ -193,36 +200,28 @@ class MaybeLeaked:
 
 @hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_EXTENSION))
 @no_type_check
-def _lazy_measure(q: qubit @ owned) -> Future[Bool]:
+def lazy_measure(q: qubit @ owned) -> "Measurement":
     """Measure a qubit destructively, returning a future for the result."""
 
 
-@guppy
-@no_type_check
-def lazy_measure(q: qubit @ owned) -> "Measurement":
-    """Measure a qubit destructively, returning a Measurement for the result."""
-    return Measurement(_lazy_measure(q))
-
-
-@guppy.struct
-@no_type_check
+@custom_type(
+    future_bool_type(),
+    copyable=False,
+    droppable=False,
+)
 class Measurement:
     """Represents the result of a lazy measurement, which may not be available until
     later in the program."""
 
-    _measurement: Future[Bool]  # type: ignore[type-arg]
-
-    @guppy
+    @custom_function(compiler=ReadFutureBoolCompiler())
     @no_type_check
     def read(self: "Measurement" @ owned) -> bool:
         """Read the result of the measurement, consuming it."""
-        return self._measurement.read().make_opaque()
 
     @guppy
     @no_type_check
     def __bool__(self: "Measurement" @ owned) -> bool:
-        """Allow treating a Measurement as a boolean in conditionals."""
-        return self._measurement.read().make_opaque()
+        return self.read()
 
 
 # ------------------------------------------------------

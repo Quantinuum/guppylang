@@ -1,10 +1,7 @@
-from typing import no_type_check
-
 from hugr import Wire
 from hugr import tys as ht
 from hugr.std.int import int_t
 
-from guppylang_internals.decorator import custom_type, hugr_op
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.std._internal.compiler.arithmetic import inarrow_s, iwiden_s
@@ -14,6 +11,7 @@ from guppylang_internals.std._internal.compiler.quantum import (
 )
 from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.std._internal.compiler.tket_exts import (
+    FUTURES_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
 )
 from guppylang_internals.std._internal.util import external_op
@@ -52,12 +50,19 @@ class RandomIntBoundedCompiler(CustomInoutCallCompiler):
         return CallReturnWires(regular_returns=[rnd], inout_returns=[ctx])
 
 
-@custom_type(ht.Bool)
-class Bool:
-    """Temporary hack allowing sum bools to be represented in the Guppy guppy type
-    system alongside opaque bools."""
+def future_bool_type() -> ht.ExtType:
+    return FUTURES_EXTENSION.get_type("Future").instantiate([ht.TypeTypeArg(ht.Bool)])
 
-    @hugr_op(lambda _concrete, _args, _ctx: make_opaque())
-    @no_type_check
-    def make_opaque(self: "Bool") -> bool:
-        """Make a sum bool from an opaque bool."""
+
+class ReadFutureBoolCompiler(CustomInoutCallCompiler):
+    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+        [future] = args
+        [bool_value] = self.builder.add_op(
+            FUTURES_EXTENSION.get_op("Read").instantiate(
+                [ht.TypeTypeArg(ht.Bool)],
+                ht.FunctionType([future_bool_type()], [ht.Bool]),
+            ),
+            future,
+        )
+        opaque_bool_value = self.builder.add_op(make_opaque(), bool_value)
+        return CallReturnWires(regular_returns=[opaque_bool_value], inout_returns=[])
