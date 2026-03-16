@@ -25,7 +25,8 @@ def test_missing_impl():
 
     with pytest.raises(
         RuntimeError,
-        match=r"undefined symbol: ___hugr__.super_adder",
+        # On some platforms selene inserts an extra underscore
+        match=r"undefined symbol: [_]?__hugr__.super_adder",
     ):
         main.emulator(n_qubits=1)
 
@@ -45,7 +46,8 @@ def test_missing_impl_existing_lib():
 
     with pytest.raises(
         RuntimeError,
-        match=r"undefined symbol: ___hugr__.super_adder",
+        # On some platforms selene inserts an extra underscore
+        match=r"undefined symbol: [_]?__hugr__.super_adder",
     ):
         main.emulator(n_qubits=1)
 
