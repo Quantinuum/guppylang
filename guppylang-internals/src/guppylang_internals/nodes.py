@@ -5,6 +5,8 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from hugr.tys import Sum as HugrSum
+
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.const import Const
@@ -28,6 +30,9 @@ if TYPE_CHECKING:
 
 
 class PlaceNode(ast.expr):
+    """An AST node representing a place,
+    i.e. a variable or field that can be assigned to."""
+
     place: "Place"
 
     _fields = ("place",)
@@ -865,30 +870,23 @@ class UncheckedMatchPred(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class MatchEnum(ast.pattern):
-    """A Node representing a checked pattern match on an enum
-    value against a list of patterns"""
+class CheckedMatchPred(ast.expr):
+    """Base class for checked pattern match predicate nodes."""
 
-    enum: ast.Attribute
-    variant_idx: int
+    subject: ast.expr
     patterns: list[ast.pattern]
+    sum_type: HugrSum
 
-    _fields = ("patterns", "enum")
-
-    def __init__(
-        self, enum: ast.Attribute, patterns: list[ast.pattern], variant_idx: int
-    ) -> None:
+    def __init__(self, subject: ast.expr) -> None:
         super().__init__()
-        self.enum = enum
-        self.patterns = patterns
-        self.variant_idx = variant_idx
+        self.subject = subject
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
 
 
-class MatchOverEnum(ast.expr):
+class MatchOverEnum(CheckedMatchPred):
     """A Node representing a pattern match on subject against an enum pattern"""
 
     subject: ast.expr
@@ -898,11 +896,55 @@ class MatchOverEnum(ast.expr):
     _fields = ("subject", "enum_type", "patterns")
 
     def __init__(self, subject: ast.expr, enum_type: EnumType) -> None:
-        super().__init__()
-        self.subject = subject
+        super().__init__(subject)
         self.enum_type = enum_type
 
-    # See MakeIter for explanation
+
+class MatchOverStruct(CheckedMatchPred):
+    """A Node representing a pattern match on subject against a struct pattern"""
+
+    subject: ast.expr
+    struct_type: StructType
+    patterns: list[ast.pattern]
+
+    _fields = ("subject", "struct_type", "patterns")
+
+    def __init__(self, subject: ast.expr, struct_type: StructType) -> None:
+        super().__init__(subject)
+        self.struct_type = struct_type
+
+
+class MatchOverLiteral(CheckedMatchPred):
+    """A Node representing a pattern match on subject against a literal pattern"""
+
+    subject: ast.expr
+    subj_type: Type
+    patterns: list[ast.pattern]
+
+    _fields = ("subject", "subj_type", "patterns")
+
+    def __init__(self, subject: ast.expr, subj_type: Type) -> None:
+        super().__init__(subject)
+        self.subj_type = subj_type
+
+
+class MatchLiteral(ast.pattern):
+    """A Node representing a checked pattern match on a literal value
+    against a list of patterns
+
+    equality_function is the DefId of the equality function to use for comparing the
+    literal value with the subject."""
+
+    constant: ast.Constant
+    equality_function: "DefId"
+
+    _fields = ("equality_function", "constant")
+
+    def __init__(self, constant: ast.Constant, equality_function: "DefId") -> None:
+        super().__init__()
+        self.constant = constant
+        self.equality_function = equality_function
+
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
 
@@ -929,63 +971,24 @@ class MatchStruct(ast.pattern):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class MatchOverStruct(ast.expr):
-    """A Node representing a pattern match on subject against a struct pattern"""
+class MatchEnum(ast.pattern):
+    """A Node representing a checked pattern match on an enum
+    value against a list of patterns"""
 
-    subject: ast.expr
-    struct_type: StructType
+    enum: ast.Attribute
+    variant_idx: int
     patterns: list[ast.pattern]
 
-    _fields = ("subject", "struct_type", "patterns")
+    _fields = ("patterns", "enum")
 
-    def __init__(self, subject: ast.expr, struct_type: StructType) -> None:
+    def __init__(
+        self, enum: ast.Attribute, patterns: list[ast.pattern], variant_idx: int
+    ) -> None:
         super().__init__()
-        self.subject = subject
-        self.struct_type = struct_type
+        self.enum = enum
+        self.patterns = patterns
+        self.variant_idx = variant_idx
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
-
-
-class MatchLiteral(ast.pattern):
-    """A Node representing a checked pattern match on a literal value
-    against a list of patterns
-
-    equality_function is the DefId of the equality function to use for comparing the
-    literal value with the subject."""
-
-    constant: ast.Constant
-    equality_function: "DefId"
-
-    _fields = ("equality_function", "constant")
-
-    def __init__(self, constant: ast.Constant, equality_function: "DefId") -> None:
-        super().__init__()
-        self.constant = constant
-        self.equality_function = equality_function
-
-    __reduce__ = object.__reduce__
-    __reduce_ex__ = object.__reduce_ex__
-
-
-class MatchOverLiteral(ast.expr):
-    """A Node representing a pattern match on subject against a literal pattern"""
-
-    subject: ast.expr
-    subj_type: Type
-    patterns: list[ast.pattern]
-
-    _fields = ("subject", "subj_type", "patterns")
-
-    def __init__(self, subject: ast.expr, subj_type: Type) -> None:
-        super().__init__()
-        self.subject = subject
-        self.subj_type = subj_type
-
-    # See MakeIter for explanation
-    __reduce__ = object.__reduce__
-    __reduce_ex__ = object.__reduce_ex__
-
-
-CheckedMatchPred = MatchOverEnum | MatchOverStruct | MatchOverLiteral
