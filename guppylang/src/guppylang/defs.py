@@ -229,10 +229,6 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 class GuppyLibrary:
     members: list[DefId]
 
-    def member_ids(self) -> Sequence[DefId]:
-        """Returns the definition IDs of the members of this library."""
-        return self.members
-
     def compile(self) -> Package:
         """Compile a Guppy definition to HUGR."""
         pointer = ENGINE.compile(self.members)
