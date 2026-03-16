@@ -48,6 +48,7 @@ from guppylang_internals.wasm_util import (
     ConcreteWasmModule,
     WasmFileNotFound,
     WasmFunctionNotInFile,
+    WasmPlatform,
     WasmSignatureError,
     decode_wasm_functions,
 )
@@ -212,10 +213,31 @@ def custom_type(
 @pretty_errors
 def wasm_module(
     filename: str,
+    wasm_platform: WasmPlatform = WasmPlatform.Helios,
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
-    wasm_file = pathlib.Path(filename)
-    if wasm_file.is_file():
-        wasm_sigs = decode_wasm_functions(filename)
+    wasm_path = pathlib.Path(filename)
+
+    # Absolute paths are used as-is; relative paths are resolved against the
+    # caller's source file directory (not the current working directory).
+    if not wasm_path.is_absolute():
+        # Walk up the call stack past guppylang-internal frames to find the
+        # user's source file.  We skip frames whose module name starts with
+        # "guppylang" so that the decorator works regardless of how deeply it
+        # is called from within the library.
+        caller_file = None
+        frame = inspect.currentframe()
+        while frame:
+            module = inspect.getmodule(frame)
+            if module is None or not module.__name__.startswith("guppylang"):
+                caller_file = frame.f_globals.get("__file__")
+                break
+            frame = frame.f_back
+        if caller_file is not None:
+            caller_dir = pathlib.Path(caller_file).resolve().parent
+            wasm_path = caller_dir / filename
+
+    if wasm_path.is_file():
+        wasm_sigs = decode_wasm_functions(str(wasm_path), wasm_platform)
     else:
         raise GuppyError(WasmFileNotFound(None, filename))
 
@@ -224,10 +246,11 @@ def wasm_module(
         name: str,
         defined_at: ast.AST | None,
         wasm_file: str,
+        wasm_plat: WasmPlatform,
         config: str | None,
     ) -> OpaqueTypeDef:
         assert config is None
-        return WasmModuleTypeDef(id, name, defined_at, wasm_file)
+        return WasmModuleTypeDef(id, name, defined_at, wasm_file, wasm_plat)
 
     decorator = ext_module_decorator(
         type_def_wrapper,
@@ -238,22 +261,26 @@ def wasm_module(
     )
 
     def inner_fun(ty: builtins.type[T]) -> GuppyDefinition:
-        decorator_inner = decorator(filename, None)
+        decorator_inner = decorator(str(wasm_path), wasm_platform, None)
         return decorator_inner(ty)
 
     return inner_fun
 
 
 def ext_module_decorator(
-    type_def: Callable[[DefId, str, ast.AST | None, str, str | None], OpaqueTypeDef],
+    type_def: Callable[
+        [DefId, str, ast.AST | None, str, WasmPlatform, str | None], OpaqueTypeDef
+    ],
     init_compiler: CustomInoutCallCompiler,
     discard_compiler: CustomInoutCallCompiler,
     init_arg: bool,  # Whether the init function should take a nat argument
     wasm_sigs: ConcreteWasmModule
     | None = None,  # For @wasm_module, we must be passed a parsed wasm file
-) -> Callable[[str, str | None], Callable[[builtins.type[T]], GuppyDefinition]]:
+) -> Callable[
+    [str, WasmPlatform, str | None], Callable[[builtins.type[T]], GuppyDefinition]
+]:
     def fun(
-        filename: str, module: str | None
+        filename: str, wasm_plat: WasmPlatform, module: str | None
     ) -> Callable[[builtins.type[T]], GuppyDefinition]:
         @pretty_errors
         def dec(cls: builtins.type[T]) -> GuppyDefinition:
@@ -263,6 +290,7 @@ def ext_module_decorator(
                 cls.__name__,
                 None,
                 filename,
+                wasm_plat,
                 module,
             )
 
@@ -307,7 +335,7 @@ def ext_module_decorator(
                     elif isinstance(wasm_sig_or_err, str):
                         raise GuppyError(
                             WasmSignatureError(
-                                None, wasm_def.name, filename
+                                None, wasm_def.name, filename, wasm_plat.value
                             ).add_sub_diagnostic(
                                 WasmSignatureError.Message(None, wasm_sig_or_err)
                             )

@@ -42,6 +42,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     ModifiedBlock,
     Modifier,
+    Modifiers,
     NestedFunctionDef,
     Power,
 )
@@ -230,6 +231,8 @@ class CFGBuilder(AstVisitor[BB | None]):
             return self.cfg.new_bb(then_bb, else_bb)
 
     def visit_While(self, node: ast.While, bb: BB, jumps: Jumps) -> BB | None:
+        if node.orelse:
+            raise GuppyError(UnsupportedError(node.orelse[0], "Loop else clauses"))
         head_bb = self.cfg.new_bb(bb)
         body_bb, tail_bb = self.cfg.new_bb(), self.cfg.new_bb()
         BranchBuilder.add_branch(node.test, self.cfg, head_bb, body_bb, tail_bb)
@@ -248,6 +251,8 @@ class CFGBuilder(AstVisitor[BB | None]):
         return tail_bb
 
     def visit_For(self, node: ast.For, bb: BB, jumps: Jumps) -> BB | None:
+        if node.orelse:
+            raise GuppyError(UnsupportedError(node.orelse[0], "Loop else clauses"))
         template = """
             it = make_iter
             while True:
@@ -323,23 +328,18 @@ class CFGBuilder(AstVisitor[BB | None]):
         check_modifiers_enabled(node)
         self._validate_modified_block(node)
 
-        cfg = CFGBuilder().build(node.body, True, self.globals)
-        new_node = ModifiedBlock(
-            cfg=cfg,
-            **dict(ast.iter_fields(node)),
-        )
-
+        # Build context expressions and extract modifiers before constructing the inner
+        # CFG so we can derive the accumulated flags directly from the Modifier objects.
+        modifiers = Modifiers()
         for item in node.items:
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
-            modifier = self._handle_withitem(item)
-            new_node.push_modifier(modifier)
+            modifiers.push(self._handle_withitem(item))
 
-        # FIXME: Currently, the unitary flags is not set correctly if there are nested
-        # `with` blocks. This is because the outer block's unitary flags are not
-        # propagated to the outer block. The following line should calculate the sum
-        # of the unitary flags of the outer block and modifiers applied in this
-        # `with` block.
-        cfg.unitary_flags = new_node.flags()
+        accumulated_flags = self.cfg.unitary_flags | modifiers.flags()
+        cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
+        new_node = ModifiedBlock(
+            cfg=cfg, modifiers=modifiers, **dict(ast.iter_fields(node))
+        )
 
         set_location_from(new_node, node)
         bb.statements.append(new_node)
