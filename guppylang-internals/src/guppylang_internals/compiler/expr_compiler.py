@@ -775,7 +775,15 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         )
         # TODO: Nicola
         #  With alias, we need to the type of the alias variable instead of unit
-        tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
+        if isinstance(node, MatchOverLiteral):
+            print("boia")
+            print(node.subj_type)
+            tag_sum_ty = ht.Sum(
+                [[node.subj_type.to_hugr(self.ctx)] for _ in range(num_branches)]
+            )
+            # print(tag_sum_ty)
+        else:
+            tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
 
         return subject_wire, tag_sum_ty
 

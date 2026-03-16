@@ -936,12 +936,12 @@ class MatchOverStruct(ast.expr):
     struct_type: StructType
     patterns: list[ast.pattern]
 
-    _fields = ("subject", "type", "patterns")
+    _fields = ("subject", "struct_type", "patterns")
 
     def __init__(self, subject: ast.expr, struct_type: StructType) -> None:
         super().__init__()
         self.subject = subject
-        self.type = struct_type
+        self.struct_type = struct_type
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -973,15 +973,15 @@ class MatchOverLiteral(ast.expr):
     """A Node representing a pattern match on subject against a literal pattern"""
 
     subject: ast.expr
-    type: Type
+    subj_type: Type
     patterns: list[ast.pattern]
 
-    _fields = ("subject", "type", "patterns")
+    _fields = ("subject", "subj_type", "patterns")
 
-    def __init__(self, subject: ast.expr, type: Type) -> None:
+    def __init__(self, subject: ast.expr, subj_type: Type) -> None:
         super().__init__()
         self.subject = subject
-        self.type = type
+        self.subj_type = subj_type
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
