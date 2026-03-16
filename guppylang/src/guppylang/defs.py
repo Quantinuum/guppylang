@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, ca
 
 import guppylang_internals
 from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.declaration import RawFunctionDecl
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
@@ -218,6 +219,10 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             Package: The compiled package object.
         """
         return super().compile()
+
+    def is_decl(self) -> bool:
+        """Whether this function definition is a declaration (i.e. has no body)."""
+        return isinstance(self.wrapped, RawFunctionDecl)
 
 
 @dataclass(frozen=True)
