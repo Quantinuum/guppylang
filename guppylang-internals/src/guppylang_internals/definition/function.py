@@ -46,9 +46,11 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys.arg import ConstArg, TypeArg
+from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
@@ -66,6 +68,25 @@ def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
             return f"{parent.link_name_prefix}.{raw_def.python_func.__name__}"
 
     return f"{raw_def.python_func.__module__}.{raw_def.python_func.__qualname__}"
+
+
+def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
+    """Returns a unique link name for the monomorphized version of a function.
+
+    If the function is not generic, then the original link name is preserved.
+    """
+    if not mono_args:
+        return link_name
+    arg_strings = []
+    for arg in mono_args:
+        match arg:
+            case TypeArg(ty=ty):
+                arg_strings.append(str(ty))
+            case ConstArg(const=ConstValue(value=v)):
+                arg_strings.append(str(v))
+            case _:
+                raise InternalGuppyError("Unexpected monomorphization")
+    return f"{link_name}$" + "_".join(arg_strings)
 
 
 @dataclass(frozen=True)
@@ -149,13 +170,14 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         """Type checks the body of the function."""
         cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
         mono_ty = self.ty.instantiate_partial(type_args)
+        mono_link_name = monomorphized_link_name(self.link_name, type_args)
         return CheckedFunctionDef(
             self.id,
             self.name,
             self.defined_at,
             mono_ty,
             self.docstring,
-            self.link_name,
+            mono_link_name,
             cfg,
             metadata=self.metadata,
         )

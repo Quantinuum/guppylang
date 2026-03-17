@@ -27,6 +27,7 @@ from guppylang_internals.definition.function import (
     compile_call,
     default_func_link_name,
     load,
+    monomorphized_link_name,
     parse_py_func,
 )
 from guppylang_internals.definition.value import (
@@ -40,8 +41,6 @@ from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
-from guppylang_internals.tys.arg import ConstArg, TypeArg
-from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import Type, UnitaryFlags
@@ -120,13 +119,14 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
 
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDecl":
         mono_ty = self.ty.instantiate_partial(type_args)
+        mono_link_name = monomorphized_link_name(self.link_name, type_args)
         return CheckedFunctionDecl(
             self.id,
             self.name,
             self.defined_at,
             mono_ty,
             self.docstring,
-            self.link_name,
+            mono_link_name,
             type_args,
         )
 
@@ -168,19 +168,6 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
     """
 
     type_args: Inst
-
-    @property
-    def mangled_name(self) -> str:
-        if not self.type_args:
-            return self.name
-        arg_strings = []
-        for arg in self.type_args:
-            match arg:
-                case TypeArg(ty=ty):
-                    arg_strings.append(str(ty))
-                case ConstArg(const=ConstValue(value=v)):
-                    arg_strings.append(str(v))
-        return f"{self.name}$" + "_".join(arg_strings)
 
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
