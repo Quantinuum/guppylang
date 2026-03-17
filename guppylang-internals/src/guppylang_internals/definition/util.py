@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import FrameType
 from typing import ClassVar
 
-from guppylang_internals.ast_util import annotate_location
+from guppylang_internals.ast_util import annotate_location, parse_source
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
     ExpectedError,
@@ -99,31 +99,6 @@ class CheckedField:
 
     name: str
     ty: Type
-
-
-# TODO: Most all the function are about parsing ASTs, should they be moved to a
-#  common utility module (parsing.py?)
-def parse_source(source_lines: list[str], line_offset: int) -> tuple[str, ast.AST, int]:
-    """Parses a list of source lines into an AST object.
-
-    Also takes care of correctly parsing source that is indented.
-
-    Returns the full source, the parsed AST node, and a potentially updated line number
-    offset.
-    """
-    source = "".join(source_lines)  # Lines already have trailing \n's
-    if source_lines[0][0].isspace():
-        # This means the function is indented, so we cannot parse it straight away.
-        # Running `textwrap.dedent` would mess up the column number in spans. Instead,
-        # we'll just wrap the source into a dummy class definition so the indent becomes
-        # valid
-        cls_node = ast.parse("class _:\n" + source).body[0]
-        assert isinstance(cls_node, ast.ClassDef)
-        node = cls_node.body[0]
-        line_offset -= 1
-    else:
-        node = ast.parse(source).body[0]
-    return source, node, line_offset
 
 
 def parse_py_class(

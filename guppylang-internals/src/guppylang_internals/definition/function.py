@@ -41,7 +41,6 @@ from guppylang_internals.definition.common import (
     UserProvidedLinkName,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
-from guppylang_internals.definition.util import parse_source
 from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,

@@ -6,7 +6,7 @@ from typing import ClassVar
 
 from hugr import Wire, ops
 
-from guppylang_internals.ast_util import AstNode, annotate_location, parse_source
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
@@ -18,7 +18,6 @@ from guppylang_internals.definition.common import (
     CompiledDef,
     DefId,
     ParsableDef,
-    UnknownSourceError,
     UserProvidedLinkName,
 )
 from guppylang_internals.definition.custom import (
@@ -26,7 +25,6 @@ from guppylang_internals.definition.custom import (
     CustomFunctionDef,
     DefaultCallChecker,
 )
-from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Help
 from guppylang_internals.engine import DEF_STORE
