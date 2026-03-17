@@ -11,10 +11,7 @@ from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc, with
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
-from guppylang_internals.compiler.core import (
-    CompilerContext,
-    DFContainer
-)
+from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
@@ -105,6 +102,20 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
 
 @dataclass(frozen=True)
 class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
+    """A function declaration with parsed and checked signature.
+
+    In particular, this means that we have determined a type for the function.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the function.
+        defined_at: The AST node where the function was declared.
+        ty: The type of the function.
+        docstring: The docstring of the function.
+        link_name: The external name for this declaration, applied to the Hugr node and
+            other representations
+    """
+
     defined_at: ast.FunctionDef
     docstring: str | None
     link_name: str
@@ -149,15 +160,13 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
 
 @dataclass(frozen=True)
 class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
-    """A function declaration with parsed and checked signature.
-
-    In particular, this means that we have determined a type for the function.
+    """A checked, monomorphized version of a function declaration.
 
     Args:
         id: The unique definition identifier.
         name: The name of the function.
         defined_at: The AST node where the function was declared.
-        ty: The type of the function.
+        ty: The monomorphic type of the function.
         docstring: The docstring of the function.
         link_name: The external name for this declaration, applied to the Hugr node and
             other representations

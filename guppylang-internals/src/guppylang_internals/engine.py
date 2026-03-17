@@ -405,10 +405,10 @@ class EntryMonomorphizeError(Error):
 
 
 def check_valid_entry_point(defn: ParsedDef) -> Inst:
-    """Checks if the given definition is a valid compilation entry-point.
+    """Checks if the given definition is a valid compilation entry-point and returns the
+    `Inst` key that should be used for further compilation.
 
-    In particular, ensures that the definition doesn't depend on generic parameters and
-    returns the `Inst` key that should be used for further compilation.
+    In particular, ensures that the definition doesn't depend on generic parameters.
     """
     if isinstance(defn, CheckableGenericDef) and defn.params:
         assert defn.defined_at is not None

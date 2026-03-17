@@ -15,7 +15,7 @@ T = TypeVar("T")
 
 def capture_guppy_errors(f: Callable[P, T]) -> Callable[P, T]:
     """Context manager that captures Guppy errors and turns them into runtime
-    `GuppyComptimeException`s."""
+    `GuppyComptimeError`s."""
 
     @functools.wraps(f)
     def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
