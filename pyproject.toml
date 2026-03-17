@@ -18,6 +18,9 @@ test = [
     "miette-py",
     "tket~=0.12.15",
 ]
+bench = [
+    "pyinstrument>=5.1.2",
+]
 
 [tool.uv]
 
@@ -29,7 +32,7 @@ guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
-hugr = { git = "https://github.com/quantinuum/hugr", branch = "mr/feat/py-linking", subdirectory = "hugr-py" }
+hugr = { git = "https://github.com/quantinuum/hugr", branch = "main", subdirectory = "hugr-py" }
 
 [build-system]
 requires = ["hatchling"]
