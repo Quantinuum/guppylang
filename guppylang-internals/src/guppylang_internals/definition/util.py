@@ -46,11 +46,16 @@ class RedundantParamsError(Error):
 class DuplicateFieldError(Error):
     title: ClassVar[str] = "Duplicate field"
     span_label: ClassVar[str] = (
-        "{class_type} `{class_name}` already contains a field named `{field_name}`"
+        "{class_type_capitalized} `{class_name}` already contains a field named "
+        "`{field_name}`"
     )
     class_name: str
     field_name: str
     class_type: str
+
+    @property
+    def class_type_capitalized(self) -> str:
+        return self.class_type.capitalize()
 
 
 @dataclass(frozen=True)

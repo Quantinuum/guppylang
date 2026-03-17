@@ -63,8 +63,8 @@ class DuplicateVariantError(Error):
 @dataclass(frozen=True)
 class VariantFormHint(Help):
     message: ClassVar[str] = (
-        'Enum can contain only variants of the form `VariantName = {{"var1": Type1, ...}}`'  # noqa: E501
-        "or `@guppy` annotated methods"
+        "Enums can only contain variants of the form "
+        '`VariantName = {{"var1": Type1, ...}}` or `@guppy` annotated methods'
     )
 
 
@@ -109,8 +109,8 @@ class RawEnumDef(TypeDef, ParsableDef):
                     pass
                 case _, ast.FunctionDef(name=name) as node:
                     used_func_names[name] = node
-                # Enum variant are declared via dictionary, where key are the variant
-                # fields and values are types;
+                # Enum variants are declared via a dictionary, where keys are the
+                # variant fields and values are types:
                 # e.g. `variant = {"a": int, ...}
 
                 # Multi-target assignments like `a = b = {...}` are not supported
@@ -160,7 +160,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                         variant_index, variant_name, node.value
                     )
                     variant_index += 1
-                # if unexpected statement are found
+                # If unexpected statements are found
                 case _, node:
                     err = UnexpectedError(
                         node,
@@ -335,7 +335,7 @@ def parse_enum_variant(
                 if key_name in variant_field_names:
                     raise GuppyError(
                         DuplicateFieldError(
-                            k, name, key_name, class_type="Enum variant"
+                            k, name, key_name, class_type="enum variant"
                         )
                     )
                 variant_field_names.append(key_name)

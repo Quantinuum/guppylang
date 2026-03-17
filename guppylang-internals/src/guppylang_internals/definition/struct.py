@@ -100,7 +100,7 @@ class RawStructDef(TypeDef, ParsableDef):
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
-                            DuplicateFieldError(node, self.name, name, "Struct")
+                            DuplicateFieldError(node, self.name, name, "struct")
                         )
                 # Struct fields are declared via annotated assignments without value
                 case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:
@@ -111,7 +111,7 @@ class RawStructDef(TypeDef, ParsableDef):
                     if field_name in used_field_names:
                         raise GuppyError(
                             DuplicateFieldError(
-                                node.target, self.name, field_name, "Struct"
+                                node.target, self.name, field_name, "struct"
                             )
                         )
                     fields.append(UncheckedField(field_name, node.annotation))
@@ -129,7 +129,7 @@ class RawStructDef(TypeDef, ParsableDef):
         if overridden := used_field_names.intersection(used_func_names.keys()):
             x = overridden.pop()
             raise GuppyError(
-                DuplicateFieldError(used_func_names[x], self.name, x, "Struct")
+                DuplicateFieldError(used_func_names[x], self.name, x, "struct")
             )
 
         return ParsedStructDef(self.id, self.name, cls_def, params, fields)

@@ -235,7 +235,6 @@ class _Guppy:
                 def method_on_enum(e: MyEnum) -> int:
                     return e.a + 1
         ..
-        Enum supposed to have variants as class attributes.
         """
         defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
         frame = get_calling_frame()

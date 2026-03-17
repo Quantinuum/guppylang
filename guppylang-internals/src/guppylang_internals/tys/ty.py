@@ -752,7 +752,7 @@ class EnumType(ParametrizedTypeBase):
         ]
 
     @cached_property
-    def variant_as_dict(self) -> Mapping[str, "EnumVariant[CheckedField]"]:
+    def variants_as_dict(self) -> Mapping[str, "EnumVariant[CheckedField]"]:
         """The mapping from variant names to variants of this enum type."""
         return self.defn.variants
 

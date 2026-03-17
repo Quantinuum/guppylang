@@ -542,7 +542,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # you loose access to all fields besides `a`).
                 expr = FieldAccessAndDrop(value=node.value, struct_ty=ty, field=field)
             return with_loc(node, expr), field.ty
-        elif isinstance(ty, EnumType) and node.attr in ty.variant_as_dict:
+        elif isinstance(ty, EnumType) and node.attr in ty.variants_as_dict:
             # get the type of the variant constructor
             if variant_constr := self.ctx.globals.get_instance_func(ty, node.attr):
                 return with_loc(
