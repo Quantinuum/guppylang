@@ -1,7 +1,9 @@
+import pytest
 from hugr import ops
 
 from guppylang import comptime
 from guppylang.decorator import guppy
+from guppylang.emulator import EmulatorError
 from guppylang.std.builtins import array, owned
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
@@ -685,6 +687,72 @@ def test_take_put(validate):
     ]
 
     validate(main.compile())
+
+
+def test_discard_borrowed(validate):
+
+    @guppy
+    def main() -> None:
+        qubits = array(qubit(), qubit())
+        result("before_take", qubits.is_borrowed(0))
+        q = qubits.take(0)
+        result("after_take", qubits.is_borrowed(0))
+        q.discard()
+        discard_array(qubits)  # Here, not all qubits in the array are taken out yet
+
+    res = main.emulator(2).coinflip_sim().run().results[0].entries
+    assert res == [
+        ("before_take", 0),
+        ("after_take", 1),
+    ]
+
+
+def test_discard_all_taken(validate):
+
+    @guppy
+    def main() -> None:
+        qubits = array(qubit(), qubit())
+        qubits.take(0).discard()
+        qubits.take(1).discard()
+        qubits.discard_all_taken()
+        result("after_discard", True)
+
+    res = main.emulator(2).coinflip_sim().run().results[0].entries
+    assert res == [("after_discard", 1)]
+
+
+def test_discard_not_all_taken(validate):
+
+    @guppy
+    def main() -> None:
+        qubits = array(qubit(), qubit())
+        qubits.take(0).discard()
+        qubits.discard_all_taken()  # Panics, since qubit 1 was not taken out
+
+    with pytest.raises(
+        EmulatorError,
+        match="Array contains non-borrowed elements and cannot be discarded",
+    ):
+        main.emulator(2).coinflip_sim().run()
+
+
+def test_try_discard_all_taken(validate):
+
+    @guppy
+    def main() -> None:
+        qubits = array(qubit(), qubit())
+        qubits.take(0).discard()
+        after_op = qubits.try_discard_all_taken().unwrap_err()
+        result("after_try", True)
+        after_op.take(1).discard()
+        after_op.try_discard_all_taken().unwrap()
+        result("after_try_again", True)
+
+    res = main.emulator(2).coinflip_sim().run().results[0].entries
+    assert res == [
+        ("after_try", 1),
+        ("after_try_again", 1),
+    ]
 
 
 def test_nested_subscript_different_inner_indices(validate):

@@ -58,6 +58,18 @@ class BaseCFG(Generic[T]):
             yield bb
             queue += bb.predecessors
 
+    def successors(self, *bbs: T) -> Iterator[T]:
+        """Returns an iterator over all successors of the given BBs in BFS order."""
+        queue = deque(bbs)
+        visited = set()
+        while queue:
+            bb = queue.popleft()
+            if bb in visited:
+                continue
+            visited.add(bb)
+            yield bb
+            queue += bb.successors
+
     def update_reachable(self) -> None:
         """Sets the reachability flags on the BBs in this CFG."""
         queue = {self.entry_bb}

@@ -62,6 +62,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprIncoherentListError,
     ComptimeExprNotCPythonError,
     ComptimeExprNotStaticError,
+    ComptimeGuppyObjectError,
     ComptimeUnknownError,
     IllegalComptimeExpressionError,
 )
@@ -94,10 +95,12 @@ from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
 from guppylang_internals.error import (
+    GuppyComptimeError,
     GuppyError,
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
+    saved_exception_hook,
 )
 from guppylang_internals.experimental import (
     check_function_tensors_enabled,
@@ -1401,10 +1404,18 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
     if sys.implementation.name != "cpython":
         raise GuppyError(ComptimeExprNotCPythonError(node))
 
+    # Ensure that any modifications to sys.excepthook performed in the `eval` call
+    # (e.g. through `@hide_trace`-decorated Guppy callables) are rolled back to the
+    # current exception hook when `eval` exits. Without this, exceptions raised
+    # during `eval` may cause the sys.excepthook to render raw tracebacks instead
+    # of formatted diagnostics.
     try:
-        python_val = eval(ast.unparse(node.value), DummyEvalDict(ctx, node.value))  # noqa: S307
+        with saved_exception_hook():
+            python_val = eval(ast.unparse(node.value), DummyEvalDict(ctx, node.value))  # noqa: S307
     except DummyEvalDict.GuppyVarUsedError as e:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
+    except GuppyComptimeError as e:
+        raise GuppyError(ComptimeGuppyObjectError(node.value, str(e))) from e
     except Exception as e:
         # Remove the top frame pointing to the `eval` call from the stack trace
         tb = e.__traceback__.tb_next if e.__traceback__ else None

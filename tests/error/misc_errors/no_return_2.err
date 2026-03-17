@@ -1,0 +1,10 @@
+Error: Expected return statement (at $FILE:6:4)
+  | 
+4 | @guppy
+5 | def test(b: bool) -> int:
+6 |     if b:
+  |     ^^^^^
+7 |         x = 2
+  | ^^^^^^^^^^^^^ Expected return statement
+
+Guppy compilation failed due to 1 previous error
