@@ -35,7 +35,7 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
-from guppylang_internals.engine import DEF_STORE, ENGINE, MonoArgs, MonoDefId
+from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.common import ToHugrContext
@@ -69,7 +69,7 @@ class GlobalConstId:
 
 #: Unique identifier for global Hugr constants and functions with monomorphized type
 #: arguments
-MonoGlobalConstId = tuple[GlobalConstId, MonoArgs]
+MonoGlobalConstId = tuple[GlobalConstId, Inst]
 
 
 class CompilerContext(ToHugrContext):
@@ -110,7 +110,7 @@ class CompilerContext(ToHugrContext):
 
         Might mutate the current Hugr if this definition has never been compiled before.
         """
-        mono_args = tuple(type_args) if type_args is not None else ()
+        mono_args = type_args or ()
         if (def_id, mono_args) not in self.compiled:
             defn = ENGINE.get_checked(def_id, mono_args)
             if isinstance(defn, CompilableDef):
@@ -119,13 +119,11 @@ class CompilerContext(ToHugrContext):
             self.worklist[def_id, mono_args] = None
         return self.compiled[def_id, mono_args]
 
-    def compile(self, defn: CheckedDef, mono_args: MonoArgs) -> CompiledDef:
+    def compile(self, defn: CheckedDef, mono_args: Inst) -> CompiledDef:
         """Compiles the given definition and all of its dependencies into the current
         Hugr."""
         # Check and compile the entry point
-        entry_compiled = self.build_compiled_def(
-            defn.id, list(mono_args) if mono_args is not None else None
-        )
+        entry_compiled = self.build_compiled_def(defn.id, mono_args)
         self.compiled[defn.id, mono_args] = entry_compiled
         self.worklist[defn.id, mono_args] = None
 
@@ -160,7 +158,7 @@ class CompilerContext(ToHugrContext):
         parsed_func = self.checked_globals.get_instance_func(ty, name)
         if parsed_func is None:
             return None
-        checked_func = ENGINE.get_checked(parsed_func.id, tuple(type_args))
+        checked_func = ENGINE.get_checked(parsed_func.id, type_args)
         compiled_func = self.build_compiled_def(checked_func.id, type_args)
         assert isinstance(compiled_func, CompiledCallableDef)
         return compiled_func
@@ -175,7 +173,7 @@ class CompilerContext(ToHugrContext):
         Creates a function builder for a global function if it doesn't already exist,
         else returns the existing one.
         """
-        mono_args = tuple(type_args) if type_args is not None else ()
+        mono_args = type_args or ()
         if (const_id, mono_args) in self.global_funcs:
             return self.global_funcs[const_id, mono_args], True
         func = self.module.module_root_builder().define_function(

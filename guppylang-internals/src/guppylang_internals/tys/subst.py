@@ -21,7 +21,7 @@ from guppylang_internals.tys.ty import (
 from guppylang_internals.tys.var import ExistentialVar
 
 Subst = dict[ExistentialVar, Type | Const]
-Inst = Sequence[Argument]
+Inst = tuple[Argument, ...]
 PartialInst = Sequence["Argument | None"]
 
 

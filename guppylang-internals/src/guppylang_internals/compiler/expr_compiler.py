@@ -267,7 +267,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             )
             raise GuppyError(err)
 
-        defn = self.ctx.build_compiled_def(node.def_id, type_args=[])
+        defn = self.ctx.build_compiled_def(node.def_id, type_args=())
         assert isinstance(defn, CompiledValueDef)
         return defn.load(self.dfg, self.ctx, node)
 
@@ -591,7 +591,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             elt_port = self.visit(node.elt)
             list_port = self.dfg[list_place]
             [], [self.dfg[list_place]] = self._build_method_call(
-                list_ty, "append", node, [list_port, elt_port], list_ty.args
+                list_ty, "append", node, [list_port, elt_port], tuple(list_ty.args)
             )
         return self.dfg[list_place]
 
@@ -622,7 +622,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             # Update `count += 1`
             one = self.builder.load(hugr.std.int.IntVal(1, width=NumericType.INT_WIDTH))
             [self.dfg[count_var]], [] = self._build_method_call(
-                int_type(), "__add__", node, [count, one], []
+                int_type(), "__add__", node, [count, one], ()
             )
         return self.dfg[array_var]
 

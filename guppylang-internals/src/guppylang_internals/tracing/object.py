@@ -556,7 +556,7 @@ class TracingDefMixin(DunderMixin):
             raise GuppyComptimeError(
                 f"Cannot infer type parameters of generic function `{defn.name}`"
             )
-        defn = state.ctx.build_compiled_def(self.id, type_args=[])
+        defn = state.ctx.build_compiled_def(self.id, type_args=())
         if isinstance(defn, CompiledValueDef):
             wire = defn.load(state.dfg, state.ctx, state.node)
             return GuppyObject(defn.ty, wire, None)

@@ -114,7 +114,7 @@ class CompiledTracedFunctionDef(
 
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
-        type_args: Inst = []  # Comptime functions are not generic
+        type_args: Inst = ()  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
         type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         return dfg.builder.load_function(self.func_def, func_ty, type_args)
@@ -127,7 +127,7 @@ class CompiledTracedFunctionDef(
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        type_args: Inst = []  # Comptime functions are not generic
+        type_args: Inst = ()  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
         type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         num_returns = len(type_to_row(self.ty.output))

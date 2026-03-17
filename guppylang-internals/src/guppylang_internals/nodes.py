@@ -92,6 +92,7 @@ class GlobalCall(ast.expr):
         super().__init__()
         self.def_id = def_id
         self.args = args
+        assert isinstance(type_args, tuple)
         self.type_args = type_args
 
     # See MakeIter for explanation

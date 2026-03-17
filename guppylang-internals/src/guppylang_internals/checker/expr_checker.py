@@ -267,7 +267,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if act is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
-        assert inst == [], "Const values are not generic"
+        assert inst == (), "Const values are not generic"
         return node, subst
 
     def visit_Tuple(self, node: ast.Tuple, ty: Type) -> tuple[ast.expr, Subst]:
@@ -891,7 +891,7 @@ def check_type_against(
                     TypeMismatchError.CantInstantiateFreeVars(None, param, subst[v])
                 )
                 raise GuppyTypeError(err)
-        inst = [subst[v].to_arg() for v in free_vars]
+        inst = tuple(subst[v].to_arg() for v in free_vars)
         subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
 
         # Finally, check that the instantiation respects the linearity requirements
@@ -905,9 +905,9 @@ def check_type_against(
     if subst is None:
         # Maybe we can implicitly coerce `act` to `exp`
         if coerced := try_coerce_to(act, exp, node, ctx):
-            return coerced, {}, []
+            return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
-    return node, subst, []
+    return node, subst, ()
 
 
 def try_coerce_to(
@@ -956,7 +956,7 @@ def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Ins
         err.add_sub_diagnostic(WrongNumberOfArgsError.SignatureHint(None, ty))
         raise GuppyError(err)
 
-    inst = [arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs]
+    inst = tuple(arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs)
     check_all_args(ty.params, inst, "", node, arg_exprs)
     return inst
 
@@ -1255,7 +1255,7 @@ def check_all_solved(
             err = ParameterInferenceError(loc, v.display_name)
             err.add_sub_diagnostic(ParameterInferenceError.SignatureHint(None, func_ty))
             raise GuppyTypeInferenceError(err)
-    return [subst[v].to_arg() for v in free_vars]
+    return tuple(subst[v].to_arg() for v in free_vars)
 
 
 def check_inst(func_ty: FunctionType, inst: Inst, node: AstNode) -> None:

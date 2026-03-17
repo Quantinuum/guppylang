@@ -571,7 +571,8 @@ class FunctionType(ParametrizedTypeBase):
     def unquantified(self) -> tuple["FunctionType", Sequence[ExistentialVar]]:
         """Instantiates all parameters with existential variables."""
         exs = [param.to_existential() for param in self.params]
-        return self.instantiate([arg for arg, _ in exs]), [var for _, var in exs]
+        inst = tuple(arg for arg, _ in exs)
+        return self.instantiate(inst), [var for _, var in exs]
 
     def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
         """Returns a copy of this function type with the specified unitary flags."""

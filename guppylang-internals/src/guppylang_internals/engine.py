@@ -32,7 +32,6 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import SourceMap
-from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
@@ -73,18 +72,13 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 
 
-#: Monomorphic instantiation of the generic parameters of definitions.
-#:
-#: This is similar to the `Inst` type, however we use a tuple here since the
-#: instantiation is required to be hashable.
-MonoArgs = tuple[Argument, ...]
-
 #: Identifier for a monomorphized version of a definition.
 #:
 #: Kinds of definitions that are never generic (e.g. constant definitions) and
 #: definitions without generic parameters (e.g. a non-generic function definition) are
-#: registered with an empty tuple () as `MonoArgs`.
-MonoDefId = tuple[DefId, MonoArgs]
+#: registered with an empty tuple () as `Inst`. Otherwise, `Inst` will be the
+#: instantiation for the generic parameters for the monomorphized version.
+MonoDefId = tuple[DefId, Inst]
 
 
 class DefinitionStore:
@@ -246,7 +240,7 @@ class CompilationEngine:
         return defn
 
     @pretty_errors
-    def get_checked(self, id: DefId, mono_args: MonoArgs | None) -> CheckedDef:
+    def get_checked(self, id: DefId, mono_args: Inst | None) -> CheckedDef:
         """Look up the checked version of a definition by its id.
 
         Parses and checks the definition if it hasn't been parsed/checked yet. Also
@@ -304,7 +298,7 @@ class CompilationEngine:
             # only be done if the types have already been checked.
             if self.types_to_check_worklist:
                 id, _ = self.types_to_check_worklist.popitem()
-                mono_args: MonoArgs = ()
+                mono_args: Inst = ()
             else:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
             self.checked[id, mono_args] = self.get_checked(id, mono_args)
@@ -410,11 +404,11 @@ class EntryMonomorphizeError(Error):
         return ", ".join(f"`{p.name}`" for p in self.params)
 
 
-def check_valid_entry_point(defn: ParsedDef) -> MonoArgs:
+def check_valid_entry_point(defn: ParsedDef) -> Inst:
     """Checks if the given definition is a valid compilation entry-point.
 
     In particular, ensures that the definition doesn't depend on generic parameters and
-    returns the `MonoArgs` key that should be used for further compilation.
+    returns the `Inst` key that should be used for further compilation.
     """
     if isinstance(defn, CheckableGenericDef) and defn.params:
         assert defn.defined_at is not None
