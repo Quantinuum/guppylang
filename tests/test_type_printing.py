@@ -36,34 +36,38 @@ def test_comptime_function_type() -> None:
 
 
 def test_kind_str() -> None:
-    # NoneType -> str(self) = "None"
-    assert NoneType().kind_str() == "None"
+    none_ty = NoneType()
+    assert none_ty.kind_str() == "None"
+    assert none_ty.kind_str() == str(none_ty)
 
-    # NumericType -> str(self) = "int" / "float" / "nat"
-    assert NumericType(NumericType.Kind.Int).kind_str() == "int"
-    assert NumericType(NumericType.Kind.Float).kind_str() == "float"
-    assert NumericType(NumericType.Kind.Nat).kind_str() == "nat"
+    int_ty = NumericType(NumericType.Kind.Int)
+    assert int_ty.kind_str() == "int"
+    assert int_ty.kind_str() == str(int_ty)
 
-    # TupleType -> "Tuple"
+    float_ty = NumericType(NumericType.Kind.Float)
+    assert float_ty.kind_str() == "float"
+    assert float_ty.kind_str() == str(float_ty)
+
+    nat_ty = NumericType(NumericType.Kind.Nat)
+    assert nat_ty.kind_str() == "nat"
+    assert nat_ty.kind_str() == str(nat_ty)
+
     assert TupleType([NumericType(NumericType.Kind.Int)]).kind_str() == "Tuple"
 
-    # FunctionType -> "Function"
-    ty = FunctionType(
+    func_ty = FunctionType(
         inputs=[FuncInput(NumericType(NumericType.Kind.Int), InputFlags.NoFlags)],
         output=NumericType(NumericType.Kind.Int),
     )
-    assert ty.kind_str() == "Function"
+    assert func_ty.kind_str() == "Function"
 
-    # OpaqueType -> str(self), e.g. "array[int, 1]"
     ty_param = TypeParam(0, "T", must_be_copyable=False, must_be_droppable=False)
     len_param = ConstParam(1, "n", NumericType(NumericType.Kind.Nat))
     array_ty = OpaqueType([ty_param.to_bound(0), len_param.to_bound(1)], array_type_def)
     assert array_ty.kind_str() == str(array_ty)
 
-    # BoundTypeVar -> display_name
     bound_var = BoundTypeVar("T", 0, copyable=True, droppable=True)
     assert bound_var.kind_str() == "T"
+    assert bound_var.kind_str() == str(bound_var)
 
-    # ExistentialTypeVar -> "?T"
     ex_var = ExistentialTypeVar.fresh("T", copyable=True, droppable=True)
     assert ex_var.kind_str() == str(ex_var)
