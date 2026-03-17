@@ -876,6 +876,9 @@ class CheckedMatchPred(ast.expr):
     subject: ast.expr
     patterns: list[ast.pattern]
     sum_type: HugrSum
+    output_vars: list[list["Place"]]
+
+    _fields = ("subject", "patterns")
 
     def __init__(self, subject: ast.expr) -> None:
         super().__init__()
@@ -889,11 +892,7 @@ class CheckedMatchPred(ast.expr):
 class MatchOverEnum(CheckedMatchPred):
     """A Node representing a pattern match on subject against an enum pattern"""
 
-    subject: ast.expr
     enum_type: EnumType
-    patterns: list[ast.pattern]
-
-    _fields = ("subject", "enum_type", "patterns")
 
     def __init__(self, subject: ast.expr, enum_type: EnumType) -> None:
         super().__init__(subject)
@@ -903,11 +902,7 @@ class MatchOverEnum(CheckedMatchPred):
 class MatchOverStruct(CheckedMatchPred):
     """A Node representing a pattern match on subject against a struct pattern"""
 
-    subject: ast.expr
     struct_type: StructType
-    patterns: list[ast.pattern]
-
-    _fields = ("subject", "struct_type", "patterns")
 
     def __init__(self, subject: ast.expr, struct_type: StructType) -> None:
         super().__init__(subject)
@@ -917,11 +912,7 @@ class MatchOverStruct(CheckedMatchPred):
 class MatchOverLiteral(CheckedMatchPred):
     """A Node representing a pattern match on subject against a literal pattern"""
 
-    subject: ast.expr
     subj_type: Type
-    patterns: list[ast.pattern]
-
-    _fields = ("subject", "subj_type", "patterns")
 
     def __init__(self, subject: ast.expr, subj_type: Type) -> None:
         super().__init__(subject)

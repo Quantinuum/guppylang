@@ -1,3 +1,4 @@
+import ast
 import functools
 from collections.abc import Sequence
 from typing import cast
@@ -23,7 +24,8 @@ from guppylang_internals.compiler.core import (
 )
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.compiler.stmt_compiler import StmtCompiler
-from guppylang_internals.nodes import CheckedMatchPred
+from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.nodes import CheckedMatchPred, MatchOverLiteral, PlaceNode
 from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, read_bool
 from guppylang_internals.tys.ty import type_to_row
 
@@ -123,44 +125,54 @@ def compile_bb(
             assert pred_ty == ht.Bool, f"Unexpected predicate type: {pred_ty}"
     elif isinstance(bb.branch_pred, CheckedMatchPred):
         # we are branching under a match statement
+        pre_compile_match(bb.branch_pred, bb, dfg)
         branch_port = ExprCompiler(ctx).compile(bb.branch_pred, dfg)
-    else:
+    elif len(bb.successors) == 1:
         # Even if we don't branch, we still have to add a `Sum(())` predicates
         branch_port = dfg.builder.add_op(ops.Tag(0, ht.UnitSum(1)))
+    else:
+        raise InternalGuppyError("Invalid number of successors in basic block")
 
     # Finally, we have to add the block output.
     outputs: Sequence[Place]
-    if len(bb.successors) == 1:
-        # The easy case is if we don't branch: We just output all variables that are
-        # specified by the signature
-        [outputs] = bb.sig.output_rows
+
+    if isinstance(bb.branch_pred, CheckedMatchPred):
+        # If this is a match statement, the outputting has already been handled,
+        # we simply consider the non copiable variables
+        outputs = [v for v in bb.sig.output_rows[0] if not v.ty.droppable]
     else:
-        # CFG building ensures that branching BBs don't branch to the exit (exit jumps
-        # must always be unconditional)
-        assert not any(succ.is_exit for succ in bb.successors)
-
-        # If we branch and the branches use the same places, then we can use a
-        # regular output
-        first, *rest = bb.sig.output_rows
-        if all({p.id for p in first} == {p.id for p in r} for r in rest):
-            outputs = first
+        if len(bb.successors) == 1:
+            # The easy case is if we don't branch: We just output all variables that are
+            # specified by the signature
+            [outputs] = bb.sig.output_rows
         else:
-            # Otherwise, we have to output a TupleSum: We put all non-linear variables
-            # into the branch TupleSum and all linear variables in the normal output
-            # (since they are shared between all successors). This is in line with the
-            # ordering on variables which puts linear variables at the end.
-            # We don't need to worry about the order of return vars since this isn't
-            # a branch to an exit (see assert above).
-            branch_port = choose_vars_for_tuple_sum(
-                unit_sum=branch_port,
-                output_vars=[
-                    [v for v in sort_vars(row) if v.ty.droppable]
-                    for row in bb.sig.output_rows
-                ],
-                dfg=dfg,
-            )
-            outputs = [v for v in first if not v.ty.droppable]
+            # CFG building ensures that branching BBs don't branch to the exit (exit jumps
+            # must always be unconditional)
+            assert not any(succ.is_exit for succ in bb.successors)
 
+            # If we branch and the branches use the same places, then we can use a
+            # regular output
+            first, *rest = bb.sig.output_rows
+            if all({p.id for p in first} == {p.id for p in r} for r in rest):
+                outputs = first
+            else:
+                # Otherwise, we have to output a TupleSum: We put all non-linear variables
+                # into the branch TupleSum and all linear variables in the normal output
+                # (since they are shared between all successors). This is in line with the
+                # ordering on variables which puts linear variables at the end.
+                # We don't need to worry about the order of return vars since this isn't
+                # a branch to an exit (see assert above).
+                branch_port = choose_vars_for_tuple_sum(
+                    unit_sum=branch_port,
+                    output_vars=[
+                        [v for v in sort_vars(row) if v.ty.droppable]
+                        for row in bb.sig.output_rows
+                    ],
+                    dfg=dfg,
+                )
+                outputs = [v for v in first if not v.ty.droppable]
+    if is_entry:
+        print("outputsaaa: ", outputs)
     # If this is *not* a jump to the exit BB, we need to sort the outputs to make the
     # signature consistent with what the next BB expects
     if not any(succ.is_exit for succ in bb.successors):
@@ -170,6 +182,9 @@ def compile_bb(
         # the function outputs
         assert len(bb.successors) == 1, "Exit jumps are always unconditional"
 
+    if is_entry:
+        with open("debug.dot", "w") as f:
+            f.write(str(builder.hugr.render_dot()))
     block.set_block_outputs(branch_port, *(dfg[v] for v in outputs))
     return block
 
@@ -244,3 +259,55 @@ def sort_vars(row: Row[Place]) -> list[Place]:
     This determines the order in which they are outputted from a BB.
     """
     return sorted(row, key=functools.cmp_to_key(compare_var))
+
+
+def pre_compile_match(
+    node: CheckedMatchPred, bb: CheckedBB[Place], dfg: DFContainer
+) -> None:
+    """Pre-compiles a match predicate by extracting the type of the matched variable."""
+    output_vars = [
+        [v for v in sort_vars(row) if v.ty.droppable] for row in bb.sig.output_rows
+    ]
+
+    # TODO: NIcola duplicated code with choose_vars_for_tuple_sum
+    sum_type = ht.Sum(
+        [[v.ty.to_hugr(dfg.ctx) for v in var_row] for var_row in output_vars]
+    )
+
+    node.sum_type = sum_type
+    node.output_vars = output_vars
+
+    return
+    # print(node.subject)
+    # # TODO: Nicola Update when add alias
+    # num_branches = len(bb.successors)
+    # if isinstance(node.subject, PlaceNode):
+    #     subj_place = node.subject.place
+    #     outputs = bb.sig.output_rows
+    #     # For every output row, I need to check the type that is needed for the next
+    #     # block. If the subject of the match ...
+    #     # The sum type of the conditional will be the sum of all these types.
+    #     for output in outputs:
+    #         pass
+
+    # outputs = bb.sig.output_rows
+
+    # # If the last pattern is a wildcard we have one pattern per successor, otherwise
+    # # the else branch does not correspond to any pattern
+    # # TODO: Nicola
+    # #  With alias, we need to the type of the alias variable instead of unit
+    # if isinstance(node, MatchOverLiteral):
+    #     tag_sum_ty = ht.Sum(
+    #         [[node.subj_type.to_hugr(ctx)] for _ in range(num_branches)]
+    #     )
+    # else:
+    #     tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
+    # for i, out in enumerate(outputs):
+    #     print(i, ": ")
+    #     for v in out:
+    #         print("\t", v, type(v), v.ty, type(v.ty))
+    #     print("next inp:")
+    #     for j, inp in enumerate(bb.successors[i].sig.input_row):
+    #         print("\t", inp, type(inp), inp.ty, type(inp.ty))
+    # print("----")
+    # return tag_sum_ty

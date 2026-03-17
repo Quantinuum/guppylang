@@ -4,7 +4,9 @@ from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from typing import Any, Final, TypeGuard, TypeVar, cast
 
+from guppylang_internals.checker.cfg_checker import Row
 import hugr
+from hugr.build import dfg
 import hugr.std.collections.array
 import hugr.std.float
 import hugr.std.int
@@ -19,7 +21,7 @@ from hugr.build.dfg import DP, DfBase
 
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
-from guppylang_internals.checker.core import Variable, contains_subscript
+from guppylang_internals.checker.core import Place, Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
@@ -759,38 +761,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
     def visit_Compare(self, node: ast.Compare) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")
 
-    def pre_process_match(self, node: CheckedMatchPred) -> tuple[Wire, ht.Sum]:
-        subject_wire = self.visit(node.subject)
-        if len(node.patterns) == 0:
-            raise InternalGuppyError(
-                "Match predicate with no patterns should not exist"
-            )
-        # TODO: Nicola Update when add alias
-        # If the last pattern is a wildcard we have one pattern per successor, otherwise
-        # the else branch does not correspond to any pattern
-        num_branches = (
-            len(node.patterns)
-            if isinstance(node.patterns[-1], ast.MatchAs)
-            else len(node.patterns) + 1
-        )
-        # TODO: Nicola
-        #  With alias, we need to the type of the alias variable instead of unit
-        if isinstance(node, MatchOverLiteral):
-            print("boia")
-            print(node.subj_type)
-            tag_sum_ty = ht.Sum(
-                [[node.subj_type.to_hugr(self.ctx)] for _ in range(num_branches)]
-            )
-            # print(tag_sum_ty)
-        else:
-            tag_sum_ty = ht.Sum([[] for _ in range(num_branches)])
-
-        return subject_wire, tag_sum_ty
-
     def visit_MatchOverEnum(self, node: MatchOverEnum) -> Wire:
-        subject_wire, tag_sum_ty = self.pre_process_match(node)
+        subject_wire = self.visit(node.subject)
         enum_ty = node.enum_type
-        print(enum_ty)
 
         # We are matching on an enum, we need a single flat conditional on all
         # the variants
@@ -812,7 +785,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         with self.dfg.builder.add_conditional(subject_wire) as cond:
             for var in enum_ty.variants_as_list:
                 with cond.add_case(var.index) as case:
-                    tag = case.add_op(ops.Tag(variant_to_pos[var.index], tag_sum_ty))
+                    tag = case.add_op(ops.Tag(variant_to_pos[var.index], node.sum_type))
                     case.set_outputs(tag)
 
             # TODO: Nicola If the match is exhaustive, we have an unreachable else
@@ -820,33 +793,54 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             return cond
 
     def visit_MatchOverLiteral(self, node: MatchOverLiteral) -> Wire:
-        subject_wire, tag_sum_ty = self.pre_process_match(node)
+        subject_wire = self.visit(node.subject)
         patt_comp = PatternCompiler(self.ctx, self.dfg)
 
         # We are matching on a literal, we need nesteded conditionals
         out_wire = patt_comp._build_conditional_for_pattern_under_equivalence(
             patterns=node.patterns,
             subj_wire=subject_wire,
-            tag_sum_ty=tag_sum_ty,
+            tag_sum_ty=node.sum_type,
             tag_index=0,
             builder=self.dfg.builder,
         )
+
+        # save the hugr on a file
+        with open("hugr_before_assign.dot", "w") as f:
+            f.write(str(self.dfg.builder.hugr.render_dot()))
+
+        # if isinstance(node.subject, PlaceNode):
+        #     from guppylang_internals.compiler.stmt_compiler import StmtCompiler
+
+        #     comp = StmtCompiler(self.ctx)
+        #     comp.dfg = self.dfg
+        #     comp._assign(node.subject, out_wire)
 
         return out_wire
 
     def visit_MatchOverStruct(self, node: MatchOverStruct) -> Wire:
-        subject_wire, tag_sum_ty = self.pre_process_match(node)
+        subject_wire = self.visit(node.subject)
 
-        patt_comp = PatternCompiler(self.ctx, self.dfg)
+        all_vars = {v.id: dfg[v] for var_row in node.output_vars for v in var_row}
+        all_vars_wires = list(all_vars.values())
+        all_vars_idxs = {x: i for i, x in enumerate(all_vars.keys())}
+
+        patt_comp = PatternCompiler(self.ctx, self.dfg, all_vars_idxs)
 
         # We are matching on a literal, we need nesteded conditionals
         out_wire = patt_comp._build_conditional_for_pattern_under_equivalence(
             patterns=node.patterns,
             subj_wire=subject_wire,
-            tag_sum_ty=tag_sum_ty,
+            tag_sum_ty=node.sum_type,
             tag_index=0,
             builder=self.dfg.builder,
         )
+
+        # from guppylang_internals.compiler.stmt_compiler import StmtCompiler
+
+        # comp = StmtCompiler(self.ctx)
+        # comp.dfg = self.dfg
+        # comp._assign(node.subject, out_wire)
 
         return out_wire
 
@@ -854,20 +848,32 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 class PatternCompiler(CompilerBase):
     dfg: DFContainer
 
-    def __init__(self, ctx: CompilerContext, dfg: DFContainer) -> None:
+    def __init__(
+        self,
+        ctx: CompilerContext,
+        dfg: DFContainer,
+        all_vars_idxs: dict[Variable.Id, int],
+    ) -> None:
         super().__init__(ctx)
         self.dfg = dfg
+        self.all_vars_idxs = all_vars_idxs
 
     def _build_conditional_for_pattern_under_equivalence(
         self,
         patterns: list[ast.pattern],
+        output_vars: list[Row[Place]],
         subj_wire: Wire,
+        other_vars_wires: list[Wire],
         tag_sum_ty: ht.Sum,
         tag_index: int,
         builder: DfBase[ops.DfParentOp],
     ) -> Wire:
         """Helper method to build a nested `Conditional` representing
         the pattern match"""
+
+        # We pass all values into the conditional instead of relying on non-local edges.
+        # TO allow this, we need to carry all the output variables down to the matrioska
+        # of conditionals.
 
         # Base case: If there are no more patterns to check, or we found a MatchAs()
         # we simply add the tag: we are in the else case, no check need,
@@ -876,6 +882,8 @@ class PatternCompiler(CompilerBase):
             return builder.add_op(ops.Tag(tag_index, tag_sum_ty))
 
         [pattern, *patterns] = patterns
+        assert len(output_vars) > 0  # output vars has the same length as patterns
+        [var_row, *output_vars] = output_vars
         # this wire comes from the check if the subject against the pattern
         is_pattern_wire = PatternVisitor(self.ctx, builder, self.dfg).compile(
             pattern, subj_wire
@@ -884,14 +892,18 @@ class PatternCompiler(CompilerBase):
         if is_pattern_wire is None:
             return builder.add_op(ops.Tag(tag_index, tag_sum_ty))
 
-        tt = self.dfg.builder.hugr.port_type(is_pattern_wire.out_port())
-        print(tt)
-
         # We add a conditional on the `is_pattern_wire` wire
-        with builder.add_conditional(is_pattern_wire, subj_wire) as cond:
+        with builder.add_conditional(
+            is_pattern_wire, subj_wire, *other_vars_wires
+        ) as cond:
             with cond.add_case(1) as case_matched:
+                case_inputs = case_matched.inputs()
+                subj_wire = case_inputs[0]  # first input is always the subject
+                outputs = [case_inputs[self.all_vars_idxs[v.id]] for v in var_row]
                 # True case: we matched the pattern, we point to the next block
-                branch_tag = case_matched.add_op(ops.Tag(tag_index, tag_sum_ty))
+                branch_tag = case_matched.add_op(
+                    ops.Tag(tag_index, tag_sum_ty), *outputs
+                )
                 case_matched.set_outputs(branch_tag)
 
             with cond.add_case(0) as case_continue:
@@ -899,7 +911,9 @@ class PatternCompiler(CompilerBase):
                 subj_wire = case_continue.inputs()[0]
                 inner_cond = self._build_conditional_for_pattern_under_equivalence(
                     patterns=patterns,
+                    output_vars=output_vars,
                     subj_wire=subj_wire,
+                    other_vars_wires=other_vars_wires,
                     tag_sum_ty=tag_sum_ty,
                     tag_index=tag_index + 1,
                     builder=cast("DfBase[ops.DfParentOp]", case_continue),
