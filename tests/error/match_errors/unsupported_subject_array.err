@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:7:10)
+  | 
+5 | @compile_guppy
+6 | def main(a: array[int, 1]) -> None:
+7 |     match a:
+  |           ^ Pattern matching on array[int, 1] is not supported
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:8:10)
+  | 
+6 | @compile_guppy
+7 | def main(f: Callable[[int], int]) -> None:
+8 |     match f:
+  |           ^ Pattern matching on Function is not supported
+
+Guppy compilation failed due to 1 previous error

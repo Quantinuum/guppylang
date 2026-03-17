@@ -101,17 +101,15 @@ class TypeBase(ToHugr[ht.Type], Transformable["Type"], ABC):
         # unique names
         return TypePrinter().visit(cast("Type", self))
     
+    @abstractmethod
     def kind_str(self) -> str:
         """Returns a short, human-readable kind name for this type.
 
         For most types this is the constructor name without arguments
-        (e.g. ``'Tuple'`` for ``(Point, int)``, ``'Callable'`` for a function
-        type). Subtypes may include type arguments when that gives a more
-        useful description.
+        (e.g. ``'Tuple'`` for ``(int, int)``). Subtypes may include type
+        arguments when that gives a more useful description
+        (e.g. ``'list[int]'``).
         """
-        from guppylang_internals.tys.printing import type_kind_str
-        
-        return type_kind_str(cast("Type", self))
 
 
 @dataclass(frozen=True)
@@ -232,6 +230,9 @@ class BoundTypeVar(TypeBase, BoundVar):
         """Returns a human-readable representation of the type."""
         return self.display_name
 
+    def kind_str(self) -> str:
+        return str(self)
+
 
 @dataclass(frozen=True)
 class ExistentialTypeVar(ExistentialVar, TypeBase):
@@ -285,6 +286,9 @@ class ExistentialTypeVar(ExistentialVar, TypeBase):
         """Accepts a transformer on this type."""
         return transformer.transform(self) or self
 
+    def kind_str(self) -> str:
+        return str(self)
+
 
 @dataclass(frozen=True)
 class NoneType(TypeBase):
@@ -314,6 +318,9 @@ class NoneType(TypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or self
+
+    def kind_str(self) -> str:
+        return str(self)
 
 
 @dataclass(frozen=True)
@@ -369,6 +376,9 @@ class NumericType(TypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or self
+
+    def kind_str(self) -> str:
+        return str(self)
 
 
 class InputFlags(Flag):
@@ -606,6 +616,9 @@ class FunctionType(ParametrizedTypeBase):
             flags,
         )
 
+    def kind_str(self) -> str:
+        return "Function"
+
 
 @dataclass(frozen=True, init=False)
 class TupleType(ParametrizedTypeBase):
@@ -649,6 +662,9 @@ class TupleType(ParametrizedTypeBase):
             [ty.transform(transformer) for ty in self.element_types], self.preserve
         )
 
+    def kind_str(self) -> str:
+        return "Tuple"
+
 
 @dataclass(frozen=True)
 class OpaqueType(ParametrizedTypeBase):
@@ -682,12 +698,6 @@ class OpaqueType(ParametrizedTypeBase):
         return self
     
     def kind_str(self) -> str:
-        """Returns a short, human-readable kind name for this type.
-
-        For ``OpaqueType``, ``__str__`` already gives a concise description
-        (e.g. ``'list[int]'``), so we use it directly rather than routing
-        through ``type_kind_str``.
-        """
         return str(self)
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
@@ -744,6 +754,9 @@ class StructType(ParametrizedTypeBase):
         return transformer.transform(self) or StructType(
             [arg.transform(transformer) for arg in self.args], self.defn
         )
+
+    def kind_str(self) -> str:
+        return "Struct"
 
 
 @dataclass(frozen=True)
@@ -817,6 +830,9 @@ class EnumType(ParametrizedTypeBase):
         return transformer.transform(self) or EnumType(
             [arg.transform(transformer) for arg in self.args], self.defn
         )
+
+    def kind_str(self) -> str:
+        return "Enum"
 
 
 #: The type of parametrized Guppy types.
