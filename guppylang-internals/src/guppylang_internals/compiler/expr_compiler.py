@@ -1,16 +1,11 @@
 import ast
-from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from typing import Any, Final, TypeGuard, TypeVar, cast
 
-from guppylang_internals.checker.cfg_checker import Row
 import hugr
-from hugr.build import dfg
-import hugr.std.collections.array
 import hugr.std.float
 import hugr.std.int
-import hugr.std.logic
 import hugr.std.prelude
 from hugr import Wire, ops
 from hugr import tys as ht
@@ -21,6 +16,7 @@ from hugr.build.dfg import DP, DfBase
 
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
+from guppylang_internals.checker.cfg_checker import Row
 from guppylang_internals.checker.core import Place, Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.core import (
@@ -48,7 +44,6 @@ from guppylang_internals.nodes import (
     AbortExpr,
     AbortKind,
     BarrierExpr,
-    CheckedMatchPred,
     DesugaredArrayComp,
     DesugaredGenerator,
     DesugaredListComp,
@@ -762,52 +757,38 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         raise InternalGuppyError("Node should have been removed during type checking.")
 
     def visit_MatchOverEnum(self, node: MatchOverEnum) -> Wire:
-        subject_wire = self.visit(node.subject)
-        enum_ty = node.enum_type
-
-        # We are matching on an enum, we need a single flat conditional on all
-        # the variants
-        # TODO: See the order of the patterns
-
-        # if an enum variant is not present in any case, it means that it point to
-        # the else branch.
-
-        default_number = len(node.patterns) - 1
-
-        # Map: variant_idx -> position in node.patterns
-        # defaults to default_number (the else branch) for unmatched variants
-        variant_to_pos: defaultdict[int, int] = defaultdict(lambda: default_number)
-        for i, p in enumerate(node.patterns):
-            # if the last pattern is a wildcard, we do not consider it
-            if isinstance(p, MatchEnum):
-                variant_to_pos[p.variant_idx] = i
-
-        with self.dfg.builder.add_conditional(subject_wire) as cond:
-            for var in enum_ty.variants_as_list:
-                with cond.add_case(var.index) as case:
-                    tag = case.add_op(ops.Tag(variant_to_pos[var.index], node.sum_type))
-                    case.set_outputs(tag)
-
-            # TODO: Nicola If the match is exhaustive, we have an unreachable else
-            # branch we should detect it before, at least for simple cases
-            return cond
+        raise InternalGuppyError("Match over enum is not implemented yet!")
 
     def visit_MatchOverLiteral(self, node: MatchOverLiteral) -> Wire:
-        subject_wire = self.visit(node.subject)
-        patt_comp = PatternCompiler(self.ctx, self.dfg)
+        all_vars = {v.id: self.dfg[v] for var_row in node.output_vars for v in var_row}
+        all_vars_wires = list(all_vars.values())
+
+        if isinstance(node.subject, PlaceNode) and node.subject.place.id in all_vars:
+            all_vars_idxs = {x: i for i, x in enumerate(all_vars.keys())}
+            subject_idx = all_vars_idxs[node.subject.place.id]
+            subject_wire = all_vars_wires[subject_idx]
+
+        else:
+            # if the subject is not in `all_vars`, we need to add one to all indexes,
+            # the first wire will be the subject wire
+            all_vars_idxs = {x: i + 1 for i, x in enumerate(all_vars.keys())}
+            # if the idx if -1, it means the subject is not in `all_vars`
+            subject_idx = -1
+            subject_wire = self.visit(node.subject)
+
+        patt_comp = PatternCompiler(
+            self.ctx, self.dfg, node.sum_type, all_vars_idxs, subject_idx
+        )
 
         # We are matching on a literal, we need nesteded conditionals
         out_wire = patt_comp._build_conditional_for_pattern_under_equivalence(
-            patterns=node.patterns,
-            subj_wire=subject_wire,
-            tag_sum_ty=node.sum_type,
-            tag_index=0,
-            builder=self.dfg.builder,
+            node.patterns,
+            node.output_vars,
+            subject_wire,
+            all_vars_wires,
+            0,
+            self.dfg.builder,
         )
-
-        # save the hugr on a file
-        with open("hugr_before_assign.dot", "w") as f:
-            f.write(str(self.dfg.builder.hugr.render_dot()))
 
         # if isinstance(node.subject, PlaceNode):
         #     from guppylang_internals.compiler.stmt_compiler import StmtCompiler
@@ -819,104 +800,102 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return out_wire
 
     def visit_MatchOverStruct(self, node: MatchOverStruct) -> Wire:
-        subject_wire = self.visit(node.subject)
-
-        all_vars = {v.id: dfg[v] for var_row in node.output_vars for v in var_row}
-        all_vars_wires = list(all_vars.values())
-        all_vars_idxs = {x: i for i, x in enumerate(all_vars.keys())}
-
-        patt_comp = PatternCompiler(self.ctx, self.dfg, all_vars_idxs)
-
-        # We are matching on a literal, we need nesteded conditionals
-        out_wire = patt_comp._build_conditional_for_pattern_under_equivalence(
-            patterns=node.patterns,
-            subj_wire=subject_wire,
-            tag_sum_ty=node.sum_type,
-            tag_index=0,
-            builder=self.dfg.builder,
-        )
-
-        # from guppylang_internals.compiler.stmt_compiler import StmtCompiler
-
-        # comp = StmtCompiler(self.ctx)
-        # comp.dfg = self.dfg
-        # comp._assign(node.subject, out_wire)
-
-        return out_wire
+        raise InternalGuppyError("Match over struct is not implemented yet!")
 
 
 class PatternCompiler(CompilerBase):
     dfg: DFContainer
+    tag_sum_ty: ht.Sum
+    all_vars_idxs: dict[Variable.Id, int]
+    subject_idx: int
 
     def __init__(
         self,
         ctx: CompilerContext,
         dfg: DFContainer,
+        tag_sum_ty: ht.Sum,
         all_vars_idxs: dict[Variable.Id, int],
+        subject_idx: int,
     ) -> None:
         super().__init__(ctx)
         self.dfg = dfg
+        self.tag_sum_ty = tag_sum_ty
         self.all_vars_idxs = all_vars_idxs
+        self.subject_idx = subject_idx
 
     def _build_conditional_for_pattern_under_equivalence(
         self,
         patterns: list[ast.pattern],
         output_vars: list[Row[Place]],
         subj_wire: Wire,
-        other_vars_wires: list[Wire],
-        tag_sum_ty: ht.Sum,
+        output_vars_wires: list[Wire],
         tag_index: int,
         builder: DfBase[ops.DfParentOp],
     ) -> Wire:
         """Helper method to build a nested `Conditional` representing
         the pattern match"""
 
-        # We pass all values into the conditional instead of relying on non-local edges.
-        # TO allow this, we need to carry all the output variables down to the matrioska
-        # of conditionals.
+        if len(output_vars) == 1:
+            # Base case: We are checking the last block, i.e. last row of output_vars.
+            # If this is true there are no more patterns to check, or there is the last
+            # MatchAs().
+            # We simply add the tag: we are in the else case, no check need,
+            # just tag the successor
+            assert (len(patterns) == 1 and isinstance(patterns[0], ast.MatchAs)) or (
+                len(patterns) == 0
+            )
+            case_inputs = builder.inputs()
+            case_outputs = [
+                case_inputs[self.all_vars_idxs[v.id]] for v in output_vars[0]
+            ]
+            return builder.add_op(ops.Tag(tag_index, self.tag_sum_ty), *case_outputs)
 
-        # Base case: If there are no more patterns to check, or we found a MatchAs()
-        # we simply add the tag: we are in the else case, no check need,
-        # just tag the successor
-        if not patterns or isinstance(patterns[0], ast.MatchAs):
-            return builder.add_op(ops.Tag(tag_index, tag_sum_ty))
+        assert len(patterns) > 0
 
         [pattern, *patterns] = patterns
-        assert len(output_vars) > 0  # output vars has the same length as patterns
         [var_row, *output_vars] = output_vars
-        # this wire comes from the check if the subject against the pattern
+
         is_pattern_wire = PatternVisitor(self.ctx, builder, self.dfg).compile(
             pattern, subj_wire
         )
 
-        if is_pattern_wire is None:
-            return builder.add_op(ops.Tag(tag_index, tag_sum_ty))
-
-        # We add a conditional on the `is_pattern_wire` wire
-        with builder.add_conditional(
-            is_pattern_wire, subj_wire, *other_vars_wires
-        ) as cond:
+        # If the index of the subject is -1, it means the subject is not in `all_vars`,
+        # so the subject wire is inputed in the conditiona as the first wire
+        cond_inputs = (
+            [subj_wire, *output_vars_wires]
+            if self.subject_idx == -1
+            else output_vars_wires
+        )
+        with builder.add_conditional(is_pattern_wire, *cond_inputs) as cond:
             with cond.add_case(1) as case_matched:
                 case_inputs = case_matched.inputs()
-                subj_wire = case_inputs[0]  # first input is always the subject
-                outputs = [case_inputs[self.all_vars_idxs[v.id]] for v in var_row]
+                case_outputs = [case_inputs[self.all_vars_idxs[v.id]] for v in var_row]
                 # True case: we matched the pattern, we point to the next block
                 branch_tag = case_matched.add_op(
-                    ops.Tag(tag_index, tag_sum_ty), *outputs
+                    ops.Tag(tag_index, self.tag_sum_ty), *case_outputs
                 )
                 case_matched.set_outputs(branch_tag)
 
             with cond.add_case(0) as case_continue:
                 # False case: we didn't match the pattern, we need to check the next one
-                subj_wire = case_continue.inputs()[0]
+                # first input is always the subject (for now)
+                if self.subject_idx == -1:
+                    # If the index of the subject is -1, it means the subject is not
+                    # in `all_vars`, so the subject wire is the first input of the
+                    # conditional
+                    subj_wire = case_continue.inputs()[0]
+                    output_vars_wires = case_continue.inputs()[1:]
+                else:
+                    output_vars_wires = case_continue.inputs()
+                    subj_wire = case_continue.inputs()[self.subject_idx]
+
                 inner_cond = self._build_conditional_for_pattern_under_equivalence(
-                    patterns=patterns,
-                    output_vars=output_vars,
-                    subj_wire=subj_wire,
-                    other_vars_wires=other_vars_wires,
-                    tag_sum_ty=tag_sum_ty,
-                    tag_index=tag_index + 1,
-                    builder=cast("DfBase[ops.DfParentOp]", case_continue),
+                    patterns,
+                    output_vars,
+                    subj_wire,
+                    output_vars_wires,
+                    tag_index + 1,
+                    cast("DfBase[ops.DfParentOp]", case_continue),
                 )
                 case_continue.set_outputs(inner_cond)
 
@@ -978,6 +957,7 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
         return rets[0]
 
     def visit_MatchStruct(self, node: MatchStruct) -> Wire | None:
+        """Performs the ands bertween the checks for each field pattern"""
         struct_type = get_type(node.struct)
         assert isinstance(struct_type, StructType)
         # TODO: change when we will have aliases
@@ -1011,10 +991,6 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
         assert isinstance(and_func_def, CustomFunctionDef)
         assert and_func_def.has_signature
         hugr_ty = and_func_def.ty.instantiate(type_args).to_hugr(self.ctx)
-        # concrete_ty = and_func_def.ty.instantiate(type_args)
-        # hugr_ty = concrete_ty.to_hugr(self.ctx)
-        # # we extract the call_compiler to build the hugr call
-        # call_compiler = and_func_def.call_compiler
 
         result = compiled_wires[0]
         for wire in compiled_wires[1:]:
