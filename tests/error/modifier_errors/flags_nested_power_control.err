@@ -1,0 +1,8 @@
+Error: Unitary constraint violation (at $FILE:15:12)
+   | 
+13 |     with power(2):
+14 |         with control(ctrl):
+15 |             foo(q)
+   |             ^^^^^^ This function cannot be called in a control context
+
+Guppy compilation failed due to 1 previous error

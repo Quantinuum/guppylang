@@ -214,6 +214,10 @@ def check_nested_func_def(
     def_id = DefId.fresh()
     globals = ctx.globals
 
+    # Even though global, this function will be private to the built hugr,
+    # so the link name does not really matter.
+    link_name = func_def.name
+
     # Check if the body contains a free (recursive) occurrence of the function name.
     # By checking if the name is free at the entry BB, we avoid false positives when
     # a user shadows the name with a local variable
@@ -226,7 +230,14 @@ def check_nested_func_def(
 
             assert ctx.globals.def_id is not None
             parent_frame = DEF_STORE.frames[ctx.globals.def_id]
-            func = ParsedFunctionDef(def_id, func_def.name, func_def, func_ty, None)
+            func = ParsedFunctionDef(
+                def_id,
+                func_def.name,
+                func_def,
+                func_ty,
+                None,
+                link_name,
+            )
             DEF_STORE.register_def(func, parent_frame)
             ENGINE.parsed[def_id] = func
             globals.f_locals[func_def.name] = GuppyDefinition(func)
@@ -251,7 +262,13 @@ def check_nested_func_def(
     from guppylang_internals.definition.function import CheckedFunctionDef
 
     ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
-        def_id, func_def.name, func_def, func_ty, func_def.docstring, checked_cfg
+        def_id,
+        func_def.name,
+        func_def,
+        func_ty,
+        func_def.docstring,
+        link_name,
+        checked_cfg,
     )
     return with_loc(func_def, checked_def)
 
