@@ -39,6 +39,8 @@ def check_modified_block(
 
     # We do not allow any assignments if it is daggered.
     if modified_block.is_dagger():
+        # TODO: NICOLA check if: dagger is not in local, and if it is in global as a
+        # ParsedModifierDef if not raise an error
         for stmt in modified_block.body:
             loops = loop_in_ast(stmt)
             if len(loops) != 0:
@@ -57,6 +59,15 @@ def check_modified_block(
                     InvalidUnderDagger.Dagger(modified_block.span_ctxt_manager())
                 )
                 raise GuppyError(err)
+
+    if modified_block.is_control():
+        # TODO: NICOLA check if control is not in local, and if it is in global as a
+        # ParsedModifierDef if not raise an error
+        pass
+    if modified_block.is_power():
+        # TODO: NICOLA check if power is not in local, and if it is in global as a
+        # ParsedModifierDef if not raise an error
+        pass
 
     # The other checks are done in unitary checking.
     # e.g. call to non-unitary function in a unitary modifier.
