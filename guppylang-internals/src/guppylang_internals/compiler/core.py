@@ -311,29 +311,6 @@ def get_parent_type(defn: Definition) -> "RawDef | None":
         return None
 
 
-def require_monomorphization(params: Sequence[Parameter]) -> set[Parameter]:
-    """Returns the subset of type parameters that must be monomorphized before compiling
-    to Hugr.
-
-    This is required for some Guppy language features that cannot be encoded in Hugr
-    yet. Currently, this applies to:
-    * non-nat const parameters
-    * parameters that occur in the type of const parameters
-    """
-    mono_params: set[Parameter] = set()
-    for param in params:
-        match param:
-            case ConstParam(ty=ty) if ty != NumericType(NumericType.Kind.Nat):
-                mono_params.add(param)
-                # If the constant type refers to any bound variables, then those will
-                # need to be monomorphized as well
-                for var in ty.bound_vars:
-                    mono_params.add(params[var.idx])
-            case _:
-                pass
-    return mono_params
-
-
 QUANTUM_EXTENSION = tket_exts.quantum()
 RESULT_EXTENSION = tket_exts.result()
 DEBUG_EXTENSION = tket_exts.debug()

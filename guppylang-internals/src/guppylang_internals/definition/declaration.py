@@ -13,8 +13,7 @@ from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.core import (
     CompilerContext,
-    DFContainer,
-    require_monomorphization,
+    DFContainer
 )
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
@@ -94,9 +93,6 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
 
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
-        # Make sure we won't need monomorphization to compile this declaration
-        if mono_params := require_monomorphization(ty.params):
-            raise GuppyError(MonomorphizeError(func_ast, self.name, mono_params.pop()))
         return ParsedFunctionDecl(
             self.id,
             self.name,
