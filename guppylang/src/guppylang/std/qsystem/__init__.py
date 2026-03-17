@@ -201,7 +201,7 @@ class MaybeLeaked:
 @hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_EXTENSION))
 @no_type_check
 def lazy_measure(q: qubit @ owned) -> "Measurement":
-    """Measure a qubit destructively, returning a future for the result."""
+    """Measure a qubit destructively, returning a Measurement for the result."""
 
 
 @custom_type(
@@ -210,8 +210,8 @@ def lazy_measure(q: qubit @ owned) -> "Measurement":
     droppable=False,
 )
 class Measurement:
-    """Represents the result of a lazy measurement, which may not be available until
-    later in the program."""
+    """Represents the result of a lazy measurement which needs to be explicitly read
+    before being used."""
 
     @custom_function(compiler=ReadFutureBoolCompiler())
     @no_type_check
