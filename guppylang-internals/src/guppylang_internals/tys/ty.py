@@ -589,7 +589,7 @@ class FunctionType(ParametrizedTypeBase):
         """Instantiates all parameters with existential variables."""
         from guppylang_internals.tys.subst import Instantiator
 
-        args = []
+        args: list[Argument] = []
         exes = []
         for param in self.params:
             arg, ex = param.to_existential()

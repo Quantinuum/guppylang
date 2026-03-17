@@ -1067,6 +1067,7 @@ def type_check_args(
         for var in s:
             if var in free_var_mapping:
                 param = free_var_mapping[var]
+                # print(f"P: {param}")
                 assert isinstance(param, TypeParam)
                 check_arg, check_subst = param.check_arg(s[var].to_arg(), a)
                 subst |= check_subst

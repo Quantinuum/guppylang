@@ -73,13 +73,14 @@ def _unify_args(
     xs: Sequence[ExistentialVar], ys: Sequence[Argument], subst: Subst | None
 ) -> Subst | None:
     for x, y in zip(xs, ys, strict=True):
-        match (x, y):
-            case (ExistentialTypeVar(), TypeArg()):
-                subst = unify(x, y.ty, subst)
-            case (ExistentialConstVar(), ConstArg()):
-                subst = unify(x, y.const, subst)
+        ## CR TODO: What are we doing about potential must_implement protocols in `ty`?
+        match x, y:
+            case ExistentialTypeVar(), TypeArg(ty=ty):
+                subst = unify(x, ty, subst)
+            case ExistentialConstVar(), ConstArg(const=const):
+                subst = unify(x, const, subst)
             case _:
-                # CR: Is it internal?
+                # CR: Is this always an InternalGuppyError?
                 raise Exception("Const vs Type arg for protocol")
     return subst
 
@@ -108,7 +109,7 @@ def _instantiate_self(
 
 def _substitute_proto_inst_args(proto: ProtocolInst, subst: Subst) -> ProtocolInst:
     new_proto_args: list[Argument] = list(proto.type_args)
-    for arg in zip(proto.type_args, strict=False):
+    for arg in proto.type_args:
         match arg:
             case TypeArg(ty=ty):
                 new_proto_args.append(ty.substitute(subst).to_arg())
@@ -149,6 +150,7 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
         assert isinstance(new_ty, BoundTypeVar)
         return AssumptionImplProof(
             _substitute_proto_inst_args(protocol, subst),
+            # CR: Should we return `new_ty` (substituted) or `ty`?
             new_ty,
         ), subst
 
@@ -180,13 +182,7 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
             raise Exception("Signature Mismatch")
         if any(x not in subst for x in ex_impl_vars):
             raise Exception("Unresolved variables in implementation")
-        # Turn these into type vars
-        impl_vars: Inst = []
-        for x in ex_impl_vars:
-            arg = subst[x]
-            assert isinstance(arg, TypeArg)
-            impl_vars.append(arg)
-        member_impls[name] = func.id, impl_vars
+        member_impls[name] = func.id, [subst[x].to_arg() for x in ex_impl_vars]
 
     if any(x not in subst for arg in protocol.type_args for x in arg.unsolved_vars):
         raise Exception("Couldn't figure out variables in protocol")

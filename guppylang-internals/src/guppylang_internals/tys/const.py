@@ -128,7 +128,7 @@ class ExistentialConstVar(ExistentialVar, ConstBase):
         """Casts an implementor of `ConstBase` into a `Const`."""
         return self
 
-    def transform(self, transformer: Transformer, /) -> "Const":
+    def transform(self, transformer: Transformer, /) -> "ExistentialConstVar":
         """Accepts a transformer on this constant."""
         return transformer.transform(self) or ExistentialConstVar(
             transformer.transform(self.ty) or self.ty, self.display_name, self.id
