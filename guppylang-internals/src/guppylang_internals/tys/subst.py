@@ -18,7 +18,7 @@ from guppylang_internals.tys.ty import (
     Type,
     TypeBase,
 )
-from guppylang_internals.tys.var import ExistentialVar
+from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 Subst = dict[ExistentialVar, Type | Const]
 Inst = tuple[Argument, ...]
@@ -91,4 +91,18 @@ class Instantiator(Transformer):
     def _transform_FunctionType(self, ty: FunctionType) -> Type | None:
         if ty.parametrized:
             raise InternalGuppyError("Tried to instantiate under binder")
+        return None
+
+
+class BoundVarFinder(Transformer):
+    """Type transformer that extracts bound variables."""
+
+    bound_vars: list[BoundVar]
+
+    def __init__(self) -> None:
+        self.bound_vars = []
+
+    def transform(self, arg: Any, /) -> Any | None:
+        if isinstance(arg, BoundVar):
+            self.bound_vars.append(arg)
         return None

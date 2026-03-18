@@ -53,7 +53,12 @@ from guppylang_internals.checker.expr_checker import (
     check_place_assignable,
     synthesize_comprehension,
 )
-from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
+from guppylang_internals.error import (
+    GuppyError,
+    GuppyTypeError,
+    InternalGuppyError,
+    RequiresMonomorphizationError,
+)
 from guppylang_internals.nodes import (
     AnyUnpack,
     ArrayUnpack,
@@ -76,7 +81,7 @@ from guppylang_internals.tys.builtin import (
     is_sized_iter_type,
     nat_type,
 )
-from guppylang_internals.tys.const import ConstValue, ExistentialConstVar
+from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.parsing import type_from_ast
 from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
 from guppylang_internals.tys.subst import Subst
@@ -319,10 +324,10 @@ class StmtChecker(AstVisitor[BBStatement]):
                     elt_ty = get_element_type(ty)
                     unpack = ArrayUnpack(pattern, size, elt_ty)
                     return unpack, size * [expr], size * [elt_ty]
-                case _:
-                    raise InternalGuppyError(
-                        "Array length should be monomorphized at this point"
-                    )
+                case BoundConstVar():
+                    raise RequiresMonomorphizationError
+                case ExistentialConstVar():
+                    raise InternalGuppyError("Unexpected existential variable")
 
         elif self.ctx.globals.get_instance_func(ty, "__iter__"):
             size = check_iter_unpack_has_static_size(expr, self.ctx)

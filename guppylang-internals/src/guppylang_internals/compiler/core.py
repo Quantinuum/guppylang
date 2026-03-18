@@ -1,6 +1,6 @@
 import itertools
 from abc import ABC
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, cast
@@ -39,10 +39,8 @@ from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.common import ToHugrContext
-from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
-    NumericType,
     StructType,
     TupleType,
     Type,

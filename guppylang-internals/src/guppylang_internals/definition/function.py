@@ -46,7 +46,7 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import ConstArg, TypeArg
@@ -84,8 +84,8 @@ def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
                 arg_strings.append(str(ty))
             case ConstArg(const=ConstValue(value=v)):
                 arg_strings.append(str(v))
-            case _:
-                raise InternalGuppyError("Unexpected monomorphization")
+            # case _:
+            #     raise InternalGuppyError("Unexpected monomorphization")
     return f"{link_name}$" + "_".join(arg_strings)
 
 

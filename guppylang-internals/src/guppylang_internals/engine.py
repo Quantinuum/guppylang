@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from types import FrameType
 from typing import ClassVar
@@ -30,7 +31,11 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.error import GuppyError, pretty_errors
+from guppylang_internals.error import (
+    GuppyError,
+    RequiresMonomorphizationError,
+    pretty_errors,
+)
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.builtin import (
     array_type_def,
@@ -49,7 +54,7 @@ from guppylang_internals.tys.builtin import (
     tuple_type_def,
 )
 from guppylang_internals.tys.param import Parameter
-from guppylang_internals.tys.subst import Inst
+from guppylang_internals.tys.subst import BoundVarFinder, Inst
 from guppylang_internals.tys.ty import FunctionType
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
@@ -151,6 +156,8 @@ class CompilationEngine:
     additional_extensions: list[Extension]
 
     types_to_check_worklist: dict[DefId, ParsedDef]
+    #: Generic functions
+    generic_to_check_worklist: dict[DefId, CheckableGenericDef]
     to_check_worklist: dict["MonoDefId", ParsedDef]
 
     to_compile_worklist: dict["MonoDefId", CheckedDef]
@@ -207,6 +214,7 @@ class CompilationEngine:
         self.checked = {}
         self.compiled = {}
         self.to_check_worklist = {}
+        self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
 
     @pretty_errors
@@ -233,6 +241,8 @@ class CompilationEngine:
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
             self.to_check_worklist[id, ()] = defn
+        elif isinstance(defn, CheckableGenericDef) and defn.params:
+            self.generic_to_check_worklist[id] = defn
         # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
         # since we don't know the generic instantiation yet. It will be added when
         # we're checking a use of the definition (e.g. a call). See for example
@@ -274,8 +284,11 @@ class CompilationEngine:
 
         Adds the instantiation to the worklist and ensures that it will be checked.
         """
-        mono_args = tuple(type_args)
-        self.to_check_worklist[defn.id, mono_args] = defn
+        finder = BoundVarFinder()
+        for arg in type_args:
+            arg.transform(finder)
+        if not finder.bound_vars:
+            self.to_check_worklist[defn.id, type_args] = defn
 
     @pretty_errors
     def check(self, id: DefId) -> None:
@@ -292,16 +305,33 @@ class CompilationEngine:
         entry_mono_args = check_valid_entry_point(entry_defn)
         self.to_check_worklist[id, entry_mono_args] = entry_defn
 
-        while self.types_to_check_worklist or self.to_check_worklist:
+        while (
+            self.types_to_check_worklist
+            or self.generic_to_check_worklist
+            or self.to_check_worklist
+        ):
             # Types need to be checked first. This is because parsing e.g. a function
             # definition requires instantiating the types in its signature which can
             # only be done if the types have already been checked.
             if self.types_to_check_worklist:
                 id, _ = self.types_to_check_worklist.popitem()
                 mono_args: Inst = ()
+                self.checked[id, mono_args] = self.get_checked(id, mono_args)
+            # For generic functions, we first check a version where all parameters are
+            # instantiated to opaque `BoundVariable`s. This way, we'll get nicer error
+            # messages e.g. for type mismatches with generic parameters. The concrete
+            # monomorphic instantiations will be checked later via the regular worklist.
+            elif self.generic_to_check_worklist:
+                id, defn = self.generic_to_check_worklist.popitem()
+                mono_args = tuple(param.to_bound() for param in defn.params)
+                # `RequiresMonomorphizationError` is raised whenever we cannot proceed
+                # checking without having the monomorphization available. In that case,
+                # we just gve up and wait for the proper monomorphic check later.
+                with suppress(RequiresMonomorphizationError):
+                    self.checked[id, mono_args] = self.get_checked(id, mono_args)
             else:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
-            self.checked[id, mono_args] = self.get_checked(id, mono_args)
+                self.checked[id, mono_args] = self.get_checked(id, mono_args)
 
     @pretty_errors
     def compile(self, id: DefId) -> ModulePointer:

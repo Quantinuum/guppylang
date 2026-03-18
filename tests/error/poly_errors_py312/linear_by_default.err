@@ -3,8 +3,8 @@ Error: Copy violation (at $FILE:9:14)
 7 | def foo[T](x: T @ owned) -> tuple[T, T]:
 8 |     # T is not copyable
 9 |     return x, x
-  |               ^ Variable `x` with non-copyable type `qubit` cannot be
-  |                 returned ...
+  |               ^ Variable `x` with non-copyable type `T` cannot be returned
+  |                 ...
 
 Note:
   | 

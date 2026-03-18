@@ -94,6 +94,7 @@ from guppylang_internals.error import (
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
     saved_exception_hook,
 )
 from guppylang_internals.experimental import (
@@ -423,8 +424,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     case ConstValue(value=v, ty=ty):
                         ast_node = with_loc(node, ast.Constant(value=v))
                         return ast_node, ty
-                    case BoundConstVar() | ExistentialConstVar():
-                        raise InternalGuppyError("Unexpected const variable")
+                    case BoundConstVar():
+                        raise RequiresMonomorphizationError
+                    case ExistentialConstVar():
+                        raise InternalGuppyError("Unexpected existential variable")
             case TypeArg():
                 raise GuppyError(ExpectedError(node, "a value", got=f"type `{name}`"))
 
