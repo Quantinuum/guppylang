@@ -264,7 +264,7 @@ class _Guppy:
 
                 @guppy
                 def method_on_enum(e: MyEnum) -> int:
-                    return e.a + 1
+                    return 1
         ..
         """
         defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
