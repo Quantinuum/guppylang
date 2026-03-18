@@ -4,6 +4,7 @@ import itertools
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, replace
 from functools import cache, cached_property
+from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -317,21 +318,19 @@ class PythonObject:
 
 
 class Globals:
-    """Wrapper around the `DEF_STORE` that allows looking-up of definitions by name
-    based on which objects are in scope in a stack frame.
+    """Wrapper around a stack frame in which a Guppy definition was defined.
 
-    Additionally, keeps track of which definitions in the store have been used.
+    Gives access to the other globals that are in scope for that definition.
     """
 
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
-    def_id: DefId | None
+    frame: FrameType | None
 
-    def __init__(self, def_id: DefId | None) -> None:
-        self.def_id = def_id
-        if def_id is not None:
-            frame = DEF_STORE.frames[def_id]
+    def __init__(self, frame: FrameType | None) -> None:
+        self.frame = frame
+        if frame is not None:
             self.f_locals = frame.f_locals
             self.f_globals = frame.f_globals
             self.f_builtins = frame.f_builtins

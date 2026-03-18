@@ -228,8 +228,7 @@ def check_nested_func_def(
 
             from guppylang_internals.definition.function import ParsedFunctionDef
 
-            assert ctx.globals.def_id is not None
-            parent_frame = DEF_STORE.frames[ctx.globals.def_id]
+            parent_frame = ctx.globals.frame
             func = ParsedFunctionDef(
                 def_id,
                 func_def.name,
