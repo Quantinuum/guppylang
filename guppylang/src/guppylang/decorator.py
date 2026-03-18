@@ -263,8 +263,8 @@ class _Guppy:
                 Variant2 = {"a": int}
 
                 @guppy
-                def method_on_enum(e: MyEnum) -> int:
-                    return e.a + 1
+                def method_on_enum(self: MyEnum) -> int:
+                    return 1
         ..
         """
         defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
