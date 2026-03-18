@@ -65,9 +65,7 @@ class nat:
     @custom_function(BoolOpCompiler(int_op("igt_u")))
     def __gt__(self: nat, other: nat) -> bool: ...
 
-    # TODO: Use "iu_to_s" once we have lowering:
-    #  https://github.com/quantinuum/hugr/issues/1806
-    @custom_function(NoopCompiler())
+    @hugr_op(int_op("iu_to_s"))
     def __int__(self: nat) -> int: ...
 
     @hugr_op(int_op("inot"))
@@ -229,7 +227,7 @@ class int:
     @hugr_op(int_op("imul"))
     def __mul__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("is_to_u"))  # TODO
+    @hugr_op(int_op("is_to_u"))
     def __nat__(self: int) -> nat: ...
 
     @custom_function(BoolOpCompiler(int_op("ine")))

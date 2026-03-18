@@ -4,7 +4,10 @@ Error: WASM signature error (at $FILE:7:4)
 6 |     @wasm
 7 |     def bar(self: "Foo") -> None: ...
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ First argument to WASM function should be a WASM module.
+
+Note:
   | 
+6 |     @wasm
 7 |     def bar(self: "Foo") -> None: ...
   |     --------------------------------- Found `Foo` instead.
 

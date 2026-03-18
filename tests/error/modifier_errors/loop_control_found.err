@@ -4,7 +4,10 @@ Error: Unexpected loop control (at $FILE:8:12)
 7 |         with dagger:
 8 |             continue
   |             ^^^^^^^^ Continue found in a `With` block
+
+Note:
   | 
+6 |     for i in range(123):
 7 |         with dagger:
   |              ------ modifier is used here
 

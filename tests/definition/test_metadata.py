@@ -44,8 +44,10 @@ def test_add_metadata_no_reserved_metadata():
 
     with pytest.raises(
         GuppyError,
-        check=lambda e: isinstance(e.error, ReservedMetadataKeysError)
-        and e.error.keys == {"tket.hint.max_qubits"},
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError)
+            and e.error.keys == {"tket.hint.max_qubits"}
+        ),
     ):
         add_metadata(mock_hugr_node, additional_metadata={"tket.hint.max_qubits": 3})
 
@@ -61,15 +63,18 @@ def test_add_metadata_metadata_already_set():
     guppy_metadata.max_qubits.value = 5
     with pytest.raises(
         GuppyError,
-        check=lambda e: isinstance(e.error, MetadataAlreadySetError)
-        and e.error.key == "tket.hint.max_qubits",
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == "tket.hint.max_qubits"
+        ),
     ):
         add_metadata(mock_hugr_node, guppy_metadata)
 
     with pytest.raises(
         GuppyError,
-        check=lambda e: isinstance(e.error, MetadataAlreadySetError)
-        and e.error.key == "preset-key",
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError) and e.error.key == "preset-key"
+        ),
     ):
         add_metadata(mock_hugr_node, additional_metadata={"preset-key": "preset-value"})
 

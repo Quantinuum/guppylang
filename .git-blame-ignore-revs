@@ -1,2 +1,10 @@
+# Commits to ignore in blame output
+#
+# To configure git to use this file, run:
+# > git config blame.ignoreRevsFile .git-blame-ignore-revs
+
 # Format with black
 4121baa28a58e7e24bdb2f1b6b45230cfe62eb3c
+
+# big ruff and mypy upgrade with lint fixes
+57c90ff6240c657a69db876b6f5a0e1040123b34

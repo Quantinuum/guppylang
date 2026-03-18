@@ -8,4 +8,4 @@
 
 # The release PRs that trigger publication to PyPI always modify the changelog.
 # We require those PRs to be approved by someone with release permissions.
-CHANGELOG.md @mark-koch @aborgna-q  @ss2165 @doug-q
+CHANGELOG.md @mark-koch @aborgna-q  @ss2165 @doug-q @croyzor

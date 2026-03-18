@@ -4,14 +4,12 @@ import pathlib
 import re
 import sys
 
-from guppylang_internals.decorator import custom_type
 import pytest
-import sys
 from hugr import tys
 from hugr.tys import TypeBound
 
-import guppylang.decorator as decorator
-
+from guppylang_internals.decorator import custom_type
+from guppylang_internals.diagnostic import DiagnosticsRenderer, wrap
 from tests.util import get_wasm_file
 
 # Regular expression to match the `~~~~~^^^~~~` highlights that are printed in
@@ -19,6 +17,25 @@ from tests.util import get_wasm_file
 # files for Python 3.10
 TRACEBACK_HIGHLIGHT = re.compile(r" *~*\^\^*~*")
 
+# Regular expression to match the bootstrapping source line inserted in tracebacks from
+# Python 3.13 onwards in combination with using execnet (the backend of pytest-xdist) to
+# run the test. We strip those out so we can use the same golden files for Python < 3.13
+EXECNET_BOOTSTRAP = re.compile(
+    r" *import sys;exec\(eval\(sys.stdin.readline\(\)\)\) *")
+
+
+def filter_traceback_not_containing(s: str, disallowed_regex: re.Pattern[str]) -> str:
+    result = []
+    traceback_started = False
+    for line in s.split("\n"):
+        if line.startswith("Traceback (most recent call last):"):
+            traceback_started = True
+        if traceback_started and disallowed_regex.fullmatch(line):
+            continue
+
+        result.append(line)
+
+    return "\n".join(result)
 
 def run_error_test(file, capsys, snapshot):
     file = pathlib.Path(file)
@@ -36,17 +53,16 @@ def run_error_test(file, capsys, snapshot):
     sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
 
     err = capsys.readouterr().err
+    err = err.replace(str(file), "$FILE")
+    # The WASM file descriptor can stretch across multiple lines in a longer message,
+    # so we try to predict the wrapping points to be able to build a replacement regex.
     wasm_module = get_wasm_file()
-    err = err.replace(str(file), "$FILE").replace(wasm_module, "$WASM")
-
-    # If we're comparing tracebacks, strip the highlights that are only present for
-    # Python 3.11+
-    if err.startswith("Traceback (most recent call last):"):
-        err = "\n".join(
-            line
-            for line in err.split("\n")
-            if not TRACEBACK_HIGHLIGHT.fullmatch(line)
-        )
+    wrapped_wasm = wrap(f"`{wasm_module}`", DiagnosticsRenderer.MAX_MESSAGE_LINE_LEN)
+    err = re.sub("\n".join(wrapped_wasm), "`$WASM`", err)
+    # Strip the bootstrap included in the traceback by Python 3.13+ for parallel tests
+    err = filter_traceback_not_containing(err, EXECNET_BOOTSTRAP)
+    # Strip the error markers that are only present for Python 3.11+
+    err = filter_traceback_not_containing(err, TRACEBACK_HIGHLIGHT)
 
     snapshot.snapshot_dir = str(file.parent)
     snapshot.assert_match(err, file.with_suffix(".err").name)

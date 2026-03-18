@@ -1,21 +1,15 @@
 """Tests for loading pytket circuits as functions."""
 
-from importlib.util import find_spec
-
-import pytest
-
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle, pi
 from guppylang.std.quantum import qubit, discard_array, discard, measure
 from guppylang.std.builtins import array, result
+from pytket import Circuit, OpType
+from pytket.passes import AutoRebase
+from sympy import Symbol, sympify
 
-tket_installed = find_spec("tket") is not None
 
-
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_single_qubit_circuit(validate):
-    from pytket import Circuit
-
     circ = Circuit(1)
     circ.H(0)
 
@@ -29,10 +23,7 @@ def test_single_qubit_circuit(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_multi_qubit_circuit(validate):
-    from pytket import Circuit
-
     circ = Circuit(2)
     circ.H(0)
     circ.CX(0, 1)
@@ -47,10 +38,7 @@ def test_multi_qubit_circuit(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_measure(validate):
-    from pytket import Circuit
-
     circ = Circuit(1)
     circ.H(0)
     circ.measure_all()
@@ -65,10 +53,7 @@ def test_measure(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_measure_multiple(validate):
-    from pytket import Circuit
-
     circ = Circuit(2, 2)
     circ.H(0)
     circ.measure_all()
@@ -83,10 +68,7 @@ def test_measure_multiple(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_measure_not_last(validate):
-    from pytket import Circuit
-
     circ = Circuit(1, 1)
     circ.H(0)
     circ.measure_all()
@@ -102,10 +84,7 @@ def test_measure_not_last(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_load_circuit(validate):
-    from pytket import Circuit
-
     circ = Circuit(1)
     circ.H(0)
 
@@ -118,10 +97,7 @@ def test_load_circuit(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_load_circuits(validate):
-    from pytket import Circuit
-
     circ1 = Circuit(1)
     circ1.H(0)
 
@@ -140,10 +116,7 @@ def test_load_circuits(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_measure_some(validate):
-    from pytket import Circuit
-
     circ = Circuit(2, 1)
     circ.CX(0, 1)
     circ.Measure(0, 0)
@@ -157,10 +130,7 @@ def test_measure_some(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_register_arrays_default(validate):
-    from pytket import Circuit
-
     circ = Circuit(2)
 
     guppy_circ = guppy.load_pytket("guppy_circ", circ)
@@ -172,10 +142,7 @@ def test_register_arrays_default(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_register_arrays(validate):
-    from pytket import Circuit
-
     circ = Circuit(2)
     reg = circ.add_q_register("extra_reg", 3)
     circ.measure_register(reg, "extra_bits")
@@ -191,10 +158,7 @@ def test_register_arrays(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_register_arrays_multiple_measure(validate):
-    from pytket import Circuit
-
     circ = Circuit(2)
     reg1 = circ.add_q_register("extra_reg1", 3)
     reg2 = circ.add_q_register("extra_reg2", 2)
@@ -217,10 +181,7 @@ def test_register_arrays_multiple_measure(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_register_arrays_mixed(validate):
-    from pytket import Circuit
-
     circ = Circuit(2, 1)
     reg = circ.add_q_register("q2", 3)
     circ.measure_register(reg, "c2")
@@ -237,10 +198,7 @@ def test_register_arrays_mixed(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_compile_sig(validate):
-    from pytket import Circuit
-
     circ = Circuit(1)
     circ.H(0)
 
@@ -250,10 +208,7 @@ def test_compile_sig(validate):
     validate(guppy_circ.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_compile_load(validate):
-    from pytket import Circuit
-
     circ = Circuit(1)
     circ.H(0)
 
@@ -262,12 +217,7 @@ def test_compile_load(validate):
     validate(pytket_func.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_symbolic(validate):
-    from pytket import Circuit, OpType
-    from pytket.passes import AutoRebase
-    from sympy import Symbol
-
     a = Symbol("alpha")
     b = Symbol("beta")
 
@@ -289,12 +239,7 @@ def test_symbolic(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_symbolic_array(validate):
-    from pytket import Circuit, OpType
-    from pytket.passes import AutoRebase
-    from sympy import Symbol
-
     a = Symbol("alpha")
     b = Symbol("beta")
 
@@ -315,12 +260,7 @@ def test_symbolic_array(validate):
     validate(foo.compile_function())
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_symbolic_exec(validate, run_int_fn):
-    from pytket import Circuit, OpType
-    from pytket.passes import AutoRebase
-    from sympy import Symbol
-
     a = Symbol("alpha")
 
     circ = Circuit(1)
@@ -342,10 +282,7 @@ def test_symbolic_exec(validate, run_int_fn):
     run_int_fn(main, 1, num_qubits=2)
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_exec(validate, run_int_fn):
-    from pytket import Circuit
-
     circ = Circuit(2, 2)
     circ.X(0)
     circ.measure_all()
@@ -370,10 +307,7 @@ def test_exec(validate, run_int_fn):
     run_int_fn(main, 1, num_qubits=2)
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_qsystem_ops(validate):
-    from pytket import Circuit
-
     circ = Circuit(2)
     circ.PhasedX(angle0=0.5, angle1=0.2, qubit=0)
     circ.ZZPhase(angle=0.3, qubit0=0, qubit1=1)
@@ -396,11 +330,7 @@ def test_qsystem_ops(validate):
         assert "tk1op" not in op_name
 
 
-@pytest.mark.skipif(not tket_installed, reason="Tket is not installed")
 def test_qsystem_exec():
-    from pytket import Circuit
-    from sympy import sympify
-
     circ = Circuit(2)
     circ.H(0)
     circ.H(1)

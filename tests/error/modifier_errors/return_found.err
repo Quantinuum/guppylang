@@ -4,7 +4,10 @@ Error: Unexpected return (at $FILE:7:8)
 6 |     with dagger:
 7 |         return
   |         ^^^^^^ Return found in a `With` block
+
+Note:
   | 
+5 | def test() -> None:
 6 |     with dagger:
   |          ------ modifier is used here
 

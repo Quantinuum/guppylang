@@ -4,10 +4,13 @@ Error: Different types (at $FILE:9:8)
 8 |         y = False
 9 |     z = y
   |         ^ Variable `y` may refer to different types
+
+Notes:
   | 
+5 | def foo(x: bool) -> int:
 6 |     y = 3
   |     - This is of type `int`
-  | 
+7 |     if x:
 8 |         y = False
   |         - This is of type `bool`
 

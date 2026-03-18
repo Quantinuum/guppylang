@@ -38,7 +38,7 @@ def check_modified_block(
     }
 
     # We do not allow any assignments if it is daggered.
-    if modified_block.is_dagger():
+    if modified_block.has_dagger():
         for stmt in modified_block.body:
             loops = loop_in_ast(stmt)
             if len(loops) != 0:
@@ -78,9 +78,7 @@ def check_modified_block(
         checked_cfg,
         func_ty,
         captured,
-        modified_block.dagger,
-        modified_block.control,
-        modified_block.power,
+        modified_block.modifiers,
         **dict(ast.iter_fields(modified_block)),
     )
     return with_loc(modified_block, checked_modifier)

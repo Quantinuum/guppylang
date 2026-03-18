@@ -233,3 +233,30 @@ def test_far_indented_label(snapshot, request):
     span = Span(Loc(file, 1, 86), Loc(file, 1, 88))
     diagnostic = MyDiagnostic(span)
     run_test(source, diagnostic, snapshot, request)
+
+
+def test_leading_tab_characters_single_line_span(snapshot, request):
+    source = "\tsuper_apple := apple ** 2\n"
+    source += "\tlemon := orange - apple\n"
+    source += "\tapple == orange\n"
+    span = Span(Loc(file, 3, 1), Loc(file, 3, 1 + 15))
+    diagnostic = MyError(span)
+    run_test(source, diagnostic, snapshot, request)
+
+
+def test_leading_tab_characters_multi_line_span(snapshot, request):
+    source = "\tsuper_apple := apple ** 2\n"
+    source += "\tlemon := orange - apple\n"
+    source += "\tapple == orange\n"
+    span = Span(Loc(file, 1, 1), Loc(file, 3, 1 + 15))
+    diagnostic = MyError(span)
+    run_test(source, diagnostic, snapshot, request)
+
+
+def test_leading_tab_characters_multi_line_span_varying_tabs(snapshot, request):
+    source = "\t\tsuper_apple := apple ** 2\n"
+    source += "\tlemon := orange - apple\n"
+    source += "\t\t\tapple == orange\n"
+    span = Span(Loc(file, 1, 2), Loc(file, 3, 3 + 15))
+    diagnostic = MyError(span)
+    run_test(source, diagnostic, snapshot, request)

@@ -38,9 +38,9 @@ class RawWasmFunctionDef(RawCustomFunctionDef):
     def sanitise_type(self, loc: AstNode, fun_ty: FunctionType) -> None:
         # Place to highlight in error messages
         match fun_ty.inputs:
-            case [FuncInput(ty=ty, flags=InputFlags.Inout), *args] if wasm_module_name(
-                ty
-            ) is not None:
+            case [FuncInput(ty=ty, flags=InputFlags.Inout), *args] if (
+                wasm_module_name(ty) is not None
+            ):
                 for inp in args:
                     if not self.is_type_wasmable(inp.ty):
                         raise GuppyError(UnWasmableType(loc, inp.ty))

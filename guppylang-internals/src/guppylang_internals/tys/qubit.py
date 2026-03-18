@@ -1,10 +1,12 @@
 import functools
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.tys.arg import TypeArg
 from guppylang_internals.tys.common import Visitor
 from guppylang_internals.tys.ty import OpaqueType, Type
+
+if TYPE_CHECKING:
+    from guppylang_internals.definition.ty import TypeDef
 
 
 @functools.cache
@@ -14,10 +16,11 @@ def qubit_ty() -> Type:
     it might result in circular imports.
     """
     from guppylang.defs import GuppyDefinition
+
     from guppylang.std.quantum import qubit
 
     assert isinstance(qubit, GuppyDefinition)
-    qubit_ty = cast(TypeDef, qubit.wrapped).check_instantiate([])
+    qubit_ty = cast("TypeDef", qubit.wrapped).check_instantiate([])
     return qubit_ty
 
 
@@ -36,7 +39,7 @@ class QubitFinder(Visitor):
         pass
 
     @functools.singledispatchmethod
-    def visit(self, ty: Any) -> bool:  # type: ignore[override]
+    def visit(self, ty: Any) -> bool:
         return False
 
     @visit.register

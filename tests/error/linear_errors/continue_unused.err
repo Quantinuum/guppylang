@@ -5,7 +5,10 @@ Error: Drop violation (at $FILE:20:8)
 20 |         q = new_qubit()
    |         ^ Variable `q` with non-droppable type `qubit` may be leaked
    |           ...
+
+Note:
    | 
+20 |         q = new_qubit()
 21 |         if i % 10 == 0:
    |            ----------- if this expression is `True`
 

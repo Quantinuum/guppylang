@@ -5,9 +5,12 @@ Error: Copy violation (at $FILE:8:10)
 8 |    return xs
   |           ^^ Variable `xs` with non-copyable type `array[int, 2]` cannot
   |              be returned ...
+
+Note:
   | 
+6 | def main(xs: array[int, 2] @ owned) -> array[int, 2]:
 7 |    ys = xs
-  |         -- since it was already moved here
+  |         -- Variable `xs` already moved here
 
 Help: Consider copying `xs` instead of moving it: `xs.copy()`
 

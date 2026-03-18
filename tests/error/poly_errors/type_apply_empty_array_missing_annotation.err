@@ -1,0 +1,9 @@
+Error: Cannot infer type (at $FILE:12:9)
+   | 
+10 | @guppy
+11 | def main() -> None:
+12 |     xs = foo(array())
+   |          ^^^^^^^^^^^^ Cannot infer type variables in expression of type `array[?T,
+   |                       0]`
+
+Guppy compilation failed due to 1 previous error

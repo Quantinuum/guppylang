@@ -1,0 +1,11 @@
+Error: Drop violation (at $FILE:8:8)
+  | 
+6 |     @guppy
+7 |     def phase_gadget() -> None:
+8 |         qs = array(qubit() for _ in range(comptime(n_qb)))
+  |         ^^ Variable `qs` with non-droppable type `array[qubit, 5]` is
+  |            leaked
+
+Help: Make sure that `qs` is consumed or returned to avoid the leak
+
+Guppy compilation failed due to 1 previous error

@@ -5,11 +5,14 @@ Error: Not owned (at $FILE:16:8)
 16 |     use(q)
    |         ^ Function `use` wants to take ownership of this argument, but
    |           `test` doesn't own `q`
+
+Notes:
    | 
+13 | @guppy
 14 | def test(q: array[int, 3]) -> None:
    |          ---------------- Argument `q` is only borrowed. Consider taking ownership:
    |                           `q: array[int, 3] @owned`
-   | 
+15 |     foo(q)
 16 |     use(q)
    |         - Or consider copying this argument: `q.copy()`
 

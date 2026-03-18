@@ -4,12 +4,15 @@ Error: Different types (at $FILE:13:11)
 12 | 
 13 |     return bar()
    |            ^^^ Variable `bar` may refer to different types
+
+Notes:
    | 
+ 6 |     if b:
  7 |         def bar() -> int:
    |         -----------------
  8 |             return 0
    | -------------------- This is of type `() -> int`
-   | 
+ 9 |     else:
 10 |         def bar() -> bool:
    |         ------------------
 11 |             return False

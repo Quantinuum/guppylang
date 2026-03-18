@@ -4,7 +4,10 @@ Error: Variable not defined (at $FILE:13:15)
 12 |     def inner() -> float:
 13 |         return x
    |                ^ `x` might be undefined ...
+
+Note:
    | 
+ 8 | def main(b: bool) -> None:
  9 |     if b:
    |        - ... if this expression is `False`
 

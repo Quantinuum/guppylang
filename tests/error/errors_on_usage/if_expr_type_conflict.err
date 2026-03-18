@@ -4,7 +4,10 @@ Error: Different types (at $FILE:6:8)
 5 | def foo(x: bool) -> None:
 6 |     y = True if x else 42
   |         ^^^^^^^^^^^^^^^^^ Expression may refer to different types
+
+Notes:
   | 
+5 | def foo(x: bool) -> None:
 6 |     y = True if x else 42
   |         ---- This is of type `bool`
   | 

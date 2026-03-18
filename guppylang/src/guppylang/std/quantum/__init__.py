@@ -386,8 +386,10 @@ def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
 @no_type_check
 def discard_array(qubits: array[qubit, N] @ owned) -> None:
     """Discard an array of qubits."""
-    for q in qubits:
-        discard(q)
+    for i in range(N):
+        if not qubits.is_borrowed(i):
+            discard(qubits.take(i))
+    qubits.discard_all_taken()
 
 
 # -------NON-PRIMITIVE-------
@@ -403,12 +405,12 @@ def ch(control: qubit, target: qubit) -> None:
     Qubit ordering: [control, target]
 
     .. math::
-        \mathrm{CH} = \frac{1}{\sqrt{2}}
+        \mathrm{CH} =
           \begin{pmatrix}
             1 & 0 & 0 & 0 \\
             0 & 1 & 0 & 0 \\
-            0 & 0 & 1 & 1 \\
-            0 & 0 & 1 & -1
+            0 & 0 &  \frac{1}{\sqrt{2}} &  \frac{1}{\sqrt{2}} \\
+            0 & 0 &  \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}}
         \end{pmatrix}
     """
     # based on https://quantumcomputing.stackexchange.com/a/15737

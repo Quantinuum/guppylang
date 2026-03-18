@@ -4,7 +4,10 @@ Error: Variable not defined (at $FILE:18:4)
 17 |         bar = foo
 18 |     bar()
    |     ^^^ `bar` might be undefined ...
+
+Note:
    | 
+15 | def main(b: bool) -> None:
 16 |     if b:
    |        - ... if this expression is `False`
 

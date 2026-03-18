@@ -4,10 +4,12 @@ Error: Different types (at $FILE:9:11)
 8 |         pass
 9 |     return x
   |            ^ Variable `x` may refer to different types
+
+Notes:
   | 
+5 | def foo(xs: list[bool]) -> int:
 6 |     x = 5
   |     - This is of type `int`
-  | 
 7 |     for x in xs:
   |         - This is of type `bool`
 

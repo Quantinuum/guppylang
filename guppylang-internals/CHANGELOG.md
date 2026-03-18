@@ -3,6 +3,100 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.30.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.29.0...guppylang-internals-v0.30.0) (2026-02-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revert experimental features break ([#1510](https://github.com/Quantinuum/guppylang/issues/1510))
+
+### Features
+
+* Improve error message for failed borrows due to failed leaf borrows  ([#1501](https://github.com/Quantinuum/guppylang/issues/1501)) ([4d484c0](https://github.com/Quantinuum/guppylang/commit/4d484c005356f489ffa0de0448f1e5ea2ebcf990))
+
+
+### Bug Fixes
+
+* Misleading error message for leaked qubits ([#1497](https://github.com/Quantinuum/guppylang/issues/1497)) ([bfd432a](https://github.com/Quantinuum/guppylang/commit/bfd432a9d522221fecb7dcc50448df2ed213e732))
+* Resolve relative wasm file paths from calling file ([#1496](https://github.com/Quantinuum/guppylang/issues/1496)) ([424b05d](https://github.com/Quantinuum/guppylang/commit/424b05d6baa764bf84aafc0fb92f8bb7355f6167))
+* Revert experimental features break ([#1510](https://github.com/Quantinuum/guppylang/issues/1510)) ([45b6e93](https://github.com/Quantinuum/guppylang/commit/45b6e93b4f5fafa80b57e7d647f5d5e107323030))
+
+## [0.29.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.28.0...guppylang-internals-v0.29.0) (2026-02-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* Experimental features should only be set globally ([#1489](https://github.com/Quantinuum/guppylang/issues/1489))
+* Allow panicking with different signal values ([#1461](https://github.com/Quantinuum/guppylang/issues/1461))
+
+### Features
+
+* Add function to swap two array elements that lowers to hugr swap op ([#1459](https://github.com/Quantinuum/guppylang/issues/1459)) ([15da521](https://github.com/Quantinuum/guppylang/commit/15da521d27354d294dd7f69c4494f9a1bc4d7032))
+* Allow panicking with different signal values ([#1461](https://github.com/Quantinuum/guppylang/issues/1461)) ([e624d4f](https://github.com/Quantinuum/guppylang/commit/e624d4f8b99dc2db7207f3148e8b2e378cfeb648))
+* Compile time array indexing linearity check for literal indices ([#1469](https://github.com/Quantinuum/guppylang/issues/1469)) ([e384b52](https://github.com/Quantinuum/guppylang/commit/e384b52c40f051248f205d704f79084777a0cfea))
+
+
+### Bug Fixes
+
+* Misleading error message when trying to load a list of numpy integers using comptime ([#1484](https://github.com/Quantinuum/guppylang/issues/1484)) ([0c270c8](https://github.com/Quantinuum/guppylang/commit/0c270c87bdeeaf85169bc0451fd6f47d3462b98c))
+
+
+### Code Refactoring
+
+* Experimental features should only be set globally ([#1489](https://github.com/Quantinuum/guppylang/issues/1489)) ([de0a318](https://github.com/Quantinuum/guppylang/commit/de0a3188653ca47c74301bfdfd8f623137ac43b2))
+
+## [0.28.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.27.0...guppylang-internals-v0.28.0) (2026-02-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Tket is now a non-optional dependency. Most systems already have this installed, rerunning the package manager should fix any issues.
+
+### Features
+
+* Label `FuncDefn`s with qualified names in HUGR ([#1452](https://github.com/Quantinuum/guppylang/issues/1452)) ([a92f274](https://github.com/Quantinuum/guppylang/commit/a92f274a14668b7ac88713a69a6902aca62d4483))
+* Make tket a non-optional dependency ([#1440](https://github.com/Quantinuum/guppylang/issues/1440)) ([4af4360](https://github.com/Quantinuum/guppylang/commit/4af4360495c9d6155e69310d5bfb8f22953fc1ff))
+* use hugr used_extensions in engine.py ([#1451](https://github.com/Quantinuum/guppylang/issues/1451)) ([c16b96b](https://github.com/Quantinuum/guppylang/commit/c16b96bd5dc6ab4df13e3242ffe55279b317dd7e))
+
+
+### Bug Fixes
+
+* Add a copy before fallable `synthesize_call` call  ([#1460](https://github.com/Quantinuum/guppylang/issues/1460)) ([84137c3](https://github.com/Quantinuum/guppylang/commit/84137c39b7e8ca24142ffe73afcce6a1bcceffe2))
+* Raise type inference error when not all function argument types could be resolved. ([#1439](https://github.com/Quantinuum/guppylang/issues/1439)) ([4120d59](https://github.com/Quantinuum/guppylang/commit/4120d590917245258d69ceb07c763c7633c7c5f8)), closes [#1437](https://github.com/Quantinuum/guppylang/issues/1437)
+* Remove leading tab characters from diagnostics during rendering ([#1447](https://github.com/Quantinuum/guppylang/issues/1447)) ([a1cf792](https://github.com/Quantinuum/guppylang/commit/a1cf792deaf90e31721505ac17fd4911737e6c26)), closes [#1101](https://github.com/Quantinuum/guppylang/issues/1101)
+* Support comptime expressions in subscript assignments ([#1433](https://github.com/Quantinuum/guppylang/issues/1433)) ([108c104](https://github.com/Quantinuum/guppylang/commit/108c104d55ecb052d4d7c363062f444efc689724)), closes [#1363](https://github.com/Quantinuum/guppylang/issues/1363)
+* Support more cases of comptime subscripts ([#1436](https://github.com/Quantinuum/guppylang/issues/1436)) ([9aefdcc](https://github.com/Quantinuum/guppylang/commit/9aefdcc50b142acf842cf60314b5bccc49e01614)), closes [#1435](https://github.com/Quantinuum/guppylang/issues/1435)
+
+## [0.27.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.26.0...guppylang-internals-v0.27.0) (2026-01-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* The first argument to `add_unitarity_metadata` is now named `node`
+instead of `func`, since its type was raised to allow for more HUGR
+nodes to be fed. Migration is trivial. 
+* `DiagnosticsRenderer.PREFIX_CONTEXT_LINES` constant has been removed.
+
+### Features
+
+* Add qubit hints on Guppy functions, allowing elision when building emulators ([#1378](https://github.com/Quantinuum/guppylang/issues/1378)) ([b7f10c6](https://github.com/Quantinuum/guppylang/commit/b7f10c6798aa20841fae844084d8a1606661fd7b)), closes [#1297](https://github.com/Quantinuum/guppylang/issues/1297)
+* Add unsafe array take and put operations ([#1165](https://github.com/Quantinuum/guppylang/issues/1165)) ([7f342e7](https://github.com/Quantinuum/guppylang/commit/7f342e788e2f179382bab46dcc7e69a24dd64de3))
+* **internals:** update to hugr-py 0.15 ([#1418](https://github.com/Quantinuum/guppylang/issues/1418)) ([cf970ba](https://github.com/Quantinuum/guppylang/commit/cf970ba7403a126fbd5d2fd53445e65270581df4))
+
+
+### Bug Fixes
+
+* Add a line break for printing WASM files ([#1386](https://github.com/Quantinuum/guppylang/issues/1386)) ([495aba5](https://github.com/Quantinuum/guppylang/commit/495aba5b9bb2218224193c7b2da2c5586744505a))
+* added deepcopy in `OverloadedFunctionDef.{check_call,synthesize_call}` ([#1426](https://github.com/Quantinuum/guppylang/issues/1426)) ([9be6fef](https://github.com/Quantinuum/guppylang/commit/9be6fefcdfb9fc9eb1025774d2dd2727b3e719b1))
+* **checker:** handle imported ParamDef with aliases in expr_checker ([#1385](https://github.com/Quantinuum/guppylang/issues/1385)) ([f2838a3](https://github.com/Quantinuum/guppylang/commit/f2838a34a315599c5b46eae92b72e9758e428a16))
+* Convert symbolic pytket circuits angle inputs into rotations ([#1425](https://github.com/Quantinuum/guppylang/issues/1425)) ([4724d90](https://github.com/Quantinuum/guppylang/commit/4724d9039d8dffae8fd939f62ae80ec307d8918a))
+* Ensure errors from `[@wasm](https://github.com/wasm)_module` are rendered correctly ([#1398](https://github.com/Quantinuum/guppylang/issues/1398)) ([a6a539f](https://github.com/Quantinuum/guppylang/commit/a6a539fe07cc94f4a788fef506969e4c9027faee)), closes [#1397](https://github.com/Quantinuum/guppylang/issues/1397)
+* Fix another wasm diagnostics rendering issue ([#1399](https://github.com/Quantinuum/guppylang/issues/1399)) ([6604175](https://github.com/Quantinuum/guppylang/commit/660417542f2b36c387e73765f8647c11cd3d1a7b))
+* Fix Hugr generation for tuples in `Result` and `Either` ([#1395](https://github.com/Quantinuum/guppylang/issues/1395)) ([f8b0d47](https://github.com/Quantinuum/guppylang/commit/f8b0d47eb275aae3f5ba804dfeb3640c4a3baef6)), closes [#1388](https://github.com/Quantinuum/guppylang/issues/1388)
+* improve diagnostics rendering ([#1382](https://github.com/Quantinuum/guppylang/issues/1382)) ([e7ce7f6](https://github.com/Quantinuum/guppylang/commit/e7ce7f6d1a4f2b12ff680a6e54dae96637c5fa92))
+* Stop parsing entrypoints twice ([#1410](https://github.com/Quantinuum/guppylang/issues/1410)) ([4a167e5](https://github.com/Quantinuum/guppylang/commit/4a167e5642cedc8f47ad027ed08483caa1558830))
+* Support comptime expressions in generic argument applications ([#1409](https://github.com/Quantinuum/guppylang/issues/1409)) ([c1aad34](https://github.com/Quantinuum/guppylang/commit/c1aad346adb15e3636e5586987422d74e36189a1)), closes [#1087](https://github.com/Quantinuum/guppylang/issues/1087)
+
 ## [0.26.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.25.0...guppylang-internals-v0.26.0) (2025-12-11)
 
 

@@ -5,7 +5,10 @@ Error: Not owned (at $FILE:14:16)
 14 |         discard(a)
    |                 ^ Function `discard` wants to take ownership of this argument,
    |                   but `__modified__()` doesn't own `a`
+
+Note:
    | 
+11 | def test() -> None:
 12 |     a = qubit()
    |     - Argument `a` is only borrowed. Consider taking ownership:
    |       `a: qubit @owned`

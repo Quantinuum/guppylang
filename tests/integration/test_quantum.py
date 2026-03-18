@@ -4,7 +4,9 @@ from typing import no_type_check
 
 from guppylang.std.angles import angle
 
-from guppylang.std.builtins import owned, array, barrier, panic, result
+from guppylang.std.builtins import owned, array, panic, result
+from guppylang.std.platform import barrier
+
 
 from guppylang.std import quantum as q
 from guppylang.std.quantum import (
@@ -15,7 +17,7 @@ from guppylang.std.quantum import (
     measure_array,
     discard_array,
 )
-from guppylang.std.quantum_functional import (
+from guppylang.std.quantum.functional import (
     cx,
     cy,
     cz,
@@ -188,15 +190,15 @@ def test_barrier_array(validate):
     @no_type_check
     def test() -> None:
         qs = array(qubit() for _ in range(4))
+        q.h(qs[0])
         q.h(qs[1])
+        barrier(qs[0], qs[1], qs[2])
+        barrier(qs[0])
         q.h(qs[2])
-        barrier(qs[1], qs[2], qs[3])
-        barrier(qs[1])
-        q.h(qs[3])
 
-        q.cx(qs[1], qs[2])
-        barrier(qs[2], qs[3])
-        q.cx(qs[3], qs[4])
+        q.cx(qs[0], qs[1])
+        barrier(qs[1], qs[2])
+        q.cx(qs[2], qs[3])
         barrier(qs)
         discard_array(qs)
 

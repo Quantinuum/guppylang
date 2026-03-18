@@ -1,3 +1,5 @@
+# type: ignore[invalid-syntax]
+
 from guppylang.decorator import guppy
 import pytest
 
@@ -10,7 +12,7 @@ def test_def():
         # TODO: Implement Self support for protocols.
         # def bar(self: Self) -> Self: ...
 
-        def baz[M: MyProto](self: M, y: int) -> int: ...
+        def baz(self, y: int) -> int: ...
 
     MyProto.compile()
 
@@ -23,7 +25,7 @@ def test_def_parameterised():
         # TODO: Implement Self support for protocols.
         # def bar(self: Self) -> "MyProto": ...
 
-        def baz[M: MyProto[T]](self: M, y: int) -> int: ...
+        def baz(self, y: int) -> int: ...
 
     MyProto.compile()
 

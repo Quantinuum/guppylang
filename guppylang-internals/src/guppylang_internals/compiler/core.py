@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops
-from hugr import ext as he
 from hugr import tys as ht
 from hugr.build import function as hf
 from hugr.build.dfg import DP, DefinitionBuilder, DfBase
 from hugr.hugr.base import OpVarCov
 from hugr.hugr.node_port import ToNode
+from hugr.metadata import NodeMetadata
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
@@ -31,12 +31,14 @@ from guppylang_internals.definition.common import (
     CompilableDef,
     CompiledDef,
     DefId,
+    Definition,
     MonomorphizableDef,
+    RawDef,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.arg import ConstArg, TypeArg
@@ -371,7 +373,7 @@ class DFContainer:
         ctx: CompilerContext,
         locals: CompiledLocals | None = None,
     ) -> None:
-        generic_builder = cast(DfBase[ops.DfParentOp], builder)
+        generic_builder = cast("DfBase[ops.DfParentOp]", builder)
         if locals is None:
             locals = {}
         self.builder = generic_builder
@@ -414,9 +416,8 @@ class DFContainer:
         # store the leaf wires.
         is_return = isinstance(place, Variable) and is_return_var(place.name)
         if isinstance(place.ty, StructType) and not is_return:
-            unpack = self.builder.add_op(
-                ops.UnpackTuple([t.ty.to_hugr(self.ctx) for t in place.ty.fields]), port
-            )
+            hugr_fields_ty = [t.ty.to_hugr(self.ctx) for t in place.ty.fields]
+            unpack = self.builder.add_op(ops.UnpackTuple(hugr_fields_ty), port)
             for field, field_port in zip(place.ty.fields, unpack, strict=True):
                 self[FieldAccess(place, field, None)] = field_port
             # If we had a previous wire assigned to this place, we need forget about it.
@@ -465,6 +466,15 @@ def return_var(n: int) -> str:
 def is_return_var(x: str) -> bool:
     """Checks whether the given name is a dummy return variable."""
     return x.startswith("%ret")
+
+
+def get_parent_type(defn: Definition) -> "RawDef | None":
+    """Returns the RawDef registered as the parent of `child` in the DEF_STORE,
+    or None if it has no parent."""
+    if parent_ty_id := DEF_STORE.impl_parents.get(defn.id):
+        return DEF_STORE.raw_defs[parent_ty_id]
+    else:
+        return None
 
 
 def require_monomorphization(params: Sequence[Parameter]) -> set[Parameter]:
@@ -605,7 +615,7 @@ def track_hugr_side_effects() -> Iterator[None]:
         op: ops.Op,
         parent: ToNode | None = None,
         num_outs: int | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | NodeMetadata | None = None,
     ) -> Node:
         """Monkey-patched version of `Hugr.add_node` that takes care of implicitly
         inserting state order edges between operations that could have side-effects.
@@ -657,20 +667,11 @@ def track_hugr_side_effects() -> Iterator[None]:
         Hugr.add_node = hugr_add_node  # type: ignore[method-assign]
 
 
-def qualified_name(type_def: he.TypeDef) -> str:
-    """Returns the qualified name of a Hugr extension type.
-    TODO: Remove once upstreamed, see https://github.com/quantinuum/hugr/issues/2426
-    """
-    if type_def._extension is not None:
-        return f"{type_def._extension.name}.{type_def.name}"
-    return type_def.name
-
-
 #: List of linear extension types that correspond to affine Guppy types and thus require
 #: insertion of an explicit drop operation.
 AFFINE_EXTENSION_TYS: list[str] = [
-    qualified_name(ARRAY_EXTENSION.get_type("array")),
-    qualified_name(BORROW_ARRAY_EXTENSION.get_type("borrow_array")),
+    ARRAY_EXTENSION.get_type("array").qualified_name(),
+    BORROW_ARRAY_EXTENSION.get_type("borrow_array").qualified_name(),
 ]
 
 
@@ -681,7 +682,7 @@ def requires_drop(ty: ht.Type) -> bool:
     """
     match ty:
         case ht.ExtType(type_def=type_def, args=args):
-            return qualified_name(type_def) in AFFINE_EXTENSION_TYS or any(
+            return type_def.qualified_name() in AFFINE_EXTENSION_TYS or any(
                 requires_drop(arg.ty) for arg in args if isinstance(arg, ht.TypeTypeArg)
             )
         case ht.Opaque(id=name, extension=extension, args=args):

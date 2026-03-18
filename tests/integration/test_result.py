@@ -35,6 +35,18 @@ def test_array(validate):
     validate(main)
 
 
+# This caused problems with hugr (see https://github.com/Quantinuum/hugr/pull/2779),
+# as it makes the linearizer copy an array (indeed, two arrays of different lengths).
+def test_array_consts(run_int_fn):
+    @guppy
+    def main() -> int:
+        result("x", array(True, False))
+        result("y", array(False, True, False, False, True))
+        return 3
+
+    run_int_fn(main, 3)
+
+
 def test_array_generic(validate):
     n = guppy.nat_var("n")
 

@@ -4,7 +4,10 @@ Error: Variable not defined (at $FILE:8:11)
 7 |         pass
 8 |     return x
   |            ^ `x` might be undefined ...
+
+Note:
   | 
+5 | def foo(xs: list[int]) -> int:
 6 |     for x in xs:
   |              -- ... if this expression is `False`
 

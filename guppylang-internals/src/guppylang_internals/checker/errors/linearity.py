@@ -13,7 +13,7 @@ if TYPE_CHECKING:
         Variable,
     )
     from guppylang_internals.checker.linearity_checker import UseKind
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.ty import (
         StructType,
         TupleType,
@@ -33,7 +33,18 @@ class AlreadyUsedError(Error):
 
     @dataclass(frozen=True)
     class PrevUse(Note):
-        span_label: ClassVar[str] = "since it was already {prev_kind.subjunctive} here"
+        span_label: ClassVar[str] = (
+            "{place.describe} already {prev_kind.subjunctive} here"
+        )
+        prev_kind: UseKind
+
+    @dataclass(frozen=True)
+    class MemberPrevUse(Note):
+        span_label: ClassVar[str] = (
+            "... since the member `{child_place}` with non-copyable type "
+            "`{child_place.ty}` was already {prev_kind.subjunctive} here"
+        )
+        child_place: Place
         prev_kind: UseKind
 
     @dataclass(frozen=True)
@@ -55,7 +66,9 @@ class ComprAlreadyUsedError(Error):
 
     @dataclass(frozen=True)
     class PrevUse(Note):
-        span_label: ClassVar[str] = "since it was already {prev_kind.subjunctive} here"
+        span_label: ClassVar[str] = (
+            "{place.describe} already {prev_kind.subjunctive} here"
+        )
         prev_kind: UseKind
 
 
@@ -103,7 +116,7 @@ class UnnamedFieldNotUsedError(Error):
         "Non-droppable field `{field.name}` of expression with type `{struct_ty}` is "
         "leaked"
     )
-    field: StructField
+    field: CheckedField
     struct_ty: StructType
 
     @dataclass(frozen=True)
@@ -112,7 +125,7 @@ class UnnamedFieldNotUsedError(Error):
             "Consider assigning this value to a local variable before accessing the "
             "field `{used_field.name}`"
         )
-        used_field: StructField
+        used_field: CheckedField
 
 
 @dataclass(frozen=True)

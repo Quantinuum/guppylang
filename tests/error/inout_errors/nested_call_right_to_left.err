@@ -5,8 +5,11 @@ Error: Copy violation (at $FILE:13:22)
 13 |     return foo(q, foo(q, foo(q, 0))), q
    |                       ^ Variable `q` with non-copyable type `qubit` cannot be
    |                         borrowed ...
+
+Note:
    | 
+12 |     # This doesn't work since arguments are evaluated from left to right
 13 |     return foo(q, foo(q, foo(q, 0))), q
-   |                - since it was already borrowed here
+   |                - Variable `q` already borrowed here
 
 Guppy compilation failed due to 1 previous error

@@ -1,7 +1,7 @@
 Error: Drop violation (at $FILE:9:4)
   | 
 7 | @guppy
-8 | def foo(q: qubit @owned) -> None:
+8 | def foo(q: qubit @ owned) -> None:
 9 |     h(q)
   |     ^^^^ Expression with non-droppable type `qubit` is leaked
 

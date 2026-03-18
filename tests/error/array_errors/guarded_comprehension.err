@@ -4,7 +4,10 @@ Error: Array comprehension with nonstatic size (at $FILE:7:9)
 6 | def main() -> None:
 7 |     array(i for i in range(100) if i % 2 == 0)
   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot infer the size of this array comprehension ...
+
+Note:
   | 
+6 | def main() -> None:
 7 |     array(i for i in range(100) if i % 2 == 0)
   |                                    ---------- since it depends on this condition
 

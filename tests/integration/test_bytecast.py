@@ -1,5 +1,6 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import nat, bytecast_nat_to_float, bytecast_float_to_nat
+from guppylang.std.builtins import nat
+from guppylang.std.num import bytecast_nat_to_float, bytecast_float_to_nat
 
 
 def test_roundtrip(run_int_fn):

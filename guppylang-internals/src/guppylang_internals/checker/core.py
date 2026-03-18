@@ -40,6 +40,7 @@ from guppylang_internals.tys.builtin import (
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
+    EnumType,
     ExistentialTypeVar,
     FunctionType,
     InputFlags,
@@ -52,7 +53,7 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.parsing import TypeParsingCtx
 
 
@@ -134,7 +135,7 @@ class FieldAccess:
     """A place identifying a field access on a local struct."""
 
     parent: Place
-    field: "StructField"
+    field: "CheckedField"
     exact_defined_at: AstNode | None
 
     @dataclass(frozen=True)
@@ -381,10 +382,12 @@ class Globals:
                 type_defn = tuple_type_def
             case NoneType():
                 type_defn = none_type_def
+            case EnumType():
+                type_defn = ty.defn
             case _:
                 return assert_never(ty)
 
-        type_defn = cast(TypeDef, ENGINE.get_checked(type_defn.id))
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id))
         if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
             def_id = DEF_STORE.impls[type_defn.id][name]
             defn = ENGINE.get_parsed(def_id)

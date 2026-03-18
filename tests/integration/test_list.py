@@ -3,7 +3,7 @@ from guppylang import qubit, guppy
 from guppylang.std.angles import angle
 from guppylang.std.builtins import owned
 from guppylang.std.quantum import cx, rz
-from guppylang.std.quantum_functional import h
+from guppylang.std.quantum.functional import h
 
 from tests.util import compile_guppy
 
@@ -133,7 +133,9 @@ def test_multi_subscripts(validate):
     @guppy
     def main(qs: list[qubit] @ owned) -> list[qubit]:
         foo(qs[0], qs[1])
-        foo(qs[0], qs[0])  # Will panic at runtime
+        # Note: `foo(qs[0], qs[0])` is rejected at compile time
+        i = 0
+        foo(qs[i], qs[i])  # Will panic at runtime
         return qs
 
     validate(main.compile_function())

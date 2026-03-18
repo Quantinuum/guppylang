@@ -18,10 +18,12 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.definition.function import PyFunc, parse_py_func
 from guppylang_internals.definition.struct import (
-    RedundantParamsError,
     params_from_ast,
-    parse_py_class,
     try_parse_generic_base,
+)
+from guppylang_internals.definition.util import (
+    RedundantParamsError,
+    parse_py_class,
 )
 from guppylang_internals.diagnostic import Help
 from guppylang_internals.engine import DEF_STORE
@@ -127,7 +129,7 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
                         )
                         err.add_sub_diagnostic(NoAnnotationHint(None))
                         raise GuppyError(err)
-                    py_func = cast(PyFunc, py_func)
+                    py_func = cast("PyFunc", py_func)
                     func_ast, _ = parse_py_func(py_func, sources)
                     if not has_empty_body(func_ast):
                         err = UnexpectedError(

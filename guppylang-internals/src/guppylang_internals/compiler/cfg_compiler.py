@@ -111,7 +111,7 @@ def compile_bb(
         pred_ty = builder.hugr.port_type(branch_port.out_port())
         assert pred_ty == OpaqueBool
         branch_port = dfg.builder.add_op(read_bool(), branch_port)
-        branch_port = cast(Wire, branch_port)
+        branch_port = cast("Wire", branch_port)
     else:
         # Even if we don't branch, we still have to add a `Sum(())` predicates
         branch_port = dfg.builder.add_op(ops.Tag(0, ht.UnitSum(1)))

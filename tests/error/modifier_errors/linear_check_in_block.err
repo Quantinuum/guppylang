@@ -5,9 +5,12 @@ Error: Copy violation (at $FILE:15:16)
 15 |         foo(xs, xs)
    |                 ^^ Variable `xs` with non-copyable type `array[int, 3]` cannot
    |                    be borrowed ...
+
+Note:
    | 
+14 |         xs = array(1, 2, 3)
 15 |         foo(xs, xs)
-   |             -- since it was already borrowed here
+   |             -- Variable `xs` already borrowed here
 
 Help: Consider copying `xs` instead of moving it: `xs.copy()`
 
