@@ -2,7 +2,7 @@ import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from guppylang_internals.tys.common import Transformer
 
@@ -37,12 +37,10 @@ class BoundVar(Var, ABC):
 
 @dataclass(frozen=True)
 class ExistentialVar(Var, ABC):
-    """Existential variable, referencing a parameter of kind `Const`.
-
-    Identified by a globally unique id.
+    """Existential variable, identified by a globally unique id.
 
     During type checking we try to solve all existential variables and substitute
-    them with concrete consts.
+    them with concrete values of the appropriate kind.
     """
 
     id: UniqueId
@@ -51,4 +49,4 @@ class ExistentialVar(Var, ABC):
     _fresh_id: ClassVar[Iterator[UniqueId]] = itertools.count()
 
     @abstractmethod
-    def transform(self, t: Transformer) -> "ExistentialVar": ...
+    def transform(self, t: Transformer) -> Any: ...
