@@ -3,6 +3,6 @@ Error: Unsupported (at $FILE:7:10)
 5 | def main(x: int, y: int) -> None:
 6 |     t = (x, y)
 7 |     match t:
-  |           ^ Pattern matching on (int, int) is not supported
+  |           ^ Pattern matching on Tuple is not supported
 
 Guppy compilation failed due to 1 previous error
