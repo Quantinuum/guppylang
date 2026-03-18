@@ -220,6 +220,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         """
         return super().compile()
 
+    @property
     def is_decl(self) -> bool:
         """Whether this function definition is a declaration (i.e. has no body)."""
         return isinstance(self.wrapped, RawFunctionDecl)

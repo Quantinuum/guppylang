@@ -9,14 +9,14 @@ def test_func_def():
     def func_def() -> None:
         return
 
-    assert not func_def.is_decl()
+    assert not func_def.is_decl
 
 
 def test_func_decl():
     @guppy.declare
     def func_decl() -> None: ...
 
-    assert func_decl.is_decl()
+    assert func_decl.is_decl
 
 
 def test_func_overload():
@@ -28,7 +28,7 @@ def test_func_overload():
     @guppy.overload(variant_1, variant_2)
     def func_overload() -> None: ...
 
-    assert not func_overload.is_decl()
+    assert not func_overload.is_decl
 
 
 def test_pytket_func():
@@ -38,7 +38,7 @@ def test_pytket_func():
     @guppy.pytket(circ)
     def guppy_circ(q1: qubit) -> None: ...
 
-    assert not guppy_circ.is_decl()
+    assert not guppy_circ.is_decl
 
 
 def test_load_pytket_func():
@@ -47,11 +47,11 @@ def test_load_pytket_func():
 
     guppy_circ = guppy.load_pytket("circ", circ)
 
-    assert not guppy_circ.is_decl()
+    assert not guppy_circ.is_decl
 
 
 def test_custom_func():
     @custom_function()
     def custom(x): ...
 
-    assert not custom.is_decl()
+    assert not custom.is_decl
