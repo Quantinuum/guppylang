@@ -14,7 +14,7 @@ from guppylang_internals.definition.declaration import RawFunctionDecl
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
-from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import TracingDefMixin
@@ -233,9 +233,22 @@ class GuppyLibrary:
 
     members: list[DefId]
 
+    def _member_impls(self) -> list[DefId]:
+        """Any implementations registered for members of this library. Note that the
+        list is only guaranteed to be complete after calling `check()` on the library
+        members, since auto-generated implementations may be added during checking."""
+        impls: list[DefId] = []
+        for def_id in self.members:
+            # TODO automatic member inclusion should be based on the automatic
+            # collection when available
+            impls.extend(DEF_STORE.impls[def_id].values())
+
+        return impls
+
     def compile(self) -> Package:
         """Compile this collection of definitions into a HUGR package."""
-        pointer = ENGINE.compile(self.members)
+        ENGINE.check(self.members)
+        pointer = ENGINE.compile(self.members + self._member_impls(), reset=False)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
         return pointer.package
@@ -243,6 +256,7 @@ class GuppyLibrary:
     def check(self) -> None:
         """Type-check all contained definitions."""
         ENGINE.check(self.members)
+        ENGINE.check(self._member_impls(), reset=False)
 
 
 @dataclass(frozen=True)

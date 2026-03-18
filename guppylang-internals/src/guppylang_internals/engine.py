@@ -255,7 +255,7 @@ class CompilationEngine:
         self.check([id])
 
     @pretty_errors
-    def check(self, def_ids: list[DefId]) -> None:
+    def check(self, def_ids: list[DefId], *, reset: bool = True) -> None:
         """Top-level function to kick of checking of multiple definitions.
 
         This is the main driver behind `guppy.library(...).check()`.
@@ -263,7 +263,8 @@ class CompilationEngine:
         # Clear previous compilation cache.
         # TODO: In order to maintain results from the previous `check` call we would
         #  need to store and check if any dependencies have changed.
-        self.reset()
+        if reset:
+            self.reset()
 
         for def_id in def_ids:
             self.to_check_worklist[def_id] = self.get_parsed(def_id)
@@ -277,10 +278,6 @@ class CompilationEngine:
             else:
                 def_id, _ = self.to_check_worklist.popitem()
             self.checked[def_id] = self.get_checked(def_id)
-
-            for member_id in DEF_STORE.impls[def_id].values():
-                if member_id not in self.checked:
-                    self.to_check_worklist[member_id] = self.get_parsed(member_id)
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
@@ -302,15 +299,17 @@ class CompilationEngine:
         return pointer
 
     @pretty_errors
-    def compile(self, def_ids: list[DefId]) -> ModulePointer:
-        return self._compile(def_ids)[0]
+    def compile(self, def_ids: list[DefId], *, reset: bool = True) -> ModulePointer:
+        return self._compile(def_ids, reset=reset)[0]
 
-    def _compile(self, def_ids: list[DefId]) -> tuple[ModulePointer, list[CompiledDef]]:
+    def _compile(
+        self, def_ids: list[DefId], *, reset: bool = True
+    ) -> tuple[ModulePointer, list[CompiledDef]]:
         """Top-level function to kick of Hugr compilation of a definition.
 
         This is the function that is invoked by `guppy.compile`.
         """
-        self.check(def_ids)
+        self.check(def_ids, reset=reset)
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -319,22 +318,11 @@ class CompilationEngine:
         # Lower definitions to Hugr
         from guppylang_internals.compiler.core import CompilerContext
 
-        exported_defs = set()
-        for def_id in def_ids:
-            exported_defs.add(def_id)
-            # TODO automatic member inclusion should be based on the automatic
-            # collection when available
-            exported_defs.update(DEF_STORE.impls[def_id].values())
-
-        ctx = CompilerContext(graph, exported_defs)
+        ctx = CompilerContext(graph, set(def_ids))
         compiled_defs: list[CompiledDef] = []
         for def_id in def_ids:
             compiled_defs.append(ctx.compile(self.checked[def_id]))
             self.compiled = ctx.compiled
-
-            for member_id in DEF_STORE.impls[def_id].values():
-                ctx.compile(self.checked[member_id])
-                self.compiled = ctx.compiled
 
         # Use cached base extensions and registry, only add additional extensions
         base_extensions = self._get_base_packaged_extensions()
