@@ -57,6 +57,7 @@ from hugr import ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.package import ModulePointer
+from pytket.circuit import Circuit as TketCircuit
 from typing_extensions import Unpack, dataclass_transform, deprecated
 
 from guppylang.defs import (
@@ -472,7 +473,7 @@ class _Guppy:
         instead).
 
         .. code-block:: python
-            from pytket import Circuit
+            from pytket.circuit import Circuit
             from guppylang import guppy
 
             circ = Circuit(1)
@@ -486,14 +487,8 @@ class _Guppy:
             def foo(q: qubit) -> bool:
                 return guppy_circ(q)"""
 
-        err_msg = "Only pytket circuits can be passed to guppy.pytket"
-        try:
-            import pytket
-
-            if not isinstance(input_circuit, pytket.circuit.Circuit):
-                raise TypeError(err_msg) from None
-
-        except ImportError:
+        if not isinstance(input_circuit, TketCircuit):
+            err_msg = "Only pytket circuits can be passed to guppy.pytket"
             raise TypeError(err_msg) from None
 
         def func(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
@@ -549,14 +544,8 @@ class _Guppy:
         measurements in the circuit and measure in Guppy afterwards.
         """
 
-        err_msg = "Only pytket circuits can be passed to guppy.load_pytket"
-        try:
-            import pytket
-
-            if not isinstance(input_circuit, pytket.circuit.Circuit):
-                raise TypeError(err_msg) from None
-
-        except ImportError:
+        if not isinstance(input_circuit, TketCircuit):
+            err_msg = "Only pytket circuits can be passed to guppy.pytket"
             raise TypeError(err_msg) from None
 
         span = _find_load_call(DEF_STORE.sources)

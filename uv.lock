@@ -940,6 +940,7 @@ dependencies = [
     { name = "guppylang-internals" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pytket" },
     { name = "selene-hugr-qis-compiler" },
     { name = "selene-sim" },
     { name = "tqdm" },
@@ -950,6 +951,7 @@ dependencies = [
 requires-dist = [
     { name = "guppylang-internals", editable = "guppylang-internals" },
     { name = "numpy", specifier = "~=2.0" },
+    { name = "pytket", specifier = ">=1.34" },
     { name = "selene-hugr-qis-compiler", specifier = "~=0.2.9" },
     { name = "selene-sim", specifier = "~=0.2.7" },
     { name = "tqdm", specifier = ">=4.67.1" },
