@@ -985,7 +985,7 @@ provides-extras = ["pytket"]
 [[package]]
 name = "hugr"
 version = "0.15.5"
-source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=main#329c243fffff0d6c4437664a012361619a0a425e" }
+source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=main#856f92d0a9caac194db636f4b3ec694d07f5c9ef" }
 dependencies = [
     { name = "graphviz" },
     { name = "pydantic" },
