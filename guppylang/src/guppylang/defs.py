@@ -227,17 +227,20 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
 @dataclass(frozen=True)
 class GuppyLibrary:
+    """A collection of Guppy definitions that can be compiled together into a linkable
+    unit exposing a public interface."""
+
     members: list[DefId]
 
     def compile(self) -> Package:
-        """Compile a Guppy definition to HUGR."""
+        """Compile this collection of definitions into a HUGR package."""
         pointer = ENGINE.compile(self.members)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
         return pointer.package
 
     def check(self) -> None:
-        """Type-check all definitions Guppy definition."""
+        """Type-check all contained definitions."""
         ENGINE.check(self.members)
 
 
