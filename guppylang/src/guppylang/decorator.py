@@ -263,7 +263,7 @@ class _Guppy:
                 Variant2 = {"a": int}
 
                 @guppy
-                def method_on_enum(e: MyEnum) -> int:
+                def method_on_enum(self: MyEnum) -> int:
                     return 1
         ..
         """
