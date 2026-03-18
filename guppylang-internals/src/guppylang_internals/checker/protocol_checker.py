@@ -11,13 +11,14 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ExistentialConstVar
 from guppylang_internals.tys.protocol import ProtocolInst
-from guppylang_internals.tys.subst import Inst, Subst
+from guppylang_internals.tys.subst import Inst, Subst, Substituter
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
     ExistentialTypeVar,
     FunctionType,
     Type,
     unify,
+    unify_type_args,
 )
 from guppylang_internals.tys.var import ExistentialVar
 
@@ -107,17 +108,6 @@ def _instantiate_self(
     return proto_func.instantiate_partial(partial_inst)
 
 
-def _substitute_proto_inst_args(proto: ProtocolInst, subst: Subst) -> ProtocolInst:
-    new_proto_args: list[Argument] = list(proto.type_args)
-    for arg in proto.type_args:
-        match arg:
-            case TypeArg(ty=ty):
-                new_proto_args.append(ty.substitute(subst).to_arg())
-            case ConstArg(const=const):
-                new_proto_args.append(const.substitute(subst).to_arg())
-    return replace(proto, type_args=new_proto_args)
-
-
 def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
     """Check that `ty` implements `protocol`"""
 
@@ -137,19 +127,22 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
         for impl in ty.implements:
             if impl.def_id == protocol.def_id:
                 # TODO: Is this correct?
+                # Does it break if we have protocols with other proto args
                 existential_params = [
                     p.to_existential()[1] for p in protocol_def.params
                 ]
-                subst = _unify_args(existential_params, impl.type_args, {})
+                subst = unify_type_args(protocol.type_args, impl.type_args, {})
                 if subst is not None:
                     candidates.append((impl, subst))
-        if len(candidates) != 1:
-            raise Exception("Zero or more than one")
+        if len(candidates) == 0:
+            raise Exception("Zero")
+        elif len(candidates) > 1:
+            raise Exception("more than one")
         [(_, subst)] = candidates
         new_ty = ty.substitute(subst)
         assert isinstance(new_ty, BoundTypeVar)
         return AssumptionImplProof(
-            _substitute_proto_inst_args(protocol, subst),
+            protocol.transform(Substituter(subst)),
             # CR: Should we return `new_ty` (substituted) or `ty`?
             new_ty,
         ), subst
@@ -182,9 +175,17 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
             raise Exception("Signature Mismatch")
         if any(x not in subst for x in ex_impl_vars):
             raise Exception("Unresolved variables in implementation")
-        member_impls[name] = func.id, [subst[x].to_arg() for x in ex_impl_vars]
+        # Turn these into type vars
+        impl_vars: Inst = []
+        for x in ex_impl_vars:
+            arg = subst[x]
+            assert isinstance(arg, TypeArg)
+            impl_vars.append(arg)
+        member_impls[name] = func.id, impl_vars
 
     if any(x not in subst for arg in protocol.type_args for x in arg.unsolved_vars):
         raise Exception("Couldn't figure out variables in protocol")
     subst = {x: subst[x] for arg in protocol.type_args for x in arg.unsolved_vars}
-    return ConcreteImplProof(protocol, ty, member_impls), subst
+    return ConcreteImplProof(
+        protocol.transform(Substituter(subst)), ty, member_impls
+    ), subst

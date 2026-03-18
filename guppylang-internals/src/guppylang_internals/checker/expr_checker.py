@@ -119,7 +119,7 @@ from guppylang_internals.nodes import (
     TypeApply,
 )
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.arg import TypeArg
+from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     bool_type,
     float_type,
@@ -1067,11 +1067,15 @@ def type_check_args(
         for var in s:
             if var in free_var_mapping:
                 param = free_var_mapping[var]
-                # print(f"P: {param}")
-                assert isinstance(param, TypeParam)
-                check_arg, check_subst = param.check_arg(s[var].to_arg(), a)
-                subst |= check_subst
-                subst[var] = check_arg.ty
+                match param, s[var].to_arg():
+                    case TypeParam(), TypeArg() as arg:
+                        check_arg, check_subst = param.check_arg(arg, a)
+                        subst |= check_subst
+                        subst[var] = check_arg.ty
+                    case ConstParam(), ConstArg() as arg:
+                        subst[var] = param.check_arg(arg, a).const
+                    case _:
+                        assert_never()
         subst |= s
         if InputFlags.Inout in func_inp.flags and isinstance(a, PlaceNode):
             a.place = check_place_assignable(
@@ -1209,7 +1213,12 @@ def synthesize_call(
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
-    var_mapping = dict(zip(free_vars, func_ty.params, strict=True))
+    var_mapping = {}
+    inst = list(None for _ in free_vars)
+    for ix, (var, param) in enumerate(zip(free_vars, func_ty.params, strict=True)):
+        var_mapping[var] = param.instantiate_bounds(inst)
+        inst[ix] = var.to_arg()
+
     args, subst = type_check_args(args, unquantified, {}, var_mapping, ctx, node)
 
     # Success implies that the substitution is closed
@@ -1279,6 +1288,7 @@ def check_call(
         raise GuppyTypeError(TypeMismatchError(node, ty, unquantified.output, kind))
 
     # Try to infer more by checking against the arguments
+    # CR TODO: Make the var mapping here as in synthesize
     inputs, subst = type_check_args(inputs, unquantified, subst, {}, ctx, node)
 
     # Also make sure we found an instantiation for all free vars in the type we're

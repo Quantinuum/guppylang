@@ -834,6 +834,19 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return None
 
 
+def unify_type_args(
+    ss: Sequence[Argument], ts: Sequence[Argument], subst: "Subst | None"
+) -> "Subst | None":
+    for s, t in zip(ss, ts, strict=True):
+        match s, t:
+            case TypeArg(), TypeArg():
+                subst = unify(s.ty, t.ty, subst)
+            case ConstArg(), ConstArg():
+                subst = unify(s.const, t.const, subst)
+            case _:
+                return None
+    return subst
+
 def _unify_var(
     var: ExistentialTypeVar | ExistentialConstVar, t: Type | Const, subst: "Subst"
 ) -> "Subst | None":
