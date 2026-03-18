@@ -25,7 +25,7 @@ class RawModifierDef(ParsableDef):
 
     python_func: PyFunc
 
-    description: str = field(default="modifier", init=False)
+    description: str = "modifier"
 
     def parse(self, globals: "Globals", sources: "SourceMap") -> "ParsedModifierDef":
         """Parses the raw modifier definition into a parsed definition."""
@@ -40,7 +40,7 @@ class ParsedModifierDef(CheckableDef):
     Modifiers are special classes used in `with` statements. This definition is used
     only to detect unexpected errors"""
 
-    description: str = field(default="modifier", init=False)
+    description: str = "modifier"
 
     def check(self, globals: "Globals") -> "CheckedModifierDef":
         return CheckedModifierDef(self.id, self.name, self.defined_at)
@@ -48,6 +48,8 @@ class ParsedModifierDef(CheckableDef):
 
 @dataclass(frozen=True)
 class CheckedModifierDef(CompiledDef):
+    description: str = "modifier"
+
     """A checked modifier definition.
 
     Modifiers are special classes used in `with` statements. This definition is used
