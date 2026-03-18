@@ -5,6 +5,7 @@ from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.param import ConstParam, TypeParam
 from guppylang_internals.tys.ty import (
+    EnumType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -108,8 +109,9 @@ class TypePrinter:
 
     @_visit.register(OpaqueType)
     @_visit.register(StructType)
-    def _visit_OpaqueType_StructType(
-        self, ty: OpaqueType | StructType, inside_row: bool
+    @_visit.register(EnumType)
+    def _visit_OpaqueType_StructType_EnumType(
+        self, ty: OpaqueType | StructType | EnumType, inside_row: bool
     ) -> str:
         if ty.args:
             args = ", ".join(self._visit(arg, True) for arg in ty.args)

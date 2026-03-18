@@ -230,6 +230,7 @@ def check_all_args(
     Raises a user error if number of arguments doesn't match or one of the argument is
     invalid.
     """
+
     exp, act = len(params), len(args)
     if exp != act:
         # TODO: Adjust the error span to only point to the offending arguments (similar

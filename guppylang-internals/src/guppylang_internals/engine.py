@@ -236,6 +236,7 @@ class CompilationEngine:
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
+
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
             self.types_to_check_worklist[id] = defn
@@ -268,9 +269,10 @@ class CompilationEngine:
             defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
         self.checked[id, mono_args] = defn
 
+        from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
 
-        if isinstance(defn, CheckedStructDef):
+        if isinstance(defn, CheckedStructDef | CheckedEnumDef):
             frame = DEF_STORE.frames[defn.id]
             for method_def in defn.generated_methods():
                 DEF_STORE.register_def(method_def, frame)

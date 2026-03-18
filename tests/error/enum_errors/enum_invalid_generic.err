@@ -1,0 +1,8 @@
+Error: Expected a type parameter (at $FILE:10:21)
+   | 
+ 8 | 
+ 9 | @guppy.enum
+10 | class MyEnum(Generic[X]):
+   |                      ^ Expected a type parameter
+
+Guppy compilation failed due to 1 previous error
