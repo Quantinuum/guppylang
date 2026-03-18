@@ -6,6 +6,8 @@ from guppylang.emulator import EmulatorBuilder
 from guppylang.std.platform import result
 from guppylang.std.lang import comptime
 
+from hugr._hugr.linking import HugrLinkingError
+
 
 def gen_adder_library(*, name: str, value: int) -> GuppyLibrary:
     @guppy(link_name=name)
@@ -125,7 +127,7 @@ def test_duplicate_defn():
         result("result", decl(5))
 
     with pytest.raises(
-        Exception,  # For some reason we cannot import HugrLinkingError here
+        HugrLinkingError,
         match=r"Source \(Node\([0-9]+\)\) and target \(Node\([0-9]+\)\) both contained FuncDefn with same public name super_adder",  # noqa: E501
     ):
         main.emulator(n_qubits=1, libs=[adder_lib_1, adder_lib_2])
@@ -147,7 +149,7 @@ def test_unused_func_duplicate_defn():
         result("result", 1)
 
     with pytest.raises(
-        Exception,  # For some reason we cannot import HugrLinkingError here
+        HugrLinkingError,
         match=r"Source \(Node\([0-9]+\)\) and target \(Node\([0-9]+\)\) both contained FuncDefn with same public name super_adder",  # noqa: E501
     ):
         main.emulator(n_qubits=1, libs=[lib_1, lib_2])
