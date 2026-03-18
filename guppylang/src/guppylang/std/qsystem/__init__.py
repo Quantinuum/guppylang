@@ -17,8 +17,8 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
 from guppylang_internals.std._internal.util import quantum_op
 
 from guppylang import guppy
-from guppylang.std import array
 from guppylang.std.angles import angle, pi
+from guppylang.std.array import array
 from guppylang.std.builtins import owned
 from guppylang.std.futures import Future
 from guppylang.std.option import Option, nothing, some
@@ -207,9 +207,9 @@ N = guppy.nat_var("N")
 
 
 @no_type_check
-def lazy_measure_array(qs: array[qubit, N] @ owned) -> array["Measurement", N]:
+def lazy_measure_array(qubits: array[qubit, N] @ owned) -> array["Measurement", N]:
     """Measure an array of qubits destructively, returning an array of Measurements."""
-    return array(lazy_measure(q) for q in qs)
+    return array(lazy_measure(q) for q in qubits)
 
 
 @custom_type(
