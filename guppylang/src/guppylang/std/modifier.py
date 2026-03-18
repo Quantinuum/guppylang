@@ -2,11 +2,6 @@ from guppylang.decorator import guppy
 
 
 @guppy.modifier
-class Example:
-    pass
-
-
-@guppy.modifier
 class dagger:
     pass
 

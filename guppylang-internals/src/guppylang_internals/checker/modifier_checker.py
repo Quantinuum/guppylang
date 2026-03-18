@@ -1,13 +1,18 @@
 """Type checking code for modifiers."""
 
 import ast
+from sqlite3 import InternalError
 
 from guppylang_internals.ast_util import loop_in_ast, with_loc
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.checker.cfg_checker import check_cfg
 from guppylang_internals.checker.core import Context, Variable
-from guppylang_internals.checker.errors.generic import InvalidUnderDagger
+from guppylang_internals.checker.errors.generic import (
+    ExpectedError,
+    InvalidUnderDagger,
+)
 from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.modifier import ParsedModifierDef
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
 from guppylang_internals.tys.ty import (
@@ -39,8 +44,7 @@ def check_modified_block(
 
     # We do not allow any assignments if it is daggered.
     if modified_block.is_dagger():
-        # TODO: NICOLA check if: dagger is not in local, and if it is in global as a
-        # ParsedModifierDef if not raise an error
+        _check_modifier_defined(ctx, "dagger", modified_block.dagger[-1])
         for stmt in modified_block.body:
             loops = loop_in_ast(stmt)
             if len(loops) != 0:
@@ -61,13 +65,9 @@ def check_modified_block(
                 raise GuppyError(err)
 
     if modified_block.is_control():
-        # TODO: NICOLA check if control is not in local, and if it is in global as a
-        # ParsedModifierDef if not raise an error
-        pass
+        _check_modifier_defined(ctx, "control", modified_block.control[-1])
     if modified_block.is_power():
-        # TODO: NICOLA check if power is not in local, and if it is in global as a
-        # ParsedModifierDef if not raise an error
-        pass
+        _check_modifier_defined(ctx, "power", modified_block.power[-1])
 
     # The other checks are done in unitary checking.
     # e.g. call to non-unitary function in a unitary modifier.
@@ -78,7 +78,7 @@ def check_modified_block(
     def_id = DefId.fresh()
     globals = ctx.globals
 
-    # TODO: NICOLA Ad hoc name for the new function
+    # TODO: Ad hoc name for the new function
     # This name could be printed in error messages, for example,
     # when the linearity checker fails in the modifier body
     checked_cfg = check_cfg(cfg, inputs, NoneType(), {}, "__modified__()", globals)
@@ -129,3 +129,13 @@ def non_copyable_front_others_back(v: list[Variable]) -> list[Variable]:
     linear_vars = [x for x in v if not x.ty.copyable]
     non_linear_vars = [x for x in v if x.ty.copyable]
     return linear_vars + non_linear_vars
+
+
+def _check_modifier_defined(ctx: Context, modifier_name: str, node: ast.expr) -> None:
+    """Check that a modifier is properly registered as a ParsedModifierDef."""
+    if (
+        modifier_name in ctx.locals
+        or modifier_name not in ctx.globals
+        or not isinstance(ctx.globals[modifier_name], ParsedModifierDef)
+    ):
+        raise GuppyError(ExpectedError(node, things="TODO: NICOLA"))

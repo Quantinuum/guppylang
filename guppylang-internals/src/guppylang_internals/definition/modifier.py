@@ -1,12 +1,12 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.definition.common import (
     CheckableDef,
+    CompiledDef,
     ParsableDef,
 )
-from guppylang_internals.error import InternalGuppyError
 
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Globals
@@ -42,6 +42,13 @@ class ParsedModifierDef(CheckableDef):
 
     description: str = field(default="modifier", init=False)
 
-    def check(self, globals: "Globals") -> NoReturn:
-        """Modifiers don't need checking, this should not be called."""
-        raise InternalGuppyError("ParsedModifierDef.check() should not be called")
+    def check(self, globals: "Globals") -> "CheckedModifierDef":
+        return CheckedModifierDef(self.id, self.name, self.defined_at)
+
+
+@dataclass(frozen=True)
+class CheckedModifierDef(CompiledDef):
+    """A checked modifier definition.
+
+    Modifiers are special classes used in `with` statements. This definition is used
+    only to detect unexpected errors"""
