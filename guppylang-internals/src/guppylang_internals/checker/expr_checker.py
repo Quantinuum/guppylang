@@ -119,7 +119,7 @@ from guppylang_internals.nodes import (
     TypeApply,
 )
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.arg import ConstArg, TypeArg
+from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     bool_type,
     float_type,
@@ -135,7 +135,7 @@ from guppylang_internals.tys.builtin import (
     option_type,
     string_type,
 )
-from guppylang_internals.tys.const import Const, ConstValue
+from guppylang_internals.tys.const import Const, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.param import (
     ConstParam,
     Parameter,
@@ -1074,8 +1074,8 @@ def type_check_args(
                         subst[var] = check_arg.ty
                     case ConstParam(), ConstArg() as arg:
                         subst[var] = param.check_arg(arg, a).const
-                    case _:
-                        assert_never()
+                    case x:
+                        raise Exception("Bad kinding")
         subst |= s
         if InputFlags.Inout in func_inp.flags and isinstance(a, PlaceNode):
             a.place = check_place_assignable(
@@ -1214,10 +1214,13 @@ def synthesize_call(
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
     var_mapping = {}
-    inst = list(None for _ in free_vars)
+    inst: list[Argument | None] = [None for _ in free_vars]
     for ix, (var, param) in enumerate(zip(free_vars, func_ty.params, strict=True)):
         var_mapping[var] = param.instantiate_bounds(inst)
-        inst[ix] = var.to_arg()
+        if isinstance(var, ExistentialTypeVar):
+            inst[ix] = TypeArg(var)
+        elif isinstance(var, ExistentialConstVar):
+            inst[ix] = ConstArg(var)
 
     args, subst = type_check_args(args, unquantified, {}, var_mapping, ctx, node)
 

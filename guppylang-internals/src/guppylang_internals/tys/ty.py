@@ -276,10 +276,15 @@ class ExistentialTypeVar(ExistentialVar, TypeBase):
 
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
-        return transformer.transform(self) or replace(
-            self,
-            implements=tuple(impl.transform(transformer) for impl in self.implements),
-        )
+        if (ty := transformer.transform(self)) is not None:
+            return ty  # type: ignore[no-any-return]
+        else:
+            return replace(
+                self,
+                implements=tuple(
+                    impl.transform(transformer) for impl in self.implements
+                ),
+            )
 
 
 @dataclass(frozen=True)
@@ -846,6 +851,7 @@ def unify_type_args(
             case _:
                 return None
     return subst
+
 
 def _unify_var(
     var: ExistentialTypeVar | ExistentialConstVar, t: Type | Const, subst: "Subst"

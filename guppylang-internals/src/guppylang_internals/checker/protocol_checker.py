@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import ClassVar, TypeAlias
 
 from guppylang_internals.definition.common import DefId
@@ -128,9 +128,6 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
             if impl.def_id == protocol.def_id:
                 # TODO: Is this correct?
                 # Does it break if we have protocols with other proto args
-                existential_params = [
-                    p.to_existential()[1] for p in protocol_def.params
-                ]
                 subst = unify_type_args(protocol.type_args, impl.type_args, {})
                 if subst is not None:
                     candidates.append((impl, subst))
