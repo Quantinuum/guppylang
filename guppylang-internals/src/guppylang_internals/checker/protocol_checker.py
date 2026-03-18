@@ -179,7 +179,6 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
         impl_vars: Inst = []
         for x in ex_impl_vars:
             arg = subst[x]
-            assert isinstance(arg, TypeArg)
             impl_vars.append(arg)
         member_impls[name] = func.id, impl_vars
 
