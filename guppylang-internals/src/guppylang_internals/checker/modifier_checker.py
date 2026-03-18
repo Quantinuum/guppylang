@@ -1,7 +1,6 @@
 """Type checking code for modifiers."""
 
 import ast
-from sqlite3 import InternalError
 
 from guppylang_internals.ast_util import loop_in_ast, with_loc
 from guppylang_internals.cfg.bb import BB
