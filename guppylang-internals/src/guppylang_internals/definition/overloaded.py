@@ -160,15 +160,3 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         raise InternalGuppyError(
             "OverloadedFunctionDef.compile_call shouldn't be invoked"
         )
-
-    def load_with_args(
-        self,
-        dfg: "DFContainer",
-        ctx: "CompilerContext",
-        node: AstNode,
-    ) -> Wire:
-        # This should never be called: During checking we should have already ruled out
-        # that overloaded functions are used as higher-order values.
-        raise InternalGuppyError(
-            "OverloadedFunctionDef.load_with_args shouldn't be invoked"
-        )
