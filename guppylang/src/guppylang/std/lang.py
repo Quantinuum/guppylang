@@ -1,5 +1,7 @@
 """Provides Python objects for builtin language keywords."""
 
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any, Protocol, TypeVar
 
 T = TypeVar("T")
@@ -42,3 +44,21 @@ class Copy(Protocol):
 
 class Drop(Protocol):
     """Bound to mark generic type parameters as being implicitly droppable."""
+
+
+@contextmanager
+def control() -> Generator[None]:
+    """Dummy context manager to support `with control(...):` blocks in Guppy code."""
+    yield
+
+
+@contextmanager
+def dagger() -> Generator[None]:
+    """Dummy context manager to support `with dagger:` blocks in Guppy code."""
+    yield
+
+
+@contextmanager
+def power() -> Generator[None]:
+    """Dummy context manager to support `with power(...):` blocks in Guppy code."""
+    yield
