@@ -15,10 +15,9 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_EXTENSION,
 )
 from guppylang_internals.std._internal.util import quantum_op
-from hugr import tys as ht
 
 from guppylang import guppy
-from guppylang.std import angles
+from guppylang.std import array
 from guppylang.std.angles import angle, pi
 from guppylang.std.builtins import owned
 from guppylang.std.futures import Future
@@ -202,6 +201,15 @@ class MaybeLeaked:
 @no_type_check
 def lazy_measure(q: qubit @ owned) -> "Measurement":
     """Measure a qubit destructively, returning a Measurement for the result."""
+
+
+N = guppy.nat_var("N")
+
+
+@no_type_check
+def lazy_measure_array(qs: array[qubit, N] @ owned) -> array["Measurement", N]:
+    """Measure an array of qubits destructively, returning an array of Measurements."""
+    return array(lazy_measure(q) for q in qs)
 
 
 @custom_type(
