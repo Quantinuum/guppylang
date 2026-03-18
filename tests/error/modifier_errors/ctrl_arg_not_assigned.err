@@ -1,8 +1,8 @@
-Error: Drop violation (at $FILE:7:17)
+Error: Drop violation (at $FILE:8:17)
   | 
-5 | @guppy
-6 | def test() -> None:
-7 |     with control(qubit()):
+6 | @guppy
+7 | def test() -> None:
+8 |     with control(qubit()):
   |                  ^^^^^^^ Expression with non-droppable type `qubit` is leaked
 
 Help: Consider assigning this value to a local variable

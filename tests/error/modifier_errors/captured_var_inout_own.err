@@ -1,15 +1,15 @@
-Error: Not owned (at $FILE:14:16)
+Error: Not owned (at $FILE:16:16)
    | 
-12 |     a = qubit()
-13 |     with dagger:
-14 |         discard(a)
+14 |     a = qubit()
+15 |     with dagger:
+16 |         discard(a)
    |                 ^ Function `discard` wants to take ownership of this argument,
    |                   but `__modified__()` doesn't own `a`
 
 Note:
    | 
-11 | def test() -> None:
-12 |     a = qubit()
+13 | def test() -> None:
+14 |     a = qubit()
    |     - Argument `a` is only borrowed. Consider taking ownership:
    |       `a: qubit @owned`
 

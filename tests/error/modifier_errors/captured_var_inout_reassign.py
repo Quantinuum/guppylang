@@ -1,5 +1,7 @@
 from guppylang.decorator import guppy
 from guppylang.std.quantum import qubit
+from guppylang.std.builtins import dagger
+
 
 
 @guppy.declare(dagger=True)

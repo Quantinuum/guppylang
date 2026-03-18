@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:7:17)
+Error: Type mismatch (at $FILE:9:17)
   | 
-5 | def test() -> None:
-6 |     x = array(1, 2, 3)
-7 |     with control(x):
+7 | def test() -> None:
+8 |     x = array(1, 2, 3)
+9 |     with control(x):
   |                  ^ Expected expression of type `array[qubit, ?n]`, got
   |                    `array[int, 3]`
 

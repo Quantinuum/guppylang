@@ -1,8 +1,8 @@
-Error: Too many arguments (at $FILE:6:16)
+Error: Too many arguments (at $FILE:7:16)
   | 
-4 | @guppy
-5 | def test() -> None:
-6 |     with dagger(1):
+5 | @guppy
+6 | def test() -> None:
+7 |     with dagger(1):
   |                 ^ Unexpected argument (expected 0, got 1)
 
 Guppy compilation failed due to 1 previous error

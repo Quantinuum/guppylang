@@ -1,6 +1,6 @@
 from guppylang.decorator import guppy
 from guppylang.std.array import array
-from guppylang.std.builtins import owned
+from guppylang.std.builtins import owned, control
 from guppylang.std.quantum import qubit
 
 
