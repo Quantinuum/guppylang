@@ -107,6 +107,14 @@ class GuppyStructKwargs(TypedDict, total=False):
     link_name: str
 
 
+class GuppyEnumKwargs(TypedDict, total=False):
+    """Typed dictionary specifying the optional keyword arguments for the
+    `@guppy.enum` decorator.
+    """
+
+    link_name: str
+
+
 class _Guppy:
     """Class for the `@guppy` decorator."""
 
@@ -252,7 +260,7 @@ class _Guppy:
         return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
 
     @dataclass_transform()
-    def enum(self, cls: builtins.type[T]) -> builtins.type[T]:
+    def enum(self, *args: Any, **kwargs: Unpack[GuppyEnumKwargs]) -> builtins.type[T]:
         """Registers a class as a Guppy enum.
 
         .. code-block:: python
@@ -268,20 +276,32 @@ class _Guppy:
                     return 1
         ..
         """
-        defn = RawEnumDef(DefId.fresh(), cls.__name__, None, cls)
-        frame = get_calling_frame()
-        DEF_STORE.register_def(defn, frame)
-        for val in cls.__dict__.values():
-            if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
-        # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
-        # However, we need this information to precisely look up the source for the
-        # class later. If it's not there, we can set it from the calling frame:
-        if not hasattr(cls, "__firstlineno__"):
-            cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
-        # We're pretending to return the class unchanged, but in fact we return
-        # a `GuppyDefinition` that handles the comptime logic
-        return GuppyDefinition(defn)  # type: ignore[return-value]
+
+        def decorator(
+            cls: builtins.type[T], kwargs: GuppyEnumKwargs
+        ) -> GuppyDefinition:
+            defn = RawEnumDef(
+                DefId.fresh(),
+                cls.__name__,
+                None,
+                cls,
+                link_name=kwargs.pop("link_name", None),
+            )
+            frame = get_calling_frame()
+            DEF_STORE.register_def(defn, frame)
+            for val in cls.__dict__.values():
+                if isinstance(val, GuppyDefinition):
+                    DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+            # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
+            # set. However, we need this information to precisely look up the source for
+            # the class later. If it's not there, we can set it from the calling frame:
+            if not hasattr(cls, "__firstlineno__"):
+                cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
+            # We're pretending to return the class unchanged, but in fact we return
+            # a `GuppyDefinition` that handles the comptime logic
+            return GuppyDefinition(defn)
+
+        return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
 
     def type_var(
         self,
