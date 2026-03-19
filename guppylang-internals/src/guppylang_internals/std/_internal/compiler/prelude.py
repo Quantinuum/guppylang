@@ -108,8 +108,8 @@ P = TypeVar("P", bound=ops.DfParentOp)
 def build_unwrap_either(
     builder: DfBase[P], either: Wire, left: bool, error_msg: str, error_signal: int = 1
 ) -> Node:
-    """Unwraps the value indicated by `left` from a `hugr.tys.Either` value, panicking
-    with the given message if the result is not in the place indicated by `left`.
+    """Unwraps the left or right value from a `hugr.tys.Either` value according to the
+    `left` flag, panicking with the given message if the result is on the other side.
     """
     conditional = builder.add_conditional(either)
     result_ty = builder.hugr.port_type(either.out_port())
