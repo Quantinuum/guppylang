@@ -1,7 +1,7 @@
 """Custom AST nodes used by Guppy"""
 
 import ast
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -876,7 +876,7 @@ class CheckedMatchPred(ast.expr):
     subject: ast.expr
     patterns: list[ast.pattern]
     sum_type: HugrSum
-    output_vars: list[list["Place"]]
+    output_vars: Sequence[Sequence["Place"]]
 
     _fields = ("subject", "patterns")
 

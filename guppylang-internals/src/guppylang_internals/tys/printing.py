@@ -169,4 +169,3 @@ def signature_to_str(name: str, sig: FunctionType, has_var_args: bool = False) -
     )
     s += ", ..." if has_var_args else ""
     return s + ") -> " + str(sig.output)
-

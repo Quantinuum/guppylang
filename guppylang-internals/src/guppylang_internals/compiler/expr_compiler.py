@@ -17,7 +17,12 @@ from hugr.build.dfg import DP, DfBase
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.cfg_checker import Row
-from guppylang_internals.checker.core import Place, Variable, contains_subscript
+from guppylang_internals.checker.core import (
+    Place,
+    PlaceId,
+    Variable,
+    contains_subscript,
+)
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
@@ -30,7 +35,6 @@ from guppylang_internals.compiler.hugr_extension import PartialOp
 from guppylang_internals.definition.custom import (
     BoolOpCompiler,
     CustomFunctionDef,
-    OpCompiler,
 )
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -113,7 +117,6 @@ from guppylang_internals.tys.ty import (
     NoneType,
     NumericType,
     OpaqueType,
-    StructType,
     TupleType,
     Type,
     type_to_row,
@@ -154,9 +157,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """
         old = self.dfg
         # Check that the input names are unique
-        assert len({inp.place.id for inp in inputs}) == len(
-            inputs
-        ), "Inputs are not unique"
+        assert len({inp.place.id for inp in inputs}) == len(inputs), (
+            "Inputs are not unique"
+        )
         self.dfg = DFContainer(builder, self.ctx, self.dfg.locals.copy())
         hugr_input = builder.input_node
         for input_node, wire in zip(inputs, hugr_input, strict=True):
@@ -395,9 +398,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 func, func_ty, remaining_args
             )
             rets.extend(outs)
-        assert (
-            remaining_args == []
-        ), "Not all function arguments were consumed after a tensor call"
+        assert remaining_args == [], (
+            "Not all function arguments were consumed after a tensor call"
+        )
         return self._pack_returns(rets, node.tensor_ty.output)
 
     def _compile_tensor_with_leftovers(
@@ -790,13 +793,6 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             self.dfg.builder,
         )
 
-        # if isinstance(node.subject, PlaceNode):
-        #     from guppylang_internals.compiler.stmt_compiler import StmtCompiler
-
-        #     comp = StmtCompiler(self.ctx)
-        #     comp.dfg = self.dfg
-        #     comp._assign(node.subject, out_wire)
-
         return out_wire
 
     def visit_MatchOverStruct(self, node: MatchOverStruct) -> Wire:
@@ -806,7 +802,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 class PatternCompiler(CompilerBase):
     dfg: DFContainer
     tag_sum_ty: ht.Sum
-    all_vars_idxs: dict[Variable.Id, int]
+    all_vars_idxs: dict[PlaceId, int]
     subject_idx: int
 
     def __init__(
@@ -814,7 +810,7 @@ class PatternCompiler(CompilerBase):
         ctx: CompilerContext,
         dfg: DFContainer,
         tag_sum_ty: ht.Sum,
-        all_vars_idxs: dict[Variable.Id, int],
+        all_vars_idxs: dict[PlaceId, int],
         subject_idx: int,
     ) -> None:
         super().__init__(ctx)
@@ -826,9 +822,9 @@ class PatternCompiler(CompilerBase):
     def _build_conditional_for_pattern_under_equivalence(
         self,
         patterns: list[ast.pattern],
-        output_vars: list[Row[Place]],
+        output_vars: Sequence[Row[Place]],
         subj_wire: Wire,
-        output_vars_wires: list[Wire],
+        output_vars_wires: Sequence[Wire],
         tag_index: int,
         builder: DfBase[ops.DfParentOp],
     ) -> Wire:
@@ -860,7 +856,7 @@ class PatternCompiler(CompilerBase):
         )
 
         # If the index of the subject is -1, it means the subject is not in `all_vars`,
-        # so the subject wire is inputed in the conditiona as the first wire
+        # so the subject wire is inputted in the conditional as the first wire
         cond_inputs = (
             [subj_wire, *output_vars_wires]
             if self.subject_idx == -1
@@ -923,7 +919,7 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
         self,
         pattern: ast.pattern,
         input_wire: Wire,
-    ) -> Wire | None:
+    ) -> Wire:
         self.input_wire = input_wire
         return self.visit(pattern)
 
@@ -956,52 +952,53 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
 
         return rets[0]
 
-    def visit_MatchStruct(self, node: MatchStruct) -> Wire | None:
-        """Performs the ands bertween the checks for each field pattern"""
-        struct_type = get_type(node.struct)
-        assert isinstance(struct_type, StructType)
-        # TODO: change when we will have aliases
-        node_to_consider = [
-            (idx, pattern)
-            for idx, pattern in enumerate(node.patterns)
-            if not isinstance(pattern, ast.MatchAs)
-        ]
-        if len(node_to_consider) == 0:
-            return None
+    def visit_MatchStruct(self, node: MatchStruct) -> Wire:
+        """Performs the and between the checks for each field pattern"""
+        raise NotImplementedError
+        # struct_type = get_type(node.struct)
+        # assert isinstance(struct_type, StructType)
+        # # TODO: change when we will have aliases
+        # node_to_consider = [
+        #     (idx, pattern)
+        #     for idx, pattern in enumerate(node.patterns)
+        #     if not isinstance(pattern, ast.MatchAs)
+        # ]
+        # if len(node_to_consider) == 0:
+        #     return None
 
-        hugr_types = [f.ty.to_hugr(self.ctx) for f in struct_type.fields]
-        fields_wire = list(
-            self.builder.add_op(ops.UnpackTuple(hugr_types), self.input_wire).outputs()
-        )
+        # hugr_types = [f.ty.to_hugr(self.ctx) for f in struct_type.fields]
+        # fields_wire = list(
+        #     self.builder.add_op(ops.UnpackTuple(hugr_types), self.input_wire).outputs()  # noqa: E501
+        # )
 
-        compiled_wires = [
-            wire
-            for idx, pattern in node_to_consider
-            if (wire := self.compile(pattern, fields_wire[idx])) is not None
-        ]
+        # compiled_wires = [
+        #     wire
+        #     for idx, pattern in node_to_consider
+        #     if (wire := self.compile(pattern, fields_wire[idx])) is not None
+        # ]
 
-        if not compiled_wires:
-            return None
-        if len(compiled_wires) == 1:
-            return compiled_wires[0]
+        # if not compiled_wires:
+        #     return None
+        # if len(compiled_wires) == 1:
+        #     return compiled_wires[0]
 
-        and_func_def, type_args = self.ctx.build_compiled_def(
-            node.and_func, type_args=[]
-        )
-        assert isinstance(and_func_def, CustomFunctionDef)
-        assert and_func_def.has_signature
-        hugr_ty = and_func_def.ty.instantiate(type_args).to_hugr(self.ctx)
+        # and_func_def, type_args = self.ctx.build_compiled_def(
+        #     node.and_func, type_args=[]
+        # )
+        # assert isinstance(and_func_def, CustomFunctionDef)
+        # assert and_func_def.has_signature
+        # hugr_ty = and_func_def.ty.instantiate(type_args).to_hugr(self.ctx)
 
-        result = compiled_wires[0]
-        for wire in compiled_wires[1:]:
-            assert isinstance(and_func_def.call_compiler, OpCompiler)
-            and_op = and_func_def.call_compiler.op(hugr_ty, type_args, self.ctx)
-            rets = list(self.builder.add_op(and_op, result, wire).outputs())
-            assert len(rets) == 1
-            result = rets[0]
-            assert self.builder.hugr.port_type(result) == OpaqueBool
-            result = self.builder.add_op(read_bool(), result)
-        return result
+        # result = compiled_wires[0]
+        # for wire in compiled_wires[1:]:
+        #     assert isinstance(and_func_def.call_compiler, OpCompiler)
+        #     and_op = and_func_def.call_compiler.op(hugr_ty, type_args, self.ctx)
+        #     rets = list(self.builder.add_op(and_op, result, wire).outputs())
+        #     assert len(rets) == 1
+        #     result = rets[0]
+        #     assert self.builder.hugr.port_type(result) == OpaqueBool
+        #     result = self.builder.add_op(read_bool(), result)
+        # return result
 
     def visit_MatchEnum(self, node: MatchEnum) -> Wire:
         return self.input_wire
@@ -1024,9 +1021,9 @@ def pack_returns(
         assert len(returns) == len(types)
         hugr_tys = [t.to_hugr(ctx) for t in types]
         return builder.add_op(ops.MakeTuple(hugr_tys), *returns)
-    assert (
-        len(returns) == 1
-    ), f"Expected a single return value. Got {returns}. return type {return_ty}"
+    assert len(returns) == 1, (
+        f"Expected a single return value. Got {returns}. return type {return_ty}"
+    )
     return returns[0]
 
 
