@@ -45,16 +45,12 @@ class ExpectedError(Error):
         return f", got {self.got}" if self.got else ""
 
     @dataclass(frozen=True)
-    class NotInstanziable(Note):
-        description: str
+    class NotInstantiable(Note):
         name: str
         message: ClassVar[str] = (
-            "Cannot construct an instance of `{name}`, as it is missing a `__new__` method."
+            "Cannot construct an instance of `{name}`, as it is missing a `__new__` "
+            "method."
         )
-
-        @property
-        def capitalized_description(self) -> str:
-            return self.description.capitalize()
 
 
 @dataclass(frozen=True)

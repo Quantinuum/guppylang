@@ -496,9 +496,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         "an instantiable definition",
                         got=f"{defn.description} `{name}`",
                     )
-                    err.add_sub_diagnostic(
-                        ExpectedError.NotInstanziable(None, defn.description, name)
-                    )
+                    err.add_sub_diagnostic(ExpectedError.NotInstantiable(None, name))
 
             # Handle parameter definitions (e.g., nat_var) that may be imported
             case ParamDef():
