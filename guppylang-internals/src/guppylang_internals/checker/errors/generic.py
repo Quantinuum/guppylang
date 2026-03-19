@@ -49,7 +49,7 @@ class ExpectedError(Error):
         description: str
         name: str
         message: ClassVar[str] = (
-            "{capitalized_description} {name} is not an instaziable {description}"
+            "Cannot construct an instance of `{name}`, as it is missing a `__new__` method."
         )
 
         @property
