@@ -44,6 +44,18 @@ class ExpectedError(Error):
     def extra(self) -> str:
         return f", got {self.got}" if self.got else ""
 
+    @dataclass(frozen=True)
+    class NotInstanziable(Note):
+        description: str
+        name: str
+        message: ClassVar[str] = (
+            "{capitalized_description} {name} is not an instaziable {description}"
+        )
+
+        @property
+        def capitalized_description(self) -> str:
+            return self.description.capitalize()
+
 
 @dataclass(frozen=True)
 class UnknownModifierError(Error):
