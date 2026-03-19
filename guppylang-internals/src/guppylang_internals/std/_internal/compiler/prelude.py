@@ -154,7 +154,7 @@ def build_unwrap(
     """Unwraps an `hugr.tys.Option` value, panicking with the given message if the
     result is an error.
     """
-    return build_unwrap_left(
+    return build_unwrap_right(
         builder, option, error_msg=error_msg, error_signal=error_signal
     )
 
@@ -165,7 +165,7 @@ def build_expect_none(
     """Checks that `hugr.tys.Option` value is `None`, otherwise panics with the given
     message.
     """
-    return build_unwrap_right(
+    return build_unwrap_left(
         builder, option, error_msg=error_msg, error_signal=error_signal
     )
 
