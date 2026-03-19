@@ -9,7 +9,7 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch: {}
+  workflow_dispatch: { }
 
 env:
   # Pinned version for the uv package manager
@@ -61,4 +61,4 @@ jobs:
       - name: Lint with ruff
         run: uv run --no-sync ruff check guppylang
       - name: Run tests
-        run: uv run --no-sync pytest
+        run: UV_NO_SYNC=1 just test
