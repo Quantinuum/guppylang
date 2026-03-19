@@ -247,6 +247,8 @@ class BBLinearityChecker(ast.NodeVisitor):
         # `_visit_call_args` helper will set `use_kind=UseKind.BORROW`.
         is_inout_arg = use_kind == UseKind.BORROW
         if is_inout_var(node.place) and not is_inout_arg:
+            # TODO: NICOLA
+            # Here the ugly error message is generated
             err: Error = NotOwnedError(
                 node,
                 node.place,

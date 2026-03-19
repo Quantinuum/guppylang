@@ -12,7 +12,7 @@ def discard_array(a: array[qubit, 1] @ owned) -> None: ...
 def test() -> None:
     x = array(qubit())
     y = array(qubit())
-    with control(x, y):
+    with control(x, y): #TODO: NICOLA better error here
         pass
     discard_array(x)
     discard_array(y)

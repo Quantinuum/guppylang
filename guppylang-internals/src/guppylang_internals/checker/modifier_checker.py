@@ -67,6 +67,11 @@ def check_modified_block(
     def_id = DefId.fresh()
     globals = ctx.globals
 
+    # TODO: NICOLA
+    # 2 solution to try:
+    # - Better name (e.g. name of the modifier)
+    # - Try to make func_name a class so we know if we are in a modifier or not.
+    #   Alternatively, some kind of context
     # TODO: Ad hoc name for the new function
     # This name could be printed in error messages, for example,
     # when the linearity checker fails in the modifier body
