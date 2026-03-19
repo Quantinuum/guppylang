@@ -1,0 +1,10 @@
+Error: Expected a value (at $FILE:11:11)
+   | 
+ 9 | @compile_guppy
+10 | def fun() -> MyEnum:
+11 |     return MyEnum
+   |            ^^^^^^ Expected a value, got a guppy enum class `MyEnum`
+
+Help: You might use an enum variant here instead
+
+Guppy compilation failed due to 1 previous error

@@ -432,16 +432,41 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 return assert_never(param)
 
     def visit_Name(self, node: ast.Name) -> tuple[ast.expr, Type]:
-        x = node.id
-        if x in self.ctx.locals:
-            var = self.ctx.locals[x]
+        return self._check_name_id(node.id, node)
+
+    def _check_name_id(
+        self, name_id: str, node: ast.Name, allow_enum: bool = False
+    ) -> tuple[ast.expr, Type]:
+        """Helper method to check a name by its identifier, used for both `ast.Name` and
+        `ast.Attribute` nodes. If allow_enum is False, we raise an error if the name
+        corresponds to an enum definition, since enums cannot be used as values."""
+        if name_id in self.ctx.locals:
+            var = self.ctx.locals[name_id]
             return with_loc(node, PlaceNode(place=var)), var.ty
-        elif x in self.ctx.generic_params:
-            return self._check_generic_param(x, node)
-        elif x in self.ctx.globals:
-            match self.ctx.globals[x]:
+        elif name_id in self.ctx.generic_params:
+            return self._check_generic_param(name_id, node)
+        elif name_id in self.ctx.globals:
+            match self.ctx.globals[name_id]:
                 case Definition() as defn:
-                    return self._check_global(defn, x, node)
+                    if not allow_enum:
+                        from guppylang_internals.definition.enum import (
+                            CheckedEnumDef,
+                            ParsedEnumDef,
+                        )
+
+                        if isinstance(defn, ParsedEnumDef | CheckedEnumDef):
+                            if len(defn.variants) == 0:
+                                raise GuppyError(
+                                    UnexpectedError(node, "empty enum initialization")
+                                )
+                            err = ExpectedError(
+                                node,
+                                "a value",
+                                got=f"a guppy enum class `{defn.name}`",
+                            )
+                            err.add_sub_diagnostic(ExpectedError.EnumHelp(None))
+                            raise GuppyError(err)
+                    return self._check_global(defn, name_id, node)
                 case PythonObject():
                     from guppylang_internals.checker.cfg_checker import (
                         VarNotDefinedError,
@@ -452,8 +477,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     raise GuppyError(VarNotDefinedError(node, node.id))
 
         raise InternalGuppyError(
-            f"Variable `{x}` is not defined in `TypeSynthesiser`. This should have "
-            "been caught by program analysis!"
+            f"Variable `{name_id}` is not defined in `TypeSynthesiser`."
+            "This should have been caught by program analysis!"
         )
 
     def _check_global(
@@ -531,7 +556,22 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(
                 ModuleMemberNotFoundError(attr_span, module.__name__, node.attr)
             )
-        node.value, ty = self.synthesize(node.value)
+
+        if isinstance(node.value, ast.Name):
+            # If node.value is a Name, we manually visit it. This is necessary since a
+            # Name can be a EnumDef only if it is in a attribute access, thus we
+            # manually need to call the helper instead of relying on the standard
+            # visit_Name (that is called through synthesize)
+            ty = get_type_opt(node.value)
+            if ty is None:
+                node.value, ty = self._check_name_id(
+                    node.value.id, node.value, allow_enum=True
+                )
+                if ty.unsolved_vars:
+                    raise GuppyError(TypeInferenceError(node, ty))
+                node.value = with_type(ty, node.value)
+        else:
+            node.value, ty = self.synthesize(node.value)
 
         if isinstance(ty, StructType) and node.attr in ty.field_dict:
             field = ty.field_dict[node.attr]

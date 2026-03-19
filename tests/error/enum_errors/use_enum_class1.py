@@ -1,11 +1,12 @@
 from guppylang import guppy
 from tests.util import compile_guppy
 
+
 @guppy.enum
 class MyEnum:
-    pass
+    Left = {} 
+
 
 @compile_guppy
 def fun() -> None:
-    x = MyEnum()
-
+    x = MyEnum

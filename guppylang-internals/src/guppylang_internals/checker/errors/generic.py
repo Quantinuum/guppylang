@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from guppylang_internals.diagnostic import Error, Note
+from guppylang_internals.diagnostic import Error, Help, Note
 
 
 @dataclass(frozen=True)
@@ -43,6 +43,10 @@ class ExpectedError(Error):
     @property
     def extra(self) -> str:
         return f", got {self.got}" if self.got else ""
+
+    @dataclass(frozen=True)
+    class EnumHelp(Help):
+        message: ClassVar[str] = "You might use an enum variant here instead"
 
 
 @dataclass(frozen=True)
