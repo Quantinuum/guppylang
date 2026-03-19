@@ -48,21 +48,21 @@ repos:
       - id: ruff-format
         name: ruff format
         description: Format python code with `ruff`.
-        entry: uv run --no-sync ruff format
+        entry: uv run ruff format
         language: system
         files: \.py$
         pass_filenames: false
       - id: ruff-check
         name: ruff
         description: Check python code with `ruff`.
-        entry: uv run --no-sync ruff check --fix --exit-non-zero-on-fix
+        entry: uv run ruff check --fix --exit-non-zero-on-fix
         language: system
         files: \.py$
         pass_filenames: false
       - id: mypy-check
         name: mypy
         description: Check python code with `mypy`.
-        entry: uv run --no-sync mypy guppylang guppylang-internals
+        entry: uv run mypy guppylang guppylang-internals
         language: system
         files: \.py$
         pass_filenames: false
