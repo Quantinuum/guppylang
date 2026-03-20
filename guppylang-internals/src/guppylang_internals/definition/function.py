@@ -8,7 +8,9 @@ import hugr.build.function as hf
 import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.debug_info import DISubprogram
 from hugr.hugr.node_port import ToNode
+from hugr.metadata import HugrDebugInfo
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -53,11 +55,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
-from guppylang_internals.metadata.debug_info import (
-    DISubprogram,
-    HugrDebugInfo,
-    make_location_record,
-)
+from guppylang_internals.metadata.debug_info import make_location_record
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.subst import Inst, Subst

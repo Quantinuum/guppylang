@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+from hugr.debug_info import DebugRecord
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import JsonType
+from hugr.metadata import HugrDebugInfo
+from hugr.utils import JsonType
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.debug_info import DebugRecord, HugrDebugInfo
 from guppylang_internals.metadata.max_qubits import MetadataMaxQubits
 
 

@@ -5,6 +5,7 @@ from typing import ClassVar
 from hugr import Node, Wire
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.metadata import HugrDebugInfo
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -42,7 +43,6 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.debug_info import HugrDebugInfo
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.param import Parameter

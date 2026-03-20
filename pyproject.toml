@@ -29,7 +29,7 @@ guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
-# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "191c473" }
+hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "6b0358e" }
 
 [build-system]
 requires = ["hatchling"]

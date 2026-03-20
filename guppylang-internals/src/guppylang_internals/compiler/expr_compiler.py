@@ -15,6 +15,7 @@ from hugr import val as hv
 from hugr.build import function as hf
 from hugr.build.cond_loop import Conditional
 from hugr.build.dfg import DP, DfBase
+from hugr.metadata import HugrDebugInfo
 
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_file, get_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -38,7 +39,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.metadata.debug_info import HugrDebugInfo, make_location_record
+from guppylang_internals.metadata.debug_info import make_location_record
 from guppylang_internals.nodes import (
     AbortExpr,
     AbortKind,

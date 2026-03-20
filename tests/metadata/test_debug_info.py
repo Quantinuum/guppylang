@@ -2,12 +2,8 @@ from guppylang.std import array
 from guppylang.std.debug import state_result
 from guppylang.std.quantum import discard, discard_array, qubit
 from guppylang_internals.debug_mode import turn_off_debug_mode, turn_on_debug_mode
-from guppylang_internals.metadata.debug_info import (
-    DICompileUnit,
-    DILocation,
-    DISubprogram,
-    HugrDebugInfo,
-)
+from hugr.debug_info import DICompileUnit, DILocation, DISubprogram
+from hugr.metadata import HugrDebugInfo
 from hugr.ops import Call, ExtOp, FuncDecl, FuncDefn, MakeTuple
 
 from guppylang import guppy
@@ -72,8 +68,8 @@ def test_subprogram():
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
                 assert debug_info.file == 0
-                assert debug_info.line_no == 48
-                assert debug_info.scope_line == 49
+                assert debug_info.line_no == 45
+                assert debug_info.scope_line == 46
             case "bar":
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
@@ -132,7 +128,7 @@ def test_call_location():
         else:
             assert debug_info.column == 8
         lines.append(debug_info.line_no)
-    assert lines == [116, 117, 28, 119]
+    assert lines == [113, 114, 28, 116]
 
 
 # TODO: Improve this test.
@@ -169,7 +165,7 @@ def test_ext_op_location():
         if isinstance(node_data.op, MakeTuple) and HugrDebugInfo in node.metadata:
             debug_info = DILocation.from_json(node.metadata[HugrDebugInfo.KEY])
             found_annotated_tuples.append(debug_info.line_no)
-    assert 145 in found_annotated_tuples
+    assert 142 in found_annotated_tuples
 
 
 def test_turn_off_debug_mode():

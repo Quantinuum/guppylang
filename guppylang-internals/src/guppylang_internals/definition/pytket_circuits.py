@@ -7,7 +7,9 @@ from guppylang.defs import GuppyDefinition
 from hugr import Node, Wire, envelope, ops, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.debug_info import DILocation, DISubprogram
 from hugr.envelope import EnvelopeConfig
+from hugr.metadata import HugrDebugInfo
 from hugr.std.float import FLOAT_T
 from pytket.circuit import Circuit
 from tket.circuit import Tk2Circuit
@@ -42,12 +44,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.metadata.debug_info import (
-    DILocation,
-    DISubprogram,
-    HugrDebugInfo,
-    make_location_record,
-)
+from guppylang_internals.metadata.debug_info import make_location_record
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, Span, ToSpan
 from guppylang_internals.std._internal.compiler.array import (

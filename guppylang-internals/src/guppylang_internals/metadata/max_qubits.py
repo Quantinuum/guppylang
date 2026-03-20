@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
-from hugr.metadata import JsonType, Metadata
+from hugr.metadata import Metadata
+from hugr.utils import JsonType
 
 
 @dataclass(frozen=True)

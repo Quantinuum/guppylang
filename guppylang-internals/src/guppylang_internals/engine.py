@@ -6,9 +6,10 @@ from typing import TYPE_CHECKING
 import hugr
 import hugr.build.function as hf
 from hugr import ops
+from hugr.debug_info import DICompileUnit
 from hugr.envelope import ExtensionDesc, GeneratorDesc
 from hugr.ext import Extension, ExtensionRegistry
-from hugr.metadata import HugrGenerator, HugrUsedExtensions
+from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
 
@@ -30,8 +31,6 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.error import pretty_errors
 from guppylang_internals.metadata.debug_info import (
-    DICompileUnit,
-    HugrDebugInfo,
     StringTable,
 )
 from guppylang_internals.span import SourceMap
