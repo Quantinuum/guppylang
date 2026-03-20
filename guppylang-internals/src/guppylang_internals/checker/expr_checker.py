@@ -1116,7 +1116,7 @@ def type_check_args(
                         subst[var] = check_arg.ty
                     case ConstParam(), ConstArg() as arg:
                         subst[var] = param.check_arg(arg, a).const
-                    case x:
+                    case _:
                         raise Exception("Bad kinding")
         subst |= s
         if InputFlags.Inout in func_inp.flags and isinstance(a, PlaceNode):
