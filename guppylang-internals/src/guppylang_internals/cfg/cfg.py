@@ -58,6 +58,18 @@ class BaseCFG(Generic[T]):
             yield bb
             queue += bb.predecessors
 
+    def successors(self, *bbs: T) -> Iterator[T]:
+        """Returns an iterator over all successors of the given BBs in BFS order."""
+        queue = deque(bbs)
+        visited = set()
+        while queue:
+            bb = queue.popleft()
+            if bb in visited:
+                continue
+            visited.add(bb)
+            yield bb
+            queue += bb.successors
+
     def update_reachable(self) -> None:
         """Sets the reachability flags on the BBs in this CFG."""
         queue = {self.entry_bb}
@@ -118,7 +130,7 @@ class CFG(BaseCFG[BB]):
         # initial value in the liveness analysis. This solves the edge case that
         # borrowed variables should be considered live, even if the exit is actually
         # unreachable (to avoid linearity violations later).
-        inout_live = {x: self.exit_bb for x in inout_vars}
+        inout_live = dict.fromkeys(inout_vars, self.exit_bb)
         self.live_before = LivenessAnalysis(
             stats, initial=inout_live, include_unreachable=True
         ).run(self.bbs)

@@ -1,0 +1,8 @@
+Error: Index out of bounds (at $FILE:10:19)
+   | 
+ 8 |    q = qs.take(0)
+ 9 |    measure(q)
+10 |    qs.put(qubit(), 10)  # Out of bounds
+   |                    ^^ Array index 10 is out of bounds for array of size 5.
+
+Guppy compilation failed due to 1 previous error

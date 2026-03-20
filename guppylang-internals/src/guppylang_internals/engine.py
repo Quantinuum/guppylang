@@ -1,17 +1,15 @@
 from collections import defaultdict
-from enum import Enum
 from types import FrameType
 from typing import TYPE_CHECKING, assert_never, cast
 
+import hugr
 import hugr.build.function as hf
-import hugr.std.collections.array
-import hugr.std.float
-import hugr.std.int
-import hugr.std.logic
-import hugr.std.prelude
 from hugr import ops
-from hugr.ext import Extension
+from hugr.envelope import ExtensionDesc, GeneratorDesc
+from hugr.ext import Extension, ExtensionRegistry
+from hugr.metadata import HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
+from semver import Version
 
 import guppylang_internals
 from guppylang_internals.definition.common import (
@@ -49,6 +47,7 @@ from guppylang_internals.tys.builtin import (
 )
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
+    EnumType,
     ExistentialTypeVar,
     FunctionType,
     NoneType,
@@ -80,13 +79,6 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
-
-
-class CoreMetadataKeys(Enum):
-    """Core HUGR metadata keys used by Guppy."""
-
-    USED_EXTENSIONS = "core.used_extensions"
-    GENERATOR = "core.generator"
 
 
 class DefinitionStore:
@@ -161,10 +153,51 @@ class CompilationEngine:
     types_to_check_worklist: dict[DefId, ParsedDef]
     to_check_worklist: dict[DefId, ParsedDef]
 
+    # Cached compilation infrastructure (lazy-initialized, program-independent)
+    _base_packaged_extensions: list[Extension] | None = None
+    _base_resolve_registry: ExtensionRegistry | None = None
+
     def __init__(self) -> None:
         """Resets the compilation cache."""
         self.reset()
         self.additional_extensions = []
+
+    @staticmethod
+    def _get_base_packaged_extensions() -> list[Extension]:
+        """Get the base list of packaged extensions (cached at class level)."""
+        if CompilationEngine._base_packaged_extensions is None:
+            from guppylang_internals.std._internal.compiler.tket_exts import (
+                TKET_EXTENSIONS,
+            )
+
+            CompilationEngine._base_packaged_extensions = [
+                *TKET_EXTENSIONS,
+                guppylang_internals.compiler.hugr_extension.EXTENSION,  # type: ignore[attr-defined]
+            ]
+        return CompilationEngine._base_packaged_extensions
+
+    @staticmethod
+    def _get_base_resolve_registry() -> ExtensionRegistry:
+        """Get the base resolve registry with standard extensions.
+
+        Cached at class level.
+        """
+        if CompilationEngine._base_resolve_registry is None:
+            base_extensions = CompilationEngine._get_base_packaged_extensions()
+            registry = ExtensionRegistry()
+            for ext in [
+                *base_extensions,
+                hugr.std.prelude.PRELUDE_EXTENSION,
+                hugr.std.collections.array.EXTENSION,
+                hugr.std.float.FLOAT_OPS_EXTENSION,
+                hugr.std.float.FLOAT_TYPES_EXTENSION,
+                hugr.std.int.INT_OPS_EXTENSION,
+                hugr.std.int.INT_TYPES_EXTENSION,
+                hugr.std.logic.EXTENSION,
+            ]:
+                registry.register_updated(ext)
+            CompilationEngine._base_resolve_registry = registry
+        return CompilationEngine._base_resolve_registry
 
     def reset(self) -> None:
         """Resets the compilation cache."""
@@ -193,6 +226,7 @@ class CompilationEngine:
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
+
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
             self.types_to_check_worklist[id] = defn
@@ -216,9 +250,10 @@ class CompilationEngine:
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         self.checked[id] = defn
 
+        from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
 
-        if isinstance(defn, CheckedStructDef):
+        if isinstance(defn, CheckedStructDef | CheckedEnumDef):
             for method_def in defn.generated_methods():
                 DEF_STORE.register_def(method_def, None)
                 DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
@@ -275,40 +310,53 @@ class CompilationEngine:
             # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
             graph.hugr.entrypoint = compiled_def.hugr_node
 
-        # TODO: Currently the list of extensions is manually managed by the user.
-        #  We should compute this dynamically from the imported dependencies instead.
-        #
-        # The hugr prelude and std_extensions are implicit.
-        from guppylang_internals.std._internal.compiler.tket_exts import TKET_EXTENSIONS
+        # Use cached base extensions and registry, only add additional extensions
+        base_extensions = self._get_base_packaged_extensions()
+        packaged_extensions = [*base_extensions, *self.additional_extensions]
 
-        extensions = [
-            *TKET_EXTENSIONS,
-            guppylang_internals.compiler.hugr_extension.EXTENSION,
-            *self.additional_extensions,
+        # Build resolve registry: start with cached base, add any additional
+        if self.additional_extensions:
+            from copy import deepcopy
+
+            resolve_registry = deepcopy(self._get_base_resolve_registry())
+            for ext in self.additional_extensions:
+                resolve_registry.register_updated(ext)
+        else:
+            resolve_registry = self._get_base_resolve_registry()
+
+        # Compute used extensions dynamically from the HUGR.
+        used_extensions_result = graph.hugr.used_extensions(
+            resolve_from=resolve_registry
+        )
+
+        # Set metadata for used extensions
+        used_exts_meta = [
+            ExtensionDesc(name=ext.name, version=ext.version)
+            for ext in used_extensions_result.used_extensions.extensions.values()
         ]
-        # TODO replace with computed extensions after https://github.com/quantinuum/guppylang/issues/550
-        all_used_extensions = [
-            *extensions,
-            hugr.std.prelude.PRELUDE_EXTENSION,
-            hugr.std.collections.array.EXTENSION,
-            hugr.std.float.FLOAT_OPS_EXTENSION,
-            hugr.std.float.FLOAT_TYPES_EXTENSION,
-            hugr.std.int.INT_OPS_EXTENSION,
-            hugr.std.int.INT_TYPES_EXTENSION,
-            hugr.std.logic.EXTENSION,
+        # Add unresolved extensions as well, but we only have the names
+        used_exts_meta.extend(
+            [
+                # TODO: Remove dummy version once optional in Hugr.
+                ExtensionDesc(
+                    name=ext_name, version=Version(major=0, prerelease="unknown")
+                )
+                for ext_name in used_extensions_result.unresolved_extensions
+            ]
+        )
+        graph.hugr.module_root.metadata[HugrUsedExtensions] = used_exts_meta
+        graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
+            name="guppylang", version=Version.parse(guppylang_internals.__version__)
+        )
+        # only package used extensions
+        packaged_extensions = [
+            ext
+            for ext in packaged_extensions
+            if ext.name in used_extensions_result.ids()
         ]
-        graph.hugr.module_root.metadata[CoreMetadataKeys.USED_EXTENSIONS.value] = [
-            {
-                "name": ext.name,
-                "version": str(ext.version),
-            }
-            for ext in all_used_extensions
-        ]
-        graph.hugr.module_root.metadata[CoreMetadataKeys.GENERATOR.value] = {
-            "name": "guppylang",
-            "version": guppylang_internals.__version__,
-        }
-        return ModulePointer(Package(modules=[graph.hugr], extensions=extensions), 0)
+        return ModulePointer(
+            Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+        )
 
     @pretty_errors
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
@@ -342,6 +390,8 @@ class CompilationEngine:
                 type_defn = tuple_type_def
             case NoneType():
                 type_defn = none_type_def
+            case EnumType():
+                type_defn = ty.defn
             case _:
                 return assert_never(ty)
 

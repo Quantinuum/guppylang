@@ -12,6 +12,9 @@ on:
   merge_group:
     types: [checks_requested]
 
+permissions:
+  pull-requests: write
+
 env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
@@ -28,7 +31,7 @@ jobs:
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -38,4 +41,4 @@ jobs:
       - uses: quantinuum/hugrverse-actions/py-semver-checks@main
         with:
           packages: guppylang/src/guppylang guppylang-internals/src/guppylang_internals
-          token: ${{ secrets.HUGRBOT_PAT }}
+          token: ${{ secrets.HUGRBOT_PAT || github.token }}

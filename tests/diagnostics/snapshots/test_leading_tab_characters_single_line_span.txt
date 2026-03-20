@@ -1,0 +1,6 @@
+Error: Can't compare apples with oranges (at <unknown>:3:1)
+  | 
+1 |     super_apple := apple ** 2
+2 |     lemon := orange - apple
+3 |     apple == orange
+  |     ^^^^^^^^^^^^^^^ Comparison attempted here

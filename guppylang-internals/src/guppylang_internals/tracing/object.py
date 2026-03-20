@@ -348,7 +348,7 @@ class GuppyObject(DunderMixin):
         return self
 
     @hide_trace
-    def __getattr__(self, key: str) -> Any:  # type: ignore[misc]
+    def __getattr__(self, key: str) -> Any:
         # Guppy objects don't have fields (structs are treated separately below), so the
         # only attributes we have to worry about are methods.
         func = ENGINE.get_instance_func(self._ty, key)
@@ -455,7 +455,7 @@ class GuppyStructObject(DunderMixin):
         object.__setattr__(self, "_frozen", frozen)
 
     @hide_trace
-    def __getattr__(self, key: str) -> Any:  # type: ignore[misc]
+    def __getattr__(self, key: str) -> Any:
         # It could be an attribute
         if key in self._field_values:
             return self._field_values[key]

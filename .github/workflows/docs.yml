@@ -31,7 +31,7 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -58,8 +58,8 @@ jobs:
         The doc building workflow has failed on the main branch.
 
         [Please investigate](https://github.com/quantinuum/guppylang/actions/runs/${{ github.run_id }}).
-      unique-label: "docs-fail"
-      other-labels: "bug"
+      unique-label: "X-docs-fail"
+      other-labels: "A-documentation"
 
   publish:
     name: Publish docs.

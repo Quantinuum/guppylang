@@ -55,7 +55,7 @@ class CallableDef(ValueDef):
         raise RuntimeError("Guppy functions can only be called in a Guppy context")
 
 
-class CompiledCallableDef(CallableDef, CompiledValueDef):
+class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, unused-ignore]
     """Abstract base class a global module-level function."""
 
     ty: FunctionType

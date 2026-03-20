@@ -1,8 +1,13 @@
-Error: Type mismatch (at $FILE:7:10)
+Error: Invalid call of overloaded function (at $FILE:7:10)
   | 
 5 | @compile_guppy
 6 | def foo(x: int) -> None:
 7 |     panic((), x)
-  |           ^^ Expected expression of type `str`, got `()`
+  |           ^^^^^ No variant of overloaded function `panic` takes arguments
+  |                 `()`, `int`
+
+Note: Available overloads are:
+  def panic(msg: str, ...) -> None
+  def panic(msg: str, signal: int, ...) -> None
 
 Guppy compilation failed due to 1 previous error

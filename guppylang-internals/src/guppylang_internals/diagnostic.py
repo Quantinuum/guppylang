@@ -384,9 +384,25 @@ class DiagnosticsRenderer:
         if is_primary or print_pad_line:
             render_line("")
 
-        # Grab all lines we want to display and remove excessive leading whitespace
+        # Grab all lines we want to display
         prefix_lines = min(prefix_lines, span.start.line - 1)
         all_lines = self.source.span_lines(span, prefix_lines)
+
+        # Convert leading tab characters into four whitespaces each (see PEP 8)
+        for i, line in enumerate(all_lines):
+            line_no_tabs = line.lstrip("\t")
+            num_tabs = len(line) - len(line_no_tabs)
+            all_lines[i] = " " * (num_tabs * 4) + line_no_tabs
+            # Shift span locations, accounting for incorporated \t
+            new_start = span.start
+            new_end = span.end
+            if i == prefix_lines:  # Line is the first line in the span
+                new_start = span.start.shift_right(num_tabs * 3)
+            if i == len(all_lines) - 1:  # Line is the last line in the span
+                new_end = span.end.shift_right(num_tabs * 3)
+            span = Span(new_start or span.start, new_end)
+
+        # Remove excessive leading whitespace
         leading_whitespace = min(len(line) - len(line.lstrip()) for line in all_lines)
         if leading_whitespace > self.MAX_LEADING_WHITESPACE:
             remove = leading_whitespace - self.OPTIMAL_LEADING_WHITESPACE

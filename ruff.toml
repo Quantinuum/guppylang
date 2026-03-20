@@ -3,7 +3,10 @@ target-version = "py310"
 
 line-length = 88
 
-extend-exclude = ["tests/error", "*.ipynb"]
+extend-exclude = [
+  "tests/error",
+  "*.ipynb",
+]
 
 [lint]
 
@@ -76,9 +79,12 @@ ignore = [
 [lint.per-file-ignores]
 "guppy/ast_util.py" = ["B009", "B010"]
 "guppy/decorator.py" = ["B010"]
-"tests/integration/*" = ["F841", "C416", "RUF005"]
+"tests/integration/*" = ["F841", "C416", "RUF005", "TC001"]
 "tests/{hugr,integration}/*" = ["B", "FBT", "SIM", "I"]
 "__init__.py" = ["F401"]                                # module imported but unused
+
+[per-file-target-version]
+"tests/*/*_py312.py" = "py312"
 
 # [pydocstyle]
 # convention = "google"

@@ -38,17 +38,17 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import (
+    AbortExpr,
+    AbortKind,
     BarrierExpr,
     DesugaredArrayComp,
     DesugaredGenerator,
     DesugaredListComp,
-    ExitKind,
     FieldAccessAndDrop,
     GenericParamValue,
     GlobalCall,
     GlobalName,
     LocalCall,
-    PanicExpr,
     PartialApply,
     PlaceNode,
     StateResultExpr,
@@ -144,9 +144,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """
         old = self.dfg
         # Check that the input names are unique
-        assert len({inp.place.id for inp in inputs}) == len(
-            inputs
-        ), "Inputs are not unique"
+        assert len({inp.place.id for inp in inputs}) == len(inputs), (
+            "Inputs are not unique"
+        )
         self.dfg = DFContainer(builder, self.ctx, self.dfg.locals.copy())
         hugr_input = builder.input_node
         for input_node, wire in zip(inputs, hugr_input, strict=True):
@@ -387,9 +387,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 func, func_ty, remaining_args
             )
             rets.extend(outs)
-        assert (
-            remaining_args == []
-        ), "Not all function arguments were consumed after a tensor call"
+        assert remaining_args == [], (
+            "Not all function arguments were consumed after a tensor call"
+        )
         return self._pack_returns(rets, node.tensor_ty.output)
 
     def _compile_tensor_with_leftovers(
@@ -559,7 +559,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise GuppyError(err)
         return tag_value
 
-    def visit_PanicExpr(self, node: PanicExpr) -> Wire:
+    def visit_AbortExpr(self, node: AbortExpr) -> Wire:
         signal = self.visit(node.signal)
         signal_usize = self.builder.add_op(convert_itousize(), signal)
         msg = self.visit(node.msg)
@@ -568,10 +568,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         out_tys = [ty.to_hugr(self.ctx) for ty in type_to_row(get_type(node))]
         args = [self.visit(e) for e in node.values]
         match node.kind:
-            case ExitKind.Panic:
+            case AbortKind.Panic:
                 h_node = build_panic(self.builder, in_tys, out_tys, err, *args)
-            case ExitKind.ExitShot:
-                op = panic(in_tys, out_tys, ExitKind.ExitShot)
+            case AbortKind.ExitShot:
+                op = panic(in_tys, out_tys, AbortKind.ExitShot)
                 h_node = self.builder.add_op(op, err, *args)
         return self._pack_returns(list(h_node.outputs()), get_type(node))
 
@@ -765,9 +765,9 @@ def pack_returns(
         assert len(returns) == len(types)
         hugr_tys = [t.to_hugr(ctx) for t in types]
         return builder.add_op(ops.MakeTuple(hugr_tys), *returns)
-    assert (
-        len(returns) == 1
-    ), f"Expected a single return value. Got {returns}. return type {return_ty}"
+    assert len(returns) == 1, (
+        f"Expected a single return value. Got {returns}. return type {return_ty}"
+    )
     return returns[0]
 
 

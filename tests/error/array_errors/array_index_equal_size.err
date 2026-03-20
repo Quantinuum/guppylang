@@ -1,0 +1,8 @@
+Error: Index out of bounds (at $FILE:7:14)
+  | 
+5 | def main() -> int:
+6 |    arr = array(i for i in range(5))
+7 |    return arr[5]
+  |               ^ Array index 5 is out of bounds for array of size 5.
+
+Guppy compilation failed due to 1 previous error

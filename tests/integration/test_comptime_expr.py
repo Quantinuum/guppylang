@@ -1,13 +1,8 @@
 """Tests for using python expressions in guppy functions."""
 
-from importlib.util import find_spec
-
-
 from guppylang.decorator import guppy
 from guppylang.std.builtins import py, comptime, array, frozenarray, nat, owned
 from tests.util import compile_guppy
-
-tket_installed = find_spec("tket") is not None
 
 
 def test_basic(validate):
@@ -65,7 +60,7 @@ def test_redeclare_after(validate):
 def test_tuple(validate):
     @compile_guppy
     def foo() -> int:
-        x, y = comptime((1, False))
+        x, _y = comptime((1, False))
         return x
 
     validate(foo)
@@ -74,7 +69,7 @@ def test_tuple(validate):
 def test_tuple_implicit(validate):
     @compile_guppy
     def foo() -> int:
-        x, y = comptime(1, False)
+        x, _y = comptime(1, False)
         return x
 
     validate(foo)

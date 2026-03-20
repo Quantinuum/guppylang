@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import ClassVar
 
 import wasmtime as wt
@@ -14,6 +15,11 @@ from guppylang_internals.tys.ty import (
 )
 
 
+class WasmPlatform(Enum):
+    Helios = "Helios"
+    H2 = "H2"
+
+
 # The thing to be imported elsewhere
 @dataclass
 class ConcreteWasmModule:
@@ -27,10 +33,11 @@ class ConcreteWasmModule:
 class WasmSignatureError(Error):
     title: ClassVar[str] = (
         "Invalid signature for @wasm function `{fn_name}`\n"
-        "in wasm file:\n`{filename}`"
+        "on wasm platform `{platform}`\nin wasm file:\n`{filename}`"
     )
     fn_name: str
     filename: str
+    platform: str
 
     @dataclass(frozen=True)
     class Message(Note):
@@ -75,7 +82,7 @@ class WasmSigMismatchError(Error):
         actual: str
 
 
-def decode_type(ty: wt.ValType) -> Type | None:
+def decode_type_helios(ty: wt.ValType) -> Type | None:
     if ty == wt.ValType.i64():
         return NumericType(NumericType.Kind.Int)
     elif ty == wt.ValType.f64():
@@ -84,18 +91,33 @@ def decode_type(ty: wt.ValType) -> Type | None:
         return None
 
 
+def decode_type_i32_only(ty: wt.ValType) -> Type | None:
+    if ty == wt.ValType.i32():
+        return NumericType(NumericType.Kind.Int)
+    else:
+        return None
+
+
+def decode_type(wasm_platform: WasmPlatform, ty: wt.ValType) -> Type | None:
+    match wasm_platform:
+        case WasmPlatform.Helios:
+            return decode_type_helios(ty)
+        case WasmPlatform.H2:
+            return decode_type_i32_only(ty)
+
+
 def decode_sig(
-    params: list[wt.ValType], output: wt.ValType | None
+    wasm_platform: WasmPlatform, params: list[wt.ValType], output: wt.ValType | None
 ) -> FunctionType | str:
     # Function args in wasm are called "params"
     my_params: list[FuncInput] = []
     for p in params:
-        if ty := decode_type(p):
+        if ty := decode_type(wasm_platform, p):
             my_params.append(FuncInput(ty, flags=InputFlags.NoFlags))
         else:
             return f"Unsupported input type: {p}"
     if output:
-        if ty := decode_type(output):
+        if ty := decode_type(wasm_platform, output):
             return FunctionType(my_params, ty)
         else:
             return f"Unsupported output type: {output}"
@@ -103,7 +125,9 @@ def decode_sig(
         return FunctionType(my_params, NoneType())
 
 
-def decode_wasm_functions(filename: str) -> ConcreteWasmModule:
+def decode_wasm_functions(
+    filename: str, wasm_platform: WasmPlatform
+) -> ConcreteWasmModule:
     engine = wt.Engine()
     mod = wt.Module.from_file(engine, filename)
 
@@ -115,9 +139,9 @@ def decode_wasm_functions(filename: str) -> ConcreteWasmModule:
             case wt.FuncType() as fun_ty:
                 match fun_ty.results:
                     case []:
-                        data = decode_sig(fun_ty.params, None)
+                        data = decode_sig(wasm_platform, fun_ty.params, None)
                     case [output]:
-                        data = decode_sig(fun_ty.params, output)
+                        data = decode_sig(wasm_platform, fun_ty.params, output)
                     case _multi:
                         data = (
                             f"Multiple output types unsupported in function `{fn.name}`"

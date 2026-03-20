@@ -4,26 +4,31 @@ These are the objects returned by the `@guppy` decorator. They should not be con
 with the compiler-internal definition objects in the `definitions` module.
 """
 
-import ast
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
-from guppylang_internals.engine import ENGINE, CoreMetadataKeys
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import TracingDefMixin
 from guppylang_internals.tracing.util import hide_trace
+from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
+from hugr.metadata import HugrGenerator
 from hugr.package import Package
+from semver import Version
 
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
 from guppylang.emulator.exceptions import EmulatorBuildError
+
+if TYPE_CHECKING:
+    import ast
 
 __all__ = ("GuppyDefinition", "GuppyFunctionDefinition", "GuppyTypeVarDefinition")
 
@@ -35,12 +40,10 @@ Out = TypeVar("Out")
 def _update_generator_metadata(hugr: Hugr[Any]) -> None:
     """Update the generator metadata of a Hugr to be
     guppylang rather than just internals."""
-    key = CoreMetadataKeys.GENERATOR.value
-
-    hugr.module_root.metadata[key] = {
-        "name": f"guppylang (guppylang-internals-v{guppylang_internals.__version__})",
-        "version": guppylang.__version__,
-    }
+    hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
+        name=f"guppylang (guppylang-internals-v{guppylang_internals.__version__})",
+        version=Version.parse(guppylang.__version__),
+    )
 
 
 @dataclass(frozen=True)
@@ -87,7 +90,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
     @hide_trace
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Out:
-        return cast(Out, super().__call__(*args, **kwargs))
+        return cast("Out", super().__call__(*args, **kwargs))
 
     def emulator(
         self, n_qubits: int | None = None, builder: EmulatorBuilder | None = None
@@ -176,7 +179,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             and len(compiled_def.ty.inputs) > 0
         ):
             # Check if the entrypoint has arguments
-            defined_at = cast(ast.FunctionDef, compiled_def.defined_at)
+            defined_at = cast("ast.FunctionDef", compiled_def.defined_at)
             start = to_span(defined_at.args.args[0])
             end = to_span(defined_at.args.args[-1])
             span = Span(start=start.start, end=end.end)

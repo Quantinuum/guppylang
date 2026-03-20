@@ -13,7 +13,7 @@ def test_def():
         # Internally desugared this is equivalent to `foo`.
         def baz[M: MyProto](self: M) -> M: ...  # noqa: PYI019
 
-    MyProto.compile()
+    MyProto.check()
 
 
 def test_def_parameterised():
@@ -24,9 +24,9 @@ def test_def_parameterised():
         # TODO: Implement Self support for protocols.
         # def bar(self: Self) -> "MyProto": ...
 
-        def baz[M: MyProto[T]](self: M, y: int) -> int: ...
+        def baz(self, y: int) -> int: ...
 
-    MyProto.compile()
+    MyProto.check()
 
 
 def test_use_def_as_type():
@@ -40,8 +40,8 @@ def test_use_def_as_type():
     @guppy.declare
     def baz[M: MyProto](a: M) -> M: ...
 
-    bar.compile()
-    baz.compile()
+    bar.check()
+    baz.check()
 
 
 def test_use_def_as_type_parameterised():
@@ -59,8 +59,8 @@ def test_use_def_as_type_parameterised():
     @guppy.declare
     def baz2(a: MyProto[bool, bool]) -> MyProto[int, int]: ...
 
-    baz1.compile()
-    baz2.compile()
+    baz1.check()
+    baz2.check()
 
 
 def test_basic(validate):
@@ -89,7 +89,7 @@ def test_basic(validate):
         bar(mt)
         baz(mt)
 
-    validate(main.compile())
+    main.check()
 
 
 def test_basic_parameterised_concrete(validate):
@@ -112,7 +112,7 @@ def test_basic_parameterised_concrete(validate):
         mt = MyType()
         baz(mt)
 
-    validate(main.compile())
+    main.check()
 
 
 def test_basic_parameterised_generic(validate):
@@ -179,3 +179,47 @@ def test_assumption(validate):
         return bar(x)
 
     validate(main.compile_function())
+
+
+def test_protocols(validate):
+    @guppy.protocol
+    class MyProto:
+        def foo(self: "MyProto", x: int) -> str: ...
+
+    class MyType[P: int, Q: str]:
+        @guppy
+        def foo(self: "MyType[P, Q]", x: int) -> str:
+            return str(x)
+
+    @guppy.struct
+    class MyOtherType[P: int, Q: int]:
+        @guppy
+        def foo(self: "MyType[P, Q]", x: int) -> int:
+            return x * 2
+
+    T = guppy.type_var("T")
+    S = guppy.type_var("S")
+
+    @guppy
+    def baz1(a: MyProto[T, S], x: T) -> S:
+        return a.foo(x)
+
+    @guppy
+    def baz2(a: MyProto[int, str]) -> str:
+        return a.foo(42)
+
+    @guppy
+    def baz3(a: MyProto[T, S]) -> str:
+        return a.foo(42)
+
+    @guppy
+    def main() -> str:
+        mt = MyType()
+        baz1(mt, 42)
+        baz2(mt)
+        baz3(mt)
+        mot = MyOtherType()
+        baz1(mot, 42)
+        # baz2(mt) # should fail
+
+    validate(main.compile())

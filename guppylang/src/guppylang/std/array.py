@@ -14,12 +14,17 @@ from typing import TYPE_CHECKING, Generic, TypeVar, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import CopyInoutCompiler
-from guppylang_internals.std._internal.checker import ArrayCopyChecker, NewArrayChecker
+from guppylang_internals.std._internal.checker import (
+    ArrayCopyChecker,
+    ArrayIndexChecker,
+    NewArrayChecker,
+)
 from guppylang_internals.std._internal.compiler.array import (
     ArrayDiscardAllUsedCompiler,
     ArrayGetitemCompiler,
     ArrayIsBorrowedCompiler,
     ArraySetitemCompiler,
+    ArraySwapCompiler,
     NewArrayCompiler,
 )
 from guppylang_internals.std._internal.compiler.frozenarray import (
@@ -54,10 +59,10 @@ _n = TypeVar("_n")
 class array(builtins.list[_T], Generic[_T, _n]):
     """Sequence of homogeneous values with statically known fixed length."""
 
-    @custom_function(ArrayGetitemCompiler())
+    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
     def __getitem__(self: array[L, n], idx: int) -> L: ...
 
-    @custom_function(ArraySetitemCompiler())
+    @custom_function(ArraySetitemCompiler(), checker=ArrayIndexChecker())
     def __setitem__(self: array[L, n], idx: int, value: L @ owned) -> None: ...
 
     @guppy
@@ -82,27 +87,25 @@ class array(builtins.list[_T], Generic[_T, _n]):
     def copy(self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
 
-    @custom_function(ArrayIsBorrowedCompiler())
+    @custom_function(ArrayIsBorrowedCompiler(), checker=ArrayIndexChecker())
     def is_borrowed(self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
 
         This is the case whenever a non-copyable element is borrowed, or when an element
         is manually taken out of the array via the `take` method.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        result("a", qs.is_borrowed(3))  # False
-        q = qs.take(3).unwrap()
-        result("a", qs.is_borrowed(3))  # True
-        qs.put(qubit(), 3).unwrap()
-        result("a", qs.is_borrowed(3))  # False
-        ```
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            result("a", qs.is_borrowed(3))  # False
+            q = qs.take(3).unwrap()
+            result("a", qs.is_borrowed(3))  # True
+            qs.put(qubit(), 3).unwrap()
+            result("a", qs.is_borrowed(3))  # False
         """
 
-    @custom_function(ArrayGetitemCompiler())
+    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
     def take(self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
 
@@ -120,17 +123,15 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Also see `array.try_take` for a version of this function that does not panic if
         the element has already been taken out.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        q = qs.take(3)
-        measure(q)  # We're allowed to deallocate since we own `q`
-        # h(qs[3])  # Would panic since qubit 3 has been taken out
-        qs.put(qubit(), 3) # Put a fresh qubit back into the array
-        h(qs[3])
-        ```
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            q = qs.take(3)
+            measure(q)  # We're allowed to deallocate since we own `q`
+            # h(qs[3])  # Would panic since qubit 3 has been taken out
+            qs.put(qubit(), 3) # Put a fresh qubit back into the array
+            h(qs[3])
         """
 
     @guppy
@@ -149,23 +150,23 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Returns the extracted element or `nothing` if the element has already been taken
         out. Panics if the provided index is negative or out of bounds.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        h(qs[3])
-        q = qs.try_take(3).unwrap()
-        measure(q)  # We're allowed to deallocate since we own `q`
-        # h(qs[3])  # Would panic since qubit 3 has been taken out
-        qs.put(qubit(), 3)  # Put a fresh qubit back into the array
-        h(qs[3])
-        ```
+            qs = array(qubit() for _ in range(10))
+            h(qs[3])
+            q = qs.try_take(3).unwrap()
+            measure(q)  # We're allowed to deallocate since we own `q`
+            # h(qs[3])  # Would panic since qubit 3 has been taken out
+            qs.put(qubit(), 3)  # Put a fresh qubit back into the array
+            h(qs[3])
         """
         if self.is_borrowed(idx):
             return nothing()
         return some(self.take(idx))
 
-    @custom_function(ArraySetitemCompiler(elem_first=True))
+    @custom_function(
+        ArraySetitemCompiler(elem_first=True), checker=ArrayIndexChecker(expr_index=2)
+    )
     def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
 
@@ -178,16 +179,14 @@ class array(builtins.list[_T], Generic[_T, _n]):
         Also see `array.try_put` for a version of this function that does not panic if
         if there is already an element at the given index.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        q = qubit()
-        # qs.put(q, 3)  # Would panic as there is already a qubit at index 3
-        measure(qs.take(3))  # Take it out to make space for the new one
-        qs.put(q, 3)
-        h(qs[3])
-        ```
+            qs = array(qubit() for _ in range(10))
+            q = qubit()
+            # qs.put(q, 3)  # Would panic as there is already a qubit at index 3
+            measure(qs.take(3))  # Take it out to make space for the new one
+            qs.put(q, 3)
+            h(qs[3])
         """
 
     @guppy
@@ -203,20 +202,52 @@ class array(builtins.list[_T], Generic[_T, _n]):
         mutated and the passed replacement element will be returned back in an `err`
         variant. Panics if the provided index is negative or out of bounds.
 
-        # Example
+        .. code-block:: python
 
-        ```
-        qs = array(qubit() for _ in range(10))
-        q = qubit()
-        qs.try_put(q, 3).unwrap_nothing()  # Is `nothing` since there's a qubit at idx 3
-        measure(qs.take(3))  # Take it out to make space for the new one
-        qs.try_put(q, 3).unwrap()
-        h(qs[3])
-        ```
+            qs = array(qubit() for _ in range(10))
+            q = qubit()
+            # Is `nothing` since there's a qubit at idx 3
+            qs.try_put(q, 3).unwrap_nothing()
+            measure(qs.take(3))  # Take it out to make space for the new one
+            qs.try_put(q, 3).unwrap()
+            h(qs[3])
         """
         if not self.is_borrowed(idx):
             return err(elem)
         self.put(elem, idx)
+        return ok(None)
+
+    @custom_function(ArrayDiscardAllUsedCompiler())
+    def discard_all_taken(self: array[L, n] @ owned) -> None:
+        """Discards array assuming that all elements have been taken out, and panics if
+        that is not the case.
+
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(2))
+            discard(qs.take(0))
+            discard(qs.take(1))
+            # qs.put(qubit(), 1) # Would make the call below panic
+            qs.discard_all_taken() # Succeeds since all qubits have been taken out
+        """
+
+    @guppy
+    @no_type_check
+    def try_discard_all_taken(self: array[L, n] @ owned) -> Result[None, array[L, n]]:
+        """Similar to `discard_all_taken`, but instead of panicking returns the
+        unmodified array when not all elements have been taken out.
+
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(2))
+            discard(qs.take(0))
+            # Does not panic, even though not all elements have been taken out.
+            qs = qs.try_discard_all_taken()
+        """
+        for i in range(n):
+            if not self.is_borrowed(i):
+                return err(self)
+        self.discard_all_taken()
         return ok(None)
 
     def __new__(cls, *args: _T) -> builtins.list[_T]:  # type: ignore[no-redef]
@@ -242,12 +273,32 @@ class ArrayIter(Generic[L, n]):
         if self.i < int(n):
             elem = self.xs.take(self.i)
             return some((elem, ArrayIter(self.xs, self.i + 1)))
-        _array_discard_all_used(self.xs)
+        self.xs.discard_all_taken()
         return nothing()
 
 
-@custom_function(ArrayDiscardAllUsedCompiler())
-def _array_discard_all_used(xs: array[L, n] @ owned) -> None: ...
+@custom_function(ArraySwapCompiler())
+def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
+    """Swap two elements in an array at indices idx and idx2.
+
+    Exchanges the elements at two indices within the array. This operation
+    uses HUGR's native swap operation from the collections.array extension,
+
+    The swap happens in-place. Panics if either index is out of bounds.
+
+    Works with both copyable and linear types (like qubits).
+
+    Args:
+        arr: The array to modify
+        idx: Index of first element to swap
+        idx2: Index of second element to swap
+
+    .. code-block:: python
+
+        arr = array(10, 20, 30, 40)
+        array_swap(arr, 0, 3)
+        # arr is now [40, 20, 30, 10]
+    """
 
 
 @extend_type(frozenarray_type_def)

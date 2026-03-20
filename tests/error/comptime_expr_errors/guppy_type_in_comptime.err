@@ -1,0 +1,13 @@
+Error: Invalid comptime expression (at $FILE:8:20)
+  | 
+6 | @compile_guppy
+7 | def foo() -> int:
+8 |     return comptime(angle(0.5))
+  |                     ^^^^^^^^^^ Cannot use a Guppy object in a comptime expression
+
+Type `angle` may only be called in a Guppy context
+
+Comptime expressions are evaluated as plain Python. Guppy functions and types
+require a Guppy context and cannot be called inside `comptime`.
+
+Guppy compilation failed due to 1 previous error

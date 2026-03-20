@@ -3,6 +3,7 @@ from guppylang.defs import GuppyFunctionDefinition
 from guppylang.emulator.exceptions import EmulatorBuildError
 from guppylang.std.builtins import result, array, comptime, exit, panic
 from guppylang.std.debug import state_result
+from guppylang.std.mem import mem_swap
 from guppylang.std.quantum import (
     maybe_qubit,
     project_z,
@@ -18,15 +19,19 @@ from guppylang.std.quantum import (
     x,
     t,
     measure_array,
+    discard_array,
 )
 from guppylang.std.angles import angle, pi
 from guppylang.std.qsystem import zz_max, zz_phase, phased_x, rz as qsystem_rz
 from guppylang.std.qsystem.utils import get_current_shot
 from guppylang.emulator import EmulatorResult, EmulatorError
+from guppylang.emulator.state import StateVector
+
 from selene_sim.backends.bundled_runtimes import SoftRZRuntime
 
 
 from datetime import timedelta
+import numpy as np
 from selene_sim.backends.bundled_simulators import Stim
 from selene_sim.backends.bundled_error_models import IdealErrorModel
 from selene_sim.event_hooks import NoEventHook
@@ -385,3 +390,39 @@ def test_static_array_bool():
 
     res = _build_run(main, n_qubits=1).results[0].entries
     assert res == [("a", True), ("b", False)]
+
+
+def get_statevector(main: GuppyFunctionDefinition, n_qubits: int) -> StateVector:
+    @guppy
+    def wrapper() -> None:
+        qs = array(qubit() for _ in range(comptime(n_qubits)))
+        main(qs)
+        state_result("result_state", qs)
+        discard_array(qs)
+
+    results = (
+        wrapper.emulator(n_qubits).statevector_sim().with_shots(1).with_seed(12).run()
+    )
+    partials = results.partial_state_dicts()[0]
+    return partials["result_state"].as_single_state()
+
+
+def statevector_probabilities(state: StateVector) -> np.ndarray:
+    return np.abs(state) ** 2
+
+
+def test_state_qubit_order():
+    @guppy
+    def noswap(state_qreg: array[qubit, 2]) -> None:
+        x(state_qreg[1])
+
+    @guppy
+    def swap(state_qreg: array[qubit, 2]) -> None:
+        x(state_qreg[1])
+        mem_swap(state_qreg[0], state_qreg[1])
+
+    state_noswap = get_statevector(noswap, 2)
+    state_swap = get_statevector(swap, 2)
+
+    assert pytest.approx(statevector_probabilities(state_noswap)) == [0, 1, 0, 0]
+    assert pytest.approx(statevector_probabilities(state_swap)) == [0, 0, 1, 0]
