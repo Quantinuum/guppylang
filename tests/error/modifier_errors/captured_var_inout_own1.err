@@ -1,0 +1,17 @@
+Error: Not owned (at $FILE:16:16)
+   | 
+14 |         with power(2):
+15 |             pass
+16 |         discard(a)
+   |                 ^ Function `discard` wants to take ownership of this argument,
+   |                   but we cannot transfer ownership inside a modifier body
+
+Notes:
+   | 
+11 | def test() -> None:
+12 |     a = qubit()
+   |     - Argument `a` defined here ...
+13 |     with dagger:
+   |          ------ outside the modifier block
+
+Guppy compilation failed due to 1 previous error

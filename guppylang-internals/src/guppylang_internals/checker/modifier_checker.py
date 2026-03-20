@@ -66,16 +66,15 @@ def check_modified_block(
     inputs = non_copyable_front_others_back(inputs)
     def_id = DefId.fresh()
     globals = ctx.globals
-
-    # TODO: NICOLA
-    # 2 solution to try:
-    # - Better name (e.g. name of the modifier)
-    # - Try to make func_name a class so we know if we are in a modifier or not.
-    #   Alternatively, some kind of context
-    # TODO: Ad hoc name for the new function
-    # This name could be printed in error messages, for example,
-    # when the linearity checker fails in the modifier body
-    checked_cfg = check_cfg(cfg, inputs, NoneType(), {}, "__modified__()", globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        NoneType(),
+        {},
+        "__modified__()",
+        globals,
+        first_modifier_node=modified_block.first_modifier_node,
+    )
     func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)
 
     checked_modifier = CheckedModifiedBlock(

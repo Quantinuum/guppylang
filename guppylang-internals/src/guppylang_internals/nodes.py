@@ -783,13 +783,20 @@ class Modifiers:
 
 class ModifiedBlock(ast.With):
     cfg: "CFG"
+    first_modifier_node: ast.expr
 
     def __init__(
-        self, cfg: "CFG", modifiers: "Modifiers", *args: Any, **kwargs: Any
+        self,
+        cfg: "CFG",
+        modifiers: "Modifiers",
+        first_modifier_node: ast.expr,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.modifiers = modifiers
+        self.first_modifier_node = first_modifier_node
 
     @property
     def dagger(self) -> list[Dagger]:
