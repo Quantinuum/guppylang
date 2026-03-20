@@ -234,7 +234,7 @@ class Measurement:
 
     @guppy
     @no_type_check
-    def __bool__(self: "Measurement" @ owned) -> bool:
+    def __consume_as_bool__(self: "Measurement" @ owned) -> bool:
         return self.read()
 
 
