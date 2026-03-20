@@ -138,7 +138,7 @@ def test_basic_parameterised_generic(validate):
         mt = MyType()
         baz(mt, 42)
 
-    validate(main.compile())
+    main.check()
 
 
 def test_basic_parameterised_more_generic(validate):
@@ -162,7 +162,7 @@ def test_basic_parameterised_more_generic(validate):
         mt = MyType[int]()
         baz(mt, 42)
 
-    validate(main.compile())
+    main.check()
 
 
 def test_assumption(validate):
@@ -178,7 +178,7 @@ def test_assumption(validate):
     def main[P: MyProto](x: P) -> str:
         return bar(x)
 
-    validate(main.compile_function())
+    main.check()
 
 
 def test_protocols(validate):
@@ -222,4 +222,4 @@ def test_protocols(validate):
         baz1(mot, 42)
         # baz2(mt) # should fail
 
-    validate(main.compile())
+    main.check()
