@@ -200,7 +200,9 @@ class MaybeLeaked:
 @hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_EXTENSION))
 @no_type_check
 def lazy_measure(q: qubit @ owned) -> "Measurement":
-    """Measure a qubit destructively, returning a Measurement for the result."""
+    """Request a destructive lazy measurement of a qubit, returning a `Measurement`
+    value. Call `.read()` on the value to get the result.
+    """
 
 
 N = guppy.nat_var("N")
@@ -208,7 +210,9 @@ N = guppy.nat_var("N")
 
 @no_type_check
 def lazy_measure_array(qubits: array[qubit, N] @ owned) -> array["Measurement", N]:
-    """Measure an array of qubits destructively, returning an array of Measurements."""
+    """Request a destructive lazy measurement of an array of qubits, returning an array
+    of `Measurement` values. Call `.read()` on each value to get the results.
+    """
     return array(lazy_measure(q) for q in qubits)
 
 
@@ -224,7 +228,9 @@ class Measurement:
     @custom_function(compiler=ReadFutureBoolCompiler())
     @no_type_check
     def read(self: "Measurement" @ owned) -> bool:
-        """Read the result of the measurement, consuming it."""
+        """Read the measurement result, consuming it. Blocks until the result is
+        available if the measurement hasn't been performed yet since being requested.
+        """
 
     @guppy
     @no_type_check
