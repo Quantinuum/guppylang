@@ -13,9 +13,7 @@ from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
-from guppylang_internals.std._internal.compiler.prelude import (
-    build_unwrap_right,
-)
+from guppylang_internals.std._internal.compiler.prelude import build_unwrap_right
 from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 

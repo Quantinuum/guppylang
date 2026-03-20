@@ -26,6 +26,10 @@ def get_last_uri_part(uri: str) -> str:
     return uri.split("/")[-1]
 
 
+def get_last_name_part(file_name: str) -> str:
+    return file_name.split(".")[-1]
+
+
 def test_compile_unit():
     @guppy
     def foo() -> None:
@@ -63,13 +67,13 @@ def test_subprogram():
     for func in funcs:
         op = hugr[func].op
         assert isinstance(op, FuncDefn | FuncDecl)
-        match op.f_name:
+        match get_last_name_part(op.f_name):
             case "foo":
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
                 assert debug_info.file == 0
-                assert debug_info.line_no == 45
-                assert debug_info.scope_line == 46
+                assert debug_info.line_no == 48
+                assert debug_info.scope_line == 49
             case "bar":
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
@@ -128,7 +132,7 @@ def test_call_location():
         else:
             assert debug_info.column == 8
         lines.append(debug_info.line_no)
-    assert lines == [113, 114, 28, 116]
+    assert lines == [116, 117, 28, 119]
 
 
 # TODO: Improve this test.
@@ -165,7 +169,7 @@ def test_ext_op_location():
         if isinstance(node_data.op, MakeTuple) and HugrDebugInfo in node.metadata:
             debug_info = DILocation.from_json(node.metadata[HugrDebugInfo.KEY])
             found_annotated_tuples.append(debug_info.line_no)
-    assert 142 in found_annotated_tuples
+    assert 145 in found_annotated_tuples
 
 
 def test_turn_off_debug_mode():

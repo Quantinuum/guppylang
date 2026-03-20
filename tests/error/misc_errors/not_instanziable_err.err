@@ -1,0 +1,11 @@
+Error: Expected an instantiable definition (at $FILE:6:11)
+  | 
+4 | @compile_guppy
+5 | def main() -> frozenarray[int, 3]:
+6 |     return frozenarray(1, 11, 21)
+  |            ^^^^^^^^^^^ Expected an instantiable definition, got type `frozenarray`
+
+Note: Cannot construct an instance of `frozenarray`, as it is missing a
+`__new__` method.
+
+Guppy compilation failed due to 1 previous error

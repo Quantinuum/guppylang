@@ -14,6 +14,7 @@ from guppylang_internals.ast_util import (
     AstNode,
     annotate_location,
     get_file,
+    parse_source,
     with_loc,
     with_type,
 )
@@ -38,15 +39,18 @@ from guppylang_internals.definition.common import (
     MonomorphizableDef,
     MonomorphizedDef,
     ParsableDef,
-    RawDef,
     UnknownSourceError,
+    UserProvidedLinkName,
 )
+from guppylang_internals.definition.enum import ParsedEnumDef
+from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.metadata.debug_info import (
@@ -60,13 +64,23 @@ from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.declaration import RawFunctionDecl
     from guppylang_internals.tys.param import Parameter
 
 PyFunc = Callable[..., Any]
 
 
+def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
+    if (parent_ty_id := DEF_STORE.impl_parents.get(raw_def.id)) is not None:
+        parent = ENGINE.get_parsed(parent_ty_id)
+        if isinstance(parent, (ParsedStructDef, ParsedEnumDef)):
+            return f"{parent.link_name_prefix}.{raw_def.python_func.__name__}"
+
+    return f"{raw_def.python_func.__module__}.{raw_def.python_func.__qualname__}"
+
+
 @dataclass(frozen=True)
-class RawFunctionDef(ParsableDef):
+class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     """A raw function definition provided by the user.
 
     The raw definition stores exactly what the user has written (i.e. the AST), without
@@ -78,6 +92,9 @@ class RawFunctionDef(ParsableDef):
         name: The name of the function.
         defined_at: The AST node where the function was defined.
         python_func: The Python function to be defined.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
     """
 
     python_func: PyFunc
@@ -94,12 +111,15 @@ class RawFunctionDef(ParsableDef):
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
+        link_name = self._user_set_link_name or default_func_link_name(self)
+
         return ParsedFunctionDef(
             self.id,
             self.name,
             func_ast,
             ty,
             docstring,
+            link_name,
             metadata=self.metadata,
         )
 
@@ -116,13 +136,16 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
         name: The name of the function.
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
-        python_scope: The Python scope where the function was defined.
         docstring: The docstring of the function.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
     """
 
     defined_at: ast.FunctionDef
     ty: FunctionType
     docstring: str | None
+    link_name: str
 
     description: str = field(default="function", init=False)
 
@@ -138,6 +161,7 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
             self.defined_at,
             self.ty,
             self.docstring,
+            self.link_name,
             cfg,
             metadata=self.metadata,
         )
@@ -173,8 +197,10 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         name: The name of the function.
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
-        python_scope: The Python scope where the function was defined.
         docstring: The docstring of the function.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
         cfg: The type- and linearity-checked CFG for the function body.
     """
 
@@ -190,7 +216,6 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         module: DefinitionBuilder[OpVar],
         mono_args: "PartiallyMonomorphizedArgs",
         ctx: "CompilerContext",
-        parent_ty: "RawDef | None" = None,
     ) -> "CompiledFunctionDef":
         """Adds a Hugr `FuncDefn` node for the (partially) monomorphized function to the
         Hugr.
@@ -199,15 +224,10 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         access to the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
-        if parent_ty is None:
-            hugr_func_name = self.name
-        else:
-            hugr_func_name = f"{parent_ty.name}.{self.name}"
-
         mono_ty = self.ty.instantiate_partial(mono_args)
         hugr_ty = mono_ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            hugr_func_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            self.link_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
         )
         if debug_mode_enabled():
             assert self.metadata is not None
@@ -224,6 +244,7 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
             mono_args,
             mono_ty,
             self.docstring,
+            self.link_name,
             self.cfg,
             func_def,
             metadata=self.metadata,
@@ -242,8 +263,10 @@ class CompiledFunctionDef(
         defined_at: The AST node where the function was defined.
         mono_args: Partial monomorphization of the generic type parameters.
         ty: The type of the function after partial monomorphization.
-        python_scope: The Python scope where the function was defined.
         docstring: The docstring of the function.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
         cfg: The type- and linearity-checked CFG for the function body.
         func_def: The Hugr function definition.
     """
@@ -325,29 +348,6 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     if not isinstance(func_ast, ast.FunctionDef):
         raise GuppyError(ExpectedError(func_ast, "a function definition"))
     return parse_function_with_docstring(func_ast)
-
-
-def parse_source(source_lines: list[str], line_offset: int) -> tuple[str, ast.AST, int]:
-    """Parses a list of source lines into an AST object.
-
-    Also takes care of correctly parsing source that is indented.
-
-    Returns the full source, the parsed AST node, and a potentially updated line number
-    offset.
-    """
-    source = "".join(source_lines)  # Lines already have trailing \n's
-    if source_lines[0][0].isspace():
-        # This means the function is indented, so we cannot parse it straight away.
-        # Running `textwrap.dedent` would mess up the column number in spans. Instead,
-        # we'll just wrap the source into a dummy class definition so the indent becomes
-        # valid
-        cls_node = ast.parse("class _:\n" + source).body[0]
-        assert isinstance(cls_node, ast.ClassDef)
-        node = cls_node.body[0]
-        line_offset -= 1
-    else:
-        node = ast.parse(source).body[0]
-    return source, node, line_offset
 
 
 # Note: Defined here as opposed to in `metadata.debug_info` to avoid circular imports
