@@ -201,17 +201,19 @@ class MaybeLeaked:
 @no_type_check
 def lazy_measure(q: qubit @ owned) -> "Measurement":
     """Request a destructive lazy measurement of a qubit, returning a `Measurement`
-    value. Call `.read()` on the value to get the result.
+    value. Call `.read()` on the value to block until the result is available.
     """
 
 
 N = guppy.nat_var("N")
 
 
+@guppy
 @no_type_check
 def lazy_measure_array(qubits: array[qubit, N] @ owned) -> array["Measurement", N]:
     """Request a destructive lazy measurement of an array of qubits, returning an array
-    of `Measurement` values. Call `.read()` on each value to get the results.
+    of `Measurement` values. Call `.read()` on each value to block until results are
+    available.
     """
     return array(lazy_measure(q) for q in qubits)
 
@@ -236,6 +238,15 @@ class Measurement:
     @no_type_check
     def __consume_as_bool__(self: "Measurement" @ owned) -> bool:
         return self.read()
+
+
+@guppy
+@no_type_check
+def collect_measurements(measurements: array[Measurement, N] @ owned) -> array[bool, N]:
+    """Block on each measurement until it is available and collect results into an
+    array of bools.
+    """
+    return array(m.read() for m in measurements)
 
 
 # ------------------------------------------------------

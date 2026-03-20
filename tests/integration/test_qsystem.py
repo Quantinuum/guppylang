@@ -3,7 +3,13 @@ from guppylang.std.angles import angle
 from guppylang.std.builtins import owned, array
 from guppylang.std.qsystem.random import make_discrete_distribution, RNG
 
-from guppylang.std.qsystem import MaybeLeaked, lazy_measure, measure_leaked
+from guppylang.std.qsystem import (
+    MaybeLeaked,
+    collect_measurements,
+    lazy_measure,
+    lazy_measure_array,
+    measure_leaked,
+)
 from guppylang.std.qsystem.utils import get_current_shot
 from guppylang.std.quantum import qubit, measure_array, x
 from guppylang.std.qsystem.functional import (
@@ -16,6 +22,7 @@ from guppylang.std.qsystem.functional import (
     measure,
     qfree,
 )
+from guppylang.std.lang import comptime
 
 
 def test_qsystem(validate):  # type: ignore[no-untyped-def]
@@ -94,8 +101,6 @@ def test_measure_leaked(validate):  # type: ignore[no-untyped-def]
 
 
 def test_lazy_measure(validate):  # type: ignore[no-untyped-def]
-    """Validate the behaviour of a measurement function returning a future."""
-
     @guppy
     def test(q: qubit @ owned) -> bool:
         f = lazy_measure(q)
@@ -105,8 +110,6 @@ def test_lazy_measure(validate):  # type: ignore[no-untyped-def]
 
 
 def test_lazy_measure_conditional(validate, run_int_fn):  # type: ignore[no-untyped-def]
-    """Validate the behaviour of a measurement function returning a future."""
-
     @guppy
     def test() -> int:
         q = qubit()
@@ -117,3 +120,22 @@ def test_lazy_measure_conditional(validate, run_int_fn):  # type: ignore[no-unty
 
     validate(test.compile_function())
     run_int_fn(test, 1, num_qubits=1)
+
+
+def test_lazy_measure_array(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    NUM_QUBITS = 5
+
+    @guppy
+    def test() -> int:
+        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        for i in range(len(qubits)):
+            x(qubits[i])
+        measurements = lazy_measure_array(qubits)
+        results = collect_measurements(measurements)
+        sum = 0
+        for r in results:
+            sum += int(r)
+        return sum
+
+    validate(test.compile_function())
+    run_int_fn(test, NUM_QUBITS, num_qubits=NUM_QUBITS)
