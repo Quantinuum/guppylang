@@ -22,6 +22,7 @@ from guppylang_internals.definition.custom import (
     RawCustomFunctionDef,
 )
 from guppylang_internals.definition.declaration import RawFunctionDecl
+from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.extern import RawExternDef
 from guppylang_internals.definition.function import (
     RawFunctionDef,
@@ -57,6 +58,7 @@ from hugr import ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.package import ModulePointer
+from pytket.circuit import Circuit as TketCircuit
 from typing_extensions import Unpack, dataclass_transform, deprecated
 
 from guppylang.defs import (
@@ -100,6 +102,14 @@ class GuppyKwargs(TypedDict, total=False):
 class GuppyStructKwargs(TypedDict, total=False):
     """Typed dictionary specifying the optional keyword arguments for the
     `@guppy.struct` decorator.
+    """
+
+    link_name: str
+
+
+class GuppyEnumKwargs(TypedDict, total=False):
+    """Typed dictionary specifying the optional keyword arguments for the
+    `@guppy.enum` decorator.
     """
 
     link_name: str
@@ -227,6 +237,50 @@ class _Guppy:
             cls: builtins.type[T], kwargs: GuppyStructKwargs
         ) -> GuppyDefinition:
             defn = RawStructDef(
+                DefId.fresh(),
+                cls.__name__,
+                None,
+                cls,
+                link_name=kwargs.pop("link_name", None),
+            )
+            frame = get_calling_frame()
+            DEF_STORE.register_def(defn, frame)
+            for val in cls.__dict__.values():
+                if isinstance(val, GuppyDefinition):
+                    DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+            # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
+            # set. However, we need this information to precisely look up the source for
+            # the class later. If it's not there, we can set it from the calling frame:
+            if not hasattr(cls, "__firstlineno__"):
+                cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
+            # We're pretending to return the class unchanged, but in fact we return
+            # a `GuppyDefinition` that handles the comptime logic
+            return GuppyDefinition(defn)
+
+        return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
+
+    @dataclass_transform()
+    def enum(self, *args: Any, **kwargs: Unpack[GuppyEnumKwargs]) -> builtins.type[T]:
+        """Registers a class as a Guppy enum.
+
+        .. code-block:: python
+            from guppylang import guppy
+
+            @guppy.enum
+            class MyEnum:
+                Variant1 = {"a": int, "b": qubit}
+                Variant2 = {"a": int}
+
+                @guppy
+                def method_on_enum(self: MyEnum) -> int:
+                    return 1
+        ..
+        """
+
+        def decorator(
+            cls: builtins.type[T], kwargs: GuppyEnumKwargs
+        ) -> GuppyDefinition:
+            defn = RawEnumDef(
                 DefId.fresh(),
                 cls.__name__,
                 None,
@@ -472,7 +526,7 @@ class _Guppy:
         instead).
 
         .. code-block:: python
-            from pytket import Circuit
+            from pytket.circuit import Circuit
             from guppylang import guppy
 
             circ = Circuit(1)
@@ -486,14 +540,8 @@ class _Guppy:
             def foo(q: qubit) -> bool:
                 return guppy_circ(q)"""
 
-        err_msg = "Only pytket circuits can be passed to guppy.pytket"
-        try:
-            import pytket
-
-            if not isinstance(input_circuit, pytket.circuit.Circuit):
-                raise TypeError(err_msg) from None
-
-        except ImportError:
+        if not isinstance(input_circuit, TketCircuit):
+            err_msg = "Only pytket circuits can be passed to guppy.pytket"
             raise TypeError(err_msg) from None
 
         def func(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
@@ -549,14 +597,8 @@ class _Guppy:
         measurements in the circuit and measure in Guppy afterwards.
         """
 
-        err_msg = "Only pytket circuits can be passed to guppy.load_pytket"
-        try:
-            import pytket
-
-            if not isinstance(input_circuit, pytket.circuit.Circuit):
-                raise TypeError(err_msg) from None
-
-        except ImportError:
+        if not isinstance(input_circuit, TketCircuit):
+            err_msg = "Only pytket circuits can be passed to guppy.pytket"
             raise TypeError(err_msg) from None
 
         span = _find_load_call(DEF_STORE.sources)

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar
 from guppylang_internals.diagnostic import Error, Help, Note
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.const import Const
     from guppylang_internals.tys.param import TypeParam
     from guppylang_internals.tys.ty import FunctionType, Type
@@ -56,7 +56,7 @@ class AssignFieldTypeMismatchError(Error):
         "`{field.ty}`"
     )
     actual: Type
-    field: StructField
+    field: CheckedField
 
 
 @dataclass(frozen=True)
@@ -127,9 +127,20 @@ class ModuleMemberNotFoundError(Error):
 @dataclass(frozen=True)
 class AttributeNotFoundError(Error):
     title: ClassVar[str] = "Attribute not found"
-    span_label: ClassVar[str] = "`{ty}` has no attribute `{attribute}`"
+    span_label: ClassVar[str] = "`{ty}` has no {element_name} `{attribute}`"
     ty: Type
     attribute: str
+
+    @property
+    def element_name(self) -> str:
+        from guppylang_internals.tys.ty import EnumType, StructType
+
+        if isinstance(self.ty, StructType):
+            return "field or method"
+        elif isinstance(self.ty, EnumType):
+            return "variant or method"
+        else:
+            return "attribute"
 
 
 @dataclass(frozen=True)
@@ -309,7 +320,7 @@ class AssignNonPlaceHelp(Help):
         "Consider assigning this value to a local variable first before assigning the "
         "field `{field.name}`"
     )
-    field: StructField
+    field: CheckedField
 
 
 @dataclass(frozen=True)

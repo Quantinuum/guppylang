@@ -1,0 +1,10 @@
+Error: Drop violation (at $FILE:13:8)
+   | 
+11 | def foo(b: bool) -> int:
+12 |     if b:
+13 |         s = MyEnum.VariantA(qubit())
+   |         ^ Variable `s` with non-droppable type `MyEnum` is leaked
+
+Help: Make sure that `s` is consumed or returned to avoid the leak
+
+Guppy compilation failed due to 1 previous error
