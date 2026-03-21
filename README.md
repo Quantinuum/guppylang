@@ -62,6 +62,29 @@ pip install guppylang
 
 See [DEVELOPMENT.md](https://github.com/quantinuum/guppylang/blob/main/DEVELOPMENT.md) for instructions on setting up the development environment.
 
+## Attribution
+
+If you use this software in your work, please cite with:
+```
+@misc{koch2025guppy,
+  title = {{{GUPPY}}: {{Pythonic Quantum-Classical Programming}}},
+  shorttitle = {{{GUPPY}}},
+  author = {Koch, Mark and Lawrence, Alan and Singhal, Kartik and Sivarajah, Seyon and Duncan, Ross},
+  year = 2025,
+  month = oct,
+  number = {arXiv:2510.12582},
+  eprint = {2510.12582},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2510.12582},
+  archiveprefix = {arXiv}
+}
+```
+or
+```
+M. Koch, A. Lawrence, K. Singhal, S. Seyon, and R. Duncan, GUPPY: Pythonic Quantum-Classical Programming (2025), arXiv:2510.12582.
+```
+
 ## License
 
 This project is licensed under Apache License, Version 2.0 ([LICENCE][] or <http://www.apache.org/licenses/LICENSE-2.0>).
