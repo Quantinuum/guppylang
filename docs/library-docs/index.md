@@ -8,8 +8,6 @@ which can be independently distributed and e.g. cached for optimization purposes
 source your Guppy code, the standard packaging mechanisms of Python suffice, and you can ignore this page.
 ```
 
-- Foreword
-
 ```{toctree}
 :maxdepth: 2
 
