@@ -6,7 +6,7 @@ Error: Not owned (at $FILE:17:8)
    |         ^ Function `use` wants to take ownership of this argument, but
    |           `test` doesn't own `q`
 
-Note:
+Help:
    | 
 14 | @guppy
 15 | def test(q: qubit) -> None:

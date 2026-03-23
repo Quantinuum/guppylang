@@ -5,7 +5,7 @@ Error: Not known at compile-time (at $FILE:12:12)
 12 |         foo(m)
    |             ^ Value of this argument must be known at compile-time
 
-Note:
+Help:
    | 
  9 | @guppy
 10 | def main(b: bool, m: nat) -> None:

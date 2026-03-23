@@ -44,6 +44,14 @@ class ExpectedError(Error):
     def extra(self) -> str:
         return f", got {self.got}" if self.got else ""
 
+    @dataclass(frozen=True)
+    class NotInstantiable(Note):
+        name: str
+        message: ClassVar[str] = (
+            "Cannot construct an instance of `{name}`, as it is missing a `__new__` "
+            "method."
+        )
+
 
 @dataclass(frozen=True)
 class UnknownModifierError(Error):

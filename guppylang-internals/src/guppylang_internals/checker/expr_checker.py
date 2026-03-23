@@ -485,10 +485,19 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     node, GlobalName(id=name, def_id=defn.id)
                 ), constr.ty.output
             # For types, we return their `__new__` constructor
-            case TypeDef() as defn if constr := self.ctx.globals.get_instance_func(
-                defn, "__new__"
-            ):
-                return with_loc(node, GlobalName(id=name, def_id=constr.id)), constr.ty
+            case TypeDef() as defn:
+                if constr := self.ctx.globals.get_instance_func(defn, "__new__"):
+                    return with_loc(
+                        node, GlobalName(id=name, def_id=constr.id)
+                    ), constr.ty
+                else:
+                    err = ExpectedError(
+                        node,
+                        "an instantiable definition",
+                        got=f"{defn.description} `{name}`",
+                    )
+                    err.add_sub_diagnostic(ExpectedError.NotInstantiable(None, name))
+
             # Handle parameter definitions (e.g., nat_var) that may be imported
             case ParamDef():
                 # Check if this parameter is in our generic_params
@@ -496,13 +505,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if name in self.ctx.generic_params:
                     return self._check_generic_param(name, node)
                 # If not in generic_params, it's being used outside its scope
-                raise GuppyError(
-                    ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
-                )
+                err = ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
             case defn:
-                raise GuppyError(
-                    ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
-                )
+                err = ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
+
+        raise GuppyError(err)
 
     def visit_Attribute(self, node: ast.Attribute) -> tuple[ast.expr, Type]:
         from guppylang.defs import GuppyDefinition
@@ -1339,7 +1346,19 @@ def to_bool(node: ast.expr, node_ty: Type, ctx: Context) -> tuple[ast.expr, Type
         return node, node_ty
     synth = ExprSynthesizer(ctx)
     exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Inout)], bool_type())
-    return synth.synthesize_instance_func(node, [], "__bool__", "truthy", exp_sig, True)
+    try:
+        return synth.synthesize_instance_func(
+            node, [], "__bool__", "truthy", exp_sig, True
+        )
+    except GuppyError:
+        if not node_ty.copyable:
+            # Linear types may implement a `__consume_as_bool__` method that consumes
+            # the value, instead of borrowing it.
+            exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Owned)], bool_type())
+            return synth.synthesize_instance_func(
+                node, [], "__consume_as_bool__", "truthy", exp_sig, True
+            )
+        raise
 
 
 def synthesize_comprehension(

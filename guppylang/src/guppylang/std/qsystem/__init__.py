@@ -2,18 +2,23 @@
 
 from typing import no_type_check
 
-from guppylang_internals.decorator import custom_function, hugr_op
-from guppylang_internals.definition.custom import BoolOpCompiler
+from guppylang_internals.decorator import custom_function, custom_type, hugr_op
+from guppylang_internals.std._internal.compiler.qsystem import (
+    ReadFutureBoolCompiler,
+    future_bool_type,
+)
 from guppylang_internals.std._internal.compiler.quantum import (
-    InoutMeasureCompiler,
     InoutMeasureResetCompiler,
 )
-from guppylang_internals.std._internal.compiler.tket_exts import QSYSTEM_EXTENSION
+from guppylang_internals.std._internal.compiler.tket_exts import (
+    FUTURES_EXTENSION,
+    QSYSTEM_EXTENSION,
+)
 from guppylang_internals.std._internal.util import quantum_op
 
 from guppylang import guppy
-from guppylang.std import angles
 from guppylang.std.angles import angle, pi
+from guppylang.std.array import array
 from guppylang.std.builtins import owned
 from guppylang.std.futures import Future
 from guppylang.std.option import Option, nothing, some
@@ -190,6 +195,58 @@ class MaybeLeaked:
     @no_type_check
     def discard(self: "MaybeLeaked @ owned") -> None:
         self._measurement.discard()
+
+
+@hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_EXTENSION))
+@no_type_check
+def lazy_measure(q: qubit @ owned) -> "Measurement":
+    """Request a destructive lazy measurement of a qubit, returning a `Measurement`
+    value. Call `.read()` on the value to block until the result is available.
+    """
+
+
+N = guppy.nat_var("N")
+
+
+@guppy
+@no_type_check
+def lazy_measure_array(qubits: array[qubit, N] @ owned) -> array["Measurement", N]:
+    """Request a destructive lazy measurement of an array of qubits, returning an array
+    of `Measurement` values. Call `.read()` on each value to block until results are
+    available.
+    """
+    return array(lazy_measure(q) for q in qubits)
+
+
+@custom_type(
+    future_bool_type(),
+    copyable=False,
+    droppable=False,
+)
+class Measurement:
+    """Represents the result of a lazy measurement which needs to be explicitly read
+    before being used."""
+
+    @custom_function(compiler=ReadFutureBoolCompiler())
+    @no_type_check
+    def read(self: "Measurement" @ owned) -> bool:
+        """Read the measurement result, consuming it. Blocks until the result is
+        available if the measurement hasn't been performed yet since being requested.
+        """
+
+    @guppy
+    @no_type_check
+    def __consume_as_bool__(self: "Measurement" @ owned) -> bool:
+        return self.read()
+
+
+@guppy
+@no_type_check
+def collect_measurements(measurements: array[Measurement, N] @ owned) -> array[bool, N]:
+    """Block on each measurement until it is available and collect results into an
+    array of bools.
+    """
+    return array(m.read() for m in measurements)
 
 
 # ------------------------------------------------------
