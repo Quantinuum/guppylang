@@ -138,6 +138,7 @@ def test_drop_while(validate):
     assert num_drops(hugr) == 4
     validate(hugr)
 
+
 def test_drop_with_multiple_funcdefns(validate):
     """Regression test for https://github.com/quantinuum/guppylang/issues/1516.
 
