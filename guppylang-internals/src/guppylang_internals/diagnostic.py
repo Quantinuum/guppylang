@@ -1,9 +1,9 @@
 import string
 import textwrap
 from collections.abc import Callable, Mapping, Sequence
-from itertools import groupby
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from itertools import groupby
 from typing import (
     Any,
     ClassVar,
