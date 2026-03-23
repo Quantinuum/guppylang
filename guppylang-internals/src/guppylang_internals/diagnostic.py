@@ -484,7 +484,7 @@ class DiagnosticsRenderer:
                 return "Warnings"
             case _:
                 raise InternalGuppyError(
-                    f"DiagnosticsRenderer: unexpected level in sub-diagnostic: {level}"
+                    f"We should not have more than one diagnostic of level: {level}"
                 )
 
 
