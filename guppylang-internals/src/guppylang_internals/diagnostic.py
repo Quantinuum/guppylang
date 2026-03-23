@@ -265,6 +265,14 @@ class DiagnosticsRenderer:
 
             # Render children grouped by consecutive runs of the same level,
             # preserving the original order
+            # e.g.
+            # Notes:
+            #   - Note 1 (span)
+            #   - Note 2 (span)
+            # Help:
+            #   - Help 1 (span)
+            #   - Help 2 (span)
+            # ...
             for lv, group_iter in groupby(children_with_span, key=lambda x: x[0].level):
                 group = list(group_iter)
                 match group:
