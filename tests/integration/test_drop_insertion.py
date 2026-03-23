@@ -137,3 +137,23 @@ def test_drop_while(validate):
     hugr = main.compile_function()
     assert num_drops(hugr) == 4
     validate(hugr)
+
+
+def test_drop_with_multiple_funcdefns(validate):
+    """Regression test for https://github.com/quantinuum/guppylang/issues/1516.
+
+    Ensures insert_drops correctly iterates over FuncDefn nodes instead of
+    skipping them, and still inserts the right number of drops.
+    """
+
+    @guppy
+    def helper() -> AffineTy:
+        return make()
+
+    @guppy
+    def main(x: AffineTy @ owned) -> None:
+        pass  # x is dropped here
+
+    hugr = main.compile_function()
+    assert num_drops(hugr) == 1
+    validate(hugr)
