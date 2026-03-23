@@ -64,7 +64,7 @@ See [DEVELOPMENT.md](https://github.com/quantinuum/guppylang/blob/main/DEVELOPME
 
 ## Attribution
 
-If you use this software, please cite it using [CITATION.bib](https://github.com/quantinuum/guppylang/blob/main/CITATION.bib) or [CITATION.cff](https://github.com/quantinuum/guppylang/blob/main/CITATION.cff).
+If you use this software, please cite it using [CITATION.bib](https://github.com/quantinuum/guppylang/blob/main/CITATION.bib) or [CITATION.cff](https://github.com/quantinuum/guppylang/blob/main/CITATION.cff) (click "Cite this repository" in the About section of the repository landing page).
 
 ## License
 
