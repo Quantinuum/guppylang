@@ -157,6 +157,7 @@ class CompilationEngine:
         Cached at class level.
         """
         if CompilationEngine._base_resolve_registry is None:
+            from guppylang_internals.compiler import hugr_extension
             from guppylang_internals.std._internal.compiler.tket_exts import (
                 TKET_EXTENSIONS,
             )
@@ -165,7 +166,7 @@ class CompilationEngine:
             for ext in [
                 *hugr.std._std_extensions().extensions.values(),
                 *TKET_EXTENSIONS,
-                guppylang_internals.compiler.hugr_extension.EXTENSION,
+                hugr_extension.EXTENSION,
             ]:
                 registry.register_updated(ext)
             CompilationEngine._base_resolve_registry = registry
