@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "$FILE", line 16, in <module>
+    foo.compile()
+  File "$FILE", line 10, in foo
+    with control(q2):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 305, in helper
+    return _GeneratorContextManager(func, args, kwds)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 109, in __init__
+    self.gen = func(*args, **kwds)
+guppylang_internals.error.GuppyComptimeError: The `control` modifier is not supported in comptime functions
