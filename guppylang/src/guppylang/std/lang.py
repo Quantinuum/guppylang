@@ -4,7 +4,13 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any, Protocol, TypeVar
 
+from guppylang_internals.error import GuppyComptimeError
+
 T = TypeVar("T")
+
+_MODIFIER_COMPTIME_ERROR = (
+    "The `{modifier}` modifier is not supported in comptime functions"
+)
 
 
 class _Comptime:
@@ -47,18 +53,18 @@ class Drop(Protocol):
 
 
 @contextmanager
-def control() -> Generator[None]:
+def control(*args: Any, **kwargs: Any) -> Generator[None]:
     """Dummy context manager to support `with control(...):` blocks in Guppy code."""
-    yield
+    raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="control"))
 
 
 @contextmanager
-def dagger() -> Generator[None]:
+def dagger(*args: Any, **kwargs: Any) -> Generator[None]:
     """Dummy context manager to support `with dagger:` blocks in Guppy code."""
-    yield
+    raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="dagger"))
 
 
 @contextmanager
-def power() -> Generator[None]:
+def power(*args: Any, **kwargs: Any) -> Generator[None]:
     """Dummy context manager to support `with power(...):` blocks in Guppy code."""
-    yield
+    raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="power"))
