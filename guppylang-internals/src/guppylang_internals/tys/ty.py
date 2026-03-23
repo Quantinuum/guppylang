@@ -193,7 +193,7 @@ class BoundTypeVar(TypeBase, BoundVar):
     A bound type variables can be instantiated with a `TypeArg` argument.
     """
 
-    implements: Sequence[ProtocolInst]
+    implements: tuple[ProtocolInst, ...]
     copyable: bool
     droppable: bool
 

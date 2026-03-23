@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from guppylang_internals.definition.common import DefId
@@ -8,7 +7,7 @@ from guppylang_internals.tys.common import Transformer
 
 @dataclass(frozen=True)
 class ProtocolInst:
-    type_args: Sequence[Argument]
+    type_args: tuple[Argument, ...]
     def_id: DefId
 
     def transform(self, transformer: Transformer) -> "ProtocolInst":

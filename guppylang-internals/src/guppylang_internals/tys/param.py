@@ -164,7 +164,7 @@ class TypeParam(ParameterBase):
             BoundTypeVar(
                 self.name,
                 idx,
-                self.must_implement,
+                tuple(self.must_implement),
                 self.must_be_copyable,
                 self.must_be_droppable,
             )
