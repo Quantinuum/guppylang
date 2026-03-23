@@ -1,5 +1,5 @@
 import ast
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from typing import ClassVar
 
 from hugr import Node, Wire
@@ -15,14 +15,18 @@ from guppylang_internals.compiler.core import (
     DFContainer,
     require_monomorphization,
 )
-from guppylang_internals.definition.common import CompilableDef, ParsableDef
+from guppylang_internals.definition.common import (
+    CompilableDef,
+    ParsableDef,
+    UserProvidedLinkName,
+)
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
+    default_func_link_name,
     load_with_args,
     parse_py_func,
 )
-from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -30,7 +34,6 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
@@ -57,11 +60,19 @@ class MonomorphizeError(Error):
 
 
 @dataclass(frozen=True)
-class RawFunctionDecl(ParsableDef):
+class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     """A raw function declaration provided by the user.
 
     The raw declaration stores exactly what the user has written (i.e. the AST), without
     any additional checking or parsing.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the function.
+        defined_at: The AST node where the function was defined.
+        python_func: The Python function object corresponding to the declaration.
+        link_name: The external name for this declaration, applied to the Hugr node and
+            other representations
     """
 
     python_func: PyFunc
@@ -69,25 +80,13 @@ class RawFunctionDecl(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
-    link_name: InitVar[str | None] = field(default=None, kw_only=True)
-    _user_set_link_name: str | None = field(default=None, init=False)
-
-    def __post_init__(self, link_name: str | None) -> None:
-        object.__setattr__(self, "_user_set_link_name", link_name)
-
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
-        link_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
-        if self._user_set_link_name is not None:
-            link_name = self._user_set_link_name
-        elif (parent_ty_id := DEF_STORE.impl_parents.get(self.id)) is not None:
-            parent = ENGINE.get_parsed(parent_ty_id)
-            if isinstance(parent, ParsedStructDef):
-                link_name = f"{parent.link_name_prefix}.{self.python_func.__name__}"
+        link_name = self._user_set_link_name or default_func_link_name(self)
 
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
@@ -109,6 +108,15 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
     """A function declaration with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the function.
+        defined_at: The AST node where the function was declared.
+        ty: The type of the function.
+        docstring: The docstring of the function.
+        link_name: The external name for this declaration, applied to the Hugr node and
+            other representations
     """
 
     defined_at: ast.FunctionDef
@@ -158,7 +166,18 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
 class CompiledFunctionDecl(
     CheckedFunctionDecl, CompiledCallableDef, CompiledHugrNodeDef
 ):
-    """A function declaration with a corresponding Hugr node."""
+    """A function declaration with a corresponding Hugr node.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the function.
+        defined_at: The AST node where the function was declared.
+        ty: The type of the function.
+        docstring: The docstring of the function.
+        link_name: The external name for this declaration, applied to the Hugr node and
+            other representations
+        declaration: The Hugr node corresponding to this function declaration.
+    """
 
     declaration: Node
 

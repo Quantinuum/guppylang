@@ -1,7 +1,7 @@
 import ast
 import inspect
 from collections.abc import Callable, Sequence
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
@@ -38,6 +38,7 @@ from guppylang_internals.definition.common import (
     MonomorphizedDef,
     ParsableDef,
     UnknownSourceError,
+    UserProvidedLinkName,
 )
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
 from guppylang_internals.definition.struct import ParsedStructDef
@@ -57,13 +58,23 @@ from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to
 if TYPE_CHECKING:
     from hugr.tys import Visibility
 
+    from guppylang_internals.definition.declaration import RawFunctionDecl
     from guppylang_internals.tys.param import Parameter
 
 PyFunc = Callable[..., Any]
 
 
+def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
+    if (parent_ty_id := DEF_STORE.impl_parents.get(raw_def.id)) is not None:
+        parent = ENGINE.get_parsed(parent_ty_id)
+        if isinstance(parent, ParsedStructDef):
+            return f"{parent.link_name_prefix}.{raw_def.python_func.__name__}"
+
+    return f"{raw_def.python_func.__module__}.{raw_def.python_func.__qualname__}"
+
+
 @dataclass(frozen=True)
-class RawFunctionDef(ParsableDef):
+class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     """A raw function definition provided by the user.
 
     The raw definition stores exactly what the user has written (i.e. the AST), without
@@ -75,6 +86,9 @@ class RawFunctionDef(ParsableDef):
         name: The name of the function.
         defined_at: The AST node where the function was defined.
         python_func: The Python function to be defined.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
     """
 
     python_func: PyFunc
@@ -85,26 +99,13 @@ class RawFunctionDef(ParsableDef):
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
-    link_name: InitVar[str | None] = field(default=None, kw_only=True)
-    _user_set_link_name: str | None = field(default=None, init=False)
-
-    def __post_init__(self, link_name: str | None) -> None:
-        object.__setattr__(self, "_user_set_link_name", link_name)
-
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
-
-        link_name = f"{self.python_func.__module__}.{self.python_func.__qualname__}"
-        if self._user_set_link_name is not None:
-            link_name = self._user_set_link_name
-        elif (parent_ty_id := DEF_STORE.impl_parents.get(self.id)) is not None:
-            parent = ENGINE.get_parsed(parent_ty_id)
-            if isinstance(parent, ParsedStructDef):
-                link_name = f"{parent.link_name_prefix}.{self.python_func.__name__}"
+        link_name = self._user_set_link_name or default_func_link_name(self)
 
         return ParsedFunctionDef(
             self.id,
@@ -130,7 +131,9 @@ class ParsedFunctionDef(CheckableDef, CallableDef):
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
         docstring: The docstring of the function.
-        link_name: The name that the Hugr node for this function will receive.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
     """
 
     defined_at: ast.FunctionDef
@@ -189,7 +192,9 @@ class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
         docstring: The docstring of the function.
-        link_name: The name that the Hugr node for this function will receive.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
         cfg: The type- and linearity-checked CFG for the function body.
     """
 
@@ -255,7 +260,9 @@ class CompiledFunctionDef(
         mono_args: Partial monomorphization of the generic type parameters.
         ty: The type of the function after partial monomorphization.
         docstring: The docstring of the function.
-        link_name: The name of the Hugr node corresponding to this function.
+        link_name: The external name for this function (applied to the Hugr node, and
+            other representations, regardless of whether the function is actually
+            visible for linking)
         cfg: The type- and linearity-checked CFG for the function body.
         func_def: The Hugr function definition.
     """

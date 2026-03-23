@@ -26,7 +26,7 @@ def _func_names_and_visibilities(package: Package) -> set[tuple[str, str]]:
     }
 
 
-def test_smoke_test_library(validate, qualifier):
+def test_top_level_members_public(validate, qualifier):
     @guppy
     def func_1() -> None:
         pass

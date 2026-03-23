@@ -7,6 +7,9 @@ example_notebooks = list(
     (Path(__file__).parent.parent.parent / "examples").glob("*.ipynb")
 )
 
+# Remove long running QAOA notebook from C.I. tests
+# Hopefully we can add it back in when we can speed it up.
+# https://github.com/Quantinuum/guppylang/issues/1546
 example_notebooks.remove(
     Path(__file__).parent.parent.parent / "examples" / "qaoa_maxcut_example.ipynb"
 )
