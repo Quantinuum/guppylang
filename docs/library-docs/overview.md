@@ -109,8 +109,9 @@ library or validate that definitions faithfully implement their corresponding st
 subsequently reference the stubs in the library function definitions for easier consistency checks (see the
 [proposal](proposals/impls.md) for that).
 
-Finally, these stubs (in `*.pyi` files) should be distributed using regular Python packaging mechanisms, so that users
-of the library can install and program against them. This distribution may or may not contain the Hugr package as well.
+Finally, these stubs (importable, thus in `*.py` files instead of `*.pyi` as usual) should be distributed using regular
+Python packaging mechanisms, so that users of the library can install and program against them. This distribution may or
+may not contain the Hugr package as well.
 
 ## Using a library
 
@@ -142,10 +143,8 @@ In this case, the consumer aims to create an executable Hugr package (e.g. by ca
 package with a single, argument-less entrypoint). However, the created Hugr package is incomplete: It lacks the function
 bodies of the library functions, and thus cannot be executed.
 
-Thus, `hugr-py` MUST provide means to link the library Hugr package into the consumer Hugr package. The proposed
-mechanism for this is to allow operations on Hugr packages that (a) allow to add modules and extensions from other
-packages, and (b) allow to combine multiple modules inside the same package into a single module. In code, this may look
-like:
+As of https://github.com/Quantinuum/hugr/commit/329c243fffff0d6c4437664a012361619a0a425e, `hugr-py` provides the means
+to link one or more library Hugr packages into the consumer Hugr package. This may look like:
 
 ```python
 from hugr.package import Package
@@ -154,12 +153,9 @@ package_a: Package = ...
 package_b: Package = ...
 package_c: Package = ...
 
-# (a) add modules and extensions from other packages
-package_a.add_from(package_b).add_from(package_c)
+package_d = package_a.link(package_b, package_c)
 
-# (b) combine multiple modules into a single module inside the package
-package_a.link_modules()
-# Now package_a contains a single module with all the functions
+# Now package_d contains a single module with all the functions
 # from package_a, package_b, and package_c
 ```
 
@@ -168,29 +164,14 @@ across all modules, if it exists. When more than one module has a non-module ent
 executable), an error is raised.
 
 There are no guarantees about the order of modules being linked together, or whether that is pairwise or all at once.
-A package may also expose more fine-grained control over the linking process, for example by allowing to "link" in
-entire packages, steering the reduction ordering:
+The user can exert a certain level of control by gradually linking packages together, using multiple calls to `link`.
+Furthermore, future versions of `hugr-py` may provide even more control with extensions / alternatives to `link`.
+
+For convenience, the library Hugr package may be provided to the consumer program executor, so that it can be
+automatically linked in before compiling to binary. For example, using selene, this may look like:
 
 ```python
-# Extensions and modules are added from package_b,
-# and its module is linked into the module of package_a
-package_a.link(package_b)
-
-# In the future, keywords may be added to allow e.g. privatization of all
-# functions from package_b (i.e. swallowing), so for example:
-package_a.link(package_b, privatize=True)
-```
-
-```{note}
-It is yet unclear whether this process should be done in-place or producing copies (which may cause a significant slowdown).
-```
-
-For convenience, the
-library Hugr package may be provided to the consumer program executor, so that it can be automatically linked in before
-compiling to binary. For example, using selene, this may look like:
-
-```python
-main.emulator(n_qubits=0, libraries=[hugr_package]).with_shots(100).run()
+main.emulator(n_qubits=0, libs=[lib_package]).with_shots(100).run()
 ```
 
 Currently, Hugr packages have to be manually downloaded / imported from whatever distribution mechanism the library
