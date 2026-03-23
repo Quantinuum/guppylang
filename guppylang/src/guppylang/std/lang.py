@@ -52,19 +52,16 @@ class Drop(Protocol):
     """Bound to mark generic type parameters as being implicitly droppable."""
 
 
-@contextmanager
 def control(*args: Any, **kwargs: Any) -> Generator[None]:
-    """Dummy context manager to support `with control(...):` blocks in Guppy code."""
+    """Dummy function to support `with control(...):` blocks in Guppy code."""
     raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="control"))
 
 
-@contextmanager
 def dagger(*args: Any, **kwargs: Any) -> Generator[None]:
-    """Dummy context manager to support `with dagger:` blocks in Guppy code."""
+    """Dummy function to support `with dagger(...):` blocks in Guppy code."""
     raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="dagger"))
 
 
-@contextmanager
 def power(*args: Any, **kwargs: Any) -> Generator[None]:
-    """Dummy context manager to support `with power(...):` blocks in Guppy code."""
+    """Dummy function to support `with power(...):` blocks in Guppy code."""
     raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="power"))
