@@ -10,6 +10,7 @@ from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
+from typing_extensions import deprecated
 
 import guppylang_internals
 from guppylang_internals.definition.common import (
@@ -179,6 +180,10 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
 
     @pretty_errors
+    @deprecated(
+        "Extensions are included automatically when used. "
+        "Manual registration is no longer necessary."
+    )
     def register_extension(self, extension: Extension) -> None:
         if extension not in self.additional_extensions:
             self.additional_extensions.append(extension)
