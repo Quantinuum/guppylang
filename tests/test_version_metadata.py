@@ -1,9 +1,8 @@
+import guppylang
 import guppylang_internals
+from guppylang import guppy
 from hugr.metadata import HugrGenerator, HugrUsedExtensions
 from semver import Version
-
-import guppylang
-from guppylang import guppy
 
 
 def test_metadata():
@@ -26,7 +25,6 @@ def test_metadata():
 def test_used_extensions_computed_dynamically():
     """Test that used extensions are computed based on actual usage."""
     from guppylang.std.builtins import owned
-
     from guppylang.std.quantum import h, qubit
 
     # A simple function with no special ops should only have minimal extensions

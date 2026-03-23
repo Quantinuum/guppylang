@@ -8,8 +8,14 @@ from guppylang.std.quantum import qubit
 
 __all__ = (
     "GuppyModule",
+    "array",
+    "builtins",
+    "comptime",
+    "debug",
     "enable_experimental_features",
     "guppy",
+    "py",
+    "quantum",
     "qubit",
 )
 

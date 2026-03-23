@@ -49,9 +49,6 @@ jobs:
       - name: Check formatting with ruff
         run: uv run ruff format --check
 
-      - name: TEST specific failing check
-        run: uv run ruff check guppylang-internals/src/guppylang_internals/definition/pytket_circuits.py --select I001 --no-cache --verbose
-
       - name: Lint with ruff
         run: |
           uv run ruff --version
