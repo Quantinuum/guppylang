@@ -6,7 +6,7 @@ Error: Not owned (at $FILE:14:16)
    |                 ^ Function `discard` wants to take ownership of this argument,
    |                   but `__modified__()` doesn't own `a`
 
-Note:
+Help:
    | 
 11 | def test() -> None:
 12 |     a = qubit()
