@@ -1,9 +1,8 @@
+import guppylang
 import guppylang_internals
+from guppylang import guppy
 from hugr.metadata import HugrGenerator, HugrUsedExtensions
 from semver import Version
-
-import guppylang
-from guppylang import guppy
 
 
 def test_metadata():

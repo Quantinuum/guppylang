@@ -11,7 +11,6 @@ from guppylang_internals.std._internal.compiler.quantum import (
     InoutMeasureResetCompiler,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import (
-    FUTURES_EXTENSION,
     QSYSTEM_EXTENSION,
 )
 from guppylang_internals.std._internal.util import quantum_op
