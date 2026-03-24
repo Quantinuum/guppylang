@@ -47,7 +47,8 @@ class ExpectedError(Error):
     @dataclass(frozen=True)
     class EnumHelp(Help):
         message: ClassVar[str] = "You might use an enum variant here instead"
-          
+
+    @dataclass(frozen=True)
     class NotInstantiable(Note):
         name: str
         message: ClassVar[str] = (
