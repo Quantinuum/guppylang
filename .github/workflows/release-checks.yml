@@ -1,9 +1,12 @@
-# A check that ensures that `guppylang` works correctly with the latest release of `guppylang-internals`.
+# A check that ensures that `guppylang` and `guppylang-internals` work correctly with the lowest and highest allowed
+# versions of their dependencies. Additionally, `guppylang` is tested to work with the latest released version of
+# `guppylang-internals`.
 #
-# If this fails, it is likely that we either didn't update the dependency version in guppylang's pyproject,
-# or the latest `guppylang-internals` package hasn't been published to pypi.
+# If either checks fail, it is likely that the packages are not compatible with the respective versions of their
+# dependencies and the version ranges have to be adjusted. Additionally, this might fail if `guppylang` requires an
+# unreleased or unpublished version of `guppylang-internals`.
 
-name: 🚚 guppylang release checks
+name: 🚚 Release checks
 
 on:
   pull_request:
@@ -14,18 +17,25 @@ on:
 env:
   # Pinned version for the uv package manager
   UV_VERSION: "0.9.5"
-  # The highest and lowest supported Python versions, used for testing
-  PYTHON_HIGHEST: "3.14"
-  PYTHON_LOWEST: "3.10"
 
 jobs:
-  py-release:
-    name: Check `guppylang` release compatibility
+  check-release-guppylang-internals:
+    name: Check `guppylang-internals` release compatibility with ${{ matrix.target.resolution }} dependencies
     runs-on: ubuntu-latest
-    # Check if we are running on a release PR.
+    # Check if we are running on a release PR, targeting some branch (sits in the middle of the release branch name)
     #
     # release-please always uses this branch name.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'release-please--branches--main--components--guppylang' }}
+    if: |
+     github.event_name == 'workflow_dispatch' ||
+     (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang-internals'))
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - resolution: "highest"
+            python: "3.14"
+          - resolution: "lowest-direct"
+            python: "3.10"
     steps:
       - uses: actions/checkout@v6
       - uses: mozilla-actions/sccache-action@v0.0.9
@@ -34,18 +44,68 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - name: Install Python ${{ env.PYTHON_HIGHEST }}
-        run: uv python install ${{ env.PYTHON_HIGHEST }}
-      - name: Setup `guppylang` with only pypi dependencies
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+      - name: Install Python ${{ matrix.target.python }}
         run: |
-          uv sync --no-sources --no-install-workspace \
-            --python ${{ env.PYTHON_HIGHEST }}
+          uv python install ${{ matrix.target.python }}
+          uv python pin ${{ matrix.target.python }}
+      - name: Setup `guppylang` and `guppylang-internals` with only pypi dependencies
+        env:
+          RES: ${{ matrix.target.resolution }}
+        run: |
+          UV_RESOLUTION="$RES" uv lock -U
+          UV_RESOLUTION="$RES" uv sync
+          echo "\nDone! Installed dependencies:"
+          uv pip list
+      - name: Type check with mypy
+        run: uv run --no-sync mypy guppylang-internals
+      - name: Lint with ruff
+        run: uv run --no-sync ruff check guppylang-internals
+      - name: Run tests
+        run: UV_NO_SYNC=1 just test
+
+  check-release-guppylang:
+    name: Check `guppylang` release compatibility with ${{ matrix.target.resolution }} dependencies
+    runs-on: ubuntu-latest
+    # Check if we are running on a release PR, targeting some branch (sits in the middle of the release branch name)
+    #
+    # release-please always uses this branch name.
+    if: |
+     github.event_name == 'workflow_dispatch' ||
+     (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang'))
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - resolution: "highest"
+            python: "3.14"
+          - resolution: "lowest-direct"
+            python: "3.10"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+      - name: Install Python ${{ matrix.target.python }}
+        run: |
+          uv python install ${{ matrix.target.python }}
+          uv python pin ${{ matrix.target.python }}
+      - name: Setup `guppylang` with only pypi dependencies
+        env:
+          RES: ${{ matrix.target.resolution }}
+        run: |
+          UV_RESOLUTION="$RES" uv lock --no-sources -U
+          UV_RESOLUTION="$RES" uv sync --no-sources --no-install-workspace
           # Install the latest published release of guppylang-internals.
-          uv pip install --no-sources guppylang-internals \
-            --python-version ${{ env.PYTHON_HIGHEST }}
+          uv pip install --no-sources guppylang-internals
           # Install the local version of guppylang.
-          uv pip install -e guppylang --no-deps \
-            --python-version ${{ env.PYTHON_HIGHEST }}
+          uv pip install -e guppylang --no-deps
           echo "\nDone! Installed dependencies:"
           uv pip list
       - name: Type check with mypy
@@ -53,19 +113,4 @@ jobs:
       - name: Lint with ruff
         run: uv run --no-sync ruff check guppylang
       - name: Run tests
-        run: uv run --no-sync pytest
-
-      # Check pytket integration
-      - name: Install tket dependencies
-        run: |
-          uv sync --no-sources --no-install-workspace \
-            --python ${{ env.PYTHON_HIGHEST }} --extra pytket
-          # Install the latest published release of guppylang-internals.
-          uv pip install --no-sources guppylang-internals \
-            --python-version ${{ env.PYTHON_HIGHEST }}
-          # Install the local version of guppylang.
-          uv pip install -e guppylang --no-deps \
-            --python-version ${{ env.PYTHON_HIGHEST }}
-          echo "\nDone! Installed dependencies:"
-      - name: Rerun comptime expression tests and pytket lowering with tket installed
-        run: uv run --no-sync pytest tests/integration/test_comptime_expr.py tests/error/test_comptime_expr_errors.py tests/integration/test_pytket_circuits.py
+        run: UV_NO_SYNC=1 just test
