@@ -29,9 +29,10 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(scope="session")
 def export_test_cases_dir(request):
     r = request.config.getoption("--export-test-cases")
-    if r and not r.exists():
-        r.mkdir(parents=True)
-    return Path(r).absolute()
+    if r is not None:
+        if not r.exists():
+            r.mkdir(parents=True)
+        return Path(r).absolute()
 
 
 @pytest.fixture
