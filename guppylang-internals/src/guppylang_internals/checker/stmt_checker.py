@@ -230,7 +230,7 @@ class StmtChecker(AstVisitor[BBStatement]):
     ) -> AnyUnpack:
         """Helper function to check unpacking assignments.
 
-        These are the ones where the RHS is either a tuple or a list.
+        These are the ones where the LHS is either a tuple or a list.
         """
         # Parse LHS into `left, *starred, right`
         pattern = parse_unpack_pattern(lhs)
