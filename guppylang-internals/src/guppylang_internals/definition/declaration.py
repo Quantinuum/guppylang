@@ -91,12 +91,12 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         return ParsedFunctionDecl(
-            self.id,
-            self.name,
-            func_ast,
-            ty,
-            docstring,
-            link_name,
+            id=self.id,
+            name=self.name,
+            defined_at=func_ast,
+            ty=ty,
+            docstring=docstring,
+            link_name=link_name,
         )
 
 
@@ -128,13 +128,13 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
         return CheckedFunctionDecl(
-            self.id,
-            self.name,
-            self.defined_at,
-            mono_ty,
-            self.docstring,
-            mono_link_name,
-            type_args,
+            id=self.id,
+            name=self.name,
+            defined_at=self.defined_at,
+            ty=mono_ty,
+            docstring=self.docstring,
+            link_name=mono_link_name,
+            type_args=type_args,
         )
 
     def check_call(
@@ -185,14 +185,14 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
 
         node = module.declare_function(self.link_name, self.ty.to_hugr_poly(ctx))
         return CompiledFunctionDecl(
-            self.id,
-            self.name,
-            self.defined_at,
-            self.ty,
-            self.docstring,
-            self.link_name,
-            self.type_args,
-            node,
+            id=self.id,
+            name=self.name,
+            defined_at=self.defined_at,
+            ty=self.ty,
+            docstring=self.docstring,
+            link_name=self.link_name,
+            type_args=self.type_args,
+            declaration=node,
         )
 
 
