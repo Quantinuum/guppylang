@@ -1,3 +1,4 @@
+from guppylang import guppy
 from guppylang.std import array
 from guppylang.std.debug import state_result
 from guppylang.std.quantum import discard, discard_array, qubit
@@ -6,7 +7,6 @@ from hugr.debug_info import DICompileUnit, DILocation, DISubprogram
 from hugr.metadata import HugrDebugInfo
 from hugr.ops import Call, ExtOp, FuncDecl, FuncDefn, MakeTuple
 
-from guppylang import guppy
 from tests.resources.metadata_example import (
     bar,
     baz,
