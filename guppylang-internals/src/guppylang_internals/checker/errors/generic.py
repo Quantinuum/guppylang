@@ -47,6 +47,20 @@ class ExpectedError(Error):
     @dataclass(frozen=True)
     class EnumHelp(Help):
         message: ClassVar[str] = "You might use an enum variant here instead"
+          
+    class NotInstantiable(Note):
+        name: str
+        message: ClassVar[str] = (
+            "Cannot construct an instance of `{name}`, as it is missing a `__new__` "
+            "method."
+        )
+
+    @dataclass(frozen=True)
+    class MissingBranch(Note):
+        span_label: ClassVar[str] = (
+            "Consider adding a return statement if this expression is `{truth_value}`"
+        )
+        truth_value: bool
 
 
 @dataclass(frozen=True)
