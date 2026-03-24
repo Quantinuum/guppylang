@@ -77,8 +77,8 @@ def check_cfg(
     func_name: str,
     globals: Globals,
 ) -> CheckedCFG[Place]:
-    """Type checks a control-flow graph for a given instantiation of its generic
-    parameters.
+    """Instantiates a control-flow graph with the given `generic_args` and the type
+    checks it.
 
     Annotates the basic blocks with input and output type signatures and removes
     unreachable blocks. Note that the inputs/outputs are annotated in the form of
