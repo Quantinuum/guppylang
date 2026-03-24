@@ -42,6 +42,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+      - name: Set up Just
+        uses: extractions/setup-just@v3
       - name: Install Python ${{ matrix.target.python }}
         run: |
           uv python install ${{ matrix.target.python }}
@@ -87,6 +89,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+      - name: Set up Just
+        uses: extractions/setup-just@v3
       - name: Install Python ${{ matrix.target.python }}
         run: |
           uv python install ${{ matrix.target.python }}
