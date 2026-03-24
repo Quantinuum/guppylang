@@ -55,7 +55,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
-from guppylang_internals.metadata.debug_info import make_location_record
+from guppylang_internals.metadata.debug_info_util import make_location_record
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.subst import Inst, Subst

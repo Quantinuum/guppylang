@@ -44,7 +44,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.metadata.debug_info import make_location_record
+from guppylang_internals.metadata.debug_info_util import make_location_record
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, Span, ToSpan
 from guppylang_internals.std._internal.compiler.array import (
@@ -187,6 +187,10 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         outer_func = module.module_root_builder().define_function(
             self.name, func_type.body.input, func_type.body.output
         )
+        # Add circuit function definition metadata (we can't add metadata to the
+        # internal circuit function as we don't have that information).
+        # Depending on how the circuit was loaded, we have either a function stub node
+        # or a load statememnt source span to obtain debug info from.
         if debug_mode_enabled():
             # Function stub case.
             if self.defined_at is not None:
@@ -264,11 +268,14 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
         # Pass all arguments to call node.
         call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
+        # Add debug info metadata to the call node inside the outer function defintion.
         if debug_mode_enabled():
+            # Function stub case.
             if self.defined_at is not None:
                 call_node.metadata[HugrDebugInfo] = make_location_record(
                     self.defined_at
                 )
+            # Load pytket case,
             elif self.source_span is not None:
                 call_node.metadata[HugrDebugInfo] = DILocation(
                     column=self.source_span.start.column,

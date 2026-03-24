@@ -1,5 +1,5 @@
 import ast
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from hugr.debug_info import DILocation
 
@@ -17,15 +17,14 @@ def make_location_record(node: ast.AST) -> DILocation:
 class StringTable:
     """Utility class for managing a string table for debug info serialization."""
 
-    table: list[str]
+    table: list[str] = field(default_factory=list)
 
     def get_index(self, s: str) -> int:
         """Returns the index of `s` in the string table, adding it if it's not already
         present."""
-        for idx, entry in enumerate(self.table):
-            if entry == s:
-                return idx
-        else:
+        try:
+            return self.table.index(s)
+        except ValueError:
             idx = len(self.table)
             self.table.append(s)
             return idx

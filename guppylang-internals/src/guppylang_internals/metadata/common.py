@@ -3,7 +3,7 @@ from typing import Any, ClassVar
 
 from hugr.debug_info import DebugRecord
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import HugrDebugInfo
+from hugr.metadata import HugrDebugInfo, NodeMetadata
 from hugr.utils import JsonType
 
 from guppylang_internals.diagnostic import Fatal
@@ -32,28 +32,28 @@ class ReservedMetadataKeysError(Fatal):
 class FunctionMetadata:
     """Class for storing metadata to be attached to Hugr nodes during compilation."""
 
-    _node_metadata: dict[str, JsonType] = field(default_factory=dict)
+    _node_metadata: NodeMetadata = field(default_factory=NodeMetadata)
     _RESERVED_KEYS: ClassVar[set[str]] = {
         HugrDebugInfo.KEY,
         MetadataMaxQubits.KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
-        return self._node_metadata
+        return self._node_metadata.as_dict()
 
     def set_debug_info(self, debug_info: DebugRecord) -> None:
-        self._node_metadata[HugrDebugInfo.KEY] = debug_info.to_json()
+        self._node_metadata[HugrDebugInfo] = debug_info
 
     def set_max_qubits(self, max_qubits: int) -> None:
-        self._node_metadata[MetadataMaxQubits.KEY] = max_qubits
+        self._node_metadata[MetadataMaxQubits] = max_qubits
 
     def get_debug_info(self) -> DebugRecord | None:
-        if HugrDebugInfo.KEY not in self._node_metadata:
-            return None
-        return DebugRecord.from_json(self._node_metadata.get(HugrDebugInfo.KEY))
+        debug_record = self._node_metadata.get(HugrDebugInfo, None)
+        assert debug_record is None or isinstance(debug_record, DebugRecord)
+        return debug_record
 
     def get_max_qubits(self) -> int | None:
-        qubits = self._node_metadata.get(MetadataMaxQubits.KEY)
+        qubits = self._node_metadata.get(MetadataMaxQubits, None)
         assert qubits is None or isinstance(qubits, int)
         return qubits
 

@@ -39,7 +39,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.metadata.debug_info import make_location_record
+from guppylang_internals.metadata.debug_info_util import make_location_record
 from guppylang_internals.nodes import (
     AbortExpr,
     AbortKind,

@@ -31,7 +31,7 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import pretty_errors
-from guppylang_internals.metadata.debug_info import (
+from guppylang_internals.metadata.debug_info_util import (
     StringTable,
 )
 from guppylang_internals.span import SourceMap
@@ -286,9 +286,8 @@ class CompilationEngine:
         frame = get_calling_frame()
         assert frame is not None
         filename = frame.f_code.co_filename
-        file_table = StringTable([filename])
 
-        ctx = CompilerContext(graph, file_table)
+        ctx = CompilerContext(graph, StringTable())
         compiled_def = ctx.compile(self.checked[id])
         self.compiled = ctx.compiled
 
@@ -310,10 +309,6 @@ class CompilationEngine:
                 file_table=ctx.metadata_file_table.table,
             )
             graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
-
-        # Use cached base extensions and registry, only add additional extensions
-        base_extensions = self._get_base_packaged_extensions()
-        packaged_extensions = [*base_extensions, *self.additional_extensions]
 
         # Build resolve registry: start with cached base, add any additional
         if self.additional_extensions:
