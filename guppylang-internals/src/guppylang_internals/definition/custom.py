@@ -278,6 +278,9 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
 
     type_args: Inst
 
+    def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
+        raise InternalGuppyError("Function is already monomorphized and checked")
+
     def load(self, dfg: "DFContainer", ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the custom function as a value into a local dataflow graph.
 
