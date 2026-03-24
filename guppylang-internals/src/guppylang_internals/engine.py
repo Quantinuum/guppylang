@@ -32,13 +32,14 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
-from guppylang_internals.diagnostic import Error
+from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import (
     GuppyError,
     RequiresMonomorphizationError,
     pretty_errors,
 )
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
@@ -55,7 +56,9 @@ from guppylang_internals.tys.builtin import (
     string_type_def,
     tuple_type_def,
 )
+from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.printing import TypePrinter
 from guppylang_internals.tys.subst import BoundVarFinder, Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
@@ -198,6 +201,21 @@ class DefinitionStore:
 DEF_STORE: DefinitionStore = DefinitionStore()
 
 
+@dataclass(frozen=True)
+class MonoArgsNote(Note):
+    message: ClassVar[str] = "Error occurred while checking the instantiation {inst}"
+    params: Sequence[Parameter]
+    mono_args: Inst
+
+    @property
+    def inst(self) -> str:
+        printer = TypePrinter()
+        return ",".join(
+            f"`{param.name} := {printer.visit(arg)}`"
+            for param, arg in zip(self.params, self.mono_args, strict=True)
+        )
+
+
 class CompilationEngine:
     """Main compiler driver handling checking and compiling of definitions.
 
@@ -322,7 +340,20 @@ class CompilationEngine:
         if isinstance(defn, CheckableDef):
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
-            defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
+            try:
+                checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
+            except GuppyError as err:
+                # If this is an error arising from the initial parametric check where
+                # parameters are treated opaque values, then we can just report the
+                # error as is. However, if the error only shows up once we check a
+                # concrete monomorphic instantiation, then we should also report this
+                # instantiation in the error message to give some additional context.
+                if is_non_parametric(mono_args):
+                    err.error.add_sub_diagnostic(
+                        MonoArgsNote(None, defn.params, mono_args)
+                    )
+                raise
+            defn = checked_defn
         self.checked[id, mono_args] = defn
 
         from guppylang_internals.definition.enum import CheckedEnumDef
@@ -505,6 +536,23 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
         raise GuppyError(
             EntryMonomorphizeError(defn.defined_at, description, defn.params)
         )
+
+
+def is_non_parametric(mono_args: Inst) -> bool:
+    """Checks if a given `mono_args` instantiation is an actual monomorphic
+    instantiation instead of an opaque one used for the initial parametric check.
+
+    Empty instantiations are treated as parametric.
+    """
+    for arg in mono_args:
+        match arg:
+            case TypeArg(ty=BoundTypeVar()):
+                return False
+            case ConstArg(const=BoundConstVar()):
+                return False
+            case _:
+                return True
+    return False
 
 
 ENGINE: CompilationEngine = CompilationEngine()
