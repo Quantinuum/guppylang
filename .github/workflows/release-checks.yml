@@ -25,10 +25,9 @@ jobs:
     # Check if we are running on a release PR, targeting some branch (sits in the middle of the release branch name)
     #
     # release-please always uses this branch name.
-    # TODO: Removed if for testing, re-enable before merging
-    # if: |
-    #  github.event_name == 'workflow_dispatch' ||
-    #  (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang-internals'))
+    if: |
+     github.event_name == 'workflow_dispatch' ||
+     (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang-internals'))
     strategy:
       fail-fast: false
       matrix:
@@ -72,10 +71,9 @@ jobs:
     # Check if we are running on a release PR, targeting some branch (sits in the middle of the release branch name)
     #
     # release-please always uses this branch name.
-    # TODO: Removed if for testing, re-enable before merging
-    # if: |
-    #  github.event_name == 'workflow_dispatch' ||
-    #  (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang'))
+    if: |
+     github.event_name == 'workflow_dispatch' ||
+     (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang'))
     strategy:
       fail-fast: false
       matrix:
