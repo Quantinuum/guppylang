@@ -360,7 +360,8 @@ class CompilationEngine:
         self.reset()
 
         entry_defn = self.get_parsed(id)
-        entry_mono_args = check_valid_entry_point(entry_defn)
+        check_entry_point_non_generic(entry_defn)
+        entry_mono_args: Inst = ()
         self.to_check_worklist[id, entry_mono_args] = entry_defn
 
         while (
@@ -407,7 +408,8 @@ class CompilationEngine:
         from guppylang_internals.compiler.core import CompilerContext
 
         ctx = CompilerContext(graph)
-        entry_mono_args = check_valid_entry_point(self.get_parsed(id))
+        check_entry_point_non_generic(self.get_parsed(id))
+        entry_mono_args: Inst = ()
         compiled_def = ctx.compile(self.checked[id, entry_mono_args], entry_mono_args)
         self.compiled = ctx.compiled
 
@@ -492,9 +494,8 @@ class EntryMonomorphizeError(Error):
         return ", ".join(f"`{p.name}`" for p in self.params)
 
 
-def check_valid_entry_point(defn: ParsedDef) -> Inst:
-    """Checks if the given definition is a valid compilation entry-point and returns the
-    `Inst` key that should be used for further compilation.
+def check_entry_point_non_generic(defn: ParsedDef) -> None:
+    """Checks if the given definition is a valid compilation entry-point.
 
     In particular, ensures that the definition doesn't depend on generic parameters.
     """
@@ -504,7 +505,6 @@ def check_valid_entry_point(defn: ParsedDef) -> Inst:
         raise GuppyError(
             EntryMonomorphizeError(defn.defined_at, description, defn.params)
         )
-    return ()
 
 
 ENGINE: CompilationEngine = CompilationEngine()
