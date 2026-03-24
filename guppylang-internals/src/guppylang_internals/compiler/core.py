@@ -64,8 +64,7 @@ class GlobalConstId:
         return f"{self.base_name}.{self.id}"
 
 
-#: Unique identifier for global Hugr constants and functions with monomorphized type
-#: arguments
+#: Unique identifier for global Hugr constants and monomorphized functions
 MonoGlobalConstId = tuple[GlobalConstId, Inst]
 
 
