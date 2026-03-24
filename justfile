@@ -17,15 +17,15 @@ check:
 
 # Run the tests.
 test *PYTEST_FLAGS:
-    uv run pytest -n auto --ignore tests/integration/test_exported_hugrs.py {{PYTEST_FLAGS}}
+    uv run pytest -n auto {{PYTEST_FLAGS}}
 
 # Export the integration test cases to a directory.
 export-integration-tests directory="guppy-exports":
-    uv run pytest -n auto --export-test-cases="{{ directory }}" --ignore tests/integration/test_exported_hugrs.py
+    uv run pytest -n auto --export-test-cases="{{ directory }}"
 
 # test-exported-hugrs *PYTEST_FLAGS: export-integration-tests
 test-exported-hugrs *PYTEST_FLAGS:
-    uv run pytest -n auto tests/integration/test_exported_hugrs.py {{PYTEST_FLAGS}}
+    uv run pytest -n auto -m test_exported_hugrs {{PYTEST_FLAGS}}
 
 # Auto-fix all clippy warnings.
 fix:
