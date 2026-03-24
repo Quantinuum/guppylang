@@ -201,7 +201,7 @@ class CompilerContext(ToHugrContext):
                     params, type_args, self
                 )
                 compile_outer = lambda: monomorphizable.monomorphize(  # noqa: E731 (assign-lambda)
-                    self.module, mono_args, self, get_parent_type(monomorphizable)
+                    self.module, mono_args, self
                 )
             case CompilableDef() as compilable:
                 compile_outer = lambda: compilable.compile_outer(self.module, self)  # noqa: E731
@@ -229,9 +229,7 @@ class CompilerContext(ToHugrContext):
                     raise GuppyError(err)
                 # Thus, the partial monomorphization for the entry point is always empty
                 entry_mono_args = tuple(None for _ in params)
-                entry_compiled = defn.monomorphize(
-                    self.module, entry_mono_args, self, get_parent_type(defn)
-                )
+                entry_compiled = defn.monomorphize(self.module, entry_mono_args, self)
             case CompilableDef() as defn:
                 entry_compiled = defn.compile_outer(self.module, self)
             case CompiledDef() as defn:
@@ -418,9 +416,8 @@ class DFContainer:
         # store the leaf wires.
         is_return = isinstance(place, Variable) and is_return_var(place.name)
         if isinstance(place.ty, StructType) and not is_return:
-            unpack = self.builder.add_op(
-                ops.UnpackTuple([t.ty.to_hugr(self.ctx) for t in place.ty.fields]), port
-            )
+            hugr_fields_ty = [t.ty.to_hugr(self.ctx) for t in place.ty.fields]
+            unpack = self.builder.add_op(ops.UnpackTuple(hugr_fields_ty), port)
             for field, field_port in zip(place.ty.fields, unpack, strict=True):
                 self[FieldAccess(place, field, None)] = field_port
             # If we had a previous wire assigned to this place, we need forget about it.
@@ -721,10 +718,7 @@ def insert_drops(hugr: Hugr[OpVarCov]) -> None:
         data = hugr[node]
         # Iterating over `node.outputs()` doesn't work reliably since it sometimes
         # raises an `IncompleteOp` exception. Instead, we query the number of out ports
-        # and look them up by index. However, this method is *also* broken when
-        # inspecting `FuncDefn` nodes due to https://github.com/quantinuum/hugr/issues/2438.
-        if isinstance(data.op, ops.FuncDefn):
-            continue
+        # and look them up by index.
         for i in range(hugr.num_out_ports(node)):
             port = node.out(i)
             kind = hugr.port_kind(port)

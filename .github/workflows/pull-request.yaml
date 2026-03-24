@@ -50,7 +50,9 @@ jobs:
         run: uv run ruff format --check
 
       - name: Lint with ruff
-        run: uv run ruff check
+        run: |
+          uv run ruff --version
+          uv run ruff check
 
       - name: Run tests and export hugr test cases
         run: uv run pytest -n auto --export-test-cases=guppy-exports --ignore tests/integration/test_exported_hugrs.py

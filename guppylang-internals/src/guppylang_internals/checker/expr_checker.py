@@ -66,7 +66,11 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeUnknownError,
     IllegalComptimeExpressionError,
 )
-from guppylang_internals.checker.errors.generic import ExpectedError, UnsupportedError
+from guppylang_internals.checker.errors.generic import (
+    ExpectedError,
+    UnexpectedError,
+    UnsupportedError,
+)
 from guppylang_internals.checker.errors.linearity import NonDroppableForBreakError
 from guppylang_internals.checker.errors.type_errors import (
     AttributeNotFoundError,
@@ -142,6 +146,7 @@ from guppylang_internals.tys.param import ConstParam, TypeParam, check_all_args
 from guppylang_internals.tys.parsing import arg_from_ast
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
+    EnumType,
     ExistentialTypeVar,
     FuncInput,
     FunctionType,
@@ -427,16 +432,41 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 return assert_never(param)
 
     def visit_Name(self, node: ast.Name) -> tuple[ast.expr, Type]:
-        x = node.id
-        if x in self.ctx.locals:
-            var = self.ctx.locals[x]
+        return self._check_name_id(node.id, node)
+
+    def _check_name_id(
+        self, name_id: str, node: ast.Name, allow_enum: bool = False
+    ) -> tuple[ast.expr, Type]:
+        """Helper method to check a name by its identifier, used for both `ast.Name` and
+        `ast.Attribute` nodes. If allow_enum is False, we raise an error if the name
+        corresponds to an enum definition, since enums cannot be used as values."""
+        if name_id in self.ctx.locals:
+            var = self.ctx.locals[name_id]
             return with_loc(node, PlaceNode(place=var)), var.ty
-        elif x in self.ctx.generic_params:
-            return self._check_generic_param(x, node)
-        elif x in self.ctx.globals:
-            match self.ctx.globals[x]:
+        elif name_id in self.ctx.generic_params:
+            return self._check_generic_param(name_id, node)
+        elif name_id in self.ctx.globals:
+            match self.ctx.globals[name_id]:
                 case Definition() as defn:
-                    return self._check_global(defn, x, node)
+                    if not allow_enum:
+                        from guppylang_internals.definition.enum import (
+                            CheckedEnumDef,
+                            ParsedEnumDef,
+                        )
+
+                        if isinstance(defn, ParsedEnumDef | CheckedEnumDef):
+                            if len(defn.variants) == 0:
+                                raise GuppyError(
+                                    UnexpectedError(node, "empty enum initialization")
+                                )
+                            err = ExpectedError(
+                                node,
+                                "a value",
+                                got=f"a guppy enum class `{defn.name}`",
+                            )
+                            err.add_sub_diagnostic(ExpectedError.EnumHelp(None))
+                            raise GuppyError(err)
+                    return self._check_global(defn, name_id, node)
                 case PythonObject():
                     from guppylang_internals.checker.cfg_checker import (
                         VarNotDefinedError,
@@ -447,22 +477,52 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     raise GuppyError(VarNotDefinedError(node, node.id))
 
         raise InternalGuppyError(
-            f"Variable `{x}` is not defined in `TypeSynthesiser`. This should have "
-            "been caught by program analysis!"
+            f"Variable `{name_id}` is not defined in `TypeSynthesiser`."
+            "This should have been caught by program analysis!"
         )
 
     def _check_global(
         self, defn: Definition, name: str, node: ast.expr
     ) -> tuple[ast.expr, Type]:
+        from guppylang_internals.definition.enum import ParsedEnumDef
+
         """Checks a global definition in an expression position."""
         match defn:
             case ValueDef() as defn:
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
+            # We need a special case for enums since they don't have a `__new__` method,
+            # but they have a special constructor for each variant.
+            # A new enum is defined as `EnumName.Variant()`, however, since we are
+            # visiting `EnumName` we do not know which variant is being instantiated.
+            # Luckily, all the variant constructors have the same output type (the enum
+            # type), so we can pick the first constructor to get the output type.
+            case ParsedEnumDef() as defn:
+                if len(defn.variants) == 0:
+                    raise GuppyError(UnexpectedError(node, "empty enum initialization"))
+                constr = self.ctx.globals.get_instance_func(
+                    defn, next(iter(defn.variants.keys()))
+                )
+                if constr is None:
+                    raise InternalGuppyError(
+                        "Valid variants should be available in `ctx.globals`"
+                    )
+                return with_loc(
+                    node, GlobalName(id=name, def_id=defn.id)
+                ), constr.ty.output
             # For types, we return their `__new__` constructor
-            case TypeDef() as defn if constr := self.ctx.globals.get_instance_func(
-                defn, "__new__"
-            ):
-                return with_loc(node, GlobalName(id=name, def_id=constr.id)), constr.ty
+            case TypeDef() as defn:
+                if constr := self.ctx.globals.get_instance_func(defn, "__new__"):
+                    return with_loc(
+                        node, GlobalName(id=name, def_id=constr.id)
+                    ), constr.ty
+                else:
+                    err = ExpectedError(
+                        node,
+                        "an instantiable definition",
+                        got=f"{defn.description} `{name}`",
+                    )
+                    err.add_sub_diagnostic(ExpectedError.NotInstantiable(None, name))
+
             # Handle parameter definitions (e.g., nat_var) that may be imported
             case ParamDef():
                 # Check if this parameter is in our generic_params
@@ -470,13 +530,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if name in self.ctx.generic_params:
                     return self._check_generic_param(name, node)
                 # If not in generic_params, it's being used outside its scope
-                raise GuppyError(
-                    ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
-                )
+                err = ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
             case defn:
-                raise GuppyError(
-                    ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
-                )
+                err = ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
+
+        raise GuppyError(err)
 
     def visit_Attribute(self, node: ast.Attribute) -> tuple[ast.expr, Type]:
         from guppylang.defs import GuppyDefinition
@@ -505,7 +563,23 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(
                 ModuleMemberNotFoundError(attr_span, module.__name__, node.attr)
             )
-        node.value, ty = self.synthesize(node.value)
+
+        if isinstance(node.value, ast.Name):
+            # If node.value is a Name, we manually visit it. This is necessary since a
+            # Name can be a EnumDef only if it is in a attribute access, thus we
+            # manually need to call the helper instead of relying on the standard
+            # visit_Name (that is called through synthesize)
+            ty = get_type_opt(node.value)
+            if ty is None:
+                node.value, ty = self._check_name_id(
+                    node.value.id, node.value, allow_enum=True
+                )
+                if ty.unsolved_vars:
+                    raise GuppyError(TypeInferenceError(node, ty))
+                node.value = with_type(ty, node.value)
+        else:
+            node.value, ty = self.synthesize(node.value)
+
         if isinstance(ty, StructType) and node.attr in ty.field_dict:
             field = ty.field_dict[node.attr]
             expr: ast.expr
@@ -518,6 +592,16 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # you loose access to all fields besides `a`).
                 expr = FieldAccessAndDrop(value=node.value, struct_ty=ty, field=field)
             return with_loc(node, expr), field.ty
+        elif isinstance(ty, EnumType) and node.attr in ty.variants_as_dict:
+            # get the type of the variant constructor
+            if variant_constr := self.ctx.globals.get_instance_func(ty, node.attr):
+                return with_loc(
+                    node, GlobalName(id=node.attr, def_id=variant_constr.id)
+                ), variant_constr.ty
+            else:
+                raise InternalGuppyError(
+                    "Valid variants should be available in `ctx.globals`"
+                )
         elif func := self.ctx.globals.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
@@ -1302,7 +1386,19 @@ def to_bool(node: ast.expr, node_ty: Type, ctx: Context) -> tuple[ast.expr, Type
         return node, node_ty
     synth = ExprSynthesizer(ctx)
     exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Inout)], bool_type())
-    return synth.synthesize_instance_func(node, [], "__bool__", "truthy", exp_sig, True)
+    try:
+        return synth.synthesize_instance_func(
+            node, [], "__bool__", "truthy", exp_sig, True
+        )
+    except GuppyError:
+        if not node_ty.copyable:
+            # Linear types may implement a `__consume_as_bool__` method that consumes
+            # the value, instead of borrowing it.
+            exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Owned)], bool_type())
+            return synth.synthesize_instance_func(
+                node, [], "__consume_as_bool__", "truthy", exp_sig, True
+            )
+        raise
 
 
 def synthesize_comprehension(

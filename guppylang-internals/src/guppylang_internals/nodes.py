@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.cfg_checker import CheckedCFG
     from guppylang_internals.checker.core import Place, Variable
     from guppylang_internals.definition.common import DefId
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.param import ConstParam
 
 
@@ -195,7 +195,7 @@ class FieldAccessAndDrop(ast.expr):
 
     value: ast.expr
     struct_ty: "StructType"
-    field: "StructField"
+    field: "CheckedField"
 
     _fields = (
         "value",
@@ -204,7 +204,7 @@ class FieldAccessAndDrop(ast.expr):
     )
 
     def __init__(
-        self, value: ast.expr, struct_ty: "StructType", field: "StructField"
+        self, value: ast.expr, struct_ty: "StructType", field: "CheckedField"
     ) -> None:
         super().__init__()
         self.value = value

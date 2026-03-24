@@ -1,0 +1,15 @@
+Error: Expected return statement (at $FILE:17:8)
+   | 
+15 |         a = x + z
+16 |         result = a * 2
+17 |         temp = result - 1
+   |         ^^^^^^^^^^^^^^^^^ Expected return statement
+
+Note:
+   | 
+ 4 | def foo(b: bool) -> int:
+ 5 |     if b:
+   |        - Consider adding a return statement if this expression is
+   |          `False`
+
+Guppy compilation failed due to 1 previous error

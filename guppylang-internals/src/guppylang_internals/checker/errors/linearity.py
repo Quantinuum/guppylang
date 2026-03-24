@@ -13,7 +13,7 @@ if TYPE_CHECKING:
         Variable,
     )
     from guppylang_internals.checker.linearity_checker import UseKind
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.ty import (
         StructType,
         TupleType,
@@ -116,7 +116,7 @@ class UnnamedFieldNotUsedError(Error):
         "Non-droppable field `{field.name}` of expression with type `{struct_ty}` is "
         "leaked"
     )
-    field: StructField
+    field: CheckedField
     struct_ty: StructType
 
     @dataclass(frozen=True)
@@ -125,7 +125,7 @@ class UnnamedFieldNotUsedError(Error):
             "Consider assigning this value to a local variable before accessing the "
             "field `{used_field.name}`"
         )
-        used_field: StructField
+        used_field: CheckedField
 
 
 @dataclass(frozen=True)

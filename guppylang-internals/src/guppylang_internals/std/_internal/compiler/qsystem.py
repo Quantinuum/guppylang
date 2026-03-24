@@ -9,7 +9,9 @@ from guppylang_internals.std._internal.compiler.prelude import build_unwrap_righ
 from guppylang_internals.std._internal.compiler.quantum import (
     RNGCONTEXT_T,
 )
+from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.std._internal.compiler.tket_exts import (
+    FUTURES_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
 )
 from guppylang_internals.std._internal.util import external_op
@@ -46,3 +48,21 @@ class RandomIntBoundedCompiler(CustomInoutCallCompiler):
         )
         [rnd] = self.builder.add_op(iwiden_s(5, 6), rnd)
         return CallReturnWires(regular_returns=[rnd], inout_returns=[ctx])
+
+
+def future_bool_type() -> ht.ExtType:
+    return FUTURES_EXTENSION.get_type("Future").instantiate([ht.TypeTypeArg(ht.Bool)])
+
+
+class ReadFutureBoolCompiler(CustomInoutCallCompiler):
+    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+        [future] = args
+        [bool_value] = self.builder.add_op(
+            FUTURES_EXTENSION.get_op("Read").instantiate(
+                [ht.TypeTypeArg(ht.Bool)],
+                ht.FunctionType([future_bool_type()], [ht.Bool]),
+            ),
+            future,
+        )
+        opaque_bool_value = self.builder.add_op(make_opaque(), bool_value)
+        return CallReturnWires(regular_returns=[opaque_bool_value], inout_returns=[])

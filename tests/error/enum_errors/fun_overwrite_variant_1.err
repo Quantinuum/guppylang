@@ -1,0 +1,10 @@
+Error: Duplicate variant (at $FILE:9:4)
+   | 
+ 7 | 
+ 8 |     @guppy
+ 9 |     def name(self) -> str:
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+10 |         return "name"
+   | ^^^^^^^^^^^^^^^^^^^^^ Enum `MyEnum` already contains a variant named `name`
+
+Guppy compilation failed due to 1 previous error
