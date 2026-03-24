@@ -16,7 +16,52 @@ env:
   UV_VERSION: "0.9.5"
 
 jobs:
-  py-release:
+  check-release-guppylang-internals:
+    name: Check `guppylang-internals` release compatibility with ${{ matrix.target.resolution }} dependencies
+    runs-on: ubuntu-latest
+    # Check if we are running on a release PR, targeting some branch (sits in the middle of the release branch name)
+    #
+    # release-please always uses this branch name.
+    # TODO: Removed if for testing, re-enable before merging
+    # if: |
+    #  github.event_name == 'workflow_dispatch' ||
+    #  (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang-internals'))
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - resolution: "highest"
+            python: "3.14"
+          - resolution: "lowest-direct"
+            python: "3.10"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install Python ${{ matrix.target.python }}
+        run: |
+          uv python install ${{ matrix.target.python }}
+          uv python pin ${{ matrix.target.python }}
+      - name: Setup `guppylang` and `guppylang-internals` with only pypi dependencies
+        env:
+          RES: ${{ matrix.target.resolution }}
+        run: |
+          UV_RESOLUTION="$RES" uv lock -U
+          UV_RESOLUTION="$RES" uv sync
+          echo "\nDone! Installed dependencies:"
+          uv pip list
+      - name: Type check with mypy
+        run: uv run --no-sync mypy guppylang-internals
+      - name: Lint with ruff
+        run: uv run --no-sync ruff check guppylang-internals
+      - name: Run tests
+        run: UV_NO_SYNC=1 just test
+
+  check-release-guppylang:
     name: Check `guppylang` release compatibility with ${{ matrix.target.resolution }} dependencies
     runs-on: ubuntu-latest
     # Check if we are running on a release PR, targeting some branch (sits in the middle of the release branch name)
