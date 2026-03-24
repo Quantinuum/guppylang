@@ -3,7 +3,7 @@
 # If this fails, it is likely that we either didn't update the dependency version in guppylang's pyproject,
 # or the latest `guppylang-internals` package hasn't been published to pypi.
 
-name: 🚚 guppylang release checks
+name: 🚚 guppylang(-internals) release checks
 
 on:
   pull_request:
