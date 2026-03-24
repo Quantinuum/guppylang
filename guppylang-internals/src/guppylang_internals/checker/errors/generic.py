@@ -52,6 +52,13 @@ class ExpectedError(Error):
             "method."
         )
 
+    @dataclass(frozen=True)
+    class MissingBranch(Note):
+        span_label: ClassVar[str] = (
+            "Consider adding a return statement if this expression is `{truth_value}`"
+        )
+        truth_value: bool
+
 
 @dataclass(frozen=True)
 class UnknownModifierError(Error):

@@ -14,6 +14,30 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.21.10](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.9...guppylang-v0.21.10) (2026-03-23)
+
+
+### Features
+
+* Add `lazy_measure` to `std.qsystem` ([#1562](https://github.com/Quantinuum/guppylang/issues/1562)) ([ebbd4f4](https://github.com/Quantinuum/guppylang/commit/ebbd4f4eb47d0154dac0a1efe974515166a08572))
+* Add a FiFo queue to the standard library ([#1524](https://github.com/Quantinuum/guppylang/issues/1524)) ([b85f4ac](https://github.com/Quantinuum/guppylang/commit/b85f4ac08db46f86e40769e26d6ac0bdd4e1bc46))
+* Add enum type ([#1518](https://github.com/Quantinuum/guppylang/issues/1518)) ([57c75db](https://github.com/Quantinuum/guppylang/commit/57c75db4c1e5cd3000e934a2f598ad825b9ac2e4))
+* Allow discarding arrays with taken elements ([#1534](https://github.com/Quantinuum/guppylang/issues/1534)) ([34293ed](https://github.com/Quantinuum/guppylang/commit/34293ed7dd23c2bb4655083297502662282fdfad))
+* Allow specifying link names for lowered functions and declarations ([#1494](https://github.com/Quantinuum/guppylang/issues/1494)) ([fe49819](https://github.com/Quantinuum/guppylang/commit/fe498199c0067c7586e6ac8002667a093fc2afb2))
+* Provide link name prefixes for enums ([#1576](https://github.com/Quantinuum/guppylang/issues/1576)) ([a3d047f](https://github.com/Quantinuum/guppylang/commit/a3d047f9667708e0df59058952657f792af049d5))
+
+
+### Bug Fixes
+
+* Cleanup all imports of pytket ([#1574](https://github.com/Quantinuum/guppylang/issues/1574)) ([3adcfd6](https://github.com/Quantinuum/guppylang/commit/3adcfd606657cbfd95a2916ed6d8df1557e2aa08))
+
+
+### Documentation
+
+* Change return value in enum decorator doc string ([#1568](https://github.com/Quantinuum/guppylang/issues/1568)) ([2201152](https://github.com/Quantinuum/guppylang/commit/220115282f48920646c52dd8b487dc8f6d898ef2))
+* Fix docstring typo for measure leaked operation ([#1538](https://github.com/Quantinuum/guppylang/issues/1538)) ([d752510](https://github.com/Quantinuum/guppylang/commit/d7525106719af13d050d412fd5477e9ed21e39a6))
+* fix typo in API docs for CH gate definition ([#1529](https://github.com/Quantinuum/guppylang/issues/1529)) ([ef01803](https://github.com/Quantinuum/guppylang/commit/ef01803ca223ad36b40b2bf0140d225d05484fb0))
+
 ## [0.21.9](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.8...guppylang-v0.21.9) (2026-02-18)
 
 

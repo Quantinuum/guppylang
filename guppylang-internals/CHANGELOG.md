@@ -3,6 +3,53 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.31.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.30.0...guppylang-internals-v0.31.0) (2026-03-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **guppylang-internals:** Substitute `Branch(Note)` class in `builder.py` with `MissingBranch(Note)` in `ExpectedError` class ([#1582](https://github.com/Quantinuum/guppylang/issues/1582))
+* Provide link name prefixes for enums ([#1576](https://github.com/Quantinuum/guppylang/issues/1576))
+* Add enum type ([#1518](https://github.com/Quantinuum/guppylang/issues/1518))
+* Allow specifying link names for lowered functions and declarations ([#1494](https://github.com/Quantinuum/guppylang/issues/1494))
+* Nested modifiers completely override each other ([#1551](https://github.com/Quantinuum/guppylang/issues/1551))
+* Allow validation of wasm for h2 platform ([#1532](https://github.com/Quantinuum/guppylang/issues/1532))
+* Update `hugr-py` dependency incl. switching to core metadata  ([#1525](https://github.com/Quantinuum/guppylang/issues/1525))
+* Remove upstreamed qualified name function for type defs ([#1522](https://github.com/Quantinuum/guppylang/issues/1522))
+
+### Features
+
+* Add `lazy_measure` to `std.qsystem` ([#1562](https://github.com/Quantinuum/guppylang/issues/1562)) ([ebbd4f4](https://github.com/Quantinuum/guppylang/commit/ebbd4f4eb47d0154dac0a1efe974515166a08572))
+* Add enum type ([#1518](https://github.com/Quantinuum/guppylang/issues/1518)) ([57c75db](https://github.com/Quantinuum/guppylang/commit/57c75db4c1e5cd3000e934a2f598ad825b9ac2e4))
+* Allow specifying link names for lowered functions and declarations ([#1494](https://github.com/Quantinuum/guppylang/issues/1494)) ([fe49819](https://github.com/Quantinuum/guppylang/commit/fe498199c0067c7586e6ac8002667a093fc2afb2))
+* Allow validation of wasm for h2 platform ([#1532](https://github.com/Quantinuum/guppylang/issues/1532)) ([d4db24f](https://github.com/Quantinuum/guppylang/commit/d4db24f8a55d464541787d74ee15e54c79ab23dd))
+* Automatically package user-defined extensions used in the guppy program ([#1585](https://github.com/Quantinuum/guppylang/issues/1585)) ([8c10367](https://github.com/Quantinuum/guppylang/commit/8c103671e1423c54b9df15c2183fa4ad675f899c))
+* Improve error message for passing non-comptime values into comptime ([#1527](https://github.com/Quantinuum/guppylang/issues/1527)) ([f9be3bb](https://github.com/Quantinuum/guppylang/commit/f9be3bb9300e2765a3187bff49998f2d87d538c0))
+* Provide a more precise error message when missed return statement is inside branch ([#1486](https://github.com/Quantinuum/guppylang/issues/1486)) ([436d032](https://github.com/Quantinuum/guppylang/commit/436d0324aded68f735d0a90608c4222120d72aff))
+* Provide link name prefixes for enums ([#1576](https://github.com/Quantinuum/guppylang/issues/1576)) ([a3d047f](https://github.com/Quantinuum/guppylang/commit/a3d047f9667708e0df59058952657f792af049d5))
+
+
+### Bug Fixes
+
+* Cleanup all imports of pytket ([#1574](https://github.com/Quantinuum/guppylang/issues/1574)) ([3adcfd6](https://github.com/Quantinuum/guppylang/commit/3adcfd606657cbfd95a2916ed6d8df1557e2aa08))
+* Improve error message for type definitions without a constructor ([#1579](https://github.com/Quantinuum/guppylang/issues/1579)) ([08e3397](https://github.com/Quantinuum/guppylang/commit/08e33976a6494400742ecbd1078936a0cb64de66))
+* Nested modifiers completely override each other ([#1551](https://github.com/Quantinuum/guppylang/issues/1551)) ([55d2094](https://github.com/Quantinuum/guppylang/commit/55d209457d3fa2b04f10f9e31e043ea6cb8e4f8e))
+* preserve sub diagnostic levels instead of always printing `Note` ([#1584](https://github.com/Quantinuum/guppylang/issues/1584)) ([824e924](https://github.com/Quantinuum/guppylang/commit/824e924a671b4a6c4e5d650ba746dd762c895c9a))
+* Raise UnsupportedError for else clauses of loops ([#1514](https://github.com/Quantinuum/guppylang/issues/1514)) ([4a07f74](https://github.com/Quantinuum/guppylang/commit/4a07f74080a611efa25e6496b641e9423911cc3e))
+* Remove outdated barrier when automatically inserting drops ([#1558](https://github.com/Quantinuum/guppylang/issues/1558)) ([02b87cc](https://github.com/Quantinuum/guppylang/commit/02b87cc9f37795b221183e5d92039650cb166491))
+* Resolve very deep recursion inside replaced Jupyter traceback renderer ([#1544](https://github.com/Quantinuum/guppylang/issues/1544)) ([981d64a](https://github.com/Quantinuum/guppylang/commit/981d64a1af5d71e300ca523bb33c845fdea89007))
+
+
+### Miscellaneous Chores
+
+* Update `hugr-py` dependency incl. switching to core metadata  ([#1525](https://github.com/Quantinuum/guppylang/issues/1525)) ([51a0297](https://github.com/Quantinuum/guppylang/commit/51a0297b3f9c671705e806fb5efec2daac2444f2))
+
+
+### Code Refactoring
+
+* **guppylang-internals:** Substitute `Branch(Note)` class in `builder.py` with `MissingBranch(Note)` in `ExpectedError` class ([#1582](https://github.com/Quantinuum/guppylang/issues/1582)) ([6ad43e8](https://github.com/Quantinuum/guppylang/commit/6ad43e80f14b3045c22e95645317c6a3bc7cbe52))
+* Remove upstreamed qualified name function for type defs ([#1522](https://github.com/Quantinuum/guppylang/issues/1522)) ([a770b89](https://github.com/Quantinuum/guppylang/commit/a770b8977b84584f15caac758f3e29d87cda47cc))
+
 ## [0.30.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.29.0...guppylang-internals-v0.30.0) (2026-02-18)
 
 
