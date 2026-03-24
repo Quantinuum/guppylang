@@ -1,7 +1,10 @@
-# A check that ensures that `guppylang` works correctly with the latest release of `guppylang-internals`.
+# A check that ensures that `guppylang` and `guppylang-internals` work correctly with the lowest and highest allowed
+# versions of their dependencies. Additionally, `guppylang` is tested to work with the latest released version of
+# `guppylang-internals`.
 #
-# If this fails, it is likely that we either didn't update the dependency version in guppylang's pyproject,
-# or the latest `guppylang-internals` package hasn't been published to pypi.
+# If either checks fail, it is likely that the packages are not compatible with the respective versions of their
+# dependencies and the version ranges have to be adjusted. Additionally, this might fail if `guppylang` requires an
+# unreleased or unpublished version of `guppylang-internals`.
 
 name: 🚚 Release checks
 
