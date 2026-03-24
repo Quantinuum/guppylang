@@ -233,11 +233,10 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         module: DefinitionBuilder[OpVar],
         ctx: "CompilerContext",
     ) -> "CompiledFunctionDef":
-        """Adds a Hugr `FuncDefn` node for the (partially) monomorphized function to the
-        Hugr.
+        """Adds a Hugr `FuncDefn` node for the monomorphized function to the Hugr.
 
         Note that we don't compile the function body at this point since we don't have
-        access to the other compiled functions yet. The body is compiled later in
+        nodes for the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
         hugr_ty = self.ty.to_hugr_poly(ctx)
