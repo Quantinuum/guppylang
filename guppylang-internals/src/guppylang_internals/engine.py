@@ -208,16 +208,16 @@ class CompilationEngine:
     """
 
     parsed: dict[DefId, ParsedDef]
-    checked: dict["MonoDefId", CheckedDef]
-    compiled: dict["MonoDefId", CompiledDef]
+    checked: dict[MonoDefId, CheckedDef]
+    compiled: dict[MonoDefId, CompiledDef]
     additional_extensions: list[Extension]
 
     types_to_check_worklist: dict[DefId, ParsedDef]
     #: Generic functions
     generic_to_check_worklist: dict[DefId, CheckableGenericDef]
-    to_check_worklist: dict["MonoDefId", ParsedDef]
+    to_check_worklist: dict[MonoDefId, ParsedDef]
 
-    to_compile_worklist: dict["MonoDefId", CheckedDef]
+    to_compile_worklist: dict[MonoDefId, CheckedDef]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_packaged_extensions: list[Extension] | None = None
