@@ -58,7 +58,7 @@ def unary_operation(f: UnaryDunderMethod) -> UnaryDunderMethod:
     """
 
     @functools.wraps(f)
-    @capture_guppy_errors
+    @capture_guppy_errors()
     def wrapped(self: "DunderMixin") -> Any:
         from guppylang_internals.tracing.state import get_tracing_state
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
@@ -85,7 +85,7 @@ def binary_operation(f: BinaryDunderMethod) -> BinaryDunderMethod:
     """
 
     @functools.wraps(f)
-    @capture_guppy_errors
+    @capture_guppy_errors()
     def wrapped(self: "DunderMixin", other: Any) -> Any:
         from guppylang_internals.tracing.state import get_tracing_state
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
@@ -367,7 +367,7 @@ class GuppyObject(DunderMixin):
         raise GuppyComptimeError(err)
 
     @hide_trace
-    @capture_guppy_errors
+    @capture_guppy_errors()
     def __call__(self, *args: Any) -> Any:
         if not isinstance(self._ty, FunctionType):
             err = f"Value of type `{self._ty}` is not callable"

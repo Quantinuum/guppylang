@@ -142,7 +142,6 @@ def trace_function(
     builder.set_outputs(*regular_returns, *inout_returns)
 
 
-@capture_guppy_errors
 def trace_call(func: CallableDef, *args: Any) -> Any:
     """Handles calls to Guppy functions during tracing.
 
@@ -151,28 +150,31 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     """
     state = get_tracing_state()
 
-    # Try to turn args into `GuppyObjects`
-    args_objs = [
-        guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
-        for arg in args
-    ]
+    with capture_guppy_errors():
+        # Try to turn args into `GuppyObjects`
+        args_objs = [
+            guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
+            for arg in args
+        ]
 
-    # Create dummy variables and bind the objects to them
-    arg_vars: list[Variable] = [
-        ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
-        for (obj, arg) in zip(args_objs, args, strict=True)
-    ]
-    locals = Locals({var.name: var for var in arg_vars})
-    for obj, var in zip(args_objs, arg_vars, strict=True):
-        state.dfg[var] = obj._use_wire(func)
+        # Create dummy variables and bind the objects to them
+        arg_vars: list[Variable] = [
+            ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
+            for (obj, arg) in zip(args_objs, args, strict=True)
+        ]
+        locals = Locals({var.name: var for var in arg_vars})
+        for obj, var in zip(args_objs, arg_vars, strict=True):
+            state.dfg[var] = obj._use_wire(func)
 
-    # Check call
-    arg_exprs: list[ast.expr] = [
-        with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
-    ]
-    call_node, ret_ty = func.synthesize_call(
-        arg_exprs, state.node, Context(Globals(DEF_STORE.frames[func.id]), locals, {})
-    )
+        # Check call
+        arg_exprs: list[ast.expr] = [
+            with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
+        ]
+        call_node, ret_ty = func.synthesize_call(
+            arg_exprs,
+            state.node,
+            Context(Globals(DEF_STORE.frames[func.id]), locals, {}),
+        )
 
     # Compile call
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)
