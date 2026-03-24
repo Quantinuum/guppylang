@@ -4,7 +4,7 @@ from typing import Any
 
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.common import Transformer
+from guppylang_internals.tys.common import Transformer, Visitor
 from guppylang_internals.tys.const import (
     BoundConstVar,
     Const,
@@ -94,7 +94,7 @@ class Instantiator(Transformer):
         return None
 
 
-class BoundVarFinder(Transformer):
+class BoundVarFinder(Visitor):
     """Type transformer that extracts bound variables."""
 
     bound_vars: list[BoundVar]
@@ -102,7 +102,7 @@ class BoundVarFinder(Transformer):
     def __init__(self) -> None:
         self.bound_vars = []
 
-    def transform(self, arg: Any, /) -> Any | None:
+    def visit(self, arg: Any, /) -> bool:
         if isinstance(arg, BoundVar):
             self.bound_vars.append(arg)
-        return None
+        return False  # Return False to continue recursive descent

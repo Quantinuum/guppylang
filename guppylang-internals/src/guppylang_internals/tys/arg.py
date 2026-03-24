@@ -124,7 +124,8 @@ class ConstArg(ArgumentBase):
 
     def visit(self, visitor: Visitor) -> None:
         """Accepts a visitor on this argument."""
-        visitor.visit(self)
+        if not visitor.visit(self):
+            visitor.visit(self.const)
 
     def transform(self, transformer: Transformer) -> Argument:
         """Accepts a transformer on this argument."""

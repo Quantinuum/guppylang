@@ -375,7 +375,7 @@ class CompilationEngine:
         """
         finder = BoundVarFinder()
         for arg in type_args:
-            arg.transform(finder)
+            arg.visit(finder)
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
 
