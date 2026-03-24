@@ -509,7 +509,7 @@ def check_iter_unpack_has_static_size(expr: ast.expr, ctx: Context) -> int:
     match get_iter_size(iter_ty):
         case ConstValue(value=int(size)):
             return size
+        case BoundConstVar():
+            raise RequiresMonomorphizationError
         case _:
-            raise InternalGuppyError(
-                "Iterator size should be monomorphized at this point"
-            )
+            raise InternalGuppyError("Unexpected const value")

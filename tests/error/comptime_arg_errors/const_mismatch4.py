@@ -14,7 +14,7 @@ def bar(n: nat @ comptime) -> None:
 
 @guppy
 def main() -> None:
-    bar(42)  # This succeeds
-    bar(43)  # This fails
+    # This fails the parametric check, even though the monomorphisation would be ok:
+    bar(42)
 
 main.compile_function()

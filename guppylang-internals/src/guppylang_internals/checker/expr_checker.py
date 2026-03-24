@@ -98,7 +98,6 @@ from guppylang_internals.error import (
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
-    RequiresMonomorphizationError,
     saved_exception_hook,
 )
 from guppylang_internals.experimental import (
@@ -110,6 +109,7 @@ from guppylang_internals.nodes import (
     DesugaredGenerator,
     DesugaredGeneratorExpr,
     DesugaredListComp,
+    DummyGenericParamValue,
     FieldAccessAndDrop,
     GlobalName,
     IterNext,
@@ -429,8 +429,13 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     case ConstValue(value=v, ty=ty):
                         ast_node = with_loc(node, ast.Constant(value=v))
                         return ast_node, ty
-                    case BoundConstVar():
-                        raise RequiresMonomorphizationError
+                    case BoundConstVar(ty=ty) as var:
+                        # This means we're currently doing a parametric check of a
+                        # generic function where the const variables are kept as opaque
+                        # values. In that case, we just return a dummy node, knowing
+                        # that it won't be emitted when checking the actual monomorphic
+                        # instantiations later.
+                        return with_loc(node, DummyGenericParamValue(name, var)), ty
                     case ExistentialConstVar():
                         raise InternalGuppyError("Unexpected existential variable")
             case TypeArg():
@@ -1141,6 +1146,8 @@ def check_comptime_arg(
             const = ConstValue(ty, v)
         case PlaceNode(place=ComptimeVariable(ty=ty, static_value=v)):
             const = ConstValue(ty, v)
+        case DummyGenericParamValue(var=var):
+            const = var
         case arg:
             # Anything else is considered unknown at comptime, but we can give some
             # nicer error hints by inspecting in more detail

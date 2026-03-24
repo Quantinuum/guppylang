@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.const import Const
+from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FunctionType,
@@ -52,6 +52,33 @@ class GlobalName(ast.Name):
         super().__init__(id=id)
         self.id = id
         self.def_id = def_id
+
+    # See MakeIter for explanation
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
+class DummyGenericParamValue(ast.Name):
+    """Dummy node that is inserted for uses of generic const parameters as values.
+
+    Note that this node is only used during the first parametric check of generic
+    functions where all const type parameters are treated as opaque values. When
+    checking the concrete monomorphic instantiations that are used in the final program,
+    these dummy nodes will never be emitted.
+    """
+
+    id: str
+    var: BoundConstVar
+
+    _fields = (
+        "id",
+        "var",
+    )
+
+    def __init__(self, id: str, var: BoundConstVar) -> None:
+        super().__init__(id=id)
+        self.id = id
+        self.var = var
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__

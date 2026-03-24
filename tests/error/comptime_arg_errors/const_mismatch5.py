@@ -16,9 +16,9 @@ def bar(x: T @ comptime, y: T @ comptime) -> None:
 
 @guppy
 def main() -> None:
-    bar(42, 42)      # This succeeds
-    bar(True, True)  # This succeeds
-    bar(42, 43)      # This fails
+    # This fails the parametric check, even though the monomorphisations would be ok:
+    bar(42, 42)
+    bar(True, True)
 
 
 main.compile()

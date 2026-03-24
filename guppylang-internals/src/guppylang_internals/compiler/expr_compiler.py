@@ -44,6 +44,7 @@ from guppylang_internals.nodes import (
     DesugaredArrayComp,
     DesugaredGenerator,
     DesugaredListComp,
+    DummyGenericParamValue,
     FieldAccessAndDrop,
     GlobalCall,
     GlobalName,
@@ -270,6 +271,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         defn = self.ctx.build_compiled_def(node.def_id, type_args=())
         assert isinstance(defn, CompiledValueDef)
         return defn.load(self.dfg, self.ctx, node)
+
+    def visit_DummyGenericParamValue(self, node: DummyGenericParamValue) -> Wire:
+        raise InternalGuppyError(
+            "Node should not be emitted when compiling monomorphized functions"
+        )
 
     def visit_Name(self, node: ast.Name) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")
