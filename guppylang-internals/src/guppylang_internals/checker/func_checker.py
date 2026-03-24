@@ -321,7 +321,7 @@ def check_signature(
     self_defn: TypeDef | None = None
     if def_id is not None and def_id in DEF_STORE.impl_parents:
         self_defn = cast(
-            "TypeDef", ENGINE.get_checked(DEF_STORE.impl_parents[def_id], None)
+            "TypeDef", ENGINE.get_checked(DEF_STORE.impl_parents[def_id], mono_args=())
         )
         assert isinstance(self_defn, TypeDef)
 

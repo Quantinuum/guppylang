@@ -186,7 +186,7 @@ class DefinitionStore:
             case _:
                 return assert_never(ty)
 
-        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, None))
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
         if type_defn.id in self.impls and name in self.impls[type_defn.id]:
             def_id = self.impls[type_defn.id][name]
             defn = ENGINE.get_parsed(def_id)
@@ -308,7 +308,7 @@ class CompilationEngine:
         return defn
 
     @pretty_errors
-    def get_checked(self, id: DefId, mono_args: Inst | None) -> CheckedDef:
+    def get_checked(self, id: DefId, mono_args: Inst) -> CheckedDef:
         """Look up the checked version of a definition by its id.
 
         Parses and checks the definition if it hasn't been parsed/checked yet. Also
@@ -316,7 +316,6 @@ class CompilationEngine:
         """
         from guppylang_internals.checker.core import Globals
 
-        mono_args = mono_args or ()
         if (id, mono_args) in self.checked:
             return self.checked[id, mono_args]
         defn = self.get_parsed(id)

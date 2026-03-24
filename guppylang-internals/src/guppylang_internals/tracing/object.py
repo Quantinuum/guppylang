@@ -510,8 +510,8 @@ class TracingDefMixin(DunderMixin):
         if isinstance(defn, CallableDef):
             return trace_call(defn, *args)
         elif not isinstance(defn, CheckableGenericDef):
-            # Definition is non-generic, so we can use `mono_args=None` here
-            defn = ENGINE.get_checked(self.wrapped.id, mono_args=None)
+            # Definition is non-generic, so we can use `mono_args=()` here
+            defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
             if isinstance(defn, TypeDef) and (
                 constructor_id := DEF_STORE.impls[defn.id].get("__new__")
             ):
