@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.core import Globals
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.error import InternalGuppyError
 
@@ -32,9 +31,9 @@ class TracingState:
         default_factory=dict
     )
 
-    @property
-    def globals(self) -> Globals:
-        return self.ctx.checked_globals
+    # @property
+    # def globals(self) -> Globals:
+    #     return self.ctx.checked_globals
 
 
 _STATE: ContextVar[TracingState | None] = ContextVar("_STATE", default=None)

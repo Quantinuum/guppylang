@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from types import FrameType
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import hugr
 import hugr.build.function as hf
@@ -13,6 +13,7 @@ from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
+from typing_extensions import assert_never
 
 import guppylang_internals
 from guppylang_internals.definition.common import (
@@ -27,6 +28,7 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
+    CallableDef,
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
@@ -55,7 +57,18 @@ from guppylang_internals.tys.builtin import (
 )
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import BoundVarFinder, Inst
-from guppylang_internals.tys.ty import FunctionType
+from guppylang_internals.tys.ty import (
+    BoundTypeVar,
+    EnumType,
+    ExistentialTypeVar,
+    FunctionType,
+    NoneType,
+    NumericType,
+    OpaqueType,
+    StructType,
+    TupleType,
+    Type,
+)
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     callable_type_def,
@@ -136,6 +149,50 @@ class DefinitionStore:
 
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
+
+    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
+        """Looks up an instance function with a given name for a type.
+
+        Returns `None` if the name doesn't exist or isn't a function.
+        """
+        type_defn: TypeDef
+        match ty:
+            case TypeDef() as type_defn:
+                pass
+            case BoundTypeVar() | ExistentialTypeVar():
+                return None
+            case NumericType(kind):
+                match kind:
+                    case NumericType.Kind.Nat:
+                        type_defn = nat_type_def
+                    case NumericType.Kind.Int:
+                        type_defn = int_type_def
+                    case NumericType.Kind.Float:
+                        type_defn = float_type_def
+                    case kind:
+                        return assert_never(kind)
+            case FunctionType():
+                type_defn = callable_type_def
+            case OpaqueType() as ty:
+                type_defn = ty.defn
+            case StructType() as ty:
+                type_defn = ty.defn
+            case TupleType():
+                type_defn = tuple_type_def
+            case NoneType():
+                type_defn = none_type_def
+            case EnumType():
+                type_defn = ty.defn
+            case _:
+                return assert_never(ty)
+
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, None))
+        if type_defn.id in self.impls and name in self.impls[type_defn.id]:
+            def_id = self.impls[type_defn.id][name]
+            defn = ENGINE.get_parsed(def_id)
+            if isinstance(defn, CallableDef):
+                return defn
+        return None
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()

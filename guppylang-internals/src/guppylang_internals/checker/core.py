@@ -12,7 +12,6 @@ from typing import (
     NamedTuple,
     TypeAlias,
     TypeVar,
-    cast,
     overload,
 )
 
@@ -30,25 +29,9 @@ from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.builtin import (
-    callable_type_def,
-    float_type_def,
-    int_type_def,
-    nat_type_def,
-    none_type_def,
-    tuple_type_def,
-)
 from guppylang_internals.tys.ty import (
-    BoundTypeVar,
-    EnumType,
-    ExistentialTypeVar,
-    FunctionType,
     InputFlags,
-    NoneType,
-    NumericType,
-    OpaqueType,
     StructType,
-    TupleType,
     Type,
 )
 
@@ -327,18 +310,13 @@ class Globals:
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
-    frame: FrameType | None
+    frame: FrameType
 
-    def __init__(self, frame: FrameType | None) -> None:
+    def __init__(self, frame: FrameType) -> None:
         self.frame = frame
-        if frame is not None:
-            self.f_locals = frame.f_locals
-            self.f_globals = frame.f_globals
-            self.f_builtins = frame.f_builtins
-        else:
-            self.f_locals = {}
-            self.f_globals = {}
-            self.f_builtins = {}
+        self.f_locals = frame.f_locals
+        self.f_globals = frame.f_globals
+        self.f_builtins = frame.f_builtins
 
     @staticmethod
     @cache
@@ -357,44 +335,7 @@ class Globals:
 
         Returns `None` if the name doesn't exist or isn't a function.
         """
-        type_defn: TypeDef
-        match ty:
-            case TypeDef() as type_defn:
-                pass
-            case BoundTypeVar() | ExistentialTypeVar():
-                return None
-            case NumericType(kind):
-                match kind:
-                    case NumericType.Kind.Nat:
-                        type_defn = nat_type_def
-                    case NumericType.Kind.Int:
-                        type_defn = int_type_def
-                    case NumericType.Kind.Float:
-                        type_defn = float_type_def
-                    case kind:
-                        return assert_never(kind)
-            case FunctionType():
-                type_defn = callable_type_def
-            case OpaqueType() as ty:
-                type_defn = ty.defn
-            case StructType() as ty:
-                type_defn = ty.defn
-            case TupleType():
-                type_defn = tuple_type_def
-            case NoneType():
-                type_defn = none_type_def
-            case EnumType():
-                type_defn = ty.defn
-            case _:
-                return assert_never(ty)
-
-        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, None))
-        if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
-            def_id = DEF_STORE.impls[type_defn.id][name]
-            defn = ENGINE.get_parsed(def_id)
-            if isinstance(defn, CallableDef):
-                return defn
-        return None
+        return DEF_STORE.get_instance_func(ty, name)
 
     def __contains__(self, item: DefId | str) -> bool:
         match item:

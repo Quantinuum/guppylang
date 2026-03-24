@@ -19,7 +19,6 @@ from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSIO
 
 from guppylang_internals.checker.core import (
     FieldAccess,
-    Globals,
     Place,
     PlaceId,
     TupleAccess,
@@ -90,8 +89,6 @@ class CompilerContext(ToHugrContext):
 
     global_funcs: dict[MonoGlobalConstId, hf.Function]
 
-    checked_globals: Globals
-
     def __init__(
         self,
         module: DefinitionBuilder[ops.Module],
@@ -100,7 +97,6 @@ class CompilerContext(ToHugrContext):
         self.worklist = {}
         self.compiled = {}
         self.global_funcs = {}
-        self.checked_globals = Globals(None)
 
     def build_compiled_def(self, def_id: DefId, type_args: Inst | None) -> CompiledDef:
         """Returns the compiled definitions corresponding to the given ID, along with
@@ -153,7 +149,7 @@ class CompilerContext(ToHugrContext):
         """
         from guppylang_internals.engine import ENGINE
 
-        parsed_func = self.checked_globals.get_instance_func(ty, name)
+        parsed_func = DEF_STORE.get_instance_func(ty, name)
         if parsed_func is None:
             return None
         checked_func = ENGINE.get_checked(parsed_func.id, type_args)

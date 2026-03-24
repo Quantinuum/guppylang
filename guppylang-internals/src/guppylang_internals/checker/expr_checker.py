@@ -46,7 +46,6 @@ from guppylang_internals.checker.core import (
     Context,
     DummyEvalDict,
     FieldAccess,
-    Globals,
     Locals,
     Place,
     PythonObject,
@@ -269,7 +268,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars)
 
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
-        act = python_value_to_guppy_type(node.value, node, self.ctx.globals, ty)
+        act = python_value_to_guppy_type(node.value, node, ty)
         if act is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
@@ -364,9 +363,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if act := python_value_to_guppy_type(
-            python_val, node.value, self.ctx.globals, ty
-        ):
+        if act := python_value_to_guppy_type(python_val, node.value, ty):
             subst = unify(ty, act, {})
             if subst is None:
                 self._fail(ty, act, node)
@@ -415,7 +412,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return ExprChecker(self.ctx).check(expr, ty, kind)
 
     def visit_Constant(self, node: ast.Constant) -> tuple[ast.expr, Type]:
-        ty = python_value_to_guppy_type(node.value, node, self.ctx.globals)
+        ty = python_value_to_guppy_type(node.value, node)
         if ty is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
         return node, ty
@@ -875,7 +872,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_ComptimeExpr(self, node: ComptimeExpr) -> tuple[ast.expr, Type]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if ty := python_value_to_guppy_type(python_val, node, self.ctx.globals):
+        if ty := python_value_to_guppy_type(python_val, node):
             return with_loc(node, ast.Constant(value=python_val)), ty
 
         raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
@@ -1435,7 +1432,7 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
 
 
 def python_value_to_guppy_type(
-    v: Any, node: ast.AST, globals: Globals, type_hint: Type | None = None
+    v: Any, node: ast.AST, type_hint: Type | None = None
 ) -> Type | None:
     """Turns a primitive Python value into a Guppy type.
 
@@ -1468,7 +1465,7 @@ def python_value_to_guppy_type(
             )
             tys: list[Type] = []
             for elt, hint in zip(elts, hints, strict=False):
-                ty = python_value_to_guppy_type(elt, node, globals, hint)
+                ty = python_value_to_guppy_type(elt, node, hint)
                 if ty is None:
                     err = IllegalComptimeExpressionError(node, type(elt))
                     err.add_sub_diagnostic(
@@ -1478,7 +1475,7 @@ def python_value_to_guppy_type(
                 tys.append(ty)
             return TupleType(tys)
         case list():
-            return _python_list_to_guppy_type(v, node, globals, type_hint)
+            return _python_list_to_guppy_type(v, node, type_hint)
         case None:
             return NoneType()
         case _:
@@ -1499,7 +1496,7 @@ def _int_bounds_check(value: int, node: AstNode, signed: bool) -> None:
 
 
 def _python_list_to_guppy_type(
-    vs: list[Any], node: ast.AST, globals: Globals, type_hint: Type | None
+    vs: list[Any], node: ast.AST, type_hint: Type | None
 ) -> OpaqueType | None:
     """Turns a Python list into a Guppy type.
 
@@ -1516,13 +1513,13 @@ def _python_list_to_guppy_type(
         if type_hint and is_frozenarray_type(type_hint)
         else None
     )
-    el_ty = python_value_to_guppy_type(v, node, globals, elt_hint)
+    el_ty = python_value_to_guppy_type(v, node, elt_hint)
     if el_ty is None:
         err = IllegalComptimeExpressionError(node, type(v))
         err.add_sub_diagnostic(IllegalComptimeExpressionError.InContainer(None, list))
         raise GuppyError(err)
     for v in rest:
-        ty = python_value_to_guppy_type(v, node, globals, elt_hint)
+        ty = python_value_to_guppy_type(v, node, elt_hint)
         if ty is None:
             err = IllegalComptimeExpressionError(node, type(v))
             err.add_sub_diagnostic(
