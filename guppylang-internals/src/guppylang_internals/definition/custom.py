@@ -201,6 +201,9 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
         call_checker: The custom call checker.
         call_compiler: The custom call compiler.
         higher_order_value: Whether the function may be used as a higher-order value.
+        higher_order_func_id: If the function is used as a higher-order value, we need
+            to build Hugr function to load as the value. This is the global const
+            identifier we use to keep track of this function.
         has_signature: Whether the function has a declared signature.
 
     """
@@ -272,6 +275,9 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
         call_checker: The custom call checker.
         call_compiler: The custom call compiler.
         higher_order_value: Whether the function may be used as a higher-order value.
+        higher_order_func_id: If the function is used as a higher-order value, we need
+            to build Hugr function to load as the value. This is the global const
+            identifier we use to keep track of this function.
         has_signature: Whether the function has a declared signature.
         type_args: Instantation of the generic paramaters of this function.
     """
