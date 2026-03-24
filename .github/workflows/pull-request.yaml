@@ -55,10 +55,10 @@ jobs:
           uv run ruff check
 
       - name: Run tests and export hugr test cases
-        run: uv run pytest -n auto --export-test-cases=guppy-exports --ignore tests/integration/test_exported_hugrs.py
+        run: uv run pytest -n auto --export-test-cases=guppy-exports
 
       - name: Validate exported hugr test cases
-        run: uv run pytest tests/integration/test_exported_hugrs.py -n auto
+        run: uv run pytest -n auto -m test_exported_hugrs
 
   test-coverage:
     name: Check Python (3.14) with coverage
