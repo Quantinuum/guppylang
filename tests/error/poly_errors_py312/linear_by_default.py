@@ -10,8 +10,9 @@ def foo[T](x: T @ owned) -> tuple[T, T]:
 
 
 @guppy
-def main() -> tuple[qubit, qubit]:
-    return foo(qubit())
+def main() -> tuple[int, int]:
+    # This fails the parametric check, even though the monomorphisation would be ok:
+    return foo(0)
 
 
 main.compile()
