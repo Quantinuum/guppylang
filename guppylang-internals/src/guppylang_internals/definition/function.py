@@ -37,6 +37,7 @@ from guppylang_internals.definition.common import (
     UnknownSourceError,
     UserProvidedLinkName,
 )
+from guppylang_internals.definition.enum import ParsedEnumDef
 from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
 from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
@@ -64,7 +65,7 @@ PyFunc = Callable[..., Any]
 def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
     if (parent_ty_id := DEF_STORE.impl_parents.get(raw_def.id)) is not None:
         parent = ENGINE.get_parsed(parent_ty_id)
-        if isinstance(parent, ParsedStructDef):
+        if isinstance(parent, (ParsedStructDef, ParsedEnumDef)):
             return f"{parent.link_name_prefix}.{raw_def.python_func.__name__}"
 
     return f"{raw_def.python_func.__module__}.{raw_def.python_func.__qualname__}"

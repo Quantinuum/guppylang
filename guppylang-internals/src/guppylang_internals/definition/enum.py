@@ -18,6 +18,7 @@ from guppylang_internals.definition.common import (
     CompiledDef,
     DefId,
     ParsableDef,
+    UserProvidedLinkName,
 )
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -79,7 +80,7 @@ class EnumVariant(Generic[F]):
 
 
 @dataclass(frozen=True)
-class RawEnumDef(TypeDef, ParsableDef):
+class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw enum type definition before parsing."""
 
     python_class: type
@@ -187,7 +188,14 @@ class RawEnumDef(TypeDef, ParsableDef):
                     NonGuppyMethodError(func_def, self.name, func_name, "enum")
                 )
 
-        return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
+        link_name_prefix = (
+            self._user_set_link_name
+            or f"{self.python_class.__module__}.{self.python_class.__qualname__}"
+        )
+
+        return ParsedEnumDef(
+            self.id, self.name, cls_def, params, variants, link_name_prefix
+        )
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -202,6 +210,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     variants: Mapping[str, EnumVariant[UncheckedField]]
+    link_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedEnumDef":
         """Checks that all enum fields have valid types."""
