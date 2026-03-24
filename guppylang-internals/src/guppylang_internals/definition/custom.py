@@ -298,8 +298,8 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
         if not self.higher_order_value:
             raise GuppyError(NotHigherOrderError(node, self.name))
 
-        # We create a monomorphic `FunctionDef` that takes some inputs, compiles a call
-        # to the function, and returns the results
+        # We create a monomorphic `FunctionDef` that takes some inputs, contains the
+        # results of compiling a call to the function, and returns those results
         func, already_defined = ctx.declare_global_func(
             self.higher_order_func_id,
             self.ty.to_hugr_poly(ctx),
