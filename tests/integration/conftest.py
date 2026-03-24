@@ -31,7 +31,7 @@ def export_test_cases_dir(request):
     r = request.config.getoption("--export-test-cases")
     if r and not r.exists():
         r.mkdir(parents=True)
-    return r
+    return Path(r).absolute()
 
 
 @pytest.fixture
