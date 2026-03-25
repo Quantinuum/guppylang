@@ -1,6 +1,7 @@
 from guppylang.decorator import guppy
 from guppylang.std.quantum import qubit, owned
 from tests.util import compile_guppy
+from guppylang.std.builtins import dagger, power
 
 
 @guppy.declare(dagger=True)
