@@ -1,4 +1,5 @@
 from guppylang.decorator import guppy
+from guppylang.std.builtins import control, power
 from guppylang.std.quantum import qubit
 
 

@@ -10,6 +10,7 @@ from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
+from typing_extensions import deprecated
 
 import guppylang_internals
 from guppylang_internals.definition.common import (
@@ -142,7 +143,6 @@ class CompilationEngine:
     to_check_worklist: dict[DefId, ParsedDef]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
-    _base_packaged_extensions: list[Extension] | None = None
     _base_resolve_registry: ExtensionRegistry | None = None
 
     def __init__(self) -> None:
@@ -151,37 +151,22 @@ class CompilationEngine:
         self.additional_extensions = []
 
     @staticmethod
-    def _get_base_packaged_extensions() -> list[Extension]:
-        """Get the base list of packaged extensions (cached at class level)."""
-        if CompilationEngine._base_packaged_extensions is None:
-            from guppylang_internals.std._internal.compiler.tket_exts import (
-                TKET_EXTENSIONS,
-            )
-
-            CompilationEngine._base_packaged_extensions = [
-                *TKET_EXTENSIONS,
-                guppylang_internals.compiler.hugr_extension.EXTENSION,  # type: ignore[attr-defined]
-            ]
-        return CompilationEngine._base_packaged_extensions
-
-    @staticmethod
     def _get_base_resolve_registry() -> ExtensionRegistry:
         """Get the base resolve registry with standard extensions.
 
         Cached at class level.
         """
         if CompilationEngine._base_resolve_registry is None:
-            base_extensions = CompilationEngine._get_base_packaged_extensions()
+            from guppylang_internals.compiler import hugr_extension
+            from guppylang_internals.std._internal.compiler.tket_exts import (
+                TKET_EXTENSIONS,
+            )
+
             registry = ExtensionRegistry()
             for ext in [
-                *base_extensions,
-                hugr.std.prelude.PRELUDE_EXTENSION,
-                hugr.std.collections.array.EXTENSION,
-                hugr.std.float.FLOAT_OPS_EXTENSION,
-                hugr.std.float.FLOAT_TYPES_EXTENSION,
-                hugr.std.int.INT_OPS_EXTENSION,
-                hugr.std.int.INT_TYPES_EXTENSION,
-                hugr.std.logic.EXTENSION,
+                *hugr.std._std_extensions().extensions.values(),
+                *TKET_EXTENSIONS,
+                hugr_extension.EXTENSION,
             ]:
                 registry.register_updated(ext)
             CompilationEngine._base_resolve_registry = registry
@@ -196,6 +181,10 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
 
     @pretty_errors
+    @deprecated(
+        "Extensions are included automatically when used. "
+        "Manual registration is no longer necessary."
+    )
     def register_extension(self, extension: Extension) -> None:
         if extension not in self.additional_extensions:
             self.additional_extensions.append(extension)
@@ -298,10 +287,6 @@ class CompilationEngine:
             # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
             graph.hugr.entrypoint = compiled_def.hugr_node
 
-        # Use cached base extensions and registry, only add additional extensions
-        base_extensions = self._get_base_packaged_extensions()
-        packaged_extensions = [*base_extensions, *self.additional_extensions]
-
         # Build resolve registry: start with cached base, add any additional
         if self.additional_extensions:
             from copy import deepcopy
@@ -336,11 +321,13 @@ class CompilationEngine:
         graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
             name="guppylang", version=Version.parse(guppylang_internals.__version__)
         )
-        # only package used extensions
+        # Package all non-standard extensions used in the hugr.
+        # Standard hugr extensions are universally available and don't need bundling.
+        std_ext_names = hugr.std._std_extensions()
         packaged_extensions = [
             ext
-            for ext in packaged_extensions
-            if ext.name in used_extensions_result.ids()
+            for name, ext in used_extensions_result.used_extensions.extensions.items()
+            if name not in std_ext_names
         ]
         return ModulePointer(
             Package(modules=[graph.hugr], extensions=packaged_extensions), 0

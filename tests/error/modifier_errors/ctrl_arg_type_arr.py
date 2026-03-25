@@ -1,4 +1,6 @@
 from guppylang.decorator import guppy
+from guppylang.std.builtins import array
+from guppylang.std.builtins import control
 
 
 @guppy
