@@ -198,6 +198,8 @@ class BBLinearityChecker(ast.NodeVisitor):
     func_name: str
     func_inputs: dict[PlaceId, Variable]
     globals: Globals
+    # If None we are not checking a modifier block. Otherwise, we need to keep track of
+    # the first modifier node for better error messages.
     first_modifier_node: ast.expr | None
 
     def check(

@@ -73,6 +73,7 @@ def check_modified_block(
         {},
         "__modified__()",
         globals,
+        # We pass the first modifier node for better error messages in the cfg checker
         first_modifier_node=modified_block.first_modifier_node,
     )
     func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)

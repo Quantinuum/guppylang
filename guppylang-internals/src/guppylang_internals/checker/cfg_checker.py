@@ -83,6 +83,9 @@ def check_cfg(
     Annotates the basic blocks with input and output type signatures and removes
     unreachable blocks. Note that the inputs/outputs are annotated in the form of
     *places* rather than just variables.
+
+    `first_modifier_node`: if None, the cfg is not a modifier block.
+    Otherwise, it's the AST node of the first modifier, used in error reporting.
     """
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
