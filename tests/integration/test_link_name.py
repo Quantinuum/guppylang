@@ -64,7 +64,7 @@ def test_func_link_name_inferred(qualifier):
 
 
 def test_struct_member_link_name_annotated(qualifier):
-    """Asserts that inferred function `link_name`s are passed to the HUGR nodes."""
+    """Asserts that annotated function `link_name`s are passed to the HUGR nodes."""
 
     @guppy.struct
     class MySuperbStruct:
@@ -140,6 +140,89 @@ def test_struct_member_link_name_supported(qualifier):
     }
 
 
+def test_enum_member_link_name_annotated(qualifier):
+    """Asserts that annotated function `link_name`s are passed to the HUGR nodes."""
+
+    @guppy.enum
+    class MySuperbEnum:
+        Variant = {}  # noqa: RUF012
+
+        @guppy(link_name="totally_qualified_override_name")
+        def some_name_that_is_crazy(self) -> None:
+            pass
+
+        @guppy.declare(link_name="superbly_qualified_override_name")
+        def some_other_name_that_is_crazy(self) -> None: ...
+
+    @guppy
+    def main() -> None:
+        # Use so they get compiled and included in the package
+        a = MySuperbEnum.Variant()
+        a.some_name_that_is_crazy()
+        a.some_other_name_that_is_crazy()
+
+    assert _func_names_excluding_main(main.compile(), qualifier) == {
+        "totally_qualified_override_name",
+        "superbly_qualified_override_name",
+    }
+
+
+def test_enum_member_link_name_inferred(qualifier):
+    """Asserts that inferred function `link_name`s are passed to the HUGR nodes."""
+
+    @guppy.enum
+    class MySuperbEnum:
+        Variant = {}  # noqa: RUF012
+
+        @guppy
+        def some_name_that_is_crazy(self) -> None:
+            pass
+
+        @guppy.declare
+        def some_other_name_that_is_crazy(self) -> None: ...
+
+    @guppy
+    def main() -> None:
+        # Use so they get compiled and included in the package
+        a = MySuperbEnum.Variant()
+        a.some_name_that_is_crazy()
+        a.some_other_name_that_is_crazy()
+
+    assert _func_names_excluding_main(main.compile(), qualifier) == {
+        f"{qualifier}.<locals>.MySuperbEnum.some_name_that_is_crazy",
+        f"{qualifier}.<locals>.MySuperbEnum.some_other_name_that_is_crazy",
+    }
+
+
+def test_enum_member_link_name_supported(qualifier):
+    """Asserts that function `link_name`s of enum members that are derived through
+    providing a `link_name` to the enum are correctly inferred."""
+
+    @guppy.enum(link_name="my.superb.qualifier")
+    class MySuperbEnum:
+        Variant = {}  # noqa: RUF012
+
+        @guppy
+        def some_name_that_is_crazy(self) -> None:
+            pass
+
+        @guppy(link_name="the.override.still.works")
+        def some_other_name_that_is_crazy(self) -> None:
+            pass
+
+    @guppy
+    def main() -> None:
+        # Use so they get compiled and included in the package
+        a = MySuperbEnum.Variant()
+        a.some_name_that_is_crazy()
+        a.some_other_name_that_is_crazy()
+
+    assert _func_names_excluding_main(main.compile(), qualifier) == {
+        "my.superb.qualifier.some_name_that_is_crazy",
+        "the.override.still.works",
+    }
+
+
 @guppy
 def file_level_defn() -> None:
     pass
@@ -159,6 +242,18 @@ class FileLevelStruct:
     def crazy_name_decl(self) -> None: ...
 
 
+@guppy.enum
+class FileLevelEnum:
+    Variant = {}  # noqa: RUF012
+
+    @guppy
+    def superb_name_defn(self) -> None:
+        pass
+
+    @guppy.declare
+    def superb_name_decl(self) -> None: ...
+
+
 def test_file_level_members(qualifier):
     """Asserts that file level function and struct member names qualify correctly."""
 
@@ -168,6 +263,9 @@ def test_file_level_members(qualifier):
         a = FileLevelStruct()
         a.crazy_name_defn()
         a.crazy_name_decl()
+        b = FileLevelEnum.Variant()
+        b.superb_name_defn()
+        b.superb_name_decl()
         file_level_decl()
         file_level_defn()
 
@@ -176,4 +274,6 @@ def test_file_level_members(qualifier):
         "tests.integration.test_link_name.file_level_decl",
         "tests.integration.test_link_name.FileLevelStruct.crazy_name_defn",
         "tests.integration.test_link_name.FileLevelStruct.crazy_name_decl",
+        "tests.integration.test_link_name.FileLevelEnum.superb_name_defn",
+        "tests.integration.test_link_name.FileLevelEnum.superb_name_decl",
     }

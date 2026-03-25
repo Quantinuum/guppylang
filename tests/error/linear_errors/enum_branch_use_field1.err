@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:19:11)
+   | 
+17 |     if b:
+18 |         use(s)
+19 |     return s
+   |            ^ Variable `s` with non-copyable type `MyEnum` cannot be
+   |              returned ...
+
+Note:
+   | 
+17 |     if b:
+18 |         use(s)
+   |             - Variable `s` already consumed here
+
+Guppy compilation failed due to 1 previous error

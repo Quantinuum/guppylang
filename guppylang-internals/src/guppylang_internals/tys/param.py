@@ -154,9 +154,9 @@ class TypeParam(ParameterBase):
     def to_hugr(self, ctx: ToHugrContext) -> ht.TypeParam:
         """Computes the Hugr representation of the parameter."""
         return ht.TypeTypeParam(
-            bound=ht.TypeBound.Copyable
-            if self.must_be_copyable
-            else ht.TypeBound.Linear
+            bound=(
+                ht.TypeBound.Copyable if self.must_be_copyable else ht.TypeBound.Linear
+            )
         )
 
     def __str__(self) -> str:
@@ -253,6 +253,7 @@ def check_all_args(
     Raises a user error if number of arguments doesn't match or one of the argument is
     invalid.
     """
+
     exp, act = len(params), len(args)
     if exp != act:
         # TODO: Adjust the error span to only point to the offending arguments (similar

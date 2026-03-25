@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.cfg_checker import CheckedCFG
     from guppylang_internals.checker.core import Place, Variable
     from guppylang_internals.definition.common import DefId
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.param import ConstParam
 
 
@@ -195,7 +195,7 @@ class FieldAccessAndDrop(ast.expr):
 
     value: ast.expr
     struct_ty: "StructType"
-    field: "StructField"
+    field: "CheckedField"
 
     _fields = (
         "value",
@@ -204,7 +204,7 @@ class FieldAccessAndDrop(ast.expr):
     )
 
     def __init__(
-        self, value: ast.expr, struct_ty: "StructType", field: "StructField"
+        self, value: ast.expr, struct_ty: "StructType", field: "CheckedField"
     ) -> None:
         super().__init__()
         self.value = value
@@ -782,14 +782,28 @@ class Modifiers:
 
 
 class ModifiedBlock(ast.With):
+    """Node representing a unchecked `with` block
+
+    parameters:
+    - `cfg`: the CFG of the body of the block
+    - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    """
+
     cfg: "CFG"
+    first_modifier_node: ast.expr
 
     def __init__(
-        self, cfg: "CFG", modifiers: "Modifiers", *args: Any, **kwargs: Any
+        self,
+        cfg: "CFG",
+        modifiers: "Modifiers",
+        first_modifier_node: ast.expr,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.modifiers = modifiers
+        self.first_modifier_node = first_modifier_node
 
     @property
     def dagger(self) -> list[Dagger]:
