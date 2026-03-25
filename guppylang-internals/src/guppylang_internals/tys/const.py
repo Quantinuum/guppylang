@@ -132,7 +132,7 @@ class ExistentialConstVar(ExistentialVar, ConstBase):
     def transform(self, transformer: Transformer, /) -> "Const":
         """Accepts a transformer on this constant."""
         return transformer.transform(self) or ExistentialConstVar(
-            transformer.transform(self.ty) or self.ty, self.display_name, self.id
+            self.ty.transform(transformer) or self.ty, self.display_name, self.id
         )
 
 
