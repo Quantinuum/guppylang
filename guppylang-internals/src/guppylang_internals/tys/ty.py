@@ -572,9 +572,17 @@ class FunctionType(ParametrizedTypeBase):
 
     def unquantified(self) -> tuple["FunctionType", Sequence[ExistentialVar]]:
         """Instantiates all parameters with existential variables."""
-        exs = [param.to_existential() for param in self.params]
-        inst = tuple(arg for arg, _ in exs)
-        return self.instantiate(inst), [var for _, var in exs]
+        from guppylang_internals.tys.subst import Instantiator
+
+        args: list[Argument] = []
+        exes = []
+        for param in self.params:
+            arg, ex = param.to_existential()
+            inst = Instantiator(args)
+            exes.append(ex.transform(inst))
+            args.append(arg.transform(inst))
+
+        return self.instantiate(tuple(args)), exes
 
     def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
         """Returns a copy of this function type with the specified unitary flags."""

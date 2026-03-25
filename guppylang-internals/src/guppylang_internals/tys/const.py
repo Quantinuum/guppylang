@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias
 
-from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.common import Transformable, Transformer, Visitor
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
@@ -22,10 +21,6 @@ class ConstBase(Transformable["Const"], ABC):
     """
 
     ty: "Type" = field(hash=False)  # Types are not hashable
-
-    def __post_init__(self) -> None:
-        if self.ty.unsolved_vars:
-            raise InternalGuppyError("Attempted to create constant with unsolved type")
 
     @abstractmethod
     def cast(self) -> "Const":
