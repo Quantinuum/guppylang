@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, TypeVar, overload
 
 import hugr
 from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
+from guppylang_internals.compiler.core import DFBuilder, add_op_to
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -248,22 +249,41 @@ def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
 P = TypeVar("P", bound=ops.DfParentOp)
 
 
+@overload
+def unpack_array(builder: DFBuilder, array: Wire) -> list[Wire]:
+    pass
+
+
+@overload
 def unpack_array(
     builder: DfBase[P], array: Wire, ast_node: AstNode | None = None
 ) -> list[Wire]:
-    """Unpacks a fixed length array into its elements."""
-    from guppylang_internals.compiler.expr_compiler import add_op
+    pass
 
-    array_ty = builder.hugr.port_type(array.out_port())
-    assert isinstance(array_ty, ht.ExtType)
-    match array_ty.args:
-        case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
-            res = add_op(
-                builder, array_unpack(elem_ty, length), array, ast_node=ast_node
-            )
-            return [res[i] for i in range(length)]
-        case _:
-            raise InternalGuppyError("Invalid array type args")
+
+def unpack_array(
+    builder: DFBuilder | DfBase[P], array: Wire, ast_node: AstNode | None = None
+) -> list[Wire]:
+    if isinstance(builder, DFBuilder):
+        array_ty = builder.raw_builder.hugr.port_type(array.out_port())
+        assert isinstance(array_ty, ht.ExtType)
+        match array_ty.args:
+            case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
+                res = builder.add_op(array_unpack(elem_ty, length), array)
+                return [res[i] for i in range(length)]
+            case _:
+                raise InternalGuppyError("Invalid array type args")
+    else:
+        array_ty = builder.hugr.port_type(array.out_port())
+        assert isinstance(array_ty, ht.ExtType)
+        match array_ty.args:
+            case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
+                res = add_op_to(
+                    builder, array_unpack(elem_ty, length), array, ast_node=ast_node
+                )
+                return [res[i] for i in range(length)]
+            case _:
+                raise InternalGuppyError("Invalid array type args")
 
 
 class ArrayCompiler(CustomCallCompiler):
@@ -298,7 +318,7 @@ class NewArrayCompiler(ArrayCompiler):
 
     def build_linear_array(self, elems: list[Wire]) -> Wire:
         """Lowers a call to `array.__new__` for linear arrays."""
-        return self.add_op(array_new(self.elem_ty, len(elems)), *elems)
+        return self.builder.add_op(array_new(self.elem_ty, len(elems)), *elems)
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         if self.elem_ty.type_bound() == ht.TypeBound.Linear:
@@ -312,9 +332,9 @@ class ArrayGetitemCompiler(ArrayCompiler):
 
     def _build_classical_getitem(self, array: Wire, idx: Wire) -> CallReturnWires:
         """Constructs `__getitem__` for classical arrays."""
-        idx = self.add_op(convert_itousize(), idx)
+        idx = self.builder.add_op(convert_itousize(), idx)
 
-        opt_elem, arr = self.add_op(
+        opt_elem, arr = self.builder.add_op(
             array_get(self.elem_ty, self.length),
             array,
             idx,
@@ -327,8 +347,8 @@ class ArrayGetitemCompiler(ArrayCompiler):
 
     def _build_linear_getitem(self, array: Wire, idx: Wire) -> CallReturnWires:
         """Constructs `array.__getitem__` for linear arrays."""
-        idx = self.add_op(convert_itousize(), idx)
-        arr, elem = self.add_op(
+        idx = self.builder.add_op(convert_itousize(), idx)
+        arr, elem = self.builder.add_op(
             barray_borrow(self.elem_ty, self.length),
             array,
             idx,
@@ -366,8 +386,8 @@ class ArraySetitemCompiler(ArrayCompiler):
         self, array: Wire, idx: Wire, elem: Wire
     ) -> CallReturnWires:
         """Constructs `__setitem__` for classical arrays."""
-        idx = self.add_op(convert_itousize(), idx)
-        result = self.add_op(
+        idx = self.builder.add_op(convert_itousize(), idx)
+        result = self.builder.add_op(
             array_set(self.elem_ty, self.length),
             array,
             idx,
@@ -384,8 +404,8 @@ class ArraySetitemCompiler(ArrayCompiler):
         self, array: Wire, idx: Wire, elem: Wire
     ) -> CallReturnWires:
         """Constructs `array.__setitem__` for linear arrays."""
-        idx = self.add_op(convert_itousize(), idx)
-        arr = self.add_op(
+        idx = self.builder.add_op(convert_itousize(), idx)
+        arr = self.builder.add_op(
             barray_return(self.elem_ty, self.length),
             array,
             idx,
@@ -416,7 +436,7 @@ class ArrayDiscardAllUsedCompiler(ArrayCompiler):
     def compile(self, args: list[Wire]) -> list[Wire]:
         if self.elem_ty.type_bound() == ht.TypeBound.Linear:
             [arr] = args
-            self.add_op(
+            self.builder.add_op(
                 barray_discard_all_borrowed(self.elem_ty, self.length),
                 arr,
             )
@@ -428,11 +448,11 @@ class ArrayIsBorrowedCompiler(ArrayCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [array, idx] = args
-        idx = self.add_op(convert_itousize(), idx)
-        array, b = self.add_op(
+        idx = self.builder.add_op(convert_itousize(), idx)
+        array, b = self.builder.add_op(
             barray_is_borrowed(self.elem_ty, self.length), array, idx
         )
-        b = self.add_op(make_opaque(), b)
+        b = self.builder.add_op(make_opaque(), b)
         return CallReturnWires(regular_returns=[b], inout_returns=[array])
 
     def compile(self, args: list[Wire]) -> list[Wire]:
@@ -445,12 +465,12 @@ class ArraySwapCompiler(ArrayCompiler):
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [array, idx1, idx2] = args
 
-        idx1 = self.add_op(convert_itousize(), idx1)
-        idx2 = self.add_op(convert_itousize(), idx2)
+        idx1 = self.builder.add_op(convert_itousize(), idx1)
+        idx2 = self.builder.add_op(convert_itousize(), idx2)
 
         # Swap returns Either(left=array, right=array)
         # Left (case 0) is failure, right (case 1) is success
-        either_result = self.add_op(
+        either_result = self.builder.add_op(
             array_swap(self.elem_ty, self.length),
             array,
             idx1,

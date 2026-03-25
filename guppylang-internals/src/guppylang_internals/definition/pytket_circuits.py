@@ -268,7 +268,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
         # Pass all arguments to call node.
         call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
-        # Add debug info metadata to the call node inside the outer function defintion.
+        # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
             # Function stub case.
             if self.defined_at is not None:

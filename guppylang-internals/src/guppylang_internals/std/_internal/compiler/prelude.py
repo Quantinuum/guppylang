@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Final, TypeVar
+from typing import TYPE_CHECKING, Final, TypeVar, overload
 
 import hugr.std.collections
 import hugr.std.int
@@ -12,7 +12,12 @@ from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 
-from guppylang_internals.compiler.core import CompilerContext, GlobalConstId
+from guppylang_internals.compiler.core import (
+    CompilerContext,
+    DFBuilder,
+    GlobalConstId,
+    add_op_to,
+)
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
@@ -27,6 +32,7 @@ if TYPE_CHECKING:
     from hugr.build import function as hf
     from hugr.build.dfg import DfBase
 
+    from guppylang_internals.ast_util import AstNode
     from guppylang_internals.tys.common import ToHugrContext
     from guppylang_internals.tys.subst import Inst
 
@@ -84,16 +90,43 @@ def make_error() -> ops.ExtOp:
 # ------------------------------------------------------
 
 
+@overload
+def build_panic(
+    builder: DFBuilder,
+    in_tys: ht.TypeRow,
+    out_tys: ht.TypeRow,
+    err: Wire,
+    *args: Wire,
+) -> Node:
+    pass
+
+
+@overload
 def build_panic(
     builder: DfBase[P],
     in_tys: ht.TypeRow,
     out_tys: ht.TypeRow,
     err: Wire,
     *args: Wire,
+    ast_node: AstNode | None,
+) -> Node:
+    pass
+
+
+def build_panic(
+    builder: DFBuilder | DfBase[P],
+    in_tys: ht.TypeRow,
+    out_tys: ht.TypeRow,
+    err: Wire,
+    *args: Wire,
+    ast_node: AstNode | None = None,
 ) -> Node:
     """Builds a panic operation."""
     op = panic(in_tys, out_tys, AbortKind.Panic)
-    return builder.add_op(op, err, *args)
+    if isinstance(builder, DFBuilder):
+        return builder.add_op(op, err, *args)
+    else:
+        return add_op_to(builder, op, err, *args, ast_node=ast_node)
 
 
 def build_static_error(builder: DfBase[P], signal: int, msg: str) -> Wire:
@@ -106,13 +139,13 @@ P = TypeVar("P", bound=ops.DfParentOp)
 
 
 def build_unwrap_either(
-    builder: DfBase[P], either: Wire, left: bool, error_msg: str, error_signal: int = 1
+    builder: DFBuilder, either: Wire, left: bool, error_msg: str, error_signal: int = 1
 ) -> Node:
     """Unwraps the left or right value from a `hugr.tys.Either` value according to the
     `left` flag, panicking with the given message if the result is on the other side.
     """
-    conditional = builder.add_conditional(either)
-    result_ty = builder.hugr.port_type(either.out_port())
+    conditional = builder.raw_builder.add_conditional(either)
+    result_ty = builder.raw_builder.hugr.port_type(either.out_port())
     assert isinstance(result_ty, ht.Sum)
     [left_tys, right_tys] = result_ty.variant_rows
     [in_tys, out_tys] = [right_tys, left_tys] if left else [left_tys, right_tys]
@@ -122,12 +155,21 @@ def build_unwrap_either(
         case.set_outputs(*case.inputs())
     with conditional.add_case(panic_case_num) as case:
         error = build_static_error(case, error_signal, error_msg)
-        case.set_outputs(*build_panic(case, in_tys, out_tys, error, *case.inputs()))
+        case.set_outputs(
+            *build_panic(
+                case,
+                in_tys,
+                out_tys,
+                error,
+                *case.inputs(),
+                ast_node=builder.current_ast_node,
+            )
+        )
     return conditional.to_node()
 
 
 def build_unwrap_left(
-    builder: DfBase[P], either: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder, either: Wire, error_msg: str, error_signal: int = 1
 ) -> Node:
     """Unwraps the left value from a `hugr.tys.Either` value, panicking with the given
     message if the result is right.
@@ -138,7 +180,7 @@ def build_unwrap_left(
 
 
 def build_unwrap_right(
-    builder: DfBase[P], either: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder, either: Wire, error_msg: str, error_signal: int = 1
 ) -> Node:
     """Unwraps the right value from a `hugr.tys.Either` value, panicking with the given
     message if the result is left.
@@ -149,7 +191,7 @@ def build_unwrap_right(
 
 
 def build_unwrap(
-    builder: DfBase[P], option: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder, option: Wire, error_msg: str, error_signal: int = 1
 ) -> Node:
     """Unwraps an `hugr.tys.Option` value, panicking with the given message if the
     result is an error.
@@ -160,7 +202,7 @@ def build_unwrap(
 
 
 def build_expect_none(
-    builder: DfBase[P], option: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder, option: Wire, error_msg: str, error_signal: int = 1
 ) -> Node:
     """Checks that `hugr.tys.Option` value is `None`, otherwise panics with the given
     message.
@@ -184,13 +226,22 @@ class MemSwapCompiler(CustomCallCompiler):
 UNWRAP_RESULT: Final[GlobalConstId] = GlobalConstId.fresh("unwrap_result")
 
 
-def _build_unwrap_result(func: hf.Function, result_type_var: ht.Variable) -> None:
+def _build_unwrap_result(
+    builder: DFBuilder, func: hf.Function, result_type_var: ht.Variable
+) -> None:
     either = func.inputs()[0]
     conditional = func.add_conditional(either)
     with conditional.add_case(0) as case:
         [error] = list(case.inputs())
         case.set_outputs(
-            *build_panic(case, [error_type()], [result_type_var], error, *case.inputs())
+            *build_panic(
+                case,
+                [error_type()],
+                [result_type_var],
+                error,
+                *case.inputs(),
+                ast_node=builder.current_ast_node,
+            )
         )
     with conditional.add_case(1) as case:
         case.set_outputs(*case.inputs())
@@ -198,14 +249,14 @@ def _build_unwrap_result(func: hf.Function, result_type_var: ht.Variable) -> Non
 
 
 def unwrap_result(
-    builder: DfBase[P],
+    builder: DFBuilder,
     ctx: CompilerContext,
     either: Wire,
 ) -> Wire:
     """Builds or retrieves and then calls a function that unwraps an `hugr.tys.Either`
     value, panicking if the result is an error.
     """
-    either_ty = builder.hugr.port_type(either.out_port())
+    either_ty = builder.raw_builder.hugr.port_type(either.out_port())
     assert isinstance(either_ty, ht.Either)
     [error_tys, result_tys] = either_ty.variant_rows
     # Construct the function signature for unwrapping a result of type T.
@@ -219,13 +270,13 @@ def unwrap_result(
     # Build global unwrap result function if it doesn't already exist.
     func, already_exists = ctx.declare_global_func(UNWRAP_RESULT, func_ty)
     if not already_exists:
-        _build_unwrap_result(func, ht.Variable(0, ht.TypeBound.Linear))
+        _build_unwrap_result(builder, func, ht.Variable(0, ht.TypeBound.Linear))
     # Call the global function.
     concrete_ty = ht.FunctionType(
         input=[ht.Either(error_tys, result_tys)], output=result_tys
     )
     type_args = [ht.TypeTypeArg(*result_tys)]
-    func_call = builder.call(
+    func_call = builder.raw_builder.call(
         func.parent_node,
         either,
         instantiation=concrete_ty,
@@ -259,7 +310,7 @@ class UnwrapOpCompiler(CustomInoutCallCompiler):
             output=[ht.Either([error_type()], self.ty.output)],
         )
         op = self.op(opt_func_type, self.type_args, self.ctx)
-        either = self.add_op(op, *args)
+        either = self.builder.add_op(op, *args)
         result = unwrap_result(self.builder, self.ctx, either)
         return CallReturnWires(regular_returns=[result], inout_returns=[])
 
@@ -268,13 +319,17 @@ class BarrierCompiler(CustomCallCompiler):
     """Compiler for the `barrier` function."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
-        tys = [t for arg in args if (t := self.builder.hugr.port_type(arg.out_port()))]
+        tys = [
+            t
+            for arg in args
+            if (t := self.dfg.builder.raw_builder.hugr.port_type(arg.out_port()))
+        ]
 
         op = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
             [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
         )
 
-        barrier_n = self.add_op(op, *args)
+        barrier_n = self.builder.add_op(op, *args)
 
         return CallReturnWires(
             regular_returns=[], inout_returns=[barrier_n[i] for i in range(len(tys))]

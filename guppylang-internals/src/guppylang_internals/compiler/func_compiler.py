@@ -44,7 +44,7 @@ def compile_local_func_def(
     # Prepend captured variables to the function arguments
     func_ty = func.ty.to_hugr(ctx)
     closure_ty = ht.FunctionType([*captured_types, *func_ty.input], func_ty.output)
-    func_builder = dfg.builder.module_root_builder().define_function(
+    func_builder = dfg.builder.raw_builder.module_root_builder().define_function(
         func.name, closure_ty.input, closure_ty.output
     )
 
@@ -89,7 +89,7 @@ def compile_local_func_def(
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 
     # Finally, load the function into the local data-flow graph
-    loaded = dfg.builder.load_function(func_builder, closure_ty)
+    loaded = dfg.builder.raw_builder.load_function(func_builder, closure_ty)
     if len(captured) > 0:
         loaded = dfg.builder.add_op(
             PartialOp.from_closure(closure_ty, captured_types),

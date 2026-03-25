@@ -14,7 +14,7 @@ ine = "ine"
 inot = "inot"
 anc = "anc"
 setable = "setable" # Used in error golden values
-Fo = "Fo" 
+Fo = "Fo"
 
 [type.notebooks]
 extend-glob = ["*.ipynb"]

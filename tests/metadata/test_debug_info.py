@@ -74,31 +74,31 @@ def test_subprogram():
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
                 assert debug_info.file == 1
-                assert debug_info.line_no == 10
-                assert debug_info.scope_line == 13
+                assert debug_info.line_no == 9
+                assert debug_info.scope_line == 12
             case "baz":
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
                 assert debug_info.file == 1
-                assert debug_info.line_no == 17
+                assert debug_info.line_no == 16
                 assert debug_info.scope_line is None
             case "comptime_bar":
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
                 assert debug_info.file == 1
-                assert debug_info.line_no == 21
-                assert debug_info.scope_line == 22
+                assert debug_info.line_no == 20
+                assert debug_info.scope_line == 21
             case "pytket_bar_load":
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
                 assert debug_info.file == 1
-                assert debug_info.line_no == 28
+                assert debug_info.line_no == 27
                 assert debug_info.scope_line is None
             case "pytket_bar_stub":
                 assert HugrDebugInfo in func.metadata
                 debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
                 assert debug_info.file == 1
-                assert debug_info.line_no == 32
+                assert debug_info.line_no == 31
                 assert debug_info.scope_line is None
             case "":
                 # No metadata on the inner circuit function.
@@ -123,15 +123,14 @@ def test_call_location():
     for call in calls:
         assert HugrDebugInfo in call.metadata
         debug_info = DILocation.from_json(call.metadata[HugrDebugInfo.KEY])
-        if debug_info.line_no == 28:
+        if debug_info.line_no == 27:
             assert debug_info.column == 0
         else:
             assert debug_info.column == 8
         lines.append(debug_info.line_no)
-    assert lines == [113, 114, 28, 116]
+    assert lines == [113, 114, 27, 116]
 
 
-# TODO: Improve this test.
 def test_ext_op_location():
     @guppy.struct
     class MyStruct:
@@ -146,12 +145,8 @@ def test_ext_op_location():
         discard_array(arr)  # Defined through `hugr_op`
 
     hugr = foo.compile().modules[0]
-    # TODO: Figure out how to attach metadata to these nodes.
-    # TODO: Find other such limitations and add tests for them.
     known_limitations = [
         "tket.bool.read",
-        "prelude.panic<[Type(Tuple(int<6>, Tuple(int<6>, int<6>, int<6>)))], []>",
-        "prelude.panic<[], [Type(Tuple(int<6>, Tuple(int<6>, int<6>, int<6>)))]>",
     ]
     found_annotated_tuples = []
     for node, node_data in hugr.nodes():
@@ -165,7 +160,7 @@ def test_ext_op_location():
         if isinstance(node_data.op, MakeTuple) and HugrDebugInfo in node.metadata:
             debug_info = DILocation.from_json(node.metadata[HugrDebugInfo.KEY])
             found_annotated_tuples.append(debug_info.line_no)
-    assert 142 in found_annotated_tuples
+    assert 141 in found_annotated_tuples
 
 
 def test_turn_off_debug_mode():

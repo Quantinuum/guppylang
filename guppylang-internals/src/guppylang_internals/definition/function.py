@@ -311,7 +311,7 @@ def load_with_args(
     """Loads the function as a value into a local Hugr dataflow graph."""
     func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
     type_args = [ta.to_hugr(dfg.ctx) for ta in type_args]
-    return dfg.builder.load_function(func, func_ty, type_args)
+    return dfg.builder.raw_builder.load_function(func, func_ty, type_args)
 
 
 def compile_call(
@@ -326,7 +326,9 @@ def compile_call(
     func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
     type_args = [arg.to_hugr(dfg.ctx) for arg in type_args]
     num_returns = len(type_to_row(ty.output))
-    call = dfg.builder.call(func, *args, instantiation=func_ty, type_args=type_args)
+    call = dfg.builder.raw_builder.call(
+        func, *args, instantiation=func_ty, type_args=type_args
+    )
     if debug_mode_enabled():
         call.metadata[HugrDebugInfo] = make_location_record(call_ast)
     return CallReturnWires(

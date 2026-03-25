@@ -54,7 +54,7 @@ def compile_modified_block(
     in_out_arg = ht.ListArg([t.type_arg() for t in in_out_ht])
     other_in_arg = ht.ListArg([t.type_arg() for t in other_in_ht])
 
-    func_builder = dfg.builder.module_root_builder().define_function(
+    func_builder = dfg.builder.raw_builder.module_root_builder().define_function(
         str(modified_block), hugr_ty.input, hugr_ty.output
     )
     add_metadata(
@@ -67,7 +67,7 @@ def compile_modified_block(
     func_builder.set_outputs(*cfg)
 
     # LoadFunc
-    call = dfg.builder.load_function(func_builder, hugr_ty)
+    call = dfg.builder.raw_builder.load_function(func_builder, hugr_ty)
 
     # Function inputs
     captured = [v for v, _ in modified_block.captured.values()]

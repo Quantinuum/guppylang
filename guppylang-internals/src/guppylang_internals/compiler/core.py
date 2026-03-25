@@ -12,12 +12,13 @@ from hugr.build import function as hf
 from hugr.build.dfg import DP, DefinitionBuilder, DfBase
 from hugr.hugr.base import OpVarCov
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import NodeMetadata
+from hugr.metadata import HugrDebugInfo, NodeMetadata
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from typing_extensions import assert_never
 
+from guppylang_internals.ast_util import AstNode, get_file
 from guppylang_internals.checker.core import (
     FieldAccess,
     Globals,
@@ -26,6 +27,7 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckedDef,
     CompilableDef,
@@ -40,7 +42,10 @@ from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.metadata.debug_info_util import StringTable
+from guppylang_internals.metadata.debug_info_util import (
+    StringTable,
+    make_location_record,
+)
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import nat_type
@@ -370,7 +375,7 @@ class DFContainer:
     current compilation state.
     """
 
-    builder: DfBase[ops.DfParentOp]
+    builder: "DFBuilder"
     ctx: CompilerContext
     locals: CompiledLocals = field(default_factory=dict)
 
@@ -383,7 +388,7 @@ class DFContainer:
         generic_builder = cast("DfBase[ops.DfParentOp]", builder)
         if locals is None:
             locals = {}
-        self.builder = generic_builder
+        self.builder = DFBuilder(generic_builder)
         self.ctx = ctx
         self.locals = locals
 
@@ -448,7 +453,71 @@ class DFContainer:
     def __copy__(self) -> "DFContainer":
         # Make a copy of the var map so that mutating the copy doesn't
         # mutate our variable mapping
-        return DFContainer(self.builder, self.ctx, self.locals.copy())
+        return DFContainer(self.builder.raw_builder, self.ctx, self.locals.copy())
+
+
+@dataclass
+class DFBuilder:
+    """A wrapper around a dataflow graph builder which ensures compiler-specific
+    additional actions can be performed every time an operation is added to the graph.
+
+    Manages attaching debug information, which requires keeping track of the most
+    relevant AST node for each operation being compiled with `current_ast_node`.
+
+    The underlying builder can still be accessed through `raw_builder`.
+    """
+
+    raw_builder: DfBase[ops.DfParentOp]
+    current_ast_node: AstNode | None = None
+
+    def add_op(
+        self,
+        op: ops.DataflowOp,
+        /,
+        *args: Wire,
+        set_debug_info: bool = True,
+    ) -> Node:
+        """Adds an op to the dataflow graph builder. Set `set_debug_info=False` to
+        avoid automatic debug information attachment.
+        """
+        op_node = self.raw_builder.add_op(op, *args)
+        if (
+            debug_mode_enabled()
+            and self.current_ast_node is not None
+            and get_file(self.current_ast_node) is not None
+        ):
+            op_node.metadata[HugrDebugInfo] = make_location_record(
+                self.current_ast_node
+            )
+        return op_node
+
+    @contextmanager
+    def set_ast_context(self, ast_node: AstNode) -> Iterator[None]:
+        """Sets the current AST node context for debug information attachment."""
+        prev_node = self.current_ast_node
+        self.current_ast_node = ast_node
+        try:
+            yield
+        finally:
+            self.current_ast_node = prev_node
+
+
+def add_op_to(
+    other_builder: DfBase[DP],
+    op: ops.DataflowOp,
+    /,
+    *args: Wire,
+    ast_node: AstNode | None,
+) -> Node:
+    """Adds an op to the given builder, attaching debug information to it if the related
+    `ast_node` is not None. To be used in contexts where want to add operations to
+    specific builders as opposed to the default `DFBuilder`, e.g. `ConditionalBuilder`,
+    `CaseBuilder`, etc.
+    """
+    op_node = other_builder.add_op(op, *args)
+    if debug_mode_enabled() and ast_node is not None and get_file(ast_node) is not None:
+        op_node.metadata[HugrDebugInfo] = make_location_record(ast_node)
+    return op_node
 
 
 class CompilerBase(ABC):

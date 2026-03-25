@@ -75,7 +75,7 @@ class EitherConstructor(EitherCompiler, CustomCallCompiler):
         [inp] = args
         # Unpack the single input into a row
         inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx, self.node)
-        return [self.add_op(ops.Tag(self.tag, ty), *inp_row)]
+        return [self.builder.add_op(ops.Tag(self.tag, ty), *inp_row)]
 
 
 class EitherTestCompiler(EitherCompiler):
@@ -86,7 +86,7 @@ class EitherTestCompiler(EitherCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [either] = args
-        cond = self.builder.add_conditional(either)
+        cond = self.dfg.builder.raw_builder.add_conditional(either)
         for i in [0, 1]:
             with cond.add_case(i) as case:
                 val = OPAQUE_TRUE if i == self.tag else OPAQUE_FALSE
@@ -104,7 +104,7 @@ class EitherToOptionCompiler(EitherCompiler, CustomCallCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         [either] = args
-        cond = self.builder.add_conditional(either)
+        cond = self.dfg.builder.raw_builder.add_conditional(either)
         target_tys = self.left_tys if self.tag == 0 else self.right_tys
         for i in [0, 1]:
             with cond.add_case(i) as case:
