@@ -519,6 +519,22 @@ class TracingDefMixin(DunderMixin):
         err = f"{defn.description.capitalize()} `{defn.name}` is not callable"
         raise GuppyComptimeError(err)
 
+    @hide_trace
+    def __getattr__(self, name: str) -> Any:
+        # Handle attribute access on type definitions, e.g. when defining  an enum
+        # variant constructors ,like `Enum.VariantA()`, Python only calls `__getattr__`.
+        defn = ENGINE.get_checked(self.wrapped.id)
+        if (
+            isinstance(defn, TypeDef)
+            and defn.id in DEF_STORE.impls
+            and name in DEF_STORE.impls[defn.id]
+        ):
+            impl_def = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id][name]]
+            return TracingDefMixin(impl_def)
+        raise AttributeError(
+            f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
+        )
+
     def __getitem__(self, item: Any) -> Any:
         # If this is a type definition, then `__getitem__` might be called when
         # specifying generic arguments
