@@ -1,14 +1,8 @@
 from guppylang.decorator import guppy
 from guppylang.std.quantum import qubit
 from guppylang.std.num import nat
-from guppylang.std.builtins import owned
+from guppylang.std.builtins import owned, control, dagger, power
 from guppylang.std.array import array
-
-# Dummy variables to suppress Undefined name
-# TODO: `ruff` fails when without these, which need to be fixed
-dagger = object()
-control = object()
-power = object()
 
 
 def test_dagger_simple(validate):
