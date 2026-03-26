@@ -1,0 +1,8 @@
+Error: Attribute not found (at $FILE:16:6)
+   | 
+14 | def fun() -> None:
+15 |     l = MyEnum.Left()
+16 |     l.Right
+   |       ^^^^^ `MyEnum` has no variant or method `Right`
+
+Guppy compilation failed due to 1 previous error
