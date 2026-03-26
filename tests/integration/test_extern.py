@@ -5,12 +5,13 @@ from hugr import ops, val
 from guppylang.decorator import guppy
 
 
-def test_extern_float(validate):
+def test_extern_float_sum(validate):
     ext = guppy._extern("ext", ty="float")
 
     @guppy
     def main() -> float:
         return ext + ext
+        # return ext
 
     package = main.compile_function()
     validate(package)
@@ -48,8 +49,9 @@ def test_extern_tuple(validate):
     validate(main.compile_function())
 
 
-@pytest.mark.skip("See https://github.com/quantinuum/guppylang/issues/827")
-def test_extern_conditional_assign(validate):
+# See https://github.com/quantinuum/guppylang/issues/827
+@pytest.mark.xfail(reason="Shadowing of extern variables is not allowed")
+def test_extern_conditional_assign():
     x = guppy._extern("x", ty="int")
 
     @guppy
@@ -58,4 +60,4 @@ def test_extern_conditional_assign(validate):
             x = 4
         return x
 
-    validate(main.compile_function())
+    main.compile_function()

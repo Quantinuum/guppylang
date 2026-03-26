@@ -157,3 +157,4 @@ devenv.local.nix
 
 **/.benchmarks/
 .vscode/settings.json
+**/tests.integration*.hugr
