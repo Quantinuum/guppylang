@@ -310,10 +310,12 @@ class CompilationEngine:
         from guppylang_internals.compiler.core import CompilerContext
 
         ctx = CompilerContext(graph, set(def_ids))
-        compiled_defs: list[CompiledDef] = []
-        for def_id in def_ids:
-            compiled_defs.append(ctx.compile(self.checked[def_id]))
-            self.compiled = ctx.compiled
+        # TODO include type parameters for public functions once supported
+        compiled_defs = [
+            ctx.build_compiled_def(def_id, type_args=[])[0] for def_id in def_ids
+        ]
+        ctx.iterate_worklist()
+        self.compiled = ctx.compiled
 
         # Build resolve registry: start with cached base, add any additional
         if self.additional_extensions:

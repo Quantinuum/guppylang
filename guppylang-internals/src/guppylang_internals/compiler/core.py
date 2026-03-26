@@ -246,7 +246,11 @@ class CompilerContext(ToHugrContext):
         self.compiled[defn.id, entry_mono_args] = entry_compiled
         self.worklist[defn.id, entry_mono_args] = None
 
-        # Compile definition bodies
+        self.iterate_worklist()
+
+        return entry_compiled
+
+    def iterate_worklist(self) -> None:
         while self.worklist:
             next_id, mono_args = self.worklist.popitem()[0]
             next_def = self.compiled[next_id, mono_args]
@@ -257,8 +261,6 @@ class CompilerContext(ToHugrContext):
         # TODO: This is a quick workaround until we can properly insert these drops
         # during linearity checking. See https://github.com/quantinuum/guppylang/issues/1082
         insert_drops(self.module.hugr)
-
-        return entry_compiled
 
     def build_compiled_instance_func(
         self,
