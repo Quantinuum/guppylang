@@ -5,13 +5,12 @@ from hugr import ops, val
 from guppylang.decorator import guppy
 
 
-def test_extern_float_sum(validate):
+def test_extern_float(validate):
     ext = guppy._extern("ext", ty="float")
 
     @guppy
     def main() -> float:
         return ext + ext
-        # return ext
 
     package = main.compile_function()
     validate(package)
