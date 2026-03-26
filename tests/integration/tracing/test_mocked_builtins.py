@@ -90,6 +90,14 @@ def test_len(validate):
         def __len__(self: "S") -> int:
             return self.x
 
+    @guppy.enum
+    class E:
+        x = {"x": int}  # noqa: RUF012
+
+        @guppy
+        def __len__(self: "E") -> int:
+            return 10
+
     @guppy.comptime
     def test(xs: array[int, 10]) -> int:
         # Make sure that the mocked len is indistinguishable from the real deal
@@ -106,10 +114,14 @@ def test_len(validate):
         # In particular, `builtins.len` doesn't work for GuppyObjects, but our mocked
         # version does
         s = S(100)
+        e = E.x(1)
         err = re.escape("object of type 'GuppyStructObject' has no len()")
         with pytest.raises(TypeError, match=err):
             builtins.len(s)
-        return len(s)
+        err = re.escape("object of type 'GuppyEnumObject' has no len()")
+        with pytest.raises(TypeError, match=err):
+            builtins.len(e)
+        return len(s) + len(e)
 
     validate(test.compile_function())
 
