@@ -1,6 +1,6 @@
 Traceback (most recent call last):
-  File "$FILE", line 15, in <module>
+  File "$FILE", line 16, in <module>
     test.compile()
-  File "$FILE", line 12, in test
-    e = E.A()
-guppylang_internals.error.GuppyComptimeError: Not enough arguments: Expected 1, got 0
+  File "$FILE", line 13, in test
+    e.x
+guppylang_internals.error.GuppyComptimeError: Expression of type `E` has no attribute `x`

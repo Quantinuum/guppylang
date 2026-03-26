@@ -15,7 +15,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
 )
 from guppylang_internals.definition.common import DefId, Definition
-from guppylang_internals.definition.enum import RawEnumDef
+from guppylang_internals.definition.enum import CheckedEnumDef, RawEnumDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -569,8 +569,9 @@ class TracingDefMixin(DunderMixin):
         # attribute, so we directly raise the error.
         if isinstance(self.wrapped, RawEnumDef):
             defn = ENGINE.get_checked(self.wrapped.id)
+            assert isinstance(defn, CheckedEnumDef)
             if (
-                isinstance(defn, TypeDef)
+                name in defn.variants
                 and defn.id in DEF_STORE.impls
                 and name in DEF_STORE.impls[defn.id]
             ):
