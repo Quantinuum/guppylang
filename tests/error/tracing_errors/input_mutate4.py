@@ -8,7 +8,7 @@ class S:
 
 
 @guppy.comptime
-def foo(s: S @ owned) -> None:
+def foo(s: S @ owned) -> None: # pyright: ignore[reportInvalidTypeForm]
     s.xs.clear()
 
 
