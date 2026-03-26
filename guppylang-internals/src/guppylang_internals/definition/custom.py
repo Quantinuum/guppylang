@@ -368,7 +368,7 @@ class CustomInoutCallCompiler(ABC):
         # The only source code we can map any operations inside a custom compiled
         # function to is the function definition itself, so we set the function
         # definition node as the AST context in the builder.
-        self.dfg.builder.current_ast_node = self.node
+        self.builder.current_ast_node = self.node
 
     @abstractmethod
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
@@ -474,7 +474,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         op = self.op(hugr_op_ty, self.type_args, self.ctx)
         converted_args = [
             self.builder.add_op(read_bool(), arg)
-            if self.dfg.builder.get_wire_type(arg) == OpaqueBool
+            if self.builder.get_wire_type(arg) == OpaqueBool
             else arg
             for arg in args
         ]
@@ -482,7 +482,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         result = list(node.outputs())
         converted_result = [
             self.builder.add_op(make_opaque(), res)
-            if self.dfg.builder.get_wire_type(res) == ht.Bool
+            if self.builder.get_wire_type(res) == ht.Bool
             else res
             for res in result
         ]

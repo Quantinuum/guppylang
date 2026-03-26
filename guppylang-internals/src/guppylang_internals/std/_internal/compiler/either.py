@@ -86,7 +86,7 @@ class EitherTestCompiler(EitherCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [either] = args
-        cond = self.dfg.builder.add_conditional(either)
+        cond = self.builder.add_conditional(either)
         for i in [0, 1]:
             with cond.add_case(i) as case:
                 val = OPAQUE_TRUE if i == self.tag else OPAQUE_FALSE
@@ -104,14 +104,13 @@ class EitherToOptionCompiler(EitherCompiler, CustomCallCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         [either] = args
-        cond = self.dfg.builder.add_conditional(either)
+        cond = self.builder.add_conditional(either)
         target_tys = self.left_tys if self.tag == 0 else self.right_tys
         for i in [0, 1]:
             with cond.add_case(i) as case:
                 if i == self.tag:
                     out = case.add_op(
-                        ops.Tag(1, ht.Option(*target_tys)),
-                        *case.inputs(),
+                        ops.Tag(1, ht.Option(*target_tys)), *case.inputs()
                     )
                 else:
                     out = case.add_op(ops.Tag(0, ht.Option(*target_tys)))
@@ -136,4 +135,4 @@ class EitherUnwrapCompiler(EitherCompiler, CustomCallCompiler):
         # Pack outputs into a single wire. We're not allowed to return a row since the
         # signature has a generic return type (also see `TupleType.preserve`)
         return_ty = get_type(self.node)
-        return [pack_returns(list(out), return_ty, self.builder, self.ctx, self.node)]
+        return [pack_returns(list(out), return_ty, self.builder, self.ctx)]

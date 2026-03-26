@@ -100,13 +100,13 @@ class WasmModuleCallCompiler(CustomInoutCallCompiler):
         selfarg = self.func.ty.inputs[0].ty
         info = wasm_module_name(selfarg)
         if info is not None:
-            const_module = self.dfg.builder.add_const(ConstWasmModule(info))
+            const_module = self.builder.add_const(ConstWasmModule(info))
         else:
             raise InternalGuppyError(
                 "Expected cached signature to have WASM module as first arg"
             )
 
-        wasm_module = self.dfg.builder.load(const_module)
+        wasm_module = self.builder.load(const_module)
 
         # Lookup the function we want
         if self.fn_id is None:

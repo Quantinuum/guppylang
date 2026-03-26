@@ -67,8 +67,8 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
         elem_ty = ty_arg.ty.to_hugr(self.ctx)
         inst = ht.FunctionType([StaticArray(elem_ty), INT_T], [elem_ty])
         type_args = [ht.TypeTypeArg(elem_ty)]
-        with self.dfg.builder.set_ast_context(self.node):
-            elem = self.dfg.builder.call(
+        with self.builder.set_ast_context(self.node):
+            elem = self.builder.call(
                 self.getitem_func(), *args, instantiation=inst, type_args=type_args
             )
         return [elem]

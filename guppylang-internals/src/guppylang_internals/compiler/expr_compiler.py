@@ -782,7 +782,6 @@ def pack_returns(
     return_ty: Type,
     builder: DFBuilder,
     ctx: CompilerContext,
-    ast_node: AstNode | None = None,
 ) -> Wire:
     """Groups function return values into a tuple"""
     if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:

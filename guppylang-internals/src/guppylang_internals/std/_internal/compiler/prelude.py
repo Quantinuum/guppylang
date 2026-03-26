@@ -361,7 +361,7 @@ class BarrierCompiler(CustomCallCompiler):
     """Compiler for the `barrier` function."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
-        tys = [t for arg in args if (t := self.dfg.builder.get_wire_type(arg))]
+        tys = [t for arg in args if (t := self.builder.get_wire_type(arg))]
 
         op = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
             [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
