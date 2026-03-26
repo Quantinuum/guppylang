@@ -782,14 +782,28 @@ class Modifiers:
 
 
 class ModifiedBlock(ast.With):
+    """Node representing a unchecked `with` block
+
+    parameters:
+    - `cfg`: the CFG of the body of the block
+    - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    """
+
     cfg: "CFG"
+    first_modifier_node: ast.expr
 
     def __init__(
-        self, cfg: "CFG", modifiers: "Modifiers", *args: Any, **kwargs: Any
+        self,
+        cfg: "CFG",
+        modifiers: "Modifiers",
+        first_modifier_node: ast.expr,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.modifiers = modifiers
+        self.first_modifier_node = first_modifier_node
 
     @property
     def dagger(self) -> list[Dagger]:
