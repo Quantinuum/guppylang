@@ -571,6 +571,8 @@ class TracingDefMixin(DunderMixin):
             defn = ENGINE.get_checked(self.wrapped.id)
             assert isinstance(defn, CheckedEnumDef)
             if (
+                # We can only access the variants of the enum from the enum class,
+                # not methods
                 name in defn.variants
                 and defn.id in DEF_STORE.impls
                 and name in DEF_STORE.impls[defn.id]
