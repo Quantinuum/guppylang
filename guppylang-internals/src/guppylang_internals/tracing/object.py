@@ -15,6 +15,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
 )
 from guppylang_internals.definition.common import DefId, Definition
+from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -521,18 +522,25 @@ class TracingDefMixin(DunderMixin):
 
     @hide_trace
     def __getattr__(self, name: str) -> Any:
-        # Handle attribute access on type definitions, e.g. when defining  an enum
-        # variant constructors ,like `Enum.VariantA()`, Python only calls `__getattr__`.
-        defn = ENGINE.get_checked(self.wrapped.id)
-        if (
-            isinstance(defn, TypeDef)
-            and defn.id in DEF_STORE.impls
-            and name in DEF_STORE.impls[defn.id]
-        ):
-            impl_def = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id][name]]
-            return TracingDefMixin(impl_def)
+        # Handle attribute access when defining  an enum variant constructors, like
+        # `Enum.VariantA()`. In all other cases, we should not try create a new
+        # attribute, so we directly raise the error.
+        if isinstance(self.wrapped, RawEnumDef):
+            defn = ENGINE.get_checked(self.wrapped.id)
+            if (
+                isinstance(defn, TypeDef)
+                and defn.id in DEF_STORE.impls
+                and name in DEF_STORE.impls[defn.id]
+            ):
+                impl_def = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id][name]]
+                return TracingDefMixin(impl_def)
+            raise AttributeError(
+                f"{defn.description.capitalize()} `{defn.name}` "
+                f"has no attribute `{name}`"
+            )
         raise AttributeError(
-            f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
+            f"{self.wrapped.description.capitalize()} `{self.wrapped.name}`"
+            f" has no attribute `{name}`"
         )
 
     def __getitem__(self, item: Any) -> Any:
