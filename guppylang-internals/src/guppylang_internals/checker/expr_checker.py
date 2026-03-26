@@ -22,6 +22,7 @@ can be used to infer a type for an expression.
 
 import ast
 import copy
+from operator import is_
 import sys
 import traceback
 from collections.abc import Sequence
@@ -580,6 +581,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         else:
             node.value, ty = self.synthesize(node.value)
 
+        # flag used for error messages, None if the error is not related to enums
+        is_enum_class = None
         if isinstance(ty, StructType) and node.attr in ty.field_dict:
             field = ty.field_dict[node.attr]
             expr: ast.expr
@@ -598,12 +601,15 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # a GlobalName corresponding to the enum class definition.
                 if isinstance(node.value, GlobalName):
                     variant_constr = self.ctx.globals.get_instance_func(ty, node.attr)
-                    assert variant_constr is not None, (
-                        "Valid variants should be available in `ctx.globals`"
-                    )
+                    assert (
+                        variant_constr is not None
+                    ), "Valid variants should be available in `ctx.globals`"
                     return with_loc(
                         node, GlobalName(id=node.attr, def_id=variant_constr.id)
                     ), variant_constr.ty
+                else:
+                    # Not a global name, thus node.value is a instantiated variant
+                    is_enum_class = False
             elif (method_w_ty := self._check_method(ty, node)) and isinstance(
                 node.value, PlaceNode
             ):
@@ -612,11 +618,17 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # variable (i.e. a PlaceNode) and not the enum class definition
                 # (i.e. a GlobalName): we cannot write `MyEnum.method`.
                 return method_w_ty[0], method_w_ty[1]
+            else:
+                # If node.value is a GlobalName it corresponds to the enum class
+                # definition, otherwise it is an instance of the enum.
+                is_enum_class = isinstance(node.value, GlobalName)
 
         elif method_w_ty := self._check_method(ty, node):
             return method_w_ty[0], method_w_ty[1]
 
-        raise GuppyTypeError(AttributeNotFoundError(attr_span, ty, node.attr))
+        raise GuppyTypeError(
+            AttributeNotFoundError(attr_span, ty, node.attr, is_enum_class)
+        )
 
     def _check_method(
         self, ty: Type, node: ast.Attribute

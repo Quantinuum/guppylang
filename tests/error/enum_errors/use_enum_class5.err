@@ -3,6 +3,6 @@ Error: Attribute not found (at $FILE:17:15)
 15 | @guppy
 16 | def fun() -> None:
 17 |     a = MyEnum.method
-   |                ^^^^^^ `MyEnum` has no variant or method `method`
+   |                ^^^^^^ `MyEnum` has no variant `method`
 
 Guppy compilation failed due to 1 previous error
