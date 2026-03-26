@@ -6,8 +6,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import tket_exts
-from hugr import Hugr, Node, Wire, ops
+from hugr import Hugr, Node, Wire, ops, val
 from hugr import tys as ht
+from hugr.build import Conditional, TailLoop
 from hugr.build import function as hf
 from hugr.build.dfg import DP, DefinitionBuilder, DfBase
 from hugr.hugr.base import OpVarCov
@@ -483,6 +484,7 @@ class DFBuilder:
         op_node = self.raw_builder.add_op(op, *args)
         if (
             debug_mode_enabled()
+            and set_debug_info
             and self.current_ast_node is not None
             and get_file(self.current_ast_node) is not None
         ):
@@ -500,6 +502,60 @@ class DFBuilder:
             yield
         finally:
             self.current_ast_node = prev_node
+
+    def call(
+        self,
+        func: ToNode,
+        *args: Wire,
+        instantiation: ht.FunctionType | None = None,
+        type_args: Sequence[ht.TypeArg] | None = None,
+        set_debug_info: bool = True,
+    ) -> Node:
+        """Calls a static function in the graph. Set `set_debug_info=False` to
+        avoid automatic debug information attachment.
+        """
+        call = self.raw_builder.call(
+            func, *args, instantiation=instantiation, type_args=type_args
+        )
+        if (
+            debug_mode_enabled()
+            and set_debug_info
+            and self.current_ast_node is not None
+            and get_file(self.current_ast_node) is not None
+        ):
+            call.metadata[HugrDebugInfo] = make_location_record(self.current_ast_node)
+        return call
+
+    # Other frequently used operations for which we want to avoid having to use
+    # `raw_builder` every time for convenience, even though we aren't setting any debug
+    # information in them (yet).
+
+    def get_wire_type(self, wire: Wire) -> ht.Type | None:
+        return self.raw_builder.hugr.port_type(wire.out_port())
+
+    def add_conditional(self, cond_wire: Wire, *args: Wire) -> Conditional:
+        return self.raw_builder.add_conditional(cond_wire, *args)
+
+    def add_tail_loop(
+        self, just_inputs: Sequence[Wire], rest: Sequence[Wire]
+    ) -> TailLoop:
+        return self.raw_builder.add_tail_loop(just_inputs, rest)
+
+    def load(
+        self, const: ToNode | val.Value, const_parent: ToNode | None = None
+    ) -> Node:
+        return self.raw_builder.load(const, const_parent)
+
+    def load_function(
+        self,
+        func: ToNode,
+        instantiation: ht.FunctionType | None = None,
+        type_args: Sequence[ht.TypeArg] | None = None,
+    ) -> Node:
+        return self.raw_builder.load_function(func, instantiation, type_args)
+
+    def add_const(self, value: val.Value, parent: ToNode | None = None) -> Node:
+        return self.raw_builder.add_const(value, parent)
 
 
 def add_op_to(

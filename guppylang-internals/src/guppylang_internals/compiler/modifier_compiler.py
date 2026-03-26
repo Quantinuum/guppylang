@@ -67,7 +67,7 @@ def compile_modified_block(
     func_builder.set_outputs(*cfg)
 
     # LoadFunc
-    call = dfg.builder.raw_builder.load_function(func_builder, hugr_ty)
+    call = dfg.builder.load_function(func_builder, hugr_ty)
 
     # Function inputs
     captured = [v for v, _ in modified_block.captured.values()]

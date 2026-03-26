@@ -102,7 +102,7 @@ class ArrayResultCompiler(CustomInoutCallCompiler):
         # elements
         if is_bool_type(elem_ty):
             array_read = array_read_bool(self.ctx)
-            array_read = self.dfg.builder.raw_builder.load_function(array_read)
+            array_read = self.dfg.builder.load_function(array_read)
             map_op = array_map(OpaqueBool, hugr_size, tys.Bool)
             arr = self.builder.add_op(map_op, arr, array_read).out(0)
             hugr_elem_ty = tys.Bool

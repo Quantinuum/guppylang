@@ -50,7 +50,7 @@ class OptionTestCompiler(OptionCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [opt] = args
-        cond = self.dfg.builder.raw_builder.add_conditional(opt)
+        cond = self.dfg.builder.add_conditional(opt)
         for i in [0, 1]:
             with cond.add_case(i) as case:
                 val = OPAQUE_TRUE if i == self.tag else OPAQUE_FALSE

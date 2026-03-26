@@ -275,7 +275,7 @@ class CustomFunctionDef(CompiledCallableDef):
         # Finally, load the function into the local DFG
         mono_ty = self.ty.instantiate(type_args).to_hugr(ctx)
         hugr_ty_args = [ta.to_hugr(ctx) for ta in rem_args]
-        return dfg.builder.raw_builder.load_function(func, mono_ty, hugr_ty_args)
+        return dfg.builder.load_function(func, mono_ty, hugr_ty_args)
 
     def compile_call(
         self,
@@ -474,7 +474,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         op = self.op(hugr_op_ty, self.type_args, self.ctx)
         converted_args = [
             self.builder.add_op(read_bool(), arg)
-            if self.dfg.builder.raw_builder.hugr.port_type(arg.out_port()) == OpaqueBool
+            if self.dfg.builder.get_wire_type(arg) == OpaqueBool
             else arg
             for arg in args
         ]
@@ -482,7 +482,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         result = list(node.outputs())
         converted_result = [
             self.builder.add_op(make_opaque(), res)
-            if self.dfg.builder.raw_builder.hugr.port_type(res.out_port()) == ht.Bool
+            if self.dfg.builder.get_wire_type(res) == ht.Bool
             else res
             for res in result
         ]

@@ -150,11 +150,10 @@ def build_unwrap_either(
     """Unwraps the left or right value from a `hugr.tys.Either` value according to the
     `left` flag, panicking with the given message if the result is on the other side.
     """
-    if isinstance(builder, DFBuilder):
-        ast_node = builder.current_ast_node
-        builder = builder.raw_builder
-    conditional = builder.add_conditional(either)
-    result_ty = builder.hugr.port_type(either.out_port())
+    dfg_builder = builder.raw_builder if isinstance(builder, DFBuilder) else builder
+    ast_node = builder.current_ast_node if isinstance(builder, DFBuilder) else ast_node
+    conditional = dfg_builder.add_conditional(either)
+    result_ty = dfg_builder.hugr.port_type(either.out_port())
     assert isinstance(result_ty, ht.Sum)
     [left_tys, right_tys] = result_ty.variant_rows
     [in_tys, out_tys] = [right_tys, left_tys] if left else [left_tys, right_tys]
@@ -299,7 +298,7 @@ def unwrap_result(
     """Builds or retrieves and then calls a function that unwraps an `hugr.tys.Either`
     value, panicking if the result is an error.
     """
-    either_ty = builder.raw_builder.hugr.port_type(either.out_port())
+    either_ty = builder.get_wire_type(either)
     assert isinstance(either_ty, ht.Either)
     [error_tys, result_tys] = either_ty.variant_rows
     # Construct the function signature for unwrapping a result of type T.
@@ -319,7 +318,7 @@ def unwrap_result(
         input=[ht.Either(error_tys, result_tys)], output=result_tys
     )
     type_args = [ht.TypeTypeArg(*result_tys)]
-    func_call = builder.raw_builder.call(
+    func_call = builder.call(
         func.parent_node,
         either,
         instantiation=concrete_ty,

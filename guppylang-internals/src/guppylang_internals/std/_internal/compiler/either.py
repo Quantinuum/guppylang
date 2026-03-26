@@ -86,7 +86,7 @@ class EitherTestCompiler(EitherCompiler):
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [either] = args
-        cond = self.dfg.builder.raw_builder.add_conditional(either)
+        cond = self.dfg.builder.add_conditional(either)
         for i in [0, 1]:
             with cond.add_case(i) as case:
                 val = OPAQUE_TRUE if i == self.tag else OPAQUE_FALSE
@@ -104,7 +104,7 @@ class EitherToOptionCompiler(EitherCompiler, CustomCallCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         [either] = args
-        cond = self.dfg.builder.raw_builder.add_conditional(either)
+        cond = self.dfg.builder.add_conditional(either)
         target_tys = self.left_tys if self.tag == 0 else self.right_tys
         for i in [0, 1]:
             with cond.add_case(i) as case:

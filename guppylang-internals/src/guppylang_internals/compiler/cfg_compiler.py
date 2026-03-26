@@ -208,9 +208,7 @@ def choose_vars_for_tuple_sum(
     all_vars_wires = list(all_vars.values())
     all_vars_idxs = {x: i for i, x in enumerate(all_vars.keys())}
 
-    with dfg.builder.raw_builder.add_conditional(
-        unit_sum, *all_vars_wires
-    ) as conditional:
+    with dfg.builder.add_conditional(unit_sum, *all_vars_wires) as conditional:
         for i, var_row in enumerate(output_vars):
             with conditional.add_case(i) as case:
                 case_inputs = case.inputs()

@@ -265,7 +265,7 @@ def unpack_array(
     builder: DFBuilder | DfBase[P], array: Wire, ast_node: AstNode | None = None
 ) -> list[Wire]:
     if isinstance(builder, DFBuilder):
-        array_ty = builder.raw_builder.hugr.port_type(array.out_port())
+        array_ty = builder.get_wire_type(array)
         assert isinstance(array_ty, ht.ExtType)
         match array_ty.args:
             case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:

@@ -327,7 +327,7 @@ def _list_new_classical(
 ) -> Wire:
     # This may be simplified in the future with a `new` or `with_capacity` list op
     # See https://github.com/quantinuum/hugr/issues/1508
-    lst = builder.raw_builder.load(ListVal([], elem_ty=elem_type))
+    lst = builder.load(ListVal([], elem_ty=elem_type))
     push_op = list_push(elem_type)
     for elem in args:
         lst = builder.add_op(push_op, lst, elem)
@@ -336,7 +336,7 @@ def _list_new_classical(
 
 def _list_new_linear(builder: DFBuilder, elem_type: ht.Type, args: list[Wire]) -> Wire:
     elem_opt_ty = ht.Option(elem_type)
-    lst = builder.raw_builder.load(ListVal([], elem_ty=elem_opt_ty))
+    lst = builder.load(ListVal([], elem_ty=elem_opt_ty))
     push_op = list_push(elem_opt_ty)
     for elem in args:
         elem_opt = builder.add_op(ops.Some(elem_type), elem)

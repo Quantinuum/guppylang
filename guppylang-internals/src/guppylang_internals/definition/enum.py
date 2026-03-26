@@ -282,10 +282,9 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 inst_enum_type = self.enum_ty.transform(instantiator)
                 assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
-                    self.dfg.builder.raw_builder.add(
-                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx))(
-                            *wires
-                        )
+                    self.dfg.builder.add_op(
+                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
+                        *wires,
                     )
                 )
 

@@ -10,7 +10,6 @@ from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DISubprogram
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import HugrDebugInfo
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -55,7 +54,6 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
-from guppylang_internals.metadata.debug_info_util import make_location_record
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.subst import Inst, Subst
@@ -311,7 +309,7 @@ def load_with_args(
     """Loads the function as a value into a local Hugr dataflow graph."""
     func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
     type_args = [ta.to_hugr(dfg.ctx) for ta in type_args]
-    return dfg.builder.raw_builder.load_function(func, func_ty, type_args)
+    return dfg.builder.load_function(func, func_ty, type_args)
 
 
 def compile_call(
@@ -326,11 +324,8 @@ def compile_call(
     func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
     type_args = [arg.to_hugr(dfg.ctx) for arg in type_args]
     num_returns = len(type_to_row(ty.output))
-    call = dfg.builder.raw_builder.call(
-        func, *args, instantiation=func_ty, type_args=type_args
-    )
-    if debug_mode_enabled():
-        call.metadata[HugrDebugInfo] = make_location_record(call_ast)
+    with dfg.builder.set_ast_context(call_ast):
+        call = dfg.builder.call(func, *args, instantiation=func_ty, type_args=type_args)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),
