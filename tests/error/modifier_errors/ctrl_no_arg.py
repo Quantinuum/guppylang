@@ -1,4 +1,5 @@
 from guppylang.decorator import guppy
+from guppylang.std.builtins import control
 
 
 # `control` is overloaded, so the number of arguments need not be fixed to 1.

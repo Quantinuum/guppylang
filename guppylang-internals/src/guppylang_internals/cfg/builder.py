@@ -357,11 +357,14 @@ class CFGBuilder(AstVisitor[BB | None]):
         for item in node.items:
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
             modifiers.push(self._handle_withitem(item))
-
         accumulated_flags = self.cfg.unitary_flags | modifiers.flags()
         cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
         new_node = ModifiedBlock(
-            cfg=cfg, modifiers=modifiers, **dict(ast.iter_fields(node))
+            cfg=cfg,
+            modifiers=modifiers,
+            # we save the first modifier node for a better error rendering
+            first_modifier_node=node.items[0].context_expr,
+            **dict(ast.iter_fields(node)),
         )
 
         set_location_from(new_node, node)

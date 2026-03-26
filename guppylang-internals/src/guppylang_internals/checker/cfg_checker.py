@@ -76,12 +76,16 @@ def check_cfg(
     generic_params: dict[str, Parameter],
     func_name: str,
     globals: Globals,
+    first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
     """Type checks a control-flow graph.
 
     Annotates the basic blocks with input and output type signatures and removes
     unreachable blocks. Note that the inputs/outputs are annotated in the form of
     *places* rather than just variables.
+
+    `first_modifier_node`: if None, the cfg is not a modifier block.
+    Otherwise, it's the AST node of the first modifier, used in error reporting.
     """
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
@@ -154,7 +158,9 @@ def check_cfg(
     # Finally, run the linearity check
     from guppylang_internals.checker.linearity_checker import check_cfg_linearity
 
-    linearity_checked_cfg = check_cfg_linearity(checked_cfg, func_name, globals)
+    linearity_checked_cfg = check_cfg_linearity(
+        checked_cfg, func_name, globals, first_modifier_node=first_modifier_node
+    )
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
 
