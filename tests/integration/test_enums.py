@@ -339,9 +339,9 @@ def test_enum_passed_through_functions(validate):
         rect2 = pass_through_twice(rect)
         _ = rect2.describe()
 
-        pt2, tag = wrap_and_return(pt)
+        pt2, _ = wrap_and_return(pt)
         _ = pt2.scale_factor(1.5)
 
-        _, total_tag, scaled = chain(Shape.Circle(5.0))
+        _, _, _ = chain(Shape.Circle(5.0))
 
     validate(main.compile_function())

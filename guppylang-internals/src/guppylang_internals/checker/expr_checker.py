@@ -598,9 +598,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # a GlobalName corresponding to the enum class definition.
                 if isinstance(node.value, GlobalName):
                     variant_constr = self.ctx.globals.get_instance_func(ty, node.attr)
-                    assert (
-                        variant_constr is not None
-                    ), "Valid variants should be available in `ctx.globals`"
+                    assert variant_constr is not None, (
+                        "Valid variants should be available in `ctx.globals`"
+                    )
                     return with_loc(
                         node, GlobalName(id=node.attr, def_id=variant_constr.id)
                     ), variant_constr.ty
