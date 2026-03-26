@@ -1,8 +1,4 @@
-from turtle import st
-
 from guppylang import guppy
-from guppylang.std.either import R
-from tests.util import compile_guppy
 
 
 @guppy.enum

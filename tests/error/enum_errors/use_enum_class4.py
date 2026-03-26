@@ -1,7 +1,4 @@
-from turtle import st
-
 from guppylang import guppy
-from tests.util import compile_guppy
 
 
 @guppy.enum
