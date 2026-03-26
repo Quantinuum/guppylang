@@ -10,6 +10,7 @@ from hugr.std.collections.static_array import EXTENSION, StaticArray
 
 from guppylang_internals.compiler.core import (
     GlobalConstId,
+    add_op_to,
 )
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.std._internal.compiler.arithmetic import (
@@ -50,8 +51,10 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
         func, already_exists = self.ctx.declare_global_func(FROZENARRAY_GETITEM, sig)
         if not already_exists:
             [arr, idx] = func.inputs()
-            idx = func.add_op(convert_itousize(), idx)
-            elem_opt = func.add_op(static_array_get(var), arr, idx)
+            idx = add_op_to(func, convert_itousize(), idx, ast_node=self.node)
+            elem_opt = add_op_to(
+                func, static_array_get(var), arr, idx, ast_node=self.node
+            )
             elem = build_unwrap(
                 func, elem_opt, "Frozenarray index out of bounds", ast_node=self.node
             )

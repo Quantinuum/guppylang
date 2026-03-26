@@ -178,7 +178,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """
         just_inputs = [self.visit(name) for name in just_inputs_vars]
         loop_inputs = [self.visit(name) for name in loop_vars]
-        loop = self.dfg.builder.add_tail_loop(just_inputs, loop_inputs)
+        loop = self.builder.add_tail_loop(just_inputs, loop_inputs)
         with self._new_dfcontainer(just_inputs_vars + loop_vars, loop):
             yield
             # Output the branch predicate and the inputs for the next iteration. Note
@@ -220,10 +220,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         `False` branch.
         """
         cond_wire = self.visit(cond)
-        cond_ty = self.dfg.builder.get_wire_type(cond_wire)
+        cond_ty = self.builder.get_wire_type(cond_wire)
         if cond_ty == OpaqueBool:
             cond_wire = self.builder.add_op(read_bool(), cond_wire)
-        conditional = self.dfg.builder.add_conditional(
+        conditional = self.builder.add_conditional(
             cond_wire, *(self.visit(inp) for inp in inputs)
         )
         only_true_inputs_ = only_true_inputs or []
@@ -260,7 +260,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_Constant(self, node: ast.Constant) -> Wire:
         if value := python_value_to_hugr(node.value, get_type(node), self.ctx):
-            return self.dfg.builder.load(value)
+            return self.builder.load(value)
         raise InternalGuppyError("Unsupported constant expression in compiler")
 
     def visit_PlaceNode(self, node: PlaceNode) -> Wire:
@@ -302,7 +302,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                     case ConstArg(const=ConstValue(value=v)):
                         val = python_value_to_hugr(v, ty, self.ctx)
                         assert val is not None
-                        return self.dfg.builder.load(val)
+                        return self.builder.load(val)
                     case _:
                         raise InternalGuppyError("Monomorphized const is not a value")
 
@@ -679,7 +679,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx)
             ),
         )
-        self.dfg[count_var] = self.dfg.builder.load(
+        self.dfg[count_var] = self.builder.load(
             hugr.std.int.IntVal(0, width=NumericType.INT_WIDTH)
         )
         with self._build_generators([node.generator], [array_var, count_var]):
@@ -693,9 +693,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 elt,
             )
             # Update `count += 1`
-            one = self.dfg.builder.load(
-                hugr.std.int.IntVal(1, width=NumericType.INT_WIDTH)
-            )
+            one = self.builder.load(hugr.std.int.IntVal(1, width=NumericType.INT_WIDTH))
             [self.dfg[count_var]], [] = self._build_method_call(
                 int_type(), "__add__", node, [count, one], []
             )
@@ -745,7 +743,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 # In the "no" case, we set the break predicate to true
                 break_pred_hugr_ty = ht.Either([iter_ty.to_hugr(self.ctx)], [])
                 with stop_case:
-                    self.dfg[break_pred.place] = self.dfg.builder.add_op(
+                    self.dfg[break_pred.place] = self.builder.add_op(
                         ops.Tag(1, break_pred_hugr_ty)
                     )
                 # Otherwise, we continue, set the break predicate to false, and insert

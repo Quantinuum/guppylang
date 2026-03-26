@@ -355,7 +355,7 @@ def make_subprogram_record(
     filename = get_file(node)
     # If we can't fine a file for a node, we default to 0 which corresponds to the
     # entrypoint file.
-    file_idx = ctx.metadata_file_table.get_index(filename) if filename else 0
+    file_idx = ctx.metadata_file_table.get_index(filename) if filename else -1
     if is_decl or not node.body:
         return DISubprogram(
             file=file_idx, line_no=to_span(node).start.line, scope_line=None
