@@ -139,13 +139,22 @@ P = TypeVar("P", bound=ops.DfParentOp)
 
 
 def build_unwrap_either(
-    builder: DFBuilder, either: Wire, left: bool, error_msg: str, error_signal: int = 1
+    builder: DFBuilder | DfBase[P],
+    either: Wire,
+    left: bool,
+    error_msg: str,
+    error_signal: int = 1,
+    *,
+    ast_node: AstNode | None = None,
 ) -> Node:
     """Unwraps the left or right value from a `hugr.tys.Either` value according to the
     `left` flag, panicking with the given message if the result is on the other side.
     """
-    conditional = builder.raw_builder.add_conditional(either)
-    result_ty = builder.raw_builder.hugr.port_type(either.out_port())
+    if isinstance(builder, DFBuilder):
+        ast_node = builder.current_ast_node
+        builder = builder.raw_builder
+    conditional = builder.add_conditional(either)
+    result_ty = builder.hugr.port_type(either.out_port())
     assert isinstance(result_ty, ht.Sum)
     [left_tys, right_tys] = result_ty.variant_rows
     [in_tys, out_tys] = [right_tys, left_tys] if left else [left_tys, right_tys]
@@ -162,53 +171,87 @@ def build_unwrap_either(
                 out_tys,
                 error,
                 *case.inputs(),
-                ast_node=builder.current_ast_node,
+                ast_node=ast_node,
             )
         )
     return conditional.to_node()
 
 
 def build_unwrap_left(
-    builder: DFBuilder, either: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder | DfBase[P],
+    either: Wire,
+    error_msg: str,
+    error_signal: int = 1,
+    ast_node: AstNode | None = None,
 ) -> Node:
     """Unwraps the left value from a `hugr.tys.Either` value, panicking with the given
     message if the result is right.
     """
     return build_unwrap_either(
-        builder, either, left=True, error_msg=error_msg, error_signal=error_signal
+        builder,
+        either,
+        left=True,
+        error_msg=error_msg,
+        error_signal=error_signal,
+        ast_node=ast_node,
     )
 
 
 def build_unwrap_right(
-    builder: DFBuilder, either: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder | DfBase[P],
+    either: Wire,
+    error_msg: str,
+    error_signal: int = 1,
+    ast_node: AstNode | None = None,
 ) -> Node:
     """Unwraps the right value from a `hugr.tys.Either` value, panicking with the given
     message if the result is left.
     """
     return build_unwrap_either(
-        builder, either, left=False, error_msg=error_msg, error_signal=error_signal
+        builder,
+        either,
+        left=False,
+        error_msg=error_msg,
+        error_signal=error_signal,
+        ast_node=ast_node,
     )
 
 
 def build_unwrap(
-    builder: DFBuilder, option: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder | DfBase[P],
+    option: Wire,
+    error_msg: str,
+    error_signal: int = 1,
+    ast_node: AstNode | None = None,
 ) -> Node:
     """Unwraps an `hugr.tys.Option` value, panicking with the given message if the
     result is an error.
     """
     return build_unwrap_right(
-        builder, option, error_msg=error_msg, error_signal=error_signal
+        builder,
+        option,
+        error_msg=error_msg,
+        error_signal=error_signal,
+        ast_node=ast_node,
     )
 
 
 def build_expect_none(
-    builder: DFBuilder, option: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder | DfBase[P],
+    option: Wire,
+    error_msg: str,
+    error_signal: int = 1,
+    ast_node: AstNode | None = None,
 ) -> Node:
     """Checks that `hugr.tys.Option` value is `None`, otherwise panics with the given
     message.
     """
     return build_unwrap_left(
-        builder, option, error_msg=error_msg, error_signal=error_signal
+        builder,
+        option,
+        error_msg=error_msg,
+        error_signal=error_signal,
+        ast_node=ast_node,
     )
 
 

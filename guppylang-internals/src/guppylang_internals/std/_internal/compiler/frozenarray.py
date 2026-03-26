@@ -52,7 +52,9 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
             [arr, idx] = func.inputs()
             idx = func.add_op(convert_itousize(), idx)
             elem_opt = func.add_op(static_array_get(var), arr, idx)
-            elem = build_unwrap(func, elem_opt, "Frozenarray index out of bounds")
+            elem = build_unwrap(
+                func, elem_opt, "Frozenarray index out of bounds", ast_node=self.node
+            )
             func.set_outputs(elem)
         return func
 

@@ -145,14 +145,14 @@ def test_ext_op_location():
         discard_array(arr)  # Defined through `hugr_op`
 
     hugr = foo.compile().modules[0]
-    known_limitations = [
+    known_exceptions = [
         "tket.bool.read",
     ]
     found_annotated_tuples = []
     for node, node_data in hugr.nodes():
         if (
             isinstance(node_data.op, ExtOp)
-            and node_data.op.name() not in known_limitations
+            and node_data.op.name() not in known_exceptions
         ):
             assert HugrDebugInfo in node.metadata
             debug_info = DILocation.from_json(node.metadata[HugrDebugInfo.KEY])
