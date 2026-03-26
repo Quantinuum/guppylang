@@ -282,3 +282,66 @@ def test_tuple_unpacking_variants(validate):
         right = TupleEnumWithFields.Right(1.0)
 
     validate(main.compile_function())
+
+
+def test_enum_passed_through_functions(validate):
+    @guppy.enum
+    class Shape:
+        Circle = {"radius": float}  # noqa: RUF012
+        Rectangle = {"width": float, "height": float}  # noqa: RUF012
+        Point = {}  # noqa: RUF012
+
+        @guppy
+        def describe(self: "Shape") -> int:
+            return 42
+
+        @guppy
+        def scale_factor(self: "Shape", factor: float) -> float:
+            return factor * 2.0
+
+    @guppy
+    def identity(s: Shape) -> Shape:
+        return s
+
+    @guppy
+    def wrap_and_return(s: Shape) -> tuple[Shape, int]:
+        tag = s.describe()
+        return s, tag
+
+    @guppy
+    def pass_through_twice(s: Shape) -> Shape:
+        s2 = identity(s)
+        s3 = identity(s2)
+        return s3
+
+    @guppy
+    def apply_scale(s: Shape, factor: float) -> float:
+        return s.scale_factor(factor)
+
+    @guppy
+    def chain(s: Shape) -> tuple[Shape, int, float]:
+        s1 = pass_through_twice(s)
+        s2, tag = wrap_and_return(s1)
+        result = apply_scale(s2, 3.0)
+        tag2 = s2.describe()
+        return s2, tag + tag2, result
+
+    @guppy
+    def main() -> None:
+        circle = Shape.Circle(1.0)
+        rect = Shape.Rectangle(3.0, 4.0)
+        pt = Shape.Point()
+
+        circle2 = identity(circle)
+        _ = circle2.describe()
+        _ = circle2.scale_factor(2.0)
+
+        rect2 = pass_through_twice(rect)
+        _ = rect2.describe()
+
+        pt2, tag = wrap_and_return(pt)
+        _ = pt2.scale_factor(1.5)
+
+        _, total_tag, scaled = chain(Shape.Circle(5.0))
+
+    validate(main.compile_function())
