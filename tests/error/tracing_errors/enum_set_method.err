@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 19, in <module>
+    test.compile()
+  File "$FILE", line 16, in test
+    e.foo = 0
+AttributeError: Enum objects do not support attribute assignment

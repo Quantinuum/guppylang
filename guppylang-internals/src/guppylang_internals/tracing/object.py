@@ -30,7 +30,7 @@ from guppylang_internals.tracing.util import (
     get_calling_frame,
     hide_trace,
 )
-from guppylang_internals.tys.ty import FunctionType, StructType, Type
+from guppylang_internals.tys.ty import EnumType, FunctionType, StructType, Type
 
 # Mapping from unary dunder method to display name of the operation
 unary_table = dict(expr_checker.unary_table.values())
@@ -479,6 +479,48 @@ class GuppyStructObject(DunderMixin):
         else:
             err = f"Expression of type `{self._ty}` has no attribute `{key}`"
             raise AttributeError(err)
+
+    @hide_trace
+    def __iter__(self) -> Any:
+        # Abstract Guppy objects are not iterable from Python since our iterator
+        # protocol doesn't work during tracing.
+        raise GuppyComptimeError(f"Expression of type `{self._ty}` is not iterable")
+
+
+class GuppyEnumObject(DunderMixin):
+    """The runtime representation of Guppy enum objects during tracing.
+
+    Enum values are tagged unions: the active variant is not known at comptime, so
+    variant fields are not accessible. This class is backed by a single Hugr wire
+    (like `GuppyObject`) and only exposes methods defined on the enum type.
+
+    Attribute assignment is always rejected since enums have no mutable fields.
+    """
+
+    #: The enum type
+    _ty: EnumType
+    #: The Hugr wire holding this enum object
+    _wire: Wire
+
+    def __init__(self, ty: EnumType, wire: Wire) -> None:
+        # Can't use regular assignment for class attributes since we override
+        # `__setattr__` below
+        object.__setattr__(self, "_ty", ty)
+        object.__setattr__(self, "_wire", wire)
+
+    @hide_trace
+    def __getattr__(self, key: str) -> Any:
+        # We can only access methods
+        func = get_tracing_state().globals.get_instance_func(self._ty, key)
+        if func is None:
+            raise GuppyComptimeError(
+                f"Expression of type `{self._ty}` has no attribute `{key}`"
+            )
+        return lambda *xs: TracingDefMixin(func)(self, *xs)
+
+    @hide_trace
+    def __setattr__(self, key: str, value: Any) -> None:
+        raise AttributeError("Enum objects do not support attribute assignment")
 
     @hide_trace
     def __iter__(self) -> Any:
