@@ -592,17 +592,37 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # you loose access to all fields besides `a`).
                 expr = FieldAccessAndDrop(value=node.value, struct_ty=ty, field=field)
             return with_loc(node, expr), field.ty
-        elif isinstance(ty, EnumType) and node.attr in ty.variants_as_dict:
-            # get the type of the variant constructor
-            if variant_constr := self.ctx.globals.get_instance_func(ty, node.attr):
-                return with_loc(
-                    node, GlobalName(id=node.attr, def_id=variant_constr.id)
-                ), variant_constr.ty
-            else:
-                raise InternalGuppyError(
-                    "Valid variants should be available in `ctx.globals`"
-                )
-        elif func := self.ctx.globals.get_instance_func(ty, node.attr):
+        elif isinstance(ty, EnumType):
+            if node.attr in ty.variants_as_dict:
+                # If we are accessing to a variant, we need to check that node.value is
+                # a GlobalName corresponding to the enum class definition.
+                if isinstance(node.value, GlobalName):
+                    variant_constr = self.ctx.globals.get_instance_func(ty, node.attr)
+                    assert (
+                        variant_constr is not None
+                    ), "Valid variants should be available in `ctx.globals`"
+                    return with_loc(
+                        node, GlobalName(id=node.attr, def_id=variant_constr.id)
+                    ), variant_constr.ty
+            elif (method_w_ty := self._check_method(ty, node)) and isinstance(
+                node.value, PlaceNode
+            ):
+                # Otherwise, we may try to access a method from the enum class
+                # If the method exists, we also need to check that node.value is a
+                # variable (i.e. a PlaceNode) and not the enum class definition
+                # (i.e. a GlobalName): we cannot write `MyEnum.method`.
+                return method_w_ty[0], method_w_ty[1]
+
+        elif method_w_ty := self._check_method(ty, node):
+            return method_w_ty[0], method_w_ty[1]
+
+        raise GuppyTypeError(AttributeNotFoundError(attr_span, ty, node.attr))
+
+    def _check_method(
+        self, ty: Type, node: ast.Attribute
+    ) -> tuple[PartialApply, FunctionType] | None:
+        """Helper method to check if an attribute access corresponds to a method call"""
+        if func := self.ctx.globals.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
             )
@@ -610,7 +630,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # TODO: Try to infer some type args based on `self`
             result_ty = FunctionType(func.ty.inputs[1:], func.ty.output, func.ty.params)
             return with_loc(node, PartialApply(func=name, args=[node.value])), result_ty
-        raise GuppyTypeError(AttributeNotFoundError(attr_span, ty, node.attr))
+        else:
+            return None
 
     def _is_python_module(self, node: ast.expr) -> ModuleType | None:
         """Checks whether an AST node corresponds to a Python module in scope."""
