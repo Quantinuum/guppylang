@@ -1,6 +1,6 @@
 Traceback (most recent call last):
-  File "$FILE", line 19, in <module>
+  File "$FILE", line 24, in <module>
     test.compile()
-  File "$FILE", line 16, in test
-    e.foo = 0
-AttributeError: Enum objects do not support attribute assignment
+  File "$FILE", line 21, in test
+    e.foo = bar(e)
+AttributeError: Enum variants do not support attribute assignment

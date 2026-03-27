@@ -4,8 +4,7 @@ Error: Error in comptime function return (at $FILE:10:0)
  9 | @guppy.comptime
 10 | def test() -> E:
    | ^^^^^^^^^^^^^^^^
-   | ...
-12 |     return E
+11 |     return E
    | ^^^^^^^^^^^^
 
 Type `E` is not a value

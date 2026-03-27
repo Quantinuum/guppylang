@@ -78,19 +78,19 @@ def test_generic(validate):
     S = guppy.type_var("S")
 
     @guppy.enum
-    class EnumA(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]
+    class EnumA(Generic[T]):
         VariantA = {"x": tuple[int, T]}  # noqa: RUF012
 
         @guppy
-        def m(self: "EnumA[T]") -> int:  # pyright: ignore[reportInvalidTypeForm]
+        def m(self: "EnumA[T]") -> int:
             return 0
 
     @guppy.enum
-    class EnumB(Generic[S, T]):  # pyright: ignore[reportInvalidTypeForm]
+    class EnumB(Generic[S, T]):
         VariantA = {"x": S, "y": EnumA[T]}  # noqa: RUF012
 
         @guppy
-        def m(self: "EnumB[S, T]") -> int:  # pyright: ignore[reportInvalidTypeForm]
+        def m(self: "EnumB[S, T]") -> int:
             return 1
 
     @guppy.comptime

@@ -8,7 +8,6 @@ class E:
 
 @guppy.comptime
 def test() -> E:
-
     return E
 
 test.compile()

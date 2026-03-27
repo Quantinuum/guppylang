@@ -462,7 +462,7 @@ class GuppyStructObject(DunderMixin):
         # Or a method
         func = get_tracing_state().globals.get_instance_func(self._ty, key)
         if func is None:
-            err = f"Expression of type `{self._ty}` has no attribute `{key}`"
+            err = f"Struct of type `{self._ty}` has no attribute `{key}`"
             raise AttributeError(err)
         return lambda *xs: TracingDefMixin(func)(self, *xs)
 
@@ -484,7 +484,7 @@ class GuppyStructObject(DunderMixin):
     def __iter__(self) -> Any:
         # Abstract Guppy objects are not iterable from Python since our iterator
         # protocol doesn't work during tracing.
-        raise GuppyComptimeError(f"Expression of type `{self._ty}` is not iterable")
+        raise GuppyComptimeError(f"Struct of type `{self._ty}` is not iterable")
 
 
 class GuppyEnumObject(DunderMixin):
@@ -514,19 +514,19 @@ class GuppyEnumObject(DunderMixin):
         func = get_tracing_state().globals.get_instance_func(self._ty, key)
         if func is None:
             raise GuppyComptimeError(
-                f"Expression of type `{self._ty}` has no attribute `{key}`"
+                f"Enum variant of type `{self._ty}` has no method `{key}`"
             )
         return lambda *xs: TracingDefMixin(func)(self, *xs)
 
     @hide_trace
     def __setattr__(self, key: str, value: Any) -> None:
-        raise AttributeError("Enum objects do not support attribute assignment")
+        raise AttributeError("Enum variants do not support attribute assignment")
 
     @hide_trace
     def __iter__(self) -> Any:
         # Abstract Guppy objects are not iterable from Python since our iterator
         # protocol doesn't work during tracing.
-        raise GuppyComptimeError(f"Expression of type `{self._ty}` is not iterable")
+        raise GuppyComptimeError(f"Enum variant of type `{self._ty}` is not iterable")
 
 
 @dataclass(frozen=True)
@@ -564,7 +564,7 @@ class TracingDefMixin(DunderMixin):
 
     @hide_trace
     def __getattr__(self, name: str) -> Any:
-        # Handle attribute access when defining  an enum variant constructors, like
+        # Handle attribute access when calling an enum variant constructor, like
         # `Enum.VariantA()`. In all other cases, we should not try create a new
         # attribute, so we directly raise the error.
         if isinstance(self.wrapped, RawEnumDef):

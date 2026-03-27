@@ -114,10 +114,10 @@ def test_len(validate):
         # In particular, `builtins.len` doesn't work for GuppyObjects, but our mocked
         # version does
         s = S(100)
-        e = E.x(1)
         err = re.escape("object of type 'GuppyStructObject' has no len()")
         with pytest.raises(TypeError, match=err):
             builtins.len(s)
+        e = E.x(1)
         err = re.escape("object of type 'GuppyEnumObject' has no len()")
         with pytest.raises(TypeError, match=err):
             builtins.len(e)
