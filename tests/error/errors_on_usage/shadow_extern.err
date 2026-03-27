@@ -1,0 +1,14 @@
+Error: Variable not defined (at $FILE:10:11)
+   | 
+ 8 |     if b:
+ 9 |         x = 4
+10 |     return x
+   |            ^ `x` might be undefined ...
+
+Note:
+   | 
+ 7 | def main(b: bool) -> int:
+ 8 |     if b:
+   |        - ... if this expression is `False`
+
+Guppy compilation failed due to 1 previous error
