@@ -3,6 +3,8 @@ import pytest
 from hugr import ops, val
 
 from guppylang.decorator import guppy
+from guppylang_internals.error import GuppyError
+from guppylang_internals.checker.cfg_checker import VarMaybeNotDefinedError
 
 
 def test_extern_float(validate):
@@ -49,7 +51,6 @@ def test_extern_tuple(validate):
 
 
 # See https://github.com/quantinuum/guppylang/issues/827
-@pytest.mark.xfail(reason="Shadowing of extern variables is not allowed")
 def test_extern_conditional_assign():
     x = guppy._extern("x", ty="int")
 
@@ -59,4 +60,12 @@ def test_extern_conditional_assign():
             x = 4
         return x
 
-    main.compile_function()
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, VarMaybeNotDefinedError)
+            and "Variable not defined" in e.error.title
+            and "x" == e.error.var
+        ),
+    ):
+        main.compile_function()
