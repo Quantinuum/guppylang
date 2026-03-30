@@ -514,16 +514,14 @@ class GuppyEnumObject(DunderMixin):
         func = get_tracing_state().globals.get_instance_func(self._ty, key)
         if func is None:
             raise GuppyComptimeError(
-                f" Expression of enum type `{self._ty}` has no method `{key}`, "
-                "and variant fields are not accessible"
+                f" Expression of enum type `{self._ty}` has no method `{key}`. "
+                "It may be a variant field, but variant fields are inaccessible"
             )
         return lambda *xs: TracingDefMixin(func)(self, *xs)
 
     @hide_trace
     def __setattr__(self, key: str, value: Any) -> None:
-        raise AttributeError(
-            "Expression of enum type do not support attribute assignment"
-        )
+        raise AttributeError("Enum variants do not support attribute assignment")
 
     @hide_trace
     def __iter__(self) -> Any:
