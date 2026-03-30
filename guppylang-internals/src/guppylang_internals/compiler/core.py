@@ -471,6 +471,31 @@ class DFBuilder:
     raw_builder: DfBase[ops.DfParentOp]
     current_ast_node: AstNode | None = None
 
+    @contextmanager
+    def set_ast_context(self, ast_node: AstNode) -> Iterator[None]:
+        """Context manager to set the current AST node context for debug information
+        attachment - within the context of this manager the given `ast_node` will be
+        considered the most relevant AST node for any operation added, temporarily
+        overriding the previous `current_ast_node`.
+        """
+        prev_node = self.current_ast_node
+        self.current_ast_node = ast_node
+        try:
+            yield
+        finally:
+            self.current_ast_node = prev_node
+
+    @property
+    def debug_conditions_fulfilled(self) -> bool:
+        """Checks whether the conditions for debug information attachment are fulfilled,
+        i.e. whether we're in debug mode and we have a current AST node with an attached
+        file."""
+        return (
+            debug_mode_enabled()
+            and self.current_ast_node is not None
+            and get_file(self.current_ast_node) is not None
+        )
+
     def add_op(
         self,
         op: ops.DataflowOp,
@@ -482,26 +507,12 @@ class DFBuilder:
         avoid automatic debug information attachment.
         """
         op_node = self.raw_builder.add_op(op, *args)
-        if (
-            debug_mode_enabled()
-            and set_debug_info
-            and self.current_ast_node is not None
-            and get_file(self.current_ast_node) is not None
-        ):
+        if set_debug_info and self.debug_conditions_fulfilled:
+            assert self.current_ast_node is not None  # for type-checker
             op_node.metadata[HugrDebugInfo] = make_location_record(
                 self.current_ast_node
             )
         return op_node
-
-    @contextmanager
-    def set_ast_context(self, ast_node: AstNode) -> Iterator[None]:
-        """Sets the current AST node context for debug information attachment."""
-        prev_node = self.current_ast_node
-        self.current_ast_node = ast_node
-        try:
-            yield
-        finally:
-            self.current_ast_node = prev_node
 
     def call(
         self,
@@ -517,12 +528,8 @@ class DFBuilder:
         call = self.raw_builder.call(
             func, *args, instantiation=instantiation, type_args=type_args
         )
-        if (
-            debug_mode_enabled()
-            and set_debug_info
-            and self.current_ast_node is not None
-            and get_file(self.current_ast_node) is not None
-        ):
+        if set_debug_info and self.debug_conditions_fulfilled:
+            assert self.current_ast_node is not None  # for type-checker
             call.metadata[HugrDebugInfo] = make_location_record(self.current_ast_node)
         return call
 

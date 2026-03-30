@@ -264,26 +264,25 @@ def unpack_array(
 def unpack_array(
     builder: DFBuilder | DfBase[P], array: Wire, ast_node: AstNode | None = None
 ) -> list[Wire]:
-    if isinstance(builder, DFBuilder):
-        array_ty = builder.get_wire_type(array)
-        assert isinstance(array_ty, ht.ExtType)
-        match array_ty.args:
-            case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
-                res = builder.add_op(array_unpack(elem_ty, length), array)
-                return [res[i] for i in range(length)]
-            case _:
-                raise InternalGuppyError("Invalid array type args")
-    else:
-        array_ty = builder.hugr.port_type(array.out_port())
-        assert isinstance(array_ty, ht.ExtType)
-        match array_ty.args:
-            case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
-                res = add_op_to(
+    """Unpacks a wire of type array into separate wires for each element."""
+    array_ty = (
+        builder.get_wire_type(array)
+        if isinstance(builder, DFBuilder)
+        else builder.hugr.port_type(array.out_port())
+    )
+    assert isinstance(array_ty, ht.ExtType)
+    match array_ty.args:
+        case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
+            res = (
+                builder.add_op(array_unpack(elem_ty, length), array)
+                if isinstance(builder, DFBuilder)
+                else add_op_to(
                     builder, array_unpack(elem_ty, length), array, ast_node=ast_node
                 )
-                return [res[i] for i in range(length)]
-            case _:
-                raise InternalGuppyError("Invalid array type args")
+            )
+            return [res[i] for i in range(length)]
+        case _:
+            raise InternalGuppyError("Invalid array type args")
 
 
 class ArrayCompiler(CustomCallCompiler):
