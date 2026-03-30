@@ -15,7 +15,6 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
 )
 from guppylang_internals.definition.common import DefId, Definition
-from guppylang_internals.definition.enum import CheckedEnumDef, RawEnumDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -462,7 +461,7 @@ class GuppyStructObject(DunderMixin):
         # Or a method
         func = get_tracing_state().globals.get_instance_func(self._ty, key)
         if func is None:
-            err = f"Expression of struct type `{self._ty}` " f"has no attribute `{key}`"
+            err = f"Expression of struct type `{self._ty}` has no attribute `{key}`"
             raise AttributeError(err)
         return lambda *xs: TracingDefMixin(func)(self, *xs)
 
@@ -567,32 +566,6 @@ class TracingDefMixin(DunderMixin):
             return TracingDefMixin(constructor)(*args)
         err = f"{defn.description.capitalize()} `{defn.name}` is not callable"
         raise GuppyComptimeError(err)
-
-    @hide_trace
-    def __getattr__(self, name: str) -> Any:
-        # Handle attribute access when calling an enum variant constructor, like
-        # `Enum.VariantA()`. In all other cases, we should not try create a new
-        # attribute, so we directly raise the error.
-        if isinstance(self.wrapped, RawEnumDef):
-            defn = ENGINE.get_checked(self.wrapped.id)
-            assert isinstance(defn, CheckedEnumDef)
-            if (
-                # We can only access the variants of the enum from the enum class,
-                # not methods
-                name in defn.variants
-                and defn.id in DEF_STORE.impls
-                and name in DEF_STORE.impls[defn.id]
-            ):
-                impl_def = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id][name]]
-                return TracingDefMixin(impl_def)
-            raise AttributeError(
-                f"{defn.description.capitalize()} `{defn.name}` "
-                f"has no attribute `{name}`"
-            )
-        raise AttributeError(
-            f"{self.wrapped.description.capitalize()} `{self.wrapped.name}`"
-            f" has no attribute `{name}`"
-        )
 
     def __getitem__(self, item: Any) -> Any:
         # If this is a type definition, then `__getitem__` might be called when
