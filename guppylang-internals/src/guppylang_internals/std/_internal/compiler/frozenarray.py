@@ -9,8 +9,8 @@ from hugr import tys as ht
 from hugr.std.collections.static_array import EXTENSION, StaticArray
 
 from guppylang_internals.compiler.core import (
+    DFBuilder,
     GlobalConstId,
-    add_op_to,
 )
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.std._internal.compiler.arithmetic import (
@@ -49,14 +49,13 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
             body=ht.FunctionType([StaticArray(var), INT_T], [var]),
         )
         func, already_exists = self.ctx.declare_global_func(FROZENARRAY_GETITEM, sig)
+        func_builder = DFBuilder(func, self.node)
         if not already_exists:
             [arr, idx] = func.inputs()
-            idx = add_op_to(func, convert_itousize(), idx, ast_node=self.node)
-            elem_opt = add_op_to(
-                func, static_array_get(var), arr, idx, ast_node=self.node
-            )
+            idx = func_builder.add_op(convert_itousize(), idx)
+            elem_opt = func_builder.add_op(static_array_get(var), arr, idx)
             elem = build_unwrap(
-                func, elem_opt, "Frozenarray index out of bounds", ast_node=self.node
+                func_builder, elem_opt, "Frozenarray index out of bounds"
             )
             func.set_outputs(elem)
         return func

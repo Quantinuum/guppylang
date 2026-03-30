@@ -3,7 +3,18 @@ from dataclasses import dataclass, field
 
 from hugr.debug_info import DILocation
 
+from guppylang_internals.ast_util import AstNode, get_file
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.span import to_span
+
+
+def debug_conditions_fulfilled(ast_node: AstNode | None) -> bool:
+    """Checks whether the conditions for debug information attachment are fulfilled,
+    i.e. whether we're in debug mode and we have a current AST node with an attached
+    file."""
+    return (
+        debug_mode_enabled() and ast_node is not None and get_file(ast_node) is not None
+    )
 
 
 def make_location_record(node: ast.AST) -> DILocation:

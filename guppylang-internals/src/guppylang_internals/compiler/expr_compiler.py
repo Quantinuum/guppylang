@@ -138,7 +138,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return [self.compile(e, dfg) for e in expr_to_row(expr)]
 
     @property
-    def builder(self) -> DFBuilder:
+    def builder(self) -> DFBuilder[ops.DfParentOp]:
         """The current Hugr dataflow graph builder."""
         return self.dfg.builder
 
@@ -769,9 +769,6 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         raise InternalGuppyError("Node should have been removed during type checking.")
 
 
-P = TypeVar("P", bound=ops.DfParentOp)
-
-
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:
     """Turns an expression into a row expressions by unpacking top-level tuples."""
     return expr.elts if isinstance(expr, ast.Tuple) else [expr]
@@ -780,7 +777,7 @@ def expr_to_row(expr: ast.expr) -> list[ast.expr]:
 def pack_returns(
     returns: Sequence[Wire],
     return_ty: Type,
-    builder: DFBuilder,
+    builder: DFBuilder[ops.DfParentOp],
     ctx: CompilerContext,
 ) -> Wire:
     """Groups function return values into a tuple"""
@@ -798,7 +795,7 @@ def pack_returns(
 def unpack_wire(
     wire: Wire,
     return_ty: Type,
-    builder: DFBuilder,
+    builder: DFBuilder[ops.DfParentOp],
     ctx: CompilerContext,
     ast_node: AstNode | None = None,
 ) -> list[Wire]:
@@ -862,9 +859,6 @@ def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value
     return None
 
 
-ARRAY_UNWRAP_ELEM: Final[GlobalConstId] = GlobalConstId.fresh("array.__unwrap_elem")
-ARRAY_WRAP_ELEM: Final[GlobalConstId] = GlobalConstId.fresh("array.__wrap_elem")
-
 ARRAY_READ_BOOL: Final[GlobalConstId] = GlobalConstId.fresh("array.__read_bool")
 ARRAY_MAKE_OPAQUE_BOOL: Final[GlobalConstId] = GlobalConstId.fresh(
     "array.__make_opaque_bool"
@@ -907,13 +901,12 @@ def doesnt_contain_none(xs: list[T | None]) -> TypeGuard[list[T]]:
 
 def apply_array_op_with_conversions(
     ctx: CompilerContext,
-    builder: DFBuilder,
+    builder: DFBuilder[ops.DfParentOp],
     op: ops.DataflowOp,
     elem_ty: ht.Type,
     size_arg: ht.TypeArg,
     input_array: Wire,
     convert_bool: bool = False,
-    ast_node: AstNode | None = None,
 ) -> Wire:
     """Applies common transformations to a Guppy array input before it can be passed to
     a Hugr op operating on a standard Hugr array, and then reverses them again on the

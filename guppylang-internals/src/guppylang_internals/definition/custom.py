@@ -379,7 +379,7 @@ class CustomInoutCallCompiler(ABC):
         """
 
     @property
-    def builder(self) -> DFBuilder:
+    def builder(self) -> DFBuilder[ops.DfParentOp]:
         """The hugr dataflow builder."""
         return self.dfg.builder
 

@@ -3,7 +3,7 @@ from abc import ABC
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops, val
@@ -19,7 +19,7 @@ from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from typing_extensions import assert_never
 
-from guppylang_internals.ast_util import AstNode, get_file
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import (
     FieldAccess,
     Globals,
@@ -28,7 +28,6 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
-from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckedDef,
     CompilableDef,
@@ -45,6 +44,7 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.metadata.debug_info_util import (
     StringTable,
+    debug_conditions_fulfilled,
     make_location_record,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
@@ -376,7 +376,7 @@ class DFContainer:
     current compilation state.
     """
 
-    builder: "DFBuilder"
+    builder: "DFBuilder[ops.DfParentOp]"
     ctx: CompilerContext
     locals: CompiledLocals = field(default_factory=dict)
 
@@ -458,7 +458,7 @@ class DFContainer:
 
 
 @dataclass
-class DFBuilder:
+class DFBuilder(Generic[DP]):
     """A wrapper around a dataflow graph builder which ensures compiler-specific
     additional actions can be performed every time an operation is added to the graph.
 
@@ -468,7 +468,7 @@ class DFBuilder:
     The underlying builder can still be accessed through `raw_builder`.
     """
 
-    raw_builder: DfBase[ops.DfParentOp]
+    raw_builder: DfBase[DP]
     current_ast_node: AstNode | None = None
 
     @contextmanager
@@ -485,17 +485,6 @@ class DFBuilder:
         finally:
             self.current_ast_node = prev_node
 
-    @property
-    def debug_conditions_fulfilled(self) -> bool:
-        """Checks whether the conditions for debug information attachment are fulfilled,
-        i.e. whether we're in debug mode and we have a current AST node with an attached
-        file."""
-        return (
-            debug_mode_enabled()
-            and self.current_ast_node is not None
-            and get_file(self.current_ast_node) is not None
-        )
-
     def add_op(
         self,
         op: ops.DataflowOp,
@@ -507,7 +496,7 @@ class DFBuilder:
         avoid automatic debug information attachment.
         """
         op_node = self.raw_builder.add_op(op, *args)
-        if set_debug_info and self.debug_conditions_fulfilled:
+        if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
             op_node.metadata[HugrDebugInfo] = make_location_record(
                 self.current_ast_node
@@ -528,7 +517,7 @@ class DFBuilder:
         call = self.raw_builder.call(
             func, *args, instantiation=instantiation, type_args=type_args
         )
-        if set_debug_info and self.debug_conditions_fulfilled:
+        if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
             call.metadata[HugrDebugInfo] = make_location_record(self.current_ast_node)
         return call
@@ -563,24 +552,6 @@ class DFBuilder:
 
     def add_const(self, value: val.Value, parent: ToNode | None = None) -> Node:
         return self.raw_builder.add_const(value, parent)
-
-
-def add_op_to(
-    other_builder: DfBase[DP],
-    op: ops.DataflowOp,
-    /,
-    *args: Wire,
-    ast_node: AstNode | None,
-) -> Node:
-    """Adds an op to the given builder, attaching debug information to it if the related
-    `ast_node` is not None. To be used in contexts where want to add operations to
-    specific builders as opposed to the default `DFBuilder`, e.g. `ConditionalBuilder`,
-    `CaseBuilder`, etc.
-    """
-    op_node = other_builder.add_op(op, *args)
-    if debug_mode_enabled() and ast_node is not None and get_file(ast_node) is not None:
-        op_node.metadata[HugrDebugInfo] = make_location_record(ast_node)
-    return op_node
 
 
 class CompilerBase(ABC):

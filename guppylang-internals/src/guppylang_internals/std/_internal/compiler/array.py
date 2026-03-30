@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, overload
+from typing import TYPE_CHECKING, TypeVar
 
 import hugr
 from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
-from guppylang_internals.compiler.core import DFBuilder, add_op_to
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -19,9 +18,8 @@ from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
-    from hugr.build.dfg import DfBase
-
     from guppylang_internals.ast_util import AstNode
+    from guppylang_internals.compiler.core import DFBuilder
 
 
 # ------------------------------------------------------
@@ -249,37 +247,15 @@ def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
 P = TypeVar("P", bound=ops.DfParentOp)
 
 
-@overload
-def unpack_array(builder: DFBuilder, array: Wire) -> list[Wire]:
-    pass
-
-
-@overload
 def unpack_array(
-    builder: DfBase[P], array: Wire, ast_node: AstNode | None = None
-) -> list[Wire]:
-    pass
-
-
-def unpack_array(
-    builder: DFBuilder | DfBase[P], array: Wire, ast_node: AstNode | None = None
+    builder: DFBuilder[P], array: Wire, ast_node: AstNode | None = None
 ) -> list[Wire]:
     """Unpacks a wire of type array into separate wires for each element."""
-    array_ty = (
-        builder.get_wire_type(array)
-        if isinstance(builder, DFBuilder)
-        else builder.hugr.port_type(array.out_port())
-    )
+    array_ty = builder.get_wire_type(array)
     assert isinstance(array_ty, ht.ExtType)
     match array_ty.args:
         case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
-            res = (
-                builder.add_op(array_unpack(elem_ty, length), array)
-                if isinstance(builder, DFBuilder)
-                else add_op_to(
-                    builder, array_unpack(elem_ty, length), array, ast_node=ast_node
-                )
-            )
+            res = builder.add_op(array_unpack(elem_ty, length), array)
             return [res[i] for i in range(length)]
         case _:
             raise InternalGuppyError("Invalid array type args")
