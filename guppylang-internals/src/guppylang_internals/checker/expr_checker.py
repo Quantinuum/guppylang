@@ -68,6 +68,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
 )
 from guppylang_internals.checker.errors.generic import (
     ExpectedError,
+    NonExhaustiveMatchError,
     UnexpectedError,
     UnsupportedError,
 )
@@ -205,8 +206,6 @@ binary_table: dict[type[AstOp], tuple[str, str, str]] = {
     ast.Gt:       ("__gt__",       "__lt__",        ">"),
     ast.GtE:      ("__ge__",       "__le__",        ">="),
 }  # fmt: skip
-
-CheckedPatterns = list[MatchEnum | MatchStruct | MatchLiteral]
 
 
 class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
@@ -874,29 +873,21 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         # TODO: NICOLa(F): what other types we support here? arrays? Option?
         node.subject, subj_ty = self.synthesize(node.subject)
 
-        if not isinstance(subj_ty, StructType | EnumType | NumericType) and not (
-            isinstance(subj_ty, OpaqueType) and subj_ty.defn.name == "bool"
-        ):
-            raise GuppyError(
-                UnsupportedError(
-                    node.subject, f"Pattern matching on {subj_ty.kind_str()}", True
+        match subj_ty:
+            case EnumType():
+                new_node = with_loc(node, MatchOverEnum(node.subject, subj_ty))
+            case StructType():
+                new_node = with_loc(node, MatchOverStruct(node.subject, subj_ty))
+            case NumericType():
+                new_node = with_loc(node, MatchOverLiteral(node.subject, subj_ty))
+            case OpaqueType() if subj_ty.defn.name == "bool":
+                new_node = with_loc(node, MatchOverLiteral(node.subject, subj_ty))
+            case _:
+                raise GuppyError(
+                    UnsupportedError(
+                        node.subject, f"Pattern matching on {subj_ty.kind_str()}", True
+                    )
                 )
-            )
-
-        # TODO: Nicola after the PR refactor
-        new_node: ast.expr
-        if isinstance(subj_ty, EnumType):
-            new_node = with_loc(node, MatchOverEnum(node.subject, subj_ty))
-        elif isinstance(subj_ty, StructType):
-            new_node = with_loc(node, MatchOverStruct(node.subject, subj_ty))
-        elif isinstance(subj_ty, NumericType) or (
-            isinstance(subj_ty, OpaqueType) and subj_ty.defn.name == "bool"
-        ):
-            new_node = with_loc(node, MatchOverLiteral(node.subject, subj_ty))
-        else:
-            raise InternalGuppyError(
-                f"Unsupported subject type for pattern matching: {subj_ty}"
-            )
 
         checked_patterns = []
         for pattern in node.patterns:
@@ -904,7 +895,41 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             checked_patterns.append(pattern)
 
         new_node.patterns = checked_patterns
+
+        new_node = self._post_process_match_pred(new_node, subj_ty)
         return new_node, bool_type()
+
+    def _post_process_match_pred(self, node: ast.expr, ty: Type) -> ast.expr:
+        """After the checking we need to pre-compile the decision tree for the pattern
+        match statement. We compute it in the checking since it allows us to check
+        exhaustiveness"""
+        # TODO: Testing
+        match node:
+            case MatchOverLiteral(
+                subj_type=OpaqueType(defn=defn)
+            ) if defn.name == "bool":
+                literal_values: set[bool] = set()
+                for p in node.patterns:
+                    if isinstance(p, ast.MatchAs):
+                        # We have a wildcard pattern, thus the match is exhaustive
+                        return node
+                    assert isinstance(p, MatchLiteral)
+                    assert isinstance(p.constant.value, bool)
+                    literal_values.add(p.constant.value)
+
+                missing_values = {True, False} - literal_values
+                if len(missing_values) == 0:
+                    return node
+            case MatchOverLiteral():
+                if isinstance(node.patterns[-1], ast.MatchAs):
+                    # We are mathching on a literal, thus there are infinite possible
+                    # patterns and the last pattern needs to be a wildcard
+                    # No other pre compilation is needed for the decision tree
+                    return node
+            case _:
+                return node
+
+        raise GuppyError(NonExhaustiveMatchError(node))
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> tuple[ast.expr, Type]:
         raise InternalGuppyError(
@@ -1021,6 +1046,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
         eq_func = self.ctx.globals.get_instance_func(val_ty, "__eq__")
         assert eq_func is not None, f"Type {val_ty} must have __eq__ method"
         assert isinstance(node.value, ast.Constant)
+
         return MatchLiteral(node.value, eq_func.id)
 
     def visit_MatchClass(self, node: ast.MatchClass, exp_ty: Type) -> ast.pattern:

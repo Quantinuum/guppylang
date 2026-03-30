@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
-from typing import Any, Final, TypeGuard, TypeVar, cast
+from typing import Any, Final, TypeGuard, TypeVar, assert_never, cast
 
 import hugr
 import hugr.std.float
@@ -35,6 +35,7 @@ from guppylang_internals.compiler.hugr_extension import PartialOp
 from guppylang_internals.definition.custom import (
     BoolOpCompiler,
     CustomFunctionDef,
+    OpCompiler,
 )
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -157,9 +158,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """
         old = self.dfg
         # Check that the input names are unique
-        assert len({inp.place.id for inp in inputs}) == len(inputs), (
-            "Inputs are not unique"
-        )
+        assert len({inp.place.id for inp in inputs}) == len(
+            inputs
+        ), "Inputs are not unique"
         self.dfg = DFContainer(builder, self.ctx, self.dfg.locals.copy())
         hugr_input = builder.input_node
         for input_node, wire in zip(inputs, hugr_input, strict=True):
@@ -398,9 +399,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 func, func_ty, remaining_args
             )
             rets.extend(outs)
-        assert remaining_args == [], (
-            "Not all function arguments were consumed after a tensor call"
-        )
+        assert (
+            remaining_args == []
+        ), "Not all function arguments were consumed after a tensor call"
         return self._pack_returns(rets, node.tensor_ty.output)
 
     def _compile_tensor_with_leftovers(
@@ -903,7 +904,7 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
 
     dfg: DFContainer
     builder: DfBase[ops.DfParentOp]
-    input_wire: Wire
+    subject_wire: Wire
 
     def __init__(
         self,
@@ -918,9 +919,9 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
     def compile(
         self,
         pattern: ast.pattern,
-        input_wire: Wire,
+        subject_wire: Wire,
     ) -> Wire:
-        self.input_wire = input_wire
+        self.subject_wire = subject_wire
         return self.visit(pattern)
 
     def visit_MatchLiteral(self, node: MatchLiteral) -> Wire:
@@ -941,11 +942,23 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
         hugr_ty = concrete_ty.to_hugr(self.ctx)
         # we extract the call_compiler to build the hugr call
         call_compiler = eq_func.call_compiler
-        assert isinstance(call_compiler, BoolOpCompiler)
-        call_compiler._light_setup(type_args, self.ctx, hugr_ty)
-        rets = call_compiler.compile_with_in(
-            [value_wire, self.input_wire], self.builder
-        )
+        match call_compiler:
+            case BoolOpCompiler():
+                # We need input conversions from hugr Bools to the Guppy bools in input
+                call_compiler._light_setup(type_args, self.ctx, hugr_ty)
+                rets = call_compiler.compile_with_in(
+                    [value_wire, self.subject_wire], self.builder
+                )
+            case OpCompiler(op=op):
+                # We need input conversions from hugr Bools to the Guppy bools as output
+                op = op(hugr_ty, type_args, self.ctx)
+                out_wires = self.builder.add_op(op, value_wire, self.subject_wire)
+                assert self.builder.hugr.port_type(out_wires[0]) == OpaqueBool
+                out_wires = self.builder.add_op(read_bool(), out_wires[0])
+                rets = list(out_wires.outputs())
+            case _:
+                assert_never(call_compiler)
+
         # we get the wires corresponding to the call result:
         # the equality function returns a boolean indicating if they're equal
         assert len(rets) == 1
@@ -1001,7 +1014,7 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
         # return result
 
     def visit_MatchEnum(self, node: MatchEnum) -> Wire:
-        return self.input_wire
+        return self.subject_wire
 
 
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:
@@ -1021,9 +1034,9 @@ def pack_returns(
         assert len(returns) == len(types)
         hugr_tys = [t.to_hugr(ctx) for t in types]
         return builder.add_op(ops.MakeTuple(hugr_tys), *returns)
-    assert len(returns) == 1, (
-        f"Expected a single return value. Got {returns}. return type {return_ty}"
-    )
+    assert (
+        len(returns) == 1
+    ), f"Expected a single return value. Got {returns}. return type {return_ty}"
     return returns[0]
 
 

@@ -852,7 +852,7 @@ class CheckedModifiedBlock(ast.With):
 
 
 class UncheckedMatchPred(ast.expr):
-    """A Node representing a patteern match on subject against a list of patterns
+    """A Node representing a pattern match on subject against a list of patterns
     before checking"""
 
     subject: ast.expr
@@ -910,7 +910,8 @@ class MatchOverStruct(CheckedMatchPred):
 
 
 class MatchOverLiteral(CheckedMatchPred):
-    """A Node representing a pattern match on subject against a literal pattern"""
+    """A Node representing a pattern match on subject against a literal pattern
+    This node allow us to compile pattern matches on literals in a compact hugr"""
 
     subj_type: Type
 
@@ -923,7 +924,7 @@ class MatchLiteral(ast.pattern):
     """A Node representing a checked pattern match on a literal value
     against a list of patterns
 
-    equality_function is the DefId of the equality function to use for comparing the
+    `equality_function` is the DefId of the equality function to use for comparing the
     literal value with the subject."""
 
     constant: ast.Constant

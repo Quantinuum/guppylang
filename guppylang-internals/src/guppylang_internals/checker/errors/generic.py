@@ -74,3 +74,9 @@ class InvalidUnderDagger(Error):
     @dataclass(frozen=True)
     class Dagger(Note):
         span_label: ClassVar[str] = "dagger modifier is used here"
+
+
+@dataclass(frozen=True)
+class NonExhaustiveMatchError(Error):
+    title: ClassVar[str] = "Non-exhaustive pattern match"
+    span_label: ClassVar[str] = "Pattern match is not exhaustive"
