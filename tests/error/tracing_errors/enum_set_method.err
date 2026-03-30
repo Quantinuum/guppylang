@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile()
   File "$FILE", line 21, in test
     e.foo = bar
-AttributeError: Expression of enum type do not support attribute assignment
+AttributeError: Enum variants do not support attribute assignment
