@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile()
   File "$FILE", line 13, in test
     for _ in e:
-guppylang_internals.error.GuppyComptimeError: Enum variant of type `E` is not iterable
+guppylang_internals.error.GuppyComptimeError: Expression of enum type `E` is not iterable

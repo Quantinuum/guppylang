@@ -2,5 +2,5 @@ Traceback (most recent call last):
   File "$FILE", line 24, in <module>
     test.compile()
   File "$FILE", line 21, in test
-    e.foo = bar(e)
-AttributeError: Enum variants do not support attribute assignment
+    e.foo = bar
+AttributeError: Expression of enum type do not support attribute assignment

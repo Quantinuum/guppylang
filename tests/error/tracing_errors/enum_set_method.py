@@ -18,7 +18,7 @@ def bar(e: E) -> int:
 @guppy.comptime
 def test() -> None:
     e = E.A()
-    e.foo = bar(e)
+    e.foo = bar
 
 
 test.compile()

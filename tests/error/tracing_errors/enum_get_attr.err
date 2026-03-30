@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile()
   File "$FILE", line 13, in test
     e.x
-guppylang_internals.error.GuppyComptimeError: Enum variant of type `E` has no method `x`
+guppylang_internals.error.GuppyComptimeError:  Expression of enum type `E` has no method `x`, and variant fields are not accessible

@@ -462,7 +462,7 @@ class GuppyStructObject(DunderMixin):
         # Or a method
         func = get_tracing_state().globals.get_instance_func(self._ty, key)
         if func is None:
-            err = f"Struct of type `{self._ty}` has no attribute `{key}`"
+            err = f"Expression of struct type `{self._ty}` " f"has no attribute `{key}`"
             raise AttributeError(err)
         return lambda *xs: TracingDefMixin(func)(self, *xs)
 
@@ -471,13 +471,14 @@ class GuppyStructObject(DunderMixin):
         if key in self._field_values:
             if self._frozen:
                 err = (
-                    f"Object of type `{self._ty}` is an owned function argument. "
+                    f"Object of struct type `{self._ty}` is an owned function "
+                    "argument. "
                     "Therefore, this mutation won't be visible to the caller."
                 )
                 raise GuppyComptimeError(err)
             self._field_values[key] = value
         else:
-            err = f"Expression of type `{self._ty}` has no attribute `{key}`"
+            err = f"Expression of struct type `{self._ty}` has no attribute `{key}`"
             raise AttributeError(err)
 
     @hide_trace
@@ -514,19 +515,24 @@ class GuppyEnumObject(DunderMixin):
         func = get_tracing_state().globals.get_instance_func(self._ty, key)
         if func is None:
             raise GuppyComptimeError(
-                f"Enum variant of type `{self._ty}` has no method `{key}`"
+                f" Expression of enum type `{self._ty}` has no method `{key}`, "
+                "and variant fields are not accessible"
             )
         return lambda *xs: TracingDefMixin(func)(self, *xs)
 
     @hide_trace
     def __setattr__(self, key: str, value: Any) -> None:
-        raise AttributeError("Enum variants do not support attribute assignment")
+        raise AttributeError(
+            "Expression of enum type do not support attribute assignment"
+        )
 
     @hide_trace
     def __iter__(self) -> Any:
         # Abstract Guppy objects are not iterable from Python since our iterator
         # protocol doesn't work during tracing.
-        raise GuppyComptimeError(f"Enum variant of type `{self._ty}` is not iterable")
+        raise GuppyComptimeError(
+            f"Expression of enum type `{self._ty}` is not iterable"
+        )
 
 
 @dataclass(frozen=True)
