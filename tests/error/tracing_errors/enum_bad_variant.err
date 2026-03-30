@@ -2,5 +2,5 @@ Traceback (most recent call last):
   File "$FILE", line 15, in <module>
     test.compile()
   File "$FILE", line 12, in test
-    s.y = x
-AttributeError: Expression of struct type `S` has no attribute `y`
+    e = E.C()
+AttributeError: Type `E` has no attribute `C`

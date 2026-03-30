@@ -439,7 +439,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     ) -> tuple[ast.expr, Type]:
         """Helper method to check a name by its identifier, used for both `ast.Name` and
         `ast.Attribute` nodes. If allow_enum is False, we raise an error if the name
-        corresponds to an enum definition, since enums cannot be used as values."""
+        corresponds to an guppy.enum class, since enum classes cannot be used as values,
+        e.g: `x = Color` raises an error, while `x = Color.Red()` is fine."""
         if name_id in self.ctx.locals:
             var = self.ctx.locals[name_id]
             return with_loc(node, PlaceNode(place=var)), var.ty
