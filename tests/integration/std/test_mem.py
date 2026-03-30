@@ -13,3 +13,14 @@ def test_with_owned(validate):
         return with_owned(q, helper)
 
     validate(measure_and_reset.compile_function())
+
+
+def test_with_owned_row(validate):
+    @guppy
+    def measure_and_reset(q: qubit) -> tuple[bool, int]:
+        def helper(q: qubit @ owned) -> tuple[tuple[bool, int], qubit]:
+            return (measure(q), 42), qubit()
+
+        return with_owned(q, helper)
+
+    validate(measure_and_reset.compile_function())
