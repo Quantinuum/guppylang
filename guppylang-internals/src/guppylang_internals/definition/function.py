@@ -85,8 +85,6 @@ def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
                 arg_strings.append(str(ty))
             case ConstArg(const=ConstValue(value=v)):
                 arg_strings.append(str(v))
-            # case _:
-            #     raise InternalGuppyError("Unexpected monomorphization")
     return f"{link_name}$" + "&".join(arg_strings)
 
 
