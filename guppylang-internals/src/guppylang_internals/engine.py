@@ -332,11 +332,11 @@ class CompilationEngine:
                 checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
             except GuppyError as err:
                 # If this is an error arising from the initial parametric check where
-                # parameters are treated opaque values, then we can just report the
+                # parameters are treated as opaque values, then we can just report the
                 # error as is. However, if the error only shows up once we check a
                 # concrete monomorphic instantiation, then we should also report this
                 # instantiation in the error message to give some additional context.
-                if is_non_parametric(mono_args):
+                if instantiation_context_is_useful_for_error(mono_args):
                     err.error.add_sub_diagnostic(
                         MonoArgsNote(None, defn.params, mono_args)
                     )
@@ -524,11 +524,13 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
         )
 
 
-def is_non_parametric(mono_args: Inst) -> bool:
-    """Checks if a given `mono_args` instantiation is an actual monomorphic
+def instantiation_context_is_useful_for_error(mono_args: Inst) -> bool:
+    """Checks if the given instantiation should be attached as context to an error.
+
+    This is the case if the `mono_args` instantiation is an actual monomorphic
     instantiation instead of an opaque one used for the initial parametric check.
 
-    Empty instantiations are treated as parametric.
+    Empty instantiations are never included as context.
     """
     for arg in mono_args:
         match arg:
