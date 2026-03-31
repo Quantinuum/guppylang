@@ -513,7 +513,7 @@ class TracingDefMixin(DunderMixin):
             # Definition is non-generic, so we can use `mono_args=()` here
             defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
             if isinstance(defn, TypeDef) and (
-                constructor_id := DEF_STORE.impls[defn.id].get("__new__")
+                constructor_id := DEF_STORE.type_members[defn.id].get("__new__")
             ):
                 return TracingDefMixin(DEF_STORE.raw_defs[constructor_id])(*args)
         err = f"{defn.description.capitalize()} `{defn.name}` is not callable"
@@ -557,8 +557,13 @@ class TracingDefMixin(DunderMixin):
             wire = defn.load(state.dfg, state.ctx, state.node)
             return GuppyObject(defn.ty, wire, None)
         elif isinstance(defn, TypeDef):
-            if defn.id in DEF_STORE.impls and "__new__" in DEF_STORE.impls[defn.id]:
-                constructor = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id]["__new__"]]
+            if (
+                defn.id in DEF_STORE.type_members
+                and "__new__" in DEF_STORE.type_members[defn.id]
+            ):
+                constructor = DEF_STORE.raw_defs[
+                    DEF_STORE.type_members[defn.id]["__new__"]
+                ]
                 return TracingDefMixin(constructor).to_guppy_object()
         err = f"{defn.description.capitalize()} `{defn.name}` is not a value"
         raise GuppyComptimeError(err)

@@ -233,22 +233,22 @@ class GuppyLibrary:
 
     members: list[DefId]
 
-    def _member_impls(self) -> list[DefId]:
+    def _type_members(self) -> list[DefId]:
         """Any implementations registered for members of this library. Note that the
         list is only guaranteed to be complete after calling `check()` on the library
         members, since auto-generated implementations may be added during checking."""
-        impls: list[DefId] = []
+        members: list[DefId] = []
         for def_id in self.members:
             # TODO automatic member inclusion should be based on the automatic
             # collection when available
-            impls.extend(DEF_STORE.impls[def_id].values())
+            members.extend(DEF_STORE.type_members[def_id].values())
 
-        return impls
+        return members
 
     def compile(self) -> Package:
         """Compile this collection of definitions into a HUGR package."""
         ENGINE.check(self.members)
-        pointer = ENGINE.compile(self.members + self._member_impls(), reset=False)
+        pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
         return pointer.package
@@ -256,7 +256,7 @@ class GuppyLibrary:
     def check(self) -> None:
         """Type-check all contained definitions."""
         ENGINE.check(self.members)
-        ENGINE.check(self._member_impls(), reset=False)
+        ENGINE.check(self._type_members(), reset=False)
 
 
 @dataclass(frozen=True)

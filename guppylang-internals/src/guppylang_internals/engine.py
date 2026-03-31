@@ -110,16 +110,16 @@ class DefinitionStore:
     """
 
     raw_defs: dict[DefId, RawDef]
-    impls: defaultdict[DefId, dict[str, DefId]]
-    impl_parents: dict[DefId, DefId]
+    type_members: defaultdict[DefId, dict[str, DefId]]
+    type_member_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
     sources: SourceMap
 
     def __init__(self) -> None:
         self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
-        self.impls = defaultdict(dict)
-        self.impl_parents = {}
+        self.type_members = defaultdict(dict)
+        self.type_member_parents = {}
         self.frames = {}
         self.sources = SourceMap()
         self.wasm_functions = {}
@@ -129,15 +129,15 @@ class DefinitionStore:
         if frame:
             self.frames[defn.id] = frame
 
-    def register_impl(self, ty_id: DefId, name: str, impl_id: DefId) -> None:
-        assert impl_id not in self.impl_parents, "Already an impl"
-        self.impls[ty_id][name] = impl_id
-        self.impl_parents[impl_id] = ty_id
+    def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
+        assert member_id not in self.type_member_parents, "Already a member"
+        self.type_members[ty_id][name] = member_id
+        self.type_member_parents[member_id] = ty_id
         # Update the frame of the definition to the frame of the defining class
-        if impl_id in self.frames:
-            frame = self.frames[impl_id].f_back
+        if member_id in self.frames:
+            frame = self.frames[member_id].f_back
             if frame:
-                self.frames[impl_id] = frame
+                self.frames[member_id] = frame
                 # For Python 3.12 generic functions and classes, there is an additional
                 # inserted frame for the annotation scope. We can detect this frame by
                 # looking for the special ".generic_base" variable in the frame locals
@@ -148,7 +148,7 @@ class DefinitionStore:
                 if ".generic_base" in frame.f_locals:
                     frame = frame.f_back
                     assert frame is not None
-                    self.frames[impl_id] = frame
+                    self.frames[member_id] = frame
 
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
@@ -190,8 +190,11 @@ class DefinitionStore:
                 return assert_never(ty)
 
         type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
-        if type_defn.id in self.impls and name in self.impls[type_defn.id]:
-            def_id = self.impls[type_defn.id][name]
+        if (
+            type_defn.id in self.type_members
+            and name in self.type_members[type_defn.id]
+        ):
+            def_id = self.type_members[type_defn.id][name]
             defn = ENGINE.get_parsed(def_id)
             if isinstance(defn, CallableDef):
                 return defn
@@ -351,7 +354,7 @@ class CompilationEngine:
             frame = DEF_STORE.frames[defn.id]
             for method_def in defn.generated_methods():
                 DEF_STORE.register_def(method_def, frame)
-                DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
+                DEF_STORE.register_type_member(defn.id, method_def.name, method_def.id)
 
         return defn
 
