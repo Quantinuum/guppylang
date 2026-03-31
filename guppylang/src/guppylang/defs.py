@@ -33,7 +33,12 @@ from guppylang.emulator.exceptions import EmulatorBuildError
 if TYPE_CHECKING:
     import ast
 
-__all__ = ("GuppyDefinition", "GuppyFunctionDefinition", "GuppyTypeVarDefinition")
+__all__ = (
+    "GuppyDefinition",
+    "GuppyEnumDefinition",
+    "GuppyFunctionDefinition",
+    "GuppyTypeVarDefinition",
+)
 
 
 P = ParamSpec("P")
