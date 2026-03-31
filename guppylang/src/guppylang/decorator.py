@@ -601,7 +601,7 @@ class _Guppy:
         from pytket.circuit import Circuit  # Decoupled import
 
         if not isinstance(input_circuit, Circuit):
-            err_msg = "Only pytket circuits can be passed to guppy.pytket"
+            err_msg = "Only pytket circuits can be passed to guppy.load_pytket"
             raise TypeError(err_msg) from None
 
         span = _find_load_call(DEF_STORE.sources)
