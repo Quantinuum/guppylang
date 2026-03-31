@@ -9,13 +9,16 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
+from guppylang_internals.definition.enum import CheckedEnumDef
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
-from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tracing.object import TracingDefMixin
+from guppylang_internals.tracing.object import (
+    TracingDefMixin,
+)
 from guppylang_internals.tracing.util import hide_trace
 from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
@@ -82,6 +85,31 @@ class GuppyDefinition(TracingDefMixin):
     def check(self) -> None:
         """Type-check a Guppy definition."""
         return ENGINE.check(self.id)
+
+
+@dataclass(frozen=True)
+class GuppyEnumDefinition(GuppyDefinition):
+    """A Guppy enum definition."""
+
+    @hide_trace
+    def __getattr__(self, name: str) -> Any:
+        # Handle attribute access when calling an enum variant constructor, like
+        # `Enum.VariantA()`. In all other cases, we should not try create a new
+        # attribute, so we directly raise the error.
+        defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
+        assert isinstance(defn, CheckedEnumDef)
+        if (
+            # We can only access the variants of the enum from the enum class,
+            # not methods
+            name in defn.variants
+            and defn.id in DEF_STORE.impls
+            and name in DEF_STORE.impls[defn.id]
+        ):
+            impl_def = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id][name]]
+            return TracingDefMixin(impl_def)
+        raise AttributeError(
+            f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
+        )
 
 
 @dataclass(frozen=True)
