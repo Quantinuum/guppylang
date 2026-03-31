@@ -1,0 +1,11 @@
+Error: Invalid entry point (at $FILE:9:4)
+   | 
+ 7 | class MyStruct:
+ 8 |     @guppy
+ 9 |     def method(self, x: T) -> array[T, 3]:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 |         return array(x for _ in range(3))
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Function `method` is not a valid compilation entry point
+   |                                           since the value of its generic parameter `T` is not known
+
+Guppy compilation failed due to 1 previous error
