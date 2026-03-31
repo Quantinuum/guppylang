@@ -248,6 +248,8 @@ class GuppyLibrary:
     def compile(self) -> Package:
         """Compile this collection of definitions into a HUGR package."""
         ENGINE.check(self.members)
+        # Check fills _type_members with additional members only available after
+        # checking, so we have to call it before compiling (without an engine reset).
         pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
