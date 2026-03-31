@@ -22,7 +22,7 @@ def broken_tket():
 
     # Break all tket and pytket imports
     for key in list(sys.modules.keys()):
-        if key.startswith(("pytket", "tket")):
+        if key.startswith(("pytket", "tket")) and not key.startswith("tket_exts"):
             break_module(key)
 
     # Purge cached guppylang imports
