@@ -94,6 +94,7 @@ from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
+from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -579,6 +580,29 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 node.value = with_type(ty, node.value)
         else:
             node.value, ty = self.synthesize(node.value)
+
+        from guppylang_internals.definition.struct import ParsedStructDef
+
+        if isinstance(ty, FunctionType) and isinstance(node.value, GlobalName):
+            struct_id = DEF_STORE.impl_parents[node.value.def_id]
+            struct_def = ENGINE.parsed[struct_id]
+            if (
+                isinstance(struct_def, ParsedStructDef)
+                and node.attr in struct_def.classmethods
+                and (
+                    constr := self.ctx.globals.get_instance_func(struct_def, node.attr)
+                )
+            ):
+                return with_loc(
+                    node, GlobalName(id=node.attr, def_id=constr.id)
+                ), constr.ty
+
+        if isinstance(ty, StructType) and node.attr in ty.defn.classmethods:
+            struct_def = ty.defn
+            if constr := self.ctx.globals.get_instance_func(struct_def, node.attr):
+                return with_loc(
+                    node, GlobalName(id=node.attr, def_id=constr.id)
+                ), constr.ty
 
         # flag used for error messages, None if the error is not related to enums
         is_enum_class = None

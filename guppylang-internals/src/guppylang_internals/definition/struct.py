@@ -2,7 +2,7 @@ import ast
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from hugr import Wire, ops
 
@@ -78,9 +78,11 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
 
         params = extract_generic_params(cls_def, self.name, globals, "Struct")
 
+        classmethods: dict[str, Any] = {}
         fields: list[UncheckedField] = []
         used_field_names: set[str] = set()
         used_func_names: dict[str, ast.FunctionDef] = {}
+
         for i, node in enumerate(cls_def.body):
             match i, node:
                 # We allow `pass` statements to define empty structs
@@ -91,13 +93,21 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     pass
                 # Ensure that all function definitions are Guppy functions
                 case _, ast.FunctionDef(name=name) as node:
+                    from types import MethodType
+
                     from guppylang.defs import GuppyDefinition
 
                     v = getattr(self.python_class, name)
-                    if not isinstance(v, GuppyDefinition):
+                    if isinstance(v, MethodType) and isinstance(
+                        v.__func__, GuppyDefinition
+                    ):
+                        func: GuppyDefinition = v.__func__
+                        classmethods[func.wrapped.name] = func.wrapped
+                    elif not isinstance(v, GuppyDefinition):
                         raise GuppyError(
                             NonGuppyMethodError(node, self.name, name, "struct")
                         )
+
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
@@ -139,7 +149,7 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
         )
 
         return ParsedStructDef(
-            self.id, self.name, cls_def, params, fields, link_name_prefix
+            self.id, self.name, cls_def, params, fields, classmethods, link_name_prefix
         )
 
     def check_instantiate(
@@ -155,6 +165,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[UncheckedField]
+    classmethods: dict[str, Any]
     link_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedStructDef":
@@ -170,8 +181,9 @@ class ParsedStructDef(TypeDef, CheckableDef):
         fields = [
             CheckedField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
         ]
+
         return CheckedStructDef(
-            self.id, self.name, self.defined_at, self.params, fields
+            self.id, self.name, self.defined_at, self.params, fields, self.classmethods
         )
 
     def check_instantiate(
@@ -198,6 +210,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[CheckedField]
+    classmethods: dict[str, Any]
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -240,7 +253,36 @@ class CheckedStructDef(TypeDef, CompiledDef):
             higher_order_func_id=GlobalConstId.fresh(f"{self.name}.__new__"),
             has_signature=True,
         )
-        return [constructor_def]
+
+        from guppylang_internals.definition.function import (
+            ParsedFunctionDef,
+            RawFunctionDef,
+        )
+
+        parsed_classmethods = []
+        for methoddef in self.classmethods.values():
+            # parse the classmethods to remove the self argument
+            if isinstance(methoddef, RawFunctionDef):
+                defn = methoddef.parse(
+                    Globals(DEF_STORE.frames[methoddef.id]), DEF_STORE.sources
+                )
+                result_ty = FunctionType(
+                    defn.ty.inputs[1:], defn.ty.output, defn.ty.params
+                )
+                defined_at = defn.defined_at
+                defined_at.args.args = defined_at.args.args[1:]
+                newparsed = ParsedFunctionDef(
+                    id=defn.id,
+                    name=defn.name,
+                    defined_at=defn.defined_at,
+                    ty=result_ty,
+                    docstring=defn.docstring,
+                    link_name=defn.link_name,
+                    metadata=defn.metadata,
+                )
+                parsed_classmethods.append(newparsed)
+
+        return [constructor_def, *parsed_classmethods]  # type: ignore[list-item]
 
 
 # TODO: adapt the following to work also with enums, and move it to a common module
