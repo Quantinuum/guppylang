@@ -60,5 +60,5 @@ exclude_also = [
 addopts = "--benchmark-skip" # benchmarks run explicitly with `just bench`
 filterwarnings = [
     "ignore::DeprecationWarning", # TODO remove after removing guppy.compile()
-    "ignore::SyntaxWarning", # Python 3.14 complains about guppy tuple callables
+    "ignore::SyntaxWarning",      # Python 3.14 complains about guppy tuple callables
 ]
