@@ -37,20 +37,41 @@ def broken_tket():
     importlib.invalidate_caches()
 
 
-@pytest.mark.xfail
 def test_broken_tket():
     """Asserts that the module breaker works as intended to break tket imports."""
 
-    with broken_tket():
+    with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):
         from tket.circuit import Tk2Circuit  # noqa: F401
 
 
-@pytest.mark.xfail
 def test_broken_pytket():
     """Asserts that the module breaker works as intended to break pytket imports."""
 
-    with broken_tket():
+    with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):
         from pytket.circuit import Circuit  # noqa: F401
+
+
+def test_use_pytket_decorator():
+    """Tests that using the pytket decorator raise an import error when imports are
+    broken."""
+
+    with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):  # noqa: PT012
+        from guppylang import guppy
+
+        @guppy.pytket(None)
+        def f():
+            pass
+
+
+def test_use_load_pytket_decorator():
+    """Tests that using the load_pytket decorator raise an import error when imports are
+    broken."""
+    with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):  # noqa: PT012
+        from guppylang import guppy
+
+        @guppy.load_pytket("some-circuit")
+        def f():
+            pass
 
 
 def test_guppy_decoupled():
