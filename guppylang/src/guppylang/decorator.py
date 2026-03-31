@@ -63,6 +63,7 @@ from typing_extensions import Unpack, dataclass_transform, deprecated
 
 from guppylang.defs import (
     GuppyDefinition,
+    GuppyEnumDefinition,
     GuppyFunctionDefinition,
     GuppyLibrary,
     GuppyTypeVarDefinition,
@@ -280,7 +281,7 @@ class _Guppy:
 
         def decorator(
             cls: builtins.type[T], kwargs: GuppyEnumKwargs
-        ) -> GuppyDefinition:
+        ) -> GuppyEnumDefinition:
             defn = RawEnumDef(
                 DefId.fresh(),
                 cls.__name__,
@@ -300,7 +301,7 @@ class _Guppy:
                 cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
             # We're pretending to return the class unchanged, but in fact we return
             # a `GuppyDefinition` that handles the comptime logic
-            return GuppyDefinition(defn)
+            return GuppyEnumDefinition(defn)
 
         return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
 

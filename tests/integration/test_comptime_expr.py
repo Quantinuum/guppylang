@@ -151,9 +151,14 @@ def test_func_type_arg(validate):
     class Baz:
         xs: array[int, comptime(n)]
 
+    @guppy.enum
+    class Enum:
+        VariantA = {"xs": array[int, comptime(n)]}  # noqa: RUF012
+
     validate(foo.compile_function())
     validate(bar.compile_function())
     validate(Baz.compile())
+    validate(Enum.compile())
 
 
 def test_subscript_assign(validate):
