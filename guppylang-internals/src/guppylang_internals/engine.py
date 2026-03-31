@@ -425,7 +425,7 @@ class CompilationEngine:
     def compile_single(self, id: DefId) -> ModulePointer:
         """Top-level function to kick of Hugr compilation of a definition.
 
-        This is the function that is invoked by `guppy.compile`.
+        This is the function that is invoked by e.g. `<guppy-definition>.compile`.
         """
         pointer, [compiled_def] = self._compile([id])
 
@@ -442,15 +442,15 @@ class CompilationEngine:
 
     @pretty_errors
     def compile(self, def_ids: list[DefId], *, reset: bool = True) -> ModulePointer:
+        """Top-level function to kick of Hugr compilation of a range of definitions.
+
+        This is the function that is invoked by e.g. `<guppy-library>.compile`.
+        """
         return self._compile(def_ids, reset=reset)[0]
 
     def _compile(
         self, def_ids: list[DefId], *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
-        """Top-level function to kick of Hugr compilation of a definition.
-
-        This is the function that is invoked by `guppy.compile`.
-        """
         self.check(def_ids, reset=reset)
 
         # Prepare Hugr for this module
@@ -464,8 +464,7 @@ class CompilationEngine:
         compiled_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
-            entry_mono_args: Inst = ()
-            compiled_defs.append(ctx.build_compiled_def(def_id, entry_mono_args))
+            compiled_defs.append(ctx.build_compiled_def(def_id, type_args=None))
         ctx.iterate_worklist()
         self.compiled = ctx.compiled
 
