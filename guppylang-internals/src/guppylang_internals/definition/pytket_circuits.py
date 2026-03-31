@@ -162,6 +162,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         from pytket.circuit import Circuit  # Decoupled import
         from tket.circuit import Tk2Circuit  # Decoupled import
 
+        # Type mismatch should have been raised in decorator
         assert isinstance(self.input_circuit, Circuit)
         # TODO extract the correct entry point from the module
         circ = envelope.read_envelope(
@@ -362,6 +363,7 @@ def _signature_from_circuit(
     from guppylang.std.quantum import qubit
     from pytket.circuit import Circuit  # Decoupled import
 
+    # Type mismatch should have been raised in decorator
     assert isinstance(input_circuit, Circuit)
 
     assert isinstance(qubit, GuppyDefinition)
