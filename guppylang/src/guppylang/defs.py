@@ -112,8 +112,8 @@ class GuppyEnumDefinition(GuppyDefinition):
             and defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[defn.id]
         ):
-            impl_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name]]
-            return TracingDefMixin(impl_def)
+            member_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name]]
+            return TracingDefMixin(member_def)
         raise AttributeError(
             f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
         )
