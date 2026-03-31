@@ -23,7 +23,9 @@ __all__ = [
 #: Type encoding a single state. e.g. StateVector for a state vector.
 S = TypeVar("S")
 #: Type encoding a state vector, type alias for numpy array of complex numbers.
-StateVector = npt.NDArray[np.complexfloating]
+# Below numpy==2.2.0, this causes a mypy error due to missing type args. Since we test
+# both below and above this version, we ignore the error and ignore the unused ignore.
+StateVector = npt.NDArray[np.complexfloating]  # type: ignore[type-arg,unused-ignore]
 
 
 @dataclass(frozen=True)

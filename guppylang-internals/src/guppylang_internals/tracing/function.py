@@ -7,12 +7,19 @@ from hugr.build.dfg import DfBase
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
-from guppylang_internals.checker.core import ComptimeVariable, Context, Locals, Variable
+from guppylang_internals.checker.core import (
+    ComptimeVariable,
+    Context,
+    Globals,
+    Locals,
+    Variable,
+)
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
+from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyComptimeError, GuppyError, exception_hook
 from guppylang_internals.nodes import PlaceNode
 from guppylang_internals.tracing.builtins_mock import mock_builtins
@@ -135,7 +142,6 @@ def trace_function(
     builder.set_outputs(*regular_returns, *inout_returns)
 
 
-@capture_guppy_errors
 def trace_call(func: CallableDef, *args: Any) -> Any:
     """Handles calls to Guppy functions during tracing.
 
@@ -144,28 +150,31 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     """
     state = get_tracing_state()
 
-    # Try to turn args into `GuppyObjects`
-    args_objs = [
-        guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
-        for arg in args
-    ]
+    with capture_guppy_errors():
+        # Try to turn args into `GuppyObjects`
+        args_objs = [
+            guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
+            for arg in args
+        ]
 
-    # Create dummy variables and bind the objects to them
-    arg_vars: list[Variable] = [
-        ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
-        for (obj, arg) in zip(args_objs, args, strict=True)
-    ]
-    locals = Locals({var.name: var for var in arg_vars})
-    for obj, var in zip(args_objs, arg_vars, strict=True):
-        state.dfg[var] = obj._use_wire(func)
+        # Create dummy variables and bind the objects to them
+        arg_vars: list[Variable] = [
+            ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
+            for (obj, arg) in zip(args_objs, args, strict=True)
+        ]
+        locals = Locals({var.name: var for var in arg_vars})
+        for obj, var in zip(args_objs, arg_vars, strict=True):
+            state.dfg[var] = obj._use_wire(func)
 
-    # Check call
-    arg_exprs: list[ast.expr] = [
-        with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
-    ]
-    call_node, ret_ty = func.synthesize_call(
-        arg_exprs, state.node, Context(state.globals, locals, {})
-    )
+        # Check call
+        arg_exprs: list[ast.expr] = [
+            with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
+        ]
+        call_node, ret_ty = func.synthesize_call(
+            arg_exprs,
+            state.node,
+            Context(Globals(DEF_STORE.frames[func.id]), locals, {}),
+        )
 
     # Compile call
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)

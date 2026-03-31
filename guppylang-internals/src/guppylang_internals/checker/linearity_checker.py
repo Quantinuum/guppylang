@@ -35,6 +35,7 @@ from guppylang_internals.checker.errors.linearity import (
     BorrowSubPlaceUsedError,
     ComprAlreadyUsedError,
     DropAfterCallError,
+    InCallArg,
     MoveOutOfSubscriptError,
     NonCopyableCaptureError,
     NonCopyablePartialApplyError,
@@ -197,6 +198,9 @@ class BBLinearityChecker(ast.NodeVisitor):
     func_name: str
     func_inputs: dict[PlaceId, Variable]
     globals: Globals
+    # If None we are not checking a modifier block. Otherwise, we need to keep track of
+    # the first modifier node for better error messages.
+    first_modifier_node: ast.expr | None
 
     def check(
         self,
@@ -205,6 +209,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         func_name: str,
         func_inputs: dict[PlaceId, Variable],
         globals: Globals,
+        first_modifier_node: ast.expr | None = None,
     ) -> Scope:
         # Manufacture a scope that holds all places that are live at the start
         # of this BB
@@ -215,6 +220,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         self.func_name = func_name
         self.func_inputs = func_inputs
         self.globals = globals
+        self.first_modifier_node = first_modifier_node
 
         # Open up a new nested scope to check the BB contents. This way we can track
         # when we use variables from the outside vs ones assigned in this BB. The only
@@ -247,19 +253,33 @@ class BBLinearityChecker(ast.NodeVisitor):
         # `_visit_call_args` helper will set `use_kind=UseKind.BORROW`.
         is_inout_arg = use_kind == UseKind.BORROW
         if is_inout_var(node.place) and not is_inout_arg:
+            if self.first_modifier_node:
+                call_kind = InCallArg.ModifierCall
+            elif is_call_arg:
+                call_kind = InCallArg.Call
+            else:
+                call_kind = InCallArg.NonCall
+
             err: Error = NotOwnedError(
                 node,
                 node.place,
                 use_kind,
-                is_call_arg is not None,
+                call_kind,
                 self._call_name(is_call_arg),
                 self.func_name,
             )
             arg_span = self.func_inputs[node.place.root.id].defined_at
-            err.add_sub_diagnostic(NotOwnedError.MakeOwned(arg_span))
-            # If the argument is a classical array, we can also suggest copying it.
-            if has_explicit_copy(node.place.ty):
-                err.add_sub_diagnostic(NotOwnedError.MakeCopy(node))
+            if self.first_modifier_node:
+                # If we are under a modifier we need a special error message
+                err.add_sub_diagnostic(NotOwnedError.DefinedHere(arg_span))
+                err.add_sub_diagnostic(
+                    NotOwnedError.ModifierBlock(self.first_modifier_node)
+                )
+            else:
+                err.add_sub_diagnostic(NotOwnedError.MakeOwned(arg_span))
+                # If the argument is a classical array, we can also suggest copying it.
+                if has_explicit_copy(node.place.ty):
+                    err.add_sub_diagnostic(NotOwnedError.MakeCopy(node))
             raise GuppyError(err)
         # Places involving subscripts are handled differently since we ignore everything
         # after the subscript for the purposes of linearity checking.
@@ -804,7 +824,10 @@ def is_simple_literal_subscript(
 
 
 def check_cfg_linearity(
-    cfg: "CheckedCFG[Variable]", func_name: str, globals: Globals
+    cfg: "CheckedCFG[Variable]",
+    func_name: str,
+    globals: Globals,
+    first_modifier_node: ast.expr | None = None,
 ) -> "CheckedCFG[Place]":
     """Checks whether a CFG satisfies the linearity requirements.
 
@@ -822,6 +845,7 @@ def check_cfg_linearity(
             func_name=func_name,
             func_inputs=func_inputs,
             globals=globals,
+            first_modifier_node=first_modifier_node,
         )
         for bb in cfg.bbs
     }

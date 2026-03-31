@@ -8,11 +8,17 @@ from guppylang.std.quantum import qubit
 
 __all__ = (
     "GuppyModule",
+    "array",
+    "builtins",
+    "comptime",
+    "debug",
     "enable_experimental_features",
     "guppy",
+    "py",
+    "quantum",
     "qubit",
 )
 
 # This is updated by our release-please workflow, triggered by this
 # annotation: x-release-please-version
-__version__ = "0.21.9"
+__version__ = "0.21.10"

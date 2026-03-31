@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:23:11)
+   | 
+21 | def foo(s: MyEnum1 @owned) -> MyEnum1:
+22 |     use(s)
+23 |     return s
+   |            ^ Variable `s` with non-copyable type `MyEnum1` cannot be
+   |              returned ...
+
+Note:
+   | 
+21 | def foo(s: MyEnum1 @owned) -> MyEnum1:
+22 |     use(s)
+   |         - Variable `s` already consumed here
+
+Guppy compilation failed due to 1 previous error

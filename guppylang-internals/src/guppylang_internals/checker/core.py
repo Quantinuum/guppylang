@@ -12,7 +12,6 @@ from typing import (
     NamedTuple,
     TypeAlias,
     TypeVar,
-    cast,
     overload,
 )
 
@@ -29,30 +28,15 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.tys.builtin import (
-    callable_type_def,
-    float_type_def,
-    int_type_def,
-    nat_type_def,
-    none_type_def,
-    tuple_type_def,
-)
-from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import (
-    BoundTypeVar,
-    ExistentialTypeVar,
-    FunctionType,
     InputFlags,
-    NoneType,
-    NumericType,
-    OpaqueType,
     StructType,
-    TupleType,
     Type,
 )
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.parsing import TypeParsingCtx
 
 
@@ -134,7 +118,7 @@ class FieldAccess:
     """A place identifying a field access on a local struct."""
 
     parent: Place
-    field: "StructField"
+    field: "CheckedField"
     exact_defined_at: AstNode | None
 
     @dataclass(frozen=True)
@@ -318,25 +302,21 @@ class PythonObject:
 
 
 class Globals:
-    """Wrapper around the `DEF_STORE` that allows looking-up of definitions by name
-    based on which objects are in scope in a stack frame.
+    """Wrapper around a stack frame in which a Guppy definition was defined.
 
-    Additionally, keeps track of which definitions in the store have been used.
+    Gives access to the other globals that are in scope for that definition.
     """
 
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
+    frame: FrameType
 
-    def __init__(self, frame: FrameType | None) -> None:
-        if frame is not None:
-            self.f_locals = frame.f_locals
-            self.f_globals = frame.f_globals
-            self.f_builtins = frame.f_builtins
-        else:
-            self.f_locals = {}
-            self.f_globals = {}
-            self.f_builtins = {}
+    def __init__(self, frame: FrameType) -> None:
+        self.frame = frame
+        self.f_locals = frame.f_locals
+        self.f_globals = frame.f_globals
+        self.f_builtins = frame.f_builtins
 
     @staticmethod
     @cache
@@ -355,42 +335,7 @@ class Globals:
 
         Returns `None` if the name doesn't exist or isn't a function.
         """
-        type_defn: TypeDef
-        match ty:
-            case TypeDef() as type_defn:
-                pass
-            case BoundTypeVar() | ExistentialTypeVar():
-                return None
-            case NumericType(kind):
-                match kind:
-                    case NumericType.Kind.Nat:
-                        type_defn = nat_type_def
-                    case NumericType.Kind.Int:
-                        type_defn = int_type_def
-                    case NumericType.Kind.Float:
-                        type_defn = float_type_def
-                    case kind:
-                        return assert_never(kind)
-            case FunctionType():
-                type_defn = callable_type_def
-            case OpaqueType() as ty:
-                type_defn = ty.defn
-            case StructType() as ty:
-                type_defn = ty.defn
-            case TupleType():
-                type_defn = tuple_type_def
-            case NoneType():
-                type_defn = none_type_def
-            case _:
-                return assert_never(ty)
-
-        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id))
-        if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
-            def_id = DEF_STORE.impls[type_defn.id][name]
-            defn = ENGINE.get_parsed(def_id)
-            if isinstance(defn, CallableDef):
-                return defn
-        return None
+        return DEF_STORE.get_instance_func(ty, name)
 
     def __contains__(self, item: DefId | str) -> bool:
         match item:
@@ -509,14 +454,14 @@ class Context(NamedTuple):
 
     globals: Globals
     locals: Locals[str, Variable]
-    generic_params: dict[str, Parameter]
+    generic_param_inst: dict[str, Argument]
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":
         """A type parsing context derived from this checking context."""
         from guppylang_internals.tys.parsing import TypeParsingCtx
 
-        return TypeParsingCtx(self.globals, self.generic_params)
+        return TypeParsingCtx(self.globals, param_inst=self.generic_param_inst)
 
 
 class DummyEvalDict(dict[str, Any]):

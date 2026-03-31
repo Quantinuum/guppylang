@@ -1,4 +1,5 @@
 Error: Invalid signature for @wasm function `non_fn`
+on wasm platform `Helios`
 in wasm file:
 `$WASM`
 

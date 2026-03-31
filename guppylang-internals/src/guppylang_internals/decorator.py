@@ -48,6 +48,7 @@ from guppylang_internals.wasm_util import (
     ConcreteWasmModule,
     WasmFileNotFound,
     WasmFunctionNotInFile,
+    WasmPlatform,
     WasmSignatureError,
     decode_wasm_functions,
 )
@@ -157,7 +158,7 @@ def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], t
     def dec(c: type) -> type:
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+                DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
         return c if return_class else GuppyDefinition(defn)  # type: ignore[return-value]
 
     return dec
@@ -201,7 +202,7 @@ def custom_type(
         DEF_STORE.register_def(defn, get_calling_frame())
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+                DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
@@ -212,6 +213,7 @@ def custom_type(
 @pretty_errors
 def wasm_module(
     filename: str,
+    wasm_platform: WasmPlatform = WasmPlatform.Helios,
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
     wasm_path = pathlib.Path(filename)
 
@@ -235,7 +237,7 @@ def wasm_module(
             wasm_path = caller_dir / filename
 
     if wasm_path.is_file():
-        wasm_sigs = decode_wasm_functions(str(wasm_path))
+        wasm_sigs = decode_wasm_functions(str(wasm_path), wasm_platform)
     else:
         raise GuppyError(WasmFileNotFound(None, filename))
 
@@ -244,10 +246,11 @@ def wasm_module(
         name: str,
         defined_at: ast.AST | None,
         wasm_file: str,
+        wasm_plat: WasmPlatform,
         config: str | None,
     ) -> OpaqueTypeDef:
         assert config is None
-        return WasmModuleTypeDef(id, name, defined_at, wasm_file)
+        return WasmModuleTypeDef(id, name, defined_at, wasm_file, wasm_plat)
 
     decorator = ext_module_decorator(
         type_def_wrapper,
@@ -258,22 +261,26 @@ def wasm_module(
     )
 
     def inner_fun(ty: builtins.type[T]) -> GuppyDefinition:
-        decorator_inner = decorator(str(wasm_path), None)
+        decorator_inner = decorator(str(wasm_path), wasm_platform, None)
         return decorator_inner(ty)
 
     return inner_fun
 
 
 def ext_module_decorator(
-    type_def: Callable[[DefId, str, ast.AST | None, str, str | None], OpaqueTypeDef],
+    type_def: Callable[
+        [DefId, str, ast.AST | None, str, WasmPlatform, str | None], OpaqueTypeDef
+    ],
     init_compiler: CustomInoutCallCompiler,
     discard_compiler: CustomInoutCallCompiler,
     init_arg: bool,  # Whether the init function should take a nat argument
     wasm_sigs: ConcreteWasmModule
     | None = None,  # For @wasm_module, we must be passed a parsed wasm file
-) -> Callable[[str, str | None], Callable[[builtins.type[T]], GuppyDefinition]]:
+) -> Callable[
+    [str, WasmPlatform, str | None], Callable[[builtins.type[T]], GuppyDefinition]
+]:
     def fun(
-        filename: str, module: str | None
+        filename: str, wasm_plat: WasmPlatform, module: str | None
     ) -> Callable[[builtins.type[T]], GuppyDefinition]:
         @pretty_errors
         def dec(cls: builtins.type[T]) -> GuppyDefinition:
@@ -283,6 +290,7 @@ def ext_module_decorator(
                 cls.__name__,
                 None,
                 filename,
+                wasm_plat,
                 module,
             )
 
@@ -291,7 +299,9 @@ def ext_module_decorator(
             DEF_STORE.register_def(ext_module, get_calling_frame())
             for val in cls.__dict__.values():
                 if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_impl(ext_module.id, val.wrapped.name, val.id)
+                    DEF_STORE.register_type_member(
+                        ext_module.id, val.wrapped.name, val.id
+                    )
                     wasm_def: RawWasmFunctionDef
                     if isinstance(val, GuppyFunctionDefinition) and isinstance(
                         val.wrapped, RawWasmFunctionDef
@@ -327,7 +337,7 @@ def ext_module_decorator(
                     elif isinstance(wasm_sig_or_err, str):
                         raise GuppyError(
                             WasmSignatureError(
-                                None, wasm_def.name, filename
+                                None, wasm_def.name, filename, wasm_plat.value
                             ).add_sub_diagnostic(
                                 WasmSignatureError.Message(None, wasm_sig_or_err)
                             )
@@ -356,7 +366,8 @@ def ext_module_decorator(
                 init_compiler,
                 True,
                 GlobalConstId.fresh(f"{cls.__name__}.__new__"),
-                True,
+                has_signature=True,
+                has_var_args=False,
             )
             discard = CustomFunctionDef(
                 DefId.fresh(),
@@ -367,12 +378,13 @@ def ext_module_decorator(
                 discard_compiler,
                 False,
                 GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
-                True,
+                has_signature=True,
+                has_var_args=False,
             )
             DEF_STORE.register_def(call_method, get_calling_frame())
-            DEF_STORE.register_impl(ext_module.id, "__new__", call_method.id)
+            DEF_STORE.register_type_member(ext_module.id, "__new__", call_method.id)
             DEF_STORE.register_def(discard, get_calling_frame())
-            DEF_STORE.register_impl(ext_module.id, "discard", discard.id)
+            DEF_STORE.register_type_member(ext_module.id, "discard", discard.id)
 
             return GuppyDefinition(ext_module)
 

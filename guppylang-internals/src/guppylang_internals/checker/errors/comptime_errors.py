@@ -46,6 +46,18 @@ class ComptimeExprEvalError(Error):
 
 
 @dataclass(frozen=True)
+class ComptimeGuppyObjectError(Error):
+    title: ClassVar[str] = "Invalid comptime expression"
+    span_label: ClassVar[str] = "Cannot use a Guppy object in a comptime expression"
+    message: ClassVar[str] = (
+        "{err_message}\n\n"
+        "Comptime expressions are evaluated as plain Python. Guppy functions "
+        "and types require a Guppy context and cannot be called inside `comptime`."
+    )
+    err_message: str
+
+
+@dataclass(frozen=True)
 class ComptimeExprIncoherentListError(Error):
     title: ClassVar[str] = "Unsupported list"
     span_label: ClassVar[str] = "List contains elements with different types"

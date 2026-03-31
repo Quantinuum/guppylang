@@ -28,6 +28,7 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
 )
+from guppylang_internals.wasm_util import WasmPlatform
 
 
 @dataclass(frozen=True)
@@ -127,6 +128,7 @@ class _NumericTypeDef(TypeDef, CompiledDef):
 
 class WasmModuleTypeDef(OpaqueTypeDef):
     wasm_file: str
+    wasm_platform: WasmPlatform
 
     def __init__(
         self,
@@ -134,9 +136,11 @@ class WasmModuleTypeDef(OpaqueTypeDef):
         name: str,
         defined_at: ast.AST | None,
         wasm_file: str,
+        wasm_platform: WasmPlatform,
     ) -> None:
         super().__init__(id, name, defined_at, [], True, True, self.to_hugr)
         self.wasm_file = wasm_file
+        self.wasm_platform = wasm_platform
 
     def to_hugr(
         self, args: Sequence[TypeArg | ConstArg], ctx: ToHugrContext

@@ -1,0 +1,38 @@
+# If you update this file, please also update the CITATIONS.bib file.
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Guppy"
+authors:
+- family-names: Koch
+  given-names: Mark
+- family-names: Borgna
+  given-names: Agustín
+- family-names: Roy
+  given-names: Craig
+- family-names: Lawrence
+  given-names: Alan
+- family-names: Singhal
+  given-names: Kartik
+- family-names: Sivarajah
+  given-names: Seyon
+- family-names: Duncan
+  given-names: Ross
+url: "https://github.com/quantinuum/guppylang"
+preferred-citation:
+  type: conference-paper
+  title: "Guppy: Pythonic Quantum-Classical Programming"
+  authors:
+  - family-names: Koch
+    given-names: Mark
+  - family-names: Lawrence
+    given-names: Alan
+  - family-names: Singhal
+    given-names: Kartik
+  - family-names: Sivarajah
+    given-names: Seyon
+  - family-names: Duncan
+    given-names: Ross
+  year: 2024
+  collection-title: "Informal Proceedings of the Fourth International Workshop on Programming Languages for Quantum Computing (PLanQC '24)"
+  description: "arXiv preprint arXiv:2510.12582"
+  url: "https://github.com/quantinuum/guppylang"

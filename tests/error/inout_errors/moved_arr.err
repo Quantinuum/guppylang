@@ -6,7 +6,7 @@ Error: Not owned (at $FILE:16:8)
    |         ^ Function `use` wants to take ownership of this argument, but
    |           `test` doesn't own `q`
 
-Notes:
+Help:
    | 
 13 | @guppy
 14 | def test(q: array[int, 3]) -> None:

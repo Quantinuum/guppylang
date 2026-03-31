@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar
 from guppylang_internals.diagnostic import Error, Help, Note
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.const import Const
     from guppylang_internals.tys.param import TypeParam
     from guppylang_internals.tys.ty import FunctionType, Type
@@ -56,7 +56,7 @@ class AssignFieldTypeMismatchError(Error):
         "`{field.ty}`"
     )
     actual: Type
-    field: StructField
+    field: CheckedField
 
 
 @dataclass(frozen=True)
@@ -127,9 +127,25 @@ class ModuleMemberNotFoundError(Error):
 @dataclass(frozen=True)
 class AttributeNotFoundError(Error):
     title: ClassVar[str] = "Attribute not found"
-    span_label: ClassVar[str] = "`{ty}` has no attribute `{attribute}`"
+    span_label: ClassVar[str] = "`{ty}` has no {element_name} `{attribute}`"
     ty: Type
     attribute: str
+    is_enum_class: bool | None = None  # Used only when `ty` is an EnumType
+
+    @property
+    def element_name(self) -> str:
+        from guppylang_internals.tys.ty import EnumType, StructType
+
+        if isinstance(self.ty, StructType):
+            return "field or method"
+        elif isinstance(self.ty, EnumType):
+            assert self.is_enum_class is not None
+            if self.is_enum_class:
+                return "variant"
+            else:
+                return "method"
+        else:
+            return "attribute"
 
 
 @dataclass(frozen=True)
@@ -282,16 +298,6 @@ class UnpackableError(Error):
             "for `{ty}`."
         )
 
-    @dataclass(frozen=True)
-    class GenericSize(Note):
-        message: ClassVar[str] = (
-            "Unpacking of iterable types like `{ty}` is only allowed if the number of "
-            "items yielded by the iterator is statically known. Here, the number of "
-            "items `{num}` is generic and can change between different function "
-            "invocations."
-        )
-        num: Const
-
 
 @dataclass(frozen=True)
 class StarredTupleUnpackError(Error):
@@ -309,7 +315,7 @@ class AssignNonPlaceHelp(Help):
         "Consider assigning this value to a local variable first before assigning the "
         "field `{field.name}`"
     )
-    field: StructField
+    field: CheckedField
 
 
 @dataclass(frozen=True)

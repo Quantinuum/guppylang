@@ -12,14 +12,20 @@ from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.definition.declaration import CheckedFunctionDecl
+from guppylang_internals.definition.declaration import (
+    CheckedFunctionDecl,
+    RawFunctionDecl,
+)
+from guppylang_internals.definition.enum import CheckedEnumDef
 from guppylang_internals.definition.function import CheckedFunctionDef, RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tracing.object import TracingDefMixin
+from guppylang_internals.tracing.object import (
+    TracingDefMixin,
+)
 from guppylang_internals.tracing.util import hide_trace
 from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
@@ -91,6 +97,31 @@ class GuppyDefinition(TracingDefMixin):
 
 
 @dataclass(frozen=True)
+class GuppyEnumDefinition(GuppyDefinition):
+    """A Guppy enum definition."""
+
+    @hide_trace
+    def __getattr__(self, name: str) -> Any:
+        # Handle attribute access when calling an enum variant constructor, like
+        # `Enum.VariantA()`. In all other cases, we should not try create a new
+        # attribute, so we directly raise the error.
+        defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
+        assert isinstance(defn, CheckedEnumDef)
+        if (
+            # We can only access the variants of the enum from the enum class,
+            # not methods
+            name in defn.variants
+            and defn.id in DEF_STORE.type_members
+            and name in DEF_STORE.type_members[defn.id]
+        ):
+            member_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name]]
+            return TracingDefMixin(member_def)
+        raise AttributeError(
+            f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
+        )
+
+
+@dataclass(frozen=True)
 class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
     """A Guppy function definition."""
 
@@ -99,7 +130,10 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         return cast("Out", super().__call__(*args, **kwargs))
 
     def emulator(
-        self, n_qubits: int | None = None, builder: EmulatorBuilder | None = None
+        self,
+        n_qubits: int | None = None,
+        builder: EmulatorBuilder | None = None,
+        libs: list[Package] | None = None,
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
@@ -115,11 +149,17 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             in the decorator, e.g. `@guppy(max_qubits=5)`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
             instance. If not provided, the default `EmulatorBuilder` will be used.
+            libs: An optional list of additional HUGR packages to link with the compiled
+            function. This can be used to provide additional library functions that the
+            function being compiled depends on.
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
         mod = self.compile()
+
+        if libs is not None:
+            mod = mod.link(*libs)
 
         builder = builder or EmulatorBuilder()
         qubits = n_qubits
@@ -210,30 +250,50 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         """
         return super().compile()
 
+    @property
+    def is_decl(self) -> bool:
+        """Whether this function definition is a declaration (i.e. has no body)."""
+        return isinstance(self.wrapped, RawFunctionDecl)
+
 
 @dataclass(frozen=True)
 class GuppyLibrary:
+    """A collection of Guppy definitions that can be compiled together into a linkable
+    unit exposing a public interface."""
+
     members: list[DefId]
 
-    def member_ids(self) -> Sequence[DefId]:
-        """Returns the definition IDs of the members of this library."""
-        return self.members
+    def _type_members(self) -> list[DefId]:
+        """Any implementations registered for members of this library. Note that the
+        list is only guaranteed to be complete after calling `check()` on the library
+        members, since auto-generated implementations may be added during checking."""
+        members: list[DefId] = []
+        for def_id in self.members:
+            # TODO automatic member inclusion should be based on the automatic
+            # collection when available
+            members.extend(DEF_STORE.type_members[def_id].values())
+
+        return members
 
     def compile(self) -> Package:
-        """Compile a Guppy definition to HUGR."""
-        pointer = ENGINE.compile(self.members)
+        """Compile this collection of definitions into a HUGR package."""
+        ENGINE.check(self.members)
+        # Check fills _type_members with additional members only available after
+        # checking, so we have to call it before compiling (without an engine reset).
+        pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
         return pointer.package
 
     def check(self) -> None:
-        """Type-check all definitions Guppy definition."""
+        """Type-check all contained definitions."""
         ENGINE.check(self.members)
+        ENGINE.check(self._type_members(), reset=False)
 
     def stubs(self) -> dict[str, str]:
         stub_asts_by_module: dict[str, list[ast.stmt]] = {}
         for member in self.members:
-            checked_def = ENGINE.get_checked(member)
+            checked_def = ENGINE.get_checked(member, mono_args=())
             match checked_def:
                 case CheckedFunctionDef():
                     if checked_def.module is None:

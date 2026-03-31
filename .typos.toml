@@ -2,6 +2,9 @@
 extend-glob = ["CHANGELOG.md"]
 extend-ignore-re = ["\\[[0-9a-z]{7}\\]\\("] # Ignore git commit hashes
 
+[type.changelog.extend-words]
+fo = "fo" # So we can write FiFo
+
 [type.py]
 extend-glob = ["*.py", "*.err"]
 
@@ -20,3 +23,6 @@ extend-glob = ["*.ipynb"]
 
 [type.notebooks.extend-words]
 mor = "mor" # Line noise
+
+[default.extend-identifiers]
+NDArray = "NDArray"

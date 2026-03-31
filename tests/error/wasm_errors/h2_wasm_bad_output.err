@@ -1,0 +1,8 @@
+Error: Invalid signature for @wasm function `two`
+on wasm platform `H2`
+in wasm file:
+`$WASM`
+
+Note: Unsupported output type: i64
+
+Guppy compilation failed due to 1 previous error

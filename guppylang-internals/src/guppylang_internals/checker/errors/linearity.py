@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.diagnostic import Error, Help, Note
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
         Variable,
     )
     from guppylang_internals.checker.linearity_checker import UseKind
-    from guppylang_internals.definition.struct import StructField
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.ty import (
         StructType,
         TupleType,
@@ -116,7 +117,7 @@ class UnnamedFieldNotUsedError(Error):
         "Non-droppable field `{field.name}` of expression with type `{struct_ty}` is "
         "leaked"
     )
-    field: StructField
+    field: CheckedField
     struct_ty: StructType
 
     @dataclass(frozen=True)
@@ -125,7 +126,7 @@ class UnnamedFieldNotUsedError(Error):
             "Consider assigning this value to a local variable before accessing the "
             "field `{used_field.name}`"
         )
-        used_field: StructField
+        used_field: CheckedField
 
 
 @dataclass(frozen=True)
@@ -162,27 +163,41 @@ class UnnamedTupleNotUsedError(Error):
         )
 
 
+class InCallArg(Enum):
+    NonCall = auto()
+    Call = auto()
+    ModifierCall = auto()
+
+
 @dataclass(frozen=True)
 class NotOwnedError(Error):
     title: ClassVar[str] = "Not owned"
     place: Place
     kind: UseKind
-    is_call_arg: bool
+    is_call_arg: InCallArg
     func_name: str | None
     calling_func_name: str
 
     @property
     def rendered_span_label(self) -> str:
-        if self.is_call_arg:
+        if self.is_call_arg != InCallArg.NonCall:
             f = f"Function `{self.func_name}`" if self.func_name else "Function"
+            base_message = f"{f} wants to take ownership of this argument, but"
+            if self.is_call_arg == InCallArg.Call:
+                return (
+                    f"{base_message} "
+                    f"`{self.calling_func_name}` doesn't own `{self.place}`"
+                )
+            elif self.is_call_arg == InCallArg.ModifierCall:
+                return (
+                    f"{base_message} we cannot transfer "
+                    f"ownership inside a modifier body"
+                )
+        else:
             return (
-                f"{f} wants to take ownership of this argument, but "
-                f"`{self.calling_func_name}` doesn't own `{self.place}`"
+                f"Cannot {self.kind.indicative} `{self.place}` since "
+                f"`{self.calling_func_name}` doesn't own it"
             )
-        return (
-            f"Cannot {self.kind.indicative} `{self.place}` since "
-            f"`{self.calling_func_name}` doesn't own it"
-        )
 
     @dataclass(frozen=True)
     class MakeOwned(Help):
@@ -196,6 +211,14 @@ class NotOwnedError(Error):
         span_label: ClassVar[str] = (
             "Or consider copying this argument: `{place}.copy()`"
         )
+
+    @dataclass(frozen=True)
+    class DefinedHere(Note):
+        span_label: ClassVar[str] = "Argument `{place.root.name}` defined here ..."
+
+    @dataclass(frozen=True)
+    class ModifierBlock(Note):
+        span_label: ClassVar[str] = "outside the modifier block"
 
 
 @dataclass(frozen=True)

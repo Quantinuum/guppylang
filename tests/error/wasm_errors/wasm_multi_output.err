@@ -1,4 +1,5 @@
 Error: Invalid signature for @wasm function `multiple_outputs`
+on wasm platform `Helios`
 in wasm file:
 `$WASM`
 

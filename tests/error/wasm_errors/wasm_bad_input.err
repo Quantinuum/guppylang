@@ -1,4 +1,5 @@
 Error: Invalid signature for @wasm function `bad_input_type`
+on wasm platform `Helios`
 in wasm file:
 `$WASM`
 
