@@ -38,6 +38,9 @@ class capture_guppy_errors:
                 msg += f": {diagnostic.rendered_span_label}"
             if diagnostic.rendered_message:
                 msg += f"\n{diagnostic.rendered_message}"
+            # Reraise the exception as a comptime error. Note the `from None` which
+            # erases the exception context so the user doesn't see an additional note in
+            # the traceback.
             raise GuppyComptimeError(msg) from None
 
     def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
