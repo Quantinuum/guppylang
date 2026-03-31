@@ -17,8 +17,7 @@ def break_module(key) -> None:
 
 @contextmanager
 def broken_tket():
-    importlib.invalidate_caches()
-    old_modules = sys.modules
+    old_modules = sys.modules.copy()
 
     # Break all tket and pytket imports
     for key in list(sys.modules.keys()):
@@ -30,11 +29,11 @@ def broken_tket():
         if key.startswith("guppylang"):
             del sys.modules[key]
 
-    yield
-
-    # Reset imported modules
-    sys.modules = old_modules
-    importlib.invalidate_caches()
+    try:
+        yield
+    finally:
+        # Reset imported modules
+        sys.modules = old_modules
 
 
 def test_broken_tket():
@@ -59,7 +58,7 @@ def test_use_pytket_decorator():
         from guppylang import guppy
 
         @guppy.pytket(None)
-        def f():
+        def f() -> None:
             pass
 
 
@@ -69,8 +68,8 @@ def test_use_load_pytket_decorator():
     with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):  # noqa: PT012
         from guppylang import guppy
 
-        @guppy.load_pytket("some-circuit")
-        def f():
+        @guppy.load_pytket("some-circuit", None)
+        def f() -> None:
             pass
 
 
@@ -81,4 +80,10 @@ def test_guppy_decoupled():
     fail."""
 
     with broken_tket():
-        from guppylang import guppy  # noqa: F401
+        from guppylang import guppy
+
+        @guppy
+        def f() -> None:
+            pass
+
+        f.check()  # Smoke test decorator
