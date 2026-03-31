@@ -56,8 +56,6 @@ from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
 if TYPE_CHECKING:
-    from hugr.tys import Visibility
-
     from guppylang_internals.definition.declaration import RawFunctionDecl
     from guppylang_internals.tys.param import Parameter
 
@@ -243,13 +241,12 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         `CompiledFunctionDef.compile_inner()`.
         """
         hugr_ty = self.ty.to_hugr_poly(ctx)
-        visibility: Visibility = "Public" if self.id in ctx.exported_defs else "Private"
         func_def = module.module_root_builder().define_function(
             self.link_name,
             hugr_ty.body.input,
             hugr_ty.body.output,
             hugr_ty.params,
-            visibility,
+            visibility="Public" if self.id in ctx.exported_defs else "Private",
         )
         add_metadata(
             func_def,

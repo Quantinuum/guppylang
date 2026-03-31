@@ -88,8 +88,10 @@ class CompilerContext(ToHugrContext):
 
     global_funcs: dict[MonoGlobalConstId, hf.Function]
 
-    #: The definitions that should be exported (i.e. made public) in the currently
-    #: built Hugr module.
+    #: The definitions that should be exported (i.e. made public) in the Hugr module
+    #: currently being built. For compilation of single entrypoints, this will be just
+    #: that entrypoint, while for compilation of libraries this will contain all
+    #: functions that are part of its public interface.
     exported_defs: set[DefId]
 
     def __init__(

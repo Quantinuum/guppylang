@@ -423,7 +423,7 @@ class CompilationEngine:
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
-        """Top-level function to kick of Hugr compilation of a definition.
+        """Top-level function to begin compilation of a definition into a Hugr module.
 
         This is the function that is invoked by e.g. `<guppy-definition>.compile`.
         """
@@ -442,7 +442,8 @@ class CompilationEngine:
 
     @pretty_errors
     def compile(self, def_ids: list[DefId], *, reset: bool = True) -> ModulePointer:
-        """Top-level function to kick of Hugr compilation of a range of definitions.
+        """Top-level function to begin compilation of a range of definitions into a Hugr
+        module.
 
         This is the function that is invoked by e.g. `<guppy-library>.compile`.
         """
@@ -461,10 +462,10 @@ class CompilationEngine:
         from guppylang_internals.compiler.core import CompilerContext
 
         ctx = CompilerContext(graph, set(def_ids))
-        compiled_defs = []
+        requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
-            compiled_defs.append(ctx.build_compiled_def(def_id, type_args=None))
+            requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
         ctx.iterate_worklist()
         self.compiled = ctx.compiled
 
@@ -514,7 +515,7 @@ class CompilationEngine:
             ModulePointer(
                 Package(modules=[graph.hugr], extensions=packaged_extensions), 0
             ),
-            compiled_defs,
+            requested_defs,
         )
 
 
