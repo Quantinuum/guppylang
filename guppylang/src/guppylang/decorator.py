@@ -249,6 +249,7 @@ class _Guppy:
                 val = getattr(cls, dir_element)
                 if isinstance(val, GuppyDefinition):
                     DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+                # add classfunction impls
                 if isinstance(val, MethodType) and isinstance(
                     val.__func__, GuppyDefinition
                 ):

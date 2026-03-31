@@ -583,6 +583,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         from guppylang_internals.definition.struct import ParsedStructDef
 
+        # slightly hacky, if node points to a function then check it is __new__
+        # and grab the corresponding struct and classmethod
+        # currently missing a check / nicer error if you do try to attribute
+        # a normal function
         if isinstance(ty, FunctionType) and isinstance(node.value, GlobalName):
             struct_id = DEF_STORE.impl_parents[node.value.def_id]
             struct_def = ENGINE.parsed[struct_id]
@@ -597,6 +601,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     node, GlobalName(id=node.attr, def_id=constr.id)
                 ), constr.ty
 
+        # classmethods acting on instantiated structs
+        # just get the function as the self argument has already been removed
+        # during parsing
         if isinstance(ty, StructType) and node.attr in ty.defn.classmethods:
             struct_def = ty.defn
             if constr := self.ctx.globals.get_instance_func(struct_def, node.attr):
