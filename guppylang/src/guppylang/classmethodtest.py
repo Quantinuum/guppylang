@@ -5,6 +5,10 @@
 
 #     def another(self) -> "PyTest":
 #         return PyTest()
+# from guppylang.std.quantum import rx, ry, discard
+# from guppylang.std.angles import angle
+# from collections.abc import Callable
+# from guppylang import guppy, qubit
 
 
 # @guppy.struct
@@ -14,7 +18,7 @@
 
 #     @classmethod
 #     @guppy
-#     def default(self: "Test") -> "Test":
+#     def default(self) -> "Test":
 #         return Test(rx, ry)
 
 #     @guppy

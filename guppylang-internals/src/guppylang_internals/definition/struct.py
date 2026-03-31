@@ -254,35 +254,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             has_signature=True,
         )
 
-        from guppylang_internals.definition.function import (
-            ParsedFunctionDef,
-            RawFunctionDef,
-        )
-
-        parsed_classmethods = []
-        for methoddef in self.classmethods.values():
-            # parse the classmethods to remove the self argument
-            if isinstance(methoddef, RawFunctionDef):
-                defn = methoddef.parse(
-                    Globals(DEF_STORE.frames[methoddef.id]), DEF_STORE.sources
-                )
-                result_ty = FunctionType(
-                    defn.ty.inputs[1:], defn.ty.output, defn.ty.params
-                )
-                defined_at = defn.defined_at
-                defined_at.args.args = defined_at.args.args[1:]
-                newparsed = ParsedFunctionDef(
-                    id=defn.id,
-                    name=defn.name,
-                    defined_at=defn.defined_at,
-                    ty=result_ty,
-                    docstring=defn.docstring,
-                    link_name=defn.link_name,
-                    metadata=defn.metadata,
-                )
-                parsed_classmethods.append(newparsed)
-
-        return [constructor_def, *parsed_classmethods]  # type: ignore[list-item]
+        return [constructor_def]
 
 
 # TODO: adapt the following to work also with enums, and move it to a common module
