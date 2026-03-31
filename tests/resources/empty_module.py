@@ -1,1 +1,1 @@
-"""A module with"""
+"""An empty module used for breaking imports from other modules."""
