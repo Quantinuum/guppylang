@@ -5,12 +5,14 @@ from pathlib import Path
 
 import pytest
 
-broken_module = Path(__file__).parent / "resources/broken_module.py"
-broken_module = str(broken_module.absolute().resolve())
+empty_module = Path(__file__).parent / "resources/empty_module.py"
+empty_module = str(empty_module.absolute().resolve())
 
 
 def break_module(key) -> None:
-    spec = importlib.util.spec_from_file_location(key, broken_module)
+    """Renders the module with the given key virtually unusable by replacing it with an
+    empty module, causing every symbol import to fail with an ImportError."""
+    spec = importlib.util.spec_from_file_location(key, empty_module)
     module = importlib.util.module_from_spec(spec)
     sys.modules[key] = module
 
@@ -39,22 +41,22 @@ def broken_tket():
 def test_broken_tket():
     """Asserts that the module breaker works as intended to break tket imports."""
 
-    with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):
+    with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):
         from tket.circuit import Tk2Circuit  # noqa: F401
 
 
 def test_broken_pytket():
     """Asserts that the module breaker works as intended to break pytket imports."""
 
-    with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):
+    with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):
         from pytket.circuit import Circuit  # noqa: F401
 
 
 def test_use_pytket_decorator():
-    """Tests that using the pytket decorator raise an import error when imports are
+    """Tests that using the pytket decorator raises an import error when imports are
     broken."""
 
-    with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):  # noqa: PT012
+    with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):  # noqa: PT012
         from guppylang import guppy
 
         @guppy.pytket(None)
@@ -63,9 +65,9 @@ def test_use_pytket_decorator():
 
 
 def test_use_load_pytket_decorator():
-    """Tests that using the load_pytket decorator raise an import error when imports are
-    broken."""
-    with broken_tket(), pytest.raises(ImportError, match=r"broken_module.py"):  # noqa: PT012
+    """Tests that using the load_pytket decorator raises an import error when imports
+    are broken."""
+    with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):  # noqa: PT012
         from guppylang import guppy
 
         @guppy.load_pytket("some-circuit", None)
