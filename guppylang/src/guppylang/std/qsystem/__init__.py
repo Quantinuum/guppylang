@@ -4,6 +4,7 @@ from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type, hugr_op
 from guppylang_internals.std._internal.compiler.qsystem import (
+    LazyMeasureResetCompiler,
     ReadFutureBoolCompiler,
     future_bool_type,
 )
@@ -202,6 +203,12 @@ def lazy_measure(q: qubit @ owned) -> "Measurement":
     """Request a destructive lazy measurement of a qubit, returning a `Measurement`
     value. Call `.read()` on the value to block until the result is available.
     """
+
+
+@custom_function(compiler=LazyMeasureResetCompiler())
+@no_type_check
+def lazy_measure_and_reset(q: qubit) -> "Measurement":
+    """Like `lazy_measure`, but also resets the qubit after measurement."""
 
 
 N = guppy.nat_var("N")

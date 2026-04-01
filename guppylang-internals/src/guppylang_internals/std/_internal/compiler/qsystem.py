@@ -12,9 +12,10 @@ from guppylang_internals.std._internal.compiler.quantum import (
 from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.std._internal.compiler.tket_exts import (
     FUTURES_EXTENSION,
+    QSYSTEM_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
 )
-from guppylang_internals.std._internal.util import external_op
+from guppylang_internals.std._internal.util import external_op, quantum_op
 
 
 class RandomIntCompiler(CustomInoutCallCompiler):
@@ -48,6 +49,20 @@ class RandomIntBoundedCompiler(CustomInoutCallCompiler):
         )
         [rnd] = self.builder.add_op(iwiden_s(5, 6), rnd)
         return CallReturnWires(regular_returns=[rnd], inout_returns=[ctx])
+
+
+class LazyMeasureResetCompiler(CustomInoutCallCompiler):
+    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+        [q] = args
+        [q, measurement] = self.builder.add_op(
+            quantum_op("LazyMeasureReset", ext=QSYSTEM_EXTENSION)(
+                ht.FunctionType([ht.Qubit], [ht.Qubit, future_bool_type()]),
+                [],
+                self.ctx,
+            ),
+            q,
+        )
+        return CallReturnWires(regular_returns=[measurement], inout_returns=[q])
 
 
 def future_bool_type() -> ht.ExtType:
