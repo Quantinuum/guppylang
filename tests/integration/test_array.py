@@ -1,3 +1,4 @@
+
 import pytest
 from hugr import ops
 
@@ -187,6 +188,26 @@ def test_struct_array(validate):
         # with `qubit | None` and write back `None` after `q1` has been extracted...
         foo(ss[0].q1, ss[0].q2)
         return ss
+
+    validate(main.compile_function())
+
+
+def test_enum_array(validate):
+    @guppy.enum
+    class E:
+        VariantA = {"q1": qubit, "q2": qubit}  # noqa: RUF012
+
+        @guppy
+        def foo(self: "E") -> int:
+            return 42
+
+    @guppy.declare
+    def foo(i: int) -> None: ...
+
+    @guppy
+    def main(es: array[E, 10] @ owned) -> array[E, 10]:
+        foo(es[0].foo())
+        return es
 
     validate(main.compile_function())
 
@@ -690,7 +711,6 @@ def test_take_put(validate):
 
 
 def test_discard_borrowed(validate):
-
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())
@@ -708,7 +728,6 @@ def test_discard_borrowed(validate):
 
 
 def test_discard_all_taken(validate):
-
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())
@@ -722,7 +741,6 @@ def test_discard_all_taken(validate):
 
 
 def test_discard_not_all_taken(validate):
-
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())
@@ -737,7 +755,6 @@ def test_discard_not_all_taken(validate):
 
 
 def test_try_discard_all_taken(validate):
-
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())
