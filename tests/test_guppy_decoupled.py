@@ -38,6 +38,7 @@ def broken_tket():
         sys.modules = old_modules
 
 
+@pytest.mark.isolate
 def test_broken_tket():
     """Asserts that the module breaker works as intended to break tket imports."""
 
@@ -45,6 +46,7 @@ def test_broken_tket():
         from tket.circuit import Tk2Circuit  # noqa: F401
 
 
+@pytest.mark.isolate
 def test_broken_pytket():
     """Asserts that the module breaker works as intended to break pytket imports."""
 
@@ -52,6 +54,7 @@ def test_broken_pytket():
         from pytket.circuit import Circuit  # noqa: F401
 
 
+@pytest.mark.isolate
 def test_use_pytket_decorator():
     """Tests that using the pytket decorator raises an import error when imports are
     broken."""
@@ -64,6 +67,7 @@ def test_use_pytket_decorator():
             pass
 
 
+@pytest.mark.isolate
 def test_use_load_pytket_decorator():
     """Tests that using the load_pytket decorator raises an import error when imports
     are broken."""
@@ -75,6 +79,7 @@ def test_use_load_pytket_decorator():
             pass
 
 
+@pytest.mark.isolate
 def test_guppy_decoupled():
     """Regression test for https://github.com/Quantinuum/guppylang/issues/1595 to
     ensure that the main guppy decorator is decoupled from the `tket` dependency, in
