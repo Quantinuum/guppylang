@@ -27,6 +27,20 @@ def test_struct(validate):
 
     validate(main.compile_function())
 
+def test_enum(validate):
+    @guppy.enum
+    class MyEnum[S, T]:
+        VariantA = {"x": S}  # noqa: RUF012
+        VariantB = {"x": S, "y": T}  # noqa: RUF012
+
+    @guppy
+    def main() -> None:
+        MyEnum.VariantA[int, float](1)
+        MyEnum.VariantB[int, float](2, 3.0)
+
+    validate(main.compile_function())
+
+
 
 def test_inner_frame(validate):
     """See https://github.com/quantinuum/guppylang/issues/1116"""
@@ -37,10 +51,18 @@ def test_inner_frame(validate):
             @guppy
             def foo(self: "MyStruct[int]") -> None:
                 pass
+        
+        @guppy.enum
+        class MyEnum[T]:
+            VariantA = {}
+            @guppy
+            def method(self: "MyEnum[int]") -> None:
+                pass
 
         @guppy
         def main() -> None:
             MyStruct[int]().foo()
+            MyEnum.VariantA[int]().method()
 
         return main
 
@@ -53,10 +75,21 @@ def test_copy_bound(validate):
         x: T
 
     @guppy
-    def main[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
+    def main_struct[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
         return s.x, s.x
 
-    validate(main.compile_function())
+    validate(main_struct.compile_function())
+
+    @guppy.enum
+    class MyEnum[T: Copy]:
+        VariantA = {"x": T}  # noqa: RUF012
+
+    @guppy
+    def main_enum[T: Copy](x: T) -> tuple[MyEnum[T], MyEnum[T]]:
+        e1 = MyEnum.VariantA[T](x)
+        return e1, e1
+
+    validate(main_enum.compile_function())
 
 
 def test_drop_bound(validate):
@@ -64,13 +97,17 @@ def test_drop_bound(validate):
     class MyStruct[T: Drop]:
         x: T
 
+    @guppy.enum
+    class MyEnum[T: Drop]:
+        VariantA = {"x": T}
+
     @guppy
-    def helper[T: Drop](s: MyStruct[T] @ owned) -> None:
+    def helper[T: Drop](s: MyStruct[T] @ owned, e: MyEnum[T] @ owned) -> None:
         pass
 
     @guppy
-    def main(s: MyStruct[array[int, 5]] @ owned) -> None:
-        helper(s)
+    def main(s: MyStruct[array[int, 5]] @ owned, e: MyEnum[array[int, 5]] @ owned) -> None:
+        helper(s, e)
 
     validate(main.compile_function())
 
@@ -80,9 +117,13 @@ def test_copy_and_drop_bound(validate):
     class MyStruct[T: (Copy, Drop)]:
         x: T
 
+    @guppy.enum
+    class MyEnum[T: (Copy, Drop)]:
+        VariantA = {"x": T}  # noqa: RUF012
+
     @guppy
-    def main[T: (Copy, Drop)](s1: MyStruct[T], s2: MyStruct[T]) -> tuple[T, T]:
-        return s1.x, s1.x
+    def main[T: (Copy, Drop)](s1: MyStruct[T], s2: MyStruct[T], e1: MyEnum[T], e2: MyEnum[T]) -> tuple[T, T, MyEnum[T], MyEnum[T]]:
+        return s1.x, s1.x, e1, e2
 
     validate(main.compile_function())
 
@@ -91,9 +132,15 @@ def test_const_param(validate):
     @guppy.struct
     class MyStruct[T, n: nat]:
         xs: array[T, n]
+    
+    @guppy.enum
+    class MyEnum[T, n: nat]:
+        VariantA = {"xs": array[T, n]} 
+        VariantB = {}
+
 
     @guppy
-    def main[T, n: nat](xs: array[T, n], s: MyStruct[T, n]) -> nat:
+    def main[T, n: nat](xs: array[T, n], s: MyStruct[T, n], e: MyEnum[T, n]) -> nat:
         return n
 
     validate(main.compile_function())
