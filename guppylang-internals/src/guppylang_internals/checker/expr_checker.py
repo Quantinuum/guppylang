@@ -68,7 +68,6 @@ from guppylang_internals.checker.errors.comptime_errors import (
 )
 from guppylang_internals.checker.errors.generic import (
     ExpectedError,
-    NonExhaustiveMatchError,
     UnexpectedError,
     UnsupportedError,
 )
@@ -91,6 +90,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
     WrongNumberOfArgsError,
 )
+from guppylang_internals.checker.pattern_processing import post_process_match_pred
 from guppylang_internals.definition.common import Definition, ParsedDef
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
@@ -896,40 +896,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         new_node.patterns = checked_patterns
 
-        new_node = self._post_process_match_pred(new_node, subj_ty)
+        new_node = post_process_match_pred(new_node)
         return new_node, bool_type()
-
-    def _post_process_match_pred(self, node: ast.expr, ty: Type) -> ast.expr:
-        """After the checking we need to pre-compile the decision tree for the pattern
-        match statement. We compute it in the checking since it allows us to check
-        exhaustiveness"""
-        # TODO: Testing
-        match node:
-            case MatchOverLiteral(
-                subj_type=OpaqueType(defn=defn)
-            ) if defn.name == "bool":
-                literal_values: set[bool] = set()
-                for p in node.patterns:
-                    if isinstance(p, ast.MatchAs):
-                        # We have a wildcard pattern, thus the match is exhaustive
-                        return node
-                    assert isinstance(p, MatchLiteral)
-                    assert isinstance(p.constant.value, bool)
-                    literal_values.add(p.constant.value)
-
-                missing_values = {True, False} - literal_values
-                if len(missing_values) == 0:
-                    return node
-            case MatchOverLiteral():
-                if isinstance(node.patterns[-1], ast.MatchAs):
-                    # We are mathching on a literal, thus there are infinite possible
-                    # patterns and the last pattern needs to be a wildcard
-                    # No other pre compilation is needed for the decision tree
-                    return node
-            case _:
-                return node
-
-        raise GuppyError(NonExhaustiveMatchError(node))
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> tuple[ast.expr, Type]:
         raise InternalGuppyError(

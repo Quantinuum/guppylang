@@ -937,6 +937,10 @@ class MatchLiteral(ast.pattern):
         self.constant = constant
         self.equality_function = equality_function
 
+    # TODO: Nicola delete
+    def __str__(self) -> str:
+        return f"MatchLiteral({self.constant.value})"
+
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
 
@@ -959,6 +963,9 @@ class MatchStruct(ast.pattern):
         self.struct = struct
         self.and_func = and_func
 
+    def __str__(self) -> str:
+        return f"MatchStruct({self.struct.id})"
+
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
 
@@ -980,6 +987,9 @@ class MatchEnum(ast.pattern):
         self.enum = enum
         self.patterns = patterns
         self.variant_idx = variant_idx
+
+    def __str__(self) -> str:
+        return f"MatchEnum({self.enum.attr})"
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
