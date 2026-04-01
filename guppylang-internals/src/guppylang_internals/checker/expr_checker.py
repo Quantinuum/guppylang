@@ -610,13 +610,13 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 else:
                     # Not a global name, thus node.value is a instantiated variant
                     is_enum_class = False
-            elif (method_w_ty := self._check_method(ty, node)) and isinstance(
-                node.value, PlaceNode
+            elif (method_w_ty := self._check_method(ty, node)) and not isinstance(
+                node.value, GlobalName
             ):
                 # Otherwise, we may try to access a method from the enum class
-                # If the method exists, we also need to check that node.value is a
-                # variable (i.e. a PlaceNode) and not the enum class definition
-                # (i.e. a GlobalName): we cannot write `MyEnum.method`.
+                # If the method exists, we also need to check that node.value is a not a
+                # GlobalName, i.e. it does not correspond to the enum class definition:
+                # we cannot write `MyEnum.method`.
                 return method_w_ty[0], method_w_ty[1]
             else:
                 # If node.value is a GlobalName it corresponds to the enum class
