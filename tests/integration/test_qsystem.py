@@ -149,7 +149,7 @@ def test_lazy_measure_and_reset(validate, run_int_fn):  # type: ignore[no-untype
         x(q)
         first_result = lazy_measure_and_reset(q)
         second_result = measure(q)
-        if first_result and not second_result:
+        if first_result and not second_result:  # First expect flip, then expect reset
             return 1
         return 0
 
