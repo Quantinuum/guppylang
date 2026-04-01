@@ -614,7 +614,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 node.value, GlobalName
             ):
                 # Otherwise, we may try to access a method from the enum class
-                # If the method exists, we also need to check that node.value is a not a
+                # If the method exists, we also need to check that node.value is not a
                 # GlobalName, i.e. it does not correspond to the enum class definition:
                 # we cannot write `MyEnum.method`.
                 return method_w_ty[0], method_w_ty[1]
