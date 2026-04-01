@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
-from typing import Any, Final, TypeGuard, TypeVar, assert_never, cast
+from typing import Any, Final, Never, TypeGuard, TypeVar, assert_never, cast
 
 import hugr
 import hugr.std.float
@@ -952,13 +952,15 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
                 )
             case OpCompiler(op=op):
                 # We need input conversions from hugr Bools to the Guppy bools as output
-                op = op(hugr_ty, type_args, self.ctx)
-                out_wires = self.builder.add_op(op, value_wire, self.subject_wire)
+                compiled_op = op(hugr_ty, type_args, self.ctx)
+                out_wires = self.builder.add_op(
+                    compiled_op, value_wire, self.subject_wire
+                )
                 assert self.builder.hugr.port_type(out_wires[0]) == OpaqueBool
                 out_wires = self.builder.add_op(read_bool(), out_wires[0])
                 rets = list(out_wires.outputs())
             case _:
-                assert_never(call_compiler)
+                assert_never(cast("Never", call_compiler))
 
         # we get the wires corresponding to the call result:
         # the equality function returns a boolean indicating if they're equal

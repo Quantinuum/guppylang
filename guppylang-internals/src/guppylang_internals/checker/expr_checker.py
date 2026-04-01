@@ -873,6 +873,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         # TODO: NICOLa(F): what other types we support here? arrays? Option?
         node.subject, subj_ty = self.synthesize(node.subject)
 
+        new_node: ast.expr
         match subj_ty:
             case EnumType():
                 new_node = with_loc(node, MatchOverEnum(node.subject, subj_ty))

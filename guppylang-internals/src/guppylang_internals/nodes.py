@@ -939,7 +939,7 @@ class MatchLiteral(ast.pattern):
 
     # TODO: Nicola delete
     def __str__(self) -> str:
-        return f"MatchLiteral({self.constant.value})"
+        return f"MatchLiteral({self.constant.value!r})"
 
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__

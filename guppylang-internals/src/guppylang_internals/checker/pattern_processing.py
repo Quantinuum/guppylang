@@ -25,7 +25,7 @@ from guppylang_internals.tys.ty import EnumType, OpaqueType, StructType
 
 # A matrix of patterns, where each row corresponds to a case in the match case statement
 Matrix = list[list[ast.pattern]]
-# A mapping from Matix row index to the index of the case in the match statement.
+# A mapping from Matrix row index to the index of the case in the match statement.
 Actions = list[int]
 # An occurrence identifies a subterm path (1-indexed at each level).
 # e.g. (1,) is the 1st top-level value; (1, 2) is the 2nd arg of the 1st value.
@@ -50,7 +50,7 @@ class Switch:
     occurrence: Occurrence
     # Each case is (constructor_name_or_None, subtree).
     # None means the wildcard/default case.
-    cases: list[tuple[str | None, DecisionTree]]
+    cases: list[tuple[ast.pattern | None, DecisionTree]]
 
     def __repr__(self) -> str:
         case_strs = []
@@ -184,12 +184,12 @@ def build_decision_tree(
     assert col_idx is not None
     assert founded_pattern is not None
 
-    choosen_occ = occurrences[col_idx]
+    chosen_occ = occurrences[col_idx]
     other_occs = list(occurrences[:col_idx]) + list(occurrences[col_idx + 1 :])
 
     # Used to keep track of the constructors we have already seen in the column
     sigma: set[Any] = set()
-    # Check if the mathching is exhaustive (only for enums) TODO: NICOLA, improve this,
+    # Check if the matching is exhaustive (only for enums) TODO: NICOLA, improve this,
     # we should check also for Literals
     constructor_count = 0
     is_complete_signature = False
@@ -233,7 +233,7 @@ def build_decision_tree(
         a = arity(c)
         updated_occurrences = (
             list(occurrences[:col_idx])
-            + [(*choosen_occ, k) for k in range(a)]
+            + [(*chosen_occ, k) for k in range(a)]
             + list(occurrences[col_idx + 1 :])
         )
         specialized_matrix, specialized_actions = specialize(
@@ -277,7 +277,7 @@ def build_decision_tree(
             )
         )
 
-    return Switch(choosen_occ, cases)
+    return Switch(chosen_occ, cases)
 
 
 def post_process_match_pred(node: CheckedMatchPred) -> ast.expr:
@@ -301,7 +301,7 @@ def post_process_match_pred(node: CheckedMatchPred) -> ast.expr:
                 return node
         case MatchOverLiteral():
             if isinstance(node.patterns[-1], ast.MatchAs):
-                # We are mathching on a literal, thus there are infinite possible
+                # We are matching on a literal, thus there are infinite possible
                 # patterns and the last pattern needs to be a wildcard
                 # No other pre compilation is needed for the decision tree
                 return node
