@@ -3,6 +3,26 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.32.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.31.0...guppylang-internals-v0.32.0) (2026-04-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* Prevent invalid enum attribute accesses from being treated as well-typed
+* Improved error handling in modifiers ([#1580](https://github.com/Quantinuum/guppylang/issues/1580))
+
+### Features
+
+* Add support for enum type in `comptime` ([#1604](https://github.com/Quantinuum/guppylang/issues/1604)) ([62625f9](https://github.com/Quantinuum/guppylang/commit/62625f99306c9602b3bef9377b0551e357eeebf6))
+* Improved error handling in modifiers ([#1580](https://github.com/Quantinuum/guppylang/issues/1580)) ([981eb97](https://github.com/Quantinuum/guppylang/commit/981eb97d9c52b9375fdbf5bb3be536ee92f01e74))
+
+
+### Bug Fixes
+
+* Decouple from tket and pytket dependencies ([#1615](https://github.com/Quantinuum/guppylang/issues/1615)) ([4b704e1](https://github.com/Quantinuum/guppylang/commit/4b704e131a6df6259a2499ba19e8d69a069c048f))
+* Prevent invalid enum attribute accesses from being treated as well-typed ([8ab3a28](https://github.com/Quantinuum/guppylang/commit/8ab3a286aede4c90322799d822a7cb5932520f1d))
+* Raise error when using an enum class in places where a variant is expected ([#1575](https://github.com/Quantinuum/guppylang/issues/1575)) ([0cc798e](https://github.com/Quantinuum/guppylang/commit/0cc798e304f384035c7da74d255127b9156d4b83))
+
 ## [0.31.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.30.0...guppylang-internals-v0.31.0) (2026-03-23)
 
 
