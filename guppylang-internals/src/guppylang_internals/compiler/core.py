@@ -295,7 +295,7 @@ def is_return_var(x: str) -> bool:
 def get_parent_type(defn: Definition) -> "RawDef | None":
     """Returns the RawDef registered as the parent of `child` in the DEF_STORE,
     or None if it has no parent."""
-    if parent_ty_id := DEF_STORE.impl_parents.get(defn.id):
+    if parent_ty_id := DEF_STORE.type_member_parents.get(defn.id):
         return DEF_STORE.raw_defs[parent_ty_id]
     else:
         return None
