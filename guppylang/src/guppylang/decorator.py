@@ -58,11 +58,11 @@ from hugr import ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.package import ModulePointer
-from pytket.circuit import Circuit as TketCircuit
 from typing_extensions import Unpack, dataclass_transform, deprecated
 
 from guppylang.defs import (
     GuppyDefinition,
+    GuppyEnumDefinition,
     GuppyFunctionDefinition,
     GuppyTypeVarDefinition,
 )
@@ -279,7 +279,7 @@ class _Guppy:
 
         def decorator(
             cls: builtins.type[T], kwargs: GuppyEnumKwargs
-        ) -> GuppyDefinition:
+        ) -> GuppyEnumDefinition:
             defn = RawEnumDef(
                 DefId.fresh(),
                 cls.__name__,
@@ -299,7 +299,7 @@ class _Guppy:
                 cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
             # We're pretending to return the class unchanged, but in fact we return
             # a `GuppyDefinition` that handles the comptime logic
-            return GuppyDefinition(defn)
+            return GuppyEnumDefinition(defn)
 
         return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
 
@@ -540,7 +540,9 @@ class _Guppy:
             def foo(q: qubit) -> bool:
                 return guppy_circ(q)"""
 
-        if not isinstance(input_circuit, TketCircuit):
+        from pytket.circuit import Circuit  # Decoupled import
+
+        if not isinstance(input_circuit, Circuit):
             err_msg = "Only pytket circuits can be passed to guppy.pytket"
             raise TypeError(err_msg) from None
 
@@ -596,9 +598,10 @@ class _Guppy:
         sure you discard all qubits you know are measured during the circuit, or avoid
         measurements in the circuit and measure in Guppy afterwards.
         """
+        from pytket.circuit import Circuit  # Decoupled import
 
-        if not isinstance(input_circuit, TketCircuit):
-            err_msg = "Only pytket circuits can be passed to guppy.pytket"
+        if not isinstance(input_circuit, Circuit):
+            err_msg = "Only pytket circuits can be passed to guppy.load_pytket"
             raise TypeError(err_msg) from None
 
         span = _find_load_call(DEF_STORE.sources)

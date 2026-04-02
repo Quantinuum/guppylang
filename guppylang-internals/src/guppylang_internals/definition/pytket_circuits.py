@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Any, cast
 
 import hugr.build.function as hf
 from guppylang.defs import GuppyDefinition
@@ -9,8 +9,6 @@ from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.envelope import EnvelopeConfig
 from hugr.std.float import FLOAT_T
-from pytket.circuit import Circuit
-from tket.circuit import Tk2Circuit
 
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals
@@ -72,7 +70,7 @@ class RawPytketDef(ParsableDef):
     """
 
     python_func: PyFunc
-    input_circuit: Circuit
+    input_circuit: Any
 
     description: str = field(default="pytket circuit", init=False)
 
@@ -117,7 +115,7 @@ class RawLoadPytketDef(ParsableDef):
     """
 
     source_span: Span | None
-    input_circuit: Circuit
+    input_circuit: Any
     use_arrays: bool
 
     description: str = field(default="pytket circuit", init=False)
@@ -152,7 +150,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     """
 
     ty: FunctionType
-    input_circuit: Circuit
+    input_circuit: Any
     use_arrays: bool
 
     description: str = field(default="pytket circuit", init=False)
@@ -161,6 +159,11 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledPytketDef":
         """Adds a Hugr `FuncDefn` node for this function to the Hugr."""
+        from pytket.circuit import Circuit  # Decoupled import
+        from tket.circuit import Tk2Circuit  # Decoupled import
+
+        # Type mismatch should have been raised in decorator
+        assert isinstance(self.input_circuit, Circuit)
         # TODO extract the correct entry point from the module
         circ = envelope.read_envelope(
             Tk2Circuit(self.input_circuit).to_bytes(EnvelopeConfig.TEXT)
@@ -350,7 +353,7 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
 
 
 def _signature_from_circuit(
-    input_circuit: Circuit,
+    input_circuit: Any,
     defined_at: ToSpan | None,
     use_arrays: bool = False,
 ) -> FunctionType:
@@ -358,6 +361,10 @@ def _signature_from_circuit(
     # May want to set proper unitary flags in the future.
     from guppylang.std.angles import angle  # Avoid circular imports
     from guppylang.std.quantum import qubit
+    from pytket.circuit import Circuit  # Decoupled import
+
+    # Type mismatch should have been raised in decorator
+    assert isinstance(input_circuit, Circuit)
 
     assert isinstance(qubit, GuppyDefinition)
     qubit_ty = cast("TypeDef", qubit.wrapped).check_instantiate([])

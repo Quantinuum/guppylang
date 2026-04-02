@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 14, in <module>
+    foo.compile()
+  File "$FILE", line 9, in foo
+    with power(2):
+guppylang_internals.error.GuppyComptimeError: The `power` modifier is not supported in comptime functions

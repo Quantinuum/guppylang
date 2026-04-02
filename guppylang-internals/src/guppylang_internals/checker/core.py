@@ -328,8 +328,10 @@ class Globals:
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
+    frame: FrameType | None
 
     def __init__(self, frame: FrameType | None) -> None:
+        self.frame = frame
         if frame is not None:
             self.f_locals = frame.f_locals
             self.f_globals = frame.f_globals
