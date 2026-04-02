@@ -439,7 +439,7 @@ class float:
     @guppy
     @no_type_check
     def ___round__no_digits(self: float) -> int:
-        return self.___round__hugr().__int__()
+        return int(self.___round__hugr())
 
     @guppy
     @no_type_check
