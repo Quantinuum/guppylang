@@ -128,7 +128,7 @@ class DefinitionStore:
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
 
-    def register_impl(self, ty_id: DefId, name: str, member_id: DefId) -> None:
+    def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
         self.type_members[ty_id][name] = member_id
         self.type_member_parents[member_id] = ty_id
@@ -305,7 +305,7 @@ class CompilationEngine:
         if isinstance(defn, CheckedStructDef | CheckedEnumDef):
             for method_def in defn.generated_methods():
                 DEF_STORE.register_def(method_def, DEF_STORE.frames[id])
-                DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
+                DEF_STORE.register_type_member(defn.id, method_def.name, method_def.id)
 
         return defn
 

@@ -158,7 +158,7 @@ def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], t
     def dec(c: type) -> type:
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+                DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
         return c if return_class else GuppyDefinition(defn)  # type: ignore[return-value]
 
     return dec
@@ -202,7 +202,7 @@ def custom_type(
         DEF_STORE.register_def(defn, get_calling_frame())
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+                DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
@@ -299,7 +299,9 @@ def ext_module_decorator(
             DEF_STORE.register_def(ext_module, get_calling_frame())
             for val in cls.__dict__.values():
                 if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_impl(ext_module.id, val.wrapped.name, val.id)
+                    DEF_STORE.register_type_member(
+                        ext_module.id, val.wrapped.name, val.id
+                    )
                     wasm_def: RawWasmFunctionDef
                     if isinstance(val, GuppyFunctionDefinition) and isinstance(
                         val.wrapped, RawWasmFunctionDef
@@ -380,9 +382,9 @@ def ext_module_decorator(
                 has_var_args=False,
             )
             DEF_STORE.register_def(call_method, get_calling_frame())
-            DEF_STORE.register_impl(ext_module.id, "__new__", call_method.id)
+            DEF_STORE.register_type_member(ext_module.id, "__new__", call_method.id)
             DEF_STORE.register_def(discard, get_calling_frame())
-            DEF_STORE.register_impl(ext_module.id, "discard", discard.id)
+            DEF_STORE.register_type_member(ext_module.id, "discard", discard.id)
 
             return GuppyDefinition(ext_module)
 
