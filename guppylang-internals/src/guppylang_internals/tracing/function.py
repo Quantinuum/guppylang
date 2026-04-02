@@ -2,6 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from guppylang.std.quantum import UnitaryFlags
 from hugr import ops
 from hugr.build.dfg import DfBase
 
@@ -9,6 +10,7 @@ from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import ComptimeVariable, Context, Locals, Variable
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
+from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
@@ -36,6 +38,8 @@ if TYPE_CHECKING:
 
     from hugr import Wire
 
+    from guppylang_internals.definition.traced import CompiledTracedFunctionDef
+
 
 @dataclass(frozen=True)
 class TracingReturnError(Error):
@@ -50,13 +54,14 @@ def trace_function(
     builder: DfBase[P],
     ctx: CompilerContext,
     node: AstNode,
+    func_def: "CompiledTracedFunctionDef",
 ) -> None:
     """Kicks off tracing of a function.
 
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
-    state = TracingState(ctx, DFContainer(builder, ctx, {}), node)
+    state = TracingState(ctx, DFContainer(builder, ctx, {}), node, func_def)
     with set_tracing_state(state):
         inputs = [
             unpack_guppy_object(
@@ -142,6 +147,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     Checks that the passed arguments match the signature of the function and also
     handles inout arguments.
     """
+    # NOTE: NICOLA - when we find a guppy function in the body we call this function
     state = get_tracing_state()
 
     # Try to turn args into `GuppyObjects`
@@ -166,6 +172,12 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     call_node, ret_ty = func.synthesize_call(
         arg_exprs, state.node, Context(state.globals, locals, {})
     )
+    # Here we check if Unitary contraint are respected from the caller
+    unitary_flag = state.function_definition.unitary_flags
+    if unitary_flag != UnitaryFlags.NoFlags:
+        unitary_checker = BBUnitaryChecker()
+        unitary_checker.setup(unitary_flag)
+        unitary_checker.visit(call_node)
 
     # Compile call
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)

@@ -59,8 +59,11 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
     flags: UnitaryFlags
 
-    def check(self, bb: CheckedBB[Place], unitary_flags: UnitaryFlags) -> None:
+    def setup(self, unitary_flags: UnitaryFlags) -> None:
         self.flags = unitary_flags
+
+    def check(self, bb: CheckedBB[Place], unitary_flags: UnitaryFlags) -> None:
+        self.setup(unitary_flags)
         for stmt in bb.statements:
             self.visit(stmt)
 
