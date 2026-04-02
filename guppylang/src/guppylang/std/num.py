@@ -129,6 +129,12 @@ class nat:
     def __ror__(self: nat, other: nat) -> nat: ...
 
     @custom_function(NoopCompiler())
+    def ___round__no_digits(self: nat) -> nat: ...
+
+    @custom_function(NoopCompiler())
+    def ___round__digits(self: nat, ndigits: int) -> nat: ...
+
+    @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: nat) -> nat: ...
 
     @custom_function(checker=ReversingChecker())
@@ -283,6 +289,12 @@ class int:
     def __ror__(self: int, other: int) -> int: ...
 
     @custom_function(NoopCompiler())
+    def ___round__no_digits(self: int) -> int: ...
+
+    @custom_function(NoopCompiler())
+    def ___round__digits(self: int, ndigits: int) -> int: ...
+
+    @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: int) -> int: ...
 
     @custom_function(checker=ReversingChecker())
@@ -421,7 +433,21 @@ class float:
     @custom_function(checker=ReversingChecker())
     def __rmul__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fround"))  # TODO
+    @hugr_op(float_op("fround"))
+    def ___round__hugr(self: float) -> float: ...
+
+    @guppy
+    @no_type_check
+    def ___round__no_digits(self: float) -> int:
+        return self.___round__hugr().__int__()
+
+    @guppy
+    @no_type_check
+    def ___round__digits(self: float, ndigits: int) -> float:
+        factor = 10.0**ndigits
+        return (self * factor).___round__hugr() / factor
+
+    @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: float) -> float: ...
 
     @custom_function(checker=ReversingChecker())
