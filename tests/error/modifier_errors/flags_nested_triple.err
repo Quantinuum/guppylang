@@ -5,4 +5,6 @@ Error: Unitary constraint violation (at $FILE:16:16)
 16 |                 foo(q)
    |                 ^^^^^^ This function cannot be called in a unitary context
 
+Help: Consider adding the flag `(unitary=True)` to the function decorator
+
 Guppy compilation failed due to 1 previous error

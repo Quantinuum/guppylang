@@ -1,8 +1,10 @@
-Error: Unitary constraint violation (at $FILE:16:12)
+Error: Dagger constraint violation (at $FILE:16:12)
    | 
 14 |     with control(ctrl):
 15 |         with dagger:
 16 |             foo(q)
    |             ^^^^^^ This function cannot be called in a dagger context
+
+Help: Consider adding the flag `(dagger=True)` to the function decorator
 
 Guppy compilation failed due to 1 previous error
