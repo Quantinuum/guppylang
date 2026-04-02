@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -10,7 +10,6 @@ from hugr.build.dfg import DefinitionBuilder, OpVar
 
 from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals
-from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.expr_checker import (
     check_call,
     synthesize_call,
@@ -20,6 +19,7 @@ from guppylang_internals.checker.func_checker import (
 )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
+    CheckableGenericDef,
     CompilableDef,
     ParsableDef,
 )
@@ -30,9 +30,10 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
-from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys.arg import Argument
+from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, type_to_row
 
@@ -49,16 +50,35 @@ class RawTracedFunctionDef(ParsableDef):
         """Parses and checks the user-provided signature of the function."""
         func_ast, _docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(func_ast, globals, self.id)
-        if ty.parametrized:
-            raise GuppyError(UnsupportedError(func_ast, "Generic comptime functions"))
         return TracedFunctionDef(self.id, self.name, func_ast, ty, self.python_func)
 
 
 @dataclass(frozen=True)
-class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
+class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     python_func: PyFunc
     ty: FunctionType
     defined_at: ast.FunctionDef
+
+    @property
+    def params(self) -> Sequence[Parameter]:
+        """Generic parameters of this function."""
+        return self.ty.params
+
+    def check(self, type_args: Inst, globals: Globals) -> "TracedMonoFunctionDef":
+        """Type checks the body of the function."""
+        mono_ty = self.ty.instantiate_partial(type_args)
+        generic_args = {
+            param.name: arg
+            for param, arg in zip(self.ty.params, type_args, strict=True)
+        }
+        return TracedMonoFunctionDef(
+            self.id,
+            self.name,
+            self.defined_at,
+            mono_ty,
+            self.python_func,
+            generic_args,
+        )
 
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
@@ -77,6 +97,11 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, ty
+
+
+@dataclass(frozen=True)
+class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
+    generic_args: Mapping[str, Argument]
 
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
@@ -97,13 +122,14 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.python_func,
+            self.generic_args,
             func_def,
         )
 
 
 @dataclass(frozen=True)
 class CompiledTracedFunctionDef(
-    TracedFunctionDef, CompiledCallableDef, CompiledHugrNodeDef
+    TracedMonoFunctionDef, CompiledCallableDef, CompiledHugrNodeDef
 ):
     func_def: hf.Function
 
@@ -143,4 +169,11 @@ class CompiledTracedFunctionDef(
         """Compiles the body of the function by tracing it."""
         from guppylang_internals.tracing.function import trace_function
 
-        trace_function(self.python_func, self.ty, self.func_def, ctx, self.defined_at)
+        trace_function(
+            self.python_func,
+            self.ty,
+            self.func_def,
+            ctx,
+            self.generic_args,
+            self.defined_at,
+        )
