@@ -26,7 +26,7 @@ from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.param import Parameter
-from guppylang_internals.tys.ty import InputFlags, Type
+from guppylang_internals.tys.ty import InputFlags, Type, UnitaryFlags
 
 Row = Sequence[V]
 
@@ -164,7 +164,10 @@ def check_cfg(
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
 
-    check_cfg_unitary(linearity_checked_cfg, cfg.unitary_flags)
+    # print("Checking unitary: ", func_name, cfg.unitary_flags)
+    # TODO: NICOla do we really need to do this check also when the flag is None
+    if cfg.unitary_flags != UnitaryFlags.NoFlags:
+        check_cfg_unitary(linearity_checked_cfg, cfg.unitary_flags)
 
     return linearity_checked_cfg
 

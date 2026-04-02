@@ -186,7 +186,7 @@ class FlagNotAllowedError(Error):
 
 @dataclass(frozen=True)
 class UnitaryCallError(Error):
-    title: ClassVar[str] = "Unitary constraint violation"
+    title: ClassVar[str] = "{capitalized_render_flags} constraint violation"
     span_label: ClassVar[str] = (
         "This function cannot be called in a {render_flags} context"
     )
@@ -204,3 +204,13 @@ class UnitaryCallError(Error):
             return "power"
         else:
             return "unitary"
+
+    @property
+    def capitalized_render_flags(self) -> str:
+        return self.render_flags.capitalize()
+
+    @dataclass(frozen=True)
+    class Hint(Help):
+        message: ClassVar[str] = (
+            "Consider adding the flag `({render_flags}=True)` to the function decorator"
+        )

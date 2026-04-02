@@ -71,18 +71,31 @@ class BBUnitaryChecker(ast.NodeVisitor):
                 return False
         return True
 
-    def _check_call(self, node: AnyCall, ty: FunctionType) -> None:
+    def _check_call(
+        self, node: AnyCall, ty: FunctionType, func: CallableDef | None = None
+    ) -> None:
+        """
+        `func`: it's only used for a better error message when the call is a GlobalCall.
+        Is None for LocalCall and TensorCall.
+        """
         classic = self._check_classical_args(node.args)
         flag_ok = self.flags in ty.unitary_flags
         if not classic and not flag_ok:
-            raise GuppyTypeError(
-                UnitaryCallError(node, self.flags & (~ty.unitary_flags))
-            )
+            err = UnitaryCallError(node, self.flags & (~ty.unitary_flags))
+            if func is not None:
+                from guppylang_internals.definition.custom import CustomFunctionDef
+
+                if not isinstance(func, CustomFunctionDef):
+                    # We want the hint only for non-custom functions, since for custom
+                    # functions are usually quantum operations, such as gates or
+                    # measurement
+                    err.add_sub_diagnostic(UnitaryCallError.Hint(None))
+            raise GuppyTypeError(err)
 
     def visit_GlobalCall(self, node: GlobalCall) -> None:
         func = ENGINE.get_parsed(node.def_id)
         assert isinstance(func, CallableDef)
-        self._check_call(node, func.ty)
+        self._check_call(node, func.ty, func)
 
     def visit_LocalCall(self, node: LocalCall) -> None:
         func = get_type(node.func)
