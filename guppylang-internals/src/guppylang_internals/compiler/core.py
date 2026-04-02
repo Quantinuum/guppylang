@@ -106,8 +106,7 @@ class CompilerContext(ToHugrContext):
         self.exported_defs: set[DefId] = exported_defs
 
     def build_compiled_def(self, def_id: DefId, type_args: Inst | None) -> CompiledDef:
-        """Returns the compiled definitions corresponding to the given ID, along with
-        the remaining type args that have not been monomorphized away.
+        """Returns the compiled definitions corresponding to the given ID.
 
         Might mutate the current Hugr if this definition has never been compiled before.
         """
@@ -150,9 +149,8 @@ class CompilerContext(ToHugrContext):
         name: str,
         type_args: Inst,
     ) -> CompiledCallableDef | None:
-        """Returns s compiled instance method along with its remaining type args that
-        have not been monomorphized away, or `None` if the type doesn't have a matching
-        method.
+        """Returns s compiled instance method along, or `None` if the type doesn't have
+        a matching method.
 
         Compiles the definition and all of its dependencies into the current Hugr.
         """

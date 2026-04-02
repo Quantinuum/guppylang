@@ -88,6 +88,9 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
 
+        # TODO: For the guppylang 1.0 break, we should consider disallowing generic
+        #  declarations. For now though, we must allow them to avoid breakage...
+
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         return ParsedFunctionDecl(

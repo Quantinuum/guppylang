@@ -78,7 +78,7 @@ def check_cfg(
     globals: Globals,
     first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
-    """Instantiates a control-flow graph with the given `generic_args` and the type
+    """Instantiates a control-flow graph with the given `generic_args` and then type
     checks it.
 
     Annotates the basic blocks with input and output type signatures and removes
