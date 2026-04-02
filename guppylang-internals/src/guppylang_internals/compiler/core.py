@@ -25,7 +25,6 @@ from guppylang_internals.checker.core import (
     Variable,
 )
 from guppylang_internals.definition.common import (
-    CheckedDef,
     CompilableDef,
     CompiledDef,
     DefId,
@@ -118,18 +117,6 @@ class CompilerContext(ToHugrContext):
             self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None
         return self.compiled[def_id, mono_args]
-
-    def compile(self, defn: CheckedDef, mono_args: Inst) -> CompiledDef:
-        """Compiles the given definition and all of its dependencies into the current
-        Hugr."""
-        # Check and compile the entry point
-        entry_compiled = self.build_compiled_def(defn.id, mono_args)
-        self.compiled[defn.id, mono_args] = entry_compiled
-        self.worklist[defn.id, mono_args] = None
-
-        self.iterate_worklist()
-
-        return entry_compiled
 
     def iterate_worklist(self) -> None:
         while self.worklist:
