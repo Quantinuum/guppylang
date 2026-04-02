@@ -282,7 +282,9 @@ class StmtChecker(AstVisitor[BBStatement]):
             assert isinstance(starred, ast.Name), "Python grammar"
             # We can use any value for `rhs` as it is ignored for variable assignments.
             unpack.pattern.starred = self._check_variable_assign(
-                starred, rhs_elts[0], array_ty
+                starred,
+                rhs_elts[0],  # ignored
+                array_ty,
             )
 
         return with_type(rhs_ty, with_loc(lhs, unpack))
