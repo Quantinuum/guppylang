@@ -1,4 +1,3 @@
-
 from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.builtins import control, dagger, owned, power
