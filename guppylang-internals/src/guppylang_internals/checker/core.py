@@ -24,8 +24,6 @@ from guppylang_internals.definition.common import (
     Definition,
     ParsedDef,
 )
-from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument
@@ -329,13 +327,6 @@ class Globals:
             for name, val in guppylang.std.builtins.__dict__.items()
             if isinstance(val, GuppyDefinition)
         }
-
-    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
-        """Looks up an instance function with a given name for a type.
-
-        Returns `None` if the name doesn't exist or isn't a function.
-        """
-        return DEF_STORE.get_instance_func(ty, name)
 
     def __contains__(self, item: DefId | str) -> bool:
         match item:

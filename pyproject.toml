@@ -17,6 +17,7 @@ test = [
     "ipykernel>=6.29.5,<8",
     "miette-py",
     "tket~=0.12.15",
+    "pytest-isolate>=0.0.13",
 ]
 
 [tool.uv]

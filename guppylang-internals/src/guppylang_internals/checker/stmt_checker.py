@@ -53,6 +53,7 @@ from guppylang_internals.checker.expr_checker import (
     check_place_assignable,
     synthesize_comprehension,
 )
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
     GuppyError,
     GuppyTypeError,
@@ -284,7 +285,13 @@ class StmtChecker(AstVisitor[BBStatement]):
                 unsolved = array_type(ExistentialTypeVar.fresh("T", True, True), 0)
                 raise GuppyError(TypeInferenceError(starred, unsolved))
             array_ty = array_type(starred_ty, len(starred_tys))
-            unpack.pattern.starred = self._check_assign(starred, rhs_elts[0], array_ty)
+            assert isinstance(starred, ast.Name), "Python grammar"
+            # We can use any value for `rhs` as it is ignored for variable assignments.
+            unpack.pattern.starred = self._check_variable_assign(
+                starred,
+                rhs_elts[0],  # ignored
+                array_ty,
+            )
 
         return with_type(rhs_ty, with_loc(lhs, unpack))
 
@@ -329,7 +336,7 @@ class StmtChecker(AstVisitor[BBStatement]):
                 case ExistentialConstVar():
                     raise InternalGuppyError("Unexpected existential variable")
 
-        elif self.ctx.globals.get_instance_func(ty, "__iter__"):
+        elif ENGINE.get_instance_func(ty, "__iter__"):
             size = check_iter_unpack_has_static_size(expr, self.ctx)
             # Create a dummy variable and assign the expression to it. This helps us to
             # wire it up correctly during Hugr generation.

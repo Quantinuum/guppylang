@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     "GuppyDefinition",
+    "GuppyEnumDefinition",
     "GuppyFunctionDefinition",
     "GuppyLibrary",
     "GuppyTypeVarDefinition",
