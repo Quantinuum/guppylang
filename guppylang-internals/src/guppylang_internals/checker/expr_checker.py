@@ -59,6 +59,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprIncoherentListError,
     ComptimeExprNotCPythonError,
     ComptimeExprNotStaticError,
+    ComptimeExprTypeVarError,
     ComptimeGuppyObjectError,
     ComptimeUnknownError,
     IllegalComptimeExpressionError,
@@ -98,6 +99,7 @@ from guppylang_internals.error import (
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
     saved_exception_hook,
 )
 from guppylang_internals.experimental import (
@@ -1514,8 +1516,12 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
             python_val = eval(ast.unparse(node.value), DummyEvalDict(ctx, node.value))  # noqa: S307
     except DummyEvalDict.GuppyVarUsedError as e:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
+    except DummyEvalDict.GuppyTypeVarUsedError as e:
+        raise GuppyError(ComptimeExprTypeVarError(e.node or node, e.var)) from None
     except GuppyComptimeError as e:
         raise GuppyError(ComptimeGuppyObjectError(node.value, str(e))) from e
+    except RequiresMonomorphizationError:
+        raise
     except Exception as e:
         # Remove the top frame pointing to the `eval` call from the stack trace
         tb = e.__traceback__.tb_next if e.__traceback__ else None
