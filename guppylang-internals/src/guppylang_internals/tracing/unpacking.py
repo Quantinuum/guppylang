@@ -140,7 +140,7 @@ def guppy_object_from_py(
             # TODO: Propagate type information?
             raise GuppyComptimeError("Cannot infer the type of empty list")
         case v:
-            ty = python_value_to_guppy_type(v, node, get_tracing_state().globals)
+            ty = python_value_to_guppy_type(v, node)
             if ty is None:
                 raise GuppyError(IllegalComptimeExpressionError(node, type(v)))
             hugr_val = python_value_to_hugr(v, ty, ctx)

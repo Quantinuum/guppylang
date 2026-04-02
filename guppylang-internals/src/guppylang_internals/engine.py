@@ -1,6 +1,6 @@
 from collections import defaultdict
 from types import FrameType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import hugr
 import hugr.build.function as hf
@@ -10,7 +10,7 @@ from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
-from typing_extensions import deprecated
+from typing_extensions import assert_never, deprecated
 
 import guppylang_internals
 from guppylang_internals.definition.common import (
@@ -24,6 +24,7 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
+    CallableDef,
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
@@ -45,7 +46,18 @@ from guppylang_internals.tys.builtin import (
     string_type_def,
     tuple_type_def,
 )
-from guppylang_internals.tys.ty import FunctionType
+from guppylang_internals.tys.ty import (
+    BoundTypeVar,
+    EnumType,
+    ExistentialTypeVar,
+    FunctionType,
+    NoneType,
+    NumericType,
+    OpaqueType,
+    StructType,
+    TupleType,
+    Type,
+)
 
 if TYPE_CHECKING:
     from guppylang_internals.compiler.core import MonoDefId
@@ -92,10 +104,9 @@ class DefinitionStore:
         self.sources = SourceMap()
         self.wasm_functions = {}
 
-    def register_def(self, defn: RawDef, frame: FrameType | None) -> None:
+    def register_def(self, defn: RawDef, frame: FrameType) -> None:
         self.raw_defs[defn.id] = defn
-        if frame:
-            self.frames[defn.id] = frame
+        self.frames[defn.id] = frame
 
     def register_impl(self, ty_id: DefId, name: str, impl_id: DefId) -> None:
         assert impl_id not in self.impl_parents, "Already an impl"
@@ -232,10 +243,54 @@ class CompilationEngine:
 
         if isinstance(defn, CheckedStructDef | CheckedEnumDef):
             for method_def in defn.generated_methods():
-                DEF_STORE.register_def(method_def, None)
+                DEF_STORE.register_def(method_def, DEF_STORE.frames[id])
                 DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
 
         return defn
+
+    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
+        """Looks up an instance function with a given name for a type.
+
+        Returns `None` if the name doesn't exist or isn't a function.
+        """
+        type_defn: TypeDef
+        match ty:
+            case TypeDef() as type_defn:
+                pass
+            case BoundTypeVar() | ExistentialTypeVar():
+                return None
+            case NumericType(kind):
+                match kind:
+                    case NumericType.Kind.Nat:
+                        type_defn = nat_type_def
+                    case NumericType.Kind.Int:
+                        type_defn = int_type_def
+                    case NumericType.Kind.Float:
+                        type_defn = float_type_def
+                    case kind:
+                        return assert_never(kind)
+            case FunctionType():
+                type_defn = callable_type_def
+            case OpaqueType() as ty:
+                type_defn = ty.defn
+            case StructType() as ty:
+                type_defn = ty.defn
+            case TupleType():
+                type_defn = tuple_type_def
+            case NoneType():
+                type_defn = none_type_def
+            case EnumType():
+                type_defn = ty.defn
+            case _:
+                return assert_never(ty)
+
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id))
+        if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
+            def_id = DEF_STORE.impls[type_defn.id][name]
+            defn = ENGINE.get_parsed(def_id)
+            if isinstance(defn, CallableDef):
+                return defn
+        return None
 
     @pretty_errors
     def check(self, id: DefId) -> None:

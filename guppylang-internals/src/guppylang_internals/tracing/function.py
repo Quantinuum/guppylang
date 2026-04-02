@@ -7,12 +7,19 @@ from hugr.build.dfg import DfBase
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
-from guppylang_internals.checker.core import ComptimeVariable, Context, Locals, Variable
+from guppylang_internals.checker.core import (
+    ComptimeVariable,
+    Context,
+    Globals,
+    Locals,
+    Variable,
+)
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
+from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyComptimeError, GuppyError, exception_hook
 from guppylang_internals.nodes import PlaceNode
 from guppylang_internals.tracing.builtins_mock import mock_builtins
@@ -163,9 +170,8 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     arg_exprs: list[ast.expr] = [
         with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
     ]
-    call_node, ret_ty = func.synthesize_call(
-        arg_exprs, state.node, Context(state.globals, locals, {})
-    )
+    ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
+    call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
     # Compile call
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)

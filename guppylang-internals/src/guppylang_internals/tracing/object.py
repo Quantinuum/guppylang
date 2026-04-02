@@ -350,7 +350,7 @@ class GuppyObject(DunderMixin):
     def __getattr__(self, key: str) -> Any:
         # Guppy objects don't have fields (structs are treated separately below), so the
         # only attributes we have to worry about are methods.
-        func = get_tracing_state().globals.get_instance_func(self._ty, key)
+        func = ENGINE.get_instance_func(self._ty, key)
         if func is None:
             raise GuppyComptimeError(
                 f"Expression of type `{self._ty}` has no attribute `{key}`"
@@ -459,7 +459,7 @@ class GuppyStructObject(DunderMixin):
         if key in self._field_values:
             return self._field_values[key]
         # Or a method
-        func = get_tracing_state().globals.get_instance_func(self._ty, key)
+        func = ENGINE.get_instance_func(self._ty, key)
         if func is None:
             err = f"Expression of struct type `{self._ty}` has no attribute `{key}`"
             raise AttributeError(err)
@@ -511,7 +511,7 @@ class GuppyEnumObject(DunderMixin):
     @hide_trace
     def __getattr__(self, key: str) -> Any:
         # We can only access methods
-        func = get_tracing_state().globals.get_instance_func(self._ty, key)
+        func = ENGINE.get_instance_func(self._ty, key)
         if func is None:
             raise GuppyComptimeError(
                 f" Expression of enum type `{self._ty}` has no method `{key}`. "
@@ -575,8 +575,7 @@ class TracingDefMixin(DunderMixin):
         # TODO: Alternatively, it could be a type application on a generic function.
         #  Supporting those requires a comptime representation of types as values
         if tracing_active():
-            state = get_tracing_state()
-            defn = state.globals[self.wrapped.id]
+            defn = ENGINE.get_checked(self.wrapped.id)
             if isinstance(defn, CallableDef) and defn.ty.parametrized:
                 raise GuppyComptimeError(
                     "Explicitly specifying type arguments of generic functions in a "

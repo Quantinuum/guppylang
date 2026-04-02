@@ -48,7 +48,6 @@ from guppylang_internals.checker.core import (
     Context,
     DummyEvalDict,
     FieldAccess,
-    Globals,
     Locals,
     Place,
     PythonObject,
@@ -94,6 +93,7 @@ from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -266,7 +266,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars)
 
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
-        act = python_value_to_guppy_type(node.value, node, self.ctx.globals, ty)
+        act = python_value_to_guppy_type(node.value, node, ty)
         if act is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
@@ -352,7 +352,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 TensorCall(func=node.func, args=processed_args, tensor_ty=tensor_ty),
             ), subst
 
-        elif callee := self.ctx.globals.get_instance_func(func_ty, "__call__"):
+        elif callee := ENGINE.get_instance_func(func_ty, "__call__"):
             return callee.check_call(node.args, ty, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, func_ty))
@@ -361,9 +361,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if act := python_value_to_guppy_type(
-            python_val, node.value, self.ctx.globals, ty
-        ):
+        if act := python_value_to_guppy_type(python_val, node.value, ty):
             subst = unify(ty, act, {})
             if subst is None:
                 self._fail(ty, act, node)
@@ -412,7 +410,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return ExprChecker(self.ctx).check(expr, ty, kind)
 
     def visit_Constant(self, node: ast.Constant) -> tuple[ast.expr, Type]:
-        ty = python_value_to_guppy_type(node.value, node, self.ctx.globals)
+        ty = python_value_to_guppy_type(node.value, node)
         if ty is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
         return node, ty
@@ -500,7 +498,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             case ParsedEnumDef() as defn:
                 if len(defn.variants) == 0:
                     raise GuppyError(UnexpectedError(node, "empty enum initialization"))
-                constr = self.ctx.globals.get_instance_func(
+                constr = ENGINE.get_instance_func(
                     defn, next(iter(defn.variants.keys()))
                 )
                 if constr is None:
@@ -512,7 +510,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 ), constr.ty.output
             # For types, we return their `__new__` constructor
             case TypeDef() as defn:
-                if constr := self.ctx.globals.get_instance_func(defn, "__new__"):
+                if constr := ENGINE.get_instance_func(defn, "__new__"):
                     return with_loc(
                         node, GlobalName(id=name, def_id=constr.id)
                     ), constr.ty
@@ -600,7 +598,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # If we are accessing to a variant, we need to check that node.value is
                 # a GlobalName corresponding to the enum class definition.
                 if isinstance(node.value, GlobalName):
-                    variant_constr = self.ctx.globals.get_instance_func(ty, node.attr)
+                    variant_constr = ENGINE.get_instance_func(ty, node.attr)
                     assert variant_constr is not None, (
                         "Valid variants should be available in `ctx.globals`"
                     )
@@ -634,7 +632,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         self, ty: Type, node: ast.Attribute
     ) -> tuple[PartialApply, FunctionType] | None:
         """Helper method to check if an attribute access corresponds to a method call"""
-        if func := self.ctx.globals.get_instance_func(ty, node.attr):
+        if func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
             )
@@ -703,7 +701,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Check all other unary expressions by calling out to instance dunder methods
         op, display_name = unary_table[node.op.__class__]
-        func = self.ctx.globals.get_instance_func(op_ty, op)
+        func = ENGINE.get_instance_func(op_ty, op)
         if func is None:
             raise GuppyTypeError(
                 UnaryOperatorNotDefinedError(node.operand, op_ty, display_name)
@@ -724,11 +722,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         left_expr, left_ty = self.synthesize(left_expr)
         right_expr, right_ty = self.synthesize(right_expr)
 
-        if func := self.ctx.globals.get_instance_func(left_ty, lop):
+        if func := ENGINE.get_instance_func(left_ty, lop):
             with suppress(GuppyError):
                 return func.synthesize_call([left_expr, right_expr], node, self.ctx)
 
-        if func := self.ctx.globals.get_instance_func(right_ty, rop):
+        if func := ENGINE.get_instance_func(right_ty, rop):
             with suppress(GuppyError):
                 return func.synthesize_call([right_expr, left_expr], node, self.ctx)
 
@@ -756,7 +754,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         given expected signature.
         """
         node, ty = self.synthesize(node)
-        func = self.ctx.globals.get_instance_func(ty, func_name)
+        func = ENGINE.get_instance_func(ty, func_name)
         if func is None:
             err = BadProtocolError(node, ty, description)
             if give_reason and exp_sig is not None:
@@ -892,7 +890,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
             ), return_ty
 
-        elif f := self.ctx.globals.get_instance_func(ty, "__call__"):
+        elif f := ENGINE.get_instance_func(ty, "__call__"):
             return f.synthesize_call(node.args, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, ty))
@@ -945,7 +943,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_ComptimeExpr(self, node: ComptimeExpr) -> tuple[ast.expr, Type]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if ty := python_value_to_guppy_type(python_val, node, self.ctx.globals):
+        if ty := python_value_to_guppy_type(python_val, node):
             return with_loc(node, ast.Constant(value=python_val)), ty
 
         raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
@@ -1037,7 +1035,7 @@ def try_coerce_to(
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
     if act.kind < exp.kind:
-        f = ctx.globals.get_instance_func(act, f"__{exp.kind.name.lower()}__")
+        f = ENGINE.get_instance_func(act, f"__{exp.kind.name.lower()}__")
         assert f is not None
         node, subst = f.check_call([node], exp, node, ctx)
         assert len(subst) == 0, "Coercion methods are not generic"
@@ -1517,7 +1515,7 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
 
 
 def python_value_to_guppy_type(
-    v: Any, node: ast.AST, globals: Globals, type_hint: Type | None = None
+    v: Any, node: ast.AST, type_hint: Type | None = None
 ) -> Type | None:
     """Turns a primitive Python value into a Guppy type.
 
@@ -1550,7 +1548,7 @@ def python_value_to_guppy_type(
             )
             tys: list[Type] = []
             for elt, hint in zip(elts, hints, strict=False):
-                ty = python_value_to_guppy_type(elt, node, globals, hint)
+                ty = python_value_to_guppy_type(elt, node, hint)
                 if ty is None:
                     err = IllegalComptimeExpressionError(node, type(elt))
                     err.add_sub_diagnostic(
@@ -1560,7 +1558,7 @@ def python_value_to_guppy_type(
                 tys.append(ty)
             return TupleType(tys)
         case list():
-            return _python_list_to_guppy_type(v, node, globals, type_hint)
+            return _python_list_to_guppy_type(v, node, type_hint)
         case None:
             return NoneType()
         case _:
@@ -1581,7 +1579,7 @@ def _int_bounds_check(value: int, node: AstNode, signed: bool) -> None:
 
 
 def _python_list_to_guppy_type(
-    vs: list[Any], node: ast.AST, globals: Globals, type_hint: Type | None
+    vs: list[Any], node: ast.AST, type_hint: Type | None
 ) -> OpaqueType | None:
     """Turns a Python list into a Guppy type.
 
@@ -1598,13 +1596,13 @@ def _python_list_to_guppy_type(
         if type_hint and is_frozenarray_type(type_hint)
         else None
     )
-    el_ty = python_value_to_guppy_type(v, node, globals, elt_hint)
+    el_ty = python_value_to_guppy_type(v, node, elt_hint)
     if el_ty is None:
         err = IllegalComptimeExpressionError(node, type(v))
         err.add_sub_diagnostic(IllegalComptimeExpressionError.InContainer(None, list))
         raise GuppyError(err)
     for v in rest:
-        ty = python_value_to_guppy_type(v, node, globals, elt_hint)
+        ty = python_value_to_guppy_type(v, node, elt_hint)
         if ty is None:
             err = IllegalComptimeExpressionError(node, type(v))
             err.add_sub_diagnostic(

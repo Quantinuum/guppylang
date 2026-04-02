@@ -20,7 +20,6 @@ from typing_extensions import assert_never
 
 from guppylang_internals.checker.core import (
     FieldAccess,
-    Globals,
     Place,
     PlaceId,
     TupleAccess,
@@ -149,8 +148,6 @@ class CompilerContext(ToHugrContext):
     #: the purpose of monomorphization
     current_mono_args: PartiallyMonomorphizedArgs | None
 
-    checked_globals: Globals
-
     def __init__(
         self,
         module: DefinitionBuilder[ops.Module],
@@ -159,7 +156,6 @@ class CompilerContext(ToHugrContext):
         self.worklist = {}
         self.compiled = {}
         self.global_funcs = {}
-        self.checked_globals = Globals(None)
         self.current_mono_args = None
 
     @contextmanager
@@ -258,7 +254,7 @@ class CompilerContext(ToHugrContext):
         """
         from guppylang_internals.engine import ENGINE
 
-        parsed_func = self.checked_globals.get_instance_func(ty, name)
+        parsed_func = ENGINE.get_instance_func(ty, name)
         if parsed_func is None:
             return None
         checked_func = ENGINE.get_checked(parsed_func.id)
