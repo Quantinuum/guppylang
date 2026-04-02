@@ -4,6 +4,7 @@ from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
 from guppylang.std.angles import angle, pi
 from guppylang.std.builtins import nat
+
 from tests.util import compile_guppy
 
 
@@ -402,3 +403,39 @@ def test_divmod(run_int_fn) -> None:
 
     run_int_fn(quot, -1)
     run_int_fn(rem, 3)
+
+
+def test_round(run_int_fn, run_float_fn_approx) -> None:
+    """Asserts that the `round` prelude function behaves like a drop-in replacement for
+    the Python built-in variant."""
+
+    @guppy
+    def int_round() -> int:
+        return round(1)  # noqa: RUF057
+
+    @guppy
+    def nat_round() -> int:
+        return round(nat(2))
+
+    @guppy
+    def float_round() -> int:
+        return round(2.5)
+
+    @guppy
+    def int_round_digits() -> int:
+        return round(1, 2)  # noqa: RUF057
+
+    @guppy
+    def nat_round_digits() -> int:
+        return round(nat(2), 2)
+
+    @guppy
+    def float_round_digits() -> float:
+        return round(1.1234, 2)
+
+    run_int_fn(int_round, 1)
+    run_int_fn(nat_round, 2)
+    run_int_fn(float_round, 3)
+    run_int_fn(int_round_digits, 1)
+    run_int_fn(nat_round_digits, 2)
+    run_float_fn_approx(float_round_digits, 1.12)
