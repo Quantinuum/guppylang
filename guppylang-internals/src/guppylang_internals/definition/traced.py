@@ -34,7 +34,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import FunctionType, Type, type_to_row
+from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
 PyFunc = Callable[..., Any]
 
@@ -45,10 +45,14 @@ class RawTracedFunctionDef(ParsableDef):
 
     description: str = field(default="function", init=False)
 
+    unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, _docstring = parse_py_func(self.python_func, sources)
-        ty = check_signature(func_ast, globals, self.id)
+        ty = check_signature(
+            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+        )
         if ty.parametrized:
             raise GuppyError(UnsupportedError(func_ast, "Generic comptime functions"))
         return TracedFunctionDef(self.id, self.name, func_ast, ty, self.python_func)
