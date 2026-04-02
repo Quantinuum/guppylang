@@ -1,8 +1,9 @@
+
 from guppylang.decorator import guppy
-from guppylang.std.quantum import qubit, h, cx
-from guppylang.std.num import nat
-from guppylang.std.builtins import owned, control, dagger, power
 from guppylang.std.array import array
+from guppylang.std.builtins import control, dagger, owned, power
+from guppylang.std.num import nat
+from guppylang.std.quantum import cx, h, qubit
 
 
 def test_dagger_simple(validate):
@@ -347,3 +348,24 @@ def test_comptime_unitary_combined_modifiers(validate):
                 foo(q)
 
     validate(bar.compile_function())
+
+
+def test_comptime_unitary_mixed(validate):
+    """Regular unitary and comptime unitary functions used together with modifiers."""
+
+    @guppy.comptime(unitary=True)
+    def ladder(qs: array[qubit, 10]) -> None:
+        for q1, q2 in zip(qs[1:], qs[:-1]):
+            cx(q1, q2)
+
+    @guppy
+    def foo(qs: array[qubit, 10]) -> qubit:
+        q1 = qubit()
+
+        with control(q1), dagger:
+            with power(2):
+                ladder(qs)
+
+        return q1
+
+    validate(foo.compile_function())
