@@ -129,7 +129,7 @@ class DefinitionStore:
         self.frames[defn.id] = frame
 
     def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
-        assert member_id not in self.type_member_parents, "Already a member"
+        assert member_id not in self.type_member_parents, "Already a type member"
         self.type_members[ty_id][name] = member_id
         self.type_member_parents[member_id] = ty_id
         # Update the frame of the definition to the frame of the defining class
