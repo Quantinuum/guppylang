@@ -78,6 +78,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     python_func: PyFunc
     description: str = field(default="function", init=False)
 
+    # TODO: these flags must be added to the Hugr node via metadata
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
@@ -145,9 +146,9 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledFunctionDecl":
         """Adds a Hugr `FuncDecl` node for this function to the Hugr."""
-        assert isinstance(module, hf.Module), (
-            "Functions can only be declared in modules"
-        )
+        assert isinstance(
+            module, hf.Module
+        ), "Functions can only be declared in modules"
         module: hf.Module = module
 
         node = module.declare_function(self.link_name, self.ty.to_hugr_poly(ctx))
