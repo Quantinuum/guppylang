@@ -170,11 +170,8 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         arg_exprs: list[ast.expr] = [
             with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
         ]
-        call_node, ret_ty = func.synthesize_call(
-            arg_exprs,
-            state.node,
-            Context(Globals(DEF_STORE.frames[func.id]), locals, {}),
-        )
+        ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
+        call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
     # Compile call
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)

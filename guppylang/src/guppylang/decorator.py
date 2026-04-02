@@ -58,7 +58,6 @@ from hugr import ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.package import ModulePointer
-from pytket.circuit import Circuit as TketCircuit
 from typing_extensions import Unpack, dataclass_transform, deprecated
 
 from guppylang.defs import (
@@ -541,7 +540,9 @@ class _Guppy:
             def foo(q: qubit) -> bool:
                 return guppy_circ(q)"""
 
-        if not isinstance(input_circuit, TketCircuit):
+        from pytket.circuit import Circuit  # Decoupled import
+
+        if not isinstance(input_circuit, Circuit):
             err_msg = "Only pytket circuits can be passed to guppy.pytket"
             raise TypeError(err_msg) from None
 
@@ -597,9 +598,10 @@ class _Guppy:
         sure you discard all qubits you know are measured during the circuit, or avoid
         measurements in the circuit and measure in Guppy afterwards.
         """
+        from pytket.circuit import Circuit  # Decoupled import
 
-        if not isinstance(input_circuit, TketCircuit):
-            err_msg = "Only pytket circuits can be passed to guppy.pytket"
+        if not isinstance(input_circuit, Circuit):
+            err_msg = "Only pytket circuits can be passed to guppy.load_pytket"
             raise TypeError(err_msg) from None
 
         span = _find_load_call(DEF_STORE.sources)

@@ -124,10 +124,9 @@ class DefinitionStore:
         self.sources = SourceMap()
         self.wasm_functions = {}
 
-    def register_def(self, defn: RawDef, frame: FrameType | None) -> None:
+    def register_def(self, defn: RawDef, frame: FrameType) -> None:
         self.raw_defs[defn.id] = defn
-        if frame:
-            self.frames[defn.id] = frame
+        self.frames[defn.id] = frame
 
     def register_impl(self, ty_id: DefId, name: str, impl_id: DefId) -> None:
         assert impl_id not in self.impl_parents, "Already an impl"
@@ -152,50 +151,6 @@ class DefinitionStore:
 
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
-
-    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
-        """Looks up an instance function with a given name for a type.
-
-        Returns `None` if the name doesn't exist or isn't a function.
-        """
-        type_defn: TypeDef
-        match ty:
-            case TypeDef() as type_defn:
-                pass
-            case BoundTypeVar() | ExistentialTypeVar():
-                return None
-            case NumericType(kind):
-                match kind:
-                    case NumericType.Kind.Nat:
-                        type_defn = nat_type_def
-                    case NumericType.Kind.Int:
-                        type_defn = int_type_def
-                    case NumericType.Kind.Float:
-                        type_defn = float_type_def
-                    case kind:
-                        return assert_never(kind)
-            case FunctionType():
-                type_defn = callable_type_def
-            case OpaqueType() as ty:
-                type_defn = ty.defn
-            case StructType() as ty:
-                type_defn = ty.defn
-            case TupleType():
-                type_defn = tuple_type_def
-            case NoneType():
-                type_defn = none_type_def
-            case EnumType():
-                type_defn = ty.defn
-            case _:
-                return assert_never(ty)
-
-        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
-        if type_defn.id in self.impls and name in self.impls[type_defn.id]:
-            def_id = self.impls[type_defn.id][name]
-            defn = ENGINE.get_parsed(def_id)
-            if isinstance(defn, CallableDef):
-                return defn
-        return None
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()
@@ -348,9 +303,8 @@ class CompilationEngine:
         from guppylang_internals.definition.struct import CheckedStructDef
 
         if isinstance(defn, CheckedStructDef | CheckedEnumDef):
-            frame = DEF_STORE.frames[defn.id]
             for method_def in defn.generated_methods():
-                DEF_STORE.register_def(method_def, frame)
+                DEF_STORE.register_def(method_def, DEF_STORE.frames[id])
                 DEF_STORE.register_impl(defn.id, method_def.name, method_def.id)
 
         return defn
@@ -366,6 +320,50 @@ class CompilationEngine:
             arg.visit(finder)
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
+
+    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
+        """Looks up an instance function with a given name for a type.
+
+        Returns `None` if the name doesn't exist or isn't a function.
+        """
+        type_defn: TypeDef
+        match ty:
+            case TypeDef() as type_defn:
+                pass
+            case BoundTypeVar() | ExistentialTypeVar():
+                return None
+            case NumericType(kind):
+                match kind:
+                    case NumericType.Kind.Nat:
+                        type_defn = nat_type_def
+                    case NumericType.Kind.Int:
+                        type_defn = int_type_def
+                    case NumericType.Kind.Float:
+                        type_defn = float_type_def
+                    case kind:
+                        return assert_never(kind)
+            case FunctionType():
+                type_defn = callable_type_def
+            case OpaqueType() as ty:
+                type_defn = ty.defn
+            case StructType() as ty:
+                type_defn = ty.defn
+            case TupleType():
+                type_defn = tuple_type_def
+            case NoneType():
+                type_defn = none_type_def
+            case EnumType():
+                type_defn = ty.defn
+            case _:
+                return assert_never(ty)
+
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
+        if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
+            def_id = DEF_STORE.impls[type_defn.id][name]
+            defn = ENGINE.get_parsed(def_id)
+            if isinstance(defn, CallableDef):
+                return defn
+        return None
 
     @pretty_errors
     def check(self, id: DefId) -> None:
