@@ -121,14 +121,14 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
 
                     py_func = getattr(self.python_class, name, None)
 
-                    if isinstance(py_func, GuppyDefinition):
-                        err = UnexpectedError(
-                            node,
-                            f"{py_func.wrapped.description}",
-                            unexpected_in="protocol definition",
-                        )
-                        err.add_sub_diagnostic(NoAnnotationHint(None))
-                        raise GuppyError(err)
+                    # if isinstance(py_func, GuppyDefinition):
+                    #     err = UnexpectedError(
+                    #         node,
+                    #         f"{py_func.wrapped.description}",
+                    #         unexpected_in="protocol definition",
+                    #     )
+                    #     err.add_sub_diagnostic(NoAnnotationHint(None))
+                    #     raise GuppyError(err)
                     py_func = cast("PyFunc", py_func)
                     func_ast, _ = parse_py_func(py_func, sources)
                     if not has_empty_body(func_ast):

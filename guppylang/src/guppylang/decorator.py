@@ -46,6 +46,7 @@ from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
+from guppylang_internals.tys import ty
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst
@@ -238,14 +239,13 @@ class _Guppy:
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
+
             for val in cls.__dict__.values():
+                # print(type(val), val)
                 if isinstance(val, GuppyDefinition):
                     DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
-            # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
-            # set. However, we need this information to precisely look up the source for
-            # the class later. If it's not there, we can set it from the calling frame:
-            if not hasattr(cls, "__firstlineno__"):
-                cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
+            # We need the the `__firstlineno__` attribute to look up the source later.
+            cls = _set_firstlineno(cls, frame)
             # We're pretending to return the class unchanged, but in fact we return
             # a `GuppyDefinition` that handles the comptime logic
             return GuppyDefinition(defn)
@@ -298,6 +298,7 @@ class _Guppy:
         frame = get_calling_frame()
         DEF_STORE.register_def(defn, frame)
         for val in cls.__dict__.values():
+            # print(type(val), val)
             if isinstance(val, GuppyDefinition):
                 DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
         # We need the the `__firstlineno__` attribute to look up the source later.

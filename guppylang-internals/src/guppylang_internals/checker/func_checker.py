@@ -262,6 +262,7 @@ def check_signature(
     passed. This will be used to check or infer the type annotation for the `self`
     argument.
     """
+    print("AAAAAAAAAA")
     if len(func_def.args.posonlyargs) != 0:
         raise GuppyError(
             UnsupportedError(func_def.args.posonlyargs[0], "Positional-only parameters")
@@ -296,17 +297,19 @@ def check_signature(
             param_var_mapping[param.name] = param
 
     # Figure out if this is a method
+    # +++============================
     self_defn: TypeDef | None = None
     if def_id is not None and def_id in DEF_STORE.impl_parents:
         self_defn = cast("TypeDef", ENGINE.get_checked(DEF_STORE.impl_parents[def_id]))
         assert isinstance(self_defn, TypeDef)
-
+    print(self_defn)
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
     for i, inp in enumerate(func_def.args.args):
         # Special handling for `self` arguments. Note that `__new__` is excluded here
         # since it's not a method so doesn't take `self`.
         if self_defn and i == 0 and func_def.name != "__new__":
+            print("BBBBB")
             input = parse_self_arg(inp, self_defn, ctx)
             ctx = replace(ctx, self_ty=input.ty)
         else:
@@ -330,6 +333,7 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
     This argument is special since its type annotation may be omitted. Furthermore, if a
     type is provided then it must match the parent type.
     """
+    print(arg, self_defn)
     assert self_defn.params is not None
     if arg.annotation is None:
         return handle_implicit_self_arg(arg, self_defn, ctx)
@@ -344,6 +348,7 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
         "Self", copyable=self_ty_head.copyable, droppable=self_ty_head.droppable
     )
     assert ctx.self_ty is None
+    # TODO: NICOLA HERE WE SET 'Self' to the type
     ctx = replace(ctx, self_ty=self_ty_placeholder)
     user_ty, user_flags = type_with_flags_from_ast(arg.annotation, ctx)
 
