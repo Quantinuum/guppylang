@@ -3,7 +3,7 @@ import builtins
 import inspect
 from collections.abc import Callable, Sequence
 from types import FrameType
-from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
+from typing import Any, Literal, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
 
 from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.compiler.core import (
@@ -96,6 +96,7 @@ class GuppyKwargs(TypedDict, total=False):
     dagger: bool
     power: bool
     max_qubits: int
+    inline: Literal["always"]
     link_name: str
 
 
@@ -749,6 +750,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 
     metadata = GuppyMetadata()
     metadata.max_qubits.value = kwargs.pop("max_qubits", None)
+    metadata.inline.value = kwargs.pop("inline", None)
 
     link_name = kwargs.pop("link_name", None)
 

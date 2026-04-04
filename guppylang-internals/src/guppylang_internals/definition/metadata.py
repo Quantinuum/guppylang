@@ -3,7 +3,7 @@ attach to HUGR nodes for lower-level processing."""
 
 from abc import ABC
 from dataclasses import dataclass, field, fields
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import Any, ClassVar, Generic, Literal, TypeVar
 
 from hugr.hugr.node_port import ToNode
 
@@ -26,12 +26,17 @@ class MetadataMaxQubits(GuppyMetadataValue[int]):
     key = "tket.hint.max_qubits"
 
 
+class MetadataInline(GuppyMetadataValue[Literal["always"]]):
+    key = "tket.inline"
+
+
 @dataclass(frozen=True, init=True, kw_only=True)
 class GuppyMetadata:
     """DTO for metadata within the scope of the guppy compiler for attachment to HUGR
     nodes. See `add_metadata`."""
 
     max_qubits: MetadataMaxQubits = field(default_factory=MetadataMaxQubits, init=False)
+    inline: MetadataInline = field(default_factory=MetadataInline, init=False)
 
     @classmethod
     def reserved_keys(cls) -> set[str]:
