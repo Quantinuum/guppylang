@@ -72,7 +72,7 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
             panic("Queue.push: max size reached")
         self.buf[self.end].swap(some(elem)).unwrap_nothing()
         new_end = (self.end + 1) % MAX_SIZE
-        return Queue(self.start, self.buf, new_end, self.size + 1)
+        return Queue(self.buf, self.start, new_end, self.size + 1)
 
     @guppy
     @no_type_check
@@ -86,7 +86,7 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
             panic("Queue.pop: queue is empty")
         elem = self.buf[self.start].take().unwrap()
         new_start = (self.start + 1) % MAX_SIZE
-        return elem, Queue(new_start, self.buf, self.end, self.size - 1)
+        return elem, Queue(self.buf, new_start, self.end, self.size - 1)
 
     @guppy
     @no_type_check
@@ -102,7 +102,7 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
         if self.size == 0:
             panic("Queue.peek: queue is empty")
         elem = self.buf[self.start].unwrap()
-        return elem, Queue(self.start, self.buf, self.end, self.size)
+        return elem, Queue(self.buf, self.start, self.end, self.size)
 
     @guppy
     @no_type_check
@@ -123,4 +123,4 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 def empty_queue() -> Queue[T, MAX_SIZE]:
     """Constructs a new empty queue."""
     buf = array(nothing[T]() for _ in range(MAX_SIZE))
-    return Queue(0, buf, 0, 0)
+    return Queue(buf, 0, 0, 0)
