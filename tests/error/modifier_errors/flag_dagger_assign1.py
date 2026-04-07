@@ -1,4 +1,4 @@
-from guppylang.decorator import guppy
+from guppylang import guppy
 
 
 @guppy(dagger=True)
