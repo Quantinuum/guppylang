@@ -1,10 +1,11 @@
-from guppylang import qubit
-from guppylang.decorator import guppy
+from guppylang import guppy
+from guppylang.std.builtins import dagger
 
 
-@guppy(dagger=True)
+@guppy
 def test() -> None:
-    x = qubit()
+    with dagger:
+        x = 3
 
 
 test.compile()
