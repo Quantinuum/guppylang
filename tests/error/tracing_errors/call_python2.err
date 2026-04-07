@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "$FILE", line 7, in <module>
+    Enum.VariantA(1)
+guppylang_internals.error.GuppyComptimeError: Function `VariantA` may only be called in a Guppy context

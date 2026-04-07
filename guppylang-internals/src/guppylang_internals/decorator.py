@@ -159,7 +159,9 @@ def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], t
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition) and hasattr(val.wrapped, "python_func"):
                 is_static = isinstance(val.wrapped.python_func, staticmethod)
-                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id, is_static)
+                DEF_STORE.register_type_member(
+                    defn.id, val.wrapped.name, val.id, is_static
+                )
         return c if return_class else GuppyDefinition(defn)  # type: ignore[return-value]
 
     return dec
@@ -204,7 +206,9 @@ def custom_type(
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition) and hasattr(val.wrapped, "python_func"):
                 is_static = isinstance(val.wrapped.python_func, staticmethod)
-                DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id, is_static)
+                DEF_STORE.register_type_member(
+                    defn.id, val.wrapped.name, val.id, is_static
+                )
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
@@ -304,7 +308,7 @@ def ext_module_decorator(
                     val.wrapped, "python_func"
                 ):
                     is_static = isinstance(val.wrapped.python_func, staticmethod)
-                    DEF_STORE.register_impl(
+                    DEF_STORE.register_type_member(
                         ext_module.id, val.wrapped.name, val.id, is_static
                     )
                     wasm_def: RawWasmFunctionDef
@@ -371,7 +375,8 @@ def ext_module_decorator(
                 init_compiler,
                 True,
                 GlobalConstId.fresh(f"{cls.__name__}.__new__"),
-                True,
+                has_signature=True,
+                has_var_args=False,
             )
             discard = CustomFunctionDef(
                 DefId.fresh(),
@@ -382,12 +387,13 @@ def ext_module_decorator(
                 discard_compiler,
                 False,
                 GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
-                True,
+                has_signature=True,
+                has_var_args=False,
             )
             DEF_STORE.register_def(call_method, get_calling_frame())
-            DEF_STORE.register_impl(ext_module.id, "__new__", call_method.id)
+            DEF_STORE.register_type_member(ext_module.id, "__new__", call_method.id)
             DEF_STORE.register_def(discard, get_calling_frame())
-            DEF_STORE.register_impl(ext_module.id, "discard", discard.id)
+            DEF_STORE.register_type_member(ext_module.id, "discard", discard.id)
 
             return GuppyDefinition(ext_module)
 
