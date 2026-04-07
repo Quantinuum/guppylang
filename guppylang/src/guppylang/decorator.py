@@ -2,7 +2,7 @@ import ast
 import builtins
 import inspect
 from collections.abc import Callable, Sequence
-from types import FrameType, MethodType
+from types import FrameType
 from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
 
 from guppylang_internals.ast_util import annotate_location
@@ -245,16 +245,13 @@ class _Guppy:
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
-            for dir_element in dir(cls):
-                val = getattr(cls, dir_element)
-                if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
-                # add classfunction impls
-                if isinstance(val, MethodType) and isinstance(
-                    val.__func__, GuppyDefinition
+            for val in cls.__dict__.values():
+                if isinstance(val, GuppyDefinition) and hasattr(
+                    val.wrapped, "python_func"
                 ):
+                    is_static = isinstance(val.wrapped.python_func, staticmethod)
                     DEF_STORE.register_impl(
-                        defn.id, val.__func__.wrapped.name, val.__func__.id
+                        defn.id, val.wrapped.name, val.id, is_static
                     )
 
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
@@ -299,8 +296,13 @@ class _Guppy:
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
             for val in cls.__dict__.values():
-                if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_impl(defn.id, val.wrapped.name, val.id)
+                if isinstance(val, GuppyDefinition) and hasattr(
+                    val.wrapped, "python_func"
+                ):
+                    is_static = isinstance(val.wrapped.python_func, staticmethod)
+                    DEF_STORE.register_impl(
+                        defn.id, val.wrapped.name, val.id, is_static
+                    )
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:

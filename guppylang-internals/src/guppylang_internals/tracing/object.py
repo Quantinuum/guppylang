@@ -514,7 +514,7 @@ class TracingDefMixin(DunderMixin):
             and defn.id in DEF_STORE.impls
             and "__new__" in DEF_STORE.impls[defn.id]
         ):
-            constructor = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id]["__new__"]]
+            constructor = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id]["__new__"].id]
             return TracingDefMixin(constructor)(*args)
         err = f"{defn.description.capitalize()} `{defn.name}` is not callable"
         raise GuppyComptimeError(err)
@@ -559,7 +559,7 @@ class TracingDefMixin(DunderMixin):
             return GuppyObject(defn.ty, wire, None)
         elif isinstance(defn, TypeDef):
             if defn.id in DEF_STORE.impls and "__new__" in DEF_STORE.impls[defn.id]:
-                constructor = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id]["__new__"]]
+                constructor = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id]["__new__"].id]
                 return TracingDefMixin(constructor).to_guppy_object()
         err = f"{defn.description.capitalize()} `{defn.name}` is not a value"
         raise GuppyComptimeError(err)

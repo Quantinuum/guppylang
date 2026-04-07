@@ -389,8 +389,8 @@ class Globals:
 
         type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id))
         if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
-            def_id = DEF_STORE.impls[type_defn.id][name]
-            defn = ENGINE.get_parsed(def_id)
+            impl_def = DEF_STORE.impls[type_defn.id][name]
+            defn = ENGINE.get_parsed(impl_def.id)
             if isinstance(defn, CallableDef):
                 return defn
         return None

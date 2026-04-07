@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from types import FrameType
 from typing import TYPE_CHECKING
 
@@ -70,6 +71,12 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 
 
+@dataclass(frozen=True)
+class ImplDefinition:
+    id: DefId
+    is_static: bool
+
+
 class DefinitionStore:
     """Storage class holding references to all Guppy definitions created in the current
     interpreter session.
@@ -78,7 +85,7 @@ class DefinitionStore:
     """
 
     raw_defs: dict[DefId, RawDef]
-    impls: defaultdict[DefId, dict[str, DefId]]
+    impls: defaultdict[DefId, dict[str, ImplDefinition]]
     impl_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
@@ -97,9 +104,11 @@ class DefinitionStore:
         if frame:
             self.frames[defn.id] = frame
 
-    def register_impl(self, ty_id: DefId, name: str, impl_id: DefId) -> None:
+    def register_impl(
+        self, ty_id: DefId, name: str, impl_id: DefId, is_static: bool = False
+    ) -> None:
         assert impl_id not in self.impl_parents, "Already an impl"
-        self.impls[ty_id][name] = impl_id
+        self.impls[ty_id][name] = ImplDefinition(impl_id, is_static)
         self.impl_parents[impl_id] = ty_id
         # Update the frame of the definition to the frame of the defining class
         if impl_id in self.frames:

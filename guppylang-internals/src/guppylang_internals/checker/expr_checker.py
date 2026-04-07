@@ -581,35 +581,19 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         else:
             node.value, ty = self.synthesize(node.value)
 
-        from guppylang_internals.definition.struct import ParsedStructDef
-
         # slightly hacky, if node points to a function then check it is __new__
         # and grab the corresponding struct and classmethod
         # currently missing a check / nicer error if you do try to attribute
         # a normal function
         if isinstance(ty, FunctionType) and isinstance(node.value, GlobalName):
-            struct_id = DEF_STORE.impl_parents[node.value.def_id]
-            struct_def = ENGINE.parsed[struct_id]
+            ty_id = DEF_STORE.impl_parents[node.value.def_id]
+            ty_def = ENGINE.parsed[ty_id]
             if (
-                isinstance(struct_def, ParsedStructDef)
-                and node.attr in struct_def.classmethods
-                and (
-                    constr := self.ctx.globals.get_instance_func(struct_def, node.attr)
-                )
+                node.attr in DEF_STORE.impls[ty_id]
+                and isinstance(ty_def, TypeDef)  # make mypy happy :(
+                and (func := self.ctx.globals.get_instance_func(ty_def, node.attr))
             ):
-                return with_loc(
-                    node, GlobalName(id=node.attr, def_id=constr.id)
-                ), constr.ty
-
-        # classmethods acting on instantiated structs
-        # just get the function as the self argument has already been removed
-        # during parsing
-        if isinstance(ty, StructType) and node.attr in ty.defn.classmethods:
-            struct_def = ty.defn
-            if constr := self.ctx.globals.get_instance_func(struct_def, node.attr):
-                return with_loc(
-                    node, GlobalName(id=node.attr, def_id=constr.id)
-                ), constr.ty
+                return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
 
         # flag used for error messages, None if the error is not related to enums
         is_enum_class = None
@@ -662,12 +646,19 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def _check_method(
         self, ty: Type, node: ast.Attribute
-    ) -> tuple[PartialApply, FunctionType] | None:
+    ) -> tuple[ast.expr, FunctionType] | None:
         """Helper method to check if an attribute access corresponds to a method call"""
         if func := self.ctx.globals.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
             )
+            # if this is a staticmethod do not partially apply `self`
+            ty_id = DEF_STORE.impl_parents[func.id]
+            if (
+                impl_def := DEF_STORE.impls[ty_id].get(node.attr)
+            ) and impl_def.is_static:
+                return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
+
             # Make a closure by partially applying the `self` argument
             # TODO: Try to infer some type args based on `self`
             result_ty = FunctionType(func.ty.inputs[1:], func.ty.output, func.ty.params)
