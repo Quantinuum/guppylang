@@ -2,7 +2,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from guppylang.std.quantum import UnitaryFlags
 from hugr import ops
 from hugr.build.dfg import DfBase
 
@@ -31,7 +30,13 @@ from guppylang_internals.tracing.unpacking import (
     update_packed_value,
 )
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
-from guppylang_internals.tys.ty import FunctionType, InputFlags, type_to_row, unify
+from guppylang_internals.tys.ty import (
+    FunctionType,
+    InputFlags,
+    UnitaryFlags,
+    type_to_row,
+    unify,
+)
 
 if TYPE_CHECKING:
     import ast
@@ -172,12 +177,11 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     call_node, ret_ty = func.synthesize_call(
         arg_exprs, state.node, Context(state.globals, locals, {})
     )
-    # Here we check if Unitary contraint are respected from the caller
+    # Here we check if Unitary constraint are respected from the caller
     unitary_flag = state.function_definition.unitary_flags
     if unitary_flag != UnitaryFlags.NoFlags:
         unitary_checker = BBUnitaryChecker()
-        unitary_checker.setup(unitary_flag)
-        unitary_checker.visit(call_node)
+        unitary_checker.check([call_node], unitary_flag)
 
     # Compile call
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)

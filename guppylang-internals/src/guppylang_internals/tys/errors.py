@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, assert_never
 
 from guppylang_internals.diagnostic import Error, Help, Note
 
@@ -196,18 +196,28 @@ class UnitaryCallError(Error):
     def render_flags(self) -> str:
         from guppylang_internals.tys.ty import UnitaryFlags
 
-        if self.flags == UnitaryFlags.Dagger:
-            return "dagger"
-        elif self.flags == UnitaryFlags.Control:
-            return "control"
-        elif self.flags == UnitaryFlags.Power:
-            return "power"
-        else:
-            return "unitary"
+        match self.flags:
+            case UnitaryFlags.Dagger:
+                return "dagger"
+            case UnitaryFlags.Control:
+                return "control"
+            case UnitaryFlags.Power:
+                return "power"
+            case UnitaryFlags.NoFlags:
+                return assert_never(self.flags)
+            case _:
+                return "unitary"
 
     @property
     def capitalized_render_flags(self) -> str:
         return self.render_flags.capitalize()
+
+    @dataclass(frozen=True)
+    class QubitAllocationNote(Note):
+        message: ClassVar[str] = (
+            "The function allocates qubits,"
+            " which is not allowed in a {render_flags} context"
+        )
 
     @dataclass(frozen=True)
     class Hint(Help):
