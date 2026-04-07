@@ -581,10 +581,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         else:
             node.value, ty = self.synthesize(node.value)
 
-        # slightly hacky, if node points to a function then check it is __new__
-        # and grab the corresponding struct and classmethod
-        # currently missing a check / nicer error if you do try to attribute
-        # a normal function
+        # staticmethods of types
+        # If node points to a function then get the type it is an impl
+        # of and the corresponding staticmethod
         if isinstance(ty, FunctionType) and isinstance(node.value, GlobalName):
             ty_id = DEF_STORE.impl_parents[node.value.def_id]
             ty_def = ENGINE.parsed[ty_id]
@@ -652,17 +651,22 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
             )
-            # if this is a staticmethod do not partially apply `self`
             ty_id = DEF_STORE.impl_parents[func.id]
+
             if (
                 impl_def := DEF_STORE.impls[ty_id].get(node.attr)
             ) and impl_def.is_static:
+                # if this is a staticmethod do not partially apply `self`
                 return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
-
-            # Make a closure by partially applying the `self` argument
-            # TODO: Try to infer some type args based on `self`
-            result_ty = FunctionType(func.ty.inputs[1:], func.ty.output, func.ty.params)
-            return with_loc(node, PartialApply(func=name, args=[node.value])), result_ty
+            else:
+                # Make a closure by partially applying the `self` argument
+                # TODO: Try to infer some type args based on `self`
+                result_ty = FunctionType(
+                    func.ty.inputs[1:], func.ty.output, func.ty.params
+                )
+                return with_loc(
+                    node, PartialApply(func=name, args=[node.value])
+                ), result_ty
         else:
             return None
 

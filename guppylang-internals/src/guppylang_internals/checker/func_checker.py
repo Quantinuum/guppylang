@@ -295,18 +295,23 @@ def check_signature(
             param = parse_parameter(param_node, i, globals, param_var_mapping)
             param_var_mapping[param.name] = param
 
+    is_static = False
     # Figure out if this is a method
     self_defn: TypeDef | None = None
     if def_id is not None and def_id in DEF_STORE.impl_parents:
-        self_defn = cast("TypeDef", ENGINE.get_checked(DEF_STORE.impl_parents[def_id]))
+        # if this is a staticmethod do not partially apply `self`
+        self_id = DEF_STORE.impl_parents[def_id]
+        self_defn = cast("TypeDef", ENGINE.get_checked(self_id))
         assert isinstance(self_defn, TypeDef)
+        # Figure out if this is a staticmethod
+        is_static = DEF_STORE.impls[self_id][func_def.name].is_static
 
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
     for i, inp in enumerate(func_def.args.args):
-        # Special handling for `self` arguments. Note that `__new__` is excluded here
-        # since it's not a method so doesn't take `self`.
-        if self_defn and i == 0 and func_def.name != "__new__":
+        # Special handling for `self` arguments. Note that `__new__` and staticmethods
+        # are excluded here since they do not take `self`.
+        if self_defn and i == 0 and func_def.name != "__new__" and not is_static:
             input = parse_self_arg(inp, self_defn, ctx)
             ctx = replace(ctx, self_ty=input.ty)
         else:
