@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, assert_never
+from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.diagnostic import Error, Help, Note
 
@@ -204,7 +204,7 @@ class UnitaryCallError(Error):
             case UnitaryFlags.Power:
                 return "power"
             case UnitaryFlags.NoFlags:
-                return assert_never(self.flags)  # type: ignore[arg-type]
+                raise AssertionError("Expected a non-empty unitary flag")
             case _:
                 return "unitary"
 
