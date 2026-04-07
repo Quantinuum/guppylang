@@ -88,6 +88,7 @@ def test_copy_bound(validate):
     def foo_enum[T: Copy](e1: MyEnum[T]) -> tuple[MyEnum[T], MyEnum[T]]:
         return e1, e1
     
+    @guppy
     def foo_struct[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
         return s.x, s.x
 
@@ -130,6 +131,7 @@ def test_copy_and_drop_bound(validate):
     class MyEnum[T: (Copy, Drop)]:
         VariantA = {"x": T}  # noqa: RUF012
 
+    @guppy
     def foo[T: (Copy, Drop)](s1: MyStruct[T], s2: MyStruct[T],  e1: MyEnum[T], e2: MyEnum[T]) -> tuple[T, T, MyEnum[T], MyEnum[T]]:
         return s1.x, s1.x, e1, e1
 

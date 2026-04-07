@@ -279,7 +279,7 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
             to build Hugr function to load as the value. This is the global const
             identifier we use to keep track of this function.
         has_signature: Whether the function has a declared signature.
-        type_args: Instantation of the generic paramaters of this function.
+        type_args: Instantiation of the generic parameters of this function.
     """
 
     type_args: Inst
