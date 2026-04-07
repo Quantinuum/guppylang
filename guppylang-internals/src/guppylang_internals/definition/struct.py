@@ -81,7 +81,6 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
         fields: list[UncheckedField] = []
         used_field_names: set[str] = set()
         used_func_names: dict[str, ast.FunctionDef] = {}
-
         for i, node in enumerate(cls_def.body):
             match i, node:
                 # We allow `pass` statements to define empty structs
@@ -99,7 +98,6 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                         raise GuppyError(
                             NonGuppyMethodError(node, self.name, name, "struct")
                         )
-
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
@@ -172,7 +170,6 @@ class ParsedStructDef(TypeDef, CheckableDef):
         fields = [
             CheckedField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
         ]
-
         return CheckedStructDef(
             self.id, self.name, self.defined_at, self.params, fields
         )
@@ -244,7 +241,6 @@ class CheckedStructDef(TypeDef, CompiledDef):
             has_signature=True,
             has_var_args=False,
         )
-
         return [constructor_def]
 
 
