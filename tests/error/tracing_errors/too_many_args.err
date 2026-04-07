@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile()
   File "$FILE", line 10, in test
     foo(1, 2, 3, 4)
-guppylang_internals.error.GuppyComptimeError: Too many arguments: Expected 2, got 4
+guppylang_internals.error.GuppyTypeError: WrongNumberOfArgsError(span=Span(start=Loc(file='$FILE', line=9, column=0), end=Loc(file='$FILE', line=10, column=19)), _parent=None, children=[WrongNumberOfArgsError.SignatureHint(span=None, _parent=..., sig=FunctionType(args=[TypeArg(ty=NumericType(kind=<Kind.Int: 2>)), TypeArg(ty=NumericType(kind=<Kind.Int: 2>)), TypeArg(ty=NoneType(copyable=True, droppable=True, hugr_bound=TypeBound.Copyable))], inputs=[FuncInput(ty=NumericType(kind=<Kind.Int: 2>), flags=<InputFlags.NoFlags: 0>, name='x'), FuncInput(ty=NumericType(kind=<Kind.Int: 2>), flags=<InputFlags.NoFlags: 0>, name='y')], output=NoneType(copyable=True, droppable=True, hugr_bound=TypeBound.Copyable), params=[], comptime_args=[], copyable=True, droppable=True, intrinsically_copyable=True, intrinsically_droppable=True, hugr_bound=TypeBound.Copyable, unitary_flags=<UnitaryFlags.NoFlags: 0>))], expected=2, actual=4, detailed=False, is_type_apply=False)

@@ -3,4 +3,6 @@ Traceback (most recent call last):
     test.compile_function()
   File "$FILE", line 10, in test
     foo(x)
-guppylang_internals.error.GuppyComptimeError: Control constraint violation: This function cannot be called in a control context
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ast.py", line 422, in visit
+    return visitor(node)
+guppylang_internals.error.GuppyTypeError: UnitaryCallError(span=<guppylang_internals.nodes.GlobalCall object at 0x10f577310>, _parent=None, children=[UnitaryCallError.Hint(span=None, _parent=...)], flags=<UnitaryFlags.Control: 1>)
