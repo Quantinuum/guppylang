@@ -3,6 +3,4 @@ Traceback (most recent call last):
     test.compile_function()
   File "$FILE", line 10, in test
     q = qubit()
-  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ast.py", line 422, in visit
-    return visitor(node)
-guppylang_internals.error.GuppyError: UnitaryCallError(span=<guppylang_internals.nodes.GlobalCall object at 0x1138afe90>, _parent=None, children=[UnitaryCallError.QubitAllocationNote(span=None, _parent=...)], flags=<UnitaryFlags.Dagger: 2>)
+guppylang_internals.error.GuppyComptimeError: Dagger constraint violation: This function cannot be called in a dagger context

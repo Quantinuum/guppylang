@@ -177,18 +177,18 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         for obj, var in zip(args_objs, arg_vars, strict=True):
             state.dfg[var] = obj._use_wire(func)
 
-    # Check call
-    arg_exprs: list[ast.expr] = [
-        with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
-    ]
-    ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
-    call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
+        # Check call
+        arg_exprs: list[ast.expr] = [
+            with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
+        ]
+        ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
+        call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
-    # Here we check if Unitary constraint are respected from the caller
-    unitary_flag = state.function_definition.unitary_flags
-    if unitary_flag != UnitaryFlags.NoFlags:
-        unitary_checker = BBUnitaryChecker()
-        unitary_checker.check([call_node], unitary_flag)
+        # Here we check if Unitary constraint are respected from the caller
+        unitary_flag = state.function_definition.unitary_flags
+        if unitary_flag != UnitaryFlags.NoFlags:
+            unitary_checker = BBUnitaryChecker()
+            unitary_checker.check([call_node], unitary_flag)
 
     # Compile call
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)

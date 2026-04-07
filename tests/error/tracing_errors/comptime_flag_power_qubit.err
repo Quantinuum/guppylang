@@ -3,6 +3,4 @@ Traceback (most recent call last):
     test.compile_function()
   File "$FILE", line 15, in test
     qp = init_qubits()
-  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ast.py", line 422, in visit
-    return visitor(node)
-guppylang_internals.error.GuppyError: UnitaryCallError(span=<guppylang_internals.nodes.GlobalCall object at 0x10eeac410>, _parent=None, children=[UnitaryCallError.QubitAllocationNote(span=None, _parent=...)], flags=<UnitaryFlags.Power: 4>)
+guppylang_internals.error.GuppyComptimeError: Power constraint violation: This function cannot be called in a power context
