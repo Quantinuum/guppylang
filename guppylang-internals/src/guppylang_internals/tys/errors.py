@@ -204,7 +204,7 @@ class UnitaryCallError(Error):
             case UnitaryFlags.Power:
                 return "power"
             case UnitaryFlags.NoFlags:
-                return assert_never(self.flags)
+                return assert_never(self.flags)  # type: ignore[arg-type]
             case _:
                 return "unitary"
 
