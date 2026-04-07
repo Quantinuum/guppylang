@@ -5,7 +5,7 @@ dev = [
     { include-group = "test" },
     { include-group = "examples" },
 ]
-lint = ["pre-commit>=3.6.0,<5", "ruff~=0.15.0", "mypy ~=1.19.1"]
+lint = ["pre-commit>=3.6.0,<5", "ruff~=0.15.0", "mypy~=1.20.0"]
 examples = ["matplotlib>=3.9.2", "networkx>=2.6,<4"]
 test = [
     "pytest>=8.4.2,<10",
