@@ -7,7 +7,7 @@ path = pathlib.Path(__file__).parent.resolve() / "modifier_errors"
 files = [
     x
     for x in path.iterdir()
-    if x.is_file() and x.suffix == ".py" and x.name != "__init__.py" # and x.name != "comptime_flag_call.py"
+    if x.is_file() and x.suffix == ".py" and x.name != "__init__.py"
 ]
 
 # Turn paths into strings, otherwise pytest doesn't display the names
