@@ -101,17 +101,17 @@ class GuppyEnumDefinition(GuppyDefinition):
         # Handle attribute access when calling an enum variant constructor, like
         # `Enum.VariantA()`. In all other cases, we should not try create a new
         # attribute, so we directly raise the error.
-        defn = ENGINE.get_checked(self.wrapped.id)
+        defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
         assert isinstance(defn, CheckedEnumDef)
         if (
             # We can only access the variants of the enum from the enum class,
             # not methods
             name in defn.variants
-            and defn.id in DEF_STORE.impls
-            and name in DEF_STORE.impls[defn.id]
+            and defn.id in DEF_STORE.type_members
+            and name in DEF_STORE.type_members[defn.id]
         ):
-            impl_def = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id][name]]
-            return TracingDefMixin(impl_def)
+            member_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name]]
+            return TracingDefMixin(member_def)
         raise AttributeError(
             f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
         )

@@ -8,6 +8,7 @@ from guppylang.std.qsystem import (
     collect_measurements,
     lazy_measure,
     lazy_measure_array,
+    lazy_measure_and_reset,
     measure_leaked,
 )
 from guppylang.std.qsystem.utils import get_current_shot
@@ -139,3 +140,18 @@ def test_lazy_measure_array(validate, run_int_fn):  # type: ignore[no-untyped-de
 
     validate(test.compile_function())
     run_int_fn(test, NUM_QUBITS, num_qubits=NUM_QUBITS)
+
+
+def test_lazy_measure_and_reset(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    @guppy
+    def test() -> int:
+        q = qubit()
+        x(q)
+        first_result = lazy_measure_and_reset(q)
+        second_result = measure(q)
+        if first_result and not second_result:  # First expect flip, then expect reset
+            return 1
+        return 0
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=1)
