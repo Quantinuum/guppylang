@@ -1,10 +1,17 @@
-from guppylang import qubit
-from guppylang.decorator import guppy
+from guppylang import qubit, guppy
+from guppylang.std.builtins import array, owned
 
+@guppy
+def init_qubits() -> array[qubit, 2]: ...
 
-@guppy(dagger=True)
+@guppy.declare(unitary=True)
+def uni_discard(q: array[qubit, 2] @owned) -> None: ...
+
+@guppy(control=True)
 def test() -> None:
-    x = qubit()
+    p = init_qubits()
+    uni_discard(p)
+
 
 
 test.compile()

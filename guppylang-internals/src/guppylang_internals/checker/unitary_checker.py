@@ -100,7 +100,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
         # If we are under any modifier, we cannot allocate qubits
         if contain_qubit_ty(ty.output) and self.flags != UnitaryFlags.NoFlags:
-            err = UnitaryCallError(node, self.flags & (~ty.unitary_flags))
+            err = UnitaryCallError(node, self.flags)
             err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
             raise GuppyError(err)
 
