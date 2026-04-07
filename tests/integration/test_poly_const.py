@@ -113,6 +113,30 @@ def test_int(validate):
     # (Dummy constructor is inlined)
     assert len(funcs_defs(compiled_struct.modules[0])) == 5
 
+    @guppy.enum
+    class DummyEnum(Generic[IT]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}  # noqa: RUF012
+
+    @guppy
+    def foo_enum(_: DummyEnum[IT]) -> float:
+        return IT
+
+    @guppy
+    def main_enum() -> float:
+        return (
+            foo_enum[1](DummyEnum.VariantA())
+            + foo_enum[2](DummyEnum.VariantA())
+            + foo_enum[-3](DummyEnum.VariantA())
+            + foo_enum[1](DummyEnum.VariantA())
+            + foo_enum[1](DummyEnum.VariantA())
+        )
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, and 3 monomorphizations of foo_enum, 3 for VariantA()
+    assert len(funcs_defs(compiled_enum.modules[0])) == 7
+
 
 def test_float(validate, run_float_fn_approx):
     F = guppy.const_var("F", "float")
@@ -159,18 +183,18 @@ def test_float(validate, run_float_fn_approx):
     @guppy
     def main_enum() -> float:
         return (
-            foo_enum[1.5](DummyEnum.VariantA[1.5]())
-            + foo_enum[2.5](DummyEnum.VariantA[2.5]())
-            + foo_enum[3.5](DummyEnum.VariantA[3.5]())
-            + foo_enum[1.5](DummyEnum.VariantA[1.5]())
-            + foo_enum[1.5](DummyEnum.VariantA[1.5]())
+            foo_enum[1.5](DummyEnum.VariantA())
+            + foo_enum[2.5](DummyEnum.VariantA())
+            + foo_enum[3.5](DummyEnum.VariantA())
+            + foo_enum[1.5](DummyEnum.VariantA())
+            + foo_enum[1.5](DummyEnum.VariantA())
         )
 
     compiled_enum = main_enum.compile_function()
     validate(compiled_enum)
 
-    # Check we have main_enum, and 3 monomorphizations of foo_enum, 3 for VariantA()
-    assert len(funcs_defs(compiled_enum.modules[0])) == 7
+    # Check we have main_enum, and 3 monomorphizations of foo_enum
+    assert len(funcs_defs(compiled_enum.modules[0])) == 4
 
     run_float_fn_approx(main_enum, 10.5)
 
