@@ -1,0 +1,10 @@
+Error: Power constraint violation (at $FILE:11:12)
+   | 
+ 9 | def test() -> None:
+10 |     with power(2):
+11 |         p = qubit()
+   |             ^^^^^^^ This function cannot be called in a power context
+
+Note: The function allocates qubits, which is not allowed in a power context
+
+Guppy compilation failed due to 1 previous error
