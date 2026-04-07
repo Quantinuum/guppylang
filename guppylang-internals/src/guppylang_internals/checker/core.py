@@ -12,7 +12,6 @@ from typing import (
     NamedTuple,
     TypeAlias,
     TypeVar,
-    cast,
     overload,
 )
 
@@ -25,30 +24,13 @@ from guppylang_internals.definition.common import (
     Definition,
     ParsedDef,
 )
-from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
-from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.tys.builtin import (
-    callable_type_def,
-    float_type_def,
-    int_type_def,
-    nat_type_def,
-    none_type_def,
-    tuple_type_def,
-)
-from guppylang_internals.tys.param import Parameter
+from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
+from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
+from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.ty import (
-    BoundTypeVar,
-    EnumType,
-    ExistentialTypeVar,
-    FunctionType,
     InputFlags,
-    NoneType,
-    NumericType,
-    OpaqueType,
     StructType,
-    TupleType,
     Type,
 )
 
@@ -319,27 +301,21 @@ class PythonObject:
 
 
 class Globals:
-    """Wrapper around the `DEF_STORE` that allows looking-up of definitions by name
-    based on which objects are in scope in a stack frame.
+    """Wrapper around a stack frame in which a Guppy definition was defined.
 
-    Additionally, keeps track of which definitions in the store have been used.
+    Gives access to the other globals that are in scope for that definition.
     """
 
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
-    frame: FrameType | None
+    frame: FrameType
 
-    def __init__(self, frame: FrameType | None) -> None:
+    def __init__(self, frame: FrameType) -> None:
         self.frame = frame
-        if frame is not None:
-            self.f_locals = frame.f_locals
-            self.f_globals = frame.f_globals
-            self.f_builtins = frame.f_builtins
-        else:
-            self.f_locals = {}
-            self.f_globals = {}
-            self.f_builtins = {}
+        self.f_locals = frame.f_locals
+        self.f_globals = frame.f_globals
+        self.f_builtins = frame.f_builtins
 
     @staticmethod
     @cache
@@ -352,50 +328,6 @@ class Globals:
             for name, val in guppylang.std.builtins.__dict__.items()
             if isinstance(val, GuppyDefinition)
         }
-
-    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
-        """Looks up an instance function with a given name for a type.
-
-        Returns `None` if the name doesn't exist or isn't a function.
-        """
-        type_defn: TypeDef
-        match ty:
-            case TypeDef() as type_defn:
-                pass
-            case BoundTypeVar() | ExistentialTypeVar():
-                return None
-            case NumericType(kind):
-                match kind:
-                    case NumericType.Kind.Nat:
-                        type_defn = nat_type_def
-                    case NumericType.Kind.Int:
-                        type_defn = int_type_def
-                    case NumericType.Kind.Float:
-                        type_defn = float_type_def
-                    case kind:
-                        return assert_never(kind)
-            case FunctionType():
-                type_defn = callable_type_def
-            case OpaqueType() as ty:
-                type_defn = ty.defn
-            case StructType() as ty:
-                type_defn = ty.defn
-            case TupleType():
-                type_defn = tuple_type_def
-            case NoneType():
-                type_defn = none_type_def
-            case EnumType():
-                type_defn = ty.defn
-            case _:
-                return assert_never(ty)
-
-        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id))
-        if type_defn.id in DEF_STORE.impls and name in DEF_STORE.impls[type_defn.id]:
-            def_id = DEF_STORE.impls[type_defn.id][name]
-            defn = ENGINE.get_parsed(def_id)
-            if isinstance(defn, CallableDef):
-                return defn
-        return None
 
     def __contains__(self, item: DefId | str) -> bool:
         match item:
@@ -514,14 +446,14 @@ class Context(NamedTuple):
 
     globals: Globals
     locals: Locals[str, Variable]
-    generic_params: dict[str, Parameter]
+    generic_param_inst: dict[str, Argument]
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":
         """A type parsing context derived from this checking context."""
         from guppylang_internals.tys.parsing import TypeParsingCtx
 
-        return TypeParsingCtx(self.globals, self.generic_params)
+        return TypeParsingCtx(self.globals, param_inst=self.generic_param_inst)
 
 
 class DummyEvalDict(dict[str, Any]):
@@ -540,6 +472,13 @@ class DummyEvalDict(dict[str, Any]):
         var: str
         node: ast.Name | None
 
+    @dataclass
+    class GuppyTypeVarUsedError(BaseException):
+        """Error that is raised when the user tries to access a Guppy type variable."""
+
+        var: str
+        node: ast.Name | None
+
     def __init__(self, ctx: Context, node: ast.expr):
         super().__init__(**(ctx.globals.f_globals | ctx.globals.f_locals))
         self.ctx = ctx
@@ -554,6 +493,23 @@ class DummyEvalDict(dict[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         self._check_item(key)
+        if key in self.ctx.generic_param_inst:
+            match self.ctx.generic_param_inst[key]:
+                case ConstArg(const=ConstValue(value=v)):
+                    return v
+                case ConstArg(const=BoundConstVar()):
+                    raise RequiresMonomorphizationError
+                case ConstArg(const=ExistentialConstVar()):
+                    raise InternalGuppyError("Unexpected generic instantiation")
+                case TypeArg():
+                    # We cannot return values of type variables since we don't have a
+                    # comptime representation of types yet.
+                    # TODO: Return the instantiated type here once we have a runtime
+                    #  representation of Guppy types.
+                    node = next(
+                        (n for n in name_nodes_in_ast(self.node) if n.id == key), None
+                    )
+                    raise DummyEvalDict.GuppyTypeVarUsedError(key, node)
         return super().__getitem__(key)
 
     def __delitem__(self, key: str) -> None:
@@ -561,6 +517,8 @@ class DummyEvalDict(dict[str, Any]):
         super().__delitem__(key)
 
     def __contains__(self, key: object) -> bool:
-        if isinstance(key, str) and key in self.ctx.locals:
+        if isinstance(key, str) and (
+            key in self.ctx.locals or key in self.ctx.generic_param_inst
+        ):
             return True
         return super().__contains__(key)

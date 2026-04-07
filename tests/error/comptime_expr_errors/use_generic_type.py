@@ -1,11 +1,12 @@
-from guppylang.decorator import guppy
+from guppylang import guppy
+from guppylang.std.builtins import comptime
 
 T = guppy.type_var("T")
 
 
 @guppy
 def foo(x: T) -> None:
-    y = T
+    comptime(T)
 
 
 @guppy
