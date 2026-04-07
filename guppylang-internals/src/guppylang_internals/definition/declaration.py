@@ -27,6 +27,7 @@ from guppylang_internals.definition.function import (
     load_with_args,
     parse_py_func,
 )
+from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -76,10 +77,13 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     """
 
     python_func: PyFunc
+
     description: str = field(default="function", init=False)
 
     # TODO: these flags must be added to the Hugr node via metadata
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
+
+    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
@@ -101,6 +105,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
             ty,
             docstring,
             link_name,
+            metadata=self.metadata,
         )
 
 
@@ -123,6 +128,7 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
     defined_at: ast.FunctionDef
     docstring: str | None
     link_name: str
+    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
 
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
@@ -152,6 +158,11 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
         module: hf.Module = module
 
         node = module.declare_function(self.link_name, self.ty.to_hugr_poly(ctx))
+        add_metadata(
+            node,
+            self.metadata,
+            additional_metadata={"unitary": self.ty.unitary_flags.value},
+        )
         return CompiledFunctionDecl(
             self.id,
             self.name,
@@ -160,6 +171,7 @@ class CheckedFunctionDecl(CompilableDef, CallableDef):
             self.docstring,
             self.link_name,
             node,
+            metadata=self.metadata,
         )
 
 
