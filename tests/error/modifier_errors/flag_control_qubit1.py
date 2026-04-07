@@ -1,11 +1,16 @@
-from guppylang import qubit
-from guppylang import guppy
-from guppylang.std.builtins import dagger
+from guppylang import qubit, guppy
+from guppylang.std.builtins import control, owned
+
+
+@guppy.declare(unitary=True)
+def uni_discard(q: qubit @owned) -> None: ...
 
 @guppy
 def test() -> None:
-    with dagger:
-        x = qubit()
+    q = qubit()
+    with control(q):
+        p = qubit()
+        uni_discard(p)
 
 
 test.compile()
