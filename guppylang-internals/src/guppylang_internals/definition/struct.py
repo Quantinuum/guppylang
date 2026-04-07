@@ -2,7 +2,7 @@ import ast
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from hugr import Wire, ops
 
@@ -78,7 +78,6 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
 
         params = extract_generic_params(cls_def, self.name, globals, "Struct")
 
-        classmethods: dict[str, Any] = {}
         fields: list[UncheckedField] = []
         used_field_names: set[str] = set()
         used_func_names: dict[str, ast.FunctionDef] = {}
@@ -93,17 +92,10 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     pass
                 # Ensure that all function definitions are Guppy functions
                 case _, ast.FunctionDef(name=name) as node:
-                    from types import MethodType
-
                     from guppylang.defs import GuppyDefinition
 
                     v = getattr(self.python_class, name)
-                    if isinstance(v, MethodType) and isinstance(
-                        v.__func__, GuppyDefinition
-                    ):
-                        func: GuppyDefinition = v.__func__
-                        classmethods[func.wrapped.name] = func.wrapped
-                    elif not isinstance(v, GuppyDefinition):
+                    if not isinstance(v, GuppyDefinition):
                         raise GuppyError(
                             NonGuppyMethodError(node, self.name, name, "struct")
                         )
@@ -149,7 +141,7 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
         )
 
         return ParsedStructDef(
-            self.id, self.name, cls_def, params, fields, classmethods, link_name_prefix
+            self.id, self.name, cls_def, params, fields, link_name_prefix
         )
 
     def check_instantiate(
@@ -165,7 +157,6 @@ class ParsedStructDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[UncheckedField]
-    classmethods: dict[str, Any]
     link_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedStructDef":
@@ -183,7 +174,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
         ]
 
         return CheckedStructDef(
-            self.id, self.name, self.defined_at, self.params, fields, self.classmethods
+            self.id, self.name, self.defined_at, self.params, fields
         )
 
     def check_instantiate(
@@ -210,7 +201,6 @@ class CheckedStructDef(TypeDef, CompiledDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[CheckedField]
-    classmethods: dict[str, Any]
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None

@@ -122,13 +122,6 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
 
-        # remove the self argument if this is a classmethod
-        if "classmethod" in [
-            d.id for d in func_ast.decorator_list if isinstance(d, ast.Name)
-        ]:
-            ty = FunctionType(ty.inputs[1:], ty.output, ty.params)
-            func_ast.args.args = func_ast.args.args[1:]
-
         return ParsedFunctionDef(
             self.id,
             self.name,
