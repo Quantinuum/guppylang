@@ -435,7 +435,7 @@ def test_many(validate):
     compiled_struct = main_struct.compile_function()
     validate(compiled_struct)
 
-    # Check we have main, and 3 monomorphizations of foo and baz each
+    # Check we have main_struct, and 3 monomorphizations of foo and baz each
     assert len(funcs_defs(compiled_struct.modules[0])) == 7
 
     # Enum equivalent: same const-generic parameters, but no field access (enums are
@@ -479,7 +479,7 @@ def test_many(validate):
     validate(compiled_enum)
 
     # Check we have main_enum, 3 monomorphizations of foo_enum and baz_enum each,
-    # 3 for VariantA() (one float and one nat)
+    # 3 for VariantA() (float, nat, bool)
     assert len(funcs_defs(compiled_enum.modules[0])) == 10
 
 
