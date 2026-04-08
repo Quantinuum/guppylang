@@ -214,11 +214,11 @@ class CompilationEngine:
 
             registry = ExtensionRegistry()
             for ext in [
-                *hugr.std._std_extensions().extensions.values(),
+                *hugr.std._std_extensions().extensions,
                 *TKET_EXTENSIONS,
                 hugr_extension.EXTENSION,
             ]:
-                registry.register_updated(ext)
+                registry.register(ext)
             CompilationEngine._base_resolve_registry = registry
         return CompilationEngine._base_resolve_registry
 
@@ -476,7 +476,7 @@ class CompilationEngine:
 
             resolve_registry = deepcopy(self._get_base_resolve_registry())
             for ext in self.additional_extensions:
-                resolve_registry.register_updated(ext)
+                resolve_registry.register(ext)
         else:
             resolve_registry = self._get_base_resolve_registry()
 
@@ -488,7 +488,7 @@ class CompilationEngine:
         # Set metadata for used extensions
         used_exts_meta = [
             ExtensionDesc(name=ext.name, version=ext.version)
-            for ext in used_extensions_result.used_extensions.extensions.values()
+            for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
         used_exts_meta.extend(
@@ -509,8 +509,8 @@ class CompilationEngine:
         std_ext_names = hugr.std._std_extensions()
         packaged_extensions = [
             ext
-            for name, ext in used_extensions_result.used_extensions.extensions.items()
-            if name not in std_ext_names
+            for ext in used_extensions_result.used_extensions.extensions
+            if ext.name not in std_ext_names
         ]
         return (
             ModulePointer(

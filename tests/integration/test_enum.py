@@ -170,8 +170,8 @@ def test_methods(validate):
             return a.foo(6) + 5.1
 
     @guppy
-    def main(a: EnumA, b: EnumB) -> tuple[int, float]:
-        return a.foo(1), b.bar(a)
+    def main(a: EnumA, b: EnumB) -> tuple[int, float, float]:
+        return a.foo(1), b.bar(a), EnumB.VariantA(1, 2.0).bar(a)
 
     validate(main.compile_function())
 
