@@ -80,7 +80,6 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
 
     description: str = field(default="function", init=False)
 
-    # TODO: these flags must be added to the Hugr node via metadata
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
     metadata: GuppyMetadata | None = field(default=None, kw_only=True)

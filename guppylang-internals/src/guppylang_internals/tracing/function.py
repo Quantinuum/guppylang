@@ -158,7 +158,6 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     Checks that the passed arguments match the signature of the function and also
     handles inout arguments.
     """
-    # NOTE: NICOLA - when we find a guppy function in the body we call this function
     state = get_tracing_state()
 
     with capture_guppy_errors():
@@ -184,7 +183,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
         call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
-        # Here we check if Unitary constraint are respected from the caller
+        # Here we check if unitary constraints are respected by the caller
         unitary_flag = state.function_definition.unitary_flags
         if unitary_flag != UnitaryFlags.NoFlags:
             unitary_checker = BBUnitaryChecker()

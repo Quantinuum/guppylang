@@ -12,7 +12,5 @@ def uni_discard(q: array[qubit, 2] @owned) -> None: ...
 def test() -> None:
     qp = init_qubits()
     uni_discard(qp)
-    
-
 
 test.compile()
