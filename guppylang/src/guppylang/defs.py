@@ -4,19 +4,24 @@ These are the objects returned by the `@guppy` decorator. They should not be con
 with the compiler-internal definition objects in the `definitions` module.
 """
 
+import ast
+import importlib
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
+from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.definition.declaration import RawFunctionDecl
+from guppylang_internals.definition.declaration import (
+    CheckedFunctionDecl,
+    RawFunctionDecl,
+)
 from guppylang_internals.definition.enum import CheckedEnumDef
-from guppylang_internals.definition.function import RawFunctionDef
+from guppylang_internals.definition.function import CheckedFunctionDef, RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError, pretty_errors
+from guppylang_internals.error import GuppyError, InternalGuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import (
     TracingDefMixin,
@@ -31,9 +36,6 @@ from semver import Version
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
 from guppylang.emulator.exceptions import EmulatorBuildError
-
-if TYPE_CHECKING:
-    import ast
 
 __all__ = (
     "GuppyDefinition",
@@ -288,6 +290,60 @@ class GuppyLibrary:
         """Type-check all contained definitions."""
         ENGINE.check(self.members)
         ENGINE.check(self._type_members(), reset=False)
+
+    def stubs(self) -> dict[str, str]:
+        stub_asts_by_module: dict[str, list[ast.stmt]] = {}
+        for member in self.members:
+            checked_def = ENGINE.get_checked(member, mono_args=())
+            match checked_def:
+                case CheckedFunctionDef():
+                    if checked_def.module is None:
+                        raise InternalGuppyError(
+                            "Checked definition has no associated module, cannot "
+                            "generate stub!"
+                        )
+                    stub_asts_by_module.setdefault(checked_def.module, []).append(
+                        checked_def.stub()
+                    )
+                case CheckedFunctionDecl():
+                    if checked_def.module is None:
+                        raise InternalGuppyError(
+                            "Checked definition has no associated module, cannot "
+                            "generate stub!"
+                        )
+                    stub_asts_by_module.setdefault(checked_def.module, []).append(
+                        checked_def.stub()
+                    )
+                case _:
+                    raise NotImplementedError(
+                        f"Cannot yet generate stubs for definitions of type "
+                        f"{type(checked_def)}!"
+                    )
+
+        module_stubs: dict[str, str] = {}
+        for module_name, stub_asts in stub_asts_by_module.items():
+            module = importlib.import_module(module_name)
+            imports = (
+                DEF_STORE.sources.imports[module.__file__].dump_ast()
+                if module.__file__ is not None
+                else []
+            )
+
+            module_ast = ast.Module(
+                [
+                    *(
+                        [ast.Expr(ast.Constant(module.__doc__))]
+                        if module.__doc__
+                        else []
+                    ),
+                    *imports,
+                    *stub_asts,
+                ],
+                type_ignores=[],
+            )
+            module_stubs[module_name] = ast.unparse(module_ast)
+
+        return module_stubs
 
 
 @dataclass(frozen=True)

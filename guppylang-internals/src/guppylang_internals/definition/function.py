@@ -1,6 +1,7 @@
 import ast
 import inspect
 from collections.abc import Callable, Sequence
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -11,6 +12,7 @@ from hugr.hugr.node_port import ToNode
 
 from guppylang_internals.ast_util import (
     AstNode,
+    ImportMap,
     annotate_location,
     parse_source,
     with_loc,
@@ -47,11 +49,12 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
+from guppylang_internals.tys.parsing import _parse_delayed_annotation
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
@@ -129,8 +132,12 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             ty,
             docstring,
             link_name,
+            module=self.python_func.__module__,
             metadata=self.metadata,
         )
+
+    def generate_guppy_declare_decorator(self, import_map: ImportMap) -> ast.expr:
+        raise NotImplementedError("Must be implemented by a subclass!")
 
 
 @dataclass(frozen=True)
@@ -155,6 +162,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     ty: FunctionType
     docstring: str | None
     link_name: str
+    module: str | None = field(default=None, kw_only=True)
 
     description: str = field(default="function", init=False)
 
@@ -178,6 +186,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             self.docstring,
             mono_link_name,
             cfg,
+            module=self.module,
             metadata=self.metadata,
         )
 
@@ -200,6 +209,13 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         ENGINE.register_generic_use(self, inst)
         return with_type(ty, node), ty
+
+    def stub(self) -> ast.FunctionDef:
+        """Generates a stub function declaration with an empty body."""
+        raw_def = DEF_STORE.raw_defs[self.id]
+        assert isinstance(raw_def, RawFunctionDef)
+
+        return generate_stub_from_def(raw_def, self.defined_at)
 
 
 @dataclass(frozen=True)
@@ -260,6 +276,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.link_name,
             self.cfg,
             func_def,
+            module=self.module,
             metadata=self.metadata,
         )
 
@@ -339,3 +356,50 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     if not isinstance(func_ast, ast.FunctionDef):
         raise GuppyError(ExpectedError(func_ast, "a function definition"))
     return parse_function_with_docstring(func_ast)
+
+
+def _mark_names_used(expr: ast.expr, import_map: ImportMap) -> None:
+    """Marks all names used in the given expression as used in the import map."""
+    for node in ast.walk(expr):
+        if isinstance(node, ast.Name):
+            import_map.use(node.id)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            parsed = _parse_delayed_annotation(node.value, node)
+            _mark_names_used(parsed, import_map)
+        else:
+            continue
+
+
+def generate_stub_from_def(
+    raw_def: "RawFunctionDef | RawFunctionDecl", source_def: ast.FunctionDef
+) -> ast.FunctionDef:
+    if not hasattr(source_def, "file"):
+        # Should be set in `ast_util.annotate_location(...)`.
+        raise InternalGuppyError("Source file not set for source def.")
+    import_map = DEF_STORE.sources.imports[source_def.file]
+
+    func_def = deepcopy(source_def)
+    for arg in func_def.args.args:
+        if arg.annotation is not None:
+            _mark_names_used(arg.annotation, import_map)
+    if func_def.returns is not None:
+        _mark_names_used(func_def.returns, import_map)
+    func_def.body = [
+        *(
+            [ast.Expr(ast.Constant(raw_def.python_func.__doc__))]
+            if raw_def.python_func.__doc__
+            else []
+        ),
+        ast.Expr(ast.Constant(...)),
+    ]
+    # TODO register all used imports from function args and return type
+    #  (and type params?)
+    func_def.decorator_list = [raw_def.generate_guppy_declare_decorator(import_map)]
+
+    # We cannot know these values
+    func_def.lineno = -1
+    func_def.col_offset = -1
+    func_def.end_lineno = -1
+    func_def.end_col_offset = -1
+
+    return func_def
