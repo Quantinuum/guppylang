@@ -70,7 +70,6 @@ class BBUnitaryChecker(ast.NodeVisitor):
             self.visit(stmt)
 
     def _check_classical_args(self, args: list[ast.expr]) -> bool:
-        # TODO: NICOLA check that the return type is classical contain_qubit_ty
         for arg in args:
             self.visit(arg)
             if contain_qubit_ty(get_type(arg)):

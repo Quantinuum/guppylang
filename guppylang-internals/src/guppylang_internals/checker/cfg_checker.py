@@ -168,8 +168,7 @@ def check_cfg(
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
 
-    # print("Checking unitary: ", func_name, cfg.unitary_flags)
-    # TODO: NICOla do we really need to do this check also when the flag is None
+    # If no UnitaryFlags are present, we do no need to check unitarity
     if cfg.unitary_flags != UnitaryFlags.NoFlags:
         check_cfg_unitary(linearity_checked_cfg, cfg.unitary_flags)
 

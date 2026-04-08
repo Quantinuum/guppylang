@@ -394,7 +394,6 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
-            # TODO: NICOLA - we need to pass metadata also here
             defn = RawFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
@@ -402,6 +401,7 @@ class _Guppy:
                 f,
                 unitary_flags=parsed.flags,
                 link_name=parsed.link_name,
+                metadata=parsed.metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
