@@ -94,7 +94,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
                     # We want the hint only for non-custom functions, since for custom
                     # functions are usually quantum operations, such as gates or
                     # measurement
-                    err.add_sub_diagnostic(UnitaryCallError.Hint(None))
+                    err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
             raise GuppyTypeError(err)
 
         # If we are under any modifier, we cannot allocate qubits
@@ -151,6 +151,8 @@ def check_cfg_unitary(
     unitary_flags: UnitaryFlags,
 ) -> None:
     """Checks that the given unitary flags are valid for a CFG."""
-    bb_checker = BBUnitaryChecker()
-    for bb in cfg.bbs:
-        bb_checker.check(bb.statements, unitary_flags)
+    # If no UnitaryFlags are present, we do no need to check unitarity
+    if cfg.unitary_flags != UnitaryFlags.NoFlags:
+        bb_checker = BBUnitaryChecker()
+        for bb in cfg.bbs:
+            bb_checker.check(bb.statements, unitary_flags)

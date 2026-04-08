@@ -221,6 +221,8 @@ class UnitaryCallError(Error):
 
     @dataclass(frozen=True)
     class Hint(Help):
+        func_name: str
         message: ClassVar[str] = (
-            "Consider adding the flag `({render_flags}=True)` to the function decorator"
+            "Consider adding the flag `({render_flags}=True)` to the decorator of "
+            "the function `{func_name}`"
         )

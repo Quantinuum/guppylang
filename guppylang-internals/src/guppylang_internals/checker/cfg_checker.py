@@ -26,7 +26,7 @@ from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.ty import InputFlags, Type, UnitaryFlags
+from guppylang_internals.tys.ty import InputFlags, Type
 
 Row = Sequence[V]
 
@@ -168,9 +168,7 @@ def check_cfg(
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
 
-    # If no UnitaryFlags are present, we do no need to check unitarity
-    if cfg.unitary_flags != UnitaryFlags.NoFlags:
-        check_cfg_unitary(linearity_checked_cfg, cfg.unitary_flags)
+    check_cfg_unitary(linearity_checked_cfg, cfg.unitary_flags)
 
     return linearity_checked_cfg
 
