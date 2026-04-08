@@ -1,7 +1,7 @@
 from guppylang import qubit, guppy
 from guppylang.std.builtins import array, owned
 
-@guppy
+@guppy.declare
 def init_qubits() -> array[qubit, 2]: ...
 
 @guppy.declare(unitary=True)

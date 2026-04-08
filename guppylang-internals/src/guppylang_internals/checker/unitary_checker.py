@@ -152,7 +152,9 @@ def check_cfg_unitary(
 ) -> None:
     """Checks that the given unitary flags are valid for a CFG."""
     # If no UnitaryFlags are present, we do no need to check unitarity
-    if cfg.unitary_flags != UnitaryFlags.NoFlags:
-        bb_checker = BBUnitaryChecker()
-        for bb in cfg.bbs:
-            bb_checker.check(bb.statements, unitary_flags)
+    if unitary_flags == UnitaryFlags.NoFlags:
+        return
+
+    bb_checker = BBUnitaryChecker()
+    for bb in cfg.bbs:
+        bb_checker.check(bb.statements, unitary_flags)
