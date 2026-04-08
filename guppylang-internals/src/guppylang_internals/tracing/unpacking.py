@@ -14,6 +14,7 @@ from guppylang_internals.error import GuppyComptimeError, GuppyError
 from guppylang_internals.std._internal.compiler.array import array_new, unpack_array
 from guppylang_internals.tracing.frozenlist import frozenlist
 from guppylang_internals.tracing.object import (
+    GuppyEnumObject,
     GuppyObject,
     GuppyStructObject,
     TracingDefMixin,
@@ -26,7 +27,7 @@ from guppylang_internals.tys.builtin import (
     is_array_type,
 )
 from guppylang_internals.tys.const import ConstValue
-from guppylang_internals.tys.ty import NoneType, StructType, TupleType
+from guppylang_internals.tys.ty import EnumType, NoneType, StructType, TupleType
 
 P = TypeVar("P", bound=ops.DfParentOp)
 
@@ -60,6 +61,8 @@ def unpack_guppy_object(
                 for field, wire in zip(ty.fields, unpack.outputs(), strict=True)
             ]
             return GuppyStructObject(ty, field_values, frozen)
+        case EnumType() as ty:
+            return GuppyEnumObject(ty, obj._use_wire(None))
         case ty if is_array_type(ty):
             length = get_array_length(ty)
             if isinstance(length, ConstValue):
@@ -115,6 +118,8 @@ def guppy_object_from_py(
                     )
                 wires.append(obj._use_wire(None))
             return GuppyObject(struct_ty, builder.add_op(ops.MakeTuple(), *wires))
+        case GuppyEnumObject(_ty=enum_ty, _wire=wire):
+            return GuppyObject(enum_ty, wire)
         case list(vs) if len(vs) > 0:
             objs = [guppy_object_from_py(v, builder, node, ctx) for v in vs]
             elem_ty = objs[0]._ty
@@ -135,7 +140,7 @@ def guppy_object_from_py(
             # TODO: Propagate type information?
             raise GuppyComptimeError("Cannot infer the type of empty list")
         case v:
-            ty = python_value_to_guppy_type(v, node, get_tracing_state().globals)
+            ty = python_value_to_guppy_type(v, node)
             if ty is None:
                 raise GuppyError(IllegalComptimeExpressionError(node, type(v)))
             hugr_val = python_value_to_hugr(v, ty, ctx)

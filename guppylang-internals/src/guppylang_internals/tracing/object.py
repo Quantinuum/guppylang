@@ -14,7 +14,7 @@ from guppylang_internals.checker.errors.type_errors import (
     BinaryOperatorNotDefinedError,
     UnaryOperatorNotDefinedError,
 )
-from guppylang_internals.definition.common import DefId, Definition
+from guppylang_internals.definition.common import CheckableGenericDef, DefId, Definition
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -29,7 +29,7 @@ from guppylang_internals.tracing.util import (
     get_calling_frame,
     hide_trace,
 )
-from guppylang_internals.tys.ty import FunctionType, StructType, Type
+from guppylang_internals.tys.ty import EnumType, FunctionType, StructType, Type
 
 # Mapping from unary dunder method to display name of the operation
 unary_table = dict(expr_checker.unary_table.values())
@@ -58,7 +58,7 @@ def unary_operation(f: UnaryDunderMethod) -> UnaryDunderMethod:
     """
 
     @functools.wraps(f)
-    @capture_guppy_errors
+    @capture_guppy_errors()
     def wrapped(self: "DunderMixin") -> Any:
         from guppylang_internals.tracing.state import get_tracing_state
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
@@ -87,7 +87,7 @@ def binary_operation(f: BinaryDunderMethod) -> BinaryDunderMethod:
     """
 
     @functools.wraps(f)
-    @capture_guppy_errors
+    @capture_guppy_errors()
     def wrapped(self: "DunderMixin", other: Any) -> Any:
         from guppylang_internals.tracing.state import get_tracing_state
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
@@ -358,7 +358,7 @@ class GuppyObject(DunderMixin):
     def __getattr__(self, key: str) -> Any:
         # Guppy objects don't have fields (structs are treated separately below), so the
         # only attributes we have to worry about are methods.
-        func = get_tracing_state().globals.get_instance_func(self._ty, key)
+        func = ENGINE.get_instance_func(self._ty, key)
         if func is None:
             raise GuppyComptimeError(
                 f"Expression of type `{self._ty}` has no attribute `{key}`"
@@ -375,7 +375,7 @@ class GuppyObject(DunderMixin):
         raise GuppyComptimeError(err)
 
     @hide_trace
-    @capture_guppy_errors
+    @capture_guppy_errors()
     def __call__(self, *args: Any) -> Any:
         if not isinstance(self._ty, FunctionType):
             err = f"Value of type `{self._ty}` is not callable"
@@ -467,9 +467,9 @@ class GuppyStructObject(DunderMixin):
         if key in self._field_values:
             return self._field_values[key]
         # Or a method
-        func = get_tracing_state().globals.get_instance_func(self._ty, key)
+        func = ENGINE.get_instance_func(self._ty, key)
         if func is None:
-            err = f"Expression of type `{self._ty}` has no attribute `{key}`"
+            err = f"Expression of struct type `{self._ty}` has no attribute `{key}`"
             raise AttributeError(err)
         return lambda *xs: TracingDefMixin(func)(self, *xs)
 
@@ -478,20 +478,66 @@ class GuppyStructObject(DunderMixin):
         if key in self._field_values:
             if self._frozen:
                 err = (
-                    f"Object of type `{self._ty}` is an owned function argument. "
+                    f"Object of struct type `{self._ty}` is an owned function "
+                    "argument. "
                     "Therefore, this mutation won't be visible to the caller."
                 )
                 raise GuppyComptimeError(err)
             self._field_values[key] = value
         else:
-            err = f"Expression of type `{self._ty}` has no attribute `{key}`"
+            err = f"Expression of struct type `{self._ty}` has no attribute `{key}`"
             raise AttributeError(err)
 
     @hide_trace
     def __iter__(self) -> Any:
         # Abstract Guppy objects are not iterable from Python since our iterator
         # protocol doesn't work during tracing.
-        raise GuppyComptimeError(f"Expression of type `{self._ty}` is not iterable")
+        raise GuppyComptimeError(f"Struct of type `{self._ty}` is not iterable")
+
+
+class GuppyEnumObject(DunderMixin):
+    """The runtime representation of Guppy enum objects during tracing.
+
+    Enum values are tagged unions: the active variant is not known at comptime, so
+    variant fields are not accessible. This class is backed by a single Hugr wire
+    (like `GuppyObject`) and only exposes methods defined on the enum type.
+
+    Attribute assignment is always rejected since enums have no mutable fields.
+    """
+
+    #: The enum type
+    _ty: EnumType
+    #: The Hugr wire holding this enum object
+    _wire: Wire
+
+    def __init__(self, ty: EnumType, wire: Wire) -> None:
+        # Can't use regular assignment for class attributes since we override
+        # `__setattr__` below
+        object.__setattr__(self, "_ty", ty)
+        object.__setattr__(self, "_wire", wire)
+
+    @hide_trace
+    def __getattr__(self, key: str) -> Any:
+        # We can only access methods
+        func = ENGINE.get_instance_func(self._ty, key)
+        if func is None:
+            raise GuppyComptimeError(
+                f" Expression of enum type `{self._ty}` has no method `{key}`. "
+                "It may be a variant field, but variant fields are inaccessible"
+            )
+        return lambda *xs: TracingDefMixin(func)(self, *xs)
+
+    @hide_trace
+    def __setattr__(self, key: str, value: Any) -> None:
+        raise AttributeError("Enum variants do not support attribute assignment")
+
+    @hide_trace
+    def __iter__(self) -> Any:
+        # Abstract Guppy objects are not iterable from Python since our iterator
+        # protocol doesn't work during tracing.
+        raise GuppyComptimeError(
+            f"Expression of enum type `{self._ty}` is not iterable"
+        )
 
 
 @dataclass(frozen=True)
@@ -514,16 +560,16 @@ class TracingDefMixin(DunderMixin):
                 "only be called in a Guppy context"
             )
 
-        defn = ENGINE.get_checked(self.wrapped.id)
+        defn = ENGINE.get_parsed(self.wrapped.id)
         if isinstance(defn, CallableDef):
             return trace_call(defn, *args)
-        elif (
-            isinstance(defn, TypeDef)
-            and defn.id in DEF_STORE.impls
-            and "__new__" in DEF_STORE.impls[defn.id]
-        ):
-            constructor = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id]["__new__"]]
-            return TracingDefMixin(constructor)(*args)
+        elif not isinstance(defn, CheckableGenericDef):
+            # Definition is non-generic, so we can use `mono_args=()` here
+            defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
+            if isinstance(defn, TypeDef) and (
+                constructor_id := DEF_STORE.type_members[defn.id].get("__new__")
+            ):
+                return TracingDefMixin(DEF_STORE.raw_defs[constructor_id])(*args)
         err = f"{defn.description.capitalize()} `{defn.name}` is not callable"
         raise GuppyComptimeError(err)
 
@@ -537,8 +583,7 @@ class TracingDefMixin(DunderMixin):
         # TODO: Alternatively, it could be a type application on a generic function.
         #  Supporting those requires a comptime representation of types as values
         if tracing_active():
-            state = get_tracing_state()
-            defn = state.globals[self.wrapped.id]
+            defn = ENGINE.get_parsed(self.wrapped.id)
             if isinstance(defn, CallableDef) and defn.ty.parametrized:
                 raise GuppyComptimeError(
                     "Explicitly specifying type arguments of generic functions in a "
@@ -551,7 +596,7 @@ class TracingDefMixin(DunderMixin):
 
     def to_guppy_object(self) -> GuppyObject:
         state = get_tracing_state()
-        defn = ENGINE.get_checked(self.id)
+        defn = ENGINE.get_parsed(self.id)
         # TODO: For generic functions, we need to know an instantiation for their type
         #  parameters. Maybe we should pass them to `to_guppy_object`? Either way, this
         #  will require some more plumbing of type inference information through the
@@ -561,13 +606,18 @@ class TracingDefMixin(DunderMixin):
             raise GuppyComptimeError(
                 f"Cannot infer type parameters of generic function `{defn.name}`"
             )
-        defn, [] = state.ctx.build_compiled_def(self.id, type_args=[])
+        defn = state.ctx.build_compiled_def(self.id, type_args=())
         if isinstance(defn, CompiledValueDef):
             wire = defn.load(state.dfg, state.ctx, state.node)
             return GuppyObject(defn.ty, wire, None)
         elif isinstance(defn, TypeDef):
-            if defn.id in DEF_STORE.impls and "__new__" in DEF_STORE.impls[defn.id]:
-                constructor = DEF_STORE.raw_defs[DEF_STORE.impls[defn.id]["__new__"]]
+            if (
+                defn.id in DEF_STORE.type_members
+                and "__new__" in DEF_STORE.type_members[defn.id]
+            ):
+                constructor = DEF_STORE.raw_defs[
+                    DEF_STORE.type_members[defn.id]["__new__"]
+                ]
                 return TracingDefMixin(constructor).to_guppy_object()
         err = f"{defn.description.capitalize()} `{defn.name}` is not a value"
         raise GuppyComptimeError(err)
