@@ -160,13 +160,15 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     ) -> "CompiledPytketDef":
         """Adds a Hugr `FuncDefn` node for this function to the Hugr."""
         from pytket.circuit import Circuit  # Decoupled import
-        from tket.circuit import Tk2Circuit  # Decoupled import
+        from tket._state import CompilationState  # Decoupled import
 
         # Type mismatch should have been raised in decorator
         assert isinstance(self.input_circuit, Circuit)
         # TODO extract the correct entry point from the module
         circ = envelope.read_envelope(
-            Tk2Circuit(self.input_circuit).to_bytes(EnvelopeConfig.TEXT)
+            CompilationState.from_tket1(self.input_circuit).to_bytes(
+                EnvelopeConfig.BINARY
+            )
         ).modules[0]
 
         mapping = module.hugr.insert_hugr(circ)
