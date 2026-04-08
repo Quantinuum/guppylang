@@ -81,11 +81,12 @@ def test_clifford_simplification() -> None:
         cx(q0, q1)
         s(q1)
         cx(q1, q0)
-        my_hugr_graph = normalize(simple_clifford.compile_function().modules[0])
-        cliff_pass = PytketHugrPass(CliffordSimp(allow_swaps=True))
-        opt_hugr = cliff_pass(my_hugr_graph)
-        # test that we can cancel a CX gate by using an implicit swap
-        assert _count_ops(opt_hugr, "CX") == 1
+
+    my_hugr_graph = normalize(simple_clifford.compile_function().modules[0])
+    cliff_pass = PytketHugrPass(CliffordSimp(allow_swaps=True))
+    opt_hugr = cliff_pass(my_hugr_graph)
+    # test that we can cancel a CX gate by using an implicit swap
+    assert _count_ops(opt_hugr, "CX") == 1
 
 
 def test_1q_rz_squashing() -> None:
