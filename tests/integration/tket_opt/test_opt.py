@@ -32,18 +32,18 @@ def test_guppy_normalization() -> None:
         t(q1)
         cx(q0, q1)
 
-        unnormalized_hugr: Hugr = pauli_zz_rotation.compile_function().modules[0]
+    unnormalized_hugr: Hugr = pauli_zz_rotation.compile_function().modules[0]
 
-        # Count ops prior to normalization
-        assert _count_ops(unnormalized_hugr, "DataflowBlock") == 1
-        assert _count_ops(unnormalized_hugr, "MakeTuple") == 3
+    # Count ops prior to normalization
+    assert _count_ops(unnormalized_hugr, "DataflowBlock") == 1
+    assert _count_ops(unnormalized_hugr, "MakeTuple") == 3
 
-        normalized_hugr = normalize(unnormalized_hugr)
+    normalized_hugr = normalize(unnormalized_hugr)
 
-        # Test that the dataflow block is inlined by NormalizeGuppy
-        assert _count_ops(normalized_hugr, "DataflowBlock") == 0
-        # Test that MakeTuple nodes are removed by NormalizeGuppy
-        assert _count_ops(normalized_hugr, "MakeTuple") == 0
+    # Test that the dataflow block is inlined by NormalizeGuppy
+    assert _count_ops(normalized_hugr, "DataflowBlock") == 0
+    # Test that MakeTuple nodes are removed by NormalizeGuppy
+    assert _count_ops(normalized_hugr, "MakeTuple") == 0
 
 
 def test_redundant_cx_cancellation() -> None:
