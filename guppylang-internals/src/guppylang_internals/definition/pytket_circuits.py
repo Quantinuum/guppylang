@@ -167,7 +167,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         # TODO extract the correct entry point from the module
         circ = envelope.read_envelope(
             CompilationState.from_tket1(self.input_circuit).to_bytes(
-                EnvelopeConfig.TEXT
+                EnvelopeConfig.BINARY
             )
         ).modules[0]
 
