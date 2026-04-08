@@ -44,7 +44,7 @@ def compile_local_func_def(
     # Prepend captured variables to the function arguments
     func_ty = func.ty.to_hugr(ctx)
     closure_ty = ht.FunctionType([*captured_types, *func_ty.input], func_ty.output)
-    func_builder = dfg.builder.module_root_builder().define_function(
+    func_builder = dfg.builder.raw_builder.module_root_builder().define_function(
         func.name, closure_ty.input, closure_ty.output
     )
 

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 from hugr import Wire, ops
 from hugr import tys as ht
-from hugr.build.dfg import DfBase
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
 from guppylang_internals.ast_util import (
@@ -21,6 +20,7 @@ from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.core import (
     CompilerContext,
+    DFBuilder,
     DFContainer,
     GlobalConstId,
 )
@@ -401,6 +401,11 @@ class CustomInoutCallCompiler(ABC):
         self.ty = hugr_ty
         self.func = func
 
+        # The only source code we can map any operations inside a custom compiled
+        # function to is the function definition itself, so we set the function
+        # definition node as the AST context in the builder.
+        self.builder.current_ast_node = self.node
+
     @abstractmethod
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         """Compiles a custom function call.
@@ -410,7 +415,7 @@ class CustomInoutCallCompiler(ABC):
         """
 
     @property
-    def builder(self) -> DfBase[ops.DfParentOp]:
+    def builder(self) -> DFBuilder[ops.DfParentOp]:
         """The hugr dataflow builder."""
         return self.dfg.builder
 
@@ -420,10 +425,7 @@ class CustomCallCompiler(CustomInoutCallCompiler, ABC):
 
     @abstractmethod
     def compile(self, args: list[Wire]) -> list[Wire]:
-        """Compiles a custom function call and returns the resulting ports.
-
-        Use the provided `self.builder` to add nodes to the Hugr graph.
-        """
+        """Compiles a custom function call and returns the resulting ports."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         return CallReturnWires(self.compile(args), inout_returns=[])
@@ -508,7 +510,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         op = self.op(hugr_op_ty, self.type_args, self.ctx)
         converted_args = [
             self.builder.add_op(read_bool(), arg)
-            if self.builder.hugr.port_type(arg.out_port()) == OpaqueBool
+            if self.builder.get_wire_type(arg) == OpaqueBool
             else arg
             for arg in args
         ]
@@ -516,7 +518,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         result = list(node.outputs())
         converted_result = [
             self.builder.add_op(make_opaque(), res)
-            if self.builder.hugr.port_type(res.out_port()) == ht.Bool
+            if self.builder.get_wire_type(res) == ht.Bool
             else res
             for res in result
         ]

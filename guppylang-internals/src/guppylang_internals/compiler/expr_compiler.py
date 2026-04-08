@@ -24,6 +24,7 @@ from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
     CompilerBase,
     CompilerContext,
+    DFBuilder,
     DFContainer,
     GlobalConstId,
 )
@@ -112,6 +113,13 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     dfg: DFContainer
 
+    def visit(self, node: Any, *args: Any, **kwargs: Any) -> Wire:
+        """Overrides `visit` to set the current AST node context for debug information
+        attachment.
+        """
+        with self.builder.set_ast_context(node):
+            return super().visit(node, *args, **kwargs)
+
     def compile(self, expr: ast.expr, dfg: DFContainer) -> Wire:
         """Compiles an expression and returns a single wire holding the output value."""
         self.dfg = dfg
@@ -127,7 +135,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return [self.compile(e, dfg) for e in expr_to_row(expr)]
 
     @property
-    def builder(self) -> DfBase[ops.DfParentOp]:
+    def builder(self) -> DFBuilder[ops.DfParentOp]:
         """The current Hugr dataflow graph builder."""
         return self.dfg.builder
 
@@ -209,7 +217,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         `False` branch.
         """
         cond_wire = self.visit(cond)
-        cond_ty = self.builder.hugr.port_type(cond_wire.out_port())
+        cond_ty = self.builder.get_wire_type(cond_wire)
         if cond_ty == OpaqueBool:
             cond_wire = self.builder.add_op(read_bool(), cond_wire)
         conditional = self.builder.add_conditional(
@@ -343,7 +351,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         args = self._compile_call_args(node.args, func_ty)
         call = self.builder.add_op(
-            ops.CallIndirect(func_ty.to_hugr(self.ctx)), func, *args
+            ops.CallIndirect(func_ty.to_hugr(self.ctx)),
+            func,
+            *args,
         )
         regular_returns = list(call[:num_returns])
         inout_returns = call[num_returns:]
@@ -400,7 +410,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             consumed_args, other_args = args[0:input_len], args[input_len:]
             consumed_wires = self._compile_call_args(consumed_args, func_ty)
             call = self.builder.add_op(
-                ops.CallIndirect(func_ty.to_hugr(self.ctx)), func, *consumed_wires
+                ops.CallIndirect(func_ty.to_hugr(self.ctx)),
+                func,
+                *consumed_wires,
             )
             regular_returns: list[Wire] = list(call[:num_returns])
             inout_returns = call[num_returns:]
@@ -564,13 +576,15 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             )
             # Turn into standard array from borrow array.
             qubit_arr_in = self.builder.add_op(
-                array_to_std_array(ht.Qubit, num_qubits_arg), qubit_arr_in
+                array_to_std_array(ht.Qubit, num_qubits_arg),
+                qubit_arr_in,
             )
 
             qubit_arr_out = self.builder.add_op(op, qubit_arr_in)
 
             qubit_arr_out = self.builder.add_op(
-                std_array_to_array(ht.Qubit, num_qubits_arg), qubit_arr_out
+                std_array_to_array(ht.Qubit, num_qubits_arg),
+                qubit_arr_out,
             )
             qubits_out = unpack_array(self.builder, qubit_arr_out)
         else:
@@ -579,7 +593,12 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             qubits_in = [self.visit(node.args[1])]
             qubits_out = [
                 apply_array_op_with_conversions(
-                    self.ctx, self.builder, op, ht.Qubit, num_qubits_arg, qubits_in[0]
+                    self.ctx,
+                    self.builder,
+                    op,
+                    ht.Qubit,
+                    num_qubits_arg,
+                    qubits_in[0],
                 )
             ]
 
@@ -610,7 +629,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         hugr_elt_ty = node.elt_ty.to_hugr(self.ctx)
         # Initialise empty array.
         self.dfg[array_var] = self.builder.add_op(
-            barray_new_all_borrowed(hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx))
+            barray_new_all_borrowed(
+                hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx)
+            ),
         )
         self.dfg[count_var] = self.builder.load(
             hugr.std.int.IntVal(0, width=NumericType.INT_WIDTH)
@@ -675,17 +696,17 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 # In the "no" case, we set the break predicate to true
                 break_pred_hugr_ty = ht.Either([iter_ty.to_hugr(self.ctx)], [])
                 with stop_case:
-                    self.dfg[break_pred.place] = self.dfg.builder.add_op(
+                    self.dfg[break_pred.place] = self.builder.add_op(
                         ops.Tag(1, break_pred_hugr_ty)
                     )
                 # Otherwise, we continue, set the break predicate to false, and insert
                 # the iterator for the next loop iteration
                 stack.enter_context(hasnext_case)
                 next_wire = self.dfg[next_var.place]
-                elt, it = self.dfg.builder.add_op(ops.UnpackTuple(), next_wire)
+                elt, it = self.builder.add_op(ops.UnpackTuple(), next_wire)
                 compiler.dfg = self.dfg
                 compiler._assign(gen.target, elt)
-                self.dfg[break_pred.place] = self.dfg.builder.add_op(
+                self.dfg[break_pred.place] = self.builder.add_op(
                     ops.Tag(0, break_pred_hugr_ty), it
                 )
                 # Enter nested conditionals for each if guard on the generator
@@ -709,7 +730,7 @@ def expr_to_row(expr: ast.expr) -> list[ast.expr]:
 def pack_returns(
     returns: Sequence[Wire],
     return_ty: Type,
-    builder: DfBase[ops.DfParentOp],
+    builder: DFBuilder[ops.DfParentOp],
     ctx: CompilerContext,
 ) -> Wire:
     """Groups function return values into a tuple"""
@@ -725,7 +746,11 @@ def pack_returns(
 
 
 def unpack_wire(
-    wire: Wire, return_ty: Type, builder: DfBase[ops.DfParentOp], ctx: CompilerContext
+    wire: Wire,
+    return_ty: Type,
+    builder: DFBuilder[ops.DfParentOp],
+    ctx: CompilerContext,
+    ast_node: AstNode | None = None,
 ) -> list[Wire]:
     """The inverse of `pack_returns`"""
     if isinstance(return_ty, TupleType | NoneType):
@@ -779,9 +804,6 @@ def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value
     return None
 
 
-ARRAY_UNWRAP_ELEM: Final[GlobalConstId] = GlobalConstId.fresh("array.__unwrap_elem")
-ARRAY_WRAP_ELEM: Final[GlobalConstId] = GlobalConstId.fresh("array.__wrap_elem")
-
 ARRAY_READ_BOOL: Final[GlobalConstId] = GlobalConstId.fresh("array.__read_bool")
 ARRAY_MAKE_OPAQUE_BOOL: Final[GlobalConstId] = GlobalConstId.fresh(
     "array.__make_opaque_bool"
@@ -824,7 +846,7 @@ def doesnt_contain_none(xs: list[T | None]) -> TypeGuard[list[T]]:
 
 def apply_array_op_with_conversions(
     ctx: CompilerContext,
-    builder: DfBase[ops.DfParentOp],
+    builder: DFBuilder[ops.DfParentOp],
     op: ops.DataflowOp,
     elem_ty: ht.Type,
     size_arg: ht.TypeArg,
@@ -846,7 +868,10 @@ def apply_array_op_with_conversions(
         input_array = builder.add_op(map_op, input_array, array_read)
         elem_ty = ht.Bool
 
-    input_array = builder.add_op(array_to_std_array(elem_ty, size_arg), input_array)
+    input_array = builder.add_op(
+        array_to_std_array(elem_ty, size_arg),
+        input_array,
+    )
 
     result_array = builder.add_op(op, input_array)
 

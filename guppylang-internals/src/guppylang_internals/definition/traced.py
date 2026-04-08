@@ -7,6 +7,7 @@ import hugr.build.function as hf
 import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.metadata import HugrDebugInfo
 
 from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals
@@ -19,12 +20,15 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CompilableDef,
     ParsableDef,
 )
-from guppylang_internals.definition.function import parse_py_func
-from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
+from guppylang_internals.definition.function import (
+    make_subprogram_record,
+    parse_py_func,
+)
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -32,6 +36,7 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import GuppyError
+from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
@@ -48,7 +53,7 @@ class RawTracedFunctionDef(ParsableDef):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
-    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
@@ -110,6 +115,10 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
             self.metadata,
             additional_metadata={"unitary": self.ty.unitary_flags.value},
         )
+        if debug_mode_enabled():
+            func_def.metadata[HugrDebugInfo] = make_subprogram_record(
+                self.defined_at, ctx
+            )
         return CompiledTracedFunctionDef(
             self.id,
             self.name,
@@ -152,9 +161,10 @@ class CompiledTracedFunctionDef(
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
         type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         num_returns = len(type_to_row(self.ty.output))
-        call = dfg.builder.call(
-            self.func_def, *args, instantiation=func_ty, type_args=type_args
-        )
+        with dfg.builder.set_ast_context(node):
+            call = dfg.builder.call(
+                self.func_def, *args, instantiation=func_ty, type_args=type_args
+            )
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
             inout_returns=list(call[num_returns:]),

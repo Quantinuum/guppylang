@@ -73,7 +73,7 @@ class EitherConstructor(EitherCompiler, CustomCallCompiler):
         assert isinstance(inp_arg, TypeArg)
         [inp] = args
         # Unpack the single input into a row
-        inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx)
+        inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx, self.node)
         return [self.builder.add_op(ops.Tag(self.tag, ty), *inp_row)]
 
 

@@ -1,22 +1,24 @@
 import itertools
 from abc import ABC
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, Generic, cast
 
 import tket_exts
-from hugr import Hugr, Node, Wire, ops
+from hugr import Hugr, Node, Wire, ops, val
 from hugr import tys as ht
+from hugr.build import Conditional, TailLoop
 from hugr.build import function as hf
 from hugr.build.dfg import DP, DefinitionBuilder, DfBase
 from hugr.hugr.base import OpVarCov
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import NodeMetadata
+from hugr.metadata import HugrDebugInfo, NodeMetadata
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import (
     FieldAccess,
     Place,
@@ -25,7 +27,6 @@ from guppylang_internals.checker.core import (
     Variable,
 )
 from guppylang_internals.definition.common import (
-    CheckedDef,
     CompilableDef,
     CompiledDef,
     DefId,
@@ -36,6 +37,11 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.metadata.debug_info_util import (
+    StringTable,
+    debug_conditions_fulfilled,
+    make_location_record,
+)
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.subst import Inst
@@ -88,14 +94,28 @@ class CompilerContext(ToHugrContext):
 
     global_funcs: dict[MonoGlobalConstId, hf.Function]
 
+    #: The definitions that should be exported (i.e. made public) in the Hugr module
+    #: currently being built. For compilation of single entrypoints, this will be just
+    #: that entrypoint, while for compilation of libraries this will contain all
+    #: functions that are part of its public interface.
+    exported_defs: set[DefId]
+
+    metadata_file_table: StringTable
+
     def __init__(
         self,
         module: DefinitionBuilder[ops.Module],
+        exported_defs: set[DefId],
+        file_table: StringTable | None = None,
     ) -> None:
         self.module = module
         self.worklist = {}
         self.compiled = {}
         self.global_funcs = {}
+        self.exported_defs: set[DefId] = exported_defs
+        self.metadata_file_table = (
+            file_table if file_table is not None else StringTable([])
+        )
 
     def build_compiled_def(self, def_id: DefId, type_args: Inst | None) -> CompiledDef:
         """Returns the compiled definitions corresponding to the given ID.
@@ -111,15 +131,7 @@ class CompilerContext(ToHugrContext):
             self.worklist[def_id, mono_args] = None
         return self.compiled[def_id, mono_args]
 
-    def compile(self, defn: CheckedDef, mono_args: Inst) -> CompiledDef:
-        """Compiles the given definition and all of its dependencies into the current
-        Hugr."""
-        # Check and compile the entry point
-        entry_compiled = self.build_compiled_def(defn.id, mono_args)
-        self.compiled[defn.id, mono_args] = entry_compiled
-        self.worklist[defn.id, mono_args] = None
-
-        # Compile definition bodies
+    def iterate_worklist(self) -> None:
         while self.worklist:
             next_id, next_mono_args = self.worklist.popitem()[0]
             next_def = self.compiled[next_id, next_mono_args]
@@ -130,8 +142,6 @@ class CompilerContext(ToHugrContext):
         # TODO: This is a quick workaround until we can properly insert these drops
         # during linearity checking. See https://github.com/quantinuum/guppylang/issues/1082
         insert_drops(self.module.hugr)
-
-        return entry_compiled
 
     def build_compiled_instance_func(
         self,
@@ -187,7 +197,7 @@ class DFContainer:
     current compilation state.
     """
 
-    builder: DfBase[ops.DfParentOp]
+    builder: "DFBuilder[ops.DfParentOp]"
     ctx: CompilerContext
     locals: CompiledLocals = field(default_factory=dict)
 
@@ -200,7 +210,7 @@ class DFContainer:
         generic_builder = cast("DfBase[ops.DfParentOp]", builder)
         if locals is None:
             locals = {}
-        self.builder = generic_builder
+        self.builder = DFBuilder(generic_builder)
         self.ctx = ctx
         self.locals = locals
 
@@ -265,7 +275,104 @@ class DFContainer:
     def __copy__(self) -> "DFContainer":
         # Make a copy of the var map so that mutating the copy doesn't
         # mutate our variable mapping
-        return DFContainer(self.builder, self.ctx, self.locals.copy())
+        return DFContainer(self.builder.raw_builder, self.ctx, self.locals.copy())
+
+
+@dataclass
+class DFBuilder(Generic[DP]):
+    """A wrapper around a dataflow graph builder which ensures compiler-specific
+    additional actions can be performed every time an operation is added to the graph.
+
+    Manages attaching debug information, which requires keeping track of the most
+    relevant AST node for each operation being compiled with `current_ast_node`.
+
+    The underlying builder can still be accessed through `raw_builder`.
+    """
+
+    raw_builder: DfBase[DP]
+    current_ast_node: AstNode | None = None
+
+    @contextmanager
+    def set_ast_context(self, ast_node: AstNode) -> Iterator[None]:
+        """Context manager to set the current AST node context for debug information
+        attachment - within the context of this manager the given `ast_node` will be
+        considered the most relevant AST node for any operation added, temporarily
+        overriding the previous `current_ast_node`.
+        """
+        prev_node = self.current_ast_node
+        self.current_ast_node = ast_node
+        try:
+            yield
+        finally:
+            self.current_ast_node = prev_node
+
+    def add_op(
+        self,
+        op: ops.DataflowOp,
+        /,
+        *args: Wire,
+        set_debug_info: bool = True,
+    ) -> Node:
+        """Adds an op to the dataflow graph builder. Set `set_debug_info=False` to
+        avoid automatic debug information attachment.
+        """
+        op_node = self.raw_builder.add_op(op, *args)
+        if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
+            assert self.current_ast_node is not None  # for type-checker
+            op_node.metadata[HugrDebugInfo] = make_location_record(
+                self.current_ast_node
+            )
+        return op_node
+
+    def call(
+        self,
+        func: ToNode,
+        *args: Wire,
+        instantiation: ht.FunctionType | None = None,
+        type_args: Sequence[ht.TypeArg] | None = None,
+        set_debug_info: bool = True,
+    ) -> Node:
+        """Calls a static function in the graph. Set `set_debug_info=False` to
+        avoid automatic debug information attachment.
+        """
+        call = self.raw_builder.call(
+            func, *args, instantiation=instantiation, type_args=type_args
+        )
+        if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
+            assert self.current_ast_node is not None  # for type-checker
+            call.metadata[HugrDebugInfo] = make_location_record(self.current_ast_node)
+        return call
+
+    # Other frequently used operations for which we want to avoid having to use
+    # `raw_builder` every time for convenience, even though we aren't setting any debug
+    # information in them (yet).
+
+    def get_wire_type(self, wire: Wire) -> ht.Type | None:
+        return self.raw_builder.hugr.port_type(wire.out_port())
+
+    def add_conditional(self, cond_wire: Wire, *args: Wire) -> Conditional:
+        return self.raw_builder.add_conditional(cond_wire, *args)
+
+    def add_tail_loop(
+        self, just_inputs: Sequence[Wire], rest: Sequence[Wire]
+    ) -> TailLoop:
+        return self.raw_builder.add_tail_loop(just_inputs, rest)
+
+    def load(
+        self, const: ToNode | val.Value, const_parent: ToNode | None = None
+    ) -> Node:
+        return self.raw_builder.load(const, const_parent)
+
+    def load_function(
+        self,
+        func: ToNode,
+        instantiation: ht.FunctionType | None = None,
+        type_args: Sequence[ht.TypeArg] | None = None,
+    ) -> Node:
+        return self.raw_builder.load_function(func, instantiation, type_args)
+
+    def add_const(self, value: val.Value, parent: ToNode | None = None) -> Node:
+        return self.raw_builder.add_const(value, parent)
 
 
 class CompilerBase(ABC):
