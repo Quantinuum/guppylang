@@ -20,7 +20,7 @@ class ConstBase(Transformable["Const"], ABC):
     we could have struct constants etc.
     """
 
-    ty: "Type" = field(hash=False)  # Types are not hashable
+    ty: "Type" = field(compare=False, hash=False)  # Types are not hashable
 
     @abstractmethod
     def cast(self) -> "Const":
