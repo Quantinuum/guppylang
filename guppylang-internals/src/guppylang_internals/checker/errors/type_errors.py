@@ -130,6 +130,7 @@ class AttributeNotFoundError(Error):
     span_label: ClassVar[str] = "`{ty}` has no {element_name} `{attribute}`"
     ty: Type
     attribute: str
+    is_enum_class: bool | None = None  # Used only when `ty` is an EnumType
 
     @property
     def element_name(self) -> str:
@@ -138,7 +139,11 @@ class AttributeNotFoundError(Error):
         if isinstance(self.ty, StructType):
             return "field or method"
         elif isinstance(self.ty, EnumType):
-            return "variant or method"
+            assert self.is_enum_class is not None
+            if self.is_enum_class:
+                return "variant"
+            else:
+                return "method"
         else:
             return "attribute"
 
@@ -292,16 +297,6 @@ class UnpackableError(Error):
             "items yielded by the iterator is statically known. This is not the case "
             "for `{ty}`."
         )
-
-    @dataclass(frozen=True)
-    class GenericSize(Note):
-        message: ClassVar[str] = (
-            "Unpacking of iterable types like `{ty}` is only allowed if the number of "
-            "items yielded by the iterator is statically known. Here, the number of "
-            "items `{num}` is generic and can change between different function "
-            "invocations."
-        )
-        num: Const
 
 
 @dataclass(frozen=True)

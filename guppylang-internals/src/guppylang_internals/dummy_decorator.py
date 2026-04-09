@@ -57,6 +57,9 @@ class _DummyGuppy:
     def compile_function(self, *args: Any, **kwargs: Any) -> Any:
         return None
 
+    def library(self, *args: Any, **kwargs: Any) -> Any:
+        return None
+
     def pytket(self, *args: Any, **kwargs: Any) -> Any:
         return lambda f: f
 

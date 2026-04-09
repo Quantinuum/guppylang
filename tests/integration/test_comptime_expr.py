@@ -151,9 +151,14 @@ def test_func_type_arg(validate):
     class Baz:
         xs: array[int, comptime(n)]
 
+    @guppy.enum
+    class Enum:
+        VariantA = {"xs": array[int, comptime(n)]}  # noqa: RUF012
+
     validate(foo.compile_function())
     validate(bar.compile_function())
     validate(Baz.compile())
+    validate(Enum.compile())
 
 
 def test_subscript_assign(validate):
@@ -184,3 +189,29 @@ def test_subscript_annotated_assign(validate):
         xs[comptime(n)]: int = 0
 
     validate(subscript.compile_function())
+
+
+def test_generic(run_int_fn):
+    n = guppy.nat_var("n")
+
+    @guppy
+    def foo(_xs: array[int, n]) -> nat:
+        return comptime(n + 1)
+
+    @guppy
+    def main() -> int:
+        return int(foo(array(1, 2, 3)))
+
+    run_int_fn(main, 4)
+
+
+def test_comptime_args(run_int_fn):
+    @guppy
+    def foo(x: int @ comptime, y: int @ comptime) -> int:
+        return comptime(x - y + 1)
+
+    @guppy
+    def main() -> int:
+        return foo(10, 20)
+
+    run_int_fn(main, -9)

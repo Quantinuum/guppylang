@@ -25,7 +25,7 @@ from guppylang_internals.checker.errors.generic import (
     UnsupportedError,
 )
 from guppylang_internals.checker.errors.type_errors import WrongNumberOfArgsError
-from guppylang_internals.diagnostic import Error, Note
+from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import (
     check_lists_enabled,
@@ -71,14 +71,6 @@ class Jumps(NamedTuple):
 class UnreachableError(Error):
     title: ClassVar[str] = "Unreachable"
     span_label: ClassVar[str] = "This code is not reachable"
-
-
-@dataclass(frozen=True)
-class Branch(Note):
-    span_label: ClassVar[str] = (
-        "Consider adding a return statement if this expression is `{truth_value}`"
-    )
-    truth_value: bool
 
 
 class CFGBuilder(AstVisitor[BB | None]):
@@ -137,7 +129,9 @@ class CFGBuilder(AstVisitor[BB | None]):
                         # for better error reporting
                         if branch_cond is not None:
                             expr, idx = branch_cond
-                            err.add_sub_diagnostic(Branch(expr, idx == 1))
+                            err.add_sub_diagnostic(
+                                ExpectedError.MissingBranch(expr, idx == 1)
+                            )
                     raise GuppyError(err)
             self.cfg.link(final_bb, self.cfg.exit_bb)
 
@@ -363,11 +357,14 @@ class CFGBuilder(AstVisitor[BB | None]):
         for item in node.items:
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
             modifiers.push(self._handle_withitem(item))
-
         accumulated_flags = self.cfg.unitary_flags | modifiers.flags()
         cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
         new_node = ModifiedBlock(
-            cfg=cfg, modifiers=modifiers, **dict(ast.iter_fields(node))
+            cfg=cfg,
+            modifiers=modifiers,
+            # we save the first modifier node for a better error rendering
+            first_modifier_node=node.items[0].context_expr,
+            **dict(ast.iter_fields(node)),
         )
 
         set_location_from(new_node, node)

@@ -52,7 +52,8 @@ class ConstBase(Transformable["Const"], ABC):
 
     def visit(self, visitor: Visitor) -> None:
         """Accepts a visitor on this constant."""
-        visitor.visit(self)
+        if not visitor.visit(self):
+            visitor.visit(self.ty)
 
     def to_arg(self) -> "ConstArg":
         """Wraps this constant into a type argument."""

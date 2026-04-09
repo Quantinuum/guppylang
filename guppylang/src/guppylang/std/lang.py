@@ -1,8 +1,15 @@
 """Provides Python objects for builtin language keywords."""
 
+from collections.abc import Generator
 from typing import Any, Protocol, TypeVar
 
+from guppylang_internals.error import GuppyComptimeError
+
 T = TypeVar("T")
+
+_MODIFIER_COMPTIME_ERROR = (
+    "The `{modifier}` modifier is not supported in comptime functions"
+)
 
 
 class _Comptime:
@@ -42,3 +49,18 @@ class Copy(Protocol):
 
 class Drop(Protocol):
     """Bound to mark generic type parameters as being implicitly droppable."""
+
+
+def control(*args: Any, **kwargs: Any) -> Generator[None]:
+    """Dummy function to support `with control(...):` blocks in Guppy code."""
+    raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="control"))
+
+
+def dagger(*args: Any, **kwargs: Any) -> Generator[None]:
+    """Dummy function to support `with dagger(...):` blocks in Guppy code."""
+    raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="dagger"))
+
+
+def power(*args: Any, **kwargs: Any) -> Generator[None]:
+    """Dummy function to support `with power(...):` blocks in Guppy code."""
+    raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="power"))

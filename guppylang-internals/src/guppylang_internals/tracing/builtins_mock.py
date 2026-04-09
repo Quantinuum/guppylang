@@ -11,7 +11,11 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from guppylang_internals.tracing.object import GuppyObject, GuppyStructObject
+from guppylang_internals.tracing.object import (
+    GuppyEnumObject,
+    GuppyObject,
+    GuppyStructObject,
+)
 
 
 def _mock_meta(cls: type) -> type:
@@ -54,7 +58,7 @@ class int(builtins.int, metaclass=_mock_meta(builtins.int)):  # type: ignore[met
 
 
 def len(x: Any) -> Any:
-    if isinstance(x, GuppyObject | GuppyStructObject):
+    if isinstance(x, GuppyObject | GuppyStructObject | GuppyEnumObject):
         return x.__len__()
     return builtins.len(x)
 

@@ -4,18 +4,14 @@ from collections.abc import Sequence
 from hugr import Wire, ops
 from hugr import tys as ht
 
-from guppylang_internals.ast_util import get_type
-from guppylang_internals.compiler.expr_compiler import pack_returns, unpack_wire
+from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
 )
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.std._internal.compiler.prelude import (
-    build_unwrap_left,
-    build_unwrap_right,
-)
+from guppylang_internals.std._internal.compiler.prelude import build_unwrap_either
 from guppylang_internals.std._internal.compiler.tket_bool import (
     OPAQUE_FALSE,
     OPAQUE_TRUE,
@@ -77,7 +73,7 @@ class EitherConstructor(EitherCompiler, CustomCallCompiler):
         assert isinstance(inp_arg, TypeArg)
         [inp] = args
         # Unpack the single input into a row
-        inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx)
+        inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx, self.node)
         return [self.builder.add_op(ops.Tag(self.tag, ty), *inp_row)]
 
 
@@ -129,15 +125,10 @@ class EitherUnwrapCompiler(EitherCompiler, CustomCallCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         [either] = args
-        if self.tag == 0:
-            out = build_unwrap_left(
-                self.builder, either, "Either.unwrap_left: value is `right`"
-            )
-        else:
-            out = build_unwrap_right(
-                self.builder, either, "Either.unwrap_right: value is `left`"
-            )
-        # Pack outputs into a single wire. We're not allowed to return a row since the
-        # signature has a generic return type (also see `TupleType.preserve`)
-        return_ty = get_type(self.node)
-        return [pack_returns(list(out), return_ty, self.builder, self.ctx)]
+        is_left = self.tag == 0
+        [this_side, other_side] = ["left", "right"] if is_left else ["right", "left"]
+        error_msg = f"Either.unwrap_{this_side}: value is `{other_side}`"
+        out = build_unwrap_either(
+            self.builder, either, left=is_left, error_msg=error_msg
+        )
+        return list(out.outputs())
