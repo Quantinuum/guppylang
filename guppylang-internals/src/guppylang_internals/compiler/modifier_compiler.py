@@ -8,7 +8,7 @@ from guppylang_internals.checker.modifier_checker import non_copyable_front_othe
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
-from guppylang_internals.definition.metadata import add_metadata
+from guppylang_internals.metadata.common import add_metadata
 from guppylang_internals.nodes import CheckedModifiedBlock, PlaceNode
 from guppylang_internals.std._internal.compiler.array import (
     array_new,
@@ -54,7 +54,7 @@ def compile_modified_block(
     in_out_arg = ht.ListArg([t.type_arg() for t in in_out_ht])
     other_in_arg = ht.ListArg([t.type_arg() for t in other_in_ht])
 
-    func_builder = dfg.builder.module_root_builder().define_function(
+    func_builder = dfg.builder.raw_builder.module_root_builder().define_function(
         str(modified_block), hugr_ty.input, hugr_ty.output
     )
     add_metadata(

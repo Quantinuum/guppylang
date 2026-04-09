@@ -6,7 +6,7 @@ Error: Not owned (at $FILE:11:20)
    |                     ^ Function `__new__` wants to take ownership of this argument,
    |                       but `test` doesn't own `q`
 
-Note:
+Help:
    | 
  9 | @guppy
 10 | def test(q: qubit) -> MyStruct:

@@ -11,13 +11,16 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, ca
 import guppylang_internals
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.declaration import RawFunctionDecl
+from guppylang_internals.definition.enum import CheckedEnumDef
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tracing.object import TracingDefMixin
+from guppylang_internals.tracing.object import (
+    TracingDefMixin,
+)
 from guppylang_internals.tracing.util import hide_trace
 from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
@@ -34,6 +37,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     "GuppyDefinition",
+    "GuppyEnumDefinition",
     "GuppyFunctionDefinition",
     "GuppyLibrary",
     "GuppyTypeVarDefinition",
@@ -92,6 +96,31 @@ class GuppyDefinition(TracingDefMixin):
 
 
 @dataclass(frozen=True)
+class GuppyEnumDefinition(GuppyDefinition):
+    """A Guppy enum definition."""
+
+    @hide_trace
+    def __getattr__(self, name: str) -> Any:
+        # Handle attribute access when calling an enum variant constructor, like
+        # `Enum.VariantA()`. In all other cases, we should not try create a new
+        # attribute, so we directly raise the error.
+        defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
+        assert isinstance(defn, CheckedEnumDef)
+        if (
+            # We can only access the variants of the enum from the enum class,
+            # not methods
+            name in defn.variants
+            and defn.id in DEF_STORE.type_members
+            and name in DEF_STORE.type_members[defn.id]
+        ):
+            member_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name]]
+            return TracingDefMixin(member_def)
+        raise AttributeError(
+            f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
+        )
+
+
+@dataclass(frozen=True)
 class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
     """A Guppy function definition."""
 
@@ -137,7 +166,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             isinstance(self.wrapped, RawFunctionDef)
             and self.wrapped.metadata is not None
         ):
-            hinted_qubits = self.wrapped.metadata.max_qubits.value
+            hinted_qubits = self.wrapped.metadata.get_max_qubits()
             if qubits is None:
                 qubits = hinted_qubits
             elif hinted_qubits is not None and qubits < hinted_qubits:
@@ -233,22 +262,24 @@ class GuppyLibrary:
 
     members: list[DefId]
 
-    def _member_impls(self) -> list[DefId]:
+    def _type_members(self) -> list[DefId]:
         """Any implementations registered for members of this library. Note that the
         list is only guaranteed to be complete after calling `check()` on the library
         members, since auto-generated implementations may be added during checking."""
-        impls: list[DefId] = []
+        members: list[DefId] = []
         for def_id in self.members:
             # TODO automatic member inclusion should be based on the automatic
             # collection when available
-            impls.extend(DEF_STORE.impls[def_id].values())
+            members.extend(DEF_STORE.type_members[def_id].values())
 
-        return impls
+        return members
 
     def compile(self) -> Package:
         """Compile this collection of definitions into a HUGR package."""
         ENGINE.check(self.members)
-        pointer = ENGINE.compile(self.members + self._member_impls(), reset=False)
+        # Check fills _type_members with additional members only available after
+        # checking, so we have to call it before compiling (without an engine reset).
+        pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
         return pointer.package
@@ -256,7 +287,7 @@ class GuppyLibrary:
     def check(self) -> None:
         """Type-check all contained definitions."""
         ENGINE.check(self.members)
-        ENGINE.check(self._member_impls(), reset=False)
+        ENGINE.check(self._type_members(), reset=False)
 
 
 @dataclass(frozen=True)

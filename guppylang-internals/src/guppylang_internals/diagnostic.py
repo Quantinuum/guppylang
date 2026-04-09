@@ -3,6 +3,7 @@ import textwrap
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from itertools import groupby
 from typing import (
     Any,
     ClassVar,
@@ -248,7 +249,7 @@ class DiagnosticsRenderer:
             children_with_span = [
                 (child, to_span(child.span)) for child in diag.children if child.span
             ]
-            all_spans = [span] + [span for _, span in children_with_span]
+            all_spans = [span] + [s for _, s in children_with_span]
             max_lineno = max(s.end.line for s in all_spans)
 
             self.buffer.append(f"{level}: {diag.rendered_title} (at {span.start})")
@@ -262,59 +263,71 @@ class DiagnosticsRenderer:
                 prefix_lines=self.PREFIX_ERROR_CONTEXT_LINES,
             )
 
-            match children_with_span:
-                case []:
-                    pass
-                case [(only_child, span)]:
-                    self.buffer.append("\nNote:")
-                    self.render_snippet(
-                        span,
-                        only_child.rendered_span_label,
-                        max_lineno,
-                        prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                        print_pad_line=True,
-                    )
-                case [(first_child, first_span), *children_with_span]:
-                    self.buffer.append("\nNotes:")
-                    self.render_snippet(
-                        first_span,
-                        first_child.rendered_span_label,
-                        max_lineno,
-                        prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                        print_pad_line=True,
-                    )
-
-                    prev_span_end_lineno = first_span.end.line
-
-                    for sub_diag, span in children_with_span:
-                        span_start_lineno = span.start.line
-                        span_end_lineno = span.end.line
-
-                        # If notes are on the same line, render them together
-                        if span_start_lineno == prev_span_end_lineno:
-                            prefix_lines = 0
-                            print_pad_line = True
-                        # if notes are close enough, render them adjacently
-                        elif (
-                            span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
-                            <= prev_span_end_lineno + 1
-                        ):
-                            prefix_lines = span_start_lineno - prev_span_end_lineno - 1
-                            print_pad_line = False
-                        # otherwise we render a separator between notes
-                        else:
-                            self.buffer.append("")
-                            prefix_lines = self.PREFIX_NOTE_CONTEXT_LINES
-                            print_pad_line = False
-
+            # Render children grouped by consecutive runs of the same level,
+            # preserving the original order
+            # e.g.
+            # Notes:
+            #   - Note 1 (span)
+            #   - Note 2 (span)
+            # Help:
+            #   - Help 1 (span)
+            #   - Help 2 (span)
+            # ...
+            for lv, group_iter in groupby(children_with_span, key=lambda x: x[0].level):
+                group = list(group_iter)
+                match group:
+                    case [(only_child, only_span)]:
+                        self.buffer.append(f"\n{self.level_str(lv)}:")
                         self.render_snippet(
-                            span,
-                            sub_diag.rendered_span_label,
+                            only_span,
+                            only_child.rendered_span_label,
                             max_lineno,
-                            prefix_lines=prefix_lines,
-                            print_pad_line=print_pad_line,
+                            prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                            print_pad_line=True,
                         )
-                        prev_span_end_lineno = span_end_lineno
+                    case [(first_child, first_span), *rest_group]:
+                        self.buffer.append(f"\n{self.level_str_plural(lv)}:")
+                        self.render_snippet(
+                            first_span,
+                            first_child.rendered_span_label,
+                            max_lineno,
+                            prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                            print_pad_line=True,
+                        )
+
+                        prev_span_end_lineno = first_span.end.line
+
+                        for sub_diag, span in rest_group:
+                            span_start_lineno = span.start.line
+                            span_end_lineno = span.end.line
+
+                            # If notes are on the same line, render them together
+                            if span_start_lineno == prev_span_end_lineno:
+                                prefix_lines = 0
+                                print_pad_line = True
+                            # if notes are close enough, render them adjacently
+                            elif (
+                                span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
+                                <= prev_span_end_lineno + 1
+                            ):
+                                prefix_lines = (
+                                    span_start_lineno - prev_span_end_lineno - 1
+                                )
+                                print_pad_line = False
+                            # otherwise we render a separator between notes
+                            else:
+                                self.buffer.append("")
+                                prefix_lines = self.PREFIX_NOTE_CONTEXT_LINES
+                                print_pad_line = False
+
+                            self.render_snippet(
+                                span,
+                                sub_diag.rendered_span_label,
+                                max_lineno,
+                                prefix_lines=prefix_lines,
+                                print_pad_line=print_pad_line,
+                            )
+                            prev_span_end_lineno = span_end_lineno
 
             # Render the main diagnostic message if present
             if diag.rendered_message:
@@ -458,6 +471,21 @@ class DiagnosticsRenderer:
     def level_str(level: DiagnosticLevel) -> str:
         """Returns the text used to identify the different kinds of diagnostics."""
         return level.name.lower().capitalize()
+
+    @staticmethod
+    def level_str_plural(level: DiagnosticLevel) -> str:
+        """Returns the plural form of the level name for section headers."""
+        match level:
+            case DiagnosticLevel.NOTE:
+                return "Notes"
+            case DiagnosticLevel.HELP:
+                return "Help"
+            case DiagnosticLevel.WARNING:
+                return "Warnings"
+            case _:
+                raise InternalGuppyError(
+                    f"We should not have more than one diagnostic of level: {level}"
+                )
 
 
 class MietteRenderer:

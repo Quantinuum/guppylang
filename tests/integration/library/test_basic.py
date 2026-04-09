@@ -170,3 +170,33 @@ def test_pre_compile():
     emulator = EmulatorBuilder().build(main_pkg.link(adder_lib), n_qubits=1)
     results = emulator.run().results[0].entries
     assert results == [("result", 15)]
+
+
+def test_dependency_public():
+    """Tests that a library containing both a function and its dependency as public
+    can be compiled and linked, even if the dependency is included after the depender.
+    """
+
+    @guppy
+    def dependency_func(x: int) -> int:
+        return 2 * x
+
+    @guppy(link_name="adder")
+    def depender_func(x: int) -> int:
+        return x + dependency_func(x)
+
+    # Including depender_func causes dependency to be emitted already
+    lib = guppy.library(depender_func, dependency_func).compile()
+
+    @guppy.declare(link_name="adder")
+    def depender_func_decl(x: int) -> int: ...
+
+    @guppy
+    def main() -> None:
+        result("result", depender_func_decl(5))
+
+    main_pkg = main.compile()
+
+    emulator = EmulatorBuilder().build(main_pkg.link(lib), n_qubits=1)
+    results = emulator.run().results[0].entries
+    assert results == [("result", 15)]

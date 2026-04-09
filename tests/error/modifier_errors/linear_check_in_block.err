@@ -1,15 +1,15 @@
-Error: Copy violation (at $FILE:15:16)
+Error: Copy violation (at $FILE:16:16)
    | 
-13 |     with control(q):
-14 |         xs = array(1, 2, 3)
-15 |         foo(xs, xs)
+14 |     with control(q):
+15 |         xs = array(1, 2, 3)
+16 |         foo(xs, xs)
    |                 ^^ Variable `xs` with non-copyable type `array[int, 3]` cannot
    |                    be borrowed ...
 
 Note:
    | 
-14 |         xs = array(1, 2, 3)
-15 |         foo(xs, xs)
+15 |         xs = array(1, 2, 3)
+16 |         foo(xs, xs)
    |             -- Variable `xs` already borrowed here
 
 Help: Consider copying `xs` instead of moving it: `xs.copy()`

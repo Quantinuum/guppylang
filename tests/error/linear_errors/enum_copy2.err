@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:13:14)
+   | 
+11 | @guppy
+12 | def foo(s: MyEnum @owned) -> tuple[MyEnum, MyEnum]:
+13 |     return s, s
+   |               ^ Variable `s` with non-copyable type `MyEnum` cannot be
+   |                 returned ...
+
+Note:
+   | 
+12 | def foo(s: MyEnum @owned) -> tuple[MyEnum, MyEnum]:
+13 |     return s, s
+   |            - Variable `s` already returned here
+
+Guppy compilation failed due to 1 previous error

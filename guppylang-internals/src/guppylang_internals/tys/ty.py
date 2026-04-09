@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
@@ -12,7 +12,6 @@ from hugr import tys as ht
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
-    QuantifiedToHugrContext,
     ToHugr,
     ToHugrContext,
     Transformable,
@@ -24,8 +23,10 @@ from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.struct import CheckedStructDef, StructField
+    from guppylang_internals.definition.enum import CheckedEnumDef, EnumVariant
+    from guppylang_internals.definition.struct import CheckedStructDef
     from guppylang_internals.definition.ty import OpaqueTypeDef
+    from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.subst import Inst, PartialInst, Subst
 
 
@@ -204,7 +205,10 @@ class BoundTypeVar(TypeBase, BoundVar):
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
         """Computes the Hugr representation of the type."""
-        return ctx.type_var_to_hugr(self)
+        raise InternalGuppyError(
+            "Tried to convert generic variable to Hugr. This should have been "
+            "monomorphized away."
+        )
 
     def visit(self, visitor: Visitor) -> None:
         """Accepts a visitor on this type."""
@@ -279,11 +283,6 @@ class NoneType(TypeBase):
     copyable: bool = field(default=True, init=True)
     droppable: bool = field(default=True, init=True)
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
-
-    # Flag to avoid turning the type into a row when calling `type_to_row()`. This is
-    # used to make sure that type vars instantiated to Nones are not broken up into
-    # empty rows when generating a Hugr
-    preserve: bool = field(default=False, compare=False)
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
@@ -488,13 +487,13 @@ class FunctionType(ParametrizedTypeBase):
 
     def to_hugr_poly(self, ctx: ToHugrContext) -> ht.PolyFuncType:
         """Computes the Hugr `PolyFuncType` representation of the type."""
-        # Function body needs to be translated in a new context where the variables are
-        # bound to the quantifier.
-        inner_ctx = QuantifiedToHugrContext(self.params)
-        func_ty = self._to_hugr_function_type(inner_ctx)
-        return ht.PolyFuncType(
-            params=[p.to_hugr(ctx) for p in self.params], body=func_ty
-        )
+        if self.parametrized:
+            raise InternalGuppyError(
+                "Tried to convert parametrised function type to Hugr. This should have "
+                "been monomorphized away."
+            )
+        func_ty = self._to_hugr_function_type(ctx)
+        return ht.PolyFuncType(params=[], body=func_ty)
 
     def _to_hugr_function_type(self, ctx: ToHugrContext) -> ht.FunctionType:
         """Helper method to compute the Hugr `FunctionType` representation of the type.
@@ -534,6 +533,8 @@ class FunctionType(ParametrizedTypeBase):
             [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
             self.output.transform(transformer),
             self.params,
+            comptime_args=self.comptime_args,
+            unitary_flags=self.unitary_flags,
         )
 
     def instantiate_partial(self, args: "PartialInst") -> "FunctionType":
@@ -551,13 +552,6 @@ class FunctionType(ParametrizedTypeBase):
                 param = param.with_idx(len(remaining_params))
                 remaining_params.append(param.instantiate_bounds(full_inst))
                 arg = param.to_bound()
-
-            # Set the `preserve` flag for instantiated tuples and None
-            if isinstance(arg, TypeArg):
-                if isinstance(arg.ty, TupleType):
-                    arg = TypeArg(TupleType(arg.ty.element_types, preserve=True))
-                elif isinstance(arg.ty, NoneType):
-                    arg = TypeArg(NoneType(preserve=True))
             full_inst.append(arg)
 
         inst = Instantiator(full_inst)
@@ -569,6 +563,7 @@ class FunctionType(ParametrizedTypeBase):
             comptime_args=[
                 cast("ConstArg", arg.transform(inst)) for arg in self.comptime_args
             ],
+            unitary_flags=self.unitary_flags,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
@@ -578,7 +573,8 @@ class FunctionType(ParametrizedTypeBase):
     def unquantified(self) -> tuple["FunctionType", Sequence[ExistentialVar]]:
         """Instantiates all parameters with existential variables."""
         exs = [param.to_existential() for param in self.params]
-        return self.instantiate([arg for arg, _ in exs]), [var for _, var in exs]
+        inst = tuple(arg for arg, _ in exs)
+        return self.instantiate(inst), [var for _, var in exs]
 
     def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
         """Returns a copy of this function type with the specified unitary flags."""
@@ -599,17 +595,11 @@ class TupleType(ParametrizedTypeBase):
 
     element_types: Sequence["Type"]
 
-    # Flag to avoid turning the tuple into a row when calling `type_to_row()`. This is
-    # used to make sure that type vars instantiated to tuples are not broken up into
-    # rows when generating a Hugr
-    preserve: bool = field(default=False, compare=False)
-
-    def __init__(self, element_types: Sequence["Type"], preserve: bool = False) -> None:
+    def __init__(self, element_types: Sequence["Type"]) -> None:
         # We need a custom __init__ to set the args
         args = [TypeArg(ty) for ty in element_types]
         object.__setattr__(self, "args", args)
         object.__setattr__(self, "element_types", element_types)
-        object.__setattr__(self, "preserve", preserve)
 
     @property
     def intrinsically_copyable(self) -> bool:
@@ -632,7 +622,7 @@ class TupleType(ParametrizedTypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or TupleType(
-            [ty.transform(transformer) for ty in self.element_types], self.preserve
+            [ty.transform(transformer) for ty in self.element_types]
         )
 
 
@@ -685,16 +675,16 @@ class StructType(ParametrizedTypeBase):
     defn: "CheckedStructDef"
 
     @cached_property
-    def fields(self) -> list["StructField"]:
+    def fields(self) -> list["CheckedField"]:
         """The fields of this struct type."""
-        from guppylang_internals.definition.struct import StructField
+        from guppylang_internals.definition.util import CheckedField
         from guppylang_internals.tys.subst import Instantiator
 
         inst = Instantiator(self.args)
-        return [StructField(f.name, f.ty.transform(inst)) for f in self.defn.fields]
+        return [CheckedField(f.name, f.ty.transform(inst)) for f in self.defn.fields]
 
     @cached_property
-    def field_dict(self) -> "dict[str, StructField]":
+    def field_dict(self) -> "dict[str, CheckedField]":
         """Mapping from names to fields of this struct type."""
         return {field.name: field for field in self.fields}
 
@@ -723,8 +713,72 @@ class StructType(ParametrizedTypeBase):
         )
 
 
+@dataclass(frozen=True)
+class EnumType(ParametrizedTypeBase):
+    """An enum (sum/tagged union) type."""
+
+    defn: "CheckedEnumDef"
+
+    @cached_property
+    def variants_as_list(self) -> list["EnumVariant[CheckedField]"]:
+        """The list variants of this enum type."""
+        from guppylang_internals.definition.enum import EnumVariant
+        from guppylang_internals.definition.util import CheckedField
+        from guppylang_internals.tys.subst import Instantiator
+
+        inst = Instantiator(self.args)
+
+        # Ensure that the order is consistent
+        variants_list = sorted(self.defn.variants.values(), key=lambda v: v.index)
+        return [
+            EnumVariant(
+                variant.index,
+                variant.name,
+                [CheckedField(f.name, f.ty.transform(inst)) for f in variant.fields],
+            )
+            for variant in variants_list
+        ]
+
+    @cached_property
+    def variants_as_dict(self) -> Mapping[str, "EnumVariant[CheckedField]"]:
+        """The mapping from variant names to variants of this enum type."""
+        return self.defn.variants
+
+    @cached_property
+    def intrinsically_copyable(self) -> bool:
+        """Whether objects of this type can be implicitly copied.
+
+        An enum is copyable only if ALL payload types in ALL variants are copyable.
+        """
+        return all(all(f.ty.copyable for f in v.fields) for v in self.variants_as_list)
+
+    @cached_property
+    def intrinsically_droppable(self) -> bool:
+        """Whether objects of this type can be dropped.
+
+        An enum is droppable only if ALL payload types in ALL variants are droppable.
+        """
+        return all(all(f.ty.droppable for f in v.fields) for v in self.variants_as_list)
+
+    def cast(self) -> "Type":
+        return self
+
+    def to_hugr(self, ctx: ToHugrContext) -> ht.Sum:
+        """Computes the Hugr representation of the type."""
+        rows = [[f.ty.to_hugr(ctx) for f in v.fields] for v in self.variants_as_list]
+        return ht.Sum(rows)
+
+    def transform(self, transformer: Transformer) -> "Type":
+        """Accepts a transformer on this type."""
+        return transformer.transform(self) or EnumType(
+            [arg.transform(transformer) for arg in self.args], self.defn
+        )
+
+
 #: The type of parametrized Guppy types.
-ParametrizedType: TypeAlias = FunctionType | TupleType | OpaqueType | StructType
+ParametrizedType: TypeAlias = (
+    FunctionType | TupleType | OpaqueType | StructType | EnumType
+)
 
 
 #: The type of Guppy types.
@@ -756,9 +810,9 @@ def row_to_type(row: TypeRow) -> Type:
 
 def type_to_row(ty: Type) -> TypeRow:
     """Turns a type into a row of types by unpacking top-level tuples."""
-    if isinstance(ty, NoneType) and not ty.preserve:
+    if isinstance(ty, NoneType):
         return []
-    if isinstance(ty, TupleType) and not ty.preserve:
+    if isinstance(ty, TupleType):
         return ty.element_types
     return [ty]
 
@@ -810,6 +864,8 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
         case OpaqueType() as s, OpaqueType() as t if s.defn == t.defn:
             return _unify_args(s, t, subst)
         case StructType() as s, StructType() as t if s.defn == t.defn:
+            return _unify_args(s, t, subst)
+        case EnumType() as s, EnumType() as t if s.defn == t.defn:
             return _unify_args(s, t, subst)
         case _:
             return None

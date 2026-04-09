@@ -3,15 +3,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, TypeAlias
 
-from hugr import tys as ht
 from typing_extensions import Self
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.generic import ExpectedError
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
-from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
+from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.common import ToHugr, ToHugrContext
 from guppylang_internals.tys.const import BoundConstVar, ExistentialConstVar
 from guppylang_internals.tys.errors import WrongNumberOfTypeArgsError
 from guppylang_internals.tys.var import ExistentialVar
@@ -30,7 +28,7 @@ Parameter: TypeAlias = "TypeParam | ConstParam"
 
 
 @dataclass(frozen=True)
-class ParameterBase(ToHugr[ht.TypeParam], ABC):
+class ParameterBase(ABC):
     """Abstract base class for parameters used in function and type definitions.
 
     For example, when defining a struct type
@@ -151,14 +149,6 @@ class TypeParam(ParameterBase):
         # For now, type parameters don't have any bounds that could be instantiated
         return self
 
-    def to_hugr(self, ctx: ToHugrContext) -> ht.TypeParam:
-        """Computes the Hugr representation of the parameter."""
-        return ht.TypeTypeParam(
-            bound=ht.TypeBound.Copyable
-            if self.must_be_copyable
-            else ht.TypeBound.Linear
-        )
-
     def __str__(self) -> str:
         """User-facing string representation of the parameter."""
         return self.name
@@ -223,19 +213,6 @@ class ConstParam(ParameterBase):
         instantiator = Instantiator(inst)
         return replace(self, ty=self.ty.transform(instantiator))
 
-    def to_hugr(self, ctx: ToHugrContext) -> ht.TypeParam:
-        """Computes the Hugr representation of the parameter."""
-        from guppylang_internals.tys.ty import NumericType
-
-        match self.ty:
-            case NumericType(kind=NumericType.Kind.Nat):
-                return ht.BoundedNatParam(upper_bound=None)
-            case _:
-                raise InternalGuppyError(
-                    "Tried to convert non-nat const type parameter to Hugr. This "
-                    "should have been monomorphized away."
-                )
-
     def __str__(self) -> str:
         """User-facing string representation of the parameter."""
         return f"{self.name}: {self.ty}"
@@ -253,6 +230,7 @@ def check_all_args(
     Raises a user error if number of arguments doesn't match or one of the argument is
     invalid.
     """
+
     exp, act = len(params), len(args)
     if exp != act:
         # TODO: Adjust the error span to only point to the offending arguments (similar

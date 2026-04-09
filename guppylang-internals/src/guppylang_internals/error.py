@@ -33,6 +33,16 @@ class GuppyComptimeError(Exception):
     """Exception for type and linearity errors that are caught in a comptime context."""
 
 
+class RequiresMonomorphizationError(Exception):
+    """Internal exception that is used whenever type checking cannot proceed without
+    monomorphizaion.
+
+    When checking generic functions, we first try a pass where the parameters are kept
+    as opaque variables to give nicer error messaged. This exception is thrown whenever
+    we cannot proceed using only opaque values.
+    """
+
+
 class InternalGuppyError(Exception):
     """Exception for internal problems during compilation."""
 
@@ -46,7 +56,9 @@ def exception_hook(hook: ExceptHook) -> Iterator[None]:
     try:
         # Check if we're inside a jupyter notebook since it uses its own exception
         # hook. If we're in a regular interpreter, this line will raise a `NameError`
-        ipython_shell = get_ipython()  # type: ignore[name-defined]
+        ipython_shell = (
+            get_ipython()  # type: ignore[name-defined] # pyright: ignore[reportUndefinedVariable]
+        )
 
         def ipython_excepthook(
             shell: Any,

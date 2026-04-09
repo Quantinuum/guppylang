@@ -10,6 +10,8 @@ extend-exclude = [
   "*.ipynb",
 ]
 
+src = ["guppylang", "guppylang-internals", "tests"]
+
 [lint]
 
 select = [

@@ -1,19 +1,14 @@
 [dependency-groups]
-docs = [
-    "furo>=2024.8.6",
-    "myst-parser>=4.0.1",
-    "sphinx >=7.2.6,<9",
-    "sphinx-copybutton>=0.5.2",
-]
+docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
     { include-group = "examples" },
 ]
-lint = ["pre-commit>=3.6.0,<5", "ruff~=0.15.0", "mypy ~=1.19.1"]
+lint = ["pre-commit>=3.6.0,<5", "ruff~=0.15.0", "mypy~=1.20.0"]
 examples = ["matplotlib>=3.9.2", "networkx>=2.6,<4"]
 test = [
-    "pytest>=8.3.2,<10",
+    "pytest>=8.4.2,<10",
     "pytest-cov>=5.0.0,<8",
     "pytest-notebook >=0.10.0,<0.11",
     "pytest-snapshot >=0.9.0,<1",
@@ -21,10 +16,7 @@ test = [
     "pytest-xdist>=3.8.0",
     "ipykernel>=6.29.5,<8",
     "miette-py",
-    "tket~=0.12.15",
-]
-bench = [
-    "pyinstrument>=5.1.2",
+    "pytest-isolate>=0.0.13",
 ]
 
 [tool.uv]
@@ -37,7 +29,7 @@ guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
-hugr = { git = "https://github.com/quantinuum/hugr", branch = "main", subdirectory = "hugr-py" }
+# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
 
 [build-system]
 requires = ["hatchling"]

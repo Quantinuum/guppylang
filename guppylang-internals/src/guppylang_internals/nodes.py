@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.const import Const
+from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FunctionType,
@@ -22,8 +22,7 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.cfg_checker import CheckedCFG
     from guppylang_internals.checker.core import Place, Variable
     from guppylang_internals.definition.common import DefId
-    from guppylang_internals.definition.struct import StructField
-    from guppylang_internals.tys.param import ConstParam
+    from guppylang_internals.definition.util import CheckedField
 
 
 class PlaceNode(ast.expr):
@@ -59,19 +58,27 @@ class GlobalName(ast.Name):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class GenericParamValue(ast.Name):
+class DummyGenericParamValue(ast.Name):
+    """Dummy node that is inserted for uses of generic const parameters as values.
+
+    Note that this node is only used during the first parametric check of generic
+    functions where all const type parameters are treated as opaque values. When
+    checking the concrete monomorphic instantiations that are used in the final program,
+    these dummy nodes will never be emitted.
+    """
+
     id: str
-    param: "ConstParam"
+    var: BoundConstVar
 
     _fields = (
         "id",
-        "param",
+        "var",
     )
 
-    def __init__(self, id: str, param: "ConstParam") -> None:
+    def __init__(self, id: str, var: BoundConstVar) -> None:
         super().__init__(id=id)
         self.id = id
-        self.param = param
+        self.var = var
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -112,6 +119,7 @@ class GlobalCall(ast.expr):
         super().__init__()
         self.def_id = def_id
         self.args = args
+        assert isinstance(type_args, tuple)
         self.type_args = type_args
 
     # See MakeIter for explanation
@@ -195,7 +203,7 @@ class FieldAccessAndDrop(ast.expr):
 
     value: ast.expr
     struct_ty: "StructType"
-    field: "StructField"
+    field: "CheckedField"
 
     _fields = (
         "value",
@@ -204,7 +212,7 @@ class FieldAccessAndDrop(ast.expr):
     )
 
     def __init__(
-        self, value: ast.expr, struct_ty: "StructType", field: "StructField"
+        self, value: ast.expr, struct_ty: "StructType", field: "CheckedField"
     ) -> None:
         super().__init__()
         self.value = value
@@ -782,14 +790,28 @@ class Modifiers:
 
 
 class ModifiedBlock(ast.With):
+    """Node representing a unchecked `with` block
+
+    parameters:
+    - `cfg`: the CFG of the body of the block
+    - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    """
+
     cfg: "CFG"
+    first_modifier_node: ast.expr
 
     def __init__(
-        self, cfg: "CFG", modifiers: "Modifiers", *args: Any, **kwargs: Any
+        self,
+        cfg: "CFG",
+        modifiers: "Modifiers",
+        first_modifier_node: ast.expr,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.modifiers = modifiers
+        self.first_modifier_node = first_modifier_node
 
     @property
     def dagger(self) -> list[Dagger]:
