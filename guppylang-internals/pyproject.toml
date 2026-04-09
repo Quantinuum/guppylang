@@ -44,6 +44,3 @@ pytket = []
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.ruff.per-file-target-version]
-"tests/**_py312.py" = "py312"
