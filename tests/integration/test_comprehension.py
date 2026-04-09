@@ -340,8 +340,8 @@ def test_borrow_struct(validate):
 def test_borrow_enum(validate):
     @guppy.enum
     class MyEnum:
-        VariantA = {"q": qubit}  # noqa: RUF012
-        VariantB = {}  # noqa: RUF012
+        VariantA = {"q": qubit}
+        VariantB = {}
 
     @guppy.declare
     def foo(e: MyEnum) -> int: ...

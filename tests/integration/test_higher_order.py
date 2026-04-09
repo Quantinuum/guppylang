@@ -104,7 +104,7 @@ def test_nested_capture_struct(validate):
 def test_nested_capture_enum(validate):
     @guppy.enum
     class MyEnum:
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def tag(self) -> int:

@@ -32,11 +32,12 @@ def test_struct(validate):
 
     validate(main.compile_function())
 
+
 def test_enum(validate):
     @guppy.enum
     class MyEnum[S, T]:
-        VariantA = {"x": S}  # noqa: RUF012
-        VariantB = {"x": S, "y": T}  # noqa: RUF012
+        VariantA = {"x": S}
+        VariantB = {"x": S, "y": T}
 
     @guppy
     def main() -> None:
@@ -44,7 +45,6 @@ def test_enum(validate):
         MyEnum.VariantB[int, float](2, 3.0)
 
     validate(main.compile_function())
-
 
 
 def test_inner_frame(validate):
@@ -56,10 +56,11 @@ def test_inner_frame(validate):
             @guppy
             def foo(self: "MyStruct[int]") -> None:
                 pass
-        
+
         @guppy.enum
         class MyEnum[T]:
             VariantA = {}
+
             @guppy
             def method(self: "MyEnum[int]") -> None:
                 pass
@@ -82,12 +83,12 @@ def test_copy_bound(validate):
 
     @guppy.enum
     class MyEnum[T: Copy]:
-        VariantA = {"x": T}  # noqa: RUF012
+        VariantA = {"x": T}
 
     @guppy
     def foo_enum[T: Copy](e1: MyEnum[T]) -> tuple[MyEnum[T], MyEnum[T]]:
         return e1, e1
-    
+
     @guppy
     def foo_struct[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
         return s.x, s.x
@@ -116,7 +117,9 @@ def test_drop_bound(validate):
         pass
 
     @guppy
-    def main(s: MyStruct[array[int, 5]] @ owned, e: MyEnum[array[int, 5]] @ owned) -> None:
+    def main(
+        s: MyStruct[array[int, 5]] @ owned, e: MyEnum[array[int, 5]] @ owned
+    ) -> None:
         helper(s, e)
 
     validate(main.compile_function())
@@ -129,16 +132,28 @@ def test_copy_and_drop_bound(validate):
 
     @guppy.enum
     class MyEnum[T: (Copy, Drop)]:
-        VariantA = {"x": T}  # noqa: RUF012
+        VariantA = {"x": T}
 
     @guppy
-    def foo[T: (Copy, Drop)](s1: MyStruct[T], s2: MyStruct[T],  e1: MyEnum[T], e2: MyEnum[T]) -> tuple[T, T, MyEnum[T], MyEnum[T]]:
+    def foo[T: (Copy, Drop)](
+        s1: MyStruct[T], s2: MyStruct[T], e1: MyEnum[T], e2: MyEnum[T]
+    ) -> tuple[T, T, MyEnum[T], MyEnum[T]]:
         return s1.x, s1.x, e1, e1
 
     @guppy
     def main() -> None:
-        foo(MyStruct(42), MyStruct(43), MyEnum.VariantA[int](42), MyEnum.VariantA[int](43))
-        foo(MyStruct(False), MyStruct(True), MyEnum.VariantA[bool](False), MyEnum.VariantA[bool](True))
+        foo(
+            MyStruct(42),
+            MyStruct(43),
+            MyEnum.VariantA[int](42),
+            MyEnum.VariantA[int](43),
+        )
+        foo(
+            MyStruct(False),
+            MyStruct(True),
+            MyEnum.VariantA[bool](False),
+            MyEnum.VariantA[bool](True),
+        )
 
     validate(main.compile_function())
 
@@ -147,12 +162,11 @@ def test_const_param(validate):
     @guppy.struct
     class MyStruct[T, n: nat]:
         xs: array[T, n]
-    
+
     @guppy.enum
     class MyEnum[T, n: nat]:
-        VariantA = {"xs": array[T, n]} 
+        VariantA = {"xs": array[T, n]}
         VariantB = {}
-
 
     @guppy
     def foo[T, n: nat](xs: array[T, n], s: MyStruct[T, n], e: MyEnum[T, n]) -> nat:

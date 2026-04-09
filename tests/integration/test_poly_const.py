@@ -51,7 +51,7 @@ def test_bool(validate, run_int_fn):
 
     @guppy.enum
     class DummyEnum(Generic[B]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def foo_enum(_: DummyEnum[B]) -> bool:
@@ -115,7 +115,7 @@ def test_int(validate):
 
     @guppy.enum
     class DummyEnum(Generic[IT]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def foo_enum(_: DummyEnum[IT]) -> float:
@@ -174,7 +174,7 @@ def test_float(validate, run_float_fn_approx):
 
     @guppy.enum
     class DummyEnum(Generic[F]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def foo_enum(_: DummyEnum[F]) -> float:
@@ -278,7 +278,7 @@ def test_chain(validate, run_int_fn):
 
     @guppy.enum
     class DummyEnum(Generic[B]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def a_enum(x: DummyEnum[B]) -> bool:
@@ -349,7 +349,7 @@ def test_recursion(validate):
 
     @guppy.enum
     class DummyEnum(Generic[B]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def foo_enum(_: DummyEnum[B]) -> int:
@@ -442,7 +442,7 @@ def test_many(validate):
     # opaque until pattern-matched), so the enum is passed through baz_enum/foo_enum
     @guppy.enum
     class MyEnum(Generic[T1, B, T2, N, T3, F]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def baz_enum(
@@ -508,7 +508,7 @@ def test_constructor(validate):
 
     @guppy.enum
     class MyEnum(Generic[B, F]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def main_enum() -> None:
@@ -567,7 +567,7 @@ def test_higher_order(validate):
 
     @guppy.enum
     class EnumType(Generic[B, F]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def efun1(x: EnumType[B, F]) -> None:
