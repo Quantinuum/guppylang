@@ -6,9 +6,10 @@ from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type, hugr_op
 from guppylang_internals.std._internal.compiler.quantum import (
-    InoutMeasureCompiler,
+    InoutMeasureCompilerBool,
     RotationCompiler,
 )
+from guppylang_internals.std._internal.compiler.tket_exts import MEASUREMENT_EXTENSION
 from guppylang_internals.std._internal.util import quantum_op
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr import tys as ht
@@ -40,6 +41,15 @@ class qubit:
     @no_type_check
     def discard(self: "qubit" @ owned) -> None:
         discard(self)
+
+
+@custom_type(
+    MEASUREMENT_EXTENSION.get_type("Measurement"), copyable=False, droppable=False
+)
+class Measurement:
+    @hugr_op(quantum_op("Read", MEASUREMENT_EXTENSION))
+    @no_type_check
+    def read(self) -> bool: ...
 
 
 @hugr_op(quantum_op("TryQAlloc"))
@@ -348,7 +358,7 @@ def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
     """
 
 
-@custom_function(InoutMeasureCompiler())
+@custom_function(InoutMeasureCompilerBool())
 @no_type_check
 def project_z(q: qubit) -> bool:
     """Project a single qubit into the Z-basis (a non-destructive measurement)."""
@@ -362,7 +372,7 @@ def discard(q: qubit @ owned) -> None:
 
 @hugr_op(quantum_op("MeasureFree"))
 @no_type_check
-def measure(q: qubit @ owned) -> bool:
+def measure(q: qubit @ owned) -> Measurement:
     """Measure a single qubit destructively."""
 
 
@@ -377,7 +387,7 @@ N = guppy.nat_var("N")
 
 @guppy
 @no_type_check
-def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
+def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
     """Measure an array of qubits, returning an array of bools."""
     return array(measure(q) for q in qubits)
 

@@ -9,7 +9,6 @@ from guppylang_internals.std._internal.compiler.prelude import build_unwrap_righ
 from guppylang_internals.std._internal.compiler.quantum import (
     RNGCONTEXT_T,
 )
-from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.std._internal.compiler.tket_exts import (
     FUTURES_EXTENSION,
     QSYSTEM_EXTENSION,
@@ -79,5 +78,4 @@ class ReadFutureBoolCompiler(CustomInoutCallCompiler):
             ),
             future,
         )
-        opaque_bool_value = self.builder.add_op(make_opaque(), bool_value)
-        return CallReturnWires(regular_returns=[opaque_bool_value], inout_returns=[])
+        return CallReturnWires(regular_returns=[bool_value], inout_returns=[])

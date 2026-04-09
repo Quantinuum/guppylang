@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
-from typing import Any, Final, TypeGuard, TypeVar
+from typing import Any, TypeGuard, TypeVar
 
 import hugr
 import hugr.std.collections.array
@@ -12,7 +12,6 @@ import hugr.std.prelude
 from hugr import Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
-from hugr.build import function as hf
 from hugr.build.cond_loop import Conditional
 from hugr.build.dfg import DP, DfBase
 
@@ -26,7 +25,6 @@ from guppylang_internals.compiler.core import (
     CompilerContext,
     DFBuilder,
     DFContainer,
-    GlobalConstId,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
 from guppylang_internals.definition.common import CheckableGenericDef
@@ -63,7 +61,6 @@ from guppylang_internals.std._internal.compiler.arithmetic import (
     convert_itousize,
 )
 from guppylang_internals.std._internal.compiler.array import (
-    array_map,
     array_new,
     array_to_std_array,
     barray_new_all_borrowed,
@@ -79,13 +76,6 @@ from guppylang_internals.std._internal.compiler.prelude import (
     build_panic,
     make_error,
     panic,
-)
-from guppylang_internals.std._internal.compiler.tket_bool import (
-    OpaqueBool,
-    OpaqueBoolVal,
-    make_opaque,
-    not_op,
-    read_bool,
 )
 from guppylang_internals.tys.builtin import (
     bool_type,
@@ -216,12 +206,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """Builds a `Conditional`, returning context managers to build the `True` and
         `False` branch.
         """
-        cond_wire = self.visit(cond)
-        cond_ty = self.builder.get_wire_type(cond_wire)
-        if cond_ty == OpaqueBool:
-            cond_wire = self.builder.add_op(read_bool(), cond_wire)
         conditional = self.builder.add_conditional(
-            cond_wire, *(self.visit(inp) for inp in inputs)
+            self.visit(cond), *(self.visit(inp) for inp in inputs)
         )
         only_true_inputs_ = only_true_inputs or []
         only_false_inputs_ = only_false_inputs or []
@@ -480,7 +466,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # since it is not implemented via a dunder method
         if isinstance(node.op, ast.Not):
             arg = self.visit(node.operand)
-            return self.builder.add_op(not_op(), arg)
+            return self.builder.add_op(hugr.std.logic.Not, arg)
 
         raise InternalGuppyError("Node should have been removed during type checking.")
 
@@ -592,7 +578,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             # array.
             qubits_in = [self.visit(node.args[1])]
             qubits_out = [
-                apply_array_op_with_conversions(
+                apply_op_with_borrow_array_conversion(
                     self.ctx,
                     self.builder,
                     op,
@@ -767,7 +753,7 @@ def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value
     """
     match v:
         case bool():
-            return OpaqueBoolVal(v)
+            return hv.bool_value(v)
         case str():
             return hugr.std.prelude.StringVal(v)
         case int():
@@ -804,38 +790,6 @@ def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value
     return None
 
 
-ARRAY_READ_BOOL: Final[GlobalConstId] = GlobalConstId.fresh("array.__read_bool")
-ARRAY_MAKE_OPAQUE_BOOL: Final[GlobalConstId] = GlobalConstId.fresh(
-    "array.__make_opaque_bool"
-)
-
-
-def array_read_bool(ctx: CompilerContext) -> hf.Function:
-    """Returns the Hugr function that is used to unwrap the elements in an option array
-    to turn it into a regular array."""
-    sig = ht.PolyFuncType(
-        params=[],
-        body=ht.FunctionType([OpaqueBool], [ht.Bool]),
-    )
-    func, already_defined = ctx.declare_global_func(ARRAY_READ_BOOL, sig)
-    if not already_defined:
-        func.set_outputs(func.add_op(read_bool(), func.inputs()[0]))
-    return func
-
-
-def array_make_opaque_bool(ctx: CompilerContext) -> hf.Function:
-    """Returns the Hugr function that is used to unwrap the elements in an option array
-    to turn it into a regular array."""
-    sig = ht.PolyFuncType(
-        params=[],
-        body=ht.FunctionType([ht.Bool], [OpaqueBool]),
-    )
-    func, already_defined = ctx.declare_global_func(ARRAY_MAKE_OPAQUE_BOOL, sig)
-    if not already_defined:
-        func.set_outputs(func.add_op(make_opaque(), func.inputs()[0]))
-    return func
-
-
 T = TypeVar("T")
 
 
@@ -844,44 +798,22 @@ def doesnt_contain_none(xs: list[T | None]) -> TypeGuard[list[T]]:
     return all(x is not None for x in xs)
 
 
-def apply_array_op_with_conversions(
+def apply_op_with_borrow_array_conversion(
     ctx: CompilerContext,
     builder: DFBuilder[ops.DfParentOp],
     op: ops.DataflowOp,
     elem_ty: ht.Type,
     size_arg: ht.TypeArg,
     input_array: Wire,
-    convert_bool: bool = False,
 ) -> Wire:
-    """Applies common transformations to a Guppy array input before it can be passed to
-    a Hugr op operating on a standard Hugr array, and then reverses them again on the
-    output array.
-
-    Transformations:
-    1. (Optional) Converts from / to opaque bool to / from Hugr bool.
-    2. Converts from / to borrow array to / from standard Hugr array.
+    """Transforms a Guppy borrow array before it can be passed to a Hugr op operating on
+    a standard Hugr array, and then reverses the transformation again on the output
+    array.
     """
-    if convert_bool:
-        array_read = array_read_bool(ctx)
-        array_read = builder.load_function(array_read)
-        map_op = array_map(OpaqueBool, size_arg, ht.Bool)
-        input_array = builder.add_op(map_op, input_array, array_read)
-        elem_ty = ht.Bool
-
     input_array = builder.add_op(
         array_to_std_array(elem_ty, size_arg),
         input_array,
     )
-
     result_array = builder.add_op(op, input_array)
-
     result_array = builder.add_op(std_array_to_array(elem_ty, size_arg), result_array)
-
-    if convert_bool:
-        array_make_opaque = array_make_opaque_bool(ctx)
-        array_make_opaque = builder.load_function(array_make_opaque)
-        map_op = array_map(ht.Bool, size_arg, OpaqueBool)
-        result_array = builder.add_op(map_op, result_array, array_make_opaque)
-        elem_ty = OpaqueBool
-
     return result_array

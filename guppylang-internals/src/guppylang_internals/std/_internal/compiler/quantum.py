@@ -11,8 +11,8 @@ from hugr.std.float import FLOAT_T
 
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, make_opaque
 from guppylang_internals.std._internal.compiler.tket_exts import (
+    MEASUREMENT_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
     QUANTUM_EXTENSION,
     ROTATION_EXTENSION,
@@ -42,9 +42,9 @@ def from_halfturns_unchecked() -> ops.ExtOp:
 # ------------------------------------------------------
 
 
-class InoutMeasureCompiler(CustomInoutCallCompiler):
-    """Compiler for the measure functions with an inout qubit
-    such as the `project_z` function - requiring conversion to tket.bool."""
+class InoutMeasureCompilerBool(CustomInoutCallCompiler):
+    """Compiler for the measure functions with an inout qubit and a bool
+    such as the `project_z` function"""
 
     opname: str
     ext: he.Extension
@@ -63,13 +63,12 @@ class InoutMeasureCompiler(CustomInoutCallCompiler):
             ),
             q,
         )
-        bit = self.builder.add_op(make_opaque(), bit)
         return CallReturnWires(regular_returns=[bit], inout_returns=[q])
 
 
-class InoutMeasureResetCompiler(CustomInoutCallCompiler):
-    """Compiler for the measure functions with an inout qubit
-    such as the `project_z` function."""
+class InoutMeasureCompilerMsmt(CustomInoutCallCompiler):
+    """Compiler for the measure functions with an inout qubit and a measurement
+    such as the `project_z` function"""
 
     opname: str
     ext: he.Extension
@@ -84,7 +83,11 @@ class InoutMeasureResetCompiler(CustomInoutCallCompiler):
         [q] = args
         [q, bit] = self.builder.add_op(
             quantum_op(self.opname, ext=self.ext)(
-                ht.FunctionType([ht.Qubit], [ht.Qubit, OpaqueBool]), (), self.ctx
+                ht.FunctionType(
+                    [ht.Qubit], [MEASUREMENT_EXTENSION.get_type("Measurement"), ht.Bool]
+                ),
+                (),
+                self.ctx,
             ),
             q,
         )
