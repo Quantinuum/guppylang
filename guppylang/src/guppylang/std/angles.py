@@ -16,6 +16,17 @@ from guppylang.std.builtins import py
 class angle:
     """Not an angle in the truest sense but a rotation by a number of half-turns
     (does not wrap or identify with itself modulo any number of complete turns).
+
+    The ``halfturns`` field stores the number of half-turns, and ``float()`` converts
+    to radians by multiplying by π. The built-in constant ``pi`` equals ``angle(1)``.
+
+    For example, ``angle(1/2)`` is equivalent to ``pi / 2``:
+
+    .. code-block:: python
+
+        angle(1/2) == pi / 2   # True: both represent π/2 radians (90°)
+        angle(1)   == pi       # True: both represent π radians (180°)
+        angle(2)   == angle(0) # False: a full turn is not identified with zero
     """
 
     halfturns: float

@@ -306,7 +306,9 @@ class NewArrayChecker(CustomCallChecker):
                     assert len(subst) == 0, "Array element type is closed"
                 result_ty = array_type(ty, len(args))
                 call = GlobalCall(
-                    def_id=self.func.id, args=[fst, *rest], type_args=result_ty.args
+                    def_id=self.func.id,
+                    args=[fst, *rest],
+                    type_args=tuple(result_ty.args),
                 )
                 return with_loc(self.node, call), result_ty
             case args:
@@ -348,14 +350,14 @@ class NewArrayChecker(CustomCallChecker):
                                 )
                             )
                         subst |= ls
-                        type_args = [
+                        type_args = (
                             TypeArg(elem_ty.substitute(subst)),
-                            ConstValue(nat_type(), len(args)),
-                        ]
+                            ConstArg(ConstValue(nat_type(), len(args))),
+                        )
                         call = GlobalCall(
                             self.func.id,
                             args,
-                            type_args,  # type: ignore[arg-type]
+                            type_args,
                         )
                         return with_loc(self.node, call), subst
             case type_args:

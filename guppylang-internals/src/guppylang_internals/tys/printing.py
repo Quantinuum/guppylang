@@ -1,7 +1,7 @@
 from functools import singledispatchmethod
 
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.tys.arg import ConstArg, TypeArg
+from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.param import ConstParam, TypeParam
 from guppylang_internals.tys.ty import (
@@ -53,7 +53,7 @@ class TypePrinter:
         self.counter[display_name] += 1
         return indexed
 
-    def visit(self, ty: Type | Const) -> str:
+    def visit(self, ty: "Type | Const | Argument") -> str:
         return self._visit(ty, False)
 
     @singledispatchmethod

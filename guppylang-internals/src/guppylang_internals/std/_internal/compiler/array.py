@@ -13,14 +13,13 @@ from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
-from guppylang_internals.std._internal.compiler.prelude import (
-    build_unwrap_right,
-)
+from guppylang_internals.std._internal.compiler.prelude import build_unwrap_right
 from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
-    from hugr.build.dfg import DfBase
+    from guppylang_internals.ast_util import AstNode
+    from guppylang_internals.compiler.core import DFBuilder
 
 
 # ------------------------------------------------------
@@ -248,9 +247,11 @@ def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
 P = TypeVar("P", bound=ops.DfParentOp)
 
 
-def unpack_array(builder: DfBase[P], array: Wire) -> list[Wire]:
-    """Unpacks a fixed length array into its elements."""
-    array_ty = builder.hugr.port_type(array.out_port())
+def unpack_array(
+    builder: DFBuilder[P], array: Wire, ast_node: AstNode | None = None
+) -> list[Wire]:
+    """Unpacks a wire of type array into separate wires for each element."""
+    array_ty = builder.get_wire_type(array)
     assert isinstance(array_ty, ht.ExtType)
     match array_ty.args:
         case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
@@ -280,6 +281,14 @@ class ArrayCompiler(CustomCallCompiler):
                 return const.to_arg().to_hugr(self.ctx)
             case _:
                 raise InternalGuppyError("Invalid array type args")
+
+    def elem_to_row(self, elem: Wire) -> list[Wire]:
+        """Helper function to unpack an element wire into a row"""
+        from guppylang_internals.compiler.expr_compiler import unpack_wire
+
+        [elem_ty_arg, _] = self.type_args
+        assert isinstance(elem_ty_arg, TypeArg)
+        return unpack_wire(elem, elem_ty_arg.ty, self.builder, self.ctx)
 
 
 class NewArrayCompiler(ArrayCompiler):
@@ -315,7 +324,7 @@ class ArrayGetitemCompiler(ArrayCompiler):
         )
         elem = build_unwrap_right(self.builder, opt_elem, "Array index out of bounds")
         return CallReturnWires(
-            regular_returns=[elem],
+            regular_returns=self.elem_to_row(elem),
             inout_returns=[arr],
         )
 
@@ -328,7 +337,7 @@ class ArrayGetitemCompiler(ArrayCompiler):
             idx,
         )
         return CallReturnWires(
-            regular_returns=[elem],
+            regular_returns=self.elem_to_row(elem),
             inout_returns=[arr],
         )
 

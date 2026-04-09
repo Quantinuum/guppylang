@@ -112,7 +112,7 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
     """Check that `ty` implements `protocol`"""
 
     # Invariant: `ty` and `protocol` might have unsolved variables.
-    protocol_def = ENGINE.get_checked(protocol.def_id)
+    protocol_def = ENGINE.get_checked(protocol.def_id, protocol.type_args)
     assert isinstance(protocol_def, CheckedProtocolDef)
 
     # If `ty` is a bound type variable, we try to handle the case
@@ -173,7 +173,7 @@ def check_protocol(ty: Type, protocol: ProtocolInst) -> tuple[ImplProof, Subst]:
         if any(x not in subst for x in ex_impl_vars):
             raise Exception("Unresolved variables in implementation")
         # Turn these into type vars
-        impl_vars: Inst = [subst[var].to_arg() for var in ex_impl_vars]
+        impl_vars: Inst = tuple(subst[var].to_arg() for var in ex_impl_vars)
         member_impls[name] = func.id, impl_vars
 
     if any(x not in subst for arg in protocol.type_args for x in arg.unsolved_vars):

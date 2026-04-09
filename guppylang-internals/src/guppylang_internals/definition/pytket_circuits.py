@@ -7,9 +7,10 @@ from guppylang.defs import GuppyDefinition
 from hugr import Node, Wire, envelope, ops, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.debug_info import DILocation, DISubprogram
 from hugr.envelope import EnvelopeConfig
+from hugr.metadata import HugrDebugInfo
 from hugr.std.float import FLOAT_T
-from pytket.circuit import Circuit
 
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals
@@ -19,6 +20,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CompilableDef,
     ParsableDef,
@@ -27,7 +29,8 @@ from guppylang_internals.definition.declaration import BodyNotEmptyError
 from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
-    load_with_args,
+    load,
+    make_subprogram_record,
     parse_py_func,
 )
 from guppylang_internals.definition.ty import TypeDef
@@ -39,6 +42,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.metadata.debug_info_util import make_location_record
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, Span, ToSpan
 from guppylang_internals.std._internal.compiler.array import (
@@ -48,7 +52,7 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.quantum import from_halfturns_unchecked
 from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, make_opaque
 from guppylang_internals.tys.builtin import array_type, bool_type, float_type
-from guppylang_internals.tys.subst import Inst, Subst
+from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -98,7 +102,13 @@ class RawPytketDef(ParsableDef):
             )
             raise GuppyError(err)
         return ParsedPytketDef(
-            self.id, self.name, func_ast, stub_signature, self.input_circuit, False
+            self.id,
+            self.name,
+            func_ast,
+            stub_signature,
+            self.input_circuit,
+            False,
+            None,
         )
 
 
@@ -134,6 +144,7 @@ class RawLoadPytketDef(ParsableDef):
             circuit_signature,
             self.input_circuit,
             self.use_arrays,
+            self.source_span,
         )
 
 
@@ -154,144 +165,167 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     input_circuit: Any
     use_arrays: bool
 
+    source_span: Span | None  # Only set for load_pytket for debug purposes.
+
     description: str = field(default="pytket circuit", init=False)
 
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledPytketDef":
         """Adds a Hugr `FuncDefn` node for this function to the Hugr."""
-        try:
-            import pytket
+        from pytket.circuit import Circuit  # Decoupled import
+        from tket._state import CompilationState  # Decoupled import
 
-            if isinstance(self.input_circuit, pytket.circuit.Circuit):
-                from tket.circuit import (  # type: ignore[import-untyped, import-not-found, unused-ignore]
-                    Tk2Circuit,
+        # Type mismatch should have been raised in decorator
+        assert isinstance(self.input_circuit, Circuit)
+        # TODO extract the correct entry point from the module
+        circ = envelope.read_envelope(
+            CompilationState.from_tket1(self.input_circuit).to_bytes(
+                EnvelopeConfig.BINARY
+            )
+        ).modules[0]
+
+        mapping = module.hugr.insert_hugr(circ)
+        hugr_func = mapping[circ.entrypoint]
+
+        func_type = self.ty.to_hugr_poly(ctx)
+        outer_func = module.module_root_builder().define_function(
+            self.name, func_type.body.input, func_type.body.output
+        )
+        # Add circuit function definition metadata (we can't add metadata to the
+        # internal circuit function as we don't have that information).
+        # Depending on how the circuit was loaded, we have either a function stub node
+        # or a load statememnt source span to obtain debug info from.
+        if debug_mode_enabled():
+            # Function stub case.
+            if self.defined_at is not None:
+                assert isinstance(self.defined_at, ast.FunctionDef)
+                func_metadata = make_subprogram_record(
+                    self.defined_at, ctx, is_decl=True
+                )
+            # Load pytket case,
+            elif self.source_span is not None:
+                file_idx = ctx.metadata_file_table.get_index(self.source_span.file)
+                func_metadata = DISubprogram(
+                    file=file_idx,
+                    line_no=self.source_span.start.line,
+                    scope_line=None,
+                )
+            outer_func.metadata[HugrDebugInfo] = func_metadata
+
+        # Number of qubit inputs in the outer function.
+        offset = (
+            len(self.input_circuit.q_registers)
+            if self.use_arrays
+            else self.input_circuit.n_qubits
+        )
+
+        input_list: list[Wire] = []
+        if self.use_arrays:
+            # If the input is given as arrays, we need to unpack each element in
+            # them into separate wires.
+            for i, q_reg in enumerate(self.input_circuit.q_registers):
+                reg_wire = outer_func.inputs()[i]
+                elem_wires = outer_func.add_op(
+                    array_unpack(ht.Qubit, q_reg.size), reg_wire
+                )
+                input_list.extend(elem_wires)
+
+        else:
+            # Otherwise pass inputs directly.
+            input_list = list(outer_func.inputs()[:offset])
+
+        # Initialise every input bit in the circuit as false.
+        # TODO: Provide the option for the user to pass this input as well.
+        bool_wires = [
+            outer_func.load(val.FALSE) for _ in range(self.input_circuit.n_bits)
+        ]
+
+        # Symbolic parameters (if present) get passed after qubits and bools.
+        num_params = len(self.input_circuit.free_symbols())
+        has_params = num_params != 0
+        if has_params and "TKET1.input_parameters" not in hugr_func.metadata:
+            raise InternalGuppyError(
+                "Parameter metadata is missing from pytket circuit HUGR"
+            ) from None
+        param_wires: list[Wire] = []
+        # We assume they are given in lexicographic order by the user, then we
+        # wire them up according to the metadata order.
+        if has_params:
+            lex_params: list[Wire] = list(outer_func.inputs()[offset:])
+            if self.use_arrays:
+                unpack_result = outer_func.add_op(
+                    array_unpack(ht.Tuple(float_type().to_hugr(ctx)), num_params),
+                    lex_params[0],
+                )
+                lex_params = list(unpack_result)
+            param_order = cast(
+                "list[str]", hugr_func.metadata["TKET1.input_parameters"]
+            )
+            lex_names = sorted(param_order)
+            name_to_param = dict(zip(lex_names, lex_params, strict=True))
+            angle_wires = [name_to_param[name] for name in param_order]
+            # Need to convert all angles to rotations.
+            for angle in angle_wires:
+                [halfturns] = outer_func.add_op(ops.UnpackTuple([FLOAT_T]), angle)
+                rotation = outer_func.add_op(from_halfturns_unchecked(), halfturns)
+                param_wires.append(rotation)
+
+        # Pass all arguments to call node.
+        call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
+        # Add debug info metadata to the call node inside the outer function definition.
+        if debug_mode_enabled():
+            # Function stub case.
+            if self.defined_at is not None:
+                call_node.metadata[HugrDebugInfo] = make_location_record(
+                    self.defined_at
+                )
+            # Load pytket case,
+            elif self.source_span is not None:
+                call_node.metadata[HugrDebugInfo] = DILocation(
+                    column=self.source_span.start.column,
+                    line_no=self.source_span.start.line,
                 )
 
-                # TODO extract the correct entry point from the module
-                circ = envelope.read_envelope(
-                    Tk2Circuit(self.input_circuit).to_bytes(EnvelopeConfig.TEXT)
-                ).modules[0]
+        # Pytket circuit hugr has qubit and bool wires in the opposite
+        # order to Guppy output wires.
+        output_list: list[Wire] = list(call_node.outputs())
+        wires = (
+            output_list[self.input_circuit.n_qubits :]
+            + output_list[: self.input_circuit.n_qubits]
+        )
+        # Convert hugr sum bools into the opaque bools that Guppy uses.
+        wires = [
+            outer_func.add_op(make_opaque(), wire)
+            if outer_func.hugr.port_type(wire.out_port()) == ht.Bool
+            else wire
+            for wire in wires
+        ]
 
-                mapping = module.hugr.insert_hugr(circ)
-                hugr_func = mapping[circ.entrypoint]
-
-                func_type = self.ty.to_hugr_poly(ctx)
-                outer_func = module.module_root_builder().define_function(
-                    self.name, func_type.body.input, func_type.body.output
-                )
-
-                # Number of qubit inputs in the outer function.
-                offset = (
-                    len(self.input_circuit.q_registers)
-                    if self.use_arrays
-                    else self.input_circuit.n_qubits
-                )
-
-                input_list: list[Wire] = []
-                if self.use_arrays:
-                    # If the input is given as arrays, we need to unpack each element in
-                    # them into separate wires.
-                    for i, q_reg in enumerate(self.input_circuit.q_registers):
-                        reg_wire = outer_func.inputs()[i]
-                        elem_wires = outer_func.add_op(
-                            array_unpack(ht.Qubit, q_reg.size), reg_wire
-                        )
-                        input_list.extend(elem_wires)
-
-                else:
-                    # Otherwise pass inputs directly.
-                    input_list = list(outer_func.inputs()[:offset])
-
-                # Initialise every input bit in the circuit as false.
-                # TODO: Provide the option for the user to pass this input as well.
-                bool_wires = [
-                    outer_func.load(val.FALSE) for _ in range(self.input_circuit.n_bits)
-                ]
-
-                # Symbolic parameters (if present) get passed after qubits and bools.
-                num_params = len(self.input_circuit.free_symbols())
-                has_params = num_params != 0
-                if has_params and "TKET1.input_parameters" not in hugr_func.metadata:
-                    raise InternalGuppyError(
-                        "Parameter metadata is missing from pytket circuit HUGR"
-                    ) from None
-                param_wires: list[Wire] = []
-                # We assume they are given in lexicographic order by the user, then we
-                # wire them up according to the metadata order.
-                if has_params:
-                    lex_params: list[Wire] = list(outer_func.inputs()[offset:])
-                    if self.use_arrays:
-                        unpack_result = outer_func.add_op(
-                            array_unpack(
-                                ht.Tuple(float_type().to_hugr(ctx)), num_params
-                            ),
-                            lex_params[0],
-                        )
-                        lex_params = list(unpack_result)
-                    param_order = cast(
-                        "list[str]", hugr_func.metadata["TKET1.input_parameters"]
+        if self.use_arrays:
+            array_wires: list[Wire] = []
+            wire_idx = 0
+            # First pack bool results into an array.
+            for c_reg in self.input_circuit.c_registers:
+                array_wires.append(
+                    outer_func.add_op(
+                        array_new(OpaqueBool, c_reg.size),
+                        *wires[wire_idx : wire_idx + c_reg.size],
                     )
-                    lex_names = sorted(param_order)
-                    name_to_param = dict(zip(lex_names, lex_params, strict=True))
-                    angle_wires = [name_to_param[name] for name in param_order]
-                    # Need to convert all angles to rotations.
-                    for angle in angle_wires:
-                        [halfturns] = outer_func.add_op(
-                            ops.UnpackTuple([FLOAT_T]), angle
-                        )
-                        rotation = outer_func.add_op(
-                            from_halfturns_unchecked(), halfturns
-                        )
-                        param_wires.append(rotation)
-
-                # Pass all arguments to call node.
-                call_node = outer_func.call(
-                    hugr_func, *(input_list + bool_wires + param_wires)
                 )
-
-                # Pytket circuit hugr has qubit and bool wires in the opposite
-                # order to Guppy output wires.
-                output_list: list[Wire] = list(call_node.outputs())
-                wires = (
-                    output_list[self.input_circuit.n_qubits :]
-                    + output_list[: self.input_circuit.n_qubits]
+                wire_idx = wire_idx + c_reg.size
+            # Then the borrowed qubits also need to be put back into arrays.
+            for q_reg in self.input_circuit.q_registers:
+                array_wires.append(
+                    outer_func.add_op(
+                        array_new(ht.Qubit, q_reg.size),
+                        *wires[wire_idx : wire_idx + q_reg.size],
+                    )
                 )
-                # Convert hugr sum bools into the opaque bools that Guppy uses.
-                wires = [
-                    outer_func.add_op(make_opaque(), wire)
-                    if outer_func.hugr.port_type(wire.out_port()) == ht.Bool
-                    else wire
-                    for wire in wires
-                ]
+                wire_idx = wire_idx + q_reg.size
+            wires = array_wires
 
-                if self.use_arrays:
-                    array_wires: list[Wire] = []
-                    wire_idx = 0
-                    # First pack bool results into an array.
-                    for c_reg in self.input_circuit.c_registers:
-                        array_wires.append(
-                            outer_func.add_op(
-                                array_new(OpaqueBool, c_reg.size),
-                                *wires[wire_idx : wire_idx + c_reg.size],
-                            )
-                        )
-                        wire_idx = wire_idx + c_reg.size
-                    # Then the borrowed qubits also need to be put back into arrays.
-                    for q_reg in self.input_circuit.q_registers:
-                        array_wires.append(
-                            outer_func.add_op(
-                                array_new(ht.Qubit, q_reg.size),
-                                *wires[wire_idx : wire_idx + q_reg.size],
-                            )
-                        )
-                        wire_idx = wire_idx + q_reg.size
-                    wires = array_wires
-
-                outer_func.set_outputs(*wires)
-
-        except ImportError:
-            pass
+        outer_func.set_outputs(*wires)
 
         return CompiledPytketDef(
             self.id,
@@ -300,6 +334,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             self.ty,
             self.input_circuit,
             self.use_arrays,
+            self.source_span,
             outer_func,
         )
 
@@ -343,32 +378,25 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
-    def load_with_args(
-        self,
-        type_args: Inst,
-        dfg: DFContainer,
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load_with_args(type_args, dfg, self.ty, self.func_def)
+        return load(dfg, self.func_def)
 
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, type_args, dfg, self.ty, self.func_def)
+        return compile_call(args, dfg, self.ty, self.func_def, node)
 
 
 def _signature_from_circuit(
-    input_circuit: Circuit,
+    input_circuit: Any,
     defined_at: ToSpan | None,
     use_arrays: bool = False,
 ) -> FunctionType:
@@ -377,11 +405,15 @@ def _signature_from_circuit(
     from guppylang.std.angles import angle  # Avoid circular imports
 
     from guppylang.std.quantum import qubit
+    from pytket.circuit import Circuit  # Decoupled import
+
+    # Type mismatch should have been raised in decorator
+    assert isinstance(input_circuit, Circuit)
 
     assert isinstance(qubit, GuppyDefinition)
     qubit_ty = cast("TypeDef", qubit.wrapped).check_instantiate([])
 
-    angle_defn = ENGINE.get_checked(angle.id)  # type: ignore[attr-defined]
+    angle_defn = ENGINE.get_checked(angle.id, mono_args=())  # type: ignore[attr-defined]
     assert isinstance(angle_defn, TypeDef)
     angle_ty = angle_defn.check_instantiate([])
 

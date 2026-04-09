@@ -8,6 +8,8 @@ extend-exclude = [
   "*.ipynb",
 ]
 
+src = ["guppylang", "guppylang-internals", "tests"]
+
 [lint]
 
 select = [
@@ -79,7 +81,7 @@ ignore = [
 [lint.per-file-ignores]
 "guppy/ast_util.py" = ["B009", "B010"]
 "guppy/decorator.py" = ["B010"]
-"tests/integration/*" = ["F841", "C416", "RUF005", "TC001"]
+"tests/integration/*" = ["F841", "C416", "RUF005", "TC001", "RUF012"]
 "tests/{hugr,integration}/*" = ["B", "FBT", "SIM", "I"]
 "__init__.py" = ["F401"]                                # module imported but unused
 

@@ -25,8 +25,9 @@ from guppylang_internals.definition.common import (
     ParsedDef,
 )
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
-from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.tys.param import Parameter
+from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
+from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
+from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.ty import (
     InputFlags,
     StructType,
@@ -300,25 +301,21 @@ class PythonObject:
 
 
 class Globals:
-    """Wrapper around the `DEF_STORE` that allows looking-up of definitions by name
-    based on which objects are in scope in a stack frame.
+    """Wrapper around a stack frame in which a Guppy definition was defined.
 
-    Additionally, keeps track of which definitions in the store have been used.
+    Gives access to the other globals that are in scope for that definition.
     """
 
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
+    frame: FrameType
 
-    def __init__(self, frame: FrameType | None) -> None:
-        if frame is not None:
-            self.f_locals = frame.f_locals
-            self.f_globals = frame.f_globals
-            self.f_builtins = frame.f_builtins
-        else:
-            self.f_locals = {}
-            self.f_globals = {}
-            self.f_builtins = {}
+    def __init__(self, frame: FrameType) -> None:
+        self.frame = frame
+        self.f_locals = frame.f_locals
+        self.f_globals = frame.f_globals
+        self.f_builtins = frame.f_builtins
 
     @staticmethod
     @cache
@@ -449,14 +446,14 @@ class Context(NamedTuple):
 
     globals: Globals
     locals: Locals[str, Variable]
-    generic_params: dict[str, Parameter]
+    generic_param_inst: dict[str, Argument]
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":
         """A type parsing context derived from this checking context."""
         from guppylang_internals.tys.parsing import TypeParsingCtx
 
-        return TypeParsingCtx(self.globals, self.generic_params)
+        return TypeParsingCtx(self.globals, param_inst=self.generic_param_inst)
 
 
 class DummyEvalDict(dict[str, Any]):
@@ -475,6 +472,13 @@ class DummyEvalDict(dict[str, Any]):
         var: str
         node: ast.Name | None
 
+    @dataclass
+    class GuppyTypeVarUsedError(BaseException):
+        """Error that is raised when the user tries to access a Guppy type variable."""
+
+        var: str
+        node: ast.Name | None
+
     def __init__(self, ctx: Context, node: ast.expr):
         super().__init__(**(ctx.globals.f_globals | ctx.globals.f_locals))
         self.ctx = ctx
@@ -489,6 +493,23 @@ class DummyEvalDict(dict[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         self._check_item(key)
+        if key in self.ctx.generic_param_inst:
+            match self.ctx.generic_param_inst[key]:
+                case ConstArg(const=ConstValue(value=v)):
+                    return v
+                case ConstArg(const=BoundConstVar()):
+                    raise RequiresMonomorphizationError
+                case ConstArg(const=ExistentialConstVar()):
+                    raise InternalGuppyError("Unexpected generic instantiation")
+                case TypeArg():
+                    # We cannot return values of type variables since we don't have a
+                    # comptime representation of types yet.
+                    # TODO: Return the instantiated type here once we have a runtime
+                    #  representation of Guppy types.
+                    node = next(
+                        (n for n in name_nodes_in_ast(self.node) if n.id == key), None
+                    )
+                    raise DummyEvalDict.GuppyTypeVarUsedError(key, node)
         return super().__getitem__(key)
 
     def __delitem__(self, key: str) -> None:
@@ -496,6 +517,8 @@ class DummyEvalDict(dict[str, Any]):
         super().__delitem__(key)
 
     def __contains__(self, key: object) -> bool:
-        if isinstance(key, str) and key in self.ctx.locals:
+        if isinstance(key, str) and (
+            key in self.ctx.locals or key in self.ctx.generic_param_inst
+        ):
             return True
         return super().__contains__(key)
