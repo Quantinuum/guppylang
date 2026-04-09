@@ -1,5 +1,6 @@
 import functools
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any
 
 from guppylang_internals.error import InternalGuppyError
@@ -43,9 +44,15 @@ class Substituter(Transformer):
 
     @transform.register
     def _transform_ExistentialConstVar(self, c: ExistentialConstVar) -> Const | None:
-        s = self.subst.get(c, None)
-        assert not isinstance(s, TypeBase)
-        return s
+        if s := self.subst.get(c, None):
+            assert not isinstance(s, TypeBase)
+            return s
+        c = replace(c, ty=c.ty.transform(self))
+        if s := self.subst.get(c, None):
+            assert not isinstance(s, TypeBase)
+            return s
+
+        return c
 
 
 class Instantiator(Transformer):
@@ -89,7 +96,9 @@ class Instantiator(Transformer):
             return arg.const
 
         # Otherwise, lower the de Bruijn index
-        return BoundConstVar(c.ty, c.display_name, c.idx - len(self.inst))
+        return BoundConstVar(
+            self.transform(c.ty) or c.ty, c.display_name, c.idx - len(self.inst)
+        )
 
     @transform.register
     def _transform_FunctionType(self, ty: FunctionType) -> Type | None:
