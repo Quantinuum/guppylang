@@ -1,22 +1,34 @@
 from hugr.package import Package
 from tket.passes import ModifierResolverPass, NormalizeGuppy
-
+from hugr.hugr import Hugr
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
 
 
-def build_emu(guppy_func: GuppyFunctionDefinition, n_qubits: int) -> EmulatorInstance:
+def build_emu(
+    guppy_func: GuppyFunctionDefinition, n_qubits: int, norm: bool = True
+) -> EmulatorInstance:
     package = guppy_func.compile()
     hugr = package.modules[0]
     extensions = package.extensions
 
-    hugr = NormalizeGuppy()(hugr)
+    if norm:
+        hugr = NormalizeGuppy()(hugr)
 
-    modifier_passes = ModifierResolverPass()
-    hugr = modifier_passes(hugr)
+    hugr = apply_passes(hugr)
 
-    package = Package([hugr])
+    if norm:
+        hugr = NormalizeGuppy()(hugr)
+
+    package = Package([hugr], extensions=extensions)
 
     builder = EmulatorBuilder()
 
     return builder.build(package, n_qubits=n_qubits)
+
+
+def apply_passes(hugr: Hugr) -> Hugr:
+    modifier_passes = ModifierResolverPass()
+    hugr = modifier_passes(hugr)
+
+    return hugr
