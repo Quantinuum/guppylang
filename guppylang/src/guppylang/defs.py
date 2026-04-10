@@ -85,6 +85,9 @@ class GuppyDefinition(TracingDefMixin):
 
     def compile(self) -> Package:
         """Compile a Guppy definition to HUGR."""
+        # Single-definition entrypoints rely on the wrapped engine helpers for warning
+        # collection. `ENGINE.compile_single()` already establishes the top-level
+        # diagnostic session via `@pretty_errors`.
         package: Package = ENGINE.compile_single(self.id).package
         for mod in package.modules:
             _update_generator_metadata(mod)
@@ -92,6 +95,7 @@ class GuppyDefinition(TracingDefMixin):
 
     def check(self) -> None:
         """Type-check a Guppy definition."""
+        # As above, warning collection is handled by the wrapped engine entrypoint.
         return ENGINE.check_single(self.id)
 
 
@@ -242,7 +246,6 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
 
     def compile_function(self) -> Package:
         """Compile a Guppy function definition to HUGR.
-
 
         Returns:
             Package: The compiled package object.

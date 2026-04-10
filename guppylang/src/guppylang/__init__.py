@@ -1,3 +1,4 @@
+from guppylang_internals.error import GuppyWarning
 from guppylang_internals.experimental import enable_experimental_features
 
 from guppylang.decorator import guppy
@@ -8,6 +9,7 @@ from guppylang.std.quantum import qubit
 
 __all__ = (
     "GuppyModule",
+    "GuppyWarning",
     "array",
     "builtins",
     "comptime",
