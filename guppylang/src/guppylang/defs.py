@@ -16,7 +16,7 @@ from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError, pretty_errors
+from guppylang_internals.error import GuppyError, diagnostic_report, pretty_errors
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import (
     TracingDefMixin,
@@ -279,18 +279,26 @@ class GuppyLibrary:
 
     def compile(self) -> Package:
         """Compile this collection of definitions into a HUGR package."""
-        ENGINE.check(self.members)
-        # Check fills _type_members with additional members only available after
-        # checking, so we have to call it before compiling (without an engine reset).
-        pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
+        # Unlike the single-definition helpers, a library compile spans multiple
+        # top-level engine calls. Keep one outer diagnostic session here so warnings
+        # flush once for the whole user operation rather than once per engine call.
+        with diagnostic_report():
+            ENGINE.check(self.members)
+            # Check fills _type_members with additional members only available after
+            # checking, so we have to call it before compiling (without an engine
+            # reset).
+            pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
         return pointer.package
 
     def check(self) -> None:
         """Type-check all contained definitions."""
-        ENGINE.check(self.members)
-        ENGINE.check(self._type_members(), reset=False)
+        # Library checks can trigger more than one top-level engine check, so they need
+        # their own outer diagnostic session.
+        with diagnostic_report():
+            ENGINE.check(self.members)
+            ENGINE.check(self._type_members(), reset=False)
 
 
 @dataclass(frozen=True)
