@@ -4,11 +4,12 @@ from types import SimpleNamespace
 from typing import ClassVar
 
 import pytest
-from guppylang import GuppyWarning
+from guppylang import rich_warnings
 from guppylang.defs import GuppyDefinition, GuppyLibrary
 from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.diagnostic import Error, Warning
 from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.error import emit_warning
 from guppylang_internals.span import Loc, Span
@@ -45,6 +46,10 @@ def make_warning() -> PublicApiWarning:
 
 def make_error() -> PublicApiError:
     return PublicApiError(Span(Loc(file, 8, 1), Loc(file, 8, 4)))
+
+
+def register_source() -> None:
+    DEF_STORE.sources.add_file(file, "line1\nline2\nline3\nline4\nwarn()\nline6\nerr\n")
 
 
 def test_definition_check_emits_warning(monkeypatch):
@@ -156,3 +161,52 @@ def test_definition_check_discards_warning_on_error(monkeypatch):
             definition.check()
 
     assert len(records) == 0
+
+
+def test_definition_check_rich_warning_emits_stderr(monkeypatch, capsys):
+    """Rich warnings should add rendered stderr output on top of Python warnings."""
+    definition = make_definition()
+    register_source()
+
+    def fake_check(_def_ids, *, reset=True) -> None:
+        del reset
+        emit_warning(make_warning())
+
+    monkeypatch.setattr(ENGINE, "check", fake_check)
+
+    with warnings.catch_warnings(record=True) as records:
+        warnings.simplefilter("always")
+        with rich_warnings():
+            definition.check()
+
+    assert len(records) == 1
+    err = capsys.readouterr().err
+    assert "Warning: Public API warning" in err
+    assert "Triggered from a public entrypoint" in err
+
+
+def test_library_compile_rich_warning_emits_stderr_once(monkeypatch, capsys):
+    """Rich mode should not duplicate rendered warnings across library subcalls."""
+    library = GuppyLibrary([])
+    register_source()
+
+    def fake_check(_def_ids, *, reset=True) -> None:
+        del reset
+        emit_warning(make_warning())
+
+    def fake_compile(_def_ids, *, reset=True):
+        del reset
+        emit_warning(make_warning())
+        return SimpleNamespace(package=SimpleNamespace(modules=[]))
+
+    monkeypatch.setattr(ENGINE, "check", fake_check)
+    monkeypatch.setattr(ENGINE, "compile", fake_compile)
+
+    with warnings.catch_warnings(record=True) as records:
+        warnings.simplefilter("always")
+        with rich_warnings():
+            library.compile()
+
+    assert len(records) == 1
+    err = capsys.readouterr().err
+    assert err.count("Warning: Public API warning") == 1

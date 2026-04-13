@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 import pytest
-from guppylang import GuppyWarning
+from guppylang import GuppyWarning, rich_warnings
 from guppylang_internals.diagnostic import Note, Warning
+from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import diagnostic_report, emit_warning
 from guppylang_internals.span import Loc, Span
 
@@ -27,6 +28,10 @@ def make_warning() -> SyntheticWarning:
     warning = SyntheticWarning(Span(Loc(file, 3, 2), Loc(file, 3, 6)))
     warning.add_sub_diagnostic(SyntheticNote(None))
     return warning
+
+
+def register_source() -> None:
+    DEF_STORE.sources.add_file(file, "x = 0\nx = 1\nwarn()\n")
 
 
 def test_emit_warning_with_source_location():
@@ -87,3 +92,31 @@ def test_warning_is_discarded_if_operation_fails():
             fail_with_warning()
 
     assert len(records) == 0
+
+
+def test_rich_warnings_render_to_stderr(capsys):
+    """Rich warnings should preserve Python warnings and also render diagnostics."""
+    register_source()
+    with warnings.catch_warnings(record=True) as records:
+        warnings.simplefilter("always")
+        with rich_warnings(), diagnostic_report():
+            emit_warning(make_warning())
+
+    assert len(records) == 1
+    err = capsys.readouterr().err
+    assert "Warning: Synthetic warning" in err
+    assert "3 |" in err
+    assert "Something suspicious happened" in err
+
+
+def test_nested_rich_warnings_do_not_duplicate_stderr(capsys):
+    """Nested rich-warning scopes should still render exactly once."""
+    register_source()
+    with warnings.catch_warnings(record=True) as records:
+        warnings.simplefilter("always")
+        with rich_warnings(), rich_warnings(), diagnostic_report():
+            emit_warning(make_warning())
+
+    assert len(records) == 1
+    err = capsys.readouterr().err
+    assert err.count("Warning: Synthetic warning") == 1

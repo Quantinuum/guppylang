@@ -1,4 +1,4 @@
-from guppylang_internals.error import GuppyWarning
+from guppylang_internals.error import GuppyWarning, rich_warnings
 from guppylang_internals.experimental import enable_experimental_features
 
 from guppylang.decorator import guppy
@@ -19,6 +19,7 @@ __all__ = (
     "py",
     "quantum",
     "qubit",
+    "rich_warnings",
 )
 
 # This is updated by our release-please workflow, triggered by this

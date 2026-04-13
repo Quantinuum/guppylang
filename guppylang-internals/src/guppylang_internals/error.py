@@ -69,6 +69,7 @@ class WarningKey(NamedTuple):
 class PendingWarning:
     """Buffered warning waiting to be emitted at the end of a top-level operation."""
 
+    diagnostic: "Diagnostic"
     message: str
     filename: str | None
     lineno: int | None
@@ -79,6 +80,7 @@ class PendingWarning:
 class DiagnosticSession:
     """Per-operation diagnostic state shared across nested compiler calls."""
 
+    rich_warnings: bool = False
     pending_warnings: list[PendingWarning] = field(default_factory=list)
     seen_warnings: set[WarningKey] = field(default_factory=set)
 
@@ -86,6 +88,7 @@ class DiagnosticSession:
 _DIAGNOSTIC_SESSION: ContextVar[DiagnosticSession | None] = ContextVar(
     "_DIAGNOSTIC_SESSION", default=None
 )
+_RICH_WARNINGS: ContextVar[bool] = ContextVar("_RICH_WARNINGS", default=False)
 
 
 @contextmanager
@@ -141,6 +144,17 @@ def saved_exception_hook() -> Iterator[None]:
 
 
 @contextmanager
+def rich_warnings() -> Iterator[None]:
+    """Enable rich stderr rendering for compiler warnings within the current scope."""
+
+    token = _RICH_WARNINGS.set(True)
+    try:
+        yield
+    finally:
+        _RICH_WARNINGS.reset(token)
+
+
+@contextmanager
 def diagnostic_report() -> Iterator[None]:
     """Collects compiler warnings and flushes them once per top-level operation."""
 
@@ -150,7 +164,7 @@ def diagnostic_report() -> Iterator[None]:
     outermost = session is None
     token = None
     if outermost:
-        session = DiagnosticSession()
+        session = DiagnosticSession(rich_warnings=_RICH_WARNINGS.get())
         token = _DIAGNOSTIC_SESSION.set(session)
     assert session is not None
 
@@ -218,6 +232,7 @@ def _pending_warning(diag: "Diagnostic") -> PendingWarning:
 
     message = _warning_message(diag)
     return PendingWarning(
+        diagnostic=diag,
         message=message,
         filename=filename,
         lineno=lineno,
@@ -228,7 +243,7 @@ def _pending_warning(diag: "Diagnostic") -> PendingWarning:
 
 
 def _emit_pending_warning(pending_warning: PendingWarning) -> None:
-    """Emit one queued warning via Python's warning machinery."""
+    """Emit one queued warning via Python's warning machinery and rich stderr output."""
 
     if pending_warning.filename is not None and pending_warning.lineno is not None:
         warnings.warn_explicit(
@@ -243,6 +258,23 @@ def _emit_pending_warning(pending_warning: PendingWarning) -> None:
             GuppyWarning,
             stacklevel=2,
         )
+
+    session = _DIAGNOSTIC_SESSION.get()
+    if session is not None and session.rich_warnings:
+        sys.stderr.write(_render_warning(pending_warning))
+        sys.stderr.write("\n")
+
+
+def _render_warning(pending_warning: PendingWarning) -> str:
+    from guppylang_internals.diagnostic import DiagnosticsRenderer
+    from guppylang_internals.engine import DEF_STORE
+
+    renderer = DiagnosticsRenderer(DEF_STORE.sources)
+    try:
+        renderer.render_diagnostic(pending_warning.diagnostic)
+    except KeyError:
+        return pending_warning.message
+    return "\n".join(renderer.buffer)
 
 
 def _warning_message(diag: "Diagnostic") -> str:
