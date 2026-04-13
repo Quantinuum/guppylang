@@ -37,6 +37,7 @@ def filter_traceback_not_containing(s: str, disallowed_regex: re.Pattern[str]) -
 
     return "\n".join(result)
 
+
 def run_error_test(file, capsys, snapshot):
     file = pathlib.Path(file)
 

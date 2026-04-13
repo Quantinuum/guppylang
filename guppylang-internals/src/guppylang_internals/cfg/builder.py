@@ -26,7 +26,7 @@ from guppylang_internals.checker.errors.generic import (
 )
 from guppylang_internals.checker.errors.type_errors import WrongNumberOfArgsError
 from guppylang_internals.diagnostic import Error, Warning
-from guppylang_internals.error import GuppyError, InternalGuppyError, emit_warning
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import (
     check_lists_enabled,
     check_modifiers_enabled,
@@ -48,6 +48,7 @@ from guppylang_internals.nodes import (
 )
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.ty import NoneType, UnitaryFlags
+from guppylang_internals.warning import emit_warning
 
 # In order to build expressions, need an endless stream of unique temporary variables
 # to store intermediate results

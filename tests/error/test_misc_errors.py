@@ -1,7 +1,8 @@
 import pathlib
-import pytest
 
+import pytest
 from guppylang import guppy
+
 from tests.error.util import run_error_test
 
 path = pathlib.Path(__file__).parent.resolve() / "misc_errors"

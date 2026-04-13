@@ -6,7 +6,7 @@ from guppylang import guppy, qubit
 from guppylang import GuppyWarning
 from guppylang_internals.error import GuppyError
 from guppylang.std.quantum import discard, h
-from tests.util import compile_guppy
+from tests.util import compile_guppy, guppy_warning_records
 
 
 def assert_unreachable_warning_emitted(fn):
@@ -16,8 +16,9 @@ def assert_unreachable_warning_emitted(fn):
         warnings.simplefilter("always")
         result = fn()
 
-    assert len(records) == 1
-    warning = records[0]
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
+    warning = guppy_records[0]
     assert warning.category is GuppyWarning
     assert str(warning.message) == "Unreachable: This code is not reachable"
     return result
@@ -166,8 +167,9 @@ def test_if_false_emits_warning():
                 return 1
             return 0
 
-    assert len(records) == 1
-    warning = records[0]
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
+    warning = guppy_records[0]
     assert warning.category is GuppyWarning
     assert warning.filename.endswith("test_unreachable.py")
     assert str(warning.message) == "Unreachable: This code is not reachable"
@@ -185,8 +187,9 @@ def test_dead_code_after_return_emits_warning():
             x = 1
             return x
 
-    assert len(records) == 1
-    warning = records[0]
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
+    warning = guppy_records[0]
     assert warning.category is GuppyWarning
     assert warning.filename.endswith("test_unreachable.py")
     assert str(warning.message) == "Unreachable: This code is not reachable"
@@ -205,4 +208,5 @@ def test_unreachable_warning_is_discarded_if_compilation_fails():
                     return 1.0
                 return 0
 
-    assert len(records) == 0
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 0
