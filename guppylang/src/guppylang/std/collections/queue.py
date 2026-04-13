@@ -73,10 +73,10 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
         Panics if the queue has already reached its maximum size.
         """
-        if (self.end + 1) % MAX_SIZE == self.start:
+        new_end = (self.end + 1) % MAX_SIZE
+        if new_end == self.start:
             panic("Queue.push: max size reached")
         self.buf[self.end].swap(some(elem)).unwrap_nothing()
-        new_end = (self.end + 1) % MAX_SIZE
         return Queue(self.buf, self.start, new_end)
 
     @guppy

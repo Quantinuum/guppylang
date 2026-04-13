@@ -5,7 +5,7 @@ from guppylang.std.collections import Queue, empty_queue
 @guppy
 def queue_push_benchmark() -> int:
     q: Queue[int, 10000] = empty_queue()
-    for i in range(9999):
+    for i in range(10000):
         q = q.push(i)
     # Return the length so the value is used and not optimized away.
     return len(q)
@@ -14,7 +14,7 @@ def queue_push_benchmark() -> int:
 @guppy
 def queue_push_pop_benchmark() -> int:
     q: Queue[int, 10000] = empty_queue()
-    for i in range(9999):
+    for i in range(10000):
         q = q.push(i)
     total = 0
     while len(q) > 0:

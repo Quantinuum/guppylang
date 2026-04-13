@@ -130,6 +130,8 @@ def test_priority_queue_repeated_push_pop(run_int_fn) -> None:
 
 
 def test_queue(run_int_fn) -> None:
+    """Tests that the queue maintains FIFO order when popping elements."""
+
     @guppy
     def main() -> int:
         queue: Queue[int, 10] = empty_queue()
@@ -152,6 +154,8 @@ def test_queue(run_int_fn) -> None:
 
 
 def test_queue_iter(run_int_fn) -> None:
+    """Tests that queue iteration yields elements in FIFO order."""
+
     @guppy
     def main() -> int:
         queue: Queue[int, 10] = empty_queue()
@@ -171,7 +175,9 @@ def test_queue_iter(run_int_fn) -> None:
     )
 
 
-def test_queue_full() -> None:
+def test_queue_beyond_full() -> None:
+    """Tests that pushing beyond the queue's maximum capacity raises a panic."""
+
     @guppy
     def main() -> None:
         queue: Queue[int, 1] = empty_queue()
@@ -186,7 +192,26 @@ def test_queue_full() -> None:
         main.emulator(n_qubits=0).stabilizer_sim().with_seed(42).run()
 
 
+def test_queue_full() -> None:
+    """Tests that pushing to the queue's maximum capacity raises a panic."""
+
+    @guppy
+    def main() -> None:
+        queue: Queue[int, 5] = empty_queue()
+        for i in range(5):
+            queue = queue.push(i)
+
+        queue.discard_empty()
+
+    with pytest.raises(
+        EmulatorError, match=r"Panic \(#1001\): Queue.push: max size reached"
+    ):
+        main.emulator(n_qubits=0).stabilizer_sim().with_seed(42).run()
+
+
 def test_queue_empty() -> None:
+    """Tests that popping from an empty queue raises a panic."""
+
     @guppy
     def main() -> None:
         queue: Queue[int, 1] = empty_queue()
@@ -205,65 +230,72 @@ def test_queue_empty() -> None:
 
 
 def test_queue_beyond_max_size(run_int_fn) -> None:
+    """Tests that the queue maintains FIFO order during push/pop
+    sequences that cause multiple slot reuses and wraparounds."""
+
     @guppy
     def main() -> int:
         q: Queue[int, 5] = empty_queue()
-        # Fill to the effective capacity of the queue.
         for i in range(4):
             q = q.push(i)
-        # Pop twice to make room and advance the internal indices.
+
         for _ in range(2):
             _, q = q.pop()
-        # Push more values after pops, which forces wrap-around inside the buffer.
+
         for i in range(4, 6):
             q = q.push(i)
-        # Pop once and push again to force a second wrap-around cycle.
         _, q = q.pop()
         q = q.push(6)
-        # Drain and verify FIFO order despite the internal wrap-around.
+        _, q = q.pop()
+        q = q.push(7)
+        _, q = q.pop()
+        q = q.push(8)
+        _, q = q.pop()
+        q = q.push(9)
         total = 0
         multiplier = 1
+
         while len(q) > 0:
             x, q = q.pop()
             total += x * multiplier
             multiplier += 1
+        q.discard_empty()
         return total
 
-    # Expected values are [3, 4, 5, 6] in FIFO order.
-    run_int_fn(main, 3 * 1 + 4 * 2 + 5 * 3 + 6 * 4)
+    run_int_fn(main, 6 * 1 + 7 * 2 + 8 * 3 + 9 * 4)
 
 
 def test_queue_wraparound_len(run_int_fn) -> None:
+    """Tests that the queue length is accurate after operations that
+    cause internal slots to be reused."""
+
     @guppy
     def main() -> int:
         q: Queue[int, 5] = empty_queue()
-        # Push three values so the internal head/tail indices move.
         for i in range(3):
             q = q.push(i)
-        # Pop two values to advance the front pointer away from zero.
         for _ in range(2):
             _, q = q.pop()
-        # Push two more values to wrap the end pointer around the circular buffer.
         for i in range(3, 5):
             q = q.push(i)
-        # Length should still reflect the number of live elements.
         return len(q)
 
     run_int_fn(main, 3)
 
 
 def test_queue_wraparound_iter(run_int_fn) -> None:
+    """Tests that the queue maintains insertion order even when
+    usage causes internal slots to be reused."""
+
     @guppy
     def main() -> int:
         q: Queue[int, 5] = empty_queue()
-        # Set up a wrapped queue by pushing, popping, then pushing again.
         for i in range(3):
             q = q.push(i)
         for _ in range(2):
             _, q = q.pop()
         for i in range(3, 5):
             q = q.push(i)
-        # Iterate over the queue and verify FIFO order after wrap-around.
         total = 0
         multiplier = 1
         for x in q:
@@ -271,25 +303,4 @@ def test_queue_wraparound_iter(run_int_fn) -> None:
             multiplier += 1
         return total
 
-    # Expected values are [2, 3, 4] in FIFO order.
     run_int_fn(main, 2 * 1 + 3 * 2 + 4 * 3)
-
-
-def test_queue_wraparound_discard_empty(run_int_fn) -> None:
-    @guppy
-    def main() -> int:
-        q: Queue[int, 5] = empty_queue()
-        # Create a wrapped queue, then empty it by popping all remaining values.
-        for i in range(3):
-            q = q.push(i)
-        for _ in range(2):
-            _, q = q.pop()
-        for i in range(3, 5):
-            q = q.push(i)
-        while len(q) > 0:
-            _, q = q.pop()
-        # Ensure discard_empty works even after the buffer head/tail have wrapped.
-        q.discard_empty()
-        return 0
-
-    run_int_fn(main, 0)
