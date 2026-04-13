@@ -6,8 +6,8 @@ import pytest
 from guppylang import GuppyWarning, rich_warnings
 from guppylang_internals.diagnostic import Note, Warning
 from guppylang_internals.engine import DEF_STORE
-from guppylang_internals.error import diagnostic_report, emit_warning
 from guppylang_internals.span import Loc, Span
+from guppylang_internals.warning import diagnostic_report, emit_warning
 
 file = "warning_test.py"
 

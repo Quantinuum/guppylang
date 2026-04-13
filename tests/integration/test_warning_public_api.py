@@ -11,8 +11,8 @@ from guppylang_internals.diagnostic import Error, Warning
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError
-from guppylang_internals.error import emit_warning
 from guppylang_internals.span import Loc, Span
+from guppylang_internals.warning import emit_warning
 
 file = "public_warning_test.py"
 

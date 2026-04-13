@@ -1,5 +1,5 @@
-from guppylang_internals.error import GuppyWarning, rich_warnings
 from guppylang_internals.experimental import enable_experimental_features
+from guppylang_internals.warning import GuppyWarning, rich_warnings
 
 from guppylang.decorator import guppy
 from guppylang.module import GuppyModule

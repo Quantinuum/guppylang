@@ -16,12 +16,13 @@ from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError, diagnostic_report, pretty_errors
+from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tracing.object import (
     TracingDefMixin,
 )
 from guppylang_internals.tracing.util import hide_trace
+from guppylang_internals.warning import diagnostic_report
 from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
 from hugr.metadata import HugrGenerator
