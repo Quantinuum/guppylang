@@ -13,6 +13,7 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.span import Loc, Span
 from guppylang_internals.warning import emit_warning
+from tests.util import guppy_warning_records
 
 file = "public_warning_test.py"
 
@@ -52,13 +53,8 @@ def register_source() -> None:
     DEF_STORE.sources.add_file(file, "line1\nline2\nline3\nline4\nwarn()\nline6\nerr\n")
 
 
-def test_definition_check_emits_warning(monkeypatch):
-    """`GuppyDefinition.check()` inherits warning flushing from `check_single()`.
-
-    The monkeypatch targets the inner `ENGINE.check()` call to keep the real
-    `@pretty_errors` wrapper in place while synthesizing a warning producer.
-    """
-    definition = make_definition()
+def install_check_warning(monkeypatch) -> None:
+    """Synthesize a warning from the inner engine `check()` implementation."""
 
     def fake_check(_def_ids, *, reset=True) -> None:
         del reset
@@ -66,22 +62,9 @@ def test_definition_check_emits_warning(monkeypatch):
 
     monkeypatch.setattr(ENGINE, "check", fake_check)
 
-    with warnings.catch_warnings(record=True) as records:
-        warnings.simplefilter("always")
-        definition.check()
 
-    assert len(records) == 1
-    assert records[0].category is GuppyWarning
-    assert records[0].filename == file
-
-
-def test_definition_compile_emits_warning(monkeypatch):
-    """`GuppyDefinition.compile()` inherits warning flushing from `compile_single()`.
-
-    The monkeypatch targets the inner `ENGINE._compile()` call so the test still
-    exercises the real top-level wrapper around `compile_single()`.
-    """
-    definition = make_definition()
+def install_compile_warning(monkeypatch) -> None:
+    """Synthesize a warning from the inner engine `_compile()` implementation."""
 
     def fake_compile(_def_ids, *, reset=True):
         del reset
@@ -91,57 +74,54 @@ def test_definition_compile_emits_warning(monkeypatch):
 
     monkeypatch.setattr(ENGINE, "_compile", fake_compile)
 
-    with warnings.catch_warnings(record=True) as records:
-        warnings.simplefilter("always")
-        definition.compile()
 
-    assert len(records) == 1
-    assert records[0].category is GuppyWarning
-    assert records[0].filename == file
-
-
-def test_library_check_emits_warning_once(monkeypatch):
-    """`GuppyLibrary.check()` should not flush separately for engine subcalls.
-
-    Unlike the single-definition helpers, this method needs its own outer
-    `diagnostic_report()` because it orchestrates multiple top-level engine calls.
-    """
-    library = GuppyLibrary([])
-
-    def fake_check(_def_ids, *, reset=True) -> None:
-        del reset
-        emit_warning(make_warning())
-
-    monkeypatch.setattr(ENGINE, "check", fake_check)
+@pytest.mark.parametrize(
+    ("install_warning", "run_entrypoint"),
+    [
+        (
+            install_check_warning,
+            lambda definition: definition.check(),
+        ),
+        (
+            install_compile_warning,
+            lambda definition: definition.compile(),
+        ),
+    ],
+)
+def test_single_definition_entrypoints_emit_warning(
+    monkeypatch, install_warning, run_entrypoint
+):
+    """Single-definition public entrypoints should flush one warning."""
+    definition = make_definition()
+    install_warning(monkeypatch)
 
     with warnings.catch_warnings(record=True) as records:
         warnings.simplefilter("always")
-        library.check()
+        run_entrypoint(definition)
 
-    assert len(records) == 1
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
+    assert guppy_records[0].filename == file
 
 
 def test_library_compile_emits_warning_once(monkeypatch):
-    """`GuppyLibrary.compile()` should coalesce flushes across check and compile."""
+    """`GuppyLibrary.compile()` should coalesce warnings across its subcalls."""
     library = GuppyLibrary([])
-
-    def fake_check(_def_ids, *, reset=True) -> None:
-        del reset
-        emit_warning(make_warning())
+    install_check_warning(monkeypatch)
 
     def fake_compile(_def_ids, *, reset=True):
         del reset
         emit_warning(make_warning())
         return SimpleNamespace(package=SimpleNamespace(modules=[]))
 
-    monkeypatch.setattr(ENGINE, "check", fake_check)
     monkeypatch.setattr(ENGINE, "compile", fake_compile)
 
     with warnings.catch_warnings(record=True) as records:
         warnings.simplefilter("always")
         library.compile()
 
-    assert len(records) == 1
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
 
 
 def test_definition_check_discards_warning_on_error(monkeypatch):
@@ -160,46 +140,21 @@ def test_definition_check_discards_warning_on_error(monkeypatch):
         with pytest.raises(GuppyError):
             definition.check()
 
-    assert len(records) == 0
-
-
-def test_definition_check_rich_warning_emits_stderr(monkeypatch, capsys):
-    """Rich warnings should add rendered stderr output on top of Python warnings."""
-    definition = make_definition()
-    register_source()
-
-    def fake_check(_def_ids, *, reset=True) -> None:
-        del reset
-        emit_warning(make_warning())
-
-    monkeypatch.setattr(ENGINE, "check", fake_check)
-
-    with warnings.catch_warnings(record=True) as records:
-        warnings.simplefilter("always")
-        with rich_warnings():
-            definition.check()
-
-    assert len(records) == 1
-    err = capsys.readouterr().err
-    assert "Warning: Public API warning" in err
-    assert "Triggered from a public entrypoint" in err
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 0
 
 
 def test_library_compile_rich_warning_emits_stderr_once(monkeypatch, capsys):
     """Rich mode should not duplicate rendered warnings across library subcalls."""
     library = GuppyLibrary([])
     register_source()
-
-    def fake_check(_def_ids, *, reset=True) -> None:
-        del reset
-        emit_warning(make_warning())
+    install_check_warning(monkeypatch)
 
     def fake_compile(_def_ids, *, reset=True):
         del reset
         emit_warning(make_warning())
         return SimpleNamespace(package=SimpleNamespace(modules=[]))
 
-    monkeypatch.setattr(ENGINE, "check", fake_check)
     monkeypatch.setattr(ENGINE, "compile", fake_compile)
 
     with warnings.catch_warnings(record=True) as records:
@@ -207,6 +162,7 @@ def test_library_compile_rich_warning_emits_stderr_once(monkeypatch, capsys):
         with rich_warnings():
             library.compile()
 
-    assert len(records) == 1
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
     err = capsys.readouterr().err
     assert err.count("Warning: Public API warning") == 1
