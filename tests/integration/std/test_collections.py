@@ -135,7 +135,7 @@ def test_queue(run_int_fn) -> None:
     @guppy
     def main() -> int:
         queue: Queue[int, 10] = empty_queue()
-        for i in range(9):
+        for i in range(10):
             queue = queue.push(i)
         s = 0
         i = 1
@@ -159,7 +159,7 @@ def test_queue_iter(run_int_fn) -> None:
     @guppy
     def main() -> int:
         queue: Queue[int, 10] = empty_queue()
-        for i in range(9):
+        for i in range(10):
             queue = queue.push(i)
         s = 0
         i = 1
@@ -215,7 +215,7 @@ def test_queue_empty() -> None:
     @guppy
     def main() -> None:
         queue: Queue[int, 1] = empty_queue()
-        for i in range(0):
+        for i in range(1):
             queue = queue.push(i)
 
         for _ in range(2):
