@@ -149,7 +149,7 @@ def test_queue(run_int_fn) -> None:
     run_int_fn(
         main,
         # multiplier * value for ordered values in the queue
-        sum((i + 1) * x for i, x in enumerate(list(range(9)))),
+        sum((i + 1) * x for i, x in enumerate(list(range(10)))),
     )
 
 
@@ -171,8 +171,21 @@ def test_queue_iter(run_int_fn) -> None:
     run_int_fn(
         main,
         # multiplier * value for ordered values in the queue
-        sum((i + 1) * x for i, x in enumerate(list(range(9)))),
+        sum((i + 1) * x for i, x in enumerate(list(range(10)))),
     )
+
+
+def test_queue_full(run_int_fn) -> None:
+    """Tests that a queue can be filled to its maximum capacity."""
+
+    @guppy
+    def main() -> int:
+        queue: Queue[int, 5] = empty_queue()
+        for i in range(5):
+            queue = queue.push(i)
+        return len(queue)
+
+    run_int_fn(main, 5)
 
 
 def test_queue_beyond_full() -> None:
@@ -182,23 +195,6 @@ def test_queue_beyond_full() -> None:
     def main() -> None:
         queue: Queue[int, 1] = empty_queue()
         for i in range(2):
-            queue = queue.push(i)
-
-        queue.discard_empty()
-
-    with pytest.raises(
-        EmulatorError, match=r"Panic \(#1001\): Queue.push: max size reached"
-    ):
-        main.emulator(n_qubits=0).stabilizer_sim().with_seed(42).run()
-
-
-def test_queue_full() -> None:
-    """Tests that pushing to the queue's maximum capacity raises a panic."""
-
-    @guppy
-    def main() -> None:
-        queue: Queue[int, 5] = empty_queue()
-        for i in range(5):
             queue = queue.push(i)
 
         queue.discard_empty()
