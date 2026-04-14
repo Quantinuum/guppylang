@@ -9,6 +9,8 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.span import Loc, Span
 from guppylang_internals.warning import diagnostic_report, emit_warning
 
+from tests.util import guppy_warning_records
+
 file = "warning_test.py"
 
 
@@ -41,8 +43,9 @@ def test_emit_warning_with_source_location():
         with diagnostic_report():
             emit_warning(make_warning())
 
-    assert len(records) == 1
-    warning = records[0]
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
+    warning = guppy_records[0]
     assert warning.category is GuppyWarning
     assert warning.filename == file
     assert warning.lineno == 3
@@ -63,8 +66,9 @@ def test_nested_reports_flush_on_outer_exit():
                 assert records == []
             assert records == []
 
-    assert len(records) == 1
-    assert str(records[0].message).startswith("Synthetic warning")
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
+    assert str(guppy_records[0].message).startswith("Synthetic warning")
 
 
 def test_duplicate_warnings_are_deduplicated():
@@ -75,7 +79,8 @@ def test_duplicate_warnings_are_deduplicated():
             emit_warning(make_warning())
             emit_warning(make_warning())
 
-    assert len(records) == 1
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
 
 
 def test_warning_is_discarded_if_operation_fails():
@@ -91,7 +96,8 @@ def test_warning_is_discarded_if_operation_fails():
         with pytest.raises(RuntimeError, match="boom"):
             fail_with_warning()
 
-    assert len(records) == 0
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 0
 
 
 def test_rich_warnings_render_to_stderr(capsys):
@@ -102,7 +108,8 @@ def test_rich_warnings_render_to_stderr(capsys):
         with rich_warnings(), diagnostic_report():
             emit_warning(make_warning())
 
-    assert len(records) == 1
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
     err = capsys.readouterr().err
     assert "Warning: Synthetic warning" in err
     assert "3 |" in err
@@ -117,6 +124,7 @@ def test_nested_rich_warnings_do_not_duplicate_stderr(capsys):
         with rich_warnings(), rich_warnings(), diagnostic_report():
             emit_warning(make_warning())
 
-    assert len(records) == 1
+    guppy_records = guppy_warning_records(records)
+    assert len(guppy_records) == 1
     err = capsys.readouterr().err
     assert err.count("Warning: Synthetic warning") == 1
