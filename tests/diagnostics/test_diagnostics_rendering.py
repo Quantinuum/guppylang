@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
 
+from guppylang_internals.cfg.builder import UnreachableWarning
 from guppylang_internals.diagnostic import (
     Diagnostic,
     DiagnosticsRenderer,
@@ -161,6 +162,13 @@ def test_note(snapshot, request):
     span = Span(Loc(file, 1, 6), Loc(file, 1, 8))
     diagnostic = MyError(span)
     diagnostic.add_sub_diagnostic(MySubDiagnostic(None))
+    run_test(source, diagnostic, snapshot, request)
+
+
+def test_unreachable_warning(snapshot, request):
+    source = "def foo():\n    return 0\n    x = 1\n"
+    span = Span(Loc(file, 3, 4), Loc(file, 3, 9))
+    diagnostic = UnreachableWarning(span)
     run_test(source, diagnostic, snapshot, request)
 
 

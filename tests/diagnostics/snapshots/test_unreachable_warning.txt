@@ -1,0 +1,6 @@
+Warning: Unreachable (at <unknown>:3:4)
+  | 
+1 | def foo():
+2 |     return 0
+3 |     x = 1
+  |     ^^^^^ This code is not reachable

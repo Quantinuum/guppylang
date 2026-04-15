@@ -1,0 +1,6 @@
+Warning: Unreachable (at $FILE:8:8)
+  | 
+6 | def foo() -> int:
+7 |     if False:
+8 |         return 1
+  |         ^^^^^^^^ This code is not reachable

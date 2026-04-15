@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import ClassVar
 
 import pytest
+from guppylang_internals.cfg.builder import UnreachableWarning
 from guppylang_internals.diagnostic import (
     Diagnostic,
     DiagnosticLevel,
@@ -104,6 +105,15 @@ def test_different_severity_levels(snapshot, request):
     source = "suspicious_code()"
     span = Span(Loc(file, 1, 0), Loc(file, 1, 15))
     diagnostic = WarningDiag(span)
+    run_miette_test(source, diagnostic, snapshot, request)
+
+
+def test_unreachable_warning(snapshot, request):
+    """Test rendering of the concrete unreachable-code warning."""
+
+    source = "def foo():\n    return 0\n    x = 1\n"
+    span = Span(Loc(file, 3, 4), Loc(file, 3, 9))
+    diagnostic = UnreachableWarning(span)
     run_miette_test(source, diagnostic, snapshot, request)
 
 

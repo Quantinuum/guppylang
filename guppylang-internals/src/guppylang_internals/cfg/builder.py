@@ -25,7 +25,7 @@ from guppylang_internals.checker.errors.generic import (
     UnsupportedError,
 )
 from guppylang_internals.checker.errors.type_errors import WrongNumberOfArgsError
-from guppylang_internals.diagnostic import Error
+from guppylang_internals.diagnostic import Error, Warning
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import (
     check_lists_enabled,
@@ -48,6 +48,7 @@ from guppylang_internals.nodes import (
 )
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.ty import NoneType, UnitaryFlags
+from guppylang_internals.warning import emit_warning
 
 # In order to build expressions, need an endless stream of unique temporary variables
 # to store intermediate results
@@ -68,7 +69,7 @@ class Jumps(NamedTuple):
 
 
 @dataclass(frozen=True)
-class UnreachableError(Error):
+class UnreachableWarning(Warning):
     title: ClassVar[str] = "Unreachable"
     span_label: ClassVar[str] = "This code is not reachable"
 
@@ -134,6 +135,11 @@ class CFGBuilder(AstVisitor[BB | None]):
                             )
                     raise GuppyError(err)
             self.cfg.link(final_bb, self.cfg.exit_bb)
+
+        for bb in self.cfg.bbs:
+            if bb.reachable or bb.is_exit or not bb.statements:
+                continue
+            emit_warning(UnreachableWarning(bb.statements[0]))
 
         # Prune the CFG such that there are no jumps from unreachable code back into
         # reachable code. Otherwise, unreachable code could lead to unnecessary type
