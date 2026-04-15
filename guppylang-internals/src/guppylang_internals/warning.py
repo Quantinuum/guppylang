@@ -16,12 +16,16 @@ class GuppyWarning(UserWarning):
     """Warning category for non-fatal compiler diagnostics."""
 
 
-class WarningKey(NamedTuple):
+class _WarningKey(NamedTuple):
     """Stable identity for deduplicating warnings within one operation."""
 
+    # File path passed through to Python's warning machinery, if available.
     filename: str | None
+    # 1-based source line passed through to Python's warning machinery, if available.
     lineno: int | None
+    # 0-based source column used only for deduplicating distinct warnings on one line.
     column: int | None
+    # Concise warning text emitted through Python's warning machinery.
     message: str
 
 
@@ -29,11 +33,30 @@ class WarningKey(NamedTuple):
 class PendingWarning:
     """Buffered warning waiting to be emitted at the end of a top-level operation."""
 
+    # Original structured diagnostic used for rich rendering.
     diagnostic: "Diagnostic"
-    message: str
-    filename: str | None
-    lineno: int | None
-    key: WarningKey
+    # Stable warning identity and Python-warning payload.
+    _key: _WarningKey
+
+    @property
+    def message(self) -> str:
+        """Concise warning text emitted through Python's warning machinery."""
+        return self._key.message
+
+    @property
+    def filename(self) -> str | None:
+        """Source file reported to Python's warning machinery, if available."""
+        return self._key.filename
+
+    @property
+    def lineno(self) -> int | None:
+        """1-based source line reported to Python's warning machinery, if available."""
+        return self._key.lineno
+
+    @property
+    def column(self) -> int | None:
+        """0-based source column used for deduplication within one operation."""
+        return self._key.column
 
 
 @dataclass
@@ -42,7 +65,7 @@ class DiagnosticSession:
 
     rich_warnings: bool = False
     pending_warnings: list[PendingWarning] = field(default_factory=list)
-    seen_warnings: set[WarningKey] = field(default_factory=set)
+    seen_warnings: set[_WarningKey] = field(default_factory=set)
 
 
 _DIAGNOSTIC_SESSION: ContextVar[DiagnosticSession | None] = ContextVar(
@@ -111,12 +134,12 @@ def emit_warning(diag: "Diagnostic") -> None:
         _emit_pending_warning(pending_warning)
         return
 
-    if pending_warning.key in session.seen_warnings:
+    if pending_warning._key in session.seen_warnings:
         # Re-emitting the same warning from nested passes or revisited CFG nodes should
         # not duplicate the user-facing Python warning within one operation.
         return
 
-    session.seen_warnings.add(pending_warning.key)
+    session.seen_warnings.add(pending_warning._key)
     session.pending_warnings.append(pending_warning)
 
 
@@ -141,12 +164,9 @@ def _pending_warning(diag: "Diagnostic") -> PendingWarning:
     message = _warning_message(diag)
     return PendingWarning(
         diagnostic=diag,
-        message=message,
-        filename=filename,
-        lineno=lineno,
         # Deduplicate on source location plus rendered message so repeated reports from
         # the same site collapse, while distinct warnings on one line still survive.
-        key=WarningKey(filename, lineno, column, message),
+        _key=_WarningKey(filename, lineno, column, message),
     )
 
 
