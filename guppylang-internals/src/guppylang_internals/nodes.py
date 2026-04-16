@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.util import CheckedField
 
 
+_NAME_FIELD_TYPES: Any = getattr(ast.Name, "_field_types", {})
+
+
 class PlaceNode(ast.expr):
     place: "Place"
 
@@ -47,7 +50,7 @@ class GlobalName(ast.Name):
         "id",
         "def_id",
     )
-    _field_types = ast.Name._field_types | {
+    _field_types = _NAME_FIELD_TYPES | {
         "def_id": object,
     }
 
@@ -79,7 +82,7 @@ class DummyGenericParamValue(ast.Name):
         "id",
         "var",
     )
-    _field_types = ast.Name._field_types | {
+    _field_types = _NAME_FIELD_TYPES | {
         "var": object,
     }
 
