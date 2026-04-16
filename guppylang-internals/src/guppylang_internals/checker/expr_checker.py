@@ -594,6 +594,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         # staticmethods of types
         # If node points to a function then get the type it is an impl
         # of and the corresponding staticmethod
+        # NEEDS TO CHANGE AS THIS WILL NOT WORK WITH ENUMS
         if isinstance(ty, FunctionType) and isinstance(node.value, GlobalName):
             ty_id = DEF_STORE.type_member_parents[node.value.def_id]
             ty_def = ENGINE.parsed[ty_id]
