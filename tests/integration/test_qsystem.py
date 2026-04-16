@@ -17,6 +17,7 @@ from guppylang.std.quantum import qubit, measure_array, x
 from guppylang.std.qsystem.functional import (
     phased_x,
     zz_phase,
+    measure_and_reset_array as measure_and_reset_array_fn,
     measure_and_reset,
     zz_max,
     reset,
@@ -170,6 +171,29 @@ def test_measure_and_reset_array(validate, run_int_fn):  # type: ignore[no-untyp
                 x(qubits[i])
 
         first = measure_and_reset_array(qubits)
+        second = measure_array(qubits)
+
+        for i in range(len(first)):
+            if int(first[i]) != pattern[i] or second[i]:
+                return 0
+        return 1
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=NUM_QUBITS)
+
+
+def test_measure_and_reset_array_functional(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    NUM_QUBITS = 5
+
+    @guppy
+    def test() -> int:
+        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        pattern = array(1, 0, 1, 1, 0)
+        for i in range(len(qubits)):
+            if pattern[i]:
+                x(qubits[i])
+
+        qubits, first = measure_and_reset_array_fn(qubits)
         second = measure_array(qubits)
 
         for i in range(len(first)):
