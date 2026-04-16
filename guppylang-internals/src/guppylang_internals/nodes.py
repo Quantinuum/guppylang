@@ -47,9 +47,14 @@ class GlobalName(ast.Name):
         "id",
         "def_id",
     )
+    _field_types = ast.Name._field_types | {
+        "def_id": object,
+    }
 
     def __init__(self, id: str, def_id: "DefId") -> None:
-        super().__init__(id=id)
+        # Python 3.15 validates subclass-defined AST fields in the base constructor,
+        # but typeshed still exposes `ast.Name.__init__` without custom kwargs.
+        super().__init__(id=id, def_id=def_id)  # type: ignore[call-arg]
         self.id = id
         self.def_id = def_id
 
@@ -74,9 +79,12 @@ class DummyGenericParamValue(ast.Name):
         "id",
         "var",
     )
+    _field_types = ast.Name._field_types | {
+        "var": object,
+    }
 
     def __init__(self, id: str, var: BoundConstVar) -> None:
-        super().__init__(id=id)
+        super().__init__(id=id, var=var)  # type: ignore[call-arg]
         self.id = id
         self.var = var
 
