@@ -5,7 +5,7 @@ dev = [
     { include-group = "test" },
     { include-group = "examples" },
 ]
-lint = ["pre-commit>=3.6.0,<5", "ruff~=0.15.0", "mypy~=1.20.0"]
+lint = ["pre-commit>=3.6.0,<5", "ruff~=0.15.10", "mypy~=1.20.1"]
 examples = ["matplotlib>=3.9.2", "networkx>=2.6,<4"]
 test = [
     "pytest>=8.4.2,<10",
@@ -16,7 +16,6 @@ test = [
     "pytest-xdist>=3.8.0",
     "ipykernel>=6.29.5,<8",
     "miette-py",
-    "tket~=0.12.15",
     "pytest-isolate>=0.0.13",
 ]
 
@@ -30,7 +29,7 @@ guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
-# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "191c473" }
+# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
 
 [build-system]
 requires = ["hatchling"]
@@ -61,5 +60,5 @@ exclude_also = [
 addopts = "--benchmark-skip" # benchmarks run explicitly with `just bench`
 filterwarnings = [
     "ignore::DeprecationWarning", # TODO remove after removing guppy.compile()
-    "ignore::SyntaxWarning",      # Python 3.14 complains about guppy tuple callables
+    "ignore::SyntaxWarning", # Python 3.14 complains about guppy tuple callables
 ]

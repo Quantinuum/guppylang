@@ -2,20 +2,23 @@ from collections import defaultdict
 from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass
+from pathlib import Path
 from types import FrameType
 from typing import ClassVar, cast
 
 import hugr
 import hugr.build.function as hf
 from hugr import ops
+from hugr.debug_info import DICompileUnit
 from hugr.envelope import ExtensionDesc, GeneratorDesc
 from hugr.ext import Extension, ExtensionRegistry
-from hugr.metadata import HugrGenerator, HugrUsedExtensions
+from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
 from typing_extensions import assert_never, deprecated
 
 import guppylang_internals
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
     CheckableGenericDef,
@@ -38,7 +41,11 @@ from guppylang_internals.error import (
     RequiresMonomorphizationError,
     pretty_errors,
 )
+from guppylang_internals.metadata.debug_info_util import (
+    StringTable,
+)
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tracing.util import get_calling_frame
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
@@ -214,11 +221,11 @@ class CompilationEngine:
 
             registry = ExtensionRegistry()
             for ext in [
-                *hugr.std._std_extensions().extensions.values(),
+                *hugr.std._std_extensions().extensions,
                 *TKET_EXTENSIONS,
                 hugr_extension.EXTENSION,
             ]:
-                registry.register_updated(ext)
+                registry.register(ext)
             CompilationEngine._base_resolve_registry = registry
         return CompilationEngine._base_resolve_registry
 
@@ -369,35 +376,49 @@ class CompilationEngine:
         return None
 
     @pretty_errors
-    def check(self, id: DefId) -> None:
+    def check_single(self, id: DefId) -> None:
         """Top-level function to kick of checking of a definition.
 
         This is the main driver behind `guppy.check()`.
         """
+        self.check([id])
+
+    @pretty_errors
+    def check(self, def_ids: list[DefId], *, reset: bool = True) -> None:
+        """Top-level function to kick of checking of multiple definitions.
+
+        This is the main driver behind `guppy.library(...).check()`.
+        """
         # Clear previous compilation cache.
         # TODO: In order to maintain results from the previous `check` call we would
         #  need to store and check if any dependencies have changed.
-        self.reset()
+        if reset:
+            self.reset()
 
         # We allow generic functions as checking entrypoints as long as we don't run
         # into a check that requires monomorphization. For this, we check a version
         # where all parameters are instantiated to opaque `BoundVariable`s.
-        entry_defn = self.get_parsed(id)
-        entry_params = (
-            entry_defn.params if isinstance(entry_defn, CheckableGenericDef) else []
-        )
-        entry_mono_args = tuple(param.to_bound() for param in entry_params)
-        try:
-            self.checked[id, entry_mono_args] = self.get_checked(id, entry_mono_args)
-        except RequiresMonomorphizationError:
-            # `RequiresMonomorphizationError` is raised whenever we cannot proceed
-            # checking without having the monomorphization available. In that case, we
-            # give up and prompt the user to specify the generic arguments.
-            description = f"{entry_defn.description.capitalize()} `{entry_defn.name}`"
-            err = EntryCheckMonomorphizeError(
-                entry_defn.defined_at, description, entry_defn.params
+        for def_id in def_ids:
+            entry_defn = self.get_parsed(def_id)
+            entry_params = (
+                entry_defn.params if isinstance(entry_defn, CheckableGenericDef) else []
             )
-            raise GuppyError(err)
+            entry_mono_args = tuple(param.to_bound() for param in entry_params)
+            try:
+                self.checked[def_id, entry_mono_args] = self.get_checked(
+                    def_id, entry_mono_args
+                )
+            except RequiresMonomorphizationError:
+                # `RequiresMonomorphizationError` is raised whenever we cannot proceed
+                # checking without having the monomorphization available. In that case,
+                # we give up and prompt the user to specify the generic arguments.
+                description = (
+                    f"{entry_defn.description.capitalize()} `{entry_defn.name}`"
+                )
+                err = EntryCheckMonomorphizeError(
+                    entry_defn.defined_at, description, entry_defn.params
+                )
+                raise GuppyError(err)
 
         # Checking the entrypoint will have populated the worklist, so now we need to
         # process it
@@ -430,12 +451,37 @@ class CompilationEngine:
                 self.checked[id, mono_args] = self.get_checked(id, mono_args)
 
     @pretty_errors
-    def compile(self, id: DefId) -> ModulePointer:
-        """Top-level function to kick of Hugr compilation of a definition.
+    def compile_single(self, id: DefId) -> ModulePointer:
+        """Top-level function to begin compilation of a definition into a Hugr module.
 
-        This is the function that is invoked by `guppy.compile`.
+        This is the function that is invoked by e.g. `<guppy-definition>.compile`.
         """
-        self.check(id)
+        pointer, [compiled_def] = self._compile([id])
+
+        if (
+            isinstance(compiled_def, CompiledHugrNodeDef)
+            and isinstance(compiled_def, CompiledCallableDef)
+            and not isinstance(pointer.module[compiled_def.hugr_node].op, ops.FuncDecl)
+        ):
+            # if compiling a region set it as the HUGR entrypoint can be
+            # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
+            pointer.module.entrypoint = compiled_def.hugr_node
+
+        return pointer
+
+    @pretty_errors
+    def compile(self, def_ids: list[DefId], *, reset: bool = True) -> ModulePointer:
+        """Top-level function to begin compilation of a range of definitions into a Hugr
+        module.
+
+        This is the function that is invoked by e.g. `<guppy-library>.compile`.
+        """
+        return self._compile(def_ids, reset=reset)[0]
+
+    def _compile(
+        self, def_ids: list[DefId], *, reset: bool = True
+    ) -> tuple[ModulePointer, list[CompiledDef]]:
+        self.check(def_ids, reset=reset)
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -444,20 +490,29 @@ class CompilationEngine:
         # Lower definitions to Hugr
         from guppylang_internals.compiler.core import CompilerContext
 
-        ctx = CompilerContext(graph)
-        check_entry_point_non_generic(self.get_parsed(id))
-        entry_mono_args: Inst = ()
-        compiled_def = ctx.compile(self.checked[id, entry_mono_args], entry_mono_args)
+        # Set up string tables for metadata serialization. We know that the first entry
+        # in the table is always the file containing the Hugr entrypoint.
+        frame = get_calling_frame()
+        assert frame is not None
+        filename = frame.f_code.co_filename
+
+        ctx = CompilerContext(graph, set(def_ids), StringTable())
+        requested_defs = []
+        for def_id in def_ids:
+            check_entry_point_non_generic(self.get_parsed(def_id))
+            requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
+        ctx.iterate_worklist()
         self.compiled = ctx.compiled
 
-        if (
-            isinstance(compiled_def, CompiledHugrNodeDef)
-            and isinstance(compiled_def, CompiledCallableDef)
-            and not isinstance(graph.hugr[compiled_def.hugr_node].op, ops.FuncDecl)
-        ):
-            # if compiling a region set it as the HUGR entrypoint can be
-            # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
-            graph.hugr.entrypoint = compiled_def.hugr_node
+        # Add debug info about the module to the root node
+        if debug_mode_enabled():
+            module_info = DICompileUnit(
+                directory=Path.cwd().as_uri(),
+                # We know this file is always the first entry in the file table.
+                filename=ctx.metadata_file_table.get_index(filename),
+                file_table=ctx.metadata_file_table.table,
+            )
+            graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
 
         # Build resolve registry: start with cached base, add any additional
         if self.additional_extensions:
@@ -465,7 +520,7 @@ class CompilationEngine:
 
             resolve_registry = deepcopy(self._get_base_resolve_registry())
             for ext in self.additional_extensions:
-                resolve_registry.register_updated(ext)
+                resolve_registry.register(ext)
         else:
             resolve_registry = self._get_base_resolve_registry()
 
@@ -477,7 +532,7 @@ class CompilationEngine:
         # Set metadata for used extensions
         used_exts_meta = [
             ExtensionDesc(name=ext.name, version=ext.version)
-            for ext in used_extensions_result.used_extensions.extensions.values()
+            for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
         used_exts_meta.extend(
@@ -498,11 +553,14 @@ class CompilationEngine:
         std_ext_names = hugr.std._std_extensions()
         packaged_extensions = [
             ext
-            for name, ext in used_extensions_result.used_extensions.extensions.items()
-            if name not in std_ext_names
+            for ext in used_extensions_result.used_extensions.extensions
+            if ext.name not in std_ext_names
         ]
-        return ModulePointer(
-            Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+        return (
+            ModulePointer(
+                Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+            ),
+            requested_defs,
         )
 
 

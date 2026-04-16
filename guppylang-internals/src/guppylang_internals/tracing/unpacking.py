@@ -8,7 +8,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     IllegalComptimeExpressionError,
 )
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
-from guppylang_internals.compiler.core import CompilerContext
+from guppylang_internals.compiler.core import CompilerContext, DFBuilder
 from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.error import GuppyComptimeError, GuppyError
 from guppylang_internals.std._internal.compiler.array import array_new, unpack_array
@@ -72,7 +72,7 @@ def unpack_guppy_object(
                     # them as Guppy objects here
                     return obj
                 elem_ty = get_element_type(ty)
-                elems = unpack_array(builder, obj._use_wire(None))
+                elems = unpack_array(DFBuilder(builder), obj._use_wire(None))
                 obj_list = [
                     unpack_guppy_object(GuppyObject(elem_ty, wire), builder, frozen)
                     for wire in elems
@@ -194,7 +194,7 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: DfBase[P]) -> bool:
         case list(vs) if len(vs) > 0:
             assert is_array_type(obj._ty)
             elem_ty = get_element_type(obj._ty)
-            wires = unpack_array(builder, obj._use_wire(None))
+            wires = unpack_array(DFBuilder(builder), obj._use_wire(None))
             for i, (v, wire) in enumerate(zip(vs, wires, strict=True)):
                 success = update_packed_value(v, GuppyObject(elem_ty, wire), builder)
                 if not success:

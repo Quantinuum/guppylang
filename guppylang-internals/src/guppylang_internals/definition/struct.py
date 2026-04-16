@@ -213,7 +213,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             """Compiler for the `__new__` constructor method of a struct."""
 
             def compile(self, args: list[Wire]) -> list[Wire]:
-                return list(self.builder.add(ops.MakeTuple()(*args)))
+                return list(self.builder.add_op(ops.MakeTuple(), *args))
 
         constructor_sig = FunctionType(
             inputs=[

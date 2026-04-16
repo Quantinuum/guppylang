@@ -153,7 +153,7 @@ def test_func_type_arg(validate):
 
     @guppy.enum
     class Enum:
-        VariantA = {"xs": array[int, comptime(n)]}  # noqa: RUF012
+        VariantA = {"xs": array[int, comptime(n)]}
 
     validate(foo.compile_function())
     validate(bar.compile_function())

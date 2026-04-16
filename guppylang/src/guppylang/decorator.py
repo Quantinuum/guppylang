@@ -27,7 +27,6 @@ from guppylang_internals.definition.extern import RawExternDef
 from guppylang_internals.definition.function import (
     RawFunctionDef,
 )
-from guppylang_internals.definition.metadata import GuppyMetadata
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
@@ -43,6 +42,7 @@ from guppylang_internals.definition.traced import RawTracedFunctionDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
 from guppylang_internals.engine import DEF_STORE
+from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.arg import Argument
@@ -64,6 +64,7 @@ from guppylang.defs import (
     GuppyDefinition,
     GuppyEnumDefinition,
     GuppyFunctionDefinition,
+    GuppyLibrary,
     GuppyTypeVarDefinition,
 )
 
@@ -181,8 +182,15 @@ class _Guppy:
         def decorator(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
-            _ = _parse_kwargs(kwargs)  # TODO: Pass flags to RawTracedFunctionDef
-            defn = RawTracedFunctionDef(DefId.fresh(), f.__name__, None, f)
+            parsed = _parse_kwargs(kwargs)
+            defn = RawTracedFunctionDef(
+                DefId.fresh(),
+                f.__name__,
+                None,
+                f,
+                unitary_flags=parsed.flags,
+                metadata=parsed.metadata,
+            )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 
@@ -394,6 +402,7 @@ class _Guppy:
                 f,
                 unitary_flags=parsed.flags,
                 link_name=parsed.link_name,
+                metadata=parsed.metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -508,6 +517,28 @@ class _Guppy:
         if not isinstance(obj, GuppyDefinition):
             raise TypeError(f"Object is not a Guppy definition: {obj}")
         return ModulePointer(obj.compile(), 0)
+
+    def library(self, *members: GuppyDefinition) -> GuppyLibrary:
+        """Defines a Guppy library, which is a collection of Guppy definitions that can
+        be compiled together and linked as a unit.
+
+        This function does not act as a decorator.
+
+        .. code-block:: python
+            from guppylang import guppy
+
+            @guppy
+            def foo() -> int:
+                return 42
+            @guppy
+            def bar() -> int:
+                return 7
+
+            # Compilable collection containing `foo` and `bar`.
+            lib = guppy.library(foo, bar)
+        """
+
+        return GuppyLibrary([member.id for member in members])
 
     def pytket(
         self, input_circuit: Any
@@ -728,7 +759,7 @@ def _with_optional_kwargs(
 
 class ParsedGuppyKwargs(NamedTuple):
     flags: UnitaryFlags
-    metadata: GuppyMetadata
+    metadata: FunctionMetadata
     link_name: str | None
 
 
@@ -747,8 +778,9 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     if kwargs.pop("power", False):
         flags |= UnitaryFlags.Power
 
-    metadata = GuppyMetadata()
-    metadata.max_qubits.value = kwargs.pop("max_qubits", None)
+    metadata = FunctionMetadata()
+    if "max_qubits" in kwargs:
+        metadata.set_max_qubits(kwargs.pop("max_qubits"))
 
     link_name = kwargs.pop("link_name", None)
 

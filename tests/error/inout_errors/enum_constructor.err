@@ -1,0 +1,16 @@
+Error: Not owned (at $FILE:11:20)
+   | 
+ 9 | @guppy
+10 | def test(q: qubit) -> Enum:
+11 |     return Enum.Var(q)
+   |                     ^ Function `Var` wants to take ownership of this argument, but
+   |                       `test` doesn't own `q`
+
+Help:
+   | 
+ 9 | @guppy
+10 | def test(q: qubit) -> Enum:
+   |          -------- Argument `q` is only borrowed. Consider taking ownership:
+   |                   `q: qubit @owned`
+
+Guppy compilation failed due to 1 previous error

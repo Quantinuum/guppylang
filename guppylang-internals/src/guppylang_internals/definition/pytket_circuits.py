@@ -7,7 +7,9 @@ from guppylang.defs import GuppyDefinition
 from hugr import Node, Wire, envelope, ops, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.debug_info import DILocation, DISubprogram
 from hugr.envelope import EnvelopeConfig
+from hugr.metadata import HugrDebugInfo
 from hugr.std.float import FLOAT_T
 
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
@@ -18,6 +20,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CompilableDef,
     ParsableDef,
@@ -27,6 +30,7 @@ from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
     load,
+    make_subprogram_record,
     parse_py_func,
 )
 from guppylang_internals.definition.ty import TypeDef
@@ -38,6 +42,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.metadata.debug_info_util import make_location_record
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, Span, ToSpan
 from guppylang_internals.std._internal.compiler.array import (
@@ -97,7 +102,13 @@ class RawPytketDef(ParsableDef):
             )
             raise GuppyError(err)
         return ParsedPytketDef(
-            self.id, self.name, func_ast, stub_signature, self.input_circuit, False
+            self.id,
+            self.name,
+            func_ast,
+            stub_signature,
+            self.input_circuit,
+            False,
+            None,
         )
 
 
@@ -133,6 +144,7 @@ class RawLoadPytketDef(ParsableDef):
             circuit_signature,
             self.input_circuit,
             self.use_arrays,
+            self.source_span,
         )
 
 
@@ -153,6 +165,8 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     input_circuit: Any
     use_arrays: bool
 
+    source_span: Span | None  # Only set for load_pytket for debug purposes.
+
     description: str = field(default="pytket circuit", init=False)
 
     def compile_outer(
@@ -160,13 +174,15 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     ) -> "CompiledPytketDef":
         """Adds a Hugr `FuncDefn` node for this function to the Hugr."""
         from pytket.circuit import Circuit  # Decoupled import
-        from tket.circuit import Tk2Circuit  # Decoupled import
+        from tket._state import CompilationState  # Decoupled import
 
         # Type mismatch should have been raised in decorator
         assert isinstance(self.input_circuit, Circuit)
         # TODO extract the correct entry point from the module
         circ = envelope.read_envelope(
-            Tk2Circuit(self.input_circuit).to_bytes(EnvelopeConfig.TEXT)
+            CompilationState.from_tket1(self.input_circuit).to_bytes(
+                EnvelopeConfig.BINARY
+            )
         ).modules[0]
 
         mapping = module.hugr.insert_hugr(circ)
@@ -176,6 +192,26 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         outer_func = module.module_root_builder().define_function(
             self.name, func_type.body.input, func_type.body.output
         )
+        # Add circuit function definition metadata (we can't add metadata to the
+        # internal circuit function as we don't have that information).
+        # Depending on how the circuit was loaded, we have either a function stub node
+        # or a load statememnt source span to obtain debug info from.
+        if debug_mode_enabled():
+            # Function stub case.
+            if self.defined_at is not None:
+                assert isinstance(self.defined_at, ast.FunctionDef)
+                func_metadata = make_subprogram_record(
+                    self.defined_at, ctx, is_decl=True
+                )
+            # Load pytket case,
+            elif self.source_span is not None:
+                file_idx = ctx.metadata_file_table.get_index(self.source_span.file)
+                func_metadata = DISubprogram(
+                    file=file_idx,
+                    line_no=self.source_span.start.line,
+                    scope_line=None,
+                )
+            outer_func.metadata[HugrDebugInfo] = func_metadata
 
         # Number of qubit inputs in the outer function.
         offset = (
@@ -237,6 +273,19 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
         # Pass all arguments to call node.
         call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
+        # Add debug info metadata to the call node inside the outer function definition.
+        if debug_mode_enabled():
+            # Function stub case.
+            if self.defined_at is not None:
+                call_node.metadata[HugrDebugInfo] = make_location_record(
+                    self.defined_at
+                )
+            # Load pytket case,
+            elif self.source_span is not None:
+                call_node.metadata[HugrDebugInfo] = DILocation(
+                    column=self.source_span.start.column,
+                    line_no=self.source_span.start.line,
+                )
 
         # Pytket circuit hugr has qubit and bool wires in the opposite
         # order to Guppy output wires.
@@ -285,6 +334,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             self.ty,
             self.input_circuit,
             self.use_arrays,
+            self.source_span,
             outer_func,
         )
 
@@ -342,7 +392,7 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, dfg, self.ty, self.func_def)
+        return compile_call(args, dfg, self.ty, self.func_def, node)
 
 
 def _signature_from_circuit(

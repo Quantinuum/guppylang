@@ -278,9 +278,18 @@ def test_type_apply_method(validate):
         def foo(self: "MyStruct[T]") -> None:
             pass
 
+    @guppy.enum
+    class MyEnum(Generic[T]):
+        VariantA = {}
+
+        @guppy
+        def method(self: "MyEnum[T]") -> None:
+            pass
+
     @guppy
-    def main(s: MyStruct[int]) -> None:
+    def main(s: MyStruct[int], e: MyEnum[int]) -> None:
         s.foo[int]()
+        e.method[int]()
 
     validate(main.compile_function())
 

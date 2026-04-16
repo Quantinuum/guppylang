@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
+from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.declaration import RawFunctionDecl
 from guppylang_internals.definition.enum import CheckedEnumDef
 from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.value import CompiledCallableDef
@@ -37,6 +39,7 @@ __all__ = (
     "GuppyDefinition",
     "GuppyEnumDefinition",
     "GuppyFunctionDefinition",
+    "GuppyLibrary",
     "GuppyTypeVarDefinition",
 )
 
@@ -82,14 +85,14 @@ class GuppyDefinition(TracingDefMixin):
 
     def compile(self) -> Package:
         """Compile a Guppy definition to HUGR."""
-        package: Package = ENGINE.compile(self.id).package
+        package: Package = ENGINE.compile_single(self.id).package
         for mod in package.modules:
             _update_generator_metadata(mod)
         return package
 
     def check(self) -> None:
         """Type-check a Guppy definition."""
-        return ENGINE.check(self.id)
+        return ENGINE.check_single(self.id)
 
 
 @dataclass(frozen=True)
@@ -126,7 +129,10 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         return cast("Out", super().__call__(*args, **kwargs))
 
     def emulator(
-        self, n_qubits: int | None = None, builder: EmulatorBuilder | None = None
+        self,
+        n_qubits: int | None = None,
+        builder: EmulatorBuilder | None = None,
+        libs: list[Package] | None = None,
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
@@ -142,11 +148,17 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             in the decorator, e.g. `@guppy(max_qubits=5)`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
             instance. If not provided, the default `EmulatorBuilder` will be used.
+            libs: An optional list of additional HUGR packages to link with the compiled
+            function. This can be used to provide additional library functions that the
+            function being compiled depends on.
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
         mod = self.compile()
+
+        if libs is not None:
+            mod = mod.link(*libs)
 
         builder = builder or EmulatorBuilder()
         qubits = n_qubits
@@ -154,7 +166,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             isinstance(self.wrapped, RawFunctionDef)
             and self.wrapped.metadata is not None
         ):
-            hinted_qubits = self.wrapped.metadata.max_qubits.value
+            hinted_qubits = self.wrapped.metadata.get_max_qubits()
             if qubits is None:
                 qubits = hinted_qubits
             elif hinted_qubits is not None and qubits < hinted_qubits:
@@ -236,6 +248,46 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             Package: The compiled package object.
         """
         return super().compile()
+
+    @property
+    def is_decl(self) -> bool:
+        """Whether this function definition is a declaration (i.e. has no body)."""
+        return isinstance(self.wrapped, RawFunctionDecl)
+
+
+@dataclass(frozen=True)
+class GuppyLibrary:
+    """A collection of Guppy definitions that can be compiled together into a linkable
+    unit exposing a public interface."""
+
+    members: list[DefId]
+
+    def _type_members(self) -> list[DefId]:
+        """Any implementations registered for members of this library. Note that the
+        list is only guaranteed to be complete after calling `check()` on the library
+        members, since auto-generated implementations may be added during checking."""
+        members: list[DefId] = []
+        for def_id in self.members:
+            # TODO automatic member inclusion should be based on the automatic
+            # collection when available
+            members.extend(DEF_STORE.type_members[def_id].values())
+
+        return members
+
+    def compile(self) -> Package:
+        """Compile this collection of definitions into a HUGR package."""
+        ENGINE.check(self.members)
+        # Check fills _type_members with additional members only available after
+        # checking, so we have to call it before compiling (without an engine reset).
+        pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
+        for mod in pointer.package.modules:
+            _update_generator_metadata(mod)
+        return pointer.package
+
+    def check(self) -> None:
+        """Type-check all contained definitions."""
+        ENGINE.check(self.members)
+        ENGINE.check(self._type_members(), reset=False)
 
 
 @dataclass(frozen=True)

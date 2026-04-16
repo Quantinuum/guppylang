@@ -7,11 +7,13 @@ from typing import TYPE_CHECKING, Any
 import hugr.build.function as hf
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.debug_info import DISubprogram
 from hugr.hugr.node_port import ToNode
 
 from guppylang_internals.ast_util import (
     AstNode,
     annotate_location,
+    get_file,
     parse_source,
     with_loc,
     with_type,
@@ -30,6 +32,7 @@ from guppylang_internals.compiler.core import (
     DFContainer,
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
@@ -38,7 +41,6 @@ from guppylang_internals.definition.common import (
     UserProvidedLinkName,
 )
 from guppylang_internals.definition.enum import ParsedEnumDef
-from guppylang_internals.definition.metadata import GuppyMetadata, add_metadata
 from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -48,8 +50,9 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
+from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
@@ -65,7 +68,7 @@ PyFunc = Callable[..., Any]
 def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
     if (parent_ty_id := DEF_STORE.type_member_parents.get(raw_def.id)) is not None:
         parent = ENGINE.get_parsed(parent_ty_id)
-        if isinstance(parent, (ParsedStructDef, ParsedEnumDef)):
+        if isinstance(parent, ParsedStructDef | ParsedEnumDef):
             return f"{parent.link_name_prefix}.{raw_def.python_func.__name__}"
 
     return f"{raw_def.python_func.__module__}.{raw_def.python_func.__qualname__}"
@@ -112,7 +115,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
-    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
@@ -158,7 +161,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     description: str = field(default="function", init=False)
 
-    metadata: GuppyMetadata | None = field(default=None, kw_only=True)
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property
     def params(self) -> "Sequence[Parameter]":
@@ -240,8 +243,15 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         """
         hugr_ty = self.ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
-            self.link_name, hugr_ty.body.input, hugr_ty.body.output, hugr_ty.params
+            self.link_name,
+            hugr_ty.body.input,
+            hugr_ty.body.output,
+            hugr_ty.params,
+            visibility="Public" if self.id in ctx.exported_defs else "Private",
         )
+        if debug_mode_enabled():
+            assert self.metadata is not None
+            self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
         add_metadata(
             func_def,
             self.metadata,
@@ -297,7 +307,7 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, dfg, self.ty, self.func_def)
+        return compile_call(args, dfg, self.ty, self.func_def, node)
 
     def compile_inner(self, globals: CompilerContext) -> None:
         """Compiles the body of the function."""
@@ -314,10 +324,12 @@ def compile_call(
     dfg: DFContainer,
     ty: FunctionType,
     func: ToNode,
+    call_ast: AstNode,
 ) -> CallReturnWires:
     """Compiles a call to the function."""
     num_returns = len(type_to_row(ty.output))
-    call = dfg.builder.call(func, *args)
+    with dfg.builder.set_ast_context(call_ast):
+        call = dfg.builder.call(func, *args)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),
@@ -335,3 +347,26 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     if not isinstance(func_ast, ast.FunctionDef):
         raise GuppyError(ExpectedError(func_ast, "a function definition"))
     return parse_function_with_docstring(func_ast)
+
+
+# Note: Defined here as opposed to in `metadata.debug_info` to avoid circular imports
+# due to using `CompilerContext` (not an issue for `make_location_record`).
+def make_subprogram_record(
+    node: ast.FunctionDef, ctx: CompilerContext, is_decl: bool = False
+) -> DISubprogram:
+    """Create a DISubprogram debug record for `node`, which should be a function
+    definition or declaration."""
+    filename = get_file(node)
+    # If we can't fine a file for a node, we default to 0 which corresponds to the
+    # entrypoint file.
+    file_idx = ctx.metadata_file_table.get_index(filename) if filename else -1
+    if is_decl or not node.body:
+        return DISubprogram(
+            file=file_idx, line_no=to_span(node).start.line, scope_line=None
+        )
+    else:
+        return DISubprogram(
+            file=file_idx,
+            line_no=to_span(node).start.line,
+            scope_line=to_span(node.body[0]).start.line,
+        )
