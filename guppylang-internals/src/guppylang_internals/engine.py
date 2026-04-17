@@ -412,13 +412,14 @@ class CompilationEngine:
                 # `RequiresMonomorphizationError` is raised whenever we cannot proceed
                 # checking without having the monomorphization available. In that case,
                 # we give up and prompt the user to specify the generic arguments.
+                assert isinstance(entry_defn, CheckableGenericDef)
                 description = (
                     f"{entry_defn.description.capitalize()} `{entry_defn.name}`"
                 )
                 err = EntryCheckMonomorphizeError(
                     entry_defn.defined_at, description, entry_defn.params
                 )
-                raise GuppyError(err)
+                raise GuppyError(err) from None
 
         # Checking the entrypoint will have populated the worklist, so now we need to
         # process it
