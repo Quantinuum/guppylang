@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from guppylang_internals.ast_util import AstNode
+from guppylang_internals.ast_util import AstNode, set_location_from
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 
 
 _NAME_FIELD_TYPES: Any = getattr(ast.Name, "_field_types", {})
+_CALL_FIELD_TYPES: Any = getattr(ast.Call, "_field_types", {})
+_FUNCTION_DEF_FIELD_TYPES: Any = getattr(ast.FunctionDef, "_field_types", {})
 
 
 class PlaceNode(ast.expr):
@@ -672,10 +674,24 @@ class NestedFunctionDef(ast.FunctionDef):
     ty: FunctionType
     docstring: str | None
 
-    def __init__(self, cfg: "CFG", ty: FunctionType, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    _fields = (*ast.FunctionDef._fields, "docstring")
+    _field_types = _FUNCTION_DEF_FIELD_TYPES | {
+        "docstring": object,
+    }
+
+    def __init__(
+        self,
+        cfg: "CFG",
+        ty: FunctionType,
+        docstring: str | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        init: Any = super().__init__
+        init(*args, docstring=docstring, **kwargs)
         self.cfg = cfg
         self.ty = ty
+        self.docstring = docstring
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -715,7 +731,8 @@ class Dagger(ast.expr):
     """The dagger modifier"""
 
     def __init__(self, node: ast.expr) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__()
+        set_location_from(self, node)
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -728,10 +745,24 @@ class Control(ast.Call):
     ctrl: list[ast.expr]
     qubit_num: int | Const | None
 
-    _fields = ("ctrl",)
+    _fields = (
+        "func",
+        "args",
+        "keywords",
+        "ctrl",
+    )
+    _field_types = _CALL_FIELD_TYPES | {
+        "ctrl": list[ast.expr],
+    }
 
     def __init__(self, node: ast.Call, ctrl: list[ast.expr]) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__(
+            func=node.func,
+            args=node.args,
+            keywords=node.keywords,
+            ctrl=ctrl,
+        )  # type: ignore[call-arg]
+        set_location_from(self, node)
         self.ctrl = ctrl
         self.qubit_num = None
 
@@ -748,7 +779,8 @@ class Power(ast.expr):
     _fields = ("iter",)
 
     def __init__(self, node: ast.expr, iter: ast.expr) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__()
+        set_location_from(self, node)
         self.iter = iter
 
     # See MakeIter for explanation
