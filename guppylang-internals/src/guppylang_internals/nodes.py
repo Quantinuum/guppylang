@@ -679,19 +679,12 @@ class NestedFunctionDef(ast.FunctionDef):
         "docstring": object,
     }
 
-    def __init__(
-        self,
-        cfg: "CFG",
-        ty: FunctionType,
-        docstring: str | None = None,
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, cfg: "CFG", ty: FunctionType, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("docstring", None)
         init: Any = super().__init__
-        init(*args, docstring=docstring, **kwargs)
+        init(*args, **kwargs)
         self.cfg = cfg
         self.ty = ty
-        self.docstring = docstring
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
