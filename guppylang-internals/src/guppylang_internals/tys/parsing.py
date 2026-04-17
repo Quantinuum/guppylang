@@ -302,6 +302,45 @@ def check_function_arg(
 
 if sys.version_info >= (3, 12):
 
+    def _parse_type_param_bound_tuple(
+        node: ast.TypeVar, idx: int, bound: ast.Tuple
+    ) -> TypeParam | None:
+        """Parses a `Copy`/`Drop` tuple used as a type parameter bound."""
+        from guppylang_internals.checker.cfg_checker import VarNotDefinedError
+
+        must_be_copyable = False
+        must_be_droppable = False
+        saw_modifier = False
+
+        for elt in bound.elts:
+            if not isinstance(elt, ast.Name):
+                return None
+            match elt.id:
+                case "Copy":
+                    must_be_copyable = True
+                    saw_modifier = True
+                case "Drop":
+                    must_be_droppable = True
+                    saw_modifier = True
+                # Once we have seen `Copy` or `Drop`, this tuple is modifier syntax.
+                # Any other name should therefore be reported directly at its own span.
+                case _ if saw_modifier:
+                    raise GuppyError(VarNotDefinedError(elt, elt.id))
+                # Before we have seen a modifier, this might still be an ordinary tuple
+                # type for a const bound, so defer to the normal fallback parser.
+                case _:
+                    return None
+
+        if not saw_modifier:
+            return None
+
+        return TypeParam(
+            idx,
+            node.name,
+            must_be_copyable=must_be_copyable,
+            must_be_droppable=must_be_droppable,
+        )
+
     def parse_parameter(
         node: ast.type_param,
         idx: int,
@@ -329,15 +368,12 @@ if sys.version_info >= (3, 12):
                 return TypeParam(
                     idx, node.name, must_be_copyable=False, must_be_droppable=True
                 )
-            # Copy and drop is annotated as `T: (Copy, Drop)`
+            # Copy and drop can be combined as `T: (Copy, Drop)`.
             # TODO: Should we also allow `T: Copy + Drop`? Mypy would complain about it
-            case ast.Tuple(elts=[ast.Name(id=id1), ast.Name(id=id2)]) if {id1, id2} == {
-                "Copy",
-                "Drop",
-            }:
-                return TypeParam(
-                    idx, node.name, must_be_copyable=True, must_be_droppable=True
-                )
+            case ast.Tuple() as bound if param := _parse_type_param_bound_tuple(
+                node, idx, bound
+            ):
+                return param
             # Otherwise, it must be a const parameter
             case bound:
                 # For now, we don't allow the types of const params to refer to previous
