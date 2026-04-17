@@ -683,7 +683,7 @@ class NestedFunctionDef(ast.FunctionDef):
         self,
         cfg: "CFG",
         ty: FunctionType,
-        docstring: str | None,
+        docstring: str | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
