@@ -20,7 +20,7 @@ def build_emu(
     if norm:
         hugr = NormalizeGuppy()(hugr)
 
-    package = Package([hugr], extensions=extensions)
+    package = hugr.to_package()
 
     builder = EmulatorBuilder()
 
