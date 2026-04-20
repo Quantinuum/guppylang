@@ -114,3 +114,29 @@ jobs:
         run: uv run --no-sync ruff check guppylang
       - name: Run tests
         run: UV_NO_SYNC=1 just test
+
+
+  check-guppy-docs-build:
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Set up Just
+        uses: extractions/setup-just@v4
+      - name: Clone guppy-docs repository and update submodule
+        run: |
+          git clone git@github.com:quantinuum/guppy-docs.git --recurse-submodules
+          cd guppy-docs
+          git submodule update --remote --merge
+      - name: Install a develop wheel of guppylang
+        run: |
+          cd guppy-docs
+          uv pip install -e guppylang --no-deps
+      - name: Run docs build
+        run: |
+          just build-docs
+
