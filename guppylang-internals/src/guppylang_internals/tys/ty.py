@@ -572,9 +572,17 @@ class FunctionType(ParametrizedTypeBase):
 
     def unquantified(self) -> tuple["FunctionType", Sequence[ExistentialVar]]:
         """Instantiates all parameters with existential variables."""
-        exs = [param.to_existential() for param in self.params]
-        inst = tuple(arg for arg, _ in exs)
-        return self.instantiate(inst), [var for _, var in exs]
+        from guppylang_internals.tys.subst import Instantiator
+
+        args: list[Argument] = []
+        exes = []
+        for param in self.params:
+            arg, ex = param.to_existential()
+            inst = Instantiator(args)
+            exes.append(ex.transform(inst))
+            args.append(arg.transform(inst))
+
+        return self.instantiate(tuple(args)), exes
 
     def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
         """Returns a copy of this function type with the specified unitary flags."""
@@ -840,10 +848,14 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
     match s, t:
         case ExistentialVar(id=s_id), ExistentialVar(id=t_id) if s_id == t_id:
             return subst
-        case ExistentialTypeVar() | ExistentialConstVar() as s_var, t:
-            return _unify_var(s_var, t, subst)
-        case s, ExistentialTypeVar() | ExistentialConstVar() as t_var:
-            return _unify_var(t_var, s, subst)
+        case ExistentialTypeVar() as s_var, t if isinstance(t, Type):
+            return _unify_type_var(s_var, t, subst)
+        case ExistentialConstVar() as s_var, t if isinstance(t, Const):
+            return _unify_const_var(s_var, t, subst)
+        case s, ExistentialTypeVar() as t_var if isinstance(s, Type):
+            return _unify_type_var(t_var, s, subst)
+        case s, ExistentialConstVar() as t_var if isinstance(s, Const):
+            return _unify_const_var(t_var, s, subst)
         case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
             return subst
         case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
@@ -871,14 +883,32 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return None
 
 
-def _unify_var(
-    var: ExistentialTypeVar | ExistentialConstVar, t: Type | Const, subst: "Subst"
-) -> "Subst | None":
-    """Helper function for unification of type or const variables."""
+def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst | None":
+    """Helper function for unification of type variables."""
     if var in subst:
         return unify(subst[var], t, subst)
     if isinstance(t, ExistentialTypeVar) and t in subst:
         return unify(var, subst[t], subst)
+    if var in t.unsolved_vars:
+        return None
+    return {var: t, **subst}
+
+
+def _unify_const_var(
+    var: ExistentialConstVar, t: Const, subst: "Subst"
+) -> "Subst | None":
+    """Helper function for unification of const variables."""
+    from guppylang_internals.tys.subst import Substituter
+
+    subst = unify(var.ty, t.ty, subst)
+    if subst is None:
+        return None
+    # Update the existential type variables according to subst
+    var = replace(var, ty=var.ty.transform(Substituter(subst)))
+    t = t.transform(Substituter(subst))
+    if var in subst:
+        return unify(subst[var], t, subst)
+
     if var in t.unsolved_vars:
         return None
     return {var: t, **subst}
