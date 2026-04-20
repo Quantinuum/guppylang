@@ -84,7 +84,11 @@ class InoutMeasureCompilerMsmt(CustomInoutCallCompiler):
         [q, bit] = self.builder.add_op(
             quantum_op(self.opname, ext=self.ext)(
                 ht.FunctionType(
-                    [ht.Qubit], [MEASUREMENT_EXTENSION.get_type("Measurement"), ht.Bool]
+                    [ht.Qubit],
+                    [
+                        ht.ExtType(MEASUREMENT_EXTENSION.get_type("Measurement")),
+                        ht.Bool,
+                    ],
                 ),
                 (),
                 self.ctx,

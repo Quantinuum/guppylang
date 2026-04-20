@@ -1,6 +1,6 @@
 Error: Copy violation (at $FILE:21:11)
    | 
-19 |     measure(s.q)
+19 |     measure(s.q).read()
 20 |     s.q = s.x.q
 21 |     return s
    |            ^ Variable `s` with non-copyable type `MyStruct1` cannot be
@@ -8,7 +8,7 @@ Error: Copy violation (at $FILE:21:11)
 
 Note:
    | 
-19 |     measure(s.q)
+19 |     measure(s.q).read()
 20 |     s.q = s.x.q
    |           ----- ... since the member `s.x.q` with non-copyable type `qubit`
    |                 was already moved here

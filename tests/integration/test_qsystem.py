@@ -5,14 +5,19 @@ from guppylang.std.qsystem.random import make_discrete_distribution, RNG
 
 from guppylang.std.qsystem import (
     MaybeLeaked,
-    collect_measurements,
     lazy_measure,
     lazy_measure_array,
     lazy_measure_and_reset,
     measure_leaked,
 )
 from guppylang.std.qsystem.utils import get_current_shot
-from guppylang.std.quantum import qubit, measure_array, x
+from guppylang.std.quantum import (
+    qubit,
+    measure_array,
+    x,
+    collect_measurements,
+    Measurement,
+)
 from guppylang.std.qsystem.functional import (
     phased_x,
     zz_phase,
@@ -30,7 +35,7 @@ def test_qsystem(validate):  # type: ignore[no-untyped-def]
     """Compile various operations from the qsystem extension."""
 
     @guppy
-    def test(q1: qubit @ owned, q2: qubit @ owned, a1: angle) -> bool:
+    def test(q1: qubit @ owned, q2: qubit @ owned, a1: angle) -> Measurement:
         shot = get_current_shot()
         q1 = phased_x(q1, a1, a1)
         q1, q2 = zz_phase(q1, q2, a1)
@@ -56,7 +61,7 @@ def test_qsystem_random(validate):  # type: ignore[no-untyped-def]
         rint_bnd = rng.random_int_bounded(100)
         ar = array(qubit() for _ in range(5))
         rng.shuffle(ar)
-        _ = measure_array(ar)
+        _ = collect_measurements(measure_array(ar))
         dist = make_discrete_distribution(array(0.0, 1.0, 2.0, 3.0))
         rint_discrete = dist.sample(rng)
         rangle = rng.random_angle()
@@ -149,7 +154,9 @@ def test_lazy_measure_and_reset(validate, run_int_fn):  # type: ignore[no-untype
         x(q)
         first_result = lazy_measure_and_reset(q)
         second_result = measure(q)
-        if first_result and not second_result:  # First expect flip, then expect reset
+        if (
+            first_result.read() and not second_result.read()
+        ):  # First expect flip, then expect reset
             return 1
         return 0
 

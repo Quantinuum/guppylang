@@ -3,11 +3,6 @@
 from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type, hugr_op
-from guppylang_internals.std._internal.compiler.qsystem import (
-    LazyMeasureResetCompiler,
-    ReadFutureBoolCompiler,
-    future_bool_type,
-)
 from guppylang_internals.std._internal.compiler.quantum import (
     InoutMeasureCompilerMsmt,
 )
@@ -123,13 +118,15 @@ def rz(q: qubit, angle: angle) -> None:
 @hugr_op(quantum_op("Measure", ext=QSYSTEM_EXTENSION))
 @no_type_check
 def measure(q: qubit @ owned) -> Measurement:
-    """Measure a qubit destructively."""
+    """Request a destructive lazy measurement of a qubit, returning a `Measurement`
+    value. Call `.read()` on the value to block until the result is available.
+    """
 
 
 @custom_function(InoutMeasureCompilerMsmt("MeasureReset", QSYSTEM_EXTENSION))
 @no_type_check
 def measure_and_reset(q: qubit) -> Measurement:
-    """MeasureReset operation from the qsystem extension."""
+    """Like `measure`, but also resets the qubit after measurement."""
 
 
 @hugr_op(quantum_op("Reset", ext=QSYSTEM_EXTENSION))
@@ -197,18 +194,20 @@ class MaybeLeaked:
         self._measurement.discard()
 
 
-@hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_EXTENSION))
+@guppy
 @no_type_check
-def lazy_measure(q: qubit @ owned) -> "FutureMeasurement":
-    """Request a destructive lazy measurement of a qubit, returning a `Measurement`
-    value. Call `.read()` on the value to block until the result is available.
+def lazy_measure(q: qubit @ owned) -> Measurement:
+    """Same as `measure` as the standard measurement behaviour is already lazy."""
+    return measure(q)
+
+
+@guppy
+@no_type_check
+def lazy_measure_and_reset(q: qubit) -> Measurement:
+    """Same as `measure_and_reset` as the standard measurement behaviour is already
+    lazy.
     """
-
-
-@custom_function(compiler=LazyMeasureResetCompiler())
-@no_type_check
-def lazy_measure_and_reset(q: qubit) -> "FutureMeasurement":
-    """Like `lazy_measure`, but also resets the qubit after measurement."""
+    return measure_and_reset(q)
 
 
 N = guppy.nat_var("N")
@@ -218,45 +217,11 @@ N = guppy.nat_var("N")
 @no_type_check
 def lazy_measure_array(
     qubits: array[qubit, N] @ owned,
-) -> array["FutureMeasurement", N]:
-    """Request a destructive lazy measurement of an array of qubits, returning an array
-    of `Measurement` values. Call `.read()` on each value to block until results are
-    available.
+) -> array["Measurement", N]:
+    """Same as `measure_array` as the standard measurement behaviour is already
+    lazy.
     """
     return array(lazy_measure(q) for q in qubits)
-
-
-@custom_type(
-    future_bool_type(),
-    copyable=False,
-    droppable=False,
-)
-class FutureMeasurement:
-    """Represents the result of a lazy measurement which needs to be explicitly read
-    before being used."""
-
-    @custom_function(compiler=ReadFutureBoolCompiler())
-    @no_type_check
-    def read(self: "FutureMeasurement" @ owned) -> bool:
-        """Read the measurement result, consuming it. Blocks until the result is
-        available if the measurement hasn't been performed yet since being requested.
-        """
-
-    @guppy
-    @no_type_check
-    def __consume_as_bool__(self: "FutureMeasurement" @ owned) -> bool:
-        return self.read()
-
-
-@guppy
-@no_type_check
-def collect_measurements(
-    measurements: array[FutureMeasurement, N] @ owned,
-) -> array[bool, N]:
-    """Block on each measurement until it is available and collect results into an
-    array of bools.
-    """
-    return array(m.read() for m in measurements)
 
 
 # ------------------------------------------------------

@@ -20,6 +20,7 @@ from guppylang.std.quantum import (
     t,
     measure_array,
     discard_array,
+    collect_measurements,
 )
 from guppylang.std.angles import angle, pi
 from guppylang.std.qsystem import zz_max, zz_phase, phased_x, rz as qsystem_rz
@@ -44,7 +45,7 @@ import pytest
 def test_basic_emulation() -> None:
     @guppy
     def main() -> None:
-        result("c", measure(qubit()))
+        result("c", measure(qubit()).read())
 
     res = main.emulator(1).run()
     expected = EmulatorResult([[("c", False)]])
@@ -104,7 +105,7 @@ def test_all_options() -> None:
 def test_no_given_qubits() -> None:
     @guppy()
     def main() -> None:
-        result("c", measure(qubit()))
+        result("c", measure(qubit()).read())
 
     with pytest.raises(
         EmulatorBuildError,
@@ -120,7 +121,7 @@ def test_no_given_qubits() -> None:
 def test_hinted_qubits() -> None:
     @guppy(max_qubits=1)
     def main() -> None:
-        result("c", measure(qubit()))
+        result("c", measure(qubit()).read())
 
     shots = main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
     assert shots[0].as_dict()["c"] == 1
@@ -130,7 +131,7 @@ def test_hinted_qubits_with_given_qubits() -> None:
     @guppy(max_qubits=1)
     def main() -> None:
         qubits = array(qubit() for _ in range(4))
-        result("c", measure_array(qubits))
+        result("c", collect_measurements(measure_array(qubits)))
 
     shots = main.emulator(n_qubits=4).coinflip_sim().with_seed(0).with_shots(1).run()
     assert shots[0].as_dict()["c"] == [1, 0, 1, 0]
@@ -139,7 +140,7 @@ def test_hinted_qubits_with_given_qubits() -> None:
 def test_hinted_qubits_with_insufficient_given_qubits() -> None:
     @guppy(max_qubits=3)
     def main() -> None:
-        result("c", measure(qubit()))
+        result("c", measure(qubit()).read())
 
     with pytest.raises(
         EmulatorBuildError,
@@ -158,7 +159,7 @@ def test_statevector() -> None:
         x(q)
         state_result("s", q)
         state_result("s", q)
-        result("c", measure(q))
+        result("c", measure(q).read())
 
     res = main.emulator(1).run()
     (shot_states,) = res.partial_states()
@@ -278,7 +279,7 @@ def test_alloc_free():
         b2 = project_z(q0)
         result("c0", b1)
         result("c1", b2)
-        result("c2", measure(q0))
+        result("c2", measure(q0).read())
 
     res = _build_run(main, n_qubits=2, n_shots=1, seed=12).results[0].entries
     assert dict(res) == {"c0": 1, "c1": 0, "c2": 0}
@@ -291,7 +292,7 @@ def test_multi_alloc_free():
     def main() -> None:
         for _ in range(comptime(N)):
             q = qubit()
-            result("c", measure(q))
+            result("c", measure(q).read())
 
     res = _build_run(main, n_qubits=2).results[0].entries
     assert res == [("c", 0)] * N
@@ -348,7 +349,7 @@ def test_friendly_emulator_panic() -> None:
         result("shot", current_shot)
         if current_shot == 5:
             t(q)
-        result("measurement", measure(q))
+        result("measurement", measure(q).read())
 
     with pytest.raises(
         EmulatorError, match="not representable in stabiliser form"

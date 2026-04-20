@@ -4,7 +4,7 @@ Error: Error in comptime function return (at $FILE:6:0)
 5 | @guppy.comptime
 6 | def test(q: qubit) -> None:
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-7 |     measure(q)
+7 |     measure(q).read()
   | ^^^^^^^^^^^^^^
 
 Argument `q` is borrowed, so it is implicitly returned to the caller. Value with
