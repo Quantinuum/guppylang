@@ -24,12 +24,6 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.common import DefId
     from guppylang_internals.definition.util import CheckedField
 
-
-_NAME_FIELD_TYPES: Any = getattr(ast.Name, "_field_types", {})
-_CALL_FIELD_TYPES: Any = getattr(ast.Call, "_field_types", {})
-_FUNCTION_DEF_FIELD_TYPES: Any = getattr(ast.FunctionDef, "_field_types", {})
-
-
 class PlaceNode(ast.expr):
     place: "Place"
 
@@ -52,8 +46,8 @@ class GlobalName(ast.Name):
         "id",
         "def_id",
     )
-    _field_types = _NAME_FIELD_TYPES | {
-        "def_id": object,
+    _field_types = getattr(ast.Name, "_field_types", {}) | {
+        "def_id": "DefId",
     }
 
     def __init__(self, id: str, def_id: "DefId") -> None:
@@ -84,8 +78,8 @@ class DummyGenericParamValue(ast.Name):
         "id",
         "var",
     )
-    _field_types = _NAME_FIELD_TYPES | {
-        "var": object,
+    _field_types = getattr(ast.Name, "_field_types", {}) | {
+        "var": BoundConstVar,
     }
 
     def __init__(self, id: str, var: BoundConstVar) -> None:
@@ -675,8 +669,8 @@ class NestedFunctionDef(ast.FunctionDef):
     docstring: str | None
 
     _fields = (*ast.FunctionDef._fields, "docstring")
-    _field_types = _FUNCTION_DEF_FIELD_TYPES | {
-        "docstring": object,
+    _field_types = getattr(ast.FunctionDef, "_field_types", {}) | {
+        "docstring": str | None,
     }
 
     def __init__(self, cfg: "CFG", ty: FunctionType, *args: Any, **kwargs: Any) -> None:
@@ -744,7 +738,7 @@ class Control(ast.Call):
         "keywords",
         "ctrl",
     )
-    _field_types = _CALL_FIELD_TYPES | {
+    _field_types = getattr(ast.Call, "_field_types", {}) | {
         "ctrl": list[ast.expr],
     }
 
