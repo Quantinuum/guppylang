@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.const import BoundConstVar, Const
+from guppylang_internals.tys.const import Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FunctionType,
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.core import Place, Variable
     from guppylang_internals.definition.common import DefId
     from guppylang_internals.definition.util import CheckedField
+    from guppylang_internals.tys.param import ConstParam
 
 
 class PlaceNode(ast.expr):
@@ -58,27 +59,19 @@ class GlobalName(ast.Name):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class DummyGenericParamValue(ast.Name):
-    """Dummy node that is inserted for uses of generic const parameters as values.
-
-    Note that this node is only used during the first parametric check of generic
-    functions where all const type parameters are treated as opaque values. When
-    checking the concrete monomorphic instantiations that are used in the final program,
-    these dummy nodes will never be emitted.
-    """
-
+class GenericParamValue(ast.Name):
     id: str
-    var: BoundConstVar
+    param: "ConstParam"
 
     _fields = (
         "id",
-        "var",
+        "param",
     )
 
-    def __init__(self, id: str, var: BoundConstVar) -> None:
+    def __init__(self, id: str, param: "ConstParam") -> None:
         super().__init__(id=id)
         self.id = id
-        self.var = var
+        self.param = param
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -119,7 +112,6 @@ class GlobalCall(ast.expr):
         super().__init__()
         self.def_id = def_id
         self.args = args
-        assert isinstance(type_args, tuple)
         self.type_args = type_args
 
     # See MakeIter for explanation

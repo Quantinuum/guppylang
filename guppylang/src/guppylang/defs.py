@@ -104,7 +104,7 @@ class GuppyEnumDefinition(GuppyDefinition):
         # Handle attribute access when calling an enum variant constructor, like
         # `Enum.VariantA()`. In all other cases, we should not try create a new
         # attribute, so we directly raise the error.
-        defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
+        defn = ENGINE.get_checked(self.wrapped.id)
         assert isinstance(defn, CheckedEnumDef)
         if (
             # We can only access the variants of the enum from the enum class,

@@ -107,9 +107,4 @@ def test_nat_var_alias(validate):
     def test(arr: array[int, nat_var]) -> int:
         return arr[0]
 
-    @guppy
-    def main() -> None:
-        test(array(1, 2, 3))
-        test(array(1))
-
-    validate(main.compile_function())
+    validate(test.compile_function())

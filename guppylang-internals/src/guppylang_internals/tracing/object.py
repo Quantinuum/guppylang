@@ -14,7 +14,7 @@ from guppylang_internals.checker.errors.type_errors import (
     BinaryOperatorNotDefinedError,
     UnaryOperatorNotDefinedError,
 )
-from guppylang_internals.definition.common import CheckableGenericDef, DefId, Definition
+from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -58,7 +58,7 @@ def unary_operation(f: UnaryDunderMethod) -> UnaryDunderMethod:
     """
 
     @functools.wraps(f)
-    @capture_guppy_errors()
+    @capture_guppy_errors
     def wrapped(self: "DunderMixin") -> Any:
         from guppylang_internals.tracing.state import get_tracing_state
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
@@ -87,7 +87,7 @@ def binary_operation(f: BinaryDunderMethod) -> BinaryDunderMethod:
     """
 
     @functools.wraps(f)
-    @capture_guppy_errors()
+    @capture_guppy_errors
     def wrapped(self: "DunderMixin", other: Any) -> Any:
         from guppylang_internals.tracing.state import get_tracing_state
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
@@ -375,7 +375,7 @@ class GuppyObject(DunderMixin):
         raise GuppyComptimeError(err)
 
     @hide_trace
-    @capture_guppy_errors()
+    @capture_guppy_errors
     def __call__(self, *args: Any) -> Any:
         if not isinstance(self._ty, FunctionType):
             err = f"Value of type `{self._ty}` is not callable"
@@ -560,16 +560,16 @@ class TracingDefMixin(DunderMixin):
                 "only be called in a Guppy context"
             )
 
-        defn = ENGINE.get_parsed(self.wrapped.id)
+        defn = ENGINE.get_checked(self.wrapped.id)
         if isinstance(defn, CallableDef):
             return trace_call(defn, *args)
-        elif not isinstance(defn, CheckableGenericDef):
-            # Definition is non-generic, so we can use `mono_args=()` here
-            defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
-            if isinstance(defn, TypeDef) and (
-                constructor_id := DEF_STORE.type_members[defn.id].get("__new__")
-            ):
-                return TracingDefMixin(DEF_STORE.raw_defs[constructor_id])(*args)
+        elif (
+            isinstance(defn, TypeDef)
+            and defn.id in DEF_STORE.type_members
+            and "__new__" in DEF_STORE.type_members[defn.id]
+        ):
+            constructor = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id]["__new__"]]
+            return TracingDefMixin(constructor)(*args)
         err = f"{defn.description.capitalize()} `{defn.name}` is not callable"
         raise GuppyComptimeError(err)
 
@@ -583,7 +583,7 @@ class TracingDefMixin(DunderMixin):
         # TODO: Alternatively, it could be a type application on a generic function.
         #  Supporting those requires a comptime representation of types as values
         if tracing_active():
-            defn = ENGINE.get_parsed(self.wrapped.id)
+            defn = ENGINE.get_checked(self.wrapped.id)
             if isinstance(defn, CallableDef) and defn.ty.parametrized:
                 raise GuppyComptimeError(
                     "Explicitly specifying type arguments of generic functions in a "
@@ -596,7 +596,7 @@ class TracingDefMixin(DunderMixin):
 
     def to_guppy_object(self) -> GuppyObject:
         state = get_tracing_state()
-        defn = ENGINE.get_parsed(self.id)
+        defn = ENGINE.get_checked(self.id)
         # TODO: For generic functions, we need to know an instantiation for their type
         #  parameters. Maybe we should pass them to `to_guppy_object`? Either way, this
         #  will require some more plumbing of type inference information through the
@@ -606,7 +606,7 @@ class TracingDefMixin(DunderMixin):
             raise GuppyComptimeError(
                 f"Cannot infer type parameters of generic function `{defn.name}`"
             )
-        defn = state.ctx.build_compiled_def(self.id, type_args=())
+        defn, [] = state.ctx.build_compiled_def(self.id, type_args=[])
         if isinstance(defn, CompiledValueDef):
             wire = defn.load(state.dfg, state.ctx, state.node)
             return GuppyObject(defn.ty, wire, None)

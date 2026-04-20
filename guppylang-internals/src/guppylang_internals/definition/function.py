@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
+import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DISubprogram
@@ -30,12 +31,14 @@ from guppylang_internals.checker.func_checker import (
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
+    PartiallyMonomorphizedArgs,
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
-    CheckableGenericDef,
-    CompilableDef,
+    CheckableDef,
+    MonomorphizableDef,
+    MonomorphizedDef,
     ParsableDef,
     UnknownSourceError,
     UserProvidedLinkName,
@@ -53,8 +56,6 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
-from guppylang_internals.tys.arg import ConstArg, TypeArg
-from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
@@ -72,23 +73,6 @@ def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
             return f"{parent.link_name_prefix}.{raw_def.python_func.__name__}"
 
     return f"{raw_def.python_func.__module__}.{raw_def.python_func.__qualname__}"
-
-
-def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
-    """Returns a unique link name for the monomorphized version of a function.
-
-    If the function is not generic, then the original link name is preserved.
-    """
-    if not mono_args:
-        return link_name
-    arg_strings = []
-    for arg in mono_args:
-        match arg:
-            case TypeArg(ty=ty):
-                arg_strings.append(str(ty))
-            case ConstArg(const=ConstValue(value=v)):
-                arg_strings.append(str(v))
-    return f"{link_name}$" + "&".join(arg_strings)
 
 
 @dataclass(frozen=True)
@@ -137,7 +121,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
 
 @dataclass(frozen=True)
-class ParsedFunctionDef(CheckableGenericDef, CallableDef):
+class ParsedFunctionDef(CheckableDef, CallableDef):
     """A function definition with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function and are
@@ -163,23 +147,17 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    @property
-    def params(self) -> "Sequence[Parameter]":
-        """Generic parameters of this function."""
-        return self.ty.params
-
-    def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
+    def check(self, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
-        cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
-        mono_ty = self.ty.instantiate_partial(type_args)
-        mono_link_name = monomorphized_link_name(self.link_name, type_args)
+        # Add python variable scope to the globals
+        cfg = check_global_func_def(self.defined_at, self.ty, globals)
         return CheckedFunctionDef(
             self.id,
             self.name,
             self.defined_at,
-            mono_ty,
+            self.ty,
             self.docstring,
-            mono_link_name,
+            self.link_name,
             cfg,
             metadata=self.metadata,
         )
@@ -191,7 +169,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
         return node, subst
 
     def synthesize_call(
@@ -201,12 +178,11 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
         return with_type(ty, node), ty
 
 
 @dataclass(frozen=True)
-class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
+class CheckedFunctionDef(ParsedFunctionDef, MonomorphizableDef):
     """Type checked version of a user-defined function that is ready to be compiled.
 
     In particular, this means that we have a constructed and type checked a control-flow
@@ -226,22 +202,26 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
 
     cfg: CheckedCFG[Place]
 
-    def __post_init__(self) -> None:
-        # We should be monomorphized at this point
-        assert not self.params
+    @property
+    def params(self) -> "Sequence[Parameter]":
+        """Generic parameters of this function."""
+        return self.ty.params
 
-    def compile_outer(
+    def monomorphize(
         self,
         module: DefinitionBuilder[OpVar],
+        mono_args: "PartiallyMonomorphizedArgs",
         ctx: "CompilerContext",
     ) -> "CompiledFunctionDef":
-        """Adds a Hugr `FuncDefn` node for the monomorphized function to the Hugr.
+        """Adds a Hugr `FuncDefn` node for the (partially) monomorphized function to the
+        Hugr.
 
         Note that we don't compile the function body at this point since we don't have
-        nodes for the other compiled functions yet. The body is compiled later in
+        access to the other compiled functions yet. The body is compiled later in
         `CompiledFunctionDef.compile_inner()`.
         """
-        hugr_ty = self.ty.to_hugr_poly(ctx)
+        mono_ty = self.ty.instantiate_partial(mono_args)
+        hugr_ty = mono_ty.to_hugr_poly(ctx)
         func_def = module.module_root_builder().define_function(
             self.link_name,
             hugr_ty.body.input,
@@ -261,7 +241,8 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.id,
             self.name,
             self.defined_at,
-            self.ty,
+            mono_args,
+            mono_ty,
             self.docstring,
             self.link_name,
             self.cfg,
@@ -271,7 +252,9 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
 
 
 @dataclass(frozen=True)
-class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrNodeDef):
+class CompiledFunctionDef(
+    CheckedFunctionDef, CompiledCallableDef, MonomorphizedDef, CompiledHugrNodeDef
+):
     """A function definition with a corresponding Hugr node.
 
     Args:
@@ -295,41 +278,58 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
-    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
+    def load_with_args(
+        self,
+        type_args: Inst,
+        dfg: DFContainer,
+        ctx: CompilerContext,
+        node: AstNode,
+    ) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
-        return load(dfg, self.func_def)
+        return load_with_args(type_args, dfg, self.ty, self.func_def)
 
     def compile_call(
         self,
         args: list[Wire],
+        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, dfg, self.ty, self.func_def, node)
+        return compile_call(args, type_args, dfg, self.ty, self.func_def, node)
 
     def compile_inner(self, globals: CompilerContext) -> None:
         """Compiles the body of the function."""
         compile_global_func_def(self, self.func_def, globals)
 
 
-def load(dfg: DFContainer, func: ToNode) -> Wire:
+def load_with_args(
+    type_args: Inst,
+    dfg: DFContainer,
+    ty: FunctionType,
+    func: ToNode,
+) -> Wire:
     """Loads the function as a value into a local Hugr dataflow graph."""
-    return dfg.builder.load_function(func)
+    func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
+    type_args = [ta.to_hugr(dfg.ctx) for ta in type_args]
+    return dfg.builder.load_function(func, func_ty, type_args)
 
 
 def compile_call(
     args: list[Wire],
+    type_args: Inst,  # Non-monomorphized type args only
     dfg: DFContainer,
     ty: FunctionType,
     func: ToNode,
     call_ast: AstNode,
 ) -> CallReturnWires:
     """Compiles a call to the function."""
+    func_ty: ht.FunctionType = ty.instantiate(type_args).to_hugr(dfg.ctx)
+    type_args = [arg.to_hugr(dfg.ctx) for arg in type_args]
     num_returns = len(type_to_row(ty.output))
     with dfg.builder.set_ast_context(call_ast):
-        call = dfg.builder.call(func, *args)
+        call = dfg.builder.call(func, *args, instantiation=func_ty, type_args=type_args)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),

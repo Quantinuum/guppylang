@@ -1,10 +1,7 @@
 from collections import defaultdict
-from collections.abc import Sequence
-from contextlib import suppress
-from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, cast
+from typing import TYPE_CHECKING, cast
 
 import hugr
 import hugr.build.function as hf
@@ -21,7 +18,6 @@ import guppylang_internals
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
-    CheckableGenericDef,
     CheckedDef,
     CompiledDef,
     DefId,
@@ -35,10 +31,7 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
-from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import (
-    GuppyError,
-    RequiresMonomorphizationError,
     pretty_errors,
 )
 from guppylang_internals.metadata.debug_info_util import (
@@ -46,7 +39,6 @@ from guppylang_internals.metadata.debug_info_util import (
 )
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tracing.util import get_calling_frame
-from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
@@ -63,10 +55,6 @@ from guppylang_internals.tys.builtin import (
     string_type_def,
     tuple_type_def,
 )
-from guppylang_internals.tys.const import BoundConstVar
-from guppylang_internals.tys.param import Parameter
-from guppylang_internals.tys.printing import TypePrinter
-from guppylang_internals.tys.subst import BoundVarFinder, Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
     EnumType,
@@ -79,6 +67,9 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
 )
+
+if TYPE_CHECKING:
+    from guppylang_internals.compiler.core import MonoDefId
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     callable_type_def,
@@ -98,15 +89,6 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
-
-
-#: Identifier for a monomorphized version of a definition.
-#:
-#: Kinds of definitions that are never generic (e.g. constant definitions) and
-#: definitions without generic parameters (e.g. a non-generic function definition) are
-#: registered with an empty tuple () as `Inst`. Otherwise, `Inst` will be the
-#: instantiation for the generic parameters for the monomorphized version.
-MonoDefId = tuple[DefId, Inst]
 
 
 class DefinitionStore:
@@ -163,21 +145,6 @@ class DefinitionStore:
 DEF_STORE: DefinitionStore = DefinitionStore()
 
 
-@dataclass(frozen=True)
-class MonoArgsNote(Note):
-    message: ClassVar[str] = "Error occurred while checking the instantiation {inst}"
-    params: Sequence[Parameter]
-    mono_args: Inst
-
-    @property
-    def inst(self) -> str:
-        printer = TypePrinter()
-        return ",".join(
-            f"`{param.name} := {printer.visit(arg)}`"
-            for param, arg in zip(self.params, self.mono_args, strict=True)
-        )
-
-
 class CompilationEngine:
     """Main compiler driver handling checking and compiling of definitions.
 
@@ -188,16 +155,12 @@ class CompilationEngine:
     """
 
     parsed: dict[DefId, ParsedDef]
-    checked: dict[MonoDefId, CheckedDef]
-    compiled: dict[MonoDefId, CompiledDef]
+    checked: dict[DefId, CheckedDef]
+    compiled: dict["MonoDefId", CompiledDef]
     additional_extensions: list[Extension]
 
     types_to_check_worklist: dict[DefId, ParsedDef]
-    #: Generic functions
-    generic_to_check_worklist: dict[DefId, CheckableGenericDef]
-    to_check_worklist: dict[MonoDefId, ParsedDef]
-
-    to_compile_worklist: dict[MonoDefId, CheckedDef]
+    to_check_worklist: dict[DefId, ParsedDef]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -235,7 +198,6 @@ class CompilationEngine:
         self.checked = {}
         self.compiled = {}
         self.to_check_worklist = {}
-        self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
 
     @pretty_errors
@@ -265,18 +227,12 @@ class CompilationEngine:
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
             self.types_to_check_worklist[id] = defn
-        elif isinstance(defn, CheckableDef):
-            self.to_check_worklist[id, ()] = defn
-        elif isinstance(defn, CheckableGenericDef) and defn.params:
-            self.generic_to_check_worklist[id] = defn
-        # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
-        # since we don't know the generic instantiation yet. It will be added when
-        # we're checking a use of the definition (e.g. a call). See for example
-        # `ParsedFunctionDef.check_call`.
+        else:
+            self.to_check_worklist[id] = defn
         return defn
 
     @pretty_errors
-    def get_checked(self, id: DefId, mono_args: Inst) -> CheckedDef:
+    def get_checked(self, id: DefId) -> CheckedDef:
         """Look up the checked version of a definition by its id.
 
         Parses and checks the definition if it hasn't been parsed/checked yet. Also
@@ -284,27 +240,12 @@ class CompilationEngine:
         """
         from guppylang_internals.checker.core import Globals
 
-        if (id, mono_args) in self.checked:
-            return self.checked[id, mono_args]
+        if id in self.checked:
+            return self.checked[id]
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
-        elif isinstance(defn, CheckableGenericDef):
-            try:
-                checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
-            except GuppyError as err:
-                # If this is an error arising from the initial parametric check where
-                # parameters are treated as opaque values, then we can just report the
-                # error as is. However, if the error only shows up once we check a
-                # concrete monomorphic instantiation, then we should also report this
-                # instantiation in the error message to give some additional context.
-                if instantiation_context_is_useful_for_error(mono_args):
-                    err.error.add_sub_diagnostic(
-                        MonoArgsNote(None, defn.params, mono_args)
-                    )
-                raise
-            defn = checked_defn
-        self.checked[id, mono_args] = defn
+        self.checked[id] = defn
 
         from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
@@ -315,18 +256,6 @@ class CompilationEngine:
                 DEF_STORE.register_type_member(defn.id, method_def.name, method_def.id)
 
         return defn
-
-    def register_generic_use(self, defn: CheckableGenericDef, type_args: Inst) -> None:
-        """Tells the engine that an instantiation of a generic definition has been
-        used.
-
-        Adds the instantiation to the worklist and ensures that it will be checked.
-        """
-        finder = BoundVarFinder()
-        for arg in type_args:
-            arg.visit(finder)
-        if not finder.bound_vars:
-            self.to_check_worklist[defn.id, type_args] = defn
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.
@@ -364,7 +293,7 @@ class CompilationEngine:
             case _:
                 return assert_never(ty)
 
-        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
+        type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id))
         if (
             type_defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[type_defn.id]
@@ -396,38 +325,17 @@ class CompilationEngine:
             self.reset()
 
         for def_id in def_ids:
-            entry_defn = self.get_parsed(def_id)
-            check_entry_point_non_generic(entry_defn)
-            entry_mono_args: Inst = ()
-            self.to_check_worklist[def_id, entry_mono_args] = entry_defn
+            self.to_check_worklist[def_id] = self.get_parsed(def_id)
 
-        while (
-            self.types_to_check_worklist
-            or self.generic_to_check_worklist
-            or self.to_check_worklist
-        ):
+        while self.types_to_check_worklist or self.to_check_worklist:
             # Types need to be checked first. This is because parsing e.g. a function
             # definition requires instantiating the types in its signature which can
             # only be done if the types have already been checked.
             if self.types_to_check_worklist:
                 id, _ = self.types_to_check_worklist.popitem()
-                mono_args: Inst = ()
-                self.checked[id, mono_args] = self.get_checked(id, mono_args)
-            # For generic functions, we first check a version where all parameters are
-            # instantiated to opaque `BoundVariable`s. This way, we'll get nicer error
-            # messages e.g. for type mismatches with generic parameters. The concrete
-            # monomorphic instantiations will be checked later via the regular worklist.
-            elif self.generic_to_check_worklist:
-                id, defn = self.generic_to_check_worklist.popitem()
-                mono_args = tuple(param.to_bound() for param in defn.params)
-                # `RequiresMonomorphizationError` is raised whenever we cannot proceed
-                # checking without having the monomorphization available. In that case,
-                # we just gve up and wait for the proper monomorphic check later.
-                with suppress(RequiresMonomorphizationError):
-                    self.checked[id, mono_args] = self.get_checked(id, mono_args)
             else:
-                (id, mono_args), _ = self.to_check_worklist.popitem()
-                self.checked[id, mono_args] = self.get_checked(id, mono_args)
+                id, _ = self.to_check_worklist.popitem()
+            self.checked[id] = self.get_checked(id)
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
@@ -476,10 +384,7 @@ class CompilationEngine:
         filename = frame.f_code.co_filename
 
         ctx = CompilerContext(graph, set(def_ids), StringTable())
-        requested_defs = []
-        for def_id in def_ids:
-            check_entry_point_non_generic(self.get_parsed(def_id))
-            requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
+        requested_defs = [ctx.compile(self.checked[def_id]) for def_id in def_ids]
         ctx.iterate_worklist()
         self.compiled = ctx.compiled
 
@@ -541,61 +446,6 @@ class CompilationEngine:
             ),
             requested_defs,
         )
-
-
-@dataclass(frozen=True)
-class EntryMonomorphizeError(Error):
-    title: ClassVar[str] = "Invalid entry point"
-    span_label: ClassVar[str] = (
-        "{thing} is not a valid compilation entry point since the value{plural_s} of "
-        "its generic parameter{plural_s} {params_str} {is_are} not known"
-    )
-    thing: str
-    params: Sequence[Parameter]
-
-    @property
-    def plural_s(self) -> str:
-        return "s" if len(self.params) > 1 else ""
-
-    @property
-    def is_are(self) -> str:
-        return "are" if len(self.params) > 1 else "is"
-
-    @property
-    def params_str(self) -> str:
-        return ", ".join(f"`{p.name}`" for p in self.params)
-
-
-def check_entry_point_non_generic(defn: ParsedDef) -> None:
-    """Checks if the given definition is a valid compilation entry-point.
-
-    In particular, ensures that the definition doesn't depend on generic parameters.
-    """
-    if isinstance(defn, CheckableGenericDef) and defn.params:
-        assert defn.defined_at is not None
-        description = f"{defn.description.capitalize()} `{defn.name}`"
-        raise GuppyError(
-            EntryMonomorphizeError(defn.defined_at, description, defn.params)
-        )
-
-
-def instantiation_context_is_useful_for_error(mono_args: Inst) -> bool:
-    """Checks if the given instantiation should be attached as context to an error.
-
-    This is the case if the `mono_args` instantiation is an actual monomorphic
-    instantiation instead of an opaque one used for the initial parametric check.
-
-    Empty instantiations are never included as context.
-    """
-    for arg in mono_args:
-        match arg:
-            case TypeArg(ty=BoundTypeVar()):
-                return False
-            case ConstArg(const=BoundConstVar()):
-                return False
-            case _:
-                return True
-    return False
 
 
 ENGINE: CompilationEngine = CompilationEngine()

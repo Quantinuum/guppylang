@@ -12,6 +12,7 @@ from hugr import tys as ht
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
+    QuantifiedToHugrContext,
     ToHugr,
     ToHugrContext,
     Transformable,
@@ -205,10 +206,7 @@ class BoundTypeVar(TypeBase, BoundVar):
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
         """Computes the Hugr representation of the type."""
-        raise InternalGuppyError(
-            "Tried to convert generic variable to Hugr. This should have been "
-            "monomorphized away."
-        )
+        return ctx.type_var_to_hugr(self)
 
     def visit(self, visitor: Visitor) -> None:
         """Accepts a visitor on this type."""
@@ -283,6 +281,11 @@ class NoneType(TypeBase):
     copyable: bool = field(default=True, init=True)
     droppable: bool = field(default=True, init=True)
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
+
+    # Flag to avoid turning the type into a row when calling `type_to_row()`. This is
+    # used to make sure that type vars instantiated to Nones are not broken up into
+    # empty rows when generating a Hugr
+    preserve: bool = field(default=False, compare=False)
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
@@ -487,13 +490,13 @@ class FunctionType(ParametrizedTypeBase):
 
     def to_hugr_poly(self, ctx: ToHugrContext) -> ht.PolyFuncType:
         """Computes the Hugr `PolyFuncType` representation of the type."""
-        if self.parametrized:
-            raise InternalGuppyError(
-                "Tried to convert parametrised function type to Hugr. This should have "
-                "been monomorphized away."
-            )
-        func_ty = self._to_hugr_function_type(ctx)
-        return ht.PolyFuncType(params=[], body=func_ty)
+        # Function body needs to be translated in a new context where the variables are
+        # bound to the quantifier.
+        inner_ctx = QuantifiedToHugrContext(self.params)
+        func_ty = self._to_hugr_function_type(inner_ctx)
+        return ht.PolyFuncType(
+            params=[p.to_hugr(ctx) for p in self.params], body=func_ty
+        )
 
     def _to_hugr_function_type(self, ctx: ToHugrContext) -> ht.FunctionType:
         """Helper method to compute the Hugr `FunctionType` representation of the type.
@@ -533,8 +536,6 @@ class FunctionType(ParametrizedTypeBase):
             [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
             self.output.transform(transformer),
             self.params,
-            comptime_args=self.comptime_args,
-            unitary_flags=self.unitary_flags,
         )
 
     def instantiate_partial(self, args: "PartialInst") -> "FunctionType":
@@ -552,6 +553,13 @@ class FunctionType(ParametrizedTypeBase):
                 param = param.with_idx(len(remaining_params))
                 remaining_params.append(param.instantiate_bounds(full_inst))
                 arg = param.to_bound()
+
+            # Set the `preserve` flag for instantiated tuples and None
+            if isinstance(arg, TypeArg):
+                if isinstance(arg.ty, TupleType):
+                    arg = TypeArg(TupleType(arg.ty.element_types, preserve=True))
+                elif isinstance(arg.ty, NoneType):
+                    arg = TypeArg(NoneType(preserve=True))
             full_inst.append(arg)
 
         inst = Instantiator(full_inst)
@@ -563,7 +571,6 @@ class FunctionType(ParametrizedTypeBase):
             comptime_args=[
                 cast("ConstArg", arg.transform(inst)) for arg in self.comptime_args
             ],
-            unitary_flags=self.unitary_flags,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
@@ -582,7 +589,7 @@ class FunctionType(ParametrizedTypeBase):
             exes.append(ex.transform(inst))
             args.append(arg.transform(inst))
 
-        return self.instantiate(tuple(args)), exes
+        return self.instantiate(args), exes
 
     def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
         """Returns a copy of this function type with the specified unitary flags."""
@@ -603,11 +610,17 @@ class TupleType(ParametrizedTypeBase):
 
     element_types: Sequence["Type"]
 
-    def __init__(self, element_types: Sequence["Type"]) -> None:
+    # Flag to avoid turning the tuple into a row when calling `type_to_row()`. This is
+    # used to make sure that type vars instantiated to tuples are not broken up into
+    # rows when generating a Hugr
+    preserve: bool = field(default=False, compare=False)
+
+    def __init__(self, element_types: Sequence["Type"], preserve: bool = False) -> None:
         # We need a custom __init__ to set the args
         args = [TypeArg(ty) for ty in element_types]
         object.__setattr__(self, "args", args)
         object.__setattr__(self, "element_types", element_types)
+        object.__setattr__(self, "preserve", preserve)
 
     @property
     def intrinsically_copyable(self) -> bool:
@@ -630,7 +643,7 @@ class TupleType(ParametrizedTypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or TupleType(
-            [ty.transform(transformer) for ty in self.element_types]
+            [ty.transform(transformer) for ty in self.element_types], self.preserve
         )
 
 
@@ -818,9 +831,9 @@ def row_to_type(row: TypeRow) -> Type:
 
 def type_to_row(ty: Type) -> TypeRow:
     """Turns a type into a row of types by unpacking top-level tuples."""
-    if isinstance(ty, NoneType):
+    if isinstance(ty, NoneType) and not ty.preserve:
         return []
-    if isinstance(ty, TupleType):
+    if isinstance(ty, TupleType) and not ty.preserve:
         return ty.element_types
     return [ty]
 

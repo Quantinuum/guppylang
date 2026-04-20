@@ -1,5 +1,4 @@
 import ast
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
 
@@ -17,10 +16,13 @@ from guppylang_internals.ast_util import (
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
-from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.compiler.core import (
+    CompilerContext,
+    DFContainer,
+    require_monomorphization,
+)
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
-    CheckableGenericDef,
     CompilableDef,
     ParsableDef,
     UserProvidedLinkName,
@@ -29,9 +31,8 @@ from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
     default_func_link_name,
-    load,
+    load_with_args,
     make_subprogram_record,
-    monomorphized_link_name,
     parse_py_func,
 )
 from guppylang_internals.definition.value import (
@@ -41,7 +42,6 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
@@ -92,7 +92,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
+    def parse(self, globals: Globals, sources: SourceMap) -> "CheckedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
@@ -100,24 +100,24 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
 
-        # TODO: For the guppylang 1.0 break, we should consider disallowing generic
-        #  declarations. For now though, we must allow them to avoid breakage...
-
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
-        return ParsedFunctionDecl(
-            id=self.id,
-            name=self.name,
-            defined_at=func_ast,
-            ty=ty,
-            docstring=docstring,
-            link_name=link_name,
+        # Make sure we won't need monomorphization to compile this declaration
+        if mono_params := require_monomorphization(ty.params):
+            raise GuppyError(MonomorphizeError(func_ast, self.name, mono_params.pop()))
+        return CheckedFunctionDecl(
+            self.id,
+            self.name,
+            func_ast,
+            ty,
+            docstring,
+            link_name,
             metadata=self.metadata,
         )
 
 
 @dataclass(frozen=True)
-class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
+class CheckedFunctionDecl(CompilableDef, CallableDef):
     """A function declaration with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function.
@@ -137,23 +137,6 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     link_name: str
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    @property
-    def params(self) -> Sequence[Parameter]:
-        return self.ty.params
-
-    def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDecl":
-        mono_ty = self.ty.instantiate_partial(type_args)
-        mono_link_name = monomorphized_link_name(self.link_name, type_args)
-        return CheckedFunctionDecl(
-            id=self.id,
-            name=self.name,
-            defined_at=self.defined_at,
-            ty=mono_ty,
-            docstring=self.docstring,
-            link_name=mono_link_name,
-            type_args=type_args,
-        )
-
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
@@ -161,7 +144,6 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
         return node, subst
 
     def synthesize_call(
@@ -171,25 +153,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
         return with_type(ty, node), ty
-
-
-@dataclass(frozen=True)
-class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
-    """A checked, monomorphized version of a function declaration.
-
-    Args:
-        id: The unique definition identifier.
-        name: The name of the function.
-        defined_at: The AST node where the function was declared.
-        ty: The monomorphic type of the function.
-        docstring: The docstring of the function.
-        link_name: The external name for this declaration, applied to the Hugr node and
-            other representations
-    """
-
-    type_args: Inst
 
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
@@ -211,14 +175,13 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
                 self.defined_at, ctx, is_decl=True
             )
         return CompiledFunctionDecl(
-            id=self.id,
-            name=self.name,
-            defined_at=self.defined_at,
-            ty=self.ty,
-            docstring=self.docstring,
-            link_name=self.link_name,
-            type_args=self.type_args,
-            declaration=node,
+            self.id,
+            self.name,
+            self.defined_at,
+            self.ty,
+            self.docstring,
+            self.link_name,
+            node,
             metadata=self.metadata,
         )
 
@@ -247,18 +210,25 @@ class CompiledFunctionDecl(
         """The Hugr node this definition was compiled into."""
         return self.declaration
 
-    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
+    def load_with_args(
+        self,
+        type_args: Inst,
+        dfg: DFContainer,
+        ctx: CompilerContext,
+        node: AstNode,
+    ) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
-        return load(dfg, self.declaration)
+        return load_with_args(type_args, dfg, self.ty, self.declaration)
 
     def compile_call(
         self,
         args: list[Wire],
+        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, dfg, self.ty, self.declaration, node)
+        return compile_call(args, type_args, dfg, self.ty, self.declaration, node)

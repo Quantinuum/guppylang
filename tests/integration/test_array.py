@@ -8,7 +8,6 @@ from guppylang.std.builtins import array, owned
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.platform import result
-from guppylang_internals.std._internal.compiler.arithmetic import UnsignedIntVal
 from tests.util import compile_guppy
 
 from guppylang.std.quantum import qubit, discard, measure, h, cx, discard_array
@@ -35,28 +34,22 @@ def test_len_generic(validate):
     n = guppy.nat_var("n")
 
     @guppy
-    def foo(qs: array[bool, n]) -> bool:
+    def main(qs: array[bool, n]) -> bool:
         for i in range(len(qs)):
             if qs[i]:
                 return True
         return False
 
-    @guppy
-    def main() -> None:
-        foo(array())
-        foo(array(True))
-        foo(array(True, False))
-
     package = main.compile_function()
     validate(package)
 
     hg = package.modules[0]
-    nat_consts = [
-        data.op.val.v
+    load_nats = [
+        data.op
         for _, data in hg.nodes()
-        if isinstance(data.op, ops.Const) and isinstance(data.op.val, UnsignedIntVal)
+        if isinstance(data.op, ops.ExtOp) and data.op.op_def().name == "load_nat"
     ]
-    assert set(nat_consts) == {0, 1, 2}
+    assert len(load_nats) == 1
 
 
 def test_index(validate):

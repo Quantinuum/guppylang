@@ -54,12 +54,7 @@ from guppylang_internals.checker.expr_checker import (
     synthesize_comprehension,
 )
 from guppylang_internals.engine import ENGINE
-from guppylang_internals.error import (
-    GuppyError,
-    GuppyTypeError,
-    InternalGuppyError,
-    RequiresMonomorphizationError,
-)
+from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
 from guppylang_internals.nodes import (
     AnyUnpack,
     ArrayUnpack,
@@ -82,7 +77,7 @@ from guppylang_internals.tys.builtin import (
     is_sized_iter_type,
     nat_type,
 )
-from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.const import ConstValue, ExistentialConstVar
 from guppylang_internals.tys.parsing import type_from_ast
 from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
 from guppylang_internals.tys.subst import Subst
@@ -331,10 +326,12 @@ class StmtChecker(AstVisitor[BBStatement]):
                     elt_ty = get_element_type(ty)
                     unpack = ArrayUnpack(pattern, size, elt_ty)
                     return unpack, size * [expr], size * [elt_ty]
-                case BoundConstVar():
-                    raise RequiresMonomorphizationError
-                case ExistentialConstVar():
-                    raise InternalGuppyError("Unexpected existential variable")
+                case generic_size:
+                    err = UnpackableError(expr, get_type(expr))
+                    err.add_sub_diagnostic(
+                        UnpackableError.GenericSize(None, generic_size)
+                    )
+                    raise GuppyError(err)
 
         elif ENGINE.get_instance_func(ty, "__iter__"):
             size = check_iter_unpack_has_static_size(expr, self.ctx)
@@ -516,7 +513,6 @@ def check_iter_unpack_has_static_size(expr: ast.expr, ctx: Context) -> int:
     match get_iter_size(iter_ty):
         case ConstValue(value=int(size)):
             return size
-        case BoundConstVar():
-            raise RequiresMonomorphizationError
-        case _:
-            raise InternalGuppyError("Unexpected const value")
+        case generic_size:
+            err.add_sub_diagnostic(UnpackableError.GenericSize(None, generic_size))
+            raise GuppyError(err)

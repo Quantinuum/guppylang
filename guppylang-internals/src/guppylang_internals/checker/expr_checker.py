@@ -30,6 +30,8 @@ from dataclasses import replace
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from typing_extensions import assert_never
+
 from guppylang_internals.ast_util import (
     AstNode,
     AstVisitor,
@@ -109,8 +111,8 @@ from guppylang_internals.nodes import (
     DesugaredGenerator,
     DesugaredGeneratorExpr,
     DesugaredListComp,
-    DummyGenericParamValue,
     FieldAccessAndDrop,
+    GenericParamValue,
     GlobalName,
     IterNext,
     LocalCall,
@@ -123,7 +125,7 @@ from guppylang_internals.nodes import (
     TypeApply,
 )
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.arg import ConstArg, TypeArg
+from guppylang_internals.tys.arg import TypeArg
 from guppylang_internals.tys.builtin import (
     bool_type,
     float_type,
@@ -139,13 +141,8 @@ from guppylang_internals.tys.builtin import (
     option_type,
     string_type,
 )
-from guppylang_internals.tys.const import (
-    BoundConstVar,
-    Const,
-    ConstValue,
-    ExistentialConstVar,
-)
-from guppylang_internals.tys.param import TypeParam, check_all_args
+from guppylang_internals.tys.const import Const, ConstValue
+from guppylang_internals.tys.param import ConstParam, TypeParam, check_all_args
 from guppylang_internals.tys.parsing import arg_from_ast
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
@@ -273,7 +270,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if act is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
-        assert inst == (), "Const values are not generic"
+        assert inst == [], "Const values are not generic"
         return node, subst
 
     def visit_Tuple(self, node: ast.Tuple, ty: Type) -> tuple[ast.expr, Subst]:
@@ -420,24 +417,17 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def _check_generic_param(self, name: str, node: ast.expr) -> tuple[ast.expr, Type]:
         """Helper method to check a generic parameter (ConstParam or TypeParam)."""
-        arg = self.ctx.generic_param_inst[name]
-        match arg:
-            case ConstArg(const=const):
-                match const:
-                    case ConstValue(value=v, ty=ty):
-                        ast_node = with_loc(node, ast.Constant(value=v))
-                        return ast_node, ty
-                    case BoundConstVar(ty=ty) as var:
-                        # This means we're currently doing a parametric check of a
-                        # generic function where the const variables are kept as opaque
-                        # values. In that case, we just return a dummy node, knowing
-                        # that it won't be emitted when checking the actual monomorphic
-                        # instantiations later.
-                        return with_loc(node, DummyGenericParamValue(name, var)), ty
-                    case ExistentialConstVar():
-                        raise InternalGuppyError("Unexpected existential variable")
-            case TypeArg():
-                raise GuppyError(ExpectedError(node, "a value", got=f"type `{name}`"))
+        param = self.ctx.generic_params[name]
+        match param:
+            case ConstParam() as param:
+                ast_node = with_loc(node, GenericParamValue(id=name, param=param))
+                return ast_node, param.ty
+            case TypeParam() as param:
+                raise GuppyError(
+                    ExpectedError(node, "a value", got=f"type `{param.name}`")
+                )
+            case _:
+                return assert_never(param)
 
     def visit_Name(self, node: ast.Name) -> tuple[ast.expr, Type]:
         return self._check_name_id(node.id, node)
@@ -452,7 +442,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if name_id in self.ctx.locals:
             var = self.ctx.locals[name_id]
             return with_loc(node, PlaceNode(place=var)), var.ty
-        elif name_id in self.ctx.generic_param_inst:
+        elif name_id in self.ctx.generic_params:
             return self._check_generic_param(name_id, node)
         elif name_id in self.ctx.globals:
             match self.ctx.globals[name_id]:
@@ -536,7 +526,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             case ParamDef():
                 # Check if this parameter is in our generic_params
                 # (e.g., used in type signature)
-                if name in self.ctx.generic_param_inst:
+                if name in self.ctx.generic_params:
                     return self._check_generic_param(name, node)
                 # If not in generic_params, it's being used outside its scope
                 err = ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
@@ -1014,7 +1004,7 @@ def check_type_against(
                     TypeMismatchError.CantInstantiateFreeVars(None, param, subst[v])
                 )
                 raise GuppyTypeError(err)
-        inst = tuple(subst[v].to_arg() for v in free_vars)
+        inst = [subst[v].to_arg() for v in free_vars]
         subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
 
         # Finally, check that the instantiation respects the linearity requirements
@@ -1028,9 +1018,9 @@ def check_type_against(
     if subst is None:
         # Maybe we can implicitly coerce `act` to `exp`
         if coerced := try_coerce_to(act, exp, node, ctx):
-            return coerced, {}, ()
+            return coerced, {}, []
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
-    return node, subst, ()
+    return node, subst, []
 
 
 def try_coerce_to(
@@ -1079,7 +1069,7 @@ def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Ins
         err.add_sub_diagnostic(WrongNumberOfArgsError.SignatureHint(None, ty))
         raise GuppyError(err)
 
-    inst = tuple(arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs)
+    inst = [arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs]
     check_all_args(ty.params, inst, "", node, arg_exprs)
     return inst
 
@@ -1224,8 +1214,8 @@ def check_comptime_arg(
             const = ConstValue(ty, v)
         case PlaceNode(place=ComptimeVariable(ty=ty, static_value=v)):
             const = ConstValue(ty, v)
-        case DummyGenericParamValue(var=var):
-            const = var
+        case GenericParamValue(param=const_param):
+            const = const_param.to_bound().const
         case arg:
             # Anything else is considered unknown at comptime, but we can give some
             # nicer error hints by inspecting in more detail
@@ -1380,7 +1370,7 @@ def check_all_solved(
             err = ParameterInferenceError(loc, v.display_name)
             err.add_sub_diagnostic(ParameterInferenceError.SignatureHint(None, func_ty))
             raise GuppyTypeInferenceError(err)
-    return tuple(subst[v].to_arg() for v in free_vars)
+    return [subst[v].to_arg() for v in free_vars]
 
 
 def check_inst(func_ty: FunctionType, inst: Inst, node: AstNode) -> None:
@@ -1477,7 +1467,7 @@ def check_generator(
     # The rest is checked in a new nested context to ensure that variables don't escape
     # their scope
     inner_locals: Locals[str, Variable] = Locals({}, parent_scope=ctx.locals)
-    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_param_inst)
+    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_params)
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
     gen.iter = with_type(iter_ty, gen.iter)

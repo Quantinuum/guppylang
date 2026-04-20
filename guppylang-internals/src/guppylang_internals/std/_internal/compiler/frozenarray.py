@@ -12,7 +12,6 @@ from guppylang_internals.compiler.core import (
     DFBuilder,
     GlobalConstId,
 )
-from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.std._internal.compiler.arithmetic import (
     INT_T,
@@ -68,7 +67,7 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
         inst = ht.FunctionType([StaticArray(elem_ty), INT_T], [elem_ty])
         type_args = [ht.TypeTypeArg(elem_ty)]
         with self.builder.set_ast_context(self.node):
-            out = self.builder.call(
+            elem = self.builder.call(
                 self.getitem_func(), *args, instantiation=inst, type_args=type_args
             )
-        return unpack_wire(out, ty_arg.ty, self.builder, self.ctx)
+        return [elem]

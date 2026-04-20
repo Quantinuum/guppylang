@@ -3,7 +3,6 @@ from abc import ABC
 from hugr import Wire, ops
 from hugr import tys as ht
 
-from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
@@ -67,10 +66,7 @@ class OptionUnwrapCompiler(OptionCompiler, CustomCallCompiler):
     def compile(self, args: list[Wire]) -> list[Wire]:
         [opt] = args
         err = "Option.unwrap: value is `Nothing`"
-        out = build_unwrap(self.builder, opt, err)
-        [elem_ty] = self.type_args
-        assert isinstance(elem_ty, TypeArg)
-        return unpack_wire(out, elem_ty.ty, self.builder, self.ctx)
+        return list(build_unwrap(self.builder, opt, err).outputs())
 
 
 class OptionUnwrapNothingCompiler(OptionCompiler, CustomCallCompiler):

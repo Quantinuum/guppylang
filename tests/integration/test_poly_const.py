@@ -435,8 +435,10 @@ def test_many(validate):
     compiled_struct = main_struct.compile_function()
     validate(compiled_struct)
 
-    # Check we have main_struct, and 3 monomorphizations of foo and baz each
-    assert len(funcs_defs(compiled_struct.modules[0])) == 7
+    # Check we have main, and 2 monomorphizations of foo and baz each. Note that `s2`
+    # doesn't generate a monomorphisation since it shares the relevant mono-parameters
+    # with `s1`
+    assert len(funcs_defs(compiled_struct.modules[0])) == 5
 
     # Enum equivalent: same const-generic parameters, but no field access (enums are
     # opaque until pattern-matched), so the enum is passed through baz_enum/foo_enum
@@ -478,9 +480,10 @@ def test_many(validate):
     compiled_enum = main_enum.compile_function()
     validate(compiled_enum)
 
-    # Check we have main_enum, 3 monomorphizations of foo_enum and baz_enum each,
-    # 3 for VariantA() (float, nat, bool)
-    assert len(funcs_defs(compiled_enum.modules[0])) == 10
+    # Check we have main_enum, 2 monomorphizations of foo_enum and baz_enum each, and 2
+    # constructors for VariantA. Note that `e2` doesn't generate a monomorphisation
+    # since it shares the relevant mono-parameters  with `e1`
+    assert len(funcs_defs(compiled_enum.modules[0])) == 7
 
 
 def test_constructor(validate):
@@ -609,18 +612,16 @@ def test_nat_generic(validate):
         return t
 
     @guppy
-    def bar(n: nat @ comptime, m: nat @ comptime) -> None:
+    def main(n: nat @ comptime, m: nat @ comptime) -> None:
         foo(n)
         foo(m)
         foo(True)
         foo(False)
 
-    @guppy
-    def main() -> None:
-        bar(1, 2)
-
     compiled = main.compile()
     validate(compiled)
 
-    # Check we have main, bar, and 4 monomorphisations of foo
-    assert len(funcs_defs(compiled.modules[0])) == 6
+    # Check we have main, and 3 monomorphisations of foo. The two nat versions should
+    # correspond to the same monomorphisation since the bounded nat args are preserved
+    # in Hugr!
+    assert len(funcs_defs(compiled.modules[0])) == 4
