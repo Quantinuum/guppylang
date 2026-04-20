@@ -3,8 +3,17 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
-## [0.33.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.32.0...guppylang-internals-v0.33.0) (2026-04-16)
+## [0.34.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v0.34.0) (2026-04-20)
 
+
+### ⚠ BREAKING CHANGES
+
+* Revert breaking change [#1441](https://github.com/Quantinuum/guppylang/issues/1441): Monomorphise everything during type checking  ([9b5d2f9](https://github.com/Quantinuum/guppylang/commit/9b5d2f9c26c624f3b8f748a50ccbed9f3b4f712c))
+* Revert dependent change [#1631](https://github.com/Quantinuum/guppylang/issues/1631): Allow accessing generic arguments inside comptime expressions  ([bc5e0f9](https://github.com/Quantinuum/guppylang/commit/bc5e0f9659e3d0ef74c99fbc6ed34fbfb88a3be0))
+
+## ~~[0.33.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.32.0...guppylang-internals-v0.33.0)~~ (2026-04-16) (YANKED)
+
+**YANKED due to unintentional breakage to compilation of generic functions**
 
 ### ⚠ BREAKING CHANGES
 
