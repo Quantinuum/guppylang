@@ -54,8 +54,6 @@ class GlobalName(ast.Name):
         # Python 3.15 validates subclass-defined AST fields in the base constructor,
         # but typeshed still exposes `ast.Name.__init__` without custom kwargs.
         super().__init__(id=id, def_id=def_id)  # type: ignore[call-arg]
-        self.id = id
-        self.def_id = def_id
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -84,8 +82,6 @@ class DummyGenericParamValue(ast.Name):
 
     def __init__(self, id: str, var: BoundConstVar) -> None:
         super().__init__(id=id, var=var)  # type: ignore[call-arg]
-        self.id = id
-        self.var = var
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
