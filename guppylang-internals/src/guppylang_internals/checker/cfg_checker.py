@@ -25,7 +25,7 @@ from guppylang_internals.checker.expr_checker import ExprSynthesizer, to_bool
 from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError
-from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import InputFlags, Type
 
 Row = Sequence[V]
@@ -73,16 +73,20 @@ def check_cfg(
     cfg: CFG,
     inputs: Row[Variable],
     return_ty: Type,
-    generic_params: dict[str, Parameter],
+    generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
     first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
-    """Type checks a control-flow graph.
+    """Instantiates a control-flow graph with the given `generic_args` and then type
+    checks it.
 
     Annotates the basic blocks with input and output type signatures and removes
     unreachable blocks. Note that the inputs/outputs are annotated in the form of
     *places* rather than just variables.
+
+    Note that the resulting types will all be monomorphic - generic parameters will
+    be instantiated to the provided `generic_args`.
 
     `first_modifier_node`: if None, the cfg is not a modifier block.
     Otherwise, it's the AST node of the first modifier, used in error reporting.
@@ -95,7 +99,7 @@ def check_cfg(
     # We start by compiling the entry BB
     checked_cfg: CheckedCFG[Variable] = CheckedCFG([v.ty for v in inputs], return_ty)
     checked_cfg.entry_bb = check_bb(
-        cfg.entry_bb, checked_cfg, inputs, return_ty, generic_params, globals
+        cfg.entry_bb, checked_cfg, inputs, return_ty, generic_args, globals
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -122,7 +126,7 @@ def check_cfg(
         else:
             # Otherwise, check the BB and enqueue its successors
             checked_bb = check_bb(
-                bb, checked_cfg, input_row, return_ty, generic_params, globals
+                bb, checked_cfg, input_row, return_ty, generic_args, globals
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -212,7 +216,7 @@ def check_bb(
     checked_cfg: CheckedCFG[Variable],
     inputs: Row[Variable],
     return_ty: Type,
-    generic_params: dict[str, Parameter],
+    generic_args: dict[str, Argument],
     globals: Globals,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
@@ -225,12 +229,12 @@ def check_bb(
             if (
                 x not in cfg.ass_before[bb]
                 and x not in globals
-                and x not in generic_params
+                and x not in generic_args
             ):
                 raise GuppyError(VarNotDefinedError(use, x))
 
     # Check the basic block
-    ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_params)
+    ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
     # If we branch, we also have to check the branch predicate
@@ -261,7 +265,7 @@ def check_bb(
                         err = VarNotDefinedError(use_bb.vars.used[x], x)
                     raise GuppyError(err)
             # If x is not a local, then it must be a global or generic param
-            elif x not in ctx.globals and x not in ctx.generic_params:
+            elif x not in ctx.globals and x not in generic_args:
                 raise GuppyError(VarNotDefinedError(use_bb.vars.used[x], x))
 
     # Finally, we need to compute the signature of the basic block

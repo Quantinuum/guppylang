@@ -24,29 +24,59 @@ def test_bool(validate, run_int_fn):
         """
 
     @guppy
-    def foo(_: Dummy[B]) -> bool:
+    def foo_struct(_: Dummy[B]) -> bool:
         return B
 
     @guppy
-    def main() -> int:
+    def main_struct() -> int:
         s = 0
-        if foo[True](Dummy()):
+        if foo_struct[True](Dummy()):
             s += 1
-        if foo[False](Dummy()):
+        if foo_struct[False](Dummy()):
             s += 10
-        if foo[True](Dummy()):
+        if foo_struct[True](Dummy()):
             s += 100
-        if foo[False](Dummy()):
+        if foo_struct[False](Dummy()):
             s += 10000
         return s
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, and 2 monomorphizations of foo (Dummy constructor is inlined)
-    assert len(funcs_defs(compiled.modules[0])) == 3
+    # Check we have main_struct, and 2 monomorphizations of foo_struct
+    # (Dummy constructor is inlined)
+    assert len(funcs_defs(compiled_struct.modules[0])) == 3
 
-    run_int_fn(main, 101)
+    run_int_fn(main_struct, 101)
+
+    @guppy.enum
+    class DummyEnum(Generic[B]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}
+
+    @guppy
+    def foo_enum(_: DummyEnum[B]) -> bool:
+        return B
+
+    @guppy
+    def main_enum() -> int:
+        s = 0
+        if foo_enum[True](DummyEnum.VariantA[True]()):
+            s += 1
+        if foo_enum[False](DummyEnum.VariantA[False]()):
+            s += 10
+        if foo_enum[True](DummyEnum.VariantA[True]()):
+            s += 100
+        if foo_enum[False](DummyEnum.VariantA[False]()):
+            s += 10000
+        return s
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, and 2 monomorphizations of foo_enum, 2 for VariantA()
+    assert len(funcs_defs(compiled_enum.modules[0])) == 5
+
+    run_int_fn(main_enum, 101)
 
 
 @pytest.mark.xfail(reason="https://github.com/quantinuum/guppylang/issues/1030")
@@ -62,25 +92,50 @@ def test_int(validate):
         """
 
     @guppy
-    def foo(_: Dummy[IT]) -> float:
+    def foo_struct(_: Dummy[IT]) -> float:
         return IT
 
     @guppy
-    def main() -> float:
+    def main_struct() -> float:
         return (
-            foo[1](Dummy())
-            + foo[2](Dummy())
-            + foo[-2](Dummy())
-            + foo[3](Dummy())
-            + foo[1](Dummy())
-            + foo[1](Dummy())
+            foo_struct[1](Dummy())
+            + foo_struct[2](Dummy())
+            + foo_struct[-2](Dummy())
+            + foo_struct[3](Dummy())
+            + foo_struct[1](Dummy())
+            + foo_struct[1](Dummy())
         )
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, and 4 monomorphizations of foo (Dummy constructor is inlined)
-    assert len(funcs_defs(compiled.modules[0])) == 5
+    # Check we have main_struct, and 4 monomorphizations of foo_struct
+    # (Dummy constructor is inlined)
+    assert len(funcs_defs(compiled_struct.modules[0])) == 5
+
+    @guppy.enum
+    class DummyEnum(Generic[IT]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}
+
+    @guppy
+    def foo_enum(_: DummyEnum[IT]) -> float:
+        return IT
+
+    @guppy
+    def main_enum() -> float:
+        return (
+            foo_enum[1](DummyEnum.VariantA())
+            + foo_enum[2](DummyEnum.VariantA())
+            + foo_enum[-3](DummyEnum.VariantA())
+            + foo_enum[1](DummyEnum.VariantA())
+            + foo_enum[1](DummyEnum.VariantA())
+        )
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, and 3 monomorphizations of foo_enum, 3 for VariantA()
+    assert len(funcs_defs(compiled_enum.modules[0])) == 7
 
 
 def test_float(validate, run_float_fn_approx):
@@ -95,26 +150,53 @@ def test_float(validate, run_float_fn_approx):
         """
 
     @guppy
-    def foo(_: Dummy[F]) -> float:
+    def foo_struct(_: Dummy[F]) -> float:
         return F
 
     @guppy
-    def main() -> float:
+    def main_struct() -> float:
         return (
-            foo[1.5](Dummy())
-            + foo[2.5](Dummy())
-            + foo[3.5](Dummy())
-            + foo[1.5](Dummy())
-            + foo[1.5](Dummy())
+            foo_struct[1.5](Dummy())
+            + foo_struct[2.5](Dummy())
+            + foo_struct[3.5](Dummy())
+            + foo_struct[1.5](Dummy())
+            + foo_struct[1.5](Dummy())
         )
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, and 3 monomorphizations of foo (Dummy constructor is inlined)
-    assert len(funcs_defs(compiled.modules[0])) == 4
+    # Check we have main_struct, and 3 monomorphizations of foo_struct
+    # (Dummy constructor is inlined)
+    assert len(funcs_defs(compiled_struct.modules[0])) == 4
 
-    run_float_fn_approx(main, 10.5)
+    run_float_fn_approx(main_struct, 10.5)
+
+    @guppy.enum
+    class DummyEnum(Generic[F]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}
+
+    @guppy
+    def foo_enum(_: DummyEnum[F]) -> float:
+        return F
+
+    @guppy
+    def main_enum() -> float:
+        return (
+            foo_enum[1.5](DummyEnum.VariantA())
+            + foo_enum[2.5](DummyEnum.VariantA())
+            + foo_enum[3.5](DummyEnum.VariantA())
+            + foo_enum[1.5](DummyEnum.VariantA())
+            + foo_enum[1.5](DummyEnum.VariantA())
+        )
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, and 3 monomorphizations of foo_enum
+    assert len(funcs_defs(compiled_enum.modules[0])) == 4
+
+    run_float_fn_approx(main_enum, 10.5)
 
 
 @pytest.mark.xfail(reason="https://github.com/quantinuum/guppylang/issues/1030")
@@ -130,24 +212,25 @@ def test_string(validate):
         """
 
     @guppy
-    def foo(_: Dummy[S]) -> str:
+    def foo_struct(_: Dummy[S]) -> str:
         return S
 
     @guppy
-    def main() -> tuple[str, str, str, str, str]:
+    def main_struct() -> tuple[str, str, str, str, str]:
         return (
-            foo[""](Dummy()),
-            foo["a"](Dummy()),
-            foo["A"](Dummy()),
-            foo["ä"](Dummy()),
-            foo["a"](Dummy()),
+            foo_struct[""](Dummy()),
+            foo_struct["a"](Dummy()),
+            foo_struct["A"](Dummy()),
+            foo_struct["ä"](Dummy()),
+            foo_struct["a"](Dummy()),
         )
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, and 4 monomorphizations of foo (Dummy constructor is inlined)
-    assert len(funcs_defs(compiled.modules[0])) == 5
+    # Check we have main_struct, and 4 monomorphizations of foo_struct
+    # (Dummy constructor is inlined)
+    assert len(funcs_defs(compiled_struct.modules[0])) == 5
 
 
 def test_chain(validate, run_int_fn):
@@ -178,20 +261,57 @@ def test_chain(validate, run_int_fn):
         return B
 
     @guppy
-    def main() -> int:
+    def main_struct() -> int:
         x = a[True](Dummy())
         b[True](Dummy())
         c[True](Dummy())
         d[True](Dummy())
         return 1 if x else 0
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, and 4 monomorphizations (a, b, c, d)
-    assert len(funcs_defs(compiled.modules[0])) == 5
+    # Check we have main_struct, and 4 monomorphizations (a, b, c, d)
+    assert len(funcs_defs(compiled_struct.modules[0])) == 5
 
-    run_int_fn(main, 1)
+    run_int_fn(main_struct, 1)
+
+    @guppy.enum
+    class DummyEnum(Generic[B]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}
+
+    @guppy
+    def a_enum(x: DummyEnum[B]) -> bool:
+        return b_enum(x)
+
+    @guppy
+    def b_enum(x: DummyEnum[B]) -> bool:
+        return c_enum(x)
+
+    @guppy
+    def c_enum(x: DummyEnum[B]) -> bool:
+        return d_enum(x)
+
+    @guppy
+    def d_enum(_: DummyEnum[B]) -> bool:
+        return B
+
+    @guppy
+    def main_enum() -> int:
+        x = a_enum[True](DummyEnum.VariantA[True]())
+        b_enum[True](DummyEnum.VariantA[True]())
+        c_enum[True](DummyEnum.VariantA[True]())
+        d_enum[True](DummyEnum.VariantA[True]())
+        return 1 if x else 0
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, 4 monomorphizations (a_enum, b_enum, c_enum, d_enum) and
+    # VariantA() monomorphized for True
+    assert len(funcs_defs(compiled_enum.modules[0])) == 6
+
+    run_int_fn(main_enum, 1)
 
 
 def test_recursion(validate):
@@ -206,26 +326,57 @@ def test_recursion(validate):
         """
 
     @guppy
-    def foo(_: Dummy[B]) -> int:
-        return bar[True](Dummy()) + foo[False](Dummy())
+    def foo_struct(_: Dummy[B]) -> int:
+        return bar[True](Dummy()) + foo_struct[False](Dummy())
 
     @guppy
     def bar(_: Dummy[B]) -> int:
-        return foo[True](Dummy()) + bar[False](Dummy())
+        return foo_struct[True](Dummy()) + bar[False](Dummy())
 
     @guppy
     def baz(d: Dummy[B]) -> int:
-        return foo(d)
+        return foo_struct(d)
 
     @guppy
-    def main() -> int:
+    def main_struct() -> int:
         return baz[True](Dummy())
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, and 5 monomorphizations of foo/bar/baz
-    assert len(funcs_defs(compiled.modules[0])) == 6
+    # Check we have main_struct, and 5 monomorphizations of foo_struct/bar/baz
+    assert len(funcs_defs(compiled_struct.modules[0])) == 6
+
+    @guppy.enum
+    class DummyEnum(Generic[B]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}
+
+    @guppy
+    def foo_enum(_: DummyEnum[B]) -> int:
+        return bar_enum[True](DummyEnum.VariantA[True]()) + foo_enum[False](
+            DummyEnum.VariantA[False]()
+        )
+
+    @guppy
+    def bar_enum(_: DummyEnum[B]) -> int:
+        return foo_enum[True](DummyEnum.VariantA[True]()) + bar_enum[False](
+            DummyEnum.VariantA[False]()
+        )
+
+    @guppy
+    def baz_enum(d: DummyEnum[B]) -> int:
+        return foo_enum(d)
+
+    @guppy
+    def main_enum() -> int:
+        return baz_enum[True](DummyEnum.VariantA[True]())
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, and 5 monomorphizations of foo_enum/bar_enum/baz_enum
+    # plus 2 for VariantA() (one for True and one for False)
+    assert len(funcs_defs(compiled_enum.modules[0])) == 8
 
 
 def test_many(validate):
@@ -257,37 +408,79 @@ def test_many(validate):
         return baz(s)
 
     @guppy
-    def foo(s: MyStruct[int, False, T2, N, T3, F]) -> float:
+    def foo_struct(s: MyStruct[int, False, T2, N, T3, F]) -> float:
         bar(s.x3s)
         baz(s)
         return N + F
 
     @guppy
-    def main() -> None:
+    def main_struct() -> None:
         s1: MyStruct[int, False, float, 3, bool, 4.2] = MyStruct(
             1, 1.0, array(True, False, True)
         )
         s1 = baz(baz(s1))
         bar(s1.x3s)
-        foo(s1)
+        foo_struct(s1)
 
         s2: MyStruct[int, False, bool, 1, nat, 4.2] = MyStruct(0, False, array(nat(42)))
         s2 = baz(baz(s2))
         bar(s2.x3s)
-        foo(s2)
+        foo_struct(s2)
 
         s3: MyStruct[int, False, bool, 1, float, 1.5] = MyStruct(0, False, array(4.2))
         s3 = baz(baz(s3))
         bar(s3.x3s)
-        foo(s3)
+        foo_struct(s3)
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, and 2 monomorphizations of foo and baz each. Note that `s2`
-    # doesn't generate a monomorphisation since it shares the relevant mono-parameters
-    # with `s1`
-    assert len(funcs_defs(compiled.modules[0])) == 5
+    # Check we have main_struct, and 3 monomorphizations of foo and baz each
+    assert len(funcs_defs(compiled_struct.modules[0])) == 7
+
+    # Enum equivalent: same const-generic parameters, but no field access (enums are
+    # opaque until pattern-matched), so the enum is passed through baz_enum/foo_enum
+    @guppy.enum
+    class MyEnum(Generic[T1, B, T2, N, T3, F]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}
+
+    @guppy
+    def baz_enum(
+        e: MyEnum[T1, B, T2, N, T3, F],
+    ) -> MyEnum[T1, B, T2, N, T3, F]:
+        return baz_enum(e)
+
+    @guppy
+    def foo_enum(e: MyEnum[int, False, T2, N, T3, F]) -> float:
+        baz_enum(e)
+        return N + F
+
+    @guppy
+    def main_enum() -> None:
+        e1: MyEnum[int, False, float, 3, bool, 4.2] = MyEnum.VariantA[
+            int, False, float, 3, bool, 4.2
+        ]()
+        e1 = baz_enum(baz_enum(e1))
+        foo_enum(e1)
+
+        e2: MyEnum[int, False, bool, 1, nat, 4.2] = MyEnum.VariantA[
+            int, False, bool, 1, nat, 4.2
+        ]()
+        e2 = baz_enum(baz_enum(e2))
+        foo_enum(e2)
+
+        e3: MyEnum[int, False, bool, 1, float, 1.5] = MyEnum.VariantA[
+            int, False, bool, 1, float, 1.5
+        ]()
+        e3 = baz_enum(baz_enum(e3))
+        foo_enum(e3)
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, 3 monomorphizations of foo_enum and baz_enum each,
+    # 3 for VariantA() (float, nat, bool)
+    assert len(funcs_defs(compiled_enum.modules[0])) == 10
 
 
 def test_constructor(validate):
@@ -299,7 +492,7 @@ def test_constructor(validate):
         pass
 
     @guppy
-    def main() -> None:
+    def main_struct() -> None:
         s1: MyStruct[True, 1.0] = MyStruct()  # This is inlined
         s2: MyStruct[False, 1.0] = MyStruct()  # This is inlined
         f1 = MyStruct[True, 2.0]  # This is monomorphized
@@ -307,11 +500,30 @@ def test_constructor(validate):
         f1()
         f2()
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, and 2 monomorphizations of the MyStruct constructor
-    assert len(funcs_defs(compiled.modules[0])) == 3
+    # Check we have main_struct, and 2 monomorphizations of the MyStruct constructor
+    assert len(funcs_defs(compiled_struct.modules[0])) == 3
+
+    @guppy.enum
+    class MyEnum(Generic[B, F]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}
+
+    @guppy
+    def main_enum() -> None:
+        e1: MyEnum[True, 1.0] = MyEnum.VariantA[True, 1.0]()  # This is inlined
+        e2: MyEnum[False, 1.0] = MyEnum.VariantA[False, 1.0]()  # This is inlined
+        f1 = MyEnum.VariantA[True, 2.0]  # This is monomorphized
+        f2 = MyEnum.VariantA[False, 2.0]  # This is monomorphized
+        f1()
+        f2()
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, and 4 monomorphizations of the MyEnum.VariantA
+    assert len(funcs_defs(compiled_enum.modules[0])) == 5
 
 
 def test_higher_order(validate):
@@ -323,34 +535,70 @@ def test_higher_order(validate):
         pass
 
     @guppy
-    def fun1(x: Struct[B, F]) -> None:
+    def sfun1(x: Struct[B, F]) -> None:
         pass
 
     @guppy
-    def fun2(x: Struct[True, F]) -> None:
+    def sfun2(x: Struct[True, F]) -> None:
         pass
 
     @guppy
-    def fun3(x: Struct[B, 42.0]) -> None:
+    def sfun3(x: Struct[B, 42.0]) -> None:
         pass
 
     @guppy
-    def foo(f: Callable[[Struct[B, 42.0]], None]) -> None:
+    def sfoo(f: Callable[[Struct[B, 42.0]], None]) -> None:
         pass
 
     @guppy
-    def main() -> None:
-        foo[True](fun1)
-        foo[False](fun1)
-        foo(fun2)
-        foo(fun3[False])
-        foo(fun3[True])
+    def main_struct() -> None:
+        sfoo[True](sfun1)
+        sfoo[False](sfun1)
+        sfoo(sfun2)
+        sfoo(sfun3[False])
+        sfoo(sfun3[True])
 
-    compiled = main.compile_function()
-    validate(compiled)
+    compiled_struct = main_struct.compile_function()
+    validate(compiled_struct)
 
-    # Check we have main, fun2, and 2 monomorphizations of fun1, fun3, and foo each
-    assert len(funcs_defs(compiled.modules[0])) == 8
+    # Check we have main_struct, fun2, and 2 monomorphizations of fun1, fun3,
+    # and sfoo each
+    assert len(funcs_defs(compiled_struct.modules[0])) == 8
+
+    @guppy.enum
+    class EnumType(Generic[B, F]):  # pyright: ignore[reportInvalidTypeForm]
+        VariantA = {}
+
+    @guppy
+    def efun1(x: EnumType[B, F]) -> None:
+        pass
+
+    @guppy
+    def efun2(x: EnumType[True, F]) -> None:
+        pass
+
+    @guppy
+    def efun3(x: EnumType[B, 42.0]) -> None:
+        pass
+
+    @guppy
+    def efoo(f: Callable[[EnumType[B, 42.0]], None]) -> None:
+        pass
+
+    @guppy
+    def main_enum() -> None:
+        efoo[True](efun1)
+        efoo[False](efun1)
+        efoo(efun2)
+        efoo(efun3[False])
+        efoo(efun3[True])
+
+    compiled_enum = main_enum.compile_function()
+    validate(compiled_enum)
+
+    # Check we have main_enum, efun2, and 2 monomorphizations of efun1,
+    # efun3, and efoo each
+    assert len(funcs_defs(compiled_enum.modules[0])) == 8
 
 
 def test_nat_generic(validate):
@@ -361,16 +609,18 @@ def test_nat_generic(validate):
         return t
 
     @guppy
-    def main(n: nat @ comptime, m: nat @ comptime) -> None:
+    def bar(n: nat @ comptime, m: nat @ comptime) -> None:
         foo(n)
         foo(m)
         foo(True)
         foo(False)
 
+    @guppy
+    def main() -> None:
+        bar(1, 2)
+
     compiled = main.compile()
     validate(compiled)
 
-    # Check we have main, and 3 monomorphisations of foo. The two nat versions should
-    # correspond to the same monomorphisation since the bounded nat args are preserved
-    # in Hugr!
-    assert len(funcs_defs(compiled.modules[0])) == 4
+    # Check we have main, bar, and 4 monomorphisations of foo
+    assert len(funcs_defs(compiled.modules[0])) == 6

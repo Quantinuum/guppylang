@@ -33,7 +33,7 @@ def test_func_alias(validate):
 
 
 def test_type_alias(validate):
-    from tests.integration.modules.mod_a import MyType as MyType_Alias  # noqa: TC001
+    from tests.integration.modules.mod_a import MyType as MyType_Alias
 
     @guppy
     def test(x: "MyType_Alias") -> "MyType_Alias":
@@ -107,4 +107,9 @@ def test_nat_var_alias(validate):
     def test(arr: array[int, nat_var]) -> int:
         return arr[0]
 
-    validate(test.compile_function())
+    @guppy
+    def main() -> None:
+        test(array(1, 2, 3))
+        test(array(1))
+
+    validate(main.compile_function())

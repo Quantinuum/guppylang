@@ -4,6 +4,7 @@ from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type, hugr_op
 from guppylang_internals.std._internal.compiler.qsystem import (
+    LazyMeasureResetCompiler,
     ReadFutureBoolCompiler,
     future_bool_type,
 )
@@ -204,7 +205,27 @@ def lazy_measure(q: qubit @ owned) -> "Measurement":
     """
 
 
+@custom_function(compiler=LazyMeasureResetCompiler())
+@no_type_check
+def lazy_measure_and_reset(q: qubit) -> "Measurement":
+    """Like `lazy_measure`, but also resets the qubit after measurement."""
+
+
 N = guppy.nat_var("N")
+
+
+@guppy
+@no_type_check
+def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
+    """Measure an array of qubits, returning an array of bools."""
+    return array(measure(q) for q in qubits)
+
+
+@guppy
+@no_type_check
+def measure_and_reset_array(qubits: array[qubit, N]) -> array[bool, N]:
+    """Measure and reset an array of qubits, returning an array of bools."""
+    return array(measure_and_reset(qubits[i]) for i in range(N))
 
 
 @guppy
@@ -215,6 +236,15 @@ def lazy_measure_array(qubits: array[qubit, N] @ owned) -> array["Measurement", 
     available.
     """
     return array(lazy_measure(q) for q in qubits)
+
+
+@guppy
+@no_type_check
+def lazy_measure_and_reset_array(
+    qubits: array[qubit, N],
+) -> array["Measurement", N]:
+    """Like `lazy_measure_array`, but also resets each qubit after measurement."""
+    return array(lazy_measure_and_reset(qubits[i]) for i in range(N))
 
 
 @custom_type(

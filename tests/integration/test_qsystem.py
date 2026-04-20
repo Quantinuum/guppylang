@@ -8,6 +8,9 @@ from guppylang.std.qsystem import (
     collect_measurements,
     lazy_measure,
     lazy_measure_array,
+    lazy_measure_and_reset,
+    measure_and_reset_array,
+    measure_array as qsystem_measure_array,
     measure_leaked,
 )
 from guppylang.std.qsystem.utils import get_current_shot
@@ -15,6 +18,10 @@ from guppylang.std.quantum import qubit, measure_array, x
 from guppylang.std.qsystem.functional import (
     phased_x,
     zz_phase,
+    measure_array as measure_array_fn,
+    measure_and_reset_array as measure_and_reset_array_fn,
+    lazy_measure_and_reset as lazy_measure_and_reset_fn,
+    lazy_measure_and_reset_array as lazy_measure_and_reset_array_fn,
     measure_and_reset,
     zz_max,
     reset,
@@ -139,3 +146,125 @@ def test_lazy_measure_array(validate, run_int_fn):  # type: ignore[no-untyped-de
 
     validate(test.compile_function())
     run_int_fn(test, NUM_QUBITS, num_qubits=NUM_QUBITS)
+
+
+def test_lazy_measure_and_reset(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    @guppy
+    def test() -> int:
+        q = qubit()
+        x(q)
+        first_result = lazy_measure_and_reset(q)
+        second_result = measure(q)
+        if first_result and not second_result:  # First expect flip, then expect reset
+            return 1
+        return 0
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=1)
+
+
+def test_lazy_measure_and_reset_functional(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    @guppy
+    def test() -> int:
+        q = qubit()
+        x(q)
+        q, first_result = lazy_measure_and_reset_fn(q)
+        second_result = measure(q)
+        if first_result.read() and not second_result:
+            return 1
+        return 0
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=1)
+
+
+def test_measure_and_reset_array(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    NUM_QUBITS = 5
+
+    @guppy
+    def test() -> int:
+        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        pattern = array(1, 0, 1, 1, 0)
+        for i in range(len(qubits)):
+            if pattern[i]:
+                x(qubits[i])
+
+        first = measure_and_reset_array(qubits)
+        second = qsystem_measure_array(qubits)
+
+        for i in range(len(first)):
+            if int(first[i]) != pattern[i] or second[i]:
+                return 0
+        return 1
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=NUM_QUBITS)
+
+
+def test_measure_array_functional(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    NUM_QUBITS = 5
+
+    @guppy
+    def test() -> int:
+        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        pattern = array(1, 0, 1, 1, 0)
+        for i in range(len(qubits)):
+            if pattern[i]:
+                x(qubits[i])
+
+        bits = measure_array_fn(qubits)
+
+        for i in range(len(bits)):
+            if int(bits[i]) != pattern[i]:
+                return 0
+        return 1
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=NUM_QUBITS)
+
+
+def test_measure_and_reset_array_functional(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    NUM_QUBITS = 5
+
+    @guppy
+    def test() -> int:
+        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        pattern = array(1, 0, 1, 1, 0)
+        for i in range(len(qubits)):
+            if pattern[i]:
+                x(qubits[i])
+
+        qubits, first = measure_and_reset_array_fn(qubits)
+        second = measure_array(qubits)
+
+        for i in range(len(first)):
+            if int(first[i]) != pattern[i] or second[i]:
+                return 0
+        return 1
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=NUM_QUBITS)
+
+
+def test_lazy_measure_and_reset_array_functional(validate, run_int_fn):  # type: ignore[no-untyped-def]
+    NUM_QUBITS = 5
+
+    @guppy
+    def test() -> int:
+        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        pattern = array(1, 0, 1, 1, 0)
+        for i in range(len(qubits)):
+            if pattern[i]:
+                x(qubits[i])
+
+        qubits, measurements = lazy_measure_and_reset_array_fn(qubits)
+        results = collect_measurements(measurements)
+        second = qsystem_measure_array(qubits)
+
+        for i in range(len(results)):
+            if int(results[i]) != pattern[i] or second[i]:
+                return 0
+        return 1
+
+    validate(test.compile_function())
+    run_int_fn(test, 1, num_qubits=NUM_QUBITS)

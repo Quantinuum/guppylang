@@ -14,6 +14,40 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.21.12](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.11...guppylang-v0.21.12) (2026-04-16)
+
+
+### Features
+
+* Add `lazy_measure_and_reset` qsystem operation ([7b63997](https://github.com/Quantinuum/guppylang/commit/7b6399739ec24a50b605c67698e6daa474cd1c1d))
+* Joint compilation of Guppy symbols to a library ([0adefdb](https://github.com/Quantinuum/guppylang/commit/0adefdb623f25c3f2caf2fc9bf28dc1883ba93f6))
+* Monomorphise everything during type checking ([bde8404](https://github.com/Quantinuum/guppylang/commit/bde8404b773c25097aad726529498102fee0937b))
+* Support for compilation unit, subprogram and location debug metadata ([c0ff4d3](https://github.com/Quantinuum/guppylang/commit/c0ff4d38e96a3ec0857e8c9be31a7368b9f08317))
+* Support modifiers on compile time functions ([ca65da4](https://github.com/Quantinuum/guppylang/commit/ca65da41808d94f687b370947906d6c539b04c16))
+
+
+### Performance Improvements
+
+* std.collections.Queue.pop constant time instead of linear time ([#1651](https://github.com/Quantinuum/guppylang/issues/1651)) ([1530062](https://github.com/Quantinuum/guppylang/commit/1530062ddb50c7c83486455073c0813a9c1e417e))
+
+## [0.21.11](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.10...guppylang-v0.21.11) (2026-04-01)
+
+
+### Features
+
+* Add support for enum type in `comptime` ([#1604](https://github.com/Quantinuum/guppylang/issues/1604)) ([62625f9](https://github.com/Quantinuum/guppylang/commit/62625f99306c9602b3bef9377b0551e357eeebf6))
+* Define modifiers as Python functions ([#1571](https://github.com/Quantinuum/guppylang/issues/1571)) ([3e43649](https://github.com/Quantinuum/guppylang/commit/3e4364993dbc471e7a449aa7dbc0f07c68ac7541))
+
+
+### Bug Fixes
+
+* Decouple from tket and pytket dependencies ([#1615](https://github.com/Quantinuum/guppylang/issues/1615)) ([4b704e1](https://github.com/Quantinuum/guppylang/commit/4b704e131a6df6259a2499ba19e8d69a069c048f))
+
+
+### Documentation
+
+* Improve docstrings for angles.py ([#1589](https://github.com/Quantinuum/guppylang/issues/1589)) ([78f1f35](https://github.com/Quantinuum/guppylang/commit/78f1f3598b8e98f35ba500f22906a6079c042d7b))
+
 ## [0.21.10](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.9...guppylang-v0.21.10) (2026-03-23)
 
 
