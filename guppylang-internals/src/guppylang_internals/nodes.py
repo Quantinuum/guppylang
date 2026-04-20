@@ -676,8 +676,7 @@ class NestedFunctionDef(ast.FunctionDef):
 
     def __init__(self, cfg: "CFG", ty: FunctionType, *args: Any, **kwargs: Any) -> None:
         kwargs.setdefault("docstring", None)
-        init: Any = super().__init__
-        init(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.ty = ty
 
