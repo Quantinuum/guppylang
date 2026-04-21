@@ -18,6 +18,7 @@ from guppylang_internals.definition.common import (
     CompiledDef,
     DefId,
     ParsableDef,
+    UserProvidedLinkName,
 )
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -62,7 +63,7 @@ class FieldFormHint(Help):
 
 
 @dataclass(frozen=True)
-class RawStructDef(TypeDef, ParsableDef):
+class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw struct type definition that has not been parsed yet."""
 
     python_class: type
@@ -100,7 +101,7 @@ class RawStructDef(TypeDef, ParsableDef):
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
-                            DuplicateFieldError(node, self.name, name, "Struct")
+                            DuplicateFieldError(node, self.name, name, "struct")
                         )
                 # Struct fields are declared via annotated assignments without value
                 case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:
@@ -111,7 +112,7 @@ class RawStructDef(TypeDef, ParsableDef):
                     if field_name in used_field_names:
                         raise GuppyError(
                             DuplicateFieldError(
-                                node.target, self.name, field_name, "Struct"
+                                node.target, self.name, field_name, "struct"
                             )
                         )
                     fields.append(UncheckedField(field_name, node.annotation))
@@ -129,10 +130,17 @@ class RawStructDef(TypeDef, ParsableDef):
         if overridden := used_field_names.intersection(used_func_names.keys()):
             x = overridden.pop()
             raise GuppyError(
-                DuplicateFieldError(used_func_names[x], self.name, x, "Struct")
+                DuplicateFieldError(used_func_names[x], self.name, x, "struct")
             )
 
-        return ParsedStructDef(self.id, self.name, cls_def, params, fields)
+        link_name_prefix = (
+            self._user_set_link_name
+            or f"{self.python_class.__module__}.{self.python_class.__qualname__}"
+        )
+
+        return ParsedStructDef(
+            self.id, self.name, cls_def, params, fields, link_name_prefix
+        )
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -147,6 +155,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[UncheckedField]
+    link_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""
@@ -204,7 +213,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             """Compiler for the `__new__` constructor method of a struct."""
 
             def compile(self, args: list[Wire]) -> list[Wire]:
-                return list(self.builder.add(ops.MakeTuple()(*args)))
+                return list(self.builder.add_op(ops.MakeTuple(), *args))
 
         constructor_sig = FunctionType(
             inputs=[
@@ -230,6 +239,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             higher_order_value=True,
             higher_order_func_id=GlobalConstId.fresh(f"{self.name}.__new__"),
             has_signature=True,
+            has_var_args=False,
         )
         return [constructor_def]
 

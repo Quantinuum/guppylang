@@ -2,7 +2,7 @@ import ast
 import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 from typing import TYPE_CHECKING, ClassVar, TypeAlias
 
 from hugr.build.dfg import DefinitionBuilder, OpVar
@@ -12,16 +12,14 @@ from guppylang_internals.span import SourceMap
 
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Globals
-    from guppylang_internals.compiler.core import (
-        CompilerContext,
-        PartiallyMonomorphizedArgs,
-    )
+    from guppylang_internals.compiler.core import CompilerContext
     from guppylang_internals.tys.param import Parameter
+    from guppylang_internals.tys.subst import Inst
 
 
 RawDef: TypeAlias = "ParsableDef | ParsedDef"
-ParsedDef: TypeAlias = "CheckableDef | CheckedDef"
-CheckedDef: TypeAlias = "CompilableDef | MonomorphizableDef | CompiledDef"
+ParsedDef: TypeAlias = "CheckableDef | CheckableGenericDef | CheckedDef"
+CheckedDef: TypeAlias = "CompilableDef | CompiledDef"
 
 
 @dataclass(frozen=True)
@@ -116,6 +114,25 @@ class CheckableDef(Definition):
         """
 
 
+class CheckableGenericDef(Definition):
+    """Abstract base class for definitions that require monomorphization when checking.
+
+    Args:
+        id: The unique definition identifier.
+        name: The name of the definition.
+        defined_at: The AST node where the definition was defined.
+    """
+
+    @property
+    @abstractmethod
+    def params(self) -> "Sequence[Parameter]":
+        """Generic parameters of this definition."""
+
+    @abstractmethod
+    def check(self, type_args: "Inst", globals: "Globals") -> "CheckedDef":
+        """Creates and type checks a monomorphisation of this definition."""
+
+
 class CompilableDef(Definition):
     """Abstract base class for definitions that still need to be compiled to Hugr.
 
@@ -142,37 +159,6 @@ class CompilableDef(Definition):
         """
 
 
-class MonomorphizableDef(Definition):
-    """Abstract base class for definitions that require monomorphization when compiling
-    to Hugr.
-
-    Args:
-        id: The unique definition identifier.
-        name: The name of the definition.
-        defined_at: The AST node where the definition was defined.
-    """
-
-    @property
-    @abstractmethod
-    def params(self) -> "Sequence[Parameter]":
-        """Generic parameters of this definition."""
-
-    @abstractmethod
-    def monomorphize(
-        self,
-        module: DefinitionBuilder[OpVar],
-        mono_args: "PartiallyMonomorphizedArgs",
-        ctx: "CompilerContext",
-        parent_ty: "RawDef | None" = None,
-    ) -> "MonomorphizedDef":
-        """Adds a Hugr node for the (partially) monomorphized definition to the provided
-        Hugr module.
-
-        See `MonomorphizedDef.compile_inner()` for the hook to compile the inside of the
-        node. This two-step process enables things like mutual recursion.
-        """
-
-
 class CompiledDef(Definition):
     """Abstract base class for definitions that have been added to a Hugr.
 
@@ -191,25 +177,26 @@ class CompiledDef(Definition):
 
 
 @dataclass(frozen=True)
-class MonomorphizedDef(CompiledDef):
-    """Abstract base class for definitions that have been added to a Hugr and have been
-    partially monomorphized.
-
-    Args:
-        id: The unique definition identifier.
-        name: The name of the definition. This will be the same for all monomorphized
-            variants of the definition.
-        defined_at: The AST node where the original polymorphic definition was defined.
-        mono_args: Partial monomorphization of the generic parameters.
-    """
-
-    mono_args: "PartiallyMonomorphizedArgs"
-
-
-@dataclass(frozen=True)
 class UnknownSourceError(Fatal):
     title: ClassVar[str] = "Cannot find source"
     message: ClassVar[str] = (
         "Unable to look up the source code for Python object `{obj}`"
     )
     obj: object
+
+
+@dataclass(frozen=True)
+class UserProvidedLinkName:
+    """Abstract base class for classes where a user may provide a link name, but it may
+    not end up as the link name that is used throughout the compilation pipeline.
+
+    For example, a user providing `None` as a link name to a RawFunctionDef results in
+    the ParsedFunctionDef having an automatically generated link name. This class
+    discourages accessing the link name prematurely, when it has not yet been finalized.
+    """
+
+    link_name: InitVar[str | None] = field(default=None, kw_only=True)
+    _user_set_link_name: str | None = field(default=None, init=False)
+
+    def __post_init__(self, link_name: str | None) -> None:
+        object.__setattr__(self, "_user_set_link_name", link_name)

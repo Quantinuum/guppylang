@@ -5,7 +5,7 @@ classifiers = ["Private :: Do Not Upload"]
 dynamic = ["version"]
 
 [build-system]
-requires = ["maturin>=1.7.7,<2.0"]
+requires = ["maturin>=1.13.1,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]

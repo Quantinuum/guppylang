@@ -1,0 +1,8 @@
+Error: Attribute not found (at $FILE:14:18)
+   | 
+12 | @guppy
+13 | def fun() -> str:
+14 |     return MyEnum.method()
+   |                   ^^^^^^ `MyEnum` has no variant `method`
+
+Guppy compilation failed due to 1 previous error

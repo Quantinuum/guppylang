@@ -97,8 +97,13 @@ def test_dependent_generic(validate):
         pass
 
     @guppy
-    def main(xs: array[int, x]) -> None:
+    def bar(xs: array[int, x]) -> None:
         foo(x, xs)
+
+    @guppy
+    def main() -> None:
+        bar(array(1, 2, 3))
+        bar(array())
 
     validate(main.compile_function())
 
@@ -111,12 +116,17 @@ def test_type_apply(validate):
         pass
 
     @guppy
-    def main(m: nat @ comptime) -> None:
+    def bar(m: nat @ comptime) -> None:
         foo[int, 43](42, 43)
         f = foo[float, 44]
         f(4.2, 44)
         g = foo[nat, m]
         g(42, m)
+
+    @guppy
+    def main() -> None:
+        bar(0)
+        bar(3)
 
     validate(main.compile_function())
 

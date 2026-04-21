@@ -18,6 +18,7 @@ from guppylang_internals.definition.common import (
     CompiledDef,
     DefId,
     ParsableDef,
+    UserProvidedLinkName,
 )
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -63,7 +64,7 @@ class DuplicateVariantError(Error):
 @dataclass(frozen=True)
 class VariantFormHint(Help):
     message: ClassVar[str] = (
-        "Enum can contain only variants of the form "
+        "Enums can only contain variants of the form "
         '`VariantName = {{"var1": Type1, ...}}` or `@guppy` annotated methods'
     )
 
@@ -79,7 +80,7 @@ class EnumVariant(Generic[F]):
 
 
 @dataclass(frozen=True)
-class RawEnumDef(TypeDef, ParsableDef):
+class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw enum type definition before parsing."""
 
     python_class: type
@@ -109,13 +110,40 @@ class RawEnumDef(TypeDef, ParsableDef):
                     pass
                 case _, ast.FunctionDef(name=name) as node:
                     used_func_names[name] = node
-                # Enum variant are declared via dictionary, where key are the variant
-                # fields and values are types;
+                # Enum variants are declared via a dictionary, where keys are the
+                # variant fields and values are types:
                 # e.g. `variant = {"a": int, ...}
-                # We do not support:
-                #  - multi assignment: a = b = 1 are not supported
-                #  - inline assignment e.g. v1, v2 = {}, {}
-                # - variant=function(...)? [this is more a metaprogramming feature]
+
+                # Multi-target assignments like `a = b = {...}` are not supported
+                case _, ast.Assign(targets=[_, _, *_]) as node:
+                    raise GuppyError(UnsupportedError(node, "Multi assignments"))
+                # Inline tuple unpacking: `v1, v2 = {}, {}`
+                case (
+                    _,
+                    ast.Assign(
+                        targets=[ast.Tuple(elts=target_names)],
+                        value=ast.Tuple(elts=dict_values),
+                    ) as node,
+                ) if len(target_names) == len(dict_values) and all(
+                    isinstance(t, ast.Name) and isinstance(v, ast.Dict)
+                    for t, v in zip(target_names, dict_values, strict=True)
+                ):
+                    for target_name_node, dict_node in zip(
+                        target_names, dict_values, strict=True
+                    ):
+                        assert isinstance(target_name_node, ast.Name)  # for mypy
+                        assert isinstance(dict_node, ast.Dict)  # for mypy
+                        variant_name = target_name_node.id
+                        if variant_name in variants:
+                            raise GuppyError(
+                                DuplicateVariantError(
+                                    target_name_node, self.name, variant_name
+                                )
+                            )
+                        variants[variant_name] = parse_enum_variant(
+                            variant_index, variant_name, dict_node
+                        )
+                        variant_index += 1
                 case (
                     _,
                     ast.Assign(
@@ -133,7 +161,7 @@ class RawEnumDef(TypeDef, ParsableDef):
                         variant_index, variant_name, node.value
                     )
                     variant_index += 1
-                # if unexpected statement are found
+                # If unexpected statements are found
                 case _, node:
                     err = UnexpectedError(
                         node,
@@ -160,7 +188,14 @@ class RawEnumDef(TypeDef, ParsableDef):
                     NonGuppyMethodError(func_def, self.name, func_name, "enum")
                 )
 
-        return ParsedEnumDef(self.id, self.name, cls_def, params, variants)
+        link_name_prefix = (
+            self._user_set_link_name
+            or f"{self.python_class.__module__}.{self.python_class.__qualname__}"
+        )
+
+        return ParsedEnumDef(
+            self.id, self.name, cls_def, params, variants, link_name_prefix
+        )
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -175,6 +210,7 @@ class ParsedEnumDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     variants: Mapping[str, EnumVariant[UncheckedField]]
+    link_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedEnumDef":
         """Checks that all enum fields have valid types."""
@@ -246,10 +282,9 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 inst_enum_type = self.enum_ty.transform(instantiator)
                 assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
-                    self.builder.add(
-                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx))(
-                            *wires
-                        )
+                    self.builder.add_op(
+                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
+                        *wires,
                     )
                 )
 
@@ -281,6 +316,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 higher_order_value=True,
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,
+                has_var_args=False,
             )
             variants_constructors.append(constructor_def)
 
@@ -308,7 +344,7 @@ def parse_enum_variant(
                 if key_name in variant_field_names:
                     raise GuppyError(
                         DuplicateFieldError(
-                            k, name, key_name, class_type="Enum variant"
+                            k, name, key_name, class_type="enum variant"
                         )
                     )
                 variant_field_names.append(key_name)

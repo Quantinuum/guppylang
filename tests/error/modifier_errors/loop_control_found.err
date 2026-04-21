@@ -1,14 +1,14 @@
-Error: Unexpected loop control (at $FILE:8:12)
+Error: Unexpected loop control (at $FILE:9:12)
   | 
-6 |     for i in range(123):
-7 |         with dagger:
-8 |             continue
+7 |     for i in range(123):
+8 |         with dagger:
+9 |             continue
   |             ^^^^^^^^ Continue found in a `With` block
 
 Note:
   | 
-6 |     for i in range(123):
-7 |         with dagger:
+7 |     for i in range(123):
+8 |         with dagger:
   |              ------ modifier is used here
 
 Guppy compilation failed due to 1 previous error

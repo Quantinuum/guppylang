@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, TypeVar
 
@@ -13,7 +12,11 @@ from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 
-from guppylang_internals.compiler.core import CompilerContext, GlobalConstId
+from guppylang_internals.compiler.core import (
+    CompilerContext,
+    DFBuilder,
+    GlobalConstId,
+)
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
@@ -21,7 +24,6 @@ from guppylang_internals.definition.custom import (
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.nodes import AbortKind
-from guppylang_internals.tys.subst import Inst
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -85,9 +87,11 @@ def make_error() -> ops.ExtOp:
 # --------- Custom compilers for non-native ops --------
 # ------------------------------------------------------
 
+P = TypeVar("P", bound=ops.DfParentOp)
+
 
 def build_panic(
-    builder: DfBase[P],
+    builder: DFBuilder[P],
     in_tys: ht.TypeRow,
     out_tys: ht.TypeRow,
     err: Wire,
@@ -104,65 +108,104 @@ def build_static_error(builder: DfBase[P], signal: int, msg: str) -> Wire:
     return builder.load(builder.add_const(val))
 
 
-# TODO: Common up build_unwrap_right and build_unwrap_left below once
-#  https://github.com/quantinuum/hugr/issues/1596 is fixed
-
-
-def build_unwrap_right(
-    builder: DfBase[P], either: Wire, error_msg: str, error_signal: int = 1
+def build_unwrap_either(
+    builder: DFBuilder[P],
+    either: Wire,
+    left: bool,
+    error_msg: str,
+    error_signal: int = 1,
 ) -> Node:
-    """Unwraps the right value from a `hugr.tys.Either` value, panicking with the given
-    message if the result is left.
+    """Unwraps the left or right value from a `hugr.tys.Either` value according to the
+    `left` flag, panicking with the given message if the result is on the other side.
     """
     conditional = builder.add_conditional(either)
-    result_ty = builder.hugr.port_type(either.out_port())
+    result_ty = builder.get_wire_type(either)
     assert isinstance(result_ty, ht.Sum)
     [left_tys, right_tys] = result_ty.variant_rows
-    with conditional.add_case(0) as case:
-        error = build_static_error(case, error_signal, error_msg)
-        case.set_outputs(*build_panic(case, left_tys, right_tys, error, *case.inputs()))
-    with conditional.add_case(1) as case:
+    [in_tys, out_tys] = [right_tys, left_tys] if left else [left_tys, right_tys]
+    ok_case_num = 0 if left else 1
+    panic_case_num = 1 - ok_case_num
+    with conditional.add_case(ok_case_num) as case:
         case.set_outputs(*case.inputs())
+    with conditional.add_case(panic_case_num) as case:
+        error = build_static_error(case, error_signal, error_msg)
+        case.set_outputs(
+            *build_panic(
+                DFBuilder(case, builder.current_ast_node),
+                in_tys,
+                out_tys,
+                error,
+                *case.inputs(),
+            )
+        )
     return conditional.to_node()
 
 
-P = TypeVar("P", bound=ops.DfParentOp)
-
-
 def build_unwrap_left(
-    builder: DfBase[P], either: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder[P], either: Wire, error_msg: str, error_signal: int = 1
 ) -> Node:
     """Unwraps the left value from a `hugr.tys.Either` value, panicking with the given
     message if the result is right.
     """
-    conditional = builder.add_conditional(either)
-    result_ty = builder.hugr.port_type(either.out_port())
-    assert isinstance(result_ty, ht.Sum)
-    [left_tys, right_tys] = result_ty.variant_rows
-    with conditional.add_case(0) as case:
-        case.set_outputs(*case.inputs())
-    with conditional.add_case(1) as case:
-        error = build_static_error(case, error_signal, error_msg)
-        case.set_outputs(*build_panic(case, right_tys, left_tys, error, *case.inputs()))
-    return conditional.to_node()
+    return build_unwrap_either(
+        builder,
+        either,
+        left=True,
+        error_msg=error_msg,
+        error_signal=error_signal,
+    )
+
+
+def build_unwrap_right(
+    builder: DFBuilder[P],
+    either: Wire,
+    error_msg: str,
+    error_signal: int = 1,
+) -> Node:
+    """Unwraps the right value from a `hugr.tys.Either` value, panicking with the given
+    message if the result is left.
+    """
+    return build_unwrap_either(
+        builder,
+        either,
+        left=False,
+        error_msg=error_msg,
+        error_signal=error_signal,
+    )
 
 
 def build_unwrap(
-    builder: DfBase[P], option: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder[P],
+    option: Wire,
+    error_msg: str,
+    error_signal: int = 1,
 ) -> Node:
     """Unwraps an `hugr.tys.Option` value, panicking with the given message if the
     result is an error.
     """
-    return build_unwrap_right(builder, option, error_msg, error_signal)
+    return build_unwrap_right(
+        builder,
+        option,
+        error_msg=error_msg,
+        error_signal=error_signal,
+    )
 
 
 def build_expect_none(
-    builder: DfBase[P], option: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder[P],
+    option: Wire,
+    error_msg: str,
+    error_signal: int = 1,
 ) -> Node:
     """Checks that `hugr.tys.Option` value is `None`, otherwise panics with the given
     message.
     """
-    return build_unwrap_left(builder, option, error_msg, error_signal)
+    return build_unwrap_left(
+        builder,
+        option,
+        error_msg=error_msg,
+        error_signal=error_signal,
+    )
 
 
 class MemSwapCompiler(CustomCallCompiler):
@@ -185,7 +228,16 @@ def _build_unwrap_result(func: hf.Function, result_type_var: ht.Variable) -> Non
     with conditional.add_case(0) as case:
         [error] = list(case.inputs())
         case.set_outputs(
-            *build_panic(case, [error_type()], [result_type_var], error, *case.inputs())
+            *build_panic(
+                # We don't want misleading debug info in global functions until
+                # https://github.com/Quantinuum/guppylang/issues/1609 is implemented,
+                # so `current_ast_node`is None here by default
+                DFBuilder(case),
+                [error_type()],
+                [result_type_var],
+                error,
+                *case.inputs(),
+            )
         )
     with conditional.add_case(1) as case:
         case.set_outputs(*case.inputs())
@@ -193,14 +245,14 @@ def _build_unwrap_result(func: hf.Function, result_type_var: ht.Variable) -> Non
 
 
 def unwrap_result(
-    builder: DfBase[P],
+    builder: DFBuilder[P],
     ctx: CompilerContext,
     either: Wire,
 ) -> Wire:
     """Builds or retrieves and then calls a function that unwraps an `hugr.tys.Either`
     value, panicking if the result is an error.
     """
-    either_ty = builder.hugr.port_type(either.out_port())
+    either_ty = builder.get_wire_type(either)
     assert isinstance(either_ty, ht.Either)
     [error_tys, result_tys] = either_ty.variant_rows
     # Construct the function signature for unwrapping a result of type T.
@@ -263,7 +315,7 @@ class BarrierCompiler(CustomCallCompiler):
     """Compiler for the `barrier` function."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
-        tys = [t for arg in args if (t := self.builder.hugr.port_type(arg.out_port()))]
+        tys = [t for arg in args if (t := self.builder.get_wire_type(arg))]
 
         op = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
             [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]

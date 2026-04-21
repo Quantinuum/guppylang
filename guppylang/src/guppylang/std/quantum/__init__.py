@@ -386,8 +386,10 @@ def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
 @no_type_check
 def discard_array(qubits: array[qubit, N] @ owned) -> None:
     """Discard an array of qubits."""
-    for q in qubits:
-        discard(q)
+    for i in range(N):
+        if not qubits.is_borrowed(i):
+            discard(qubits.take(i))
+    qubits.discard_all_taken()
 
 
 # -------NON-PRIMITIVE-------

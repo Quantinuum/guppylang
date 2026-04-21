@@ -118,6 +118,7 @@ def compile_bb(
             branch_port = dfg.builder.add_op(
                 read_bool(),
                 branch_port,  # Here happen the tagging
+                set_debug_info=False,
             )
             branch_port = cast("Wire", branch_port)
         else:
@@ -128,7 +129,9 @@ def compile_bb(
         branch_port = ExprCompiler(ctx).compile(bb.branch_pred, dfg)
     elif len(bb.successors) == 1:
         # Even if we don't branch, we still have to add a `Sum(())` predicates
-        branch_port = dfg.builder.add_op(ops.Tag(0, ht.UnitSum(1)))
+        branch_port = dfg.builder.add_op(
+            ops.Tag(0, ht.UnitSum(1)), set_debug_info=False
+        )
     else:
         raise InternalGuppyError("Invalid number of successors in basic block")
 

@@ -33,6 +33,16 @@ class GuppyComptimeError(Exception):
     """Exception for type and linearity errors that are caught in a comptime context."""
 
 
+class RequiresMonomorphizationError(Exception):
+    """Internal exception that is used whenever type checking cannot proceed without
+    monomorphizaion.
+
+    When checking generic functions, we first try a pass where the parameters are kept
+    as opaque variables to give nicer error messaged. This exception is thrown whenever
+    we cannot proceed using only opaque values.
+    """
+
+
 class InternalGuppyError(Exception):
     """Exception for internal problems during compilation."""
 
@@ -63,9 +73,8 @@ def exception_hook(hook: ExceptHook) -> Iterator[None]:
         old_exc_tuple = ipython_shell.custom_exceptions
         ipython_shell.set_custom_exc((Exception,), ipython_excepthook)
         yield
-        ipython_shell.set_custom_exc(
-            old_exc_tuple, lambda shell, *args, **kwargs: old_hook(*args, **kwargs)
-        )
+        ipython_shell.CustomTB = old_hook
+        ipython_shell.custom_exceptions = old_exc_tuple
     except NameError:
         pass
     else:

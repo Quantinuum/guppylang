@@ -3,4 +3,4 @@ Traceback (most recent call last):
     foo.compile()
   File "$FILE", line 21, in foo
     s.x = 1
-guppylang_internals.error.GuppyComptimeError: Object of type `S` is an owned function argument. Therefore, this mutation won't be visible to the caller.
+guppylang_internals.error.GuppyComptimeError: Object of struct type `S` is an owned function argument. Therefore, this mutation won't be visible to the caller.

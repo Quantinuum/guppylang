@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from guppylang_internals.diagnostic import Error, Note
+from guppylang_internals.diagnostic import Error, Help, Note
 
 
 @dataclass(frozen=True)
@@ -43,6 +43,25 @@ class ExpectedError(Error):
     @property
     def extra(self) -> str:
         return f", got {self.got}" if self.got else ""
+
+    @dataclass(frozen=True)
+    class EnumHelp(Help):
+        message: ClassVar[str] = "You might use an enum variant here instead"
+
+    @dataclass(frozen=True)
+    class NotInstantiable(Note):
+        name: str
+        message: ClassVar[str] = (
+            "Cannot construct an instance of `{name}`, as it is missing a `__new__` "
+            "method."
+        )
+
+    @dataclass(frozen=True)
+    class MissingBranch(Note):
+        span_label: ClassVar[str] = (
+            "Consider adding a return statement if this expression is `{truth_value}`"
+        )
+        truth_value: bool
 
 
 @dataclass(frozen=True)

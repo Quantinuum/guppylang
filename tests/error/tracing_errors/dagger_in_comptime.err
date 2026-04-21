@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 14, in <module>
+    foo.compile()
+  File "$FILE", line 9, in foo
+    with dagger():
+guppylang_internals.error.GuppyComptimeError: The `dagger` modifier is not supported in comptime functions

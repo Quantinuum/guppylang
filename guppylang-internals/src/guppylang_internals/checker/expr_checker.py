@@ -30,8 +30,6 @@ from dataclasses import replace
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, NoReturn
 
-from typing_extensions import assert_never
-
 from guppylang_internals.ast_util import (
     AstNode,
     AstVisitor,
@@ -48,7 +46,6 @@ from guppylang_internals.checker.core import (
     Context,
     DummyEvalDict,
     FieldAccess,
-    Globals,
     Locals,
     Place,
     PythonObject,
@@ -62,6 +59,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprIncoherentListError,
     ComptimeExprNotCPythonError,
     ComptimeExprNotStaticError,
+    ComptimeExprTypeVarError,
     ComptimeGuppyObjectError,
     ComptimeUnknownError,
     IllegalComptimeExpressionError,
@@ -102,6 +100,7 @@ from guppylang_internals.error import (
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
     saved_exception_hook,
 )
 from guppylang_internals.experimental import (
@@ -113,8 +112,8 @@ from guppylang_internals.nodes import (
     DesugaredGenerator,
     DesugaredGeneratorExpr,
     DesugaredListComp,
+    DummyGenericParamValue,
     FieldAccessAndDrop,
-    GenericParamValue,
     GlobalName,
     IterNext,
     LocalCall,
@@ -134,7 +133,7 @@ from guppylang_internals.nodes import (
     UncheckedMatchPred,
 )
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.arg import TypeArg
+from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     bool_type,
     float_type,
@@ -150,8 +149,13 @@ from guppylang_internals.tys.builtin import (
     option_type,
     string_type,
 )
-from guppylang_internals.tys.const import Const, ConstValue
-from guppylang_internals.tys.param import ConstParam, TypeParam, check_all_args
+from guppylang_internals.tys.const import (
+    BoundConstVar,
+    Const,
+    ConstValue,
+    ExistentialConstVar,
+)
+from guppylang_internals.tys.param import TypeParam, check_all_args
 from guppylang_internals.tys.parsing import arg_from_ast
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
@@ -275,11 +279,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars)
 
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
-        act = python_value_to_guppy_type(node.value, node, self.ctx.globals, ty)
+        act = python_value_to_guppy_type(node.value, node, ty)
         if act is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
-        assert inst == [], "Const values are not generic"
+        assert inst == (), "Const values are not generic"
         return node, subst
 
     def visit_Tuple(self, node: ast.Tuple, ty: Type) -> tuple[ast.expr, Subst]:
@@ -336,10 +340,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
-            args, return_ty, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
-            return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
+            return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
         if isinstance(func_ty, TupleType) and (
             function_elements := parse_function_tensor(func_ty)
@@ -361,7 +365,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 TensorCall(func=node.func, args=processed_args, tensor_ty=tensor_ty),
             ), subst
 
-        elif callee := self.ctx.globals.get_instance_func(func_ty, "__call__"):
+        elif callee := ENGINE.get_instance_func(func_ty, "__call__"):
             return callee.check_call(node.args, ty, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, func_ty))
@@ -370,9 +374,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if act := python_value_to_guppy_type(
-            python_val, node.value, self.ctx.globals, ty
-        ):
+        if act := python_value_to_guppy_type(python_val, node.value, ty):
             subst = unify(ty, act, {})
             if subst is None:
                 self._fail(ty, act, node)
@@ -421,36 +423,69 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return ExprChecker(self.ctx).check(expr, ty, kind)
 
     def visit_Constant(self, node: ast.Constant) -> tuple[ast.expr, Type]:
-        ty = python_value_to_guppy_type(node.value, node, self.ctx.globals)
+        ty = python_value_to_guppy_type(node.value, node)
         if ty is None:
             raise GuppyError(IllegalConstant(node, type(node.value)))
         return node, ty
 
     def _check_generic_param(self, name: str, node: ast.expr) -> tuple[ast.expr, Type]:
         """Helper method to check a generic parameter (ConstParam or TypeParam)."""
-        param = self.ctx.generic_params[name]
-        match param:
-            case ConstParam() as param:
-                ast_node = with_loc(node, GenericParamValue(id=name, param=param))
-                return ast_node, param.ty
-            case TypeParam() as param:
-                raise GuppyError(
-                    ExpectedError(node, "a value", got=f"type `{param.name}`")
-                )
-            case _:
-                return assert_never(param)
+        arg = self.ctx.generic_param_inst[name]
+        match arg:
+            case ConstArg(const=const):
+                match const:
+                    case ConstValue(value=v, ty=ty):
+                        ast_node = with_loc(node, ast.Constant(value=v))
+                        return ast_node, ty
+                    case BoundConstVar(ty=ty) as var:
+                        # This means we're currently doing a parametric check of a
+                        # generic function where the const variables are kept as opaque
+                        # values. In that case, we just return a dummy node, knowing
+                        # that it won't be emitted when checking the actual monomorphic
+                        # instantiations later.
+                        return with_loc(node, DummyGenericParamValue(name, var)), ty
+                    case ExistentialConstVar():
+                        raise InternalGuppyError("Unexpected existential variable")
+            case TypeArg():
+                raise GuppyError(ExpectedError(node, "a value", got=f"type `{name}`"))
 
     def visit_Name(self, node: ast.Name) -> tuple[ast.expr, Type]:
-        x = node.id
-        if x in self.ctx.locals:
-            var = self.ctx.locals[x]
+        return self._check_name_id(node.id, node)
+
+    def _check_name_id(
+        self, name_id: str, node: ast.Name, allow_enum: bool = False
+    ) -> tuple[ast.expr, Type]:
+        """Helper method to check a name by its identifier, used for both `ast.Name` and
+        `ast.Attribute` nodes. If allow_enum is False, we raise an error if the name
+        corresponds to an guppy.enum class, since enum classes cannot be used as values,
+        e.g: `x = Color` raises an error, while `x = Color.Red()` is fine."""
+        if name_id in self.ctx.locals:
+            var = self.ctx.locals[name_id]
             return with_loc(node, PlaceNode(place=var)), var.ty
-        elif x in self.ctx.generic_params:
-            return self._check_generic_param(x, node)
-        elif x in self.ctx.globals:
-            match self.ctx.globals[x]:
+        elif name_id in self.ctx.generic_param_inst:
+            return self._check_generic_param(name_id, node)
+        elif name_id in self.ctx.globals:
+            match self.ctx.globals[name_id]:
                 case Definition() as defn:
-                    return self._check_global(defn, x, node)
+                    if not allow_enum:
+                        from guppylang_internals.definition.enum import (
+                            CheckedEnumDef,
+                            ParsedEnumDef,
+                        )
+
+                        if isinstance(defn, ParsedEnumDef | CheckedEnumDef):
+                            if len(defn.variants) == 0:
+                                raise GuppyError(
+                                    UnexpectedError(node, "empty enum initialization")
+                                )
+                            err = ExpectedError(
+                                node,
+                                "a value",
+                                got=f"a guppy enum class `{defn.name}`",
+                            )
+                            err.add_sub_diagnostic(ExpectedError.EnumHelp(None))
+                            raise GuppyError(err)
+                    return self._check_global(defn, name_id, node)
                 case PythonObject():
                     from guppylang_internals.checker.cfg_checker import (
                         VarNotDefinedError,
@@ -461,8 +496,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     raise GuppyError(VarNotDefinedError(node, node.id))
 
         raise InternalGuppyError(
-            f"Variable `{x}` is not defined in `TypeSynthesiser`. This should have "
-            "been caught by program analysis!"
+            f"Variable `{name_id}` is not defined in `TypeSynthesiser`."
+            "This should have been caught by program analysis!"
         )
 
     def _check_global(
@@ -483,7 +518,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             case ParsedEnumDef() as defn:
                 if len(defn.variants) == 0:
                     raise GuppyError(UnexpectedError(node, "empty enum initialization"))
-                constr = self.ctx.globals.get_instance_func(
+                constr = ENGINE.get_instance_func(
                     defn, next(iter(defn.variants.keys()))
                 )
                 if constr is None:
@@ -494,24 +529,31 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     node, GlobalName(id=name, def_id=defn.id)
                 ), constr.ty.output
             # For types, we return their `__new__` constructor
-            case TypeDef() as defn if constr := self.ctx.globals.get_instance_func(
-                defn, "__new__"
-            ):
-                return with_loc(node, GlobalName(id=name, def_id=constr.id)), constr.ty
+            case TypeDef() as defn:
+                if constr := ENGINE.get_instance_func(defn, "__new__"):
+                    return with_loc(
+                        node, GlobalName(id=name, def_id=constr.id)
+                    ), constr.ty
+                else:
+                    err = ExpectedError(
+                        node,
+                        "an instantiable definition",
+                        got=f"{defn.description} `{name}`",
+                    )
+                    err.add_sub_diagnostic(ExpectedError.NotInstantiable(None, name))
+
             # Handle parameter definitions (e.g., nat_var) that may be imported
             case ParamDef():
                 # Check if this parameter is in our generic_params
                 # (e.g., used in type signature)
-                if name in self.ctx.generic_params:
+                if name in self.ctx.generic_param_inst:
                     return self._check_generic_param(name, node)
                 # If not in generic_params, it's being used outside its scope
-                raise GuppyError(
-                    ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
-                )
+                err = ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
             case defn:
-                raise GuppyError(
-                    ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
-                )
+                err = ExpectedError(node, "a value", got=f"{defn.description} `{name}`")
+
+        raise GuppyError(err)
 
     def visit_Attribute(self, node: ast.Attribute) -> tuple[ast.expr, Type]:
         from guppylang.defs import GuppyDefinition
@@ -527,8 +569,25 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(
                 ModuleMemberNotFoundError(attr_span, module.__name__, node.attr)
             )
-        node.value, ty = self.synthesize(node.value)
 
+        if isinstance(node.value, ast.Name):
+            # If node.value is a Name, we manually visit it. This is necessary since a
+            # Name can be a EnumDef only if it is in a attribute access, thus we
+            # manually need to call the helper instead of relying on the standard
+            # visit_Name (that is called through synthesize)
+            ty = get_type_opt(node.value)
+            if ty is None:
+                node.value, ty = self._check_name_id(
+                    node.value.id, node.value, allow_enum=True
+                )
+                if ty.unsolved_vars:
+                    raise GuppyError(TypeInferenceError(node, ty))
+                node.value = with_type(ty, node.value)
+        else:
+            node.value, ty = self.synthesize(node.value)
+
+        # flag used for error messages, None if the error is not related to enums
+        is_enum_class = None
         if isinstance(ty, StructType) and node.attr in ty.field_dict:
             field = ty.field_dict[node.attr]
             expr: ast.expr
@@ -541,17 +600,46 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # you loose access to all fields besides `a`).
                 expr = FieldAccessAndDrop(value=node.value, struct_ty=ty, field=field)
             return with_loc(node, expr), field.ty
-        elif isinstance(ty, EnumType) and node.attr in ty.variant_as_dict:
-            # get the type of the variant constructor
-            if variant_constr := self.ctx.globals.get_instance_func(ty, node.attr):
-                return with_loc(
-                    node, GlobalName(id=node.attr, def_id=variant_constr.id)
-                ), variant_constr.ty
+        elif isinstance(ty, EnumType):
+            if node.attr in ty.variants_as_dict:
+                # If we are accessing to a variant, we need to check that node.value is
+                # a GlobalName corresponding to the enum class definition.
+                if isinstance(node.value, GlobalName):
+                    variant_constr = ENGINE.get_instance_func(ty, node.attr)
+                    assert variant_constr is not None, (
+                        "Valid variants should be available in `ctx.globals`"
+                    )
+                    return with_loc(
+                        node, GlobalName(id=node.attr, def_id=variant_constr.id)
+                    ), variant_constr.ty
+                else:
+                    # Not a global name, thus node.value is a instantiated variant
+                    is_enum_class = False
+            elif (method_w_ty := self._check_method(ty, node)) and not isinstance(
+                node.value, GlobalName
+            ):
+                # Otherwise, we may try to access a method from the enum class
+                # If the method exists, we also need to check that node.value is not a
+                # GlobalName, i.e. it does not correspond to the enum class definition:
+                # we cannot write `MyEnum.method`.
+                return method_w_ty[0], method_w_ty[1]
             else:
-                raise InternalGuppyError(
-                    "Valid variants should be available in `ctx.globals`"
-                )
-        elif func := self.ctx.globals.get_instance_func(ty, node.attr):
+                # If node.value is a GlobalName it corresponds to the enum class
+                # definition, otherwise it is an instance of the enum.
+                is_enum_class = isinstance(node.value, GlobalName)
+
+        elif method_w_ty := self._check_method(ty, node):
+            return method_w_ty[0], method_w_ty[1]
+
+        raise GuppyTypeError(
+            AttributeNotFoundError(attr_span, ty, node.attr, is_enum_class)
+        )
+
+    def _check_method(
+        self, ty: Type, node: ast.Attribute
+    ) -> tuple[PartialApply, FunctionType] | None:
+        """Helper method to check if an attribute access corresponds to a method call"""
+        if func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
             )
@@ -559,7 +647,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # TODO: Try to infer some type args based on `self`
             result_ty = FunctionType(func.ty.inputs[1:], func.ty.output, func.ty.params)
             return with_loc(node, PartialApply(func=name, args=[node.value])), result_ty
-        raise GuppyTypeError(AttributeNotFoundError(attr_span, ty, node.attr))
+        else:
+            return None
 
     def _is_python_module(self, node: ast.expr) -> ModuleType | None:
         """Checks whether an AST node corresponds to a Python module in scope."""
@@ -619,7 +708,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Check all other unary expressions by calling out to instance dunder methods
         op, display_name = unary_table[node.op.__class__]
-        func = self.ctx.globals.get_instance_func(op_ty, op)
+        func = ENGINE.get_instance_func(op_ty, op)
         if func is None:
             raise GuppyTypeError(
                 UnaryOperatorNotDefinedError(node.operand, op_ty, display_name)
@@ -640,11 +729,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         left_expr, left_ty = self.synthesize(left_expr)
         right_expr, right_ty = self.synthesize(right_expr)
 
-        if func := self.ctx.globals.get_instance_func(left_ty, lop):
+        if func := ENGINE.get_instance_func(left_ty, lop):
             with suppress(GuppyError):
                 return func.synthesize_call([left_expr, right_expr], node, self.ctx)
 
-        if func := self.ctx.globals.get_instance_func(right_ty, rop):
+        if func := ENGINE.get_instance_func(right_ty, rop):
             with suppress(GuppyError):
                 return func.synthesize_call([right_expr, left_expr], node, self.ctx)
 
@@ -672,7 +761,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         given expected signature.
         """
         node, ty = self.synthesize(node)
-        func = self.ctx.globals.get_instance_func(ty, func_name)
+        func = ENGINE.get_instance_func(ty, func_name)
         if func is None:
             err = BadProtocolError(node, ty, description)
             if give_reason and exp_sig is not None:
@@ -809,7 +898,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 node, TensorCall(func=node.func, args=args, tensor_ty=tensor_ty)
             ), return_ty
 
-        elif f := self.ctx.globals.get_instance_func(ty, "__call__"):
+        elif f := ENGINE.get_instance_func(ty, "__call__"):
             return f.synthesize_call(node.args, node, self.ctx)
         else:
             raise GuppyTypeError(NotCallableError(node.func, ty))
@@ -862,7 +951,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_ComptimeExpr(self, node: ComptimeExpr) -> tuple[ast.expr, Type]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if ty := python_value_to_guppy_type(python_val, node, self.ctx.globals):
+        if ty := python_value_to_guppy_type(python_val, node):
             return with_loc(node, ast.Constant(value=python_val)), ty
 
         raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
@@ -1130,7 +1219,7 @@ def check_type_against(
                     TypeMismatchError.CantInstantiateFreeVars(None, param, subst[v])
                 )
                 raise GuppyTypeError(err)
-        inst = [subst[v].to_arg() for v in free_vars]
+        inst = tuple(subst[v].to_arg() for v in free_vars)
         subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
 
         # Finally, check that the instantiation respects the linearity requirements
@@ -1144,9 +1233,9 @@ def check_type_against(
     if subst is None:
         # Maybe we can implicitly coerce `act` to `exp`
         if coerced := try_coerce_to(act, exp, node, ctx):
-            return coerced, {}, []
+            return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
-    return node, subst, []
+    return node, subst, ()
 
 
 def try_coerce_to(
@@ -1161,7 +1250,7 @@ def try_coerce_to(
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
     if act.kind < exp.kind:
-        f = ctx.globals.get_instance_func(act, f"__{exp.kind.name.lower()}__")
+        f = ENGINE.get_instance_func(act, f"__{exp.kind.name.lower()}__")
         assert f is not None
         node, subst = f.check_call([node], exp, node, ctx)
         assert len(subst) == 0, "Coercion methods are not generic"
@@ -1195,7 +1284,7 @@ def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Ins
         err.add_sub_diagnostic(WrongNumberOfArgsError.SignatureHint(None, ty))
         raise GuppyError(err)
 
-    inst = [arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs]
+    inst = tuple(arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs)
     check_all_args(ty.params, inst, "", node, arg_exprs)
     return inst
 
@@ -1348,8 +1437,8 @@ def check_comptime_arg(
             const = ConstValue(ty, v)
         case PlaceNode(place=ComptimeVariable(ty=ty, static_value=v)):
             const = ConstValue(ty, v)
-        case GenericParamValue(param=const_param):
-            const = const_param.to_bound().const
+        case DummyGenericParamValue(var=var):
+            const = var
         case arg:
             # Anything else is considered unknown at comptime, but we can give some
             # nicer error hints by inspecting in more detail
@@ -1504,7 +1593,7 @@ def check_all_solved(
             err = ParameterInferenceError(loc, v.display_name)
             err.add_sub_diagnostic(ParameterInferenceError.SignatureHint(None, func_ty))
             raise GuppyTypeInferenceError(err)
-    return [subst[v].to_arg() for v in free_vars]
+    return tuple(subst[v].to_arg() for v in free_vars)
 
 
 def check_inst(func_ty: FunctionType, inst: Inst, node: AstNode) -> None:
@@ -1551,7 +1640,19 @@ def to_bool(node: ast.expr, node_ty: Type, ctx: Context) -> tuple[ast.expr, Type
         return node, node_ty
     synth = ExprSynthesizer(ctx)
     exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Inout)], bool_type())
-    return synth.synthesize_instance_func(node, [], "__bool__", "truthy", exp_sig, True)
+    try:
+        return synth.synthesize_instance_func(
+            node, [], "__bool__", "truthy", exp_sig, True
+        )
+    except GuppyError:
+        if not node_ty.copyable:
+            # Linear types may implement a `__consume_as_bool__` method that consumes
+            # the value, instead of borrowing it.
+            exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Owned)], bool_type())
+            return synth.synthesize_instance_func(
+                node, [], "__consume_as_bool__", "truthy", exp_sig, True
+            )
+        raise
 
 
 def synthesize_comprehension(
@@ -1589,7 +1690,7 @@ def check_generator(
     # The rest is checked in a new nested context to ensure that variables don't escape
     # their scope
     inner_locals: Locals[str, Variable] = Locals({}, parent_scope=ctx.locals)
-    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_params)
+    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_param_inst)
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
     gen.iter = with_type(iter_ty, gen.iter)
@@ -1626,8 +1727,12 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
             python_val = eval(ast.unparse(node.value), DummyEvalDict(ctx, node.value))  # noqa: S307
     except DummyEvalDict.GuppyVarUsedError as e:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
+    except DummyEvalDict.GuppyTypeVarUsedError as e:
+        raise GuppyError(ComptimeExprTypeVarError(e.node or node, e.var)) from None
     except GuppyComptimeError as e:
         raise GuppyError(ComptimeGuppyObjectError(node.value, str(e))) from e
+    except RequiresMonomorphizationError:
+        raise
     except Exception as e:
         # Remove the top frame pointing to the `eval` call from the stack trace
         tb = e.__traceback__.tb_next if e.__traceback__ else None
@@ -1637,7 +1742,7 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
 
 
 def python_value_to_guppy_type(
-    v: Any, node: ast.AST, globals: Globals, type_hint: Type | None = None
+    v: Any, node: ast.AST, type_hint: Type | None = None
 ) -> Type | None:
     """Turns a primitive Python value into a Guppy type.
 
@@ -1670,7 +1775,7 @@ def python_value_to_guppy_type(
             )
             tys: list[Type] = []
             for elt, hint in zip(elts, hints, strict=False):
-                ty = python_value_to_guppy_type(elt, node, globals, hint)
+                ty = python_value_to_guppy_type(elt, node, hint)
                 if ty is None:
                     err = IllegalComptimeExpressionError(node, type(elt))
                     err.add_sub_diagnostic(
@@ -1680,7 +1785,7 @@ def python_value_to_guppy_type(
                 tys.append(ty)
             return TupleType(tys)
         case list():
-            return _python_list_to_guppy_type(v, node, globals, type_hint)
+            return _python_list_to_guppy_type(v, node, type_hint)
         case None:
             return NoneType()
         case _:
@@ -1701,7 +1806,7 @@ def _int_bounds_check(value: int, node: AstNode, signed: bool) -> None:
 
 
 def _python_list_to_guppy_type(
-    vs: list[Any], node: ast.AST, globals: Globals, type_hint: Type | None
+    vs: list[Any], node: ast.AST, type_hint: Type | None
 ) -> OpaqueType | None:
     """Turns a Python list into a Guppy type.
 
@@ -1718,13 +1823,13 @@ def _python_list_to_guppy_type(
         if type_hint and is_frozenarray_type(type_hint)
         else None
     )
-    el_ty = python_value_to_guppy_type(v, node, globals, elt_hint)
+    el_ty = python_value_to_guppy_type(v, node, elt_hint)
     if el_ty is None:
         err = IllegalComptimeExpressionError(node, type(v))
         err.add_sub_diagnostic(IllegalComptimeExpressionError.InContainer(None, list))
         raise GuppyError(err)
     for v in rest:
-        ty = python_value_to_guppy_type(v, node, globals, elt_hint)
+        ty = python_value_to_guppy_type(v, node, elt_hint)
         if ty is None:
             err = IllegalComptimeExpressionError(node, type(v))
             err.add_sub_diagnostic(

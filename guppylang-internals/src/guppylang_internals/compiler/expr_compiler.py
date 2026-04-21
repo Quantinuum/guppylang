@@ -28,17 +28,18 @@ from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
     CompilerBase,
     CompilerContext,
+    DFBuilder,
     DFContainer,
     GlobalConstId,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
+from guppylang_internals.definition.common import CheckableGenericDef
 from guppylang_internals.definition.custom import (
     BoolOpCompiler,
     CustomFunctionDef,
     OpCompiler,
 )
 from guppylang_internals.definition.value import (
-    CallableDef,
     CallReturnWires,
     CompiledCallableDef,
     CompiledValueDef,
@@ -52,8 +53,8 @@ from guppylang_internals.nodes import (
     DesugaredArrayComp,
     DesugaredGenerator,
     DesugaredListComp,
+    DummyGenericParamValue,
     FieldAccessAndDrop,
-    GenericParamValue,
     GlobalCall,
     GlobalName,
     LocalCall,
@@ -73,7 +74,6 @@ from guppylang_internals.nodes import (
 )
 from guppylang_internals.std._internal.compiler.arithmetic import (
     UnsignedIntVal,
-    convert_ifromusize,
     convert_itousize,
 )
 from guppylang_internals.std._internal.compiler.array import (
@@ -101,7 +101,6 @@ from guppylang_internals.std._internal.compiler.tket_bool import (
     not_op,
     read_bool,
 )
-from guppylang_internals.tys.arg import ConstArg
 from guppylang_internals.tys.builtin import (
     bool_type,
     get_element_type,
@@ -111,7 +110,6 @@ from guppylang_internals.tys.builtin import (
 from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
-    BoundTypeVar,
     FuncInput,
     FunctionType,
     InputFlags,
@@ -129,6 +127,13 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     dfg: DFContainer
 
+    def visit(self, node: Any, *args: Any, **kwargs: Any) -> Wire:
+        """Overrides `visit` to set the current AST node context for debug information
+        attachment.
+        """
+        with self.builder.set_ast_context(node):
+            return super().visit(node, *args, **kwargs)
+
     def compile(self, expr: ast.expr, dfg: DFContainer) -> Wire:
         """Compiles an expression and returns a single wire holding the output value."""
         self.dfg = dfg
@@ -144,7 +149,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return [self.compile(e, dfg) for e in expr_to_row(expr)]
 
     @property
-    def builder(self) -> DfBase[ops.DfParentOp]:
+    def builder(self) -> DFBuilder[ops.DfParentOp]:
         """The current Hugr dataflow graph builder."""
         return self.dfg.builder
 
@@ -226,7 +231,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         `False` branch.
         """
         cond_wire = self.visit(cond)
-        cond_ty = self.builder.hugr.port_type(cond_wire.out_port())
+        cond_ty = self.builder.get_wire_type(cond_wire)
         if cond_ty == OpaqueBool:
             cond_wire = self.builder.add_op(read_bool(), cond_wire)
         conditional = self.builder.add_conditional(
@@ -275,40 +280,22 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return self.dfg[node.place]
 
     def visit_GlobalName(self, node: GlobalName) -> Wire:
-        defn = ENGINE.get_checked(node.def_id)
-        if isinstance(defn, CallableDef) and defn.ty.parametrized:
+        defn = ENGINE.get_parsed(node.def_id)
+        if isinstance(defn, CheckableGenericDef) and defn.params:
             # TODO: This should be caught during checking
             err = UnsupportedError(
                 node, "Polymorphic functions as dynamic higher-order values"
             )
             raise GuppyError(err)
 
-        defn, [] = self.ctx.build_compiled_def(node.def_id, type_args=[])
+        defn = self.ctx.build_compiled_def(node.def_id, type_args=())
         assert isinstance(defn, CompiledValueDef)
         return defn.load(self.dfg, self.ctx, node)
 
-    def visit_GenericParamValue(self, node: GenericParamValue) -> Wire:
-        assert self.ctx.current_mono_args is not None
-        param = node.param.instantiate_bounds(self.ctx.current_mono_args)
-        match param.ty:
-            case NumericType(NumericType.Kind.Nat):
-                # Generic nat parameters are encoded using Hugr bounded nat parameters,
-                # so they are not monomorphized when compiling to Hugr
-                arg = param.to_bound().to_hugr(self.ctx)
-                load_nat = hugr.std.PRELUDE.get_op("load_nat").instantiate(
-                    [arg], ht.FunctionType([], [ht.USize()])
-                )
-                usize = self.builder.add_op(load_nat)
-                return self.builder.add_op(convert_ifromusize(), usize)
-            case ty:
-                # Look up monomorphization
-                match self.ctx.current_mono_args[node.param.idx]:
-                    case ConstArg(const=ConstValue(value=v)):
-                        val = python_value_to_hugr(v, ty, self.ctx)
-                        assert val is not None
-                        return self.builder.load(val)
-                    case _:
-                        raise InternalGuppyError("Monomorphized const is not a value")
+    def visit_DummyGenericParamValue(self, node: DummyGenericParamValue) -> Wire:
+        raise InternalGuppyError(
+            "Node should not be emitted when compiling monomorphized functions"
+        )
 
     def visit_Name(self, node: ast.Name) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")
@@ -376,7 +363,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         args = self._compile_call_args(node.args, func_ty)
         call = self.builder.add_op(
-            ops.CallIndirect(func_ty.to_hugr(self.ctx)), func, *args
+            ops.CallIndirect(func_ty.to_hugr(self.ctx)),
+            func,
+            *args,
         )
         regular_returns = list(call[:num_returns])
         inout_returns = call[num_returns:]
@@ -433,7 +422,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             consumed_args, other_args = args[0:input_len], args[input_len:]
             consumed_wires = self._compile_call_args(consumed_args, func_ty)
             call = self.builder.add_op(
-                ops.CallIndirect(func_ty.to_hugr(self.ctx)), func, *consumed_wires
+                ops.CallIndirect(func_ty.to_hugr(self.ctx)),
+                func,
+                *consumed_wires,
             )
             regular_returns: list[Wire] = list(call[:num_returns])
             inout_returns = call[num_returns:]
@@ -443,7 +434,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Tensor element wasn't function or tuple")
 
     def visit_GlobalCall(self, node: GlobalCall) -> Wire:
-        func, rem_args = self.ctx.build_compiled_def(node.def_id, node.type_args)
+        func = self.ctx.build_compiled_def(node.def_id, node.type_args)
         assert isinstance(func, CompiledCallableDef)
 
         if isinstance(func, CustomFunctionDef) and not func.has_signature:
@@ -452,10 +443,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 get_type(node),
             )
         else:
-            func_ty = func.ty.instantiate(rem_args)
+            func_ty = func.ty
 
         args = self._compile_call_args(node.args, func_ty)
-        rets = func.compile_call(args, rem_args, self.dfg, self.ctx, node)
+        rets = func.compile_call(args, self.dfg, self.ctx, node)
         self._update_inout_ports(node.args, iter(rets.inout_returns), func_ty)
         a = self._pack_returns(rets.regular_returns, func_ty.output)
         return a
@@ -493,23 +484,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # For now, we can only TypeApply global FunctionDefs/Decls.
         if not isinstance(node.value, GlobalName):
             raise InternalGuppyError("Dynamic TypeApply not supported yet!")
-        defn, rem_args = self.ctx.build_compiled_def(node.value.def_id, node.inst)
+        defn = self.ctx.build_compiled_def(node.value.def_id, node.inst)
         assert isinstance(defn, CompiledCallableDef)
-
-        # We have to be very careful here: If we instantiate `foo: forall T. T -> T`
-        # with a tuple type `tuple[A, B]`, we get the type `tuple[A, B] -> tuple[A, B]`.
-        # Normally, this would be represented in Hugr as a function with two output
-        # ports types A and B. However, when TypeApplying `foo`, we actually get a
-        # function with a single output port typed `tuple[A, B]`.
-        # TODO: We would need to do manual monomorphisation in that case to obtain a
-        #  function that returns two ports as expected
-        if instantiation_needs_unpacking(defn.ty, node.inst):
-            err = UnsupportedError(
-                node, "Generic function instantiations returning rows"
-            )
-            raise GuppyError(err)
-
-        return defn.load_with_args(rem_args, self.dfg, self.ctx, node)
+        return defn.load(self.dfg, self.ctx, node)
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Wire:
         # The only case that is not desugared by the type checker is the `not` operation
@@ -547,28 +524,17 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             TooLongError,
         )
 
-        is_generic: BoundConstVar | None = None
         match tag:
             case ConstValue(value=str(v)):
                 tag_value = v
-            case BoundConstVar(idx=idx) as var:
-                assert self.ctx.current_mono_args is not None
-                match self.ctx.current_mono_args[idx]:
-                    case ConstArg(const=ConstValue(value=str(v))):
-                        tag_value = v
-                        is_generic = var
-                    case _:
-                        raise InternalGuppyError("Unexpected tag monomorphization")
+            case BoundConstVar():
+                raise InternalGuppyError("Tag should be monomorphized at this point")
             case _:
                 raise InternalGuppyError("Unexpected tag value")
 
         if len(tag_value.encode("utf-8")) > TAG_MAX_LEN:
             err = TooLongError(loc)
             err.add_sub_diagnostic(TooLongError.Hint(None))
-            if is_generic:
-                err.add_sub_diagnostic(
-                    TooLongError.GenericHint(None, is_generic.display_name, tag_value)
-                )
             raise GuppyError(err)
         return tag_value
 
@@ -623,13 +589,15 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             )
             # Turn into standard array from borrow array.
             qubit_arr_in = self.builder.add_op(
-                array_to_std_array(ht.Qubit, num_qubits_arg), qubit_arr_in
+                array_to_std_array(ht.Qubit, num_qubits_arg),
+                qubit_arr_in,
             )
 
             qubit_arr_out = self.builder.add_op(op, qubit_arr_in)
 
             qubit_arr_out = self.builder.add_op(
-                std_array_to_array(ht.Qubit, num_qubits_arg), qubit_arr_out
+                std_array_to_array(ht.Qubit, num_qubits_arg),
+                qubit_arr_out,
             )
             qubits_out = unpack_array(self.builder, qubit_arr_out)
         else:
@@ -638,7 +606,12 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             qubits_in = [self.visit(node.args[1])]
             qubits_out = [
                 apply_array_op_with_conversions(
-                    self.ctx, self.builder, op, ht.Qubit, num_qubits_arg, qubits_in[0]
+                    self.ctx,
+                    self.builder,
+                    op,
+                    ht.Qubit,
+                    num_qubits_arg,
+                    qubits_in[0],
                 )
             ]
 
@@ -656,7 +629,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             elt_port = self.visit(node.elt)
             list_port = self.dfg[list_place]
             [], [self.dfg[list_place]] = self._build_method_call(
-                list_ty, "append", node, [list_port, elt_port], list_ty.args
+                list_ty, "append", node, [list_port, elt_port], tuple(list_ty.args)
             )
         return self.dfg[list_place]
 
@@ -669,7 +642,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         hugr_elt_ty = node.elt_ty.to_hugr(self.ctx)
         # Initialise empty array.
         self.dfg[array_var] = self.builder.add_op(
-            barray_new_all_borrowed(hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx))
+            barray_new_all_borrowed(
+                hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx)
+            ),
         )
         self.dfg[count_var] = self.builder.load(
             hugr.std.int.IntVal(0, width=NumericType.INT_WIDTH)
@@ -687,17 +662,16 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             # Update `count += 1`
             one = self.builder.load(hugr.std.int.IntVal(1, width=NumericType.INT_WIDTH))
             [self.dfg[count_var]], [] = self._build_method_call(
-                int_type(), "__add__", node, [count, one], []
+                int_type(), "__add__", node, [count, one], ()
             )
         return self.dfg[array_var]
 
     def _build_method_call(
         self, ty: Type, method: str, node: AstNode, args: list[Wire], type_args: Inst
     ) -> CallReturnWires:
-        func_and_targs = self.ctx.build_compiled_instance_func(ty, method, type_args)
-        assert func_and_targs is not None
-        func, rem_args = func_and_targs
-        return func.compile_call(args, rem_args, self.dfg, self.ctx, node)
+        func = self.ctx.build_compiled_instance_func(ty, method, type_args)
+        assert func is not None
+        return func.compile_call(args, self.dfg, self.ctx, node)
 
     @contextmanager
     def _build_generators(
@@ -735,17 +709,17 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 # In the "no" case, we set the break predicate to true
                 break_pred_hugr_ty = ht.Either([iter_ty.to_hugr(self.ctx)], [])
                 with stop_case:
-                    self.dfg[break_pred.place] = self.dfg.builder.add_op(
+                    self.dfg[break_pred.place] = self.builder.add_op(
                         ops.Tag(1, break_pred_hugr_ty)
                     )
                 # Otherwise, we continue, set the break predicate to false, and insert
                 # the iterator for the next loop iteration
                 stack.enter_context(hasnext_case)
                 next_wire = self.dfg[next_var.place]
-                elt, it = self.dfg.builder.add_op(ops.UnpackTuple(), next_wire)
+                elt, it = self.builder.add_op(ops.UnpackTuple(), next_wire)
                 compiler.dfg = self.dfg
                 compiler._assign(gen.target, elt)
-                self.dfg[break_pred.place] = self.dfg.builder.add_op(
+                self.dfg[break_pred.place] = self.builder.add_op(
                     ops.Tag(0, break_pred_hugr_ty), it
                 )
                 # Enter nested conditionals for each if guard on the generator
@@ -1028,11 +1002,11 @@ def expr_to_row(expr: ast.expr) -> list[ast.expr]:
 def pack_returns(
     returns: Sequence[Wire],
     return_ty: Type,
-    builder: DfBase[ops.DfParentOp],
+    builder: DFBuilder[ops.DfParentOp],
     ctx: CompilerContext,
 ) -> Wire:
     """Groups function return values into a tuple"""
-    if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
+    if isinstance(return_ty, TupleType | NoneType):
         types = type_to_row(return_ty)
         assert len(returns) == len(types)
         hugr_tys = [t.to_hugr(ctx) for t in types]
@@ -1044,22 +1018,18 @@ def pack_returns(
 
 
 def unpack_wire(
-    wire: Wire, return_ty: Type, builder: DfBase[ops.DfParentOp], ctx: CompilerContext
+    wire: Wire,
+    return_ty: Type,
+    builder: DFBuilder[ops.DfParentOp],
+    ctx: CompilerContext,
+    ast_node: AstNode | None = None,
 ) -> list[Wire]:
     """The inverse of `pack_returns`"""
-    if isinstance(return_ty, TupleType | NoneType) and not return_ty.preserve:
+    if isinstance(return_ty, TupleType | NoneType):
         types = type_to_row(return_ty)
         hugr_tys = [t.to_hugr(ctx) for t in types]
         return list(builder.add_op(ops.UnpackTuple(hugr_tys), wire).outputs())
     return [wire]
-
-
-def instantiation_needs_unpacking(func_ty: FunctionType, inst: Inst) -> bool:
-    """Checks if instantiating a polymorphic makes it return a row."""
-    if isinstance(func_ty.output, BoundTypeVar):
-        return_ty = inst[func_ty.output.idx]
-        return isinstance(return_ty, TupleType | NoneType)
-    return False
 
 
 def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value | None:
@@ -1106,9 +1076,6 @@ def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value
     return None
 
 
-ARRAY_UNWRAP_ELEM: Final[GlobalConstId] = GlobalConstId.fresh("array.__unwrap_elem")
-ARRAY_WRAP_ELEM: Final[GlobalConstId] = GlobalConstId.fresh("array.__wrap_elem")
-
 ARRAY_READ_BOOL: Final[GlobalConstId] = GlobalConstId.fresh("array.__read_bool")
 ARRAY_MAKE_OPAQUE_BOOL: Final[GlobalConstId] = GlobalConstId.fresh(
     "array.__make_opaque_bool"
@@ -1151,7 +1118,7 @@ def doesnt_contain_none(xs: list[T | None]) -> TypeGuard[list[T]]:
 
 def apply_array_op_with_conversions(
     ctx: CompilerContext,
-    builder: DfBase[ops.DfParentOp],
+    builder: DFBuilder[ops.DfParentOp],
     op: ops.DataflowOp,
     elem_ty: ht.Type,
     size_arg: ht.TypeArg,
@@ -1173,7 +1140,10 @@ def apply_array_op_with_conversions(
         input_array = builder.add_op(map_op, input_array, array_read)
         elem_ty = ht.Bool
 
-    input_array = builder.add_op(array_to_std_array(elem_ty, size_arg), input_array)
+    input_array = builder.add_op(
+        array_to_std_array(elem_ty, size_arg),
+        input_array,
+    )
 
     result_array = builder.add_op(op, input_array)
 

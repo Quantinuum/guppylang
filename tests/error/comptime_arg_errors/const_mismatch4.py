@@ -8,8 +8,13 @@ def foo(n: nat @comptime) -> None:
 
 
 @guppy
-def main(n: nat @ comptime) -> None:
+def bar(n: nat @ comptime) -> None:
     foo[42](n)
 
+
+@guppy
+def main() -> None:
+    # This fails the parametric check, even though the monomorphisation would be ok:
+    bar(42)
 
 main.compile_function()

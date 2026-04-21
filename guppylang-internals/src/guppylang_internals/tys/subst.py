@@ -4,7 +4,7 @@ from typing import Any
 
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.common import Transformer
+from guppylang_internals.tys.common import Transformer, Visitor
 from guppylang_internals.tys.const import (
     BoundConstVar,
     Const,
@@ -18,10 +18,10 @@ from guppylang_internals.tys.ty import (
     Type,
     TypeBase,
 )
-from guppylang_internals.tys.var import ExistentialVar
+from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 Subst = dict[ExistentialVar, Type | Const]
-Inst = Sequence[Argument]
+Inst = tuple[Argument, ...]
 PartialInst = Sequence["Argument | None"]
 
 
@@ -85,10 +85,26 @@ class Instantiator(Transformer):
             return arg.const
 
         # Otherwise, lower the de Bruijn index
-        return BoundConstVar(c.ty, c.display_name, c.idx - len(self.inst))
+        return BoundConstVar(
+            self.transform(c.ty) or c.ty, c.display_name, c.idx - len(self.inst)
+        )
 
     @transform.register
     def _transform_FunctionType(self, ty: FunctionType) -> Type | None:
         if ty.parametrized:
             raise InternalGuppyError("Tried to instantiate under binder")
         return None
+
+
+class BoundVarFinder(Visitor):
+    """Type transformer that extracts bound variables."""
+
+    bound_vars: list[BoundVar]
+
+    def __init__(self) -> None:
+        self.bound_vars = []
+
+    def visit(self, arg: Any, /) -> bool:
+        if isinstance(arg, BoundVar):
+            self.bound_vars.append(arg)
+        return False  # Return False to continue recursive descent

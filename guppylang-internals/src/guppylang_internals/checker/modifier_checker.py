@@ -38,7 +38,7 @@ def check_modified_block(
     }
 
     # We do not allow any assignments if it is daggered.
-    if modified_block.is_dagger():
+    if modified_block.has_dagger():
         for stmt in modified_block.body:
             loops = loop_in_ast(stmt)
             if len(loops) != 0:
@@ -66,11 +66,16 @@ def check_modified_block(
     inputs = non_copyable_front_others_back(inputs)
     def_id = DefId.fresh()
     globals = ctx.globals
-
-    # TODO: Ad hoc name for the new function
-    # This name could be printed in error messages, for example,
-    # when the linearity checker fails in the modifier body
-    checked_cfg = check_cfg(cfg, inputs, NoneType(), {}, "__modified__()", globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        NoneType(),
+        {},
+        "__modified__()",
+        globals,
+        # We pass the first modifier node for better error messages in the cfg checker
+        first_modifier_node=modified_block.first_modifier_node,
+    )
     func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)
 
     checked_modifier = CheckedModifiedBlock(
@@ -78,9 +83,7 @@ def check_modified_block(
         checked_cfg,
         func_ty,
         captured,
-        modified_block.dagger,
-        modified_block.control,
-        modified_block.power,
+        modified_block.modifiers,
         **dict(ast.iter_fields(modified_block)),
     )
     return with_loc(modified_block, checked_modifier)

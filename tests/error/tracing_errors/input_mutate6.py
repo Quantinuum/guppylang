@@ -15,7 +15,7 @@ def bar(s: S) -> None: ...
 
 
 @guppy.comptime
-def foo(s: S @ owned) -> None:
+def foo(s: S @ owned) -> None: # pyright: ignore[reportInvalidTypeForm]
     bar(s)
     # Remains immutable after an inout call
     s.x = 1

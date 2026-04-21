@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Any
 
 from hugr.tys import Sum as HugrSum
 
-from guppylang_internals.ast_util import AstNode
+from guppylang_internals.ast_util import AstNode, set_location_from
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.const import Const
+from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     EnumType,
@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.core import Place, Variable
     from guppylang_internals.definition.common import DefId
     from guppylang_internals.definition.util import CheckedField
-    from guppylang_internals.tys.param import ConstParam
 
 
 class PlaceNode(ast.expr):
@@ -54,9 +53,14 @@ class GlobalName(ast.Name):
         "id",
         "def_id",
     )
+    _field_types = getattr(ast.Name, "_field_types", {}) | {
+        "def_id": "DefId",
+    }
 
     def __init__(self, id: str, def_id: "DefId") -> None:
-        super().__init__(id=id)
+        # Python 3.15 validates subclass-defined AST fields in the base constructor,
+        # but typeshed still exposes `ast.Name.__init__` without custom kwargs.
+        super().__init__(id=id, def_id=def_id)  # type: ignore[call-arg]
         self.id = id
         self.def_id = def_id
 
@@ -65,19 +69,30 @@ class GlobalName(ast.Name):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class GenericParamValue(ast.Name):
+class DummyGenericParamValue(ast.Name):
+    """Dummy node that is inserted for uses of generic const parameters as values.
+
+    Note that this node is only used during the first parametric check of generic
+    functions where all const type parameters are treated as opaque values. When
+    checking the concrete monomorphic instantiations that are used in the final program,
+    these dummy nodes will never be emitted.
+    """
+
     id: str
-    param: "ConstParam"
+    var: BoundConstVar
 
     _fields = (
         "id",
-        "param",
+        "var",
     )
+    _field_types = getattr(ast.Name, "_field_types", {}) | {
+        "var": BoundConstVar,
+    }
 
-    def __init__(self, id: str, param: "ConstParam") -> None:
-        super().__init__(id=id)
+    def __init__(self, id: str, var: BoundConstVar) -> None:
+        super().__init__(id=id, var=var)  # type: ignore[call-arg]
         self.id = id
-        self.param = param
+        self.var = var
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -118,6 +133,7 @@ class GlobalCall(ast.expr):
         super().__init__()
         self.def_id = def_id
         self.args = args
+        assert isinstance(type_args, tuple)
         self.type_args = type_args
 
     # See MakeIter for explanation
@@ -659,7 +675,13 @@ class NestedFunctionDef(ast.FunctionDef):
     ty: FunctionType
     docstring: str | None
 
+    _fields = (*ast.FunctionDef._fields, "docstring")
+    _field_types = getattr(ast.FunctionDef, "_field_types", {}) | {
+        "docstring": str | None,
+    }
+
     def __init__(self, cfg: "CFG", ty: FunctionType, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("docstring", None)
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.ty = ty
@@ -702,7 +724,8 @@ class Dagger(ast.expr):
     """The dagger modifier"""
 
     def __init__(self, node: ast.expr) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__()
+        set_location_from(self, node)
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -715,10 +738,24 @@ class Control(ast.Call):
     ctrl: list[ast.expr]
     qubit_num: int | Const | None
 
-    _fields = ("ctrl",)
+    _fields = (
+        "func",
+        "args",
+        "keywords",
+        "ctrl",
+    )
+    _field_types = getattr(ast.Call, "_field_types", {}) | {
+        "ctrl": list[ast.expr],
+    }
 
     def __init__(self, node: ast.Call, ctrl: list[ast.expr]) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__(
+            func=node.func,
+            args=node.args,
+            keywords=node.keywords,
+            ctrl=ctrl,
+        )  # type: ignore[call-arg]
+        set_location_from(self, node)
         self.ctrl = ctrl
         self.qubit_num = None
 
@@ -735,7 +772,8 @@ class Power(ast.expr):
     _fields = ("iter",)
 
     def __init__(self, node: ast.expr, iter: ast.expr) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__()
+        set_location_from(self, node)
         self.iter = iter
 
     # See MakeIter for explanation
@@ -746,31 +784,95 @@ class Power(ast.expr):
 Modifier = Dagger | Control | Power
 
 
-class ModifiedBlock(ast.With):
-    cfg: "CFG"
+class Modifiers:
+    """Collects modifiers from a `with` block and derives their UnitaryFlags."""
+
     dagger: list[Dagger]
     control: list[Control]
     power: list[Power]
 
-    def __init__(self, cfg: "CFG", *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.cfg = cfg
+    def __init__(self) -> None:
         self.dagger = []
         self.control = []
         self.power = []
+
+    def push(self, modifier: Modifier) -> None:
+        if isinstance(modifier, Dagger):
+            self.dagger.append(modifier)
+        elif isinstance(modifier, Control):
+            self.control.append(modifier)
+        else:
+            assert isinstance(modifier, Power)
+            self.power.append(modifier)
+
+    def has_dagger(self) -> bool:
+        return len(self.dagger) % 2 == 1
+
+    def has_control(self) -> bool:
+        return any(len(c.ctrl) > 0 for c in self.control)
+
+    def has_power(self) -> bool:
+        return len(self.power) > 0
+
+    def flags(self) -> UnitaryFlags:
+        result = UnitaryFlags.NoFlags
+        if self.has_dagger():
+            result |= UnitaryFlags.Dagger
+        if self.has_control():
+            result |= UnitaryFlags.Control
+        if self.has_power():
+            result |= UnitaryFlags.Power
+        return result
+
+
+class ModifiedBlock(ast.With):
+    """Node representing a unchecked `with` block
+
+    parameters:
+    - `cfg`: the CFG of the body of the block
+    - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    """
+
+    cfg: "CFG"
+    first_modifier_node: ast.expr
+
+    def __init__(
+        self,
+        cfg: "CFG",
+        modifiers: "Modifiers",
+        first_modifier_node: ast.expr,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cfg = cfg
+        self.modifiers = modifiers
+        self.first_modifier_node = first_modifier_node
+
+    @property
+    def dagger(self) -> list[Dagger]:
+        return self.modifiers.dagger
+
+    @property
+    def control(self) -> list[Control]:
+        return self.modifiers.control
+
+    @property
+    def power(self) -> list[Power]:
+        return self.modifiers.power
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
 
-    def is_dagger(self) -> bool:
-        return len(self.dagger) % 2 == 1
+    def has_dagger(self) -> bool:
+        return self.modifiers.has_dagger()
 
-    def is_control(self) -> bool:
-        return len(self.control) > 0
+    def has_control(self) -> bool:
+        return self.modifiers.has_control()
 
-    def is_power(self) -> bool:
-        return len(self.power) > 0
+    def has_power(self) -> bool:
+        return self.modifiers.has_power()
 
     def span_ctxt_manager(self) -> Span:
         return Span(
@@ -778,24 +880,13 @@ class ModifiedBlock(ast.With):
             to_span(self.items[-1].context_expr).end,
         )
 
-    def push_modifier(self, modifier: Modifier) -> None:
-        """Pushes a modifier kind onto the modifier."""
-        if isinstance(modifier, Dagger):
-            self.dagger.append(modifier)
-        elif isinstance(modifier, Control):
-            self.control.append(modifier)
-        elif isinstance(modifier, Power):
-            self.power.append(modifier)
-        else:
-            raise TypeError(f"Unknown modifier: {modifier}")
-
     def flags(self) -> UnitaryFlags:
         flags = UnitaryFlags.NoFlags
-        if self.is_dagger():
+        if self.has_dagger():
             flags |= UnitaryFlags.Dagger
-        if self.is_control():
+        if self.has_control():
             flags |= UnitaryFlags.Control
-        if self.is_power():
+        if self.has_power():
             flags |= UnitaryFlags.Power
         return flags
 
@@ -803,9 +894,6 @@ class ModifiedBlock(ast.With):
 class CheckedModifiedBlock(ast.With):
     def_id: "DefId"
     cfg: "CheckedCFG[Place]"
-    dagger: list[Dagger]
-    control: list[Control]
-    power: list[Power]
 
     #: The type of the body of With block.
     ty: FunctionType
@@ -818,9 +906,7 @@ class CheckedModifiedBlock(ast.With):
         cfg: "CheckedCFG[Place]",
         ty: FunctionType,
         captured: Mapping[str, tuple["Variable", AstNode]],
-        dagger: list[Dagger],
-        control: list[Control],
-        power: list[Power],
+        modifiers: Modifiers,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -829,9 +915,19 @@ class CheckedModifiedBlock(ast.With):
         self.cfg = cfg
         self.ty = ty
         self.captured = captured
-        self.dagger = dagger
-        self.control = control
-        self.power = power
+        self.modifiers = modifiers
+
+    @property
+    def dagger(self) -> list[Dagger]:
+        return self.modifiers.dagger
+
+    @property
+    def control(self) -> list[Control]:
+        return self.modifiers.control
+
+    @property
+    def power(self) -> list[Power]:
+        return self.modifiers.power
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -842,13 +938,13 @@ class CheckedModifiedBlock(ast.With):
         return f"__WithBlock__({self.def_id})"
 
     def has_dagger(self) -> bool:
-        return len(self.dagger) % 2 == 1
+        return self.modifiers.has_dagger()
 
     def has_control(self) -> bool:
-        return any(len(c.ctrl) > 0 for c in self.control)
+        return self.modifiers.has_control()
 
     def has_power(self) -> bool:
-        return len(self.power) > 0
+        return self.modifiers.has_power()
 
 
 class UncheckedMatchPred(ast.expr):
