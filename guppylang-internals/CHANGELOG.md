@@ -3,6 +3,13 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.21.12](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.34.0...guppylang-internals-v0.21.12) (2026-04-21)
+
+
+### Miscellaneous Chores
+
+* Release as 0.21.x ([d782b3a](https://github.com/Quantinuum/guppylang/commit/d782b3af781bf0816975f2a6a06e665fb712ec6b))
+
 ## [0.34.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v0.34.0) (2026-04-21)
 
 Based on v0.33.0 with the following additional changes:
