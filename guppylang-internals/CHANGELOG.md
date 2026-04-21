@@ -5,6 +5,7 @@ from `guppylang`.
 
 ## [0.34.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v0.34.0) (2026-04-20)
 
+Based on v0.33.0 with the following additional changes:
 
 ### ⚠ BREAKING CHANGES
 
