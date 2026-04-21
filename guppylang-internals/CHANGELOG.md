@@ -5,21 +5,21 @@ from `guppylang`.
 
 ## [0.34.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v0.34.0) (2026-04-21)
 
+Based on v0.33.0 with the following additional changes:
 
 ### ⚠ BREAKING CHANGES
 
-* Revert "feat!: Monomorphise everything during type checking  ([#1441](https://github.com/Quantinuum/guppylang/issues/1441))"
-* Revert "feat: Allow accessing generic arguments inside comptime expressions ([#1631](https://github.com/Quantinuum/guppylang/issues/1631))"
+* Revert breaking change [#1441](https://github.com/Quantinuum/guppylang/issues/1441): Monomorphise everything during type checking  ([9b5d2f9](https://github.com/Quantinuum/guppylang/commit/9b5d2f9c26c624f3b8f748a50ccbed9f3b4f712c))
+* Revert dependent change [#1631](https://github.com/Quantinuum/guppylang/issues/1631): Allow accessing generic arguments inside comptime expressions  ([bc5e0f9](https://github.com/Quantinuum/guppylang/commit/bc5e0f9659e3d0ef74c99fbc6ed34fbfb88a3be0))
 * Better scoping for existentials ([#1602](https://github.com/Quantinuum/guppylang/issues/1602))
 
 ### Bug Fixes
 
 * Better scoping for existentials ([#1602](https://github.com/Quantinuum/guppylang/issues/1602)) ([0483dfd](https://github.com/Quantinuum/guppylang/commit/0483dfd334d4d31583bcb161ad9837713d136750))
-* Revert "feat: Allow accessing generic arguments inside comptime expressions ([#1631](https://github.com/Quantinuum/guppylang/issues/1631))" ([b228cd9](https://github.com/Quantinuum/guppylang/commit/b228cd9fb6c6481fc5e35aa82db933868aea12dc))
-* Revert "feat!: Monomorphise everything during type checking  ([#1441](https://github.com/Quantinuum/guppylang/issues/1441))" ([c963e0c](https://github.com/Quantinuum/guppylang/commit/c963e0c076c6672f592cd8d0897c7516bb688194))
 
-## [0.33.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.32.0...guppylang-internals-v0.33.0) (2026-04-16)
+## ~~[0.33.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.32.0...guppylang-internals-v0.33.0)~~ (2026-04-16) (YANKED)
 
+**YANKED due to unintentional breakage to compilation of generic functions**
 
 ### ⚠ BREAKING CHANGES
 
