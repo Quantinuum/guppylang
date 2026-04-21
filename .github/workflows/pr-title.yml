@@ -2,7 +2,7 @@ name: Check Conventional Commits format
 on:
   pull_request_target:
     branches:
-      - main
+      - guppylang-0.21
     types:
       - opened
       - edited

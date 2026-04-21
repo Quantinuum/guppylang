@@ -11,7 +11,7 @@ name: 🚚 Release checks
 on:
   pull_request:
     branches:
-      - main
+      - guppylang-0.21
   workflow_dispatch: {}
 
 env:

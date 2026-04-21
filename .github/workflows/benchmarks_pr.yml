@@ -38,7 +38,7 @@ jobs:
           just bench_compare \
               --token '${{ secrets.BENCHER_API_TOKEN }}' \
               --branch "$GITHUB_HEAD_REF" \
-              --start-point "main" \
+              --start-point "guppylang-0.21" \
               --start-point-clone-thresholds \
               --start-point-reset \
               --start-point-max-versions 1 \

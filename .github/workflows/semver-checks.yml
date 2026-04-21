@@ -2,7 +2,7 @@ name: Python semver-checks 🐍
 on:
   pull_request:
     branches:
-      - main
+      - guppylang-0.21
     types:
       - opened
       - edited

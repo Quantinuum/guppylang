@@ -3,7 +3,7 @@ name: Pull Request
 on:
   push:
     branches:
-      - main
+      - guppylang-0.21
   pull_request:
     branches:
       - "**"

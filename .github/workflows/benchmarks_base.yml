@@ -1,8 +1,8 @@
-name: Benchmark main
+name: Benchmark base
 
 on:
   push:
-    branches: main
+    branches: guppylang-0.21
 
 env:
   UV_VERSION: "0.9.5"
@@ -33,5 +33,5 @@ jobs:
           just bench_upload \
                --token '${{ secrets.BENCHER_API_TOKEN }}' \
                --testbed Linux \
-               --branch main \
+               --branch guppylang-0.21 \
                --github-actions '${{ secrets.GITHUB_TOKEN }}' \
