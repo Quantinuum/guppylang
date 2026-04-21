@@ -117,6 +117,8 @@ jobs:
 
 
   check-guppy-docs-build:
+    name: Check the guppy-docs build for `guppylang` release 
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: mozilla-actions/sccache-action@v0.0.9
