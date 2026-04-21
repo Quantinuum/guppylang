@@ -5,7 +5,7 @@ on:
   workflow_dispatch: {}
   push:
     branches:
-      - main
+      - guppylang-0.21
 
 permissions:
   contents: write
@@ -21,3 +21,4 @@ jobs:
             # Using a personal access token so releases created by this workflow can trigger the deployment workflow
             token: ${{ secrets.HUGRBOT_PAT }}
             config-file: release-please-config.json
+            target-branch: guppylang-0.21
