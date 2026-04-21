@@ -3,6 +3,6 @@ Error: Attribute not found (at $FILE:12:6)
 10 | def fun() -> None:
 11 |     l = MyEnum.Left()
 12 |     l.Right()
-   |       ^^^^^ `MyEnum` has no method `Right`
+   |       ^^^^^ `MyEnum` has no variant or method `Right`
 
 Guppy compilation failed due to 1 previous error

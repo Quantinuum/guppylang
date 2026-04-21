@@ -1,6 +1,6 @@
 Traceback (most recent call last):
   File "$FILE", line 24, in <module>
     test.compile()
-  File "$FILE", line 21, in test
-    e.foo = bar
-AttributeError: Enum variants do not support attribute assignment
+  File "$FILE", line 20, in test
+    e = E.A()
+AttributeError: 'GuppyDefinition' object has no attribute 'A'

@@ -781,7 +781,7 @@ class EnumType(ParametrizedTypeBase):
         ]
 
     @cached_property
-    def variant_as_dict(self) -> Mapping[str, "EnumVariant[CheckedField]"]:
+    def variants_as_dict(self) -> Mapping[str, "EnumVariant[CheckedField]"]:
         """The mapping from variant names to variants of this enum type."""
         from guppylang_internals.definition.enum import EnumVariant
         from guppylang_internals.definition.util import CheckedField
@@ -829,68 +829,6 @@ class EnumType(ParametrizedTypeBase):
 
     def kind_str(self) -> str:
         return "Enum"
-
-
-@dataclass(frozen=True)
-class EnumType(ParametrizedTypeBase):
-    """An enum (sum/tagged union) type."""
-
-    defn: "CheckedEnumDef"
-
-    @cached_property
-    def variants_as_list(self) -> list["EnumVariant[CheckedField]"]:
-        """The list variants of this enum type."""
-        from guppylang_internals.definition.enum import EnumVariant
-        from guppylang_internals.definition.util import CheckedField
-        from guppylang_internals.tys.subst import Instantiator
-
-        inst = Instantiator(self.args)
-
-        # Ensure that the order is consistent
-        variants_list = sorted(self.defn.variants.values(), key=lambda v: v.index)
-        return [
-            EnumVariant(
-                variant.index,
-                variant.name,
-                [CheckedField(f.name, f.ty.transform(inst)) for f in variant.fields],
-            )
-            for variant in variants_list
-        ]
-
-    @cached_property
-    def variants_as_dict(self) -> Mapping[str, "EnumVariant[CheckedField]"]:
-        """The mapping from variant names to variants of this enum type."""
-        return self.defn.variants
-
-    @cached_property
-    def intrinsically_copyable(self) -> bool:
-        """Whether objects of this type can be implicitly copied.
-
-        An enum is copyable only if ALL payload types in ALL variants are copyable.
-        """
-        return all(all(f.ty.copyable for f in v.fields) for v in self.variants_as_list)
-
-    @cached_property
-    def intrinsically_droppable(self) -> bool:
-        """Whether objects of this type can be dropped.
-
-        An enum is droppable only if ALL payload types in ALL variants are droppable.
-        """
-        return all(all(f.ty.droppable for f in v.fields) for v in self.variants_as_list)
-
-    def cast(self) -> "Type":
-        return self
-
-    def to_hugr(self, ctx: ToHugrContext) -> ht.Sum:
-        """Computes the Hugr representation of the type."""
-        rows = [[f.ty.to_hugr(ctx) for f in v.fields] for v in self.variants_as_list]
-        return ht.Sum(rows)
-
-    def transform(self, transformer: Transformer) -> "Type":
-        """Accepts a transformer on this type."""
-        return transformer.transform(self) or EnumType(
-            [arg.transform(transformer) for arg in self.args], self.defn
-        )
 
 
 #: The type of parametrized Guppy types.

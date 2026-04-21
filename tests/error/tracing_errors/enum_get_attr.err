@@ -1,6 +1,6 @@
 Traceback (most recent call last):
   File "$FILE", line 16, in <module>
     test.compile()
-  File "$FILE", line 13, in test
-    e.x
-guppylang_internals.error.GuppyComptimeError:  Expression of enum type `E` has no method `x`. It may be a variant field, but variant fields are inaccessible
+  File "$FILE", line 12, in test
+    e = E.A(1)
+AttributeError: 'GuppyDefinition' object has no attribute 'A'

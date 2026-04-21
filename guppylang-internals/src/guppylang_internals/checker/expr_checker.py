@@ -1101,7 +1101,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
         assert subst == {}
 
         # Get the __eq__ function for this type
-        eq_func = self.ctx.globals.get_instance_func(val_ty, "__eq__")
+        eq_func = ENGINE.get_instance_func(val_ty, "__eq__")
         assert eq_func is not None, f"Type {val_ty} must have __eq__ method"
         assert isinstance(node.value, ast.Constant)
 
@@ -1128,12 +1128,12 @@ class PatternChecker(AstVisitor[ast.pattern]):
                 self._check_def_against_type(node.cls.value, class_def, exp_ty)
 
                 assert isinstance(exp_ty, EnumType)
-                if attr not in exp_ty.variant_as_dict:
+                if attr not in exp_ty.variants_as_dict:
                     attr_span = build_attr_span(node.cls, offset=2)
                     raise GuppyTypeError(
                         AttributeNotFoundError(attr_span, exp_ty, attr)
                     )
-                exp_arg_tys = [f.ty for f in exp_ty.variant_as_dict[attr].fields]
+                exp_arg_tys = [f.ty for f in exp_ty.variants_as_dict[attr].fields]
                 check_num_args(len(exp_arg_tys), len(node.patterns), node)
                 checked_patterns = self._check_patterns_args(node.patterns, exp_arg_tys)
 
@@ -1142,7 +1142,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
                     MatchEnum(
                         with_type(exp_ty, node.cls),
                         checked_patterns,
-                        exp_ty.variant_as_dict[attr].index,
+                        exp_ty.variants_as_dict[attr].index,
                     ),
                 )
             case ast.Name():
@@ -1159,7 +1159,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
                 exp_arg_tys = [f.ty for f in exp_ty.fields]
                 check_num_args(len(exp_arg_tys), len(node.patterns), node)
                 checked_patterns = self._check_patterns_args(node.patterns, exp_arg_tys)
-                and_func = self.ctx.globals.get_instance_func(bool_type(), "__and__")
+                and_func = ENGINE.get_instance_func(bool_type(), "__and__")
                 assert and_func is not None, "bool type should have __and__ method"
 
                 return with_loc(
