@@ -3,6 +3,21 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.34.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v0.34.0) (2026-04-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revert "feat!: Monomorphise everything during type checking  ([#1441](https://github.com/Quantinuum/guppylang/issues/1441))"
+* Revert "feat: Allow accessing generic arguments inside comptime expressions ([#1631](https://github.com/Quantinuum/guppylang/issues/1631))"
+* Better scoping for existentials ([#1602](https://github.com/Quantinuum/guppylang/issues/1602))
+
+### Bug Fixes
+
+* Better scoping for existentials ([#1602](https://github.com/Quantinuum/guppylang/issues/1602)) ([0483dfd](https://github.com/Quantinuum/guppylang/commit/0483dfd334d4d31583bcb161ad9837713d136750))
+* Revert "feat: Allow accessing generic arguments inside comptime expressions ([#1631](https://github.com/Quantinuum/guppylang/issues/1631))" ([b228cd9](https://github.com/Quantinuum/guppylang/commit/b228cd9fb6c6481fc5e35aa82db933868aea12dc))
+* Revert "feat!: Monomorphise everything during type checking  ([#1441](https://github.com/Quantinuum/guppylang/issues/1441))" ([c963e0c](https://github.com/Quantinuum/guppylang/commit/c963e0c076c6672f592cd8d0897c7516bb688194))
+
 ## [0.33.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.32.0...guppylang-internals-v0.33.0) (2026-04-16)
 
 
