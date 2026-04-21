@@ -14,6 +14,14 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.21.13](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.12...guppylang-v0.21.13) (2026-04-21)
+
+Based on v0.21.12, with monomorphisation removed, and the following additional changes:
+
+### Features
+
+* Add array helpers for qubit measurements for qsystem measurement variants ([#1667](https://github.com/Quantinuum/guppylang/issues/1667)) ([fa6f85a](https://github.com/Quantinuum/guppylang/commit/fa6f85abbeeeb4746a726d9e810fb82dd43ed3de))
+
 ## [0.21.12](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.11...guppylang-v0.21.12) (2026-04-16)
 
 
