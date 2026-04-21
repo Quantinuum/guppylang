@@ -1131,7 +1131,7 @@ class PatternChecker(AstVisitor[ast.pattern]):
                 if attr not in exp_ty.variants_as_dict:
                     attr_span = build_attr_span(node.cls, offset=2)
                     raise GuppyTypeError(
-                        AttributeNotFoundError(attr_span, exp_ty, attr)
+                        AttributeNotFoundError(attr_span, exp_ty, attr, True)
                     )
                 exp_arg_tys = [f.ty for f in exp_ty.variants_as_dict[attr].fields]
                 check_num_args(len(exp_arg_tys), len(node.patterns), node)
