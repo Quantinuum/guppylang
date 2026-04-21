@@ -6,6 +6,7 @@ Error: Invalid entry point (at $FILE:14:0)
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 15 |     return F
    | ^^^^^^^^^^^^ Function `main` is not a valid compilation entry point since
-   |              the value of generic parameter `F: float` is not known
+   |              the value of generic/comptime parameter `F: float` is not
+   |              known
 
 Guppy compilation failed due to 1 previous error

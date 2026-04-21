@@ -1,11 +1,12 @@
-Error: Invalid entry point (at $FILE:10:4)
+Error: Invalid entry point (at $FILE:9:4)
    | 
- 8 | class MyStruct:
- 9 |     @guppy
-10 |     def method(self, x: T @ comptime) -> array[T, 3]:
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-11 |         return array(x for _ in range(3))
+ 7 | class MyStruct:
+ 8 |     @guppy
+ 9 |     def method(self, x: int @ comptime) -> array[int, 3]:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 |         return array(x for _ in range(3))
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Function `method` is not a valid compilation entry point
-   |                                           since the value of generic parameter `x: T` is not known
+   |                                           since the value of generic/comptime parameter `x: int` is
+   |                                           not known
 
 Guppy compilation failed due to 1 previous error
