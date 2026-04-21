@@ -37,25 +37,25 @@ def test_basic_enum(validate):
 
     @guppy.enum
     class OneVariantEnum:
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy.enum
     class TwoVariantEnum:
-        VariantA = {}  # noqa: RUF012
-        VariantB = {"x": int, "y": float}  # noqa: RUF012
+        VariantA = {}
+        VariantB = {"x": int, "y": float}
 
     @guppy.enum
     class DocstringEnum:
         """This is an enum with a docstring!"""
 
-        VariantA = {}  # noqa: RUF012
-        VariantB = {"x": int}  # noqa: RUF012
+        VariantA = {}
+        VariantB = {"x": int}
 
     @guppy.enum
     class MethodEnum:
-        Empty = {}  # noqa: RUF012
-        Resize = {"width": int, "height": int}  # noqa: RUF012
-        Quit = {"x": int}  # noqa: RUF012
+        Empty = {}
+        Resize = {"width": int, "height": int}
+        Quit = {"x": int}
 
         @guppy
         def method(self) -> str:
@@ -87,11 +87,11 @@ def test_basic_enum(validate):
 def test_backward_ref_enum(validate):
     @guppy.enum
     class EnumA:
-        VariantA = {"x": int}  # noqa: RUF012
+        VariantA = {"x": int}
 
     @guppy.enum
     class EnumB:
-        VariantB = {"y": EnumA}  # noqa: RUF012
+        VariantB = {"y": EnumA}
 
     @guppy
     def main(a: EnumA, b: EnumB) -> EnumB:
@@ -104,11 +104,11 @@ def test_backward_ref_enum(validate):
 def test_forward_ref(validate):
     @guppy.enum
     class EnumA:
-        VariantA = {"x": "EnumB"}  # Forward reference  # noqa: RUF012
+        VariantA = {"x": "EnumB"}  # Forward reference
 
     @guppy.enum
     class EnumB:
-        VariantB = {"y": int}  # noqa: RUF012
+        VariantB = {"y": int}
 
     @guppy
     def main(a: EnumA, b: EnumB) -> EnumA:
@@ -121,7 +121,7 @@ def test_forward_ref(validate):
 def test_wiring(validate):
     @guppy.enum
     class MyEnum:
-        VariantA = {"x": int}  # noqa: RUF012
+        VariantA = {"x": int}
 
     @guppy
     def foo() -> MyEnum:
@@ -137,11 +137,11 @@ def test_wiring(validate):
 def test_redefine(validate):
     @guppy.enum
     class MyEnum:
-        VariantA = {"x": int}  # noqa: RUF012
+        VariantA = {"x": int}
 
     @guppy.enum
     class MyEnum:  # noqa: F811
-        VariantB = {}  # noqa: RUF012
+        VariantB = {}
 
     @guppy
     def foo() -> MyEnum:
@@ -155,7 +155,7 @@ def test_redefine(validate):
 def test_methods(validate):
     @guppy.enum
     class EnumA:
-        VariantA = {"x": int}  # noqa: RUF012
+        VariantA = {"x": int}
 
         @guppy
         def foo(self: "EnumA", y: int) -> int:
@@ -163,7 +163,7 @@ def test_methods(validate):
 
     @guppy.enum
     class EnumB:
-        VariantA = {"x": int, "y": float}  # noqa: RUF012
+        VariantA = {"x": int, "y": float}
 
         @guppy
         def bar(self: "EnumB", a: EnumA) -> float:
@@ -182,17 +182,17 @@ def test_generic_explicit(validate):
 
     @guppy.enum
     class EnumA(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {"x": tuple[int, T]}  # noqa: RUF012
+        VariantA = {"x": tuple[int, T]}
 
     @guppy.enum
     class EnumC:
-        VariantA = {"a": EnumA[int]}  # noqa: RUF012
-        VariantB = {"b": EnumA[list[bool]]}  # noqa: RUF012
-        VariantC = {"c": "EnumB[float, EnumB[bool, int]]"}  # noqa: RUF012
+        VariantA = {"a": EnumA[int]}
+        VariantB = {"b": EnumA[list[bool]]}
+        VariantC = {"c": "EnumB[float, EnumB[bool, int]]"}
 
     @guppy.enum
     class EnumB(Generic[S, T]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {"x": S, "y": EnumA[T]}  # noqa: RUF012
+        VariantA = {"x": S, "y": EnumA[T]}
 
     @guppy
     def main(a: EnumA[EnumA[float]], b: EnumB[bool, int], c: EnumC) -> None:
@@ -217,17 +217,17 @@ def test_generic_infer(validate):
 
     @guppy.enum
     class EnumA(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {"x": tuple[int, T]}  # noqa: RUF012
+        VariantA = {"x": tuple[int, T]}
 
     @guppy.enum
     class EnumC:
-        VariantA = {"a": EnumA[int]}  # noqa: RUF012
-        VariantB = {"b": EnumA[list[bool]]}  # noqa: RUF012
-        VariantC = {"c": "EnumB[float, EnumB[bool, int]]"}  # noqa: RUF012
+        VariantA = {"a": EnumA[int]}
+        VariantB = {"b": EnumA[list[bool]]}
+        VariantC = {"c": "EnumB[float, EnumB[bool, int]]"}
 
     @guppy.enum
     class EnumB(Generic[S, T]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {"x": S, "y": EnumA[T]}  # noqa: RUF012
+        VariantA = {"x": S, "y": EnumA[T]}
 
     @guppy
     def main(a: EnumA[EnumA[float]], b: EnumB[bool, int], c: EnumC) -> None:
@@ -247,7 +247,7 @@ def test_higher_order(validate):
 
     @guppy.enum
     class Enum(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]
-        VariantA = {"x": T}  # noqa: RUF012
+        VariantA = {"x": T}
 
     @guppy
     def factory(mk_enum: "Callable[[int], Enum[int]]", x: int) -> Enum[int]:

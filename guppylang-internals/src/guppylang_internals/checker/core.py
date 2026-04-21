@@ -29,10 +29,6 @@ from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizati
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.ty import (
-    BoundTypeVar,
-    EnumType,
-    ExistentialTypeVar,
-    FunctionType,
     InputFlags,
     StructType,
     Type,

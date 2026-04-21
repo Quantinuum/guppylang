@@ -280,6 +280,140 @@ def build_decision_tree(
     return Switch(chosen_occ, cases)
 
 
+# ---------------------------------------------------------------------------
+# DAG compaction (maximally shared DAG)
+# ---------------------------------------------------------------------------
+
+# A unique table maps a structural key to the canonical DAG node.
+# Python object identity (id()) of canonical nodes serves as their unique ID.
+_UniqueTable = dict[Any, DecisionTree]
+
+
+def _case_label_key(label: ast.pattern | None) -> Any:
+    """Returns a hashable structural key for a Switch case label."""
+    if label is None:
+        return None
+    if isinstance(label, MatchLiteral):
+        return ("lit", label.constant.value)
+    if isinstance(label, MatchEnum):
+        return ("enum", label.variant_idx)
+    if isinstance(label, MatchStruct):
+        return ("struct", label.struct.id)
+    raise InternalGuppyError(f"Unexpected case label pattern: {label}")
+
+
+def tree_to_dag(
+    node: DecisionTree,
+    unique_table: _UniqueTable | None = None,
+) -> DecisionTree:
+    """Transforms a decision tree into a maximally shared DAG.
+
+    Uses a bottom-up structural hashing pass to merge identical subtrees into a
+    single shared node, and eliminates redundant Switch nodes whose every branch
+    leads to the same child.
+
+    Steps:
+      1. Leaf merging  — all leaves with the same action map to one canonical node.
+      2. Bottom-up recursion — children are reduced before their parent.
+      3. Redundancy elimination — a Switch node is removed when every branch points
+         to the same already-reduced child.
+      4. Structural hashing — an existing node is reused whenever the (occurrence,
+         per-case label, child-identity) key is already present in the table.
+
+    Args:
+        node: Root of the decision tree to compact.
+        unique_table: Shared hash table mapping structural keys to canonical nodes.
+                      Pass an empty dict to start fresh, or omit to create one
+                      automatically (single-tree compaction).
+
+    Returns:
+        Root of the maximally shared DAG.
+    """
+    if unique_table is None:
+        unique_table = {}
+
+    # Step 1: Leaf merging — all leaves with the same action share one node.
+    if isinstance(node, Leaf):
+        key: Any = ("leaf", node.action)
+        if key not in unique_table:
+            unique_table[key] = node
+        return unique_table[key]
+
+    # Step 2: Bottom-up recursion — reduce each child before this node.
+    reduced_cases: list[tuple[ast.pattern | None, DecisionTree]] = [
+        (label, tree_to_dag(child, unique_table)) for label, child in node.cases
+    ]
+
+    # Step 3: Redundancy elimination — drop this Switch when all branches agree.
+    child_nodes = [child for _, child in reduced_cases]
+    if child_nodes and all(child is child_nodes[0] for child in child_nodes[1:]):
+        return child_nodes[0]
+
+    # Step 4: Structural hashing — reuse an existing node if structurally identical.
+    # The key encodes the occurrence + per-case (label, child identity).
+    cases_key = tuple(
+        (_case_label_key(label), id(child)) for label, child in reduced_cases
+    )
+    key = ("switch", node.occurrence, cases_key)
+
+    if key not in unique_table:
+        unique_table[key] = Switch(occurrence=node.occurrence, cases=reduced_cases)
+
+    return unique_table[key]
+
+
+def pretty_dag(root: DecisionTree) -> str:
+    """Returns a human-readable textual representation of a maximally shared DAG.
+
+    Unlike ``pretty()``, which traverses the tree recursively and may print the same
+    subtree multiple times, this function assigns a stable short identifier (``n0``,
+    ``n1``, …) to every unique node (detected via Python object identity), visits each
+    node exactly once with BFS, and uses ``->nN`` back-references when a child has
+    already been printed.
+
+    Example output::
+
+        n0: Leaf(0)
+        n1: Leaf(1)
+        n2: Switch(0)
+              True  -> n0
+              False -> n1
+        root -> n2
+    """
+    # BFS to collect all unique nodes in visitation order.
+    node_id: dict[int, int] = {}  # id(node) -> short integer label
+    ordered: list[DecisionTree] = []
+    queue: list[DecisionTree] = [root]
+    while queue:
+        current = queue.pop(0)
+        key = id(current)
+        if key in node_id:
+            continue
+        node_id[key] = len(node_id)
+        ordered.append(current)
+        if isinstance(current, Switch):
+            for _, child in current.cases:
+                if id(child) not in node_id:
+                    queue.append(child)
+
+    lines: list[str] = []
+    for node in ordered:
+        nid = f"n{node_id[id(node)]}"
+        if isinstance(node, Leaf):
+            lines.append(f"{nid}: Leaf({node.action})")
+        else:
+            occ_str = ".".join(str(x) for x in node.occurrence)
+            lines.append(f"{nid}: Switch({occ_str})")
+            for label, child in node.cases:
+                label_str = _case_label_key(label)
+                child_ref = f"n{node_id[id(child)]}"
+                lines.append(f"      {label_str!s:<12} -> {child_ref}")
+
+    root_ref = f"n{node_id[id(root)]}"
+    lines.append(f"root -> {root_ref}")
+    return "\n".join(lines)
+
+
 def post_process_match_pred(node: CheckedMatchPred) -> ast.expr:
     """After the checking we need to pre-compile the decision tree for the pattern
     match statement. We compute it in the checking since it allows us to check
@@ -314,7 +448,11 @@ def post_process_match_pred(node: CheckedMatchPred) -> ast.expr:
                 list(range(len(node.patterns))),
                 node,
             )
+            print("Before DAG compaction:")
             print(pretty(tree=tree))
+            _dag = tree_to_dag(tree)
+            print("After DAG compaction:")
+            print(pretty_dag(tree=_dag))
             return node
 
     raise GuppyError(NonExhaustiveMatchError(node))
