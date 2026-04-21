@@ -106,6 +106,7 @@ class GuppyEnumDefinition(GuppyDefinition):
         # attribute, so we directly raise the error.
         defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
         assert isinstance(defn, CheckedEnumDef)
+        print(defn.variants)
         if (
             # We can only access the variants of the enum from the enum class,
             # not methods

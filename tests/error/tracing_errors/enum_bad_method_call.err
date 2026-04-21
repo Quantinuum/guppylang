@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile()
   File "$FILE", line 15, in test
     E.foo()
-AttributeError: 'GuppyDefinition' object has no attribute 'foo'
+AttributeError: Type `E` has no attribute `foo`

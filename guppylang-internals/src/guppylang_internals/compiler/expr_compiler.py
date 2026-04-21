@@ -907,40 +907,49 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
 
         # Then we need to build the hHugr of the equality check:
         # we get the compiled equality function
-        eq_func, type_args = self.ctx.build_compiled_def(
-            node.equality_function, type_args=[]
-        )
+        # eq_func, type_args = self.ctx.build_compiled_def(
+        #     node.equality_function, type_args=[]
+        # )
+        eq_func = self.ctx.build_compiled_def(node.equality_function, type_args=[])
         assert isinstance(eq_func, CustomFunctionDef)
         assert eq_func.has_signature
-        concrete_ty = eq_func.ty.instantiate(type_args)
-        hugr_ty = concrete_ty.to_hugr(self.ctx)
+        func_ty = eq_func.ty
+        hugr_ty = func_ty.to_hugr(self.ctx)
+        # concrete_ty = eq_func.ty.instantiate(type_args)
+        # hugr_ty = concrete_ty.to_hugr(self.ctx)
         # we extract the call_compiler to build the hugr call
         call_compiler = eq_func.call_compiler
         match call_compiler:
             case BoolOpCompiler():
                 # We need input conversions from hugr Bools to the Guppy bools in input
                 # TODO: Do this without `compile_with_in`?
-                call_compiler._light_setup(type_args, self.ctx, hugr_ty)
-                rets = call_compiler.compile_with_in(
-                    [value_wire, self.subject_wire], self.builder
+                # call_compiler._light_setup(type_args, self.ctx, hugr_ty)
+                # rets = call_compiler.compile_with_in(
+                #     [value_wire, self.subject_wire], self.builder
+                # )
+                raise InternalGuppyError(
+                    "BoolOpCompiler not supported yet in pattern matching"
                 )
             case OpCompiler(op=op):
                 # We need input conversions from hugr Bools to the Guppy bools as output
-                compiled_op = op(hugr_ty, type_args, self.ctx)
-                out_wires = self.builder.add_op(
-                    compiled_op, value_wire, self.subject_wire
+                # compiled_op = op(hugr_ty, type_args, self.ctx)
+                # out_wires = self.builder.add_op(
+                #     compiled_op, value_wire, self.subject_wire
+                # )
+                # assert self.builder.hugr.port_type(out_wires[0]) == OpaqueBool
+                # out_wires = self.builder.add_op(read_bool(), out_wires[0])
+                # rets = list(out_wires.outputs())
+                raise InternalGuppyError(
+                    "OpCompiler not supported yet in pattern matching"
                 )
-                assert self.builder.hugr.port_type(out_wires[0]) == OpaqueBool
-                out_wires = self.builder.add_op(read_bool(), out_wires[0])
-                rets = list(out_wires.outputs())
             case _:
                 assert_never(cast("Never", call_compiler))
 
         # we get the wires corresponding to the call result:
         # the equality function returns a boolean indicating if they're equal
-        assert len(rets) == 1
+        # assert len(rets) == 1
 
-        return rets[0]
+        # return rets[0]
 
     def visit_MatchStruct(self, node: MatchStruct) -> Wire:
         """Performs the and between the checks for each field pattern"""

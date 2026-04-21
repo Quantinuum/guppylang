@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 from hugr import Wire, ops
 from hugr import tys as ht
-from hugr.build.dfg import DfBase
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
 from guppylang_internals.ast_util import (
