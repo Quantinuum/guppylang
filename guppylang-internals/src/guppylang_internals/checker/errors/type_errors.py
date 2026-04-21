@@ -147,17 +147,6 @@ class AttributeNotFoundError(Error):
         else:
             return "attribute"
 
-    @property
-    def element_name(self) -> str:
-        from guppylang_internals.tys.ty import EnumType, StructType
-
-        if isinstance(self.ty, StructType):
-            return "field or method"
-        elif isinstance(self.ty, EnumType):
-            return "variant or method"
-        else:
-            return "attribute"
-
 
 @dataclass(frozen=True)
 class UnaryOperatorNotDefinedError(Error):

@@ -514,7 +514,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
         self.ty = hugr_ty
 
     def compile_with_in(
-        self, args: list[Wire], builder: DfBase[ops.DfParentOp]
+        self, args: list[Wire], builder: DFBuilder[ops.DfParentOp]
     ) -> list[Wire]:
         """Compile the boolean operation.
         Using a custom builder is useful for pattern match compilation"""

@@ -452,7 +452,7 @@ def post_process_match_pred(node: CheckedMatchPred) -> ast.expr:
             print(pretty(tree=tree))
             _dag = tree_to_dag(tree)
             print("After DAG compaction:")
-            print(pretty_dag(tree=_dag))
+            print(pretty_dag(_dag))
             return node
 
     raise GuppyError(NonExhaustiveMatchError(node))
