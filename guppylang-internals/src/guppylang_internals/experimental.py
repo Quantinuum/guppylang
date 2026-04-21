@@ -1,4 +1,5 @@
 from ast import expr
+from contextvars import ContextVar
 from dataclasses import dataclass
 from types import TracebackType
 from typing import ClassVar
@@ -8,7 +9,9 @@ from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.error import GuppyError
 
-EXPERIMENTAL_FEATURES_ENABLED = False
+EXPERIMENTAL_FEATURES_ENABLED: ContextVar[bool] = ContextVar(
+    "EXPERIMENTAL_FEATURES_ENABLED", default=False
+)
 
 
 class enable_experimental_features:
@@ -18,9 +21,7 @@ class enable_experimental_features:
     """
 
     def __init__(self) -> None:
-        global EXPERIMENTAL_FEATURES_ENABLED
-        self.original = EXPERIMENTAL_FEATURES_ENABLED
-        EXPERIMENTAL_FEATURES_ENABLED = True
+        self.token = EXPERIMENTAL_FEATURES_ENABLED.set(True)
 
     def __enter__(self) -> None:
         pass
@@ -31,8 +32,7 @@ class enable_experimental_features:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        global EXPERIMENTAL_FEATURES_ENABLED
-        EXPERIMENTAL_FEATURES_ENABLED = self.original
+        EXPERIMENTAL_FEATURES_ENABLED.reset(self.token)
 
 
 class disable_experimental_features:
@@ -42,9 +42,7 @@ class disable_experimental_features:
     """
 
     def __init__(self) -> None:
-        global EXPERIMENTAL_FEATURES_ENABLED
-        self.original = EXPERIMENTAL_FEATURES_ENABLED
-        EXPERIMENTAL_FEATURES_ENABLED = False
+        self.token = EXPERIMENTAL_FEATURES_ENABLED.set(False)
 
     def __enter__(self) -> None:
         pass
@@ -55,8 +53,7 @@ class disable_experimental_features:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        global EXPERIMENTAL_FEATURES_ENABLED
-        EXPERIMENTAL_FEATURES_ENABLED = self.original
+        EXPERIMENTAL_FEATURES_ENABLED.reset(self.token)
 
 
 @dataclass(frozen=True)
@@ -78,20 +75,20 @@ class ExperimentalFeatureError(Error):
 
 
 def check_function_tensors_enabled(node: expr | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
+    if not EXPERIMENTAL_FEATURES_ENABLED.get():
         raise GuppyError(ExperimentalFeatureError(node, "Function tensors"))
 
 
 def check_lists_enabled(loc: AstNode | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
+    if not EXPERIMENTAL_FEATURES_ENABLED.get():
         raise GuppyError(ExperimentalFeatureError(loc, "Lists"))
 
 
 def check_capturing_closures_enabled(loc: AstNode | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
+    if not EXPERIMENTAL_FEATURES_ENABLED.get():
         raise GuppyError(UnsupportedError(loc, "Capturing closures"))
 
 
 def check_modifiers_enabled(loc: AstNode | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
+    if not EXPERIMENTAL_FEATURES_ENABLED.get():
         raise GuppyError(ExperimentalFeatureError(loc, "Modifiers"))
