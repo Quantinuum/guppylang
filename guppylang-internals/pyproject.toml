@@ -1,6 +1,6 @@
 [project]
 name = "guppylang-internals"
-version = "0.32.0"
+version = "0.33.0"
 requires-python = ">=3.10,<4"
 description = "Compiler internals for `guppylang` package."
 license = { file = "LICENCE" }
@@ -44,6 +44,3 @@ pytket = []
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.ruff.per-file-target-version]
-"tests/**_py312.py" = "py312"
