@@ -201,8 +201,8 @@ def test_struct_reassign(validate):
 def test_enum_reassign(validate):
     @guppy.enum
     class MyEnum:
-        VariantA = {"q": qubit}  # noqa: RUF012
-        VariantB = {}  # noqa: RUF012
+        VariantA = {"q": qubit}
+        VariantB = {}
 
     @guppy.declare
     def consume(e: MyEnum @ owned) -> None: ...

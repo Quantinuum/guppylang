@@ -31,7 +31,7 @@ def test_method_redefinition(validate):
 
     @guppy.enum
     class MyEnum:
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def foo(self) -> float:
@@ -72,7 +72,7 @@ def test_redefine_after_error(validate):
 
     @guppy.enum
     class Bar:
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
     @guppy
     def bar() -> int:
@@ -83,7 +83,7 @@ def test_redefine_after_error(validate):
 
     @guppy.enum
     class Bar:  # noqa: F811
-        VariantA = {"x": int}  # noqa: RUF012
+        VariantA = {"x": int}
 
         @guppy
         def foo(self) -> int:
@@ -107,11 +107,11 @@ def test_struct_redefinition(validate):
 
     @guppy.enum
     class MyEnum:
-        VariantB = {"x": "blah"}  # noqa: RUF012
+        VariantB = {"x": "blah"}
 
     @guppy.enum
     class MyEnum:  # noqa: F811
-        VariantB = {"x": int}  # noqa: RUF012
+        VariantB = {"x": int}
 
     @guppy
     def main(x: int) -> Test:
@@ -140,7 +140,7 @@ def test_struct_method_redefinition(validate):
 
     @guppy.enum
     class MyEnum:
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def foo(self) -> float:
@@ -148,7 +148,7 @@ def test_struct_method_redefinition(validate):
 
     @guppy.enum
     class MyEnum:  # noqa: F811
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def foo(self) -> int:

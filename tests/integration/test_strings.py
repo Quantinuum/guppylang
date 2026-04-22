@@ -34,7 +34,7 @@ def test_struct(validate):
 def test_enum(validate):
     @guppy.enum
     class StringEnum:
-        Var1 = {"x": str}  # noqa: RUF012
+        Var1 = {"x": str}
 
     @guppy
     def main() -> StringEnum:

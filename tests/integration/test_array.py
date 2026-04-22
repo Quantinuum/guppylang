@@ -201,7 +201,7 @@ def test_struct_array(validate):
 def test_enum_array(validate):
     @guppy.enum
     class E:
-        VariantA = {"q1": qubit, "q2": qubit}  # noqa: RUF012
+        VariantA = {"q1": qubit, "q2": qubit}
 
         @guppy
         def foo(self: "E") -> int:

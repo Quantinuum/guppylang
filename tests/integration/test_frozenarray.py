@@ -129,7 +129,7 @@ def test_nested_struct(validate):
 def test_nested_enum(validate):
     @guppy.enum
     class E:
-        VariantA = {"xe": frozenarray[int, 42]}  # noqa: RUF012
+        VariantA = {"xe": frozenarray[int, 42]}
 
         @guppy
         def tag(self) -> int:

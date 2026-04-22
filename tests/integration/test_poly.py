@@ -280,7 +280,7 @@ def test_type_apply_method(validate):
 
     @guppy.enum
     class MyEnum(Generic[T]):
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def method(self: "MyEnum[T]") -> None:

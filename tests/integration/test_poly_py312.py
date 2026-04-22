@@ -36,8 +36,8 @@ def test_struct(validate):
 def test_enum(validate):
     @guppy.enum
     class MyEnum[S, T]:
-        VariantA = {"x": S}  # noqa: RUF012
-        VariantB = {"x": S, "y": T}  # noqa: RUF012
+        VariantA = {"x": S}
+        VariantB = {"x": S, "y": T}
 
     @guppy
     def main() -> None:
@@ -83,7 +83,7 @@ def test_copy_bound(validate):
 
     @guppy.enum
     class MyEnum[T: Copy]:
-        VariantA = {"x": T}  # noqa: RUF012
+        VariantA = {"x": T}
 
     @guppy
     def foo_enum[T: Copy](e1: MyEnum[T]) -> tuple[MyEnum[T], MyEnum[T]]:
@@ -132,7 +132,7 @@ def test_copy_and_drop_bound(validate):
 
     @guppy.enum
     class MyEnum[T: (Copy, Drop)]:
-        VariantA = {"x": T}  # noqa: RUF012
+        VariantA = {"x": T}
 
     @guppy
     def foo[T: (Copy, Drop)](

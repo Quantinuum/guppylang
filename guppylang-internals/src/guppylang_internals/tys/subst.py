@@ -85,7 +85,9 @@ class Instantiator(Transformer):
             return arg.const
 
         # Otherwise, lower the de Bruijn index
-        return BoundConstVar(c.ty, c.display_name, c.idx - len(self.inst))
+        return BoundConstVar(
+            self.transform(c.ty) or c.ty, c.display_name, c.idx - len(self.inst)
+        )
 
     @transform.register
     def _transform_FunctionType(self, ty: FunctionType) -> Type | None:
