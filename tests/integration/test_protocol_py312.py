@@ -1,7 +1,6 @@
-# type: ignore[invalid-syntax]
-
-from guppylang.decorator import guppy
 import pytest
+from typing import no_type_check
+from guppylang.decorator import guppy
 
 
 def test_def():
@@ -12,9 +11,10 @@ def test_def():
         # TODO: Implement Self support for protocols.
         # def bar(self: Self) -> Self: ...
 
-        def baz(self, y: int) -> int: ...
+        # Internally desugared this is equivalent to `foo`.
+        def baz[M: MyProto](self: M) -> M: ...  # noqa: PYI019
 
-    MyProto.compile()
+    MyProto.check()
 
 
 def test_def_parameterised():
@@ -27,7 +27,7 @@ def test_def_parameterised():
 
         def baz(self, y: int) -> int: ...
 
-    MyProto.compile()
+    MyProto.check()
 
 
 ## TODO: See if this can work in light of the monomorphisation changes assuming
@@ -44,8 +44,8 @@ def test_use_def_as_type():
     @guppy.declare
     def baz[M: MyProto](a: M) -> M: ...
 
-    bar.compile()
-    baz.compile()
+    bar.check()
+    baz.check()
 
 
 ## TODO: See if this can work in light of the monomorphisation changes assuming
@@ -60,16 +60,16 @@ def test_use_def_as_type_parameterised():
     S = guppy.type_var("S")
 
     @guppy.declare
+    @no_type_check
     def baz1(a: MyProto[T, S]) -> MyProto[T, S]: ...
 
     @guppy.declare
     def baz2(a: MyProto[bool, bool]) -> MyProto[int, int]: ...
 
-    baz1.compile()
-    baz2.compile()
+    baz1.check()
+    baz2.check()
 
 
-@pytest.mark.skip("TODO: Fix and enable once full implementation is done")
 def test_basic(validate):
     @guppy.protocol
     class MyProto:
@@ -79,7 +79,7 @@ def test_basic(validate):
     class MyType:
         @guppy
         def foo(self: "MyType", x: int) -> str:
-            return str(x)
+            return "something"
 
     @guppy
     def bar[M: MyProto](a: M) -> str:
@@ -96,16 +96,103 @@ def test_basic(validate):
         bar(mt)
         baz(mt)
 
-    validate(main.compile())
+    main.check()
 
 
-@pytest.mark.skip("TODO: Fix and enable once full implementation is done")
-def test_basic_parameterised(validate):
+def test_basic_parameterised_concrete(validate):
     @guppy.protocol
     class MyProto[T, S]:
         def foo(self: "MyProto[T, S]", x: T) -> S: ...
 
     @guppy.struct
+    class MyType:
+        @guppy
+        def foo(self: "MyType", x: int) -> str:
+            return "something"
+
+    @guppy
+    def baz(a: MyProto[int, str]) -> str:
+        return a.foo(42)
+
+    @guppy
+    def main() -> None:
+        mt = MyType()
+        baz(mt)
+
+    main.check()
+
+
+def test_basic_parameterised_generic(validate):
+    @guppy.protocol
+    class MyProto[T, S]:
+        def foo(self: "MyProto[T, S]", x: T) -> S: ...
+
+    @guppy.struct
+    class MyType:
+        @guppy
+        def foo(self: "MyType", x: int) -> str:
+            return "something"
+
+    V = guppy.type_var("V")
+    W = guppy.type_var("W")
+
+    @guppy
+    def baz(a: MyProto[V, W], x: V) -> W:
+        return a.foo(x)
+
+    @guppy
+    def main() -> None:
+        mt = MyType()
+        baz(mt, 42)
+
+    main.check()
+
+
+def test_basic_parameterised_more_generic(validate):
+    @guppy.protocol
+    class MyProto:
+        def foo(self: "MyProto", x: int) -> int: ...
+
+    # TODO: Note generic struct functions require a different syntax, this might be
+    # confusing for users?
+    @guppy.struct
+    class MyType[T]:
+        @guppy.declare
+        def foo[T](self: "MyType[T]", x: T) -> T: ...
+
+    @guppy
+    def baz(a: MyProto, x: int) -> int:
+        return a.foo(x)
+
+    @guppy
+    def main() -> None:
+        mt = MyType[int]()
+        baz(mt, 42)
+
+    main.check()
+
+
+def test_assumption(validate):
+    @guppy.protocol
+    class MyProto:
+        def foo(self: "MyProto", x: int) -> str: ...
+
+    @guppy
+    def bar(a: MyProto) -> str:
+        return a.foo(42)
+
+    @guppy
+    def main[P: MyProto](x: P) -> str:
+        return bar(x)
+
+    main.check()
+
+
+def test_protocols(validate):
+    @guppy.protocol
+    class MyProto:
+        def foo(self: "MyProto", x: int) -> str: ...
+
     class MyType[P: int, Q: str]:
         @guppy
         def foo(self: "MyType[P, Q]", x: int) -> str:
@@ -142,4 +229,4 @@ def test_basic_parameterised(validate):
         baz1(mot, 42)
         # baz2(mt) # should fail
 
-    validate(main.compile())
+    main.check()

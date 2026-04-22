@@ -129,7 +129,7 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
                         )
                         err.add_sub_diagnostic(NoAnnotationHint(None))
                         raise GuppyError(err)
-                    py_func = cast("PyFunc", py_func)
+                    py_func = cast(PyFunc, py_func)
                     func_ast, _ = parse_py_func(py_func, sources)
                     if not has_empty_body(func_ast):
                         err = UnexpectedError(
@@ -170,6 +170,8 @@ class ParsedProtocolDef(ProtocolDef, CheckableDef):
         checked_members = {}
         for member_name, func_def in self.members.items():
             ty = check_signature(func_def, globals, self.id, param_var_mapping)
+            # TODO: Check first self argument is valid (type variable with protocol
+            # bound, all arguments are also type variables)
             checked_members[member_name] = ty
         return CheckedProtocolDef(
             self.id, self.name, self.defined_at, self.params, checked_members
@@ -180,7 +182,7 @@ class ParsedProtocolDef(ProtocolDef, CheckableDef):
     ) -> ProtocolInst:
         """Checks if the protocol can be instantiated with the given arguments."""
         check_all_args(self.params, args, self.name, loc)
-        return ProtocolInst(args, self.id)
+        return ProtocolInst(tuple(args), self.id)
 
 
 @dataclass(frozen=True)
@@ -196,4 +198,4 @@ class CheckedProtocolDef(ProtocolDef, CompiledDef):
     ) -> ProtocolInst:
         """Checks if the protocol can be instantiated with the given arguments."""
         check_all_args(self.params, args, self.name, loc)
-        return ProtocolInst(args, self.id)
+        return ProtocolInst(tuple(args), self.id)

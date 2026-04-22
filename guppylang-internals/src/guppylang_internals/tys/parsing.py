@@ -437,7 +437,7 @@ def type_with_flags_from_ast(
     else:
         # Parse an argument and check that it's valid for a `TypeParam`
         arg = arg_from_ast(node, ctx)
-        tyarg = _type_param.check_arg(arg, node)
+        tyarg, _ = _type_param.check_arg(arg, node)
         return tyarg.ty, InputFlags.NoFlags
 
 

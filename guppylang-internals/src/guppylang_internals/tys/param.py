@@ -16,7 +16,7 @@ from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import ExistentialVar
 
 if TYPE_CHECKING:
-    from guppylang_internals.tys.subst import PartialInst
+    from guppylang_internals.tys.subst import PartialInst, Subst
     from guppylang_internals.tys.ty import Type
 
 # We define the `Parameter` type as a union of all `ParameterBase` subclasses defined
@@ -53,7 +53,9 @@ class ParameterBase(ABC):
         """Returns a copy of the parameter with a new index."""
 
     @abstractmethod
-    def check_arg(self, arg: Argument, loc: AstNode | None = None) -> Argument:
+    def check_arg(
+        self, arg: Argument, loc: AstNode | None = None
+    ) -> "Argument | tuple[Argument, Subst]":
         """Checks that this parameter can be instantiated with a given argument.
 
         Raises a user error if the argument is not valid.
@@ -95,11 +97,14 @@ class TypeParam(ParameterBase):
         """Returns a copy of the parameter with a new index."""
         return TypeParam(idx, self.name, self.must_be_copyable, self.must_be_droppable)
 
-    def check_arg(self, arg: Argument, loc: AstNode | None = None) -> TypeArg:
+    def check_arg(
+        self, arg: Argument, loc: AstNode | None = None
+    ) -> "tuple[TypeArg, Subst]":
         """Checks that this parameter can be instantiated with a given argument.
 
         Raises a user error if the argument is not valid.
         """
+        subst: Subst = {}
         match arg:
             case ConstArg(const):
                 err = ExpectedError(loc, "a type", got=f"value of type `{const.ty}`")
@@ -119,7 +124,15 @@ class TypeParam(ParameterBase):
                         got=f"type `{ty}` which is not implicitly droppable",
                     )
                     raise GuppyTypeError(err)
-                return arg
+                if self.must_implement:
+                    from guppylang_internals.checker.protocol_checker import (
+                        check_protocol,
+                    )
+
+                    for proto in self.must_implement:
+                        proof, subst = check_protocol(ty, proto)
+                        arg = replace(arg, proto_proof=proof)
+                return arg, subst
 
     def to_existential(self) -> tuple[Argument, ExistentialVar]:
         """Creates a fresh existential variable that can be instantiated for this
@@ -130,7 +143,10 @@ class TypeParam(ParameterBase):
         from guppylang_internals.tys.ty import ExistentialTypeVar
 
         var = ExistentialTypeVar.fresh(
-            self.name, self.must_be_copyable, self.must_be_droppable
+            self.name,
+            self.must_be_copyable,
+            self.must_be_droppable,
+            tuple(self.must_implement),
         )
         return TypeArg(var), var
 
@@ -143,13 +159,25 @@ class TypeParam(ParameterBase):
         if idx is None:
             idx = self.idx
         return TypeArg(
-            BoundTypeVar(self.name, idx, self.must_be_copyable, self.must_be_droppable)
+            BoundTypeVar(
+                self.name,
+                idx,
+                tuple(self.must_implement),
+                self.must_be_copyable,
+                self.must_be_droppable,
+            )
         )
 
     def instantiate_bounds(self, inst: "PartialInst") -> "TypeParam":
         """Instantiates bound variables mentioned in parameter bounds"""
         # For now, type parameters don't have any bounds that could be instantiated
-        return self
+        from guppylang_internals.tys.subst import Instantiator
+
+        impls = tuple(
+            impl.transform(Instantiator(inst)) for impl in self.must_implement
+        )
+
+        return replace(self, must_implement=impls)
 
     def __str__(self) -> str:
         """User-facing string representation of the parameter."""

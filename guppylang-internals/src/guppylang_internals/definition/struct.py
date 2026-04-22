@@ -65,6 +65,13 @@ class FieldFormHint(Help):
 
 
 @dataclass(frozen=True)
+class ProtocolHint(Help):
+    message: ClassVar[str] = (
+        "Add a `@guppy.protocol` annotation to turn this struct into a protocol"
+    )
+
+
+@dataclass(frozen=True)
 class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw struct type definition that has not been parsed yet."""
 

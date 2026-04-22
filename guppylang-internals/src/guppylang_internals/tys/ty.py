@@ -20,6 +20,7 @@ from guppylang_internals.tys.common import (
 )
 from guppylang_internals.tys.const import Const, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.param import ConstParam, Parameter
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
@@ -191,6 +192,7 @@ class BoundTypeVar(TypeBase, BoundVar):
     A bound type variables can be instantiated with a `TypeArg` argument.
     """
 
+    implements: tuple[ProtocolInst, ...]
     copyable: bool
     droppable: bool
 
@@ -234,15 +236,20 @@ class ExistentialTypeVar(ExistentialVar, TypeBase):
     them with concrete types.
     """
 
+    implements: Sequence[ProtocolInst]
     copyable: bool
     droppable: bool
 
     @classmethod
     def fresh(
-        cls, display_name: str, copyable: bool, droppable: bool
+        cls,
+        display_name: str,
+        copyable: bool,
+        droppable: bool,
+        implements: Sequence[ProtocolInst] = (),
     ) -> "ExistentialTypeVar":
         return ExistentialTypeVar(
-            display_name, next(cls._fresh_id), copyable, droppable
+            display_name, next(cls._fresh_id), implements, copyable, droppable
         )
 
     @cached_property
@@ -911,6 +918,7 @@ def _unify_const_var(
 
     if var in t.unsolved_vars:
         return None
+    # TODO: Check that `t` implements all protocols required by `var`.
     return {var: t, **subst}
 
 
@@ -932,6 +940,20 @@ def _unify_args(
                 if res is None:
                     return None
                 subst = res
+            case _:
+                return None
+    return subst
+
+
+def unify_type_args(
+    ss: Sequence[Argument], ts: Sequence[Argument], subst: "Subst | None"
+) -> "Subst | None":
+    for s, t in zip(ss, ts, strict=True):
+        match s, t:
+            case TypeArg(), TypeArg():
+                subst = unify(s.ty, t.ty, subst)
+            case ConstArg(), ConstArg():
+                subst = unify(s.const, t.const, subst)
             case _:
                 return None
     return subst
