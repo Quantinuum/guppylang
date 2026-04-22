@@ -21,7 +21,11 @@ test *PYTEST_FLAGS:
 
 # Export the integration test cases to a directory.
 export-integration-tests directory="guppy-exports":
-    uv run pytest --export-test-cases="{{ directory }}"
+    uv run pytest -n auto --export-test-cases="{{ directory }}"
+
+# test-exported-hugrs *PYTEST_FLAGS: export-integration-tests
+test-exported-hugrs *PYTEST_FLAGS:
+    uv run pytest -n auto -m test_exported_hugrs {{PYTEST_FLAGS}}
 
 # Auto-fix all clippy warnings.
 fix:
