@@ -13,7 +13,7 @@ def test_implicit_self(validate):
 
     @guppy.enum
     class MyEnum:
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def foo(self) -> None:
@@ -42,7 +42,7 @@ def test_implicit_self_generic(validate):
 
     @guppy.enum
     class MyEnum(Generic[T, U]):
-        VariantA = {"x": T, "y": U}  # noqa: RUF012
+        VariantA = {"x": T, "y": U}
 
         @guppy
         def foo(self, a: U) -> int:
@@ -70,7 +70,7 @@ def test_explicit_self(validate):
 
     @guppy.enum
     class MyEnum:
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def foo(self, other: Self) -> Self:
@@ -96,7 +96,7 @@ def test_explicit_self_generic(validate):
 
     @guppy.enum
     class MyEnum(Generic[T]):
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def foo(self) -> Self:
@@ -127,7 +127,7 @@ def test_more_generic(validate):
 
     @guppy.enum
     class MyEnum(Generic[T]):
-        VariantA = {}  # noqa: RUF012
+        VariantA = {}
 
         @guppy
         def foo(self, a: T, b: U) -> tuple[T, U]:
