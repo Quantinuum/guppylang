@@ -9,7 +9,7 @@ env:
 
 jobs:
   benchmark_base_branch:
-    name: Continuous Benchmarking with Bencher
+    name: Continuous Benchmarking
     permissions:
       checks: write
     runs-on: ubuntu-latest
