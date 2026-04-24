@@ -825,6 +825,7 @@ class ModifiedBlock(ast.With):
     parameters:
     - `cfg`: the CFG of the body of the block
     - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    - `accumulated_flags`: the UnitaryFlags accumulated from outer modified blocks
     """
 
     cfg: "CFG"

@@ -29,7 +29,6 @@ def _check_block_metadata(
 
     return blocks
 
-
 # Test single modifiers metadata
 def test_unitary_metadata_dagger_only():
     @guppy
@@ -87,10 +86,10 @@ def test_unitary_metadata_power_dagger_control():
         h,
         [
             UnitaryFlags.Power.value,
-            UnitaryFlags.Dagger.value + UnitaryFlags.Power.value,
-            UnitaryFlags.Control.value
-            + UnitaryFlags.Dagger.value
-            + UnitaryFlags.Power.value,
+            (UnitaryFlags.Dagger | UnitaryFlags.Power).value,
+            (
+                UnitaryFlags.Control | UnitaryFlags.Dagger | UnitaryFlags.Power
+            ).value,
         ],
     )
 
@@ -112,10 +111,10 @@ def test_unitary_metadata_dagger_power_control():
         h,
         [
             UnitaryFlags.Dagger.value,
-            UnitaryFlags.Power.value + UnitaryFlags.Dagger.value,
-            UnitaryFlags.Control.value
-            + UnitaryFlags.Power.value
-            + UnitaryFlags.Dagger.value,
+            (UnitaryFlags.Power | UnitaryFlags.Dagger).value,
+            (
+                UnitaryFlags.Control | UnitaryFlags.Power | UnitaryFlags.Dagger
+            ).value,
         ],
     )
 
@@ -137,10 +136,8 @@ def test_unitary_metadata_control_dagger_power():
         h,
         [
             UnitaryFlags.Control.value,
-            UnitaryFlags.Dagger.value + UnitaryFlags.Control.value,
-            UnitaryFlags.Power.value
-            + UnitaryFlags.Dagger.value
-            + UnitaryFlags.Control.value,
+            (UnitaryFlags.Dagger | UnitaryFlags.Control).value,
+            (UnitaryFlags.Power | UnitaryFlags.Dagger | UnitaryFlags.Control).value,
         ],
     )
 
@@ -162,10 +159,8 @@ def test_unitary_metadata_power_control_dagger():
         h,
         [
             UnitaryFlags.Power.value,
-            UnitaryFlags.Control.value + UnitaryFlags.Power.value,
-            UnitaryFlags.Dagger.value
-            + UnitaryFlags.Control.value
-            + UnitaryFlags.Power.value,
+            (UnitaryFlags.Control | UnitaryFlags.Power).value,
+            (UnitaryFlags.Dagger | UnitaryFlags.Control | UnitaryFlags.Power).value,
         ],
     )
 
@@ -187,10 +182,8 @@ def test_unitary_metadata_dagger_control_power():
         h,
         [
             UnitaryFlags.Dagger.value,
-            UnitaryFlags.Control.value + UnitaryFlags.Dagger.value,
-            UnitaryFlags.Power.value
-            + UnitaryFlags.Control.value
-            + UnitaryFlags.Dagger.value,
+            (UnitaryFlags.Control | UnitaryFlags.Dagger).value,
+            (UnitaryFlags.Power | UnitaryFlags.Control | UnitaryFlags.Dagger).value,
         ],
     )
 
@@ -212,9 +205,7 @@ def test_unitary_metadata_control_power_dagger():
         h,
         [
             UnitaryFlags.Control.value,
-            UnitaryFlags.Power.value + UnitaryFlags.Control.value,
-            UnitaryFlags.Dagger.value
-            + UnitaryFlags.Power.value
-            + UnitaryFlags.Control.value,
+            (UnitaryFlags.Power | UnitaryFlags.Control).value,
+            (UnitaryFlags.Dagger | UnitaryFlags.Power | UnitaryFlags.Control).value,
         ],
     )
