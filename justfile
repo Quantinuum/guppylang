@@ -61,7 +61,7 @@ NOW := `date +%s%n | tr -d '\n'`
 BENCHER_PROJECT := "guppylang-benchmarks"
 
 # Run benchmarks and upload the results using bencher_cli. Note: Needs the BENCHER_API_TOKEN env variable.
-bench_upload *BENCHER_FLAGS:
+bench-upload *BENCHER_FLAGS:
     uv run pytest \
            --override-ini addopts="" \
            --benchmark-only \
