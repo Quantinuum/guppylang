@@ -29,6 +29,7 @@ def _check_block_metadata(
 
     return blocks
 
+
 # Test single modifiers metadata
 def test_unitary_metadata_dagger_only():
     @guppy
@@ -87,9 +88,7 @@ def test_unitary_metadata_power_dagger_control():
         [
             UnitaryFlags.Power.value,
             (UnitaryFlags.Dagger | UnitaryFlags.Power).value,
-            (
-                UnitaryFlags.Control | UnitaryFlags.Dagger | UnitaryFlags.Power
-            ).value,
+            (UnitaryFlags.Control | UnitaryFlags.Dagger | UnitaryFlags.Power).value,
         ],
     )
 
@@ -112,9 +111,7 @@ def test_unitary_metadata_dagger_power_control():
         [
             UnitaryFlags.Dagger.value,
             (UnitaryFlags.Power | UnitaryFlags.Dagger).value,
-            (
-                UnitaryFlags.Control | UnitaryFlags.Power | UnitaryFlags.Dagger
-            ).value,
+            (UnitaryFlags.Control | UnitaryFlags.Power | UnitaryFlags.Dagger).value,
         ],
     )
 
