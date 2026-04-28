@@ -337,6 +337,9 @@ def compile_call(
 
 
 def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str | None]:
+    # get the wrapped function if a staticmethod
+    if isinstance(f, staticmethod):
+        f = f.__func__
     source_lines, line_offset = inspect.getsourcelines(f)
     source, func_ast, line_offset = parse_source(source_lines, line_offset)
     file = inspect.getsourcefile(f)

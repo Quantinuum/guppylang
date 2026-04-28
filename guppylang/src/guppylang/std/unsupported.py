@@ -206,10 +206,6 @@ def sorted(x): ...
 
 
 @custom_function(checker=UnsupportedChecker(), higher_order_value=False)
-def staticmethod(x): ...
-
-
-@custom_function(checker=UnsupportedChecker(), higher_order_value=False)
 def sum(x): ...
 
 
