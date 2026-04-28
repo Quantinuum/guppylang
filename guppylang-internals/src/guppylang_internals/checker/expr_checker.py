@@ -28,7 +28,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -88,7 +88,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.common import Definition, ParsedDef
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
@@ -580,7 +580,22 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # Name can be a EnumDef only if it is in a attribute access, thus we
             # manually need to call the helper instead of relying on the standard
             # visit_Name (that is called through synthesize)
+
+            # visit node for case of staticmethods on a non-instantiated type
             ty = get_type_opt(node.value)
+            if node.value.id in self.ctx.globals:
+                defn = cast("ParsedDef", self.ctx.globals[node.value.id])
+                ty_def = ENGINE.parsed[defn.id]
+                if (
+                    node.attr in DEF_STORE.type_members[ty_def.id]
+                    and isinstance(ty_def, TypeDef)
+                    and (func := ENGINE.get_instance_func(ty_def, node.attr))
+                    and DEF_STORE.type_members[ty_def.id][node.attr].is_static
+                ):
+                    return with_loc(
+                        node, GlobalName(id=node.attr, def_id=func.id)
+                    ), func.ty
+
             if ty is None:
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
@@ -590,20 +605,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 node.value = with_type(ty, node.value)
         else:
             node.value, ty = self.synthesize(node.value)
-
-        # staticmethods of types
-        # If node points to a function then get the type it is an impl
-        # of and the corresponding staticmethod
-        # NEEDS TO CHANGE AS THIS WILL NOT WORK WITH ENUMS
-        if isinstance(ty, FunctionType) and isinstance(node.value, GlobalName):
-            ty_id = DEF_STORE.type_member_parents[node.value.def_id]
-            ty_def = ENGINE.parsed[ty_id]
-            if (
-                node.attr in DEF_STORE.type_members[ty_id]
-                and isinstance(ty_def, TypeDef)  # make mypy happy :(
-                and (func := ENGINE.get_instance_func(ty_def, node.attr))
-            ):
-                return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
 
         # flag used for error messages, None if the error is not related to enums
         is_enum_class = None

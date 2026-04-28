@@ -3,18 +3,6 @@ import pytest
 from guppylang.decorator import guppy
 from collections.abc import Callable
 
-# TEST GENERIC
-# and test specifying types in generic staticmethods
-# test using staticfunctions as higher order methods
-# test other guppy decorators
-# guppy.declare
-# guppy.comptime
-# guppy.overload ? I don't even know if these work with methods
-# Looks like guppy.overload does not work with methods
-# seems like they could easily break with impls
-# check with someone about guppy.wasm_module
-# try testing for enums?
-
 
 def test_staticmethod_struct_generic(validate):
     T = guppy.type_var("T")
@@ -76,7 +64,6 @@ def test_staticmethod_comptime(validate):
     validate(main.compile())
 
 
-@pytest.mark.xfail(reason="Attribute visitor for enums currently only manages variants")
 def test_staticmethod_enum(validate):
 
     @guppy.enum
@@ -90,4 +77,24 @@ def test_staticmethod_enum(validate):
     def main() -> None:
         MyEnum.smethod()
 
-    validate(MyEnum.smethod())
+    validate(main.compile())
+
+
+def test_staticmethod_enum_instantiated(validate):
+
+    @guppy.enum
+    class MyEnum:
+        VariantA = {}  # noqa: RUF012
+        VariantB = {"x": int}  # noqa: RUF012
+
+        @guppy
+        @staticmethod
+        def smethod() -> int:
+            return 2
+
+    @guppy
+    def main() -> None:
+        e = MyEnum.VariantA()
+        e.smethod()
+
+    validate(main.compile())
