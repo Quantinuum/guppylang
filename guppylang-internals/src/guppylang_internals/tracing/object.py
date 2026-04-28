@@ -558,10 +558,10 @@ class TracingDefMixin(DunderMixin):
         elif not isinstance(defn, CheckableGenericDef):
             # Definition is non-generic, so we can use `mono_args=()` here
             defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
-            if isinstance(defn, TypeDef):
-                constructor = DEF_STORE.type_members[defn.id].get("__new__")
-                if constructor is not None and (constructor_id := constructor.id):
-                    return TracingDefMixin(DEF_STORE.raw_defs[constructor_id])(*args)
+            if isinstance(defn, TypeDef) and (
+                constructor_impl := DEF_STORE.type_members[defn.id].get("__new__")
+            ):
+                return TracingDefMixin(DEF_STORE.raw_defs[constructor_impl.id])(*args)
         err = f"{defn.description.capitalize()} `{defn.name}` is not callable"
         raise GuppyComptimeError(err)
 
