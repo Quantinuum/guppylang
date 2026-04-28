@@ -395,12 +395,34 @@ class CompilationEngine:
         if reset:
             self.reset()
 
+        # We allow generic functions as checking entrypoints as long as we don't run
+        # into a check that requires monomorphization. For this, we check a version
+        # where all parameters are instantiated to opaque `BoundVariable`s.
         for def_id in def_ids:
             entry_defn = self.get_parsed(def_id)
-            check_entry_point_non_generic(entry_defn)
-            entry_mono_args: Inst = ()
-            self.to_check_worklist[def_id, entry_mono_args] = entry_defn
+            entry_params = (
+                entry_defn.params if isinstance(entry_defn, CheckableGenericDef) else []
+            )
+            entry_mono_args = tuple(param.to_bound() for param in entry_params)
+            try:
+                self.checked[def_id, entry_mono_args] = self.get_checked(
+                    def_id, entry_mono_args
+                )
+            except RequiresMonomorphizationError:
+                # `RequiresMonomorphizationError` is raised whenever we cannot proceed
+                # checking without having the monomorphization available. In that case,
+                # we give up and prompt the user to specify the generic arguments.
+                assert isinstance(entry_defn, CheckableGenericDef)
+                description = (
+                    f"{entry_defn.description.capitalize()} `{entry_defn.name}`"
+                )
+                err = EntryCheckMonomorphizeError(
+                    entry_defn.defined_at, description, entry_defn.params
+                )
+                raise GuppyError(err) from None
 
+        # Checking the entrypoint will have populated the worklist, so now we need to
+        # process it
         while (
             self.types_to_check_worklist
             or self.generic_to_check_worklist
@@ -549,6 +571,29 @@ class EntryMonomorphizeError(Error):
     span_label: ClassVar[str] = (
         "{thing} is not a valid compilation entry point since the value{plural_s} of "
         "its generic parameter{plural_s} {params_str} {is_are} not known"
+    )
+    thing: str
+    params: Sequence[Parameter]
+
+    @property
+    def plural_s(self) -> str:
+        return "s" if len(self.params) > 1 else ""
+
+    @property
+    def is_are(self) -> str:
+        return "are" if len(self.params) > 1 else "is"
+
+    @property
+    def params_str(self) -> str:
+        return ", ".join(f"`{p.name}`" for p in self.params)
+
+
+@dataclass(frozen=True)
+class EntryCheckMonomorphizeError(Error):
+    title: ClassVar[str] = "Invalid check point"
+    span_label: ClassVar[str] = (
+        "{thing} can only be checked if the value{plural_s} of its generic "
+        "parameter{plural_s} {params_str} {is_are} known"
     )
     thing: str
     params: Sequence[Parameter]
