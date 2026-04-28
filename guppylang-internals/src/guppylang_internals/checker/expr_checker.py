@@ -585,16 +585,17 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             ty = get_type_opt(node.value)
             if node.value.id in self.ctx.globals:
                 defn = cast("ParsedDef", self.ctx.globals[node.value.id])
-                ty_def = ENGINE.parsed[defn.id]
-                if (
-                    node.attr in DEF_STORE.type_members[ty_def.id]
-                    and isinstance(ty_def, TypeDef)
-                    and (func := ENGINE.get_instance_func(ty_def, node.attr))
-                    and DEF_STORE.type_members[ty_def.id][node.attr].is_static
-                ):
-                    return with_loc(
-                        node, GlobalName(id=node.attr, def_id=func.id)
-                    ), func.ty
+                if not isinstance(defn, PythonObject):
+                    ty_def = ENGINE.parsed[defn.id]
+                    if (
+                        node.attr in DEF_STORE.type_members[ty_def.id]
+                        and isinstance(ty_def, TypeDef)
+                        and (func := ENGINE.get_instance_func(ty_def, node.attr))
+                        and DEF_STORE.type_members[ty_def.id][node.attr].is_static
+                    ):
+                        return with_loc(
+                            node, GlobalName(id=node.attr, def_id=func.id)
+                        ), func.ty
 
             if ty is None:
                 node.value, ty = self._check_name_id(
