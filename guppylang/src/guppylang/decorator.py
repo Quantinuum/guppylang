@@ -14,6 +14,7 @@ from guppylang_internals.decorator import (
     custom_type,
     hugr_op,
 )
+from guppylang_internals.definition.alias import RawTypeAliasDef
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.const import RawConstDef
 from guppylang_internals.definition.custom import (
@@ -352,6 +353,20 @@ class _Guppy:
         # We're pretending to return a `typing.TypeVar`, but in fact we return a special
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
+
+    def type_alias(self, ty: str) -> Any:
+        """Creates a new type alias."""
+        type_ast = _parse_expr_string(
+            ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
+        )
+        defn = RawTypeAliasDef(
+            DefId.fresh(),
+            ty,
+            type_ast,
+            type_ast,
+        )
+        DEF_STORE.register_def(defn, get_calling_frame())
+        return GuppyDefinition(defn)
 
     @deprecated("Use @guppylang_internal.decorator.custom_function instead.")
     def custom(
