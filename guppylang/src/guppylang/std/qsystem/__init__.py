@@ -4,7 +4,7 @@ from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type, hugr_op
 from guppylang_internals.std._internal.compiler.quantum import (
-    InoutMeasureCompilerMsmt,
+    InoutMeasureCompiler,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_EXTENSION,
@@ -123,7 +123,7 @@ def measure(q: qubit @ owned) -> Measurement:
     """
 
 
-@custom_function(InoutMeasureCompilerMsmt("MeasureReset", QSYSTEM_EXTENSION))
+@custom_function(InoutMeasureCompiler("MeasureReset", QSYSTEM_EXTENSION))
 @no_type_check
 def measure_and_reset(q: qubit) -> Measurement:
     """Like `measure`, but also resets the qubit after measurement."""

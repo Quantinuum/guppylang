@@ -6,7 +6,7 @@ from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type, hugr_op
 from guppylang_internals.std._internal.compiler.quantum import (
-    InoutMeasureCompilerBool,
+    InoutMeasureCompiler,
     RotationCompiler,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import MEASUREMENT_EXTENSION
@@ -29,7 +29,7 @@ class qubit:
 
     @guppy
     @no_type_check
-    def measure(self: "qubit" @ owned) -> bool:
+    def measure(self: "qubit" @ owned) -> "Measurement":
         return measure(self)
 
     @guppy
@@ -371,7 +371,7 @@ def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
     """
 
 
-@custom_function(InoutMeasureCompilerBool())
+@custom_function(InoutMeasureCompiler(use_bool=True))
 @no_type_check
 def project_z(q: qubit) -> bool:
     """Project a single qubit into the Z-basis (a non-destructive measurement)."""

@@ -41,11 +41,12 @@ def test_qsystem(validate):  # type: ignore[no-untyped-def]
         q1, q2 = zz_phase(q1, q2, a1)
         q1 = rz(q1, a1)
         q1, q2 = zz_max(q1, q2)
-        q1, b = measure_and_reset(q1)
+        q1, msmt1 = measure_and_reset(q1)
+        msmt1.read()
         q1 = reset(q1)
-        b = measure(q1)
+        msmt2 = measure(q1)
         qfree(q2)
-        return b
+        return msmt2
 
     validate(test.compile_function())
 
@@ -152,11 +153,9 @@ def test_lazy_measure_and_reset(validate, run_int_fn):  # type: ignore[no-untype
     def test() -> int:
         q = qubit()
         x(q)
-        first_result = lazy_measure_and_reset(q)
-        second_result = measure(q)
-        if (
-            first_result.read() and not second_result.read()
-        ):  # First expect flip, then expect reset
+        first_result = lazy_measure_and_reset(q).read()
+        second_result = measure(q).read()
+        if first_result and not second_result:  # First expect flip, then expect reset
             return 1
         return 0
 

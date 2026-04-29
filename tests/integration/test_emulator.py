@@ -55,7 +55,7 @@ def test_basic_emulation() -> None:
     def main() -> None:
         q = qubit()
         h(q)
-        result("c", measure(q))
+        result("c", measure(q).read())
 
     res = main.emulator(1).statevector_sim().with_seed(42).run()
     expected = EmulatorResult([[("c", True)]])
@@ -218,7 +218,7 @@ def test_4pi():
         cx(aux, tgt)
         h(aux)
 
-        result("aux", measure(aux))
+        result("aux", measure(aux).read())
         discard(tgt)
 
     res = _build_run(main, n_qubits=2, n_shots=1).results[0].entries
@@ -256,8 +256,8 @@ def test_qsystem():
 
         h(a)
         h(b)
-        result("a", measure(a))
-        result("b", measure(b))
+        result("a", measure(a).read())
+        result("b", measure(b).read())
 
     # deterministic - should always be 0
     res = _build_run(main, n_qubits=2)
@@ -277,7 +277,7 @@ def test_alloc_free():
         reset(q1)
         qfree(q1)
         b2 = project_z(q0)
-        result("c0", b1)
+        result("c0", b1.read())
         result("c1", b2)
         result("c2", measure(q0).read())
 

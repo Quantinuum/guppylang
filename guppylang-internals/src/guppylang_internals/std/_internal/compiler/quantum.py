@@ -42,56 +42,35 @@ def from_halfturns_unchecked() -> ops.ExtOp:
 # ------------------------------------------------------
 
 
-class InoutMeasureCompilerBool(CustomInoutCallCompiler):
-    """Compiler for the measure functions with an inout qubit and a bool
-    such as the `project_z` function"""
+class InoutMeasureCompiler(CustomInoutCallCompiler):
+    """Compiler for the measure functions with an inout qubit"""
 
     opname: str
     ext: he.Extension
+    use_bool: bool
 
-    def __init__(self, opname: str | None = None, ext: he.Extension | None = None):
+    def __init__(
+        self,
+        opname: str | None = None,
+        ext: he.Extension | None = None,
+        use_bool: bool = False,
+    ):
         self.opname = opname or "Measure"
         self.ext = ext or QUANTUM_EXTENSION
+        self.use_bool = use_bool
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         from guppylang_internals.std._internal.util import quantum_op
 
-        [q] = args
-        [q, bit] = self.builder.add_op(
-            quantum_op(self.opname, ext=self.ext)(
-                ht.FunctionType([ht.Qubit], [ht.Qubit, ht.Bool]), (), self.ctx
-            ),
-            q,
+        return_ty = (
+            ht.Bool
+            if self.use_bool
+            else ht.ExtType(MEASUREMENT_EXTENSION.get_type("Measurement"))
         )
-        return CallReturnWires(regular_returns=[bit], inout_returns=[q])
-
-
-class InoutMeasureCompilerMsmt(CustomInoutCallCompiler):
-    """Compiler for the measure functions with an inout qubit and a measurement
-    such as the `project_z` function"""
-
-    opname: str
-    ext: he.Extension
-
-    def __init__(self, opname: str | None = None, ext: he.Extension | None = None):
-        self.opname = opname or "Measure"
-        self.ext = ext or QUANTUM_EXTENSION
-
-    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
-        from guppylang_internals.std._internal.util import quantum_op
-
         [q] = args
         [q, bit] = self.builder.add_op(
             quantum_op(self.opname, ext=self.ext)(
-                ht.FunctionType(
-                    [ht.Qubit],
-                    [
-                        ht.ExtType(MEASUREMENT_EXTENSION.get_type("Measurement")),
-                        ht.Bool,
-                    ],
-                ),
-                (),
-                self.ctx,
+                ht.FunctionType([ht.Qubit], [ht.Qubit, return_ty]), (), self.ctx
             ),
             q,
         )

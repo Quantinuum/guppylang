@@ -10,7 +10,7 @@ from guppylang.decorator import guppy
 from guppylang.std import qsystem
 from guppylang.std.angles import angle
 from guppylang.std.builtins import owned
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import Measurement, qubit
 
 
 @guppy
@@ -31,7 +31,7 @@ def zz_phase(q1: qubit @ owned, q2: qubit @ owned, angle: angle) -> tuple[qubit,
 
 @guppy
 @no_type_check
-def measure_and_reset(q: qubit @ owned) -> tuple[qubit, bool]:
+def measure_and_reset(q: qubit @ owned) -> tuple[qubit, Measurement]:
     """Functional measure_and_reset command."""
     b = qsystem.measure_and_reset(q)
     return q, b
@@ -55,7 +55,7 @@ def rz(q: qubit @ owned, angle: angle) -> qubit:
 
 @guppy
 @no_type_check
-def measure(q: qubit @ owned) -> bool:
+def measure(q: qubit @ owned) -> Measurement:
     """Functional destructive measurement command."""
     result = qsystem.measure(q)
     return result
