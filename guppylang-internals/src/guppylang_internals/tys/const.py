@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias
 
-from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.common import Transformable, Transformer, Visitor
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
@@ -21,11 +20,7 @@ class ConstBase(Transformable["Const"], ABC):
     we could have struct constants etc.
     """
 
-    ty: "Type" = field(hash=False)  # Types are not hashable
-
-    def __post_init__(self) -> None:
-        if self.ty.unsolved_vars:
-            raise InternalGuppyError("Attempted to create constant with unsolved type")
+    ty: "Type" = field(compare=False, hash=False)  # Types are not hashable
 
     @abstractmethod
     def cast(self) -> "Const":
@@ -137,7 +132,7 @@ class ExistentialConstVar(ExistentialVar, ConstBase):
     def transform(self, transformer: Transformer, /) -> "Const":
         """Accepts a transformer on this constant."""
         return transformer.transform(self) or ExistentialConstVar(
-            transformer.transform(self.ty) or self.ty, self.display_name, self.id
+            self.ty.transform(transformer) or self.ty, self.display_name, self.id
         )
 
 
