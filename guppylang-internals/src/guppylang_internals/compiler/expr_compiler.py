@@ -9,7 +9,7 @@ import hugr.std.float
 import hugr.std.int
 import hugr.std.logic
 import hugr.std.prelude
-from hugr import Wire, ops
+from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.build.cond_loop import Conditional
@@ -554,39 +554,34 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         op = ops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args)
 
+        qubit_arr_in: Node | list[Wire]
         if not node.array_len:
-            # If the input is a sequence of qubits, we pack them into an array.
+            # If the input is a sequence of qubits, we pack them into an array first.
             qubits_in = [self.visit(e) for e in node.args[1:]]
             qubit_arr_in = self.builder.add_op(
                 array_new(ht.Qubit, len(node.args) - 1), *qubits_in
             )
-            # Turn into standard array from borrow array.
-            qubit_arr_in = self.builder.add_op(
-                array_to_std_array(ht.Qubit, num_qubits_arg),
-                qubit_arr_in,
-            )
+        else:
+            qubit_arr_in = [self.visit(node.args[1])]
+        # Turn into standard array from borrow array.
+        qubit_arr_in = self.builder.add_op(
+            array_to_std_array(ht.Qubit, num_qubits_arg),
+            *qubit_arr_in,
+        )
 
-            qubit_arr_out = self.builder.add_op(op, qubit_arr_in)
+        qubit_arr_out = self.builder.add_op(op, qubit_arr_in)
 
-            qubit_arr_out = self.builder.add_op(
-                std_array_to_array(ht.Qubit, num_qubits_arg),
-                qubit_arr_out,
-            )
+        # Convert back from standard array to borrow array.
+        qubit_arr_out = self.builder.add_op(
+            std_array_to_array(ht.Qubit, num_qubits_arg),
+            qubit_arr_out,
+        )
+        qubits_out: Node | list[Wire]
+        if not node.array_len:
+            # Unpack into individual qubits again.
             qubits_out = unpack_array(self.builder, qubit_arr_out)
         else:
-            # If the input is an array of qubits, we need to convert to a standard
-            # array.
-            qubits_in = [self.visit(node.args[1])]
-            qubits_out = [
-                apply_op_with_borrow_array_conversion(
-                    self.ctx,
-                    self.builder,
-                    op,
-                    ht.Qubit,
-                    num_qubits_arg,
-                    qubits_in[0],
-                )
-            ]
+            qubits_out = qubit_arr_out
 
         self._update_inout_ports(node.args, iter(qubits_out), node.func_ty)
         return self._pack_returns([], NoneType())
@@ -796,24 +791,3 @@ T = TypeVar("T")
 def doesnt_contain_none(xs: list[T | None]) -> TypeGuard[list[T]]:
     """Checks if a list contains `None`."""
     return all(x is not None for x in xs)
-
-
-def apply_op_with_borrow_array_conversion(
-    ctx: CompilerContext,
-    builder: DFBuilder[ops.DfParentOp],
-    op: ops.DataflowOp,
-    elem_ty: ht.Type,
-    size_arg: ht.TypeArg,
-    input_array: Wire,
-) -> Wire:
-    """Transforms a Guppy borrow array before it can be passed to a Hugr op operating on
-    a standard Hugr array, and then reverses the transformation again on the output
-    array.
-    """
-    input_array = builder.add_op(
-        array_to_std_array(elem_ty, size_arg),
-        input_array,
-    )
-    result_array = builder.add_op(op, input_array)
-    result_array = builder.add_op(std_array_to_array(elem_ty, size_arg), result_array)
-    return result_array

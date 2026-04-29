@@ -215,6 +215,20 @@ N = guppy.nat_var("N")
 
 @guppy
 @no_type_check
+def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
+    """Measure an array of qubits, returning an array of bools."""
+    return array(measure(q) for q in qubits)
+
+
+@guppy
+@no_type_check
+def measure_and_reset_array(qubits: array[qubit, N]) -> array[Measurement, N]:
+    """Measure and reset an array of qubits, returning an array of bools."""
+    return array(measure_and_reset(qubits[i]) for i in range(N))
+
+
+@guppy
+@no_type_check
 def lazy_measure_array(
     qubits: array[qubit, N] @ owned,
 ) -> array["Measurement", N]:
@@ -222,6 +236,17 @@ def lazy_measure_array(
     lazy.
     """
     return array(lazy_measure(q) for q in qubits)
+
+
+@guppy
+@no_type_check
+def lazy_measure_and_reset_array(
+    qubits: array[qubit, N],
+) -> array["Measurement", N]:
+    """Same as `measure_and_reset_array` as the standard measurement behaviour is
+    already lazy.
+    """
+    return array(lazy_measure_and_reset(qubits[i]) for i in range(N))
 
 
 # ------------------------------------------------------

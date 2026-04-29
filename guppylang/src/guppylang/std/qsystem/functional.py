@@ -59,7 +59,7 @@ def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
 @no_type_check
 def measure_and_reset_array(
     qubits: array[qubit, N] @ owned,
-) -> tuple[array[qubit, N], array[bool, N]]:
+) -> tuple[array[qubit, N], array[Measurement, N]]:
     """Functional measure_and_reset_array command."""
     bs = qsystem.measure_and_reset_array(qubits)
     return qubits, bs

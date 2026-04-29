@@ -175,7 +175,7 @@ def test_lazy_measure_and_reset_functional(validate, run_int_fn):  # type: ignor
         q = qubit()
         x(q)
         q, first_result = lazy_measure_and_reset_fn(q)
-        second_result = measure(q)
+        second_result = measure(q).read()
         if first_result.read() and not second_result:
             return 1
         return 0
@@ -195,8 +195,8 @@ def test_measure_and_reset_array(validate, run_int_fn):  # type: ignore[no-untyp
             if pattern[i]:
                 x(qubits[i])
 
-        first = measure_and_reset_array(qubits)
-        second = qsystem_measure_array(qubits)
+        first = collect_measurements(measure_and_reset_array(qubits))
+        second = collect_measurements(qsystem_measure_array(qubits))
 
         for i in range(len(first)):
             if int(first[i]) != pattern[i] or second[i]:
@@ -218,7 +218,7 @@ def test_measure_array_functional(validate, run_int_fn):  # type: ignore[no-unty
             if pattern[i]:
                 x(qubits[i])
 
-        bits = measure_array_fn(qubits)
+        bits = collect_measurements(measure_array_fn(qubits))
 
         for i in range(len(bits)):
             if int(bits[i]) != pattern[i]:
@@ -240,8 +240,9 @@ def test_measure_and_reset_array_functional(validate, run_int_fn):  # type: igno
             if pattern[i]:
                 x(qubits[i])
 
-        qubits, first = measure_and_reset_array_fn(qubits)
-        second = measure_array(qubits)
+        qubits, first_msmts = measure_and_reset_array_fn(qubits)
+        first = collect_measurements(first_msmts)
+        second = collect_measurements(measure_array(qubits))
 
         for i in range(len(first)):
             if int(first[i]) != pattern[i] or second[i]:
@@ -263,12 +264,12 @@ def test_lazy_measure_and_reset_array_functional(validate, run_int_fn):  # type:
             if pattern[i]:
                 x(qubits[i])
 
-        qubits, measurements = lazy_measure_and_reset_array_fn(qubits)
-        results = collect_measurements(measurements)
-        second = qsystem_measure_array(qubits)
+        qubits, first_msmts = lazy_measure_and_reset_array_fn(qubits)
+        first = collect_measurements(first_msmts)
+        second = collect_measurements(qsystem_measure_array(qubits))
 
-        for i in range(len(results)):
-            if int(results[i]) != pattern[i] or second[i]:
+        for i in range(len(first)):
+            if int(first[i]) != pattern[i] or second[i]:
                 return 0
         return 1
 
