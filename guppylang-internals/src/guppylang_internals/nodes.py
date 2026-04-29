@@ -787,16 +787,19 @@ class ModifiedBlock(ast.With):
     parameters:
     - `cfg`: the CFG of the body of the block
     - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    - `accumulated_flags`: the UnitaryFlags accumulated from outer modified blocks
     """
 
     cfg: "CFG"
     first_modifier_node: ast.expr
+    accumulated_flags: UnitaryFlags
 
     def __init__(
         self,
         cfg: "CFG",
         modifiers: "Modifiers",
         first_modifier_node: ast.expr,
+        accumulated_flags: UnitaryFlags,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -804,6 +807,7 @@ class ModifiedBlock(ast.With):
         self.cfg = cfg
         self.modifiers = modifiers
         self.first_modifier_node = first_modifier_node
+        self.accumulated_flags = accumulated_flags
 
     @property
     def dagger(self) -> list[Dagger]:
@@ -835,16 +839,6 @@ class ModifiedBlock(ast.With):
             to_span(self.items[0].context_expr).start,
             to_span(self.items[-1].context_expr).end,
         )
-
-    def flags(self) -> UnitaryFlags:
-        flags = UnitaryFlags.NoFlags
-        if self.has_dagger():
-            flags |= UnitaryFlags.Dagger
-        if self.has_control():
-            flags |= UnitaryFlags.Control
-        if self.has_power():
-            flags |= UnitaryFlags.Power
-        return flags
 
 
 class CheckedModifiedBlock(ast.With):
