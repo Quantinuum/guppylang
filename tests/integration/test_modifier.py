@@ -14,6 +14,15 @@ def test_dagger_simple(validate):
     validate(bar.compile_function())
 
 
+def test_dagger_call_simple(validate):
+    @guppy
+    def bar() -> None:
+        with dagger():
+            pass
+
+    validate(bar.compile_function())
+
+
 def test_control_simple(validate):
     @guppy
     def bar(q: qubit) -> None:

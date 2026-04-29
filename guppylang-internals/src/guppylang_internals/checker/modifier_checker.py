@@ -37,7 +37,7 @@ def check_modified_block(
         if x in ctx.locals
     }
 
-    # We do not allow any assignments if it is daggered.
+    # We do not allow any loop if it is daggered.
     if modified_block.has_dagger():
         for stmt in modified_block.body:
             loops = loop_in_ast(stmt)
