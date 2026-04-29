@@ -38,22 +38,12 @@ def check_modified_block(
     }
 
     # We do not allow any assignments if it is daggered.
-    # TODO NICOLA here I want to allow th
     if modified_block.has_dagger():
         for stmt in modified_block.body:
             loops = loop_in_ast(stmt)
             if len(loops) != 0:
                 loop = next(iter(loops))
                 err = InvalidUnderDagger(loop, "Loop")
-                err.add_sub_diagnostic(
-                    InvalidUnderDagger.Dagger(modified_block.span_ctxt_manager())
-                )
-                raise GuppyError(err)
-
-        for cfg_bb in cfg.bbs:
-            if cfg_bb.vars.assigned:
-                _, v = next(iter(cfg_bb.vars.assigned.items()))
-                err = InvalidUnderDagger(v, "Assignment")
                 err.add_sub_diagnostic(
                     InvalidUnderDagger.Dagger(modified_block.span_ctxt_manager())
                 )
