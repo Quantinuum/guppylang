@@ -26,7 +26,7 @@ jobs:
         uses: bencherdev/bencher@main
 
       - name: Set up Just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
 
       - name: Track base branch benchmarks with Bencher
         run: |

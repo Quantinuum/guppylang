@@ -1,7 +1,7 @@
 Error: Value mismatch (at $FILE:12:12)
    | 
 10 | @guppy
-11 | def main(n: nat @ comptime) -> None:
+11 | def bar(n: nat @ comptime) -> None:
 12 |     foo[42](n)
    |             ^ Expected constant `42`, got `n`
 

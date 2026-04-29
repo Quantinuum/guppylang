@@ -36,6 +36,16 @@ class ComptimeExprNotStaticError(Error):
 
 
 @dataclass(frozen=True)
+class ComptimeExprTypeVarError(Error):
+    title: ClassVar[str] = "Not compile-time evaluatable"
+    span_label: ClassVar[str] = (
+        "Value of type variable `{type_var}` cannot be accessed in a comptime "
+        "expression"
+    )
+    type_var: str
+
+
+@dataclass(frozen=True)
 class ComptimeExprEvalError(Error):
     title: ClassVar[str] = "Python error"
     span_label: ClassVar[str] = (

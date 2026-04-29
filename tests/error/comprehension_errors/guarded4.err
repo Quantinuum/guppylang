@@ -1,0 +1,15 @@
+Error: Drop violation (at $FILE:18:18)
+   | 
+16 | @guppy
+17 | def foo(qe: list[MyEnum] @owned, b: bool) -> list[MyEnum]:
+18 |     return [e for e in qe if bar(b)]
+   |                   ^ Variable `e` with non-droppable type `MyEnum` may be leaked
+   |                     ...
+
+Note:
+   | 
+17 | def foo(qe: list[MyEnum] @owned, b: bool) -> list[MyEnum]:
+18 |     return [e for e in qe if bar(b)]
+   |                              ------ if this expression is `False`
+
+Guppy compilation failed due to 1 previous error

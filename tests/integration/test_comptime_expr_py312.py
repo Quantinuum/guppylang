@@ -17,3 +17,17 @@ def test_generic(validate):
         foo[comptime(N)]()
 
     validate(main.compile_function())
+
+
+def test_use_generic(run_int_fn):
+    n = 0  # Test that this n is not captured
+
+    @guppy
+    def foo[n: nat, m: nat]() -> int:
+        return int(comptime(n - m + 1))
+
+    @guppy
+    def main() -> int:
+        return foo[20, 10]()
+
+    run_int_fn(main, 11)

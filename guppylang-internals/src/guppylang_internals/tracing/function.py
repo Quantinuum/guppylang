@@ -7,12 +7,20 @@ from hugr.build.dfg import DfBase
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
-from guppylang_internals.checker.core import ComptimeVariable, Context, Locals, Variable
+from guppylang_internals.checker.core import (
+    ComptimeVariable,
+    Context,
+    Globals,
+    Locals,
+    Variable,
+)
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
+from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
+from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyComptimeError, GuppyError, exception_hook
 from guppylang_internals.nodes import PlaceNode
 from guppylang_internals.tracing.builtins_mock import mock_builtins
@@ -29,12 +37,20 @@ from guppylang_internals.tracing.unpacking import (
     update_packed_value,
 )
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
-from guppylang_internals.tys.ty import FunctionType, InputFlags, type_to_row, unify
+from guppylang_internals.tys.ty import (
+    FunctionType,
+    InputFlags,
+    UnitaryFlags,
+    type_to_row,
+    unify,
+)
 
 if TYPE_CHECKING:
     import ast
 
     from hugr import Wire
+
+    from guppylang_internals.definition.traced import CompiledTracedFunctionDef
 
 
 @dataclass(frozen=True)
@@ -50,13 +66,14 @@ def trace_function(
     builder: DfBase[P],
     ctx: CompilerContext,
     node: AstNode,
+    func_def: "CompiledTracedFunctionDef",
 ) -> None:
     """Kicks off tracing of a function.
 
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
-    state = TracingState(ctx, DFContainer(builder, ctx, {}), node)
+    state = TracingState(ctx, DFContainer(builder, ctx, {}), node, func_def)
     with set_tracing_state(state):
         inputs = [
             unpack_guppy_object(
@@ -135,7 +152,6 @@ def trace_function(
     builder.set_outputs(*regular_returns, *inout_returns)
 
 
-@capture_guppy_errors
 def trace_call(func: CallableDef, *args: Any) -> Any:
     """Handles calls to Guppy functions during tracing.
 
@@ -144,28 +160,36 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     """
     state = get_tracing_state()
 
-    # Try to turn args into `GuppyObjects`
-    args_objs = [
-        guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
-        for arg in args
-    ]
+    with capture_guppy_errors():
+        # Try to turn args into `GuppyObjects`
+        args_objs = [
+            guppy_object_from_py(
+                arg, state.dfg.builder.raw_builder, state.node, state.ctx
+            )
+            for arg in args
+        ]
 
-    # Create dummy variables and bind the objects to them
-    arg_vars: list[Variable] = [
-        ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
-        for (obj, arg) in zip(args_objs, args, strict=True)
-    ]
-    locals = Locals({var.name: var for var in arg_vars})
-    for obj, var in zip(args_objs, arg_vars, strict=True):
-        state.dfg[var] = obj._use_wire(func)
+        # Create dummy variables and bind the objects to them
+        arg_vars: list[Variable] = [
+            ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
+            for (obj, arg) in zip(args_objs, args, strict=True)
+        ]
+        locals = Locals({var.name: var for var in arg_vars})
+        for obj, var in zip(args_objs, arg_vars, strict=True):
+            state.dfg[var] = obj._use_wire(func)
 
-    # Check call
-    arg_exprs: list[ast.expr] = [
-        with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
-    ]
-    call_node, ret_ty = func.synthesize_call(
-        arg_exprs, state.node, Context(state.globals, locals, {})
-    )
+        # Check call
+        arg_exprs: list[ast.expr] = [
+            with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
+        ]
+        ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
+        call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
+
+        # Here we check if unitary constraints are respected by the caller
+        unitary_flag = state.function_definition.unitary_flags
+        if unitary_flag != UnitaryFlags.NoFlags:
+            unitary_checker = BBUnitaryChecker()
+            unitary_checker.check([call_node], unitary_flag)
 
     # Compile call
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)
@@ -182,7 +206,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                 ty = var.ty
                 inout_wire = state.dfg[var]
                 success = update_packed_value(
-                    arg, GuppyObject(ty, inout_wire), state.dfg.builder
+                    arg, GuppyObject(ty, inout_wire), state.dfg.builder.raw_builder
                 )
                 if not success:
                     # This means the user has passed an object that we cannot update,
@@ -193,4 +217,4 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                     )
 
     ret_obj = GuppyObject(ret_ty, ret_wire)
-    return unpack_guppy_object(ret_obj, state.dfg.builder)
+    return unpack_guppy_object(ret_obj, state.dfg.builder.raw_builder)

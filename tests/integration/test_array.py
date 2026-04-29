@@ -8,6 +8,7 @@ from guppylang.std.builtins import array, owned
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.platform import result
+from guppylang_internals.std._internal.compiler.arithmetic import UnsignedIntVal
 from tests.util import compile_guppy
 
 from guppylang.std.quantum import qubit, discard, measure, h, cx, discard_array
@@ -34,22 +35,28 @@ def test_len_generic(validate):
     n = guppy.nat_var("n")
 
     @guppy
-    def main(qs: array[bool, n]) -> bool:
+    def foo(qs: array[bool, n]) -> bool:
         for i in range(len(qs)):
             if qs[i]:
                 return True
         return False
 
+    @guppy
+    def main() -> None:
+        foo(array())
+        foo(array(True))
+        foo(array(True, False))
+
     package = main.compile_function()
     validate(package)
 
     hg = package.modules[0]
-    load_nats = [
-        data.op
+    nat_consts = [
+        data.op.val.v
         for _, data in hg.nodes()
-        if isinstance(data.op, ops.ExtOp) and data.op.op_def().name == "load_nat"
+        if isinstance(data.op, ops.Const) and isinstance(data.op.val, UnsignedIntVal)
     ]
-    assert len(load_nats) == 1
+    assert set(nat_consts) == {0, 1, 2}
 
 
 def test_index(validate):
@@ -187,6 +194,26 @@ def test_struct_array(validate):
         # with `qubit | None` and write back `None` after `q1` has been extracted...
         foo(ss[0].q1, ss[0].q2)
         return ss
+
+    validate(main.compile_function())
+
+
+def test_enum_array(validate):
+    @guppy.enum
+    class E:
+        VariantA = {"q1": qubit, "q2": qubit}
+
+        @guppy
+        def foo(self: "E") -> int:
+            return 42
+
+    @guppy.declare
+    def foo(i: int) -> None: ...
+
+    @guppy
+    def main(es: array[E, 10] @ owned) -> array[E, 10]:
+        foo(es[0].foo())
+        return es
 
     validate(main.compile_function())
 
@@ -690,7 +717,6 @@ def test_take_put(validate):
 
 
 def test_discard_borrowed(validate):
-
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())
@@ -708,7 +734,6 @@ def test_discard_borrowed(validate):
 
 
 def test_discard_all_taken(validate):
-
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())
@@ -722,7 +747,6 @@ def test_discard_all_taken(validate):
 
 
 def test_discard_not_all_taken(validate):
-
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())
@@ -737,7 +761,6 @@ def test_discard_not_all_taken(validate):
 
 
 def test_try_discard_all_taken(validate):
-
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())

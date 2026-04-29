@@ -7,6 +7,7 @@ import hugr.build.function as hf
 import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.metadata import HugrDebugInfo
 
 from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals
@@ -19,11 +20,15 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CompilableDef,
     ParsableDef,
 )
-from guppylang_internals.definition.function import parse_py_func
+from guppylang_internals.definition.function import (
+    make_subprogram_record,
+    parse_py_func,
+)
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -31,10 +36,11 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.error import GuppyError
+from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import FunctionType, Type, type_to_row
+from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
 PyFunc = Callable[..., Any]
 
@@ -45,18 +51,31 @@ class RawTracedFunctionDef(ParsableDef):
 
     description: str = field(default="function", init=False)
 
+    unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
+
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, _docstring = parse_py_func(self.python_func, sources)
-        ty = check_signature(func_ast, globals, self.id)
+        ty = check_signature(
+            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+        )
         if ty.parametrized:
             raise GuppyError(UnsupportedError(func_ast, "Generic comptime functions"))
-        return TracedFunctionDef(self.id, self.name, func_ast, ty, self.python_func)
+        return TracedFunctionDef(
+            self.id,
+            self.name,
+            func_ast,
+            ty,
+            self.python_func,
+            unitary_flags=self.unitary_flags,
+            metadata=self.metadata,
+        )
 
 
 @dataclass(frozen=True)
 class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
-    python_func: PyFunc
     ty: FunctionType
     defined_at: ast.FunctionDef
 
@@ -91,6 +110,15 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         func_def = module.module_root_builder().define_function(
             self.name, func_type.body.input, func_type.body.output, func_type.params
         )
+        add_metadata(
+            func_def,
+            self.metadata,
+            additional_metadata={"unitary": self.ty.unitary_flags.value},
+        )
+        if debug_mode_enabled():
+            func_def.metadata[HugrDebugInfo] = make_subprogram_record(
+                self.defined_at, ctx
+            )
         return CompiledTracedFunctionDef(
             self.id,
             self.name,
@@ -98,6 +126,8 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
             self.ty,
             self.python_func,
             func_def,
+            unitary_flags=self.unitary_flags,
+            metadata=self.metadata,
         )
 
 
@@ -112,14 +142,9 @@ class CompiledTracedFunctionDef(
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
-    def load_with_args(
-        self,
-        type_args: Inst,
-        dfg: DFContainer,
-        ctx: CompilerContext,
-        node: AstNode,
-    ) -> Wire:
+    def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
+        type_args: Inst = ()  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
         type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         return dfg.builder.load_function(self.func_def, func_ty, type_args)
@@ -127,18 +152,19 @@ class CompiledTracedFunctionDef(
     def compile_call(
         self,
         args: list[Wire],
-        type_args: Inst,
         dfg: DFContainer,
         ctx: CompilerContext,
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
+        type_args: Inst = ()  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
         type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         num_returns = len(type_to_row(self.ty.output))
-        call = dfg.builder.call(
-            self.func_def, *args, instantiation=func_ty, type_args=type_args
-        )
+        with dfg.builder.set_ast_context(node):
+            call = dfg.builder.call(
+                self.func_def, *args, instantiation=func_ty, type_args=type_args
+            )
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
             inout_returns=list(call[num_returns:]),
@@ -148,4 +174,11 @@ class CompiledTracedFunctionDef(
         """Compiles the body of the function by tracing it."""
         from guppylang_internals.tracing.function import trace_function
 
-        trace_function(self.python_func, self.ty, self.func_def, ctx, self.defined_at)
+        trace_function(
+            self.python_func,
+            self.ty,
+            self.func_def,
+            ctx,
+            self.defined_at,
+            self,
+        )

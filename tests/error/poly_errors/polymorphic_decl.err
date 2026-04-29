@@ -1,9 +1,9 @@
-Error: Invalid function declaration (at $FILE:14:0)
+Error: Invalid entry point (at $FILE:14:0)
    | 
 12 | 
 13 | @guppy.declare
 14 | def main(_: Struct[F]) -> float: ...
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Function declaration `main` is not allowed to be generic
-   |                                      over `F: float`
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Value `main` is not a valid compilation entry point since
+   |                                      the value of its generic parameter `F` is not known
 
 Guppy compilation failed due to 1 previous error

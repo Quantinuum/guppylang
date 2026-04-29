@@ -1,6 +1,6 @@
 """Tests Python 3.12 style generic syntax."""
 
-from guppylang import array
+from guppylang import array, qubit
 from guppylang.decorator import guppy
 from guppylang.std.lang import Copy, Drop, owned, comptime
 from guppylang.std.num import nat
@@ -9,8 +9,13 @@ from guppylang.std.option import Option, nothing
 
 def test_function(validate):
     @guppy
-    def main[S, T](x: S @ owned, y: T @ owned) -> tuple[T, S]:
+    def foo[S, T](x: S @ owned, y: T @ owned) -> tuple[T, S]:
         return y, x
+
+    @guppy
+    def main() -> None:
+        foo(1, 2)
+        foo(True, False)
 
     validate(main.compile_function())
 
@@ -28,6 +33,20 @@ def test_struct(validate):
     validate(main.compile_function())
 
 
+def test_enum(validate):
+    @guppy.enum
+    class MyEnum[S, T]:
+        VariantA = {"x": S}
+        VariantB = {"x": S, "y": T}
+
+    @guppy
+    def main() -> None:
+        MyEnum.VariantA[int, float](1)
+        MyEnum.VariantB[int, float](2, 3.0)
+
+    validate(main.compile_function())
+
+
 def test_inner_frame(validate):
     """See https://github.com/quantinuum/guppylang/issues/1116"""
 
@@ -38,9 +57,18 @@ def test_inner_frame(validate):
             def foo(self: "MyStruct[int]") -> None:
                 pass
 
+        @guppy.enum
+        class MyEnum[T]:
+            VariantA = {}
+
+            @guppy
+            def method(self: "MyEnum[int]") -> None:
+                pass
+
         @guppy
         def main() -> None:
             MyStruct[int]().foo()
+            MyEnum.VariantA[int]().method()
 
         return main
 
@@ -48,13 +76,29 @@ def test_inner_frame(validate):
 
 
 def test_copy_bound(validate):
+
     @guppy.struct
     class MyStruct[T: Copy]:
         x: T
 
+    @guppy.enum
+    class MyEnum[T: Copy]:
+        VariantA = {"x": T}
+
     @guppy
-    def main[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
+    def foo_enum[T: Copy](e1: MyEnum[T]) -> tuple[MyEnum[T], MyEnum[T]]:
+        return e1, e1
+
+    @guppy
+    def foo_struct[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
         return s.x, s.x
+
+    @guppy
+    def main() -> None:
+        foo_struct(MyStruct(42))
+        foo_struct(MyStruct(False))
+        foo_enum(MyEnum.VariantA[int](42))
+        foo_enum(MyEnum.VariantA[bool](False))
 
     validate(main.compile_function())
 
@@ -64,13 +108,19 @@ def test_drop_bound(validate):
     class MyStruct[T: Drop]:
         x: T
 
+    @guppy.enum
+    class MyEnum[T: Drop]:
+        VariantA = {"x": T}
+
     @guppy
-    def helper[T: Drop](s: MyStruct[T] @ owned) -> None:
+    def helper[T: Drop](s: MyStruct[T] @ owned, e: MyEnum[T] @ owned) -> None:
         pass
 
     @guppy
-    def main(s: MyStruct[array[int, 5]] @ owned) -> None:
-        helper(s)
+    def main(
+        s: MyStruct[array[int, 5]] @ owned, e: MyEnum[array[int, 5]] @ owned
+    ) -> None:
+        helper(s, e)
 
     validate(main.compile_function())
 
@@ -80,9 +130,30 @@ def test_copy_and_drop_bound(validate):
     class MyStruct[T: (Copy, Drop)]:
         x: T
 
+    @guppy.enum
+    class MyEnum[T: (Copy, Drop)]:
+        VariantA = {"x": T}
+
     @guppy
-    def main[T: (Copy, Drop)](s1: MyStruct[T], s2: MyStruct[T]) -> tuple[T, T]:
-        return s1.x, s1.x
+    def foo[T: (Copy, Drop)](
+        s1: MyStruct[T], s2: MyStruct[T], e1: MyEnum[T], e2: MyEnum[T]
+    ) -> tuple[T, T, MyEnum[T], MyEnum[T]]:
+        return s1.x, s1.x, e1, e1
+
+    @guppy
+    def main() -> None:
+        foo(
+            MyStruct(42),
+            MyStruct(43),
+            MyEnum.VariantA[int](42),
+            MyEnum.VariantA[int](43),
+        )
+        foo(
+            MyStruct(False),
+            MyStruct(True),
+            MyEnum.VariantA[bool](False),
+            MyEnum.VariantA[bool](True),
+        )
 
     validate(main.compile_function())
 
@@ -92,9 +163,19 @@ def test_const_param(validate):
     class MyStruct[T, n: nat]:
         xs: array[T, n]
 
+    @guppy.enum
+    class MyEnum[T, n: nat]:
+        VariantA = {"xs": array[T, n]}
+        VariantB = {}
+
     @guppy
-    def main[T, n: nat](xs: array[T, n], s: MyStruct[T, n]) -> nat:
+    def foo[T, n: nat](xs: array[T, n], s: MyStruct[T, n], e: MyEnum[T, n]) -> nat:
         return n
+
+    @guppy
+    def main() -> None:
+        foo(array(1, 2, 3), MyStruct(array(4, 5, 6)), MyEnum.VariantA(array(7, 8, 9)))
+        foo[float, 0](array(), MyStruct(array()), MyEnum.VariantB[float, 0]())
 
     validate(main.compile_function())
 
@@ -103,8 +184,13 @@ def test_mixed_legacy_params(validate):
     T = guppy.type_var("T", copyable=False, droppable=False)
 
     @guppy
-    def main[S](x: S @ owned, y: T @ owned) -> tuple[T, S]:
+    def foo[S](x: S @ owned, y: T @ owned) -> tuple[T, S]:
         return y, x
+
+    @guppy
+    def main() -> tuple[qubit, qubit]:
+        foo(1, 2)
+        return foo(qubit(), qubit())
 
     validate(main.compile_function())
 
@@ -185,8 +271,7 @@ def test_multi_dependent():
         return x, y.get(), z.get().get()
 
     # We can't define a main that calls `foo` since we don't have comptime constructors
-    # for structs yet. We can check that `foo` type checks though
-    foo.check()
+    # for structs yet. We can't even check that `foo` type checks
 
 
 def test_generic_tuple_chain(validate):

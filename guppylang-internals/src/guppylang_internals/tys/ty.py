@@ -12,7 +12,6 @@ from hugr import tys as ht
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
-    QuantifiedToHugrContext,
     ToHugr,
     ToHugrContext,
     Transformable,
@@ -206,7 +205,10 @@ class BoundTypeVar(TypeBase, BoundVar):
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
         """Computes the Hugr representation of the type."""
-        return ctx.type_var_to_hugr(self)
+        raise InternalGuppyError(
+            "Tried to convert generic variable to Hugr. This should have been "
+            "monomorphized away."
+        )
 
     def visit(self, visitor: Visitor) -> None:
         """Accepts a visitor on this type."""
@@ -281,11 +283,6 @@ class NoneType(TypeBase):
     copyable: bool = field(default=True, init=True)
     droppable: bool = field(default=True, init=True)
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
-
-    # Flag to avoid turning the type into a row when calling `type_to_row()`. This is
-    # used to make sure that type vars instantiated to Nones are not broken up into
-    # empty rows when generating a Hugr
-    preserve: bool = field(default=False, compare=False)
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
@@ -490,13 +487,13 @@ class FunctionType(ParametrizedTypeBase):
 
     def to_hugr_poly(self, ctx: ToHugrContext) -> ht.PolyFuncType:
         """Computes the Hugr `PolyFuncType` representation of the type."""
-        # Function body needs to be translated in a new context where the variables are
-        # bound to the quantifier.
-        inner_ctx = QuantifiedToHugrContext(self.params)
-        func_ty = self._to_hugr_function_type(inner_ctx)
-        return ht.PolyFuncType(
-            params=[p.to_hugr(ctx) for p in self.params], body=func_ty
-        )
+        if self.parametrized:
+            raise InternalGuppyError(
+                "Tried to convert parametrised function type to Hugr. This should have "
+                "been monomorphized away."
+            )
+        func_ty = self._to_hugr_function_type(ctx)
+        return ht.PolyFuncType(params=[], body=func_ty)
 
     def _to_hugr_function_type(self, ctx: ToHugrContext) -> ht.FunctionType:
         """Helper method to compute the Hugr `FunctionType` representation of the type.
@@ -536,6 +533,8 @@ class FunctionType(ParametrizedTypeBase):
             [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
             self.output.transform(transformer),
             self.params,
+            comptime_args=self.comptime_args,
+            unitary_flags=self.unitary_flags,
         )
 
     def instantiate_partial(self, args: "PartialInst") -> "FunctionType":
@@ -553,13 +552,6 @@ class FunctionType(ParametrizedTypeBase):
                 param = param.with_idx(len(remaining_params))
                 remaining_params.append(param.instantiate_bounds(full_inst))
                 arg = param.to_bound()
-
-            # Set the `preserve` flag for instantiated tuples and None
-            if isinstance(arg, TypeArg):
-                if isinstance(arg.ty, TupleType):
-                    arg = TypeArg(TupleType(arg.ty.element_types, preserve=True))
-                elif isinstance(arg.ty, NoneType):
-                    arg = TypeArg(NoneType(preserve=True))
             full_inst.append(arg)
 
         inst = Instantiator(full_inst)
@@ -571,6 +563,7 @@ class FunctionType(ParametrizedTypeBase):
             comptime_args=[
                 cast("ConstArg", arg.transform(inst)) for arg in self.comptime_args
             ],
+            unitary_flags=self.unitary_flags,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
@@ -579,8 +572,17 @@ class FunctionType(ParametrizedTypeBase):
 
     def unquantified(self) -> tuple["FunctionType", Sequence[ExistentialVar]]:
         """Instantiates all parameters with existential variables."""
-        exs = [param.to_existential() for param in self.params]
-        return self.instantiate([arg for arg, _ in exs]), [var for _, var in exs]
+        from guppylang_internals.tys.subst import Instantiator
+
+        args: list[Argument] = []
+        exes = []
+        for param in self.params:
+            arg, ex = param.to_existential()
+            inst = Instantiator(args)
+            exes.append(ex.transform(inst))
+            args.append(arg.transform(inst))
+
+        return self.instantiate(tuple(args)), exes
 
     def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
         """Returns a copy of this function type with the specified unitary flags."""
@@ -601,17 +603,11 @@ class TupleType(ParametrizedTypeBase):
 
     element_types: Sequence["Type"]
 
-    # Flag to avoid turning the tuple into a row when calling `type_to_row()`. This is
-    # used to make sure that type vars instantiated to tuples are not broken up into
-    # rows when generating a Hugr
-    preserve: bool = field(default=False, compare=False)
-
-    def __init__(self, element_types: Sequence["Type"], preserve: bool = False) -> None:
+    def __init__(self, element_types: Sequence["Type"]) -> None:
         # We need a custom __init__ to set the args
         args = [TypeArg(ty) for ty in element_types]
         object.__setattr__(self, "args", args)
         object.__setattr__(self, "element_types", element_types)
-        object.__setattr__(self, "preserve", preserve)
 
     @property
     def intrinsically_copyable(self) -> bool:
@@ -634,7 +630,7 @@ class TupleType(ParametrizedTypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or TupleType(
-            [ty.transform(transformer) for ty in self.element_types], self.preserve
+            [ty.transform(transformer) for ty in self.element_types]
         )
 
 
@@ -822,9 +818,9 @@ def row_to_type(row: TypeRow) -> Type:
 
 def type_to_row(ty: Type) -> TypeRow:
     """Turns a type into a row of types by unpacking top-level tuples."""
-    if isinstance(ty, NoneType) and not ty.preserve:
+    if isinstance(ty, NoneType):
         return []
-    if isinstance(ty, TupleType) and not ty.preserve:
+    if isinstance(ty, TupleType):
         return ty.element_types
     return [ty]
 
@@ -852,10 +848,14 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
     match s, t:
         case ExistentialVar(id=s_id), ExistentialVar(id=t_id) if s_id == t_id:
             return subst
-        case ExistentialTypeVar() | ExistentialConstVar() as s_var, t:
-            return _unify_var(s_var, t, subst)
-        case s, ExistentialTypeVar() | ExistentialConstVar() as t_var:
-            return _unify_var(t_var, s, subst)
+        case ExistentialTypeVar() as s_var, t if isinstance(t, Type):
+            return _unify_type_var(s_var, t, subst)
+        case ExistentialConstVar() as s_var, t if isinstance(t, Const):
+            return _unify_const_var(s_var, t, subst)
+        case s, ExistentialTypeVar() as t_var if isinstance(s, Type):
+            return _unify_type_var(t_var, s, subst)
+        case s, ExistentialConstVar() as t_var if isinstance(s, Const):
+            return _unify_const_var(t_var, s, subst)
         case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
             return subst
         case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
@@ -883,14 +883,32 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return None
 
 
-def _unify_var(
-    var: ExistentialTypeVar | ExistentialConstVar, t: Type | Const, subst: "Subst"
-) -> "Subst | None":
-    """Helper function for unification of type or const variables."""
+def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst | None":
+    """Helper function for unification of type variables."""
     if var in subst:
         return unify(subst[var], t, subst)
     if isinstance(t, ExistentialTypeVar) and t in subst:
         return unify(var, subst[t], subst)
+    if var in t.unsolved_vars:
+        return None
+    return {var: t, **subst}
+
+
+def _unify_const_var(
+    var: ExistentialConstVar, t: Const, subst: "Subst"
+) -> "Subst | None":
+    """Helper function for unification of const variables."""
+    from guppylang_internals.tys.subst import Substituter
+
+    subst = unify(var.ty, t.ty, subst)
+    if subst is None:
+        return None
+    # Update the existential type variables according to subst
+    var = replace(var, ty=var.ty.transform(Substituter(subst)))
+    t = t.transform(Substituter(subst))
+    if var in subst:
+        return unify(subst[var], t, subst)
+
     if var in t.unsolved_vars:
         return None
     return {var: t, **subst}

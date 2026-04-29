@@ -8,7 +8,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     IllegalComptimeExpressionError,
 )
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
-from guppylang_internals.compiler.core import CompilerContext
+from guppylang_internals.compiler.core import CompilerContext, DFBuilder
 from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.error import GuppyComptimeError, GuppyError
 from guppylang_internals.std._internal.compiler.array import array_new, unpack_array
@@ -72,7 +72,7 @@ def unpack_guppy_object(
                     # them as Guppy objects here
                     return obj
                 elem_ty = get_element_type(ty)
-                elems = unpack_array(builder, obj._use_wire(None))
+                elems = unpack_array(DFBuilder(builder), obj._use_wire(None))
                 obj_list = [
                     unpack_guppy_object(GuppyObject(elem_ty, wire), builder, frozen)
                     for wire in elems
@@ -140,7 +140,7 @@ def guppy_object_from_py(
             # TODO: Propagate type information?
             raise GuppyComptimeError("Cannot infer the type of empty list")
         case v:
-            ty = python_value_to_guppy_type(v, node, get_tracing_state().globals)
+            ty = python_value_to_guppy_type(v, node)
             if ty is None:
                 raise GuppyError(IllegalComptimeExpressionError(node, type(v)))
             hugr_val = python_value_to_hugr(v, ty, ctx)
@@ -194,7 +194,7 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: DfBase[P]) -> bool:
         case list(vs) if len(vs) > 0:
             assert is_array_type(obj._ty)
             elem_ty = get_element_type(obj._ty)
-            wires = unpack_array(builder, obj._use_wire(None))
+            wires = unpack_array(DFBuilder(builder), obj._use_wire(None))
             for i, (v, wire) in enumerate(zip(vs, wires, strict=True)):
                 success = update_packed_value(v, GuppyObject(elem_ty, wire), builder)
                 if not success:

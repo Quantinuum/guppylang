@@ -3,13 +3,13 @@ import functools
 from collections.abc import Sequence
 
 from hugr import Wire, ops
-from hugr.build.dfg import DfBase
 
 from guppylang_internals.ast_util import AstVisitor, get_type
 from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.compiler.core import (
     CompilerBase,
     CompilerContext,
+    DFBuilder,
     DFContainer,
     return_var,
 )
@@ -61,7 +61,7 @@ class StmtCompiler(CompilerBase, AstVisitor[None]):
         return self.dfg
 
     @property
-    def builder(self) -> DfBase[ops.DfParentOp]:
+    def builder(self) -> DFBuilder[ops.DfParentOp]:
         """The Hugr dataflow graph builder."""
         return self.dfg.builder
 

@@ -101,6 +101,25 @@ def test_nested_capture_struct(validate):
     validate(foo.compile_function())
 
 
+def test_nested_capture_enum(validate):
+    @guppy.enum
+    class MyEnum:
+        VariantA = {}
+
+        @guppy
+        def tag(self) -> int:
+            return 42
+
+    @guppy
+    def foo(e: MyEnum) -> Callable[[int], bool]:
+        def bar(y: int) -> bool:
+            return e.tag() > y
+
+        return bar
+
+    validate(foo.compile_function())
+
+
 def test_curry(validate):
     @guppy
     def curry(f: Callable[[int, int], bool]) -> Callable[[int], Callable[[int], bool]]:

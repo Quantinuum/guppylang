@@ -7,8 +7,8 @@ from guppylang.decorator import guppy
 def test_create(validate):
     @guppy.enum
     class MyEnum:
-        Empty = {}  # noqa: RUF012
-        WithField = {"x": int}  # noqa: RUF012
+        Empty = {}
+        WithField = {"x": int}
 
     @guppy.comptime
     def main() -> None:
@@ -21,7 +21,7 @@ def test_create(validate):
 def test_argument(validate):
     @guppy.enum
     class MyEnum:
-        VariantA = {"x": int}  # noqa: RUF012
+        VariantA = {"x": int}
 
     @guppy.comptime
     def foo(e: MyEnum) -> MyEnum:
@@ -37,8 +37,8 @@ def test_argument(validate):
 def test_comptime_method(run_int_fn):
     @guppy.enum
     class MyEnum:
-        VariantA = {}  # noqa: RUF012
-        VariantB = {"x": int}  # noqa: RUF012
+        VariantA = {}
+        VariantB = {"x": int}
 
         @guppy.comptime
         def const(self: "MyEnum") -> int:
@@ -55,7 +55,7 @@ def test_comptime_method(run_int_fn):
 def test_mixed_methods(run_int_fn):
     @guppy.enum
     class MyEnum:
-        VariantA = {"x": int}  # noqa: RUF012
+        VariantA = {"x": int}
 
         @guppy.comptime
         def get_const(self: "MyEnum") -> int:
@@ -79,7 +79,7 @@ def test_generic(validate):
 
     @guppy.enum
     class EnumA(Generic[T]):
-        VariantA = {"x": tuple[int, T]}  # noqa: RUF012
+        VariantA = {"x": tuple[int, T]}
 
         @guppy
         def m(self: "EnumA[T]") -> int:
@@ -87,7 +87,7 @@ def test_generic(validate):
 
     @guppy.enum
     class EnumB(Generic[S, T]):
-        VariantA = {"x": S, "y": EnumA[T]}  # noqa: RUF012
+        VariantA = {"x": S, "y": EnumA[T]}
 
         @guppy
         def m(self: "EnumB[S, T]") -> int:
@@ -104,7 +104,7 @@ def test_generic(validate):
 def test_load_constructor(validate):
     @guppy.enum
     class MyEnum:
-        VariantA = {"x": int}  # noqa: RUF012
+        VariantA = {"x": int}
 
     @guppy.comptime
     def test() -> Callable[[int], MyEnum]:

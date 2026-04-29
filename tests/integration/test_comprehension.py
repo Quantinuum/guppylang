@@ -337,6 +337,22 @@ def test_borrow_struct(validate):
     validate(test.compile_function())
 
 
+def test_borrow_enum(validate):
+    @guppy.enum
+    class MyEnum:
+        VariantA = {"q": qubit}
+        VariantB = {}
+
+    @guppy.declare
+    def foo(e: MyEnum) -> int: ...
+
+    @guppy
+    def test(e: MyEnum, n: int) -> list[int]:
+        return [foo(e) for _ in range(n)]
+
+    validate(test.compile_function())
+
+
 def test_borrow_and_consume(validate):
     @guppy.declare
     def foo(q: qubit) -> int: ...

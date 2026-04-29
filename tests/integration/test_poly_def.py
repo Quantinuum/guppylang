@@ -5,6 +5,28 @@ from guppylang.std.builtins import array, owned
 from guppylang.std.option import Option, nothing
 
 
+def build_main(f) -> None:
+    @guppy
+    def main() -> None:
+        f(True)
+        f(42)
+        f((1.5, False))
+        f(None)
+
+    return main
+
+
+def build_array_main(f) -> None:
+    @guppy
+    def main(xs: array[float, 0] @ owned) -> None:
+        f(array(True, False))
+        f(array((1, 2), (3, 4), (5, 6)))
+        f(array(None))
+        f(xs)
+
+    return main
+
+
 def test_id(validate):
     T = guppy.type_var("T")
 
@@ -12,7 +34,7 @@ def test_id(validate):
     def identity(x: T) -> T:
         return x
 
-    validate(identity.compile_function())
+    validate(build_main(identity).compile_function())
 
 
 def test_nonlinear(validate):
@@ -22,7 +44,7 @@ def test_nonlinear(validate):
     def copy(x: T) -> tuple[T, T]:
         return x, x
 
-    validate(copy.compile_function())
+    validate(build_main(copy).compile_function())
 
 
 def test_apply(validate):
@@ -33,7 +55,26 @@ def test_apply(validate):
     def apply(f: Callable[[S], T], x: S) -> T:
         return f(x)
 
-    validate(apply.compile_function())
+    @guppy
+    def foo(x: int) -> tuple[int, int]:
+        return x, x
+
+    @guppy
+    def bar(x: int) -> None:
+        pass
+
+    @guppy
+    def baz(x: tuple[int, int]) -> float:
+        a, b = x
+        return a + b + 1.5
+
+    @guppy
+    def main() -> float:
+        x = apply(foo, 42)
+        apply(bar, x[0])
+        return apply(baz, x)
+
+    validate(main.compile_function())
 
 
 def test_annotate(validate):
@@ -44,7 +85,7 @@ def test_annotate(validate):
         y: T = x
         return y
 
-    validate(identity.compile_function())
+    validate(build_main(identity).compile_function())
 
 
 def test_recurse(validate):
@@ -54,7 +95,13 @@ def test_recurse(validate):
     def empty() -> T:
         return empty()
 
-    validate(empty.compile_function())
+    @guppy
+    def main() -> None:
+        x: int = empty()
+        y: tuple[int, float] = empty()
+        z: None = empty()
+
+    validate(main.compile_function())
 
 
 def test_call(validate):
@@ -79,7 +126,7 @@ def test_nat(validate):
     def foo(xs: array[T, n] @ owned) -> array[T, n]:
         return xs
 
-    validate(foo.compile_function())
+    validate(build_array_main(foo).compile_function())
 
 
 def test_nat_use(validate):
@@ -89,7 +136,13 @@ def test_nat_use(validate):
     def foo(xs: array[int, n]) -> int:
         return int(n)
 
-    validate(foo.compile_function())
+    @guppy
+    def main(xs: array[int, 0]) -> None:
+        foo(array(0))
+        foo(array(0, 1, 2))
+        foo(xs)
+
+    validate(main.compile_function())
 
 
 def test_nat_call(validate):
@@ -114,7 +167,12 @@ def test_nat_recurse(validate):
     def empty() -> array[int, n]:
         return empty()
 
-    validate(empty.compile_function())
+    @guppy
+    def main() -> None:
+        x: array[int, 42] = empty()
+        y: array[int, 0] = empty()
+
+    validate(main.compile_function())
 
 
 def test_type_apply(validate):
@@ -128,7 +186,7 @@ def test_type_apply(validate):
     def identity(x: array[T, n]) -> array[T, n]:
         return foo[T, n](x)
 
-    validate(identity.compile_function())
+    validate(build_array_main(identity).compile_function())
 
 
 def test_custom_func_higher_order(validate):
@@ -140,4 +198,10 @@ def test_custom_func_higher_order(validate):
         f = nothing[T]
         return f()
 
-    validate(foo.compile_function())
+    @guppy
+    def main() -> None:
+        x: Option[int] = foo()
+        y: Option[tuple[int, float]] = foo()
+        z: Option[None] = foo()
+
+    validate(main.compile_function())

@@ -102,7 +102,9 @@ def check_modified_block_signature(
 ) -> FunctionType:
     """Check and create the signature of a function definition for a body
     of a `With` block."""
-    unitary_flags = modified_block.flags()
+    # We use accumulated_flags here so the block has the correct modifier
+    # metadata when it is nested under other modifiers.
+    unitary_flags = modified_block.accumulated_flags
 
     func_ty = FunctionType(
         [

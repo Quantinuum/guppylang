@@ -5,9 +5,9 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from guppylang_internals.ast_util import AstNode
+from guppylang_internals.ast_util import AstNode, set_location_from
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.const import Const
+from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FunctionType,
@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.core import Place, Variable
     from guppylang_internals.definition.common import DefId
     from guppylang_internals.definition.util import CheckedField
-    from guppylang_internals.tys.param import ConstParam
 
 
 class PlaceNode(ast.expr):
@@ -48,9 +47,14 @@ class GlobalName(ast.Name):
         "id",
         "def_id",
     )
+    _field_types = getattr(ast.Name, "_field_types", {}) | {
+        "def_id": "DefId",
+    }
 
     def __init__(self, id: str, def_id: "DefId") -> None:
-        super().__init__(id=id)
+        # Python 3.15 validates subclass-defined AST fields in the base constructor,
+        # but typeshed still exposes `ast.Name.__init__` without custom kwargs.
+        super().__init__(id=id, def_id=def_id)  # type: ignore[call-arg]
         self.id = id
         self.def_id = def_id
 
@@ -59,19 +63,30 @@ class GlobalName(ast.Name):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class GenericParamValue(ast.Name):
+class DummyGenericParamValue(ast.Name):
+    """Dummy node that is inserted for uses of generic const parameters as values.
+
+    Note that this node is only used during the first parametric check of generic
+    functions where all const type parameters are treated as opaque values. When
+    checking the concrete monomorphic instantiations that are used in the final program,
+    these dummy nodes will never be emitted.
+    """
+
     id: str
-    param: "ConstParam"
+    var: BoundConstVar
 
     _fields = (
         "id",
-        "param",
+        "var",
     )
+    _field_types = getattr(ast.Name, "_field_types", {}) | {
+        "var": BoundConstVar,
+    }
 
-    def __init__(self, id: str, param: "ConstParam") -> None:
-        super().__init__(id=id)
+    def __init__(self, id: str, var: BoundConstVar) -> None:
+        super().__init__(id=id, var=var)  # type: ignore[call-arg]
         self.id = id
-        self.param = param
+        self.var = var
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -112,6 +127,7 @@ class GlobalCall(ast.expr):
         super().__init__()
         self.def_id = def_id
         self.args = args
+        assert isinstance(type_args, tuple)
         self.type_args = type_args
 
     # See MakeIter for explanation
@@ -653,7 +669,13 @@ class NestedFunctionDef(ast.FunctionDef):
     ty: FunctionType
     docstring: str | None
 
+    _fields = (*ast.FunctionDef._fields, "docstring")
+    _field_types = getattr(ast.FunctionDef, "_field_types", {}) | {
+        "docstring": str | None,
+    }
+
     def __init__(self, cfg: "CFG", ty: FunctionType, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("docstring", None)
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.ty = ty
@@ -696,7 +718,8 @@ class Dagger(ast.expr):
     """The dagger modifier"""
 
     def __init__(self, node: ast.expr) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__()
+        set_location_from(self, node)
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -709,10 +732,24 @@ class Control(ast.Call):
     ctrl: list[ast.expr]
     qubit_num: int | Const | None
 
-    _fields = ("ctrl",)
+    _fields = (
+        "func",
+        "args",
+        "keywords",
+        "ctrl",
+    )
+    _field_types = getattr(ast.Call, "_field_types", {}) | {
+        "ctrl": list[ast.expr],
+    }
 
     def __init__(self, node: ast.Call, ctrl: list[ast.expr]) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__(
+            func=node.func,
+            args=node.args,
+            keywords=node.keywords,
+            ctrl=ctrl,
+        )  # type: ignore[call-arg]
+        set_location_from(self, node)
         self.ctrl = ctrl
         self.qubit_num = None
 
@@ -729,7 +766,8 @@ class Power(ast.expr):
     _fields = ("iter",)
 
     def __init__(self, node: ast.expr, iter: ast.expr) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__()
+        set_location_from(self, node)
         self.iter = iter
 
     # See MakeIter for explanation
@@ -787,16 +825,19 @@ class ModifiedBlock(ast.With):
     parameters:
     - `cfg`: the CFG of the body of the block
     - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    - `accumulated_flags`: the UnitaryFlags accumulated from outer modified blocks
     """
 
     cfg: "CFG"
     first_modifier_node: ast.expr
+    accumulated_flags: UnitaryFlags
 
     def __init__(
         self,
         cfg: "CFG",
         modifiers: "Modifiers",
         first_modifier_node: ast.expr,
+        accumulated_flags: UnitaryFlags,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -804,6 +845,7 @@ class ModifiedBlock(ast.With):
         self.cfg = cfg
         self.modifiers = modifiers
         self.first_modifier_node = first_modifier_node
+        self.accumulated_flags = accumulated_flags
 
     @property
     def dagger(self) -> list[Dagger]:
@@ -835,16 +877,6 @@ class ModifiedBlock(ast.With):
             to_span(self.items[0].context_expr).start,
             to_span(self.items[-1].context_expr).end,
         )
-
-    def flags(self) -> UnitaryFlags:
-        flags = UnitaryFlags.NoFlags
-        if self.has_dagger():
-            flags |= UnitaryFlags.Dagger
-        if self.has_control():
-            flags |= UnitaryFlags.Control
-        if self.has_power():
-            flags |= UnitaryFlags.Power
-        return flags
 
 
 class CheckedModifiedBlock(ast.With):

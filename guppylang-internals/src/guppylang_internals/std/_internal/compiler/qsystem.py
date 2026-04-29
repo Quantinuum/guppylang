@@ -23,7 +23,7 @@ class RandomIntCompiler(CustomInoutCallCompiler):
         [ctx] = args
         [rnd, ctx] = self.builder.add_op(
             external_op("RandomInt", [], ext=QSYSTEM_RANDOM_EXTENSION)(
-                ht.FunctionType([RNGCONTEXT_T], [int_t(5), RNGCONTEXT_T]), [], self.ctx
+                ht.FunctionType([RNGCONTEXT_T], [int_t(5), RNGCONTEXT_T]), (), self.ctx
             ),
             ctx,
         )
@@ -41,7 +41,7 @@ class RandomIntBoundedCompiler(CustomInoutCallCompiler):
         [rnd, ctx] = self.builder.add_op(
             external_op("RandomIntBounded", [], ext=QSYSTEM_RANDOM_EXTENSION)(
                 ht.FunctionType([RNGCONTEXT_T, int_t(5)], [int_t(5), RNGCONTEXT_T]),
-                [],
+                (),
                 self.ctx,
             ),
             ctx,
@@ -57,7 +57,7 @@ class LazyMeasureResetCompiler(CustomInoutCallCompiler):
         [q, measurement] = self.builder.add_op(
             quantum_op("LazyMeasureReset", ext=QSYSTEM_EXTENSION)(
                 ht.FunctionType([ht.Qubit], [ht.Qubit, future_bool_type()]),
-                [],
+                (),
                 self.ctx,
             ),
             q,

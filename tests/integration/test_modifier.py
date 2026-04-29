@@ -1,8 +1,8 @@
 from guppylang.decorator import guppy
-from guppylang.std.quantum import qubit
-from guppylang.std.num import nat
-from guppylang.std.builtins import owned, control, dagger, power
 from guppylang.std.array import array
+from guppylang.std.builtins import control, dagger, owned, power
+from guppylang.std.num import nat
+from guppylang.std.quantum import cx, h, qubit
 
 
 def test_dagger_simple(validate):
@@ -266,3 +266,105 @@ def test_double_dagger_cancel_nested_power(validate):
                 foo(q)
 
     validate(bar.compile_function())
+
+
+def test_comptime_dagger(validate):
+    """Comptime function with dagger=True can be called inside a dagger block."""
+
+    @guppy.comptime(dagger=True)
+    def foo(q: qubit) -> None:
+        h(q)
+
+    @guppy
+    def bar(q: qubit) -> None:
+        with dagger:
+            foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_comptime_power(validate):
+    """Comptime function with power=True can be called inside a power block."""
+
+    @guppy.comptime(power=True)
+    def foo(q: qubit) -> None:
+        h(q)
+
+    @guppy
+    def bar(q: qubit) -> None:
+        with power(2):
+            foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_comptime_control(validate):
+    """Comptime function with control=True can be called inside a control block."""
+
+    @guppy.comptime(control=True)
+    def foo(q: qubit) -> None:
+        h(q)
+
+    @guppy
+    def bar(ctrl: qubit, q: qubit) -> None:
+        with control(ctrl):
+            foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_comptime_unitary(validate):
+    """Comptime function with unitary=True supports all modifier contexts."""
+
+    @guppy.comptime(unitary=True)
+    def foo(q1: qubit, q2: qubit) -> None:
+        cx(q1, q2)
+        h(q1)
+
+    @guppy
+    def bar(ctrl: qubit, q1: qubit, q2: qubit) -> None:
+        with power(2):
+            foo(q1, q2)
+        with dagger:
+            foo(q1, q2)
+        with control(ctrl):
+            foo(q1, q2)
+
+    validate(bar.compile_function())
+
+
+def test_comptime_unitary_combined_modifiers(validate):
+    """Comptime unitary function called inside combined modifier block."""
+
+    @guppy.comptime(unitary=True)
+    def foo(q: qubit) -> None:
+        h(q)
+
+    @guppy
+    def bar(ctrl: qubit, q: qubit) -> None:
+        with control(ctrl), dagger:
+            with power(2):
+                foo(q)
+
+    validate(bar.compile_function())
+
+
+def test_comptime_unitary_mixed(validate):
+    """Regular unitary and comptime unitary functions used together with modifiers."""
+
+    @guppy.comptime(unitary=True)
+    def ladder(qs: array[qubit, 10]) -> None:
+        for q1, q2 in zip(qs[1:], qs[:-1]):
+            cx(q1, q2)
+
+    @guppy
+    def foo(qs: array[qubit, 10]) -> qubit:
+        q1 = qubit()
+
+        with control(q1), dagger:
+            with power(2):
+                ladder(qs)
+
+        return q1
+
+    validate(foo.compile_function())

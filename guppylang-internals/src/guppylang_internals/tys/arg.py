@@ -107,8 +107,11 @@ class ConstArg(ArgumentBase):
             case ConstValue(value=v, ty=NumericType(kind=NumericType.Kind.Nat)):
                 assert isinstance(v, int)
                 return ht.BoundedNatArg(n=v)
-            case BoundConstVar() as var:
-                return ctx.const_var_to_hugr(var)
+            case BoundConstVar():
+                raise InternalGuppyError(
+                    "Tried to convert generic variable to Hugr. This should have been "
+                    "been monomorphized away."
+                )
             case ConstValue():
                 raise InternalGuppyError(
                     "Tried to convert non-nat const type argument to Hugr. This should "
@@ -121,7 +124,8 @@ class ConstArg(ArgumentBase):
 
     def visit(self, visitor: Visitor) -> None:
         """Accepts a visitor on this argument."""
-        visitor.visit(self)
+        if not visitor.visit(self):
+            visitor.visit(self.const)
 
     def transform(self, transformer: Transformer) -> Argument:
         """Accepts a transformer on this argument."""

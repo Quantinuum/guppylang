@@ -1,9 +1,9 @@
-from guppylang.decorator import guppy
+from guppylang import guppy, qubit
 
 
 @guppy(dagger=True)
 def test() -> None:
-    x = 3
+    p = qubit()
 
 
 test.compile()
