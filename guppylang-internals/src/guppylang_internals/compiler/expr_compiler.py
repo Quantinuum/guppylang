@@ -801,7 +801,7 @@ class PatternCompiler(CompilerBase):
         subj_wire: Wire,
         output_vars_wires: Sequence[Wire],
         tag_index: int,
-        builder: DfBase[ops.DfParentOp],
+        builder: DFBuilder[ops.DfParentOp],
     ) -> Wire:
         """Helper method to build a nested `Conditional` representing
         the pattern match"""
@@ -866,7 +866,7 @@ class PatternCompiler(CompilerBase):
                     subj_wire,
                     output_vars_wires,
                     tag_index + 1,
-                    cast("DfBase[ops.DfParentOp]", case_continue),
+                    cast("DFBuilder[ops.DfParentOp]", case_continue),
                 )
                 case_continue.set_outputs(inner_cond)
 
@@ -877,13 +877,13 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
     """A compiler for patterns to Hugr"""
 
     dfg: DFContainer
-    builder: DfBase[ops.DfParentOp]
+    builder: DFBuilder[ops.DfParentOp]
     subject_wire: Wire
 
     def __init__(
         self,
         ctx: CompilerContext,
-        builder: DfBase[ops.DfParentOp],
+        builder: DFBuilder[ops.DfParentOp],
         dfg: DFContainer,
     ) -> None:
         super().__init__(ctx)
@@ -910,7 +910,7 @@ class PatternVisitor(CompilerBase, AstVisitor[Wire]):
         # eq_func, type_args = self.ctx.build_compiled_def(
         #     node.equality_function, type_args=[]
         # )
-        eq_func = self.ctx.build_compiled_def(node.equality_function, type_args=[])
+        eq_func = self.ctx.build_compiled_def(node.equality_function, ())
         assert isinstance(eq_func, CustomFunctionDef)
         assert eq_func.has_signature
         func_ty = eq_func.ty
@@ -1169,7 +1169,7 @@ def apply_array_op_with_conversions(
 
 
 def load_constant_wire(
-    node: ast.Constant, ctx: CompilerContext, builder: DfBase[ops.DfParentOp]
+    node: ast.Constant, ctx: CompilerContext, builder: DFBuilder[ops.DfParentOp]
 ) -> Wire:
     """Load a Constant"""
     if value := python_value_to_hugr(node.value, get_type(node), ctx):

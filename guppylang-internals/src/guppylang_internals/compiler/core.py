@@ -374,6 +374,9 @@ class DFBuilder(Generic[DP]):
     def add_const(self, value: val.Value, parent: ToNode | None = None) -> Node:
         return self.raw_builder.add_const(value, parent)
 
+    def inputs(self) -> Sequence[Wire]:
+        return self.raw_builder.inputs()
+
 
 class CompilerBase(ABC):
     """Base class for the Guppy compiler."""
