@@ -3,11 +3,8 @@ import ast
 from guppylang_internals.ast_util import find_nodes, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
-from guppylang_internals.checker.core import Place, contains_subscript
-from guppylang_internals.checker.errors.generic import (
-    InvalidUnderDagger,
-    UnsupportedError,
-)
+from guppylang_internals.checker.core import Place
+from guppylang_internals.checker.errors.generic import InvalidUnderDagger
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
@@ -16,7 +13,6 @@ from guppylang_internals.nodes import (
     BarrierExpr,
     GlobalCall,
     LocalCall,
-    PlaceNode,
     StateResultExpr,
     TensorCall,
 )
@@ -50,6 +46,7 @@ def check_invalid_under_dagger(
         )
         if len(found) != 0:
             assign = next(iter(found))
+            # TODO: NICOLA Here I want to allow the assignment
             err = InvalidUnderDagger(assign, "Assignment")
             raise GuppyError(err)
 
@@ -139,11 +136,12 @@ class BBUnitaryChecker(ast.NodeVisitor):
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         self._check_assign(node)
 
-    def visit_PlaceNode(self, node: PlaceNode) -> None:
-        if UnitaryFlags.Dagger in self.flags and contains_subscript(node.place):
-            raise GuppyError(
-                UnsupportedError(node, "index access", True, "dagger context")
-            )
+    # def visit_PlaceNode(self, node: PlaceNode) -> None:
+    #     # TODO: Nicola we should allow this
+    #     if UnitaryFlags.Dagger in self.flags and contains_subscript(node.place):
+    #         raise GuppyError(
+    #             UnsupportedError(node, "index access", True, "dagger context")
+    #         )
 
 
 def check_cfg_unitary(

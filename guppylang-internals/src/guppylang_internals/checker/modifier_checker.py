@@ -38,6 +38,7 @@ def check_modified_block(
     }
 
     # We do not allow any assignments if it is daggered.
+    # TODO NICOLA here I want to allow th
     if modified_block.has_dagger():
         for stmt in modified_block.body:
             loops = loop_in_ast(stmt)
