@@ -176,6 +176,14 @@ class Error(Diagnostic, Protocol):
 
 @runtime_checkable
 @dataclass(frozen=True)
+class Warning(Diagnostic, Protocol):
+    """Compiler diagnostic for non-fatal warnings."""
+
+    level: ClassVar[Literal[DiagnosticLevel.WARNING]] = DiagnosticLevel.WARNING
+
+
+@runtime_checkable
+@dataclass(frozen=True)
 class Note(SubDiagnostic, Protocol):
     """Compiler sub-diagnostic giving some additional context."""
 

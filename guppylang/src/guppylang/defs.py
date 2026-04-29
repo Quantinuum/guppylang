@@ -22,6 +22,7 @@ from guppylang_internals.tracing.object import (
     TracingDefMixin,
 )
 from guppylang_internals.tracing.util import hide_trace
+from guppylang_internals.warning import diagnostic_report
 from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
 from hugr.metadata import HugrGenerator
@@ -85,6 +86,9 @@ class GuppyDefinition(TracingDefMixin):
 
     def compile(self) -> Package:
         """Compile a Guppy definition to HUGR."""
+        # Single-definition entrypoints rely on the wrapped engine helpers for warning
+        # collection. `ENGINE.compile_single()` already establishes the top-level
+        # diagnostic session via `@pretty_errors`.
         package: Package = ENGINE.compile_single(self.id).package
         for mod in package.modules:
             _update_generator_metadata(mod)
@@ -92,6 +96,7 @@ class GuppyDefinition(TracingDefMixin):
 
     def check(self) -> None:
         """Type-check a Guppy definition."""
+        # As above, warning collection is handled by the wrapped engine entrypoint.
         return ENGINE.check_single(self.id)
 
 
@@ -243,7 +248,6 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
     def compile_function(self) -> Package:
         """Compile a Guppy function definition to HUGR.
 
-
         Returns:
             Package: The compiled package object.
         """
@@ -276,18 +280,26 @@ class GuppyLibrary:
 
     def compile(self) -> Package:
         """Compile this collection of definitions into a HUGR package."""
-        ENGINE.check(self.members)
-        # Check fills _type_members with additional members only available after
-        # checking, so we have to call it before compiling (without an engine reset).
-        pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
+        # Unlike the single-definition helpers, a library compile spans multiple
+        # top-level engine calls. Keep one outer diagnostic session here so warnings
+        # flush once for the whole user operation rather than once per engine call.
+        with diagnostic_report():
+            ENGINE.check(self.members)
+            # Check fills _type_members with additional members only available after
+            # checking, so we have to call it before compiling (without an engine
+            # reset).
+            pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
         for mod in pointer.package.modules:
             _update_generator_metadata(mod)
         return pointer.package
 
     def check(self) -> None:
         """Type-check all contained definitions."""
-        ENGINE.check(self.members)
-        ENGINE.check(self._type_members(), reset=False)
+        # Library checks can trigger more than one top-level engine check, so they need
+        # their own outer diagnostic session.
+        with diagnostic_report():
+            ENGINE.check(self.members)
+            ENGINE.check(self._type_members(), reset=False)
 
 
 @dataclass(frozen=True)

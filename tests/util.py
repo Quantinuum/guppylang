@@ -3,9 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from guppylang import GuppyWarning
 from guppylang.decorator import custom_guppy_decorator, guppy
 
 if TYPE_CHECKING:
+    from warnings import WarningMessage
+
     from guppylang.defs import GuppyFunctionDefinition
     from hugr.package import Package, PackagePointer
 
@@ -34,3 +37,7 @@ def get_wasm_file() -> str:
 
 def get_h2_wasm_file() -> str:
     return str(Path(__file__).parent.resolve() / "resources/test.h2.wasm")
+
+
+def guppy_warning_records(records: list[WarningMessage]) -> list[WarningMessage]:
+    return [warning for warning in records if warning.category is GuppyWarning]
