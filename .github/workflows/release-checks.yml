@@ -131,7 +131,7 @@ jobs:
         uses: extractions/setup-just@v4
       - name: Clone guppy-docs repository and update submodule
         run: |
-          git clone git@github.com:quantinuum/guppy-docs.git --recurse-submodules
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com:quantinuum/guppy-docs.git --recurse-submodules
           cd guppy-docs
           git submodule update --remote --merge
       - name: Install a develop wheel of guppylang
