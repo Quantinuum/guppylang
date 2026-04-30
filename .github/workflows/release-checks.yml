@@ -131,7 +131,7 @@ jobs:
         with:
           repository: Quantinuum/guppy-docs
           submodules: true
-          token: secrets.GITHUB_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install a develop wheel of guppylang
         run: |
           cd guppy-docs
