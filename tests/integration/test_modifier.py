@@ -73,6 +73,15 @@ def test_control_subscript_allocated_array(validate):
     validate(bar.compile_function())
 
 
+def test_multidimensional_control_subscript(validate):
+    @guppy
+    def main(qs: array[array[qubit, 2], 2], c: qubit) -> None:
+        with control(qs[0]):
+            h(qs[1][1])
+
+    validate(main.compile_function())
+
+
 def test_control_subscript_nested(validate):
 
     @guppy
