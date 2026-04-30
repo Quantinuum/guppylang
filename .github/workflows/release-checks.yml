@@ -136,11 +136,10 @@ jobs:
       - name: Install a develop wheel of guppylang
         run: |
           cd guppy-docs
-          git submodule update --init
           uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@main#subdirectory=guppylang"
       - name: Run docs build
         run: |
-          pwd
           cd guppy-docs
+          git submodule update --init
           just build-docs
 
