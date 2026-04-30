@@ -132,12 +132,12 @@ jobs:
           repository: Quantinuum/guppy-docs
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: guppy-docs
+      - name: Install a develop wheel of guppylang
         run: |
           cd guppy-docs
           git submodule update --remote --merge
           cd sphinx/guppylang
           uv pip install -e . --no-deps
-          cd .. && cd ..
-          just build-docs
+      - name: Run docs build
+        run: just build-docs
 
