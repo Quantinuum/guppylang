@@ -121,6 +121,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: Quantinuum/guppy-docs
+          submodules: true
+          token: secrets.GITHUB_TOKEN
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -129,18 +133,10 @@ jobs:
           enable-cache: true
       - name: Set up Just
         uses: extractions/setup-just@v4
-      - name: Clone guppy-docs repository and update submodule
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git clone https://github.com/Quantinuum/guppy-docs.git --recurse-submodules
-          cd guppy-docs
-          git submodule update --remote --merge
       - name: Install a develop wheel of guppylang
         run: |
           cd guppy-docs
           uv pip install -e guppylang --no-deps
       - name: Run docs build
-        run: |
-          just build-docs
+        run: just build-docs
 
