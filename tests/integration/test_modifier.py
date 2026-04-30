@@ -50,6 +50,15 @@ def test_control_array(validate):
     validate(bar.compile_function())
 
 
+def test_control_subscript(validate):
+    @guppy
+    def bar(q: array[qubit, 3]) -> None:
+        with control(q[0]):
+            h(q[1])
+
+    validate(bar.compile_function())
+
+
 def test_power_simple(validate):
     @guppy
     def bar(n: nat) -> None:
