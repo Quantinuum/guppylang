@@ -251,7 +251,7 @@ class _Guppy:
                 ):
                     is_static = isinstance(val.wrapped.python_func, staticmethod)
                     DEF_STORE.register_type_member(
-                        defn.id, val.wrapped.name, val.id, is_static
+                        defn.id, val.wrapped.name, val.id, is_static=is_static
                     )
 
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
@@ -301,7 +301,7 @@ class _Guppy:
                 ):
                     is_static = isinstance(val.wrapped.python_func, staticmethod)
                     DEF_STORE.register_type_member(
-                        defn.id, val.wrapped.name, val.id, is_static
+                        defn.id, val.wrapped.name, val.id, is_static=is_static
                     )
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for

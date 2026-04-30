@@ -104,8 +104,7 @@ class GuppyEnumDefinition(GuppyDefinition):
         defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
         assert isinstance(defn, CheckedEnumDef)
         if (
-            # We can only access variants of the enum from the enum class
-            # and staticmethods
+            # We can only access enum variants or static methods from the enum class
             defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[defn.id]
         ) and (

@@ -160,7 +160,7 @@ def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], t
             if isinstance(val, GuppyDefinition) and hasattr(val.wrapped, "python_func"):
                 is_static = isinstance(val.wrapped.python_func, staticmethod)
                 DEF_STORE.register_type_member(
-                    defn.id, val.wrapped.name, val.id, is_static
+                    defn.id, val.wrapped.name, val.id, is_static=is_static
                 )
         return c if return_class else GuppyDefinition(defn)  # type: ignore[return-value]
 
@@ -207,7 +207,7 @@ def custom_type(
             if isinstance(val, GuppyDefinition) and hasattr(val.wrapped, "python_func"):
                 is_static = isinstance(val.wrapped.python_func, staticmethod)
                 DEF_STORE.register_type_member(
-                    defn.id, val.wrapped.name, val.id, is_static
+                    defn.id, val.wrapped.name, val.id, is_static=is_static
                 )
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
@@ -309,7 +309,7 @@ def ext_module_decorator(
                 ):
                     is_static = isinstance(val.wrapped.python_func, staticmethod)
                     DEF_STORE.register_type_member(
-                        ext_module.id, val.wrapped.name, val.id, is_static
+                        ext_module.id, val.wrapped.name, val.id, is_static=is_static
                     )
                     wasm_def: RawWasmFunctionDef
                     if isinstance(val, GuppyFunctionDefinition) and isinstance(

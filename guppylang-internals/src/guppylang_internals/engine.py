@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from types import FrameType
-from typing import ClassVar, cast
+from typing import ClassVar, NamedTuple, cast
 
 import hugr
 import hugr.build.function as hf
@@ -102,8 +102,7 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 MonoDefId = tuple[DefId, Inst]
 
 
-@dataclass(frozen=True)
-class ImplDefinition:
+class TypeMember(NamedTuple):
     id: DefId
     is_static: bool
 
@@ -116,7 +115,7 @@ class DefinitionStore:
     """
 
     raw_defs: dict[DefId, RawDef]
-    type_members: defaultdict[DefId, dict[str, ImplDefinition]]
+    type_members: defaultdict[DefId, dict[str, TypeMember]]
     type_member_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
@@ -135,10 +134,10 @@ class DefinitionStore:
         self.frames[defn.id] = frame
 
     def register_type_member(
-        self, ty_id: DefId, name: str, member_id: DefId, is_static: bool = False
+        self, ty_id: DefId, name: str, member_id: DefId, *, is_static: bool = False
     ) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
-        self.type_members[ty_id][name] = ImplDefinition(member_id, is_static)
+        self.type_members[ty_id][name] = TypeMember(member_id, is_static)
         self.type_member_parents[member_id] = ty_id
         # Update the frame of the definition to the frame of the defining class
         if member_id in self.frames:
