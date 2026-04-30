@@ -131,7 +131,7 @@ jobs:
         uses: extractions/setup-just@v4
       - name: Clone guppy-docs repository and update submodule
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git clone git@github.com:Quantinuum/guppy-docs.git --recurse-submodules
           cd guppy-docs
