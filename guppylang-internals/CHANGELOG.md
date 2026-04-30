@@ -3,6 +3,17 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.35.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.34.0...guppylang-internals-v0.35.0) (2026-04-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **guppy-internals:** Metadata generation with nested modifiers ([#1702](https://github.com/Quantinuum/guppylang/issues/1702))
+
+### Bug Fixes
+
+* **guppy-internals:** Metadata generation with nested modifiers ([#1702](https://github.com/Quantinuum/guppylang/issues/1702)) ([0382095](https://github.com/Quantinuum/guppylang/commit/03820951798b34f7a4460edb4d3204810a6cf141))
+
 ## [0.34.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v0.34.0) (2026-04-21)
 
 Based on v0.33.0 with the following additional changes:
