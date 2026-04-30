@@ -18,6 +18,7 @@ def test_staticmethod_struct_generic(validate):
     def main() -> None:
         t = Test.default(1.0)
         # can call Test.default[int] from Test[float] instance
+        # as static methods ignore instance types
         t.default(3)
 
     validate(main.compile())
@@ -47,7 +48,7 @@ def test_staticmethod_higher_order(validate):
     validate(main.compile())
 
 
-@pytest.mark.xfail(reason="Not yet supported")
+@pytest.mark.xfail(reason="Static comptime functions not yet supported")
 def test_staticmethod_comptime(validate):
 
     @guppy.struct
@@ -96,5 +97,31 @@ def test_staticmethod_enum_instantiated(validate):
     def main() -> None:
         e = MyEnum.VariantA()
         e.smethod()
+
+    validate(main.compile())
+
+
+def test_staticmethod_overload(validate):
+    @guppy.struct
+    class Test:
+        @guppy
+        @staticmethod
+        def func1(b: float) -> None:
+            pass
+
+        @guppy
+        @staticmethod
+        def func2(a: int) -> None:
+            pass
+
+        @guppy.overload(func1, func2)
+        @staticmethod
+        def overloaded() -> None: ...
+
+    @guppy
+    def main() -> None:
+        t = Test()
+        Test.overloaded(3)
+        Test.overloaded(2.0)
 
     validate(main.compile())
