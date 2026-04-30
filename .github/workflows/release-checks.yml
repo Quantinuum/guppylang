@@ -133,14 +133,11 @@ jobs:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
           path: guppy-docs
-      - name: run docs build
-        working_directory: guppy-docs
         run: |
+          cd guppy-docs
           git submodule update --remote --merge
           cd sphinx/guppylang
           uv pip install -e . --no-deps
-          cd ..
-          cd ..
-          just build
-        
+          cd .. && cd ..
+          just build-docs
 
