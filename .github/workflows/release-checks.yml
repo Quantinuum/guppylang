@@ -139,5 +139,8 @@ jobs:
           git submodule update --init
           uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@main#subdirectory=guppylang"
       - name: Run docs build
-        run: just build-docs
+        run: |
+          pwd
+          cd guppy-docs
+          just build-docs
 
