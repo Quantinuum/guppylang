@@ -137,7 +137,7 @@ jobs:
           cd guppy-docs
           git submodule update --remote --merge
           cd sphinx/guppylang
-          uv pip install -e guppylang --no-deps
+          uv pip install -e . --no-deps
       - name: Run docs build
         run: just build-docs
 
