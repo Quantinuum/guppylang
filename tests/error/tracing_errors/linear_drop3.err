@@ -5,8 +5,8 @@ Error: Error in comptime function return (at $FILE:7:0)
 7 | def test(qs: array[qubit, 10] @ owned) -> None:
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   | ...
-9 |         measure(qs[i])
-  | ^^^^^^^^^^^^^^^^^^^^^^
+9 |         measure(qs[i]).read()
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Value with non-droppable type `qubit` is leaked by this function
 

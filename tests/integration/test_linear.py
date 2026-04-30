@@ -246,7 +246,7 @@ def test_struct_reassign2(validate):
 def test_measure(validate):
     @guppy
     def test(q: qubit @ owned, x: int) -> int:
-        b = measure(q)
+        b = measure(q).read()
         return x
 
     validate(test.compile_function())
@@ -306,7 +306,7 @@ def test_while_reset(validate):
         b = False
         while True:
             q = qubit()
-            b ^= measure(q)
+            b ^= measure(q).read()
             if i == 0:
                 break
             i -= 1
@@ -351,7 +351,7 @@ def test_for_measure(validate):
     def test(qs: list[qubit] @ owned) -> bool:
         parity = False
         for q in qs:
-            parity |= measure(q)
+            parity |= measure(q).read()
         return parity
 
     validate(test.compile_function())

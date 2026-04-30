@@ -12,7 +12,7 @@ class MyStruct:
 @guppy
 def foo(b: bool, s: MyStruct @owned) -> MyStruct:
     if b:
-        measure(s.q2)
+        measure(s.q2).read()
     return s
 
 

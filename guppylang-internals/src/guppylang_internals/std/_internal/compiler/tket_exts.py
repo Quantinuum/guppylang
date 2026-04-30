@@ -7,6 +7,7 @@ from tket_exts import (
     futures,
     global_phase,
     guppy,
+    measurement,
     modifier,
     qsystem,
     qsystem_random,
@@ -22,6 +23,7 @@ DEBUG_EXTENSION = debug()
 FUTURES_EXTENSION = futures()
 GLOBAL_PHASE_EXTENSION = global_phase()
 GUPPY_EXTENSION = guppy()
+MEASUREMENT_EXTENSION = measurement()
 MODIFIER_EXTENSION = modifier()
 QSYSTEM_EXTENSION = qsystem()
 QSYSTEM_RANDOM_EXTENSION = qsystem_random()
@@ -37,6 +39,7 @@ TKET_EXTENSIONS = [
     FUTURES_EXTENSION,
     GLOBAL_PHASE_EXTENSION,
     GUPPY_EXTENSION,
+    MEASUREMENT_EXTENSION,
     MODIFIER_EXTENSION,
     QSYSTEM_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
