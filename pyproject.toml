@@ -5,8 +5,8 @@ dev = [
   { include-group = "test" },
 ]
 docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
-examples = ["matplotlib>=3.9.2", "networkx>=2.6,<4"]
-lint = ["mypy~=1.20.1", "pre-commit>=3.6.0,<5", "ruff~=0.15.11"]
+examples = ["matplotlib>=3.10.9", "networkx>=2.6,<4"]
+lint = ["mypy~=1.20.2", "pre-commit>=4.6.0,<5", "ruff~=0.15.12"]
 test = [
   "ipykernel>=6.29.5,<8",
   "miette-py",
