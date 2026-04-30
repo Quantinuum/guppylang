@@ -120,6 +120,12 @@ jobs:
     name: Check the guppy-docs build for `guppylang` release 
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: Quantinuum/guppy-docs
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: guppy-docs
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -127,18 +133,11 @@ jobs:
           enable-cache: true
       - name: Set up Just
         uses: extractions/setup-just@v4
-      - uses: actions/checkout@v6
-        with:
-          repository: Quantinuum/guppy-docs
-          submodules: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: guppy-docs
       - name: Install a develop wheel of guppylang
         run: |
           cd guppy-docs
           git submodule update --init
-          cd sphinx/guppylang
-          uv pip install -e . --no-deps
+          uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@main#subdirectory=guppylang"
       - name: Run docs build
         run: just build-docs
 
