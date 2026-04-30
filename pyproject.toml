@@ -30,14 +30,8 @@ guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
 # hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
-# tket = {path = "/Users/tatiana.sedelnikov/Documents/Code/monohugr/repositories/tket2/tket-py", editable = true}
+tket = {git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", rev = "c2739b3"}
 
-# Sources from repository: guppylang
-# Sources from repository: tket2
-tket_eccs = {path = "/Users/tatiana.sedelnikov/Documents/Code/monohugr/repositories/tket2/tket-eccs", editable = true}
-tket-exts = {path = "/Users/tatiana.sedelnikov/Documents/Code/monohugr/repositories/tket2/tket-exts", editable = true}
-selene-hugr-qis-compiler = {path = "/Users/tatiana.sedelnikov/Documents/Code/monohugr/repositories/tket2/qis-compiler", editable = true}
-tket = {path = "/Users/tatiana.sedelnikov/Documents/Code/monohugr/repositories/tket2/tket-py", editable = true}
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
