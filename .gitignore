@@ -158,4 +158,3 @@ devenv.local.nix
 **/.benchmarks/
 .vscode/settings.json
 guppy-exports/
-AGENTS.md
