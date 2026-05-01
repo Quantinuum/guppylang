@@ -186,7 +186,7 @@ def compile_modified_block(
             dfg[arg] = next(outports)
 
     for subscript in control_subscripts:
-        # Restore a returned control value using the setter from type checking."""
+        # Restore a returned control value using the setter from type checking.
         assert subscript.setitem_call is not None
         dfg[subscript.setitem_call.value_var] = dfg[subscript]
         expr_compiler.visit(subscript.setitem_call.call)

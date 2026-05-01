@@ -408,8 +408,12 @@ class BBLinearityChecker(ast.NodeVisitor):
         self, place: Place, node: AstNode, visit_setitem: bool = True
     ) -> None:
         """Helper function to reassign a single borrowed argument after a function
-        call."""
-        # Places involving subscripts are given back by visiting the `__setitem__` call
+        call.
+
+        For places involving subscripts, if `visit_setitem=True` (default), they are
+        given back by visiting the `__setitem__` call. If `visit_setitem=False`, only
+        the parent chain is marked as reassigned without visiting the setter call.
+        """
         if subscript := contains_subscript(place):
             if visit_setitem:
                 assert subscript.setitem_call is not None
