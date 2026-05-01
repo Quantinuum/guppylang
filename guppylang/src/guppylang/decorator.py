@@ -252,7 +252,7 @@ class _Guppy:
                         defn.id,
                         val.wrapped.name,
                         val.id,
-                        is_static=determine_static(val),
+                        is_static=determine_static(val.wrapped),
                     )
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
@@ -301,7 +301,7 @@ class _Guppy:
                         defn.id,
                         val.wrapped.name,
                         val.id,
-                        is_static=determine_static(val),
+                        is_static=determine_static(val.wrapped),
                     )
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for

@@ -12,7 +12,7 @@ from guppylang_internals.compiler.core import (
     CompilerContext,
     GlobalConstId,
 )
-from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
     CustomFunctionDef,
@@ -163,34 +163,33 @@ def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], t
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
                 DEF_STORE.register_type_member(
-                    defn.id, val.wrapped.name, val.id, is_static=determine_static(val)
+                    defn.id,
+                    val.wrapped.name,
+                    val.id,
+                    is_static=determine_static(val.wrapped),
                 )
         return c if return_class else GuppyDefinition(defn)  # type: ignore[return-value]
 
     return dec
 
 
-def determine_static(defn: GuppyDefinition) -> bool:
-    """If defn corresponds to a function, check if it is static."""
-    if not isinstance(defn, GuppyFunctionDefinition):
-        return False
-    match defn.wrapped:
+def determine_static(defn: Definition) -> bool:
+    """Check if a Definition corresponds to a static method."""
+    match defn:
         case RawFunctionDef() | RawCustomFunctionDef() | RawFunctionDecl():
-            return isinstance(defn.wrapped.python_func, staticmethod)
+            return isinstance(defn.python_func, staticmethod)
         # comptime methods not yet supported
         case RawTracedFunctionDef():
-            if isinstance(defn.wrapped.python_func, staticmethod):
+            if isinstance(defn.python_func, staticmethod):
                 # TODO guppy error handling
-                raise TypeError("static comptime func")
+                raise TypeError("comptime static functions not yet supported")
             else:
                 return False
         case OverloadedFunctionDef():
             # check all the methods in the overload are also static
-            for func_id in defn.wrapped.func_ids:
+            for func_id in defn.func_ids:
                 func_def = DEF_STORE.raw_defs[func_id]
-                if not isinstance(func_def, RawFunctionDef):
-                    return False
-                if not isinstance(func_def.python_func, staticmethod):
+                if not determine_static(func_def):
                     # TODO guppy error handling
                     raise TypeError(
                         "one of the functions in this overload is not static"
@@ -198,8 +197,8 @@ def determine_static(defn: GuppyDefinition) -> bool:
             return True
         case _:
             raise InternalGuppyError(
-                f"Cannot determine staticness of GuppyFunctionDefinition wrapping \
-                {type(defn.wrapped)}"
+                f"Cannot determine staticness of Definition of type \
+                {type(defn)}"
             )
 
 
@@ -242,7 +241,10 @@ def custom_type(
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
                 DEF_STORE.register_type_member(
-                    defn.id, val.wrapped.name, val.id, is_static=determine_static(val)
+                    defn.id,
+                    val.wrapped.name,
+                    val.id,
+                    is_static=determine_static(val.wrapped),
                 )
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
@@ -344,7 +346,7 @@ def ext_module_decorator(
                         ext_module.id,
                         val.wrapped.name,
                         val.id,
-                        is_static=determine_static(val),
+                        is_static=determine_static(val.wrapped),
                     )
                     wasm_def: RawWasmFunctionDef
                     if isinstance(val, GuppyFunctionDefinition) and isinstance(
