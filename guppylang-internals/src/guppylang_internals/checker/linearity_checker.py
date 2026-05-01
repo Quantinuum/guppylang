@@ -411,8 +411,8 @@ class BBLinearityChecker(ast.NodeVisitor):
         call."""
         # Places involving subscripts are given back by visiting the `__setitem__` call
         if subscript := contains_subscript(place):
-            assert subscript.setitem_call is not None
             if visit_setitem:
+                assert subscript.setitem_call is not None
                 for leaf in leaf_places(subscript.setitem_call.value_var):
                     self.scope.assign(leaf)
                 self.visit(subscript.setitem_call.call)

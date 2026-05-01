@@ -428,13 +428,6 @@ class StmtChecker(AstVisitor[BBStatement]):
             # This case is handled during CFG construction.
             assert len(ctrl) > 0
             ctrl[0], ty = self._synth_expr(ctrl[0])
-            # if isinstance(ctrl[0], PlaceNode):
-            #     ctrl[0].place = check_place_assignable(
-            #         ctrl[0].place,
-            #         self.ctx,
-            #         ctrl[0],
-            #         "able to control subscripted elements",
-            #     )
 
             if is_array_type(ty):
                 if len(ctrl) > 1:
@@ -447,6 +440,15 @@ class StmtChecker(AstVisitor[BBStatement]):
                     )
                     dummy_array_ty = array_type(qubit_ty(), n)
                     raise GuppyTypeError(TypeMismatchError(ctrl[0], dummy_array_ty, ty))
+                # We may have that the control is an array obtained via subscripting,
+                # e.g. `control(qs[0]) with qs: array[array[qubit, 2], 2]`.
+                if isinstance(ctrl[0], PlaceNode):
+                    ctrl[0].place = check_place_assignable(
+                        ctrl[0].place,
+                        self.ctx,
+                        ctrl[0],
+                        "able to control subscripted elements",
+                    )
                 control.qubit_num = get_array_length(ty)
             else:
                 for i in range(len(ctrl)):
