@@ -724,7 +724,7 @@ class BBLinearityChecker(ast.NodeVisitor):
 
         # Check captured variables:
         # We check that the modifier is not using consumed variables or copyable
-        # variables already used by other modfiers
+        # variables already used by other modifiers
         for var, use in node.captured.values():
             for place in leaf_places(var):
                 use_kind = (
