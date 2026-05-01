@@ -2,7 +2,7 @@ from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.builtins import control, dagger, owned, power
 from guppylang.std.num import nat
-from guppylang.std.quantum import cx, h, qubit
+from guppylang.std.quantum import cx, discard, discard_array, h, qubit
 
 
 def test_dagger_simple(validate):
@@ -48,6 +48,87 @@ def test_control_array(validate):
             pass
 
     validate(bar.compile_function())
+
+
+def test_control_subscript(validate):
+    @guppy
+    def bar(q: array[qubit, 3]) -> None:
+        with control(q[0]):
+            h(q[1])
+
+    validate(bar.compile_function())
+
+
+def test_control_subscript_allocated_array(validate):
+    @guppy
+    def bar() -> None:
+        c = qubit()
+        qs: array[qubit, 2] = array(qubit(), qubit())
+        with control(qs[0], c):
+            h(qs[1])
+
+        discard_array(qs)
+        discard(c)
+
+    validate(bar.compile_function())
+
+
+def test_multidimensional_control_subscript(validate):
+    @guppy
+    def main(qs: array[array[qubit, 2], 2], c: qubit) -> None:
+        with control(qs[0]):
+            h(qs[1][1])
+
+    validate(main.compile_function())
+
+
+def test_nested_element_control_subscript(validate):
+    @guppy
+    def main(qs: array[array[qubit, 2], 2], target: qubit) -> None:
+        with control(qs[0][0]):
+            h(target)
+
+    validate(main.compile_function())
+
+
+def test_3d_array_control_subscript(validate):
+    @guppy
+    def main(qs: array[array[array[qubit, 2], 2], 2], target: qubit) -> None:
+        with control(qs[0][0][0]):
+            h(target)
+
+    validate(main.compile_function())
+
+
+def test_4d_array_control_subscript(validate):
+    @guppy
+    def main(qs: array[array[array[array[qubit, 2], 2], 2], 2], target: qubit) -> None:
+        with control(qs[0][0][0][0]):
+            h(target)
+
+    validate(main.compile_function())
+
+
+def test_control_subscript_nested(validate):
+
+    @guppy
+    def f(array_controllers: array[qubit, 3], c: qubit) -> None:
+
+        with control(array_controllers[0], c):
+            h(array_controllers[1])
+            with control(array_controllers[1]):
+                h(array_controllers[2])
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        array_controllers: array[qubit, 3] = array(qubit(), qubit(), qubit())
+        f(array_controllers, q)
+
+        discard_array(array_controllers)
+        discard(q)
+
+    validate(main.compile())
 
 
 def test_power_simple(validate):
