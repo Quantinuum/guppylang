@@ -1,4 +1,4 @@
-name: Benchmark PR
+name: Benchmark PRs
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ env:
 
 jobs:
   benchmark_pr_branch:
-    name: Continuous Benchmarking PRs with Bencher
+    name: Benchmark PR
     # DO NOT REMOVE: For handling Fork PRs
     if: |
       github.event_name == 'pull_request' &&
@@ -33,9 +33,9 @@ jobs:
       - name: Set up Just
         uses: extractions/setup-just@v4
 
-      - name: Track PR Benchmarks with Bencher
+      - name: Run bencher benchmarks
         run: |
-          just bench_compare \
+          just bench-compare \
               --token '${{ secrets.BENCHER_API_TOKEN }}' \
               --branch "$GITHUB_HEAD_REF" \
               --start-point "main" \
@@ -44,3 +44,10 @@ jobs:
               --start-point-max-versions 1 \
               --testbed Linux \
               --github-actions '${{ secrets.GITHUB_TOKEN }}'
+
+      - name: Run codspeed benchmarks
+        uses: CodSpeedHQ/action@v4
+        with:
+          mode: simulation
+          token: ${{ secrets.CODSPEED_API_TOKEN }}
+          run: uv run pytest tests/ --codspeed -k "not executable"

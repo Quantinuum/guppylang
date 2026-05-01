@@ -1,26 +1,26 @@
 [dependency-groups]
-docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
 dev = [
+  { include-group = "examples" },
   { include-group = "lint" },
   { include-group = "test" },
-  { include-group = "examples" },
 ]
-lint = ["pre-commit>=4.6.0,<5", "ruff~=0.15.12", "mypy~=1.20.2"]
+docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
 examples = ["matplotlib>=3.10.9", "networkx>=2.6,<4"]
+lint = ["mypy~=1.20.2", "pre-commit>=4.6.0,<5", "ruff~=0.15.12"]
 test = [
-    "pytest>=8.4.2,<10",
-    "pytest-cov>=5.0.0,<8",
-    "pytest-notebook >=0.10.0,<0.11",
-    "pytest-snapshot >=0.9.0,<1",
-    "pytest-benchmark>=5.1.0",
-    "pytest-xdist>=3.8.0",
-    "ipykernel>=6.29.5,<8",
-    "miette-py",
-    "pytest-isolate>=0.0.13",
+  "ipykernel>=6.29.5,<8",
+  "miette-py",
+  "pytest>=8.4.2,<10",
+  "pytest-benchmark>=5.1.0",
+  "pytest-codspeed>=4.4.0",
+  "pytest-cov>=5.0.0,<8",
+  "pytest-isolate>=0.0.13",
+  "pytest-notebook >=0.10.0,<0.11",
+  "pytest-snapshot >=0.9.0,<1",
+  "pytest-xdist>=3.8.0",
 ]
 
 [tool.uv]
-
 [tool.uv.workspace]
 members = ["guppylang", "guppylang-internals", "miette-py"]
 
@@ -29,12 +29,11 @@ guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
-# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
+#  hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
 
 [tool.mypy]
 strict = true
@@ -55,11 +54,10 @@ exclude_also = [
   "@abstractmethod",
 ]
 
-
 [tool.pytest.ini_options]
-addopts = "--benchmark-skip -m 'not test_exported_hugrs'" # benchmarks run explicitly with `just bench`
+addopts = "--benchmark-disable -m 'not test_exported_hugrs'"  # benchmarks run explicitly with `just bench`
 markers = "test_exported_hugrs"
 filterwarnings = [
-    "ignore::DeprecationWarning", # TODO remove after removing guppy.compile()
-    "ignore::SyntaxWarning", # Python 3.14 complains about guppy tuple callables
+  "ignore::DeprecationWarning",  # TODO remove after removing guppy.compile()
+  "ignore::SyntaxWarning",  # Python 3.14 complains about guppy tuple callables
 ]
