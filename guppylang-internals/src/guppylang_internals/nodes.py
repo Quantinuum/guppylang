@@ -887,6 +887,8 @@ class CheckedModifiedBlock(ast.With):
     ty: FunctionType
     #: Mapping from names to variables captured in the body.
     captured: Mapping[str, tuple["Variable", AstNode]]
+    #: Mapping from captured names to assignments inside the body.
+    modified_captured: Mapping[str, AstNode]
 
     def __init__(
         self,
@@ -894,6 +896,7 @@ class CheckedModifiedBlock(ast.With):
         cfg: "CheckedCFG[Place]",
         ty: FunctionType,
         captured: Mapping[str, tuple["Variable", AstNode]],
+        modified_captured: Mapping[str, AstNode],
         modifiers: Modifiers,
         *args: Any,
         **kwargs: Any,
@@ -903,6 +906,7 @@ class CheckedModifiedBlock(ast.With):
         self.cfg = cfg
         self.ty = ty
         self.captured = captured
+        self.modified_captured = modified_captured
         self.modifiers = modifiers
 
     @property

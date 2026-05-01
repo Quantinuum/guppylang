@@ -91,6 +91,8 @@ def check_cfg(
     `first_modifier_node`: if None, the cfg is not a modifier block.
     Otherwise, it's the AST node of the first modifier, used in error reporting.
     """
+    # print(cfg.cfg_as_string())
+
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
