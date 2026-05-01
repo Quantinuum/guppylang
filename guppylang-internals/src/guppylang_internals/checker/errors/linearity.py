@@ -56,6 +56,26 @@ class AlreadyUsedError(Error):
 
 
 @dataclass(frozen=True)
+class ModifiedVariableUsedError(Error):
+    title: ClassVar[str] = "Variable modified in modifier block"
+    span_label: ClassVar[str] = (
+        "Cannot use `{place}` because it was modified inside a modifier block"
+    )
+    place: Place
+
+    @dataclass(frozen=True)
+    class ModifiedHere(Note):
+        span_label: ClassVar[str] = "`{place}` modified here"
+        place: Place
+
+    @dataclass(frozen=True)
+    class Explanation(Help):
+        message: ClassVar[str] = (
+            "Modifications inside modifier blocks are not reflected outside the block"
+        )
+
+
+@dataclass(frozen=True)
 class ComprAlreadyUsedError(Error):
     title: ClassVar[str] = "Copy violation"
     span_label: ClassVar[str] = (

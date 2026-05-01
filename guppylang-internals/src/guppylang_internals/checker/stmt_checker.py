@@ -420,10 +420,10 @@ class StmtChecker(AstVisitor[BBStatement]):
             raise InternalGuppyError("BB required to check with block!")
 
         # check the body of the modified block
-        modified_block = check_modified_block(node, self.bb, self.ctx)
+        checked_modified_block = check_modified_block(node, self.bb, self.ctx)
 
         # check the arguments of the control and power.
-        for control in modified_block.control:
+        for control in checked_modified_block.control:
             ctrl = control.ctrl
             # This case is handled during CFG construction.
             assert len(ctrl) > 0
@@ -447,13 +447,13 @@ class StmtChecker(AstVisitor[BBStatement]):
                     assert len(subst) == 0
                 control.qubit_num = len(ctrl)
 
-        for power in node.power:
+        for power in checked_modified_block.power:
             power.iter, subst = self._check_expr(
                 power.iter, NumericType(NumericType.Kind.Nat)
             )
             assert len(subst) == 0
 
-        return modified_block
+        return checked_modified_block
 
     def visit_If(self, node: ast.If) -> None:
         raise InternalGuppyError("Control-flow statement should not be present here.")

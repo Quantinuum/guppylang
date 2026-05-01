@@ -1,0 +1,8 @@
+Error: Variable not defined (at $FILE:10:8)
+   | 
+ 8 |             x = 3
+ 9 |     a = b
+10 |     c = x +1
+   |         ^ `x` is not defined
+
+Guppy compilation failed due to 1 previous error

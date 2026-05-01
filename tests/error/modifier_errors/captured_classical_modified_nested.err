@@ -1,0 +1,17 @@
+Error: Variable modified in modifier block (at $FILE:12:11)
+   | 
+10 |         with control(q):
+11 |             x += 1
+12 |     return x
+   |            ^ Cannot use `x` because it was modified inside a modifier
+   |              block
+
+Note:
+   | 
+10 |         with control(q):
+11 |             x += 1
+   |             ------ `x` modified here
+
+Help: Modifications inside modifier blocks are not reflected outside the block
+
+Guppy compilation failed due to 1 previous error
