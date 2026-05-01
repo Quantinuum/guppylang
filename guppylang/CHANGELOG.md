@@ -14,6 +14,13 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [0.21.14](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.13...guppylang-v0.21.14) (2026-05-01)
+
+
+### Features
+
+* Update `guppylang-internals` dependency to `0.35.0` ([73f9073](https://github.com/Quantinuum/guppylang/commit/73f90736ce7f0f751eaed58e3ad3dcc9bc698dbd))
+
 ## [0.21.13](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.12...guppylang-v0.21.13) (2026-04-21)
 
 Based on v0.21.12, with monomorphisation removed, and the following additional changes:
