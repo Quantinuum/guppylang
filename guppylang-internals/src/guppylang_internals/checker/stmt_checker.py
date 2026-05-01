@@ -428,13 +428,13 @@ class StmtChecker(AstVisitor[BBStatement]):
             # This case is handled during CFG construction.
             assert len(ctrl) > 0
             ctrl[0], ty = self._synth_expr(ctrl[0])
-            if isinstance(ctrl[0], PlaceNode):
-                ctrl[0].place = check_place_assignable(
-                    ctrl[0].place,
-                    self.ctx,
-                    ctrl[0],
-                    "able to control subscripted elements",
-                )
+            # if isinstance(ctrl[0], PlaceNode):
+            #     ctrl[0].place = check_place_assignable(
+            #         ctrl[0].place,
+            #         self.ctx,
+            #         ctrl[0],
+            #         "able to control subscripted elements",
+            #     )
 
             if is_array_type(ty):
                 if len(ctrl) > 1:
@@ -453,13 +453,13 @@ class StmtChecker(AstVisitor[BBStatement]):
                     ctrl[i], subst = self._check_expr(ctrl[i], qubit_ty())
                     assert len(subst) == 0
                     ctrl_arg = ctrl[i]
-                    assert isinstance(ctrl_arg, PlaceNode)
-                    ctrl_arg.place = check_place_assignable(
-                        ctrl_arg.place,
-                        self.ctx,
-                        ctrl_arg,
-                        "able to control subscripted elements",
-                    )
+                    if isinstance(ctrl_arg, PlaceNode):
+                        ctrl_arg.place = check_place_assignable(
+                            ctrl_arg.place,
+                            self.ctx,
+                            ctrl_arg,
+                            "able to control subscripted elements",
+                        )
                 control.qubit_num = len(ctrl)
 
         for power in node.power:
