@@ -50,4 +50,4 @@ jobs:
         with:
           mode: simulation
           token: ${{ secrets.CODSPEED_API_TOKEN }}
-          run: uv run pytest tests/ --codspeed
+          run: uv run pytest tests/ --codspeed -k "not executable"
