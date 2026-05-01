@@ -404,16 +404,20 @@ class BBLinearityChecker(ast.NodeVisitor):
                         err.add_sub_diagnostic(DropAfterCallError.Assign(None))
                         raise GuppyError(err)
 
-    def _reassign_single_inout_arg(self, place: Place, node: AstNode) -> None:
+    def _reassign_single_inout_arg(
+        self, place: Place, node: AstNode, visit_setitem: bool = True
+    ) -> None:
         """Helper function to reassign a single borrowed argument after a function
         call."""
         # Places involving subscripts are given back by visiting the `__setitem__` call
         if subscript := contains_subscript(place):
-            if subscript.setitem_call is not None:
+            if visit_setitem and subscript.setitem_call is not None:
                 for leaf in leaf_places(subscript.setitem_call.value_var):
                     self.scope.assign(leaf)
                 self.visit(subscript.setitem_call.call)
-            self._reassign_single_inout_arg(subscript.parent, node)
+            self._reassign_single_inout_arg(
+                subscript.parent, node, visit_setitem=visit_setitem
+            )
         else:
             for leaf in leaf_places(place):
                 assert not isinstance(leaf, SubscriptAccess)
@@ -727,7 +731,9 @@ class BBLinearityChecker(ast.NodeVisitor):
         for ctrl in node.control:
             for arg in ctrl.ctrl:
                 assert isinstance(arg, PlaceNode)  # Checked above
-                self._reassign_single_inout_arg(arg.place, arg.place.defined_at or arg)
+                self._reassign_single_inout_arg(
+                    arg.place, arg.place.defined_at or arg, visit_setitem=False
+                )
 
         # reassign captured variables
         for var, use in node.captured.values():

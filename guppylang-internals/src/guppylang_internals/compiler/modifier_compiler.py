@@ -11,88 +11,27 @@ from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.metadata.common import add_metadata
 from guppylang_internals.nodes import CheckedModifiedBlock, PlaceNode
-from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
 from guppylang_internals.std._internal.compiler.array import (
     array_new,
     array_to_std_array,
-    barray_borrow,
-    barray_return,
     standard_array_type,
     std_array_to_array,
     unpack_array,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import MODIFIER_EXTENSION
-from guppylang_internals.tys.builtin import (
-    get_array_length,
-    get_element_type,
-    int_type,
-    is_array_type,
-)
+from guppylang_internals.tys.builtin import int_type, is_array_type
 from guppylang_internals.tys.ty import InputFlags
-
-
-def _return_control_subscript(
-    subscript: SubscriptAccess, dfg: DFContainer, ctx: CompilerContext
-) -> None:
-    """Write a returned control qubit back into its borrowed array slot."""
-    parent_ty = subscript.parent.ty
-    assert is_array_type(parent_ty)
-    elem_ty = get_element_type(parent_ty).to_hugr(ctx)
-    length_arg = get_array_length(parent_ty).to_arg().to_hugr(ctx)
-    idx = dfg.builder.add_op(convert_itousize(), dfg[subscript.item])
-    dfg[subscript.parent] = dfg.builder.add_op(
-        barray_return(elem_ty, length_arg),
-        dfg[subscript.parent],
-        idx,
-        dfg[subscript],
-    )
-
-
-def _borrow_control_subscript(
-    subscript: SubscriptAccess, dfg: DFContainer, ctx: CompilerContext
-) -> None:
-    """Borrow a containing array slot from the current parent array.
-    E.g. for qs[0][0], re-borrow qs[0] before borrowing from that inner array."""
-    if parent_subscript := contains_subscript(subscript.parent):
-        _borrow_control_subscript(parent_subscript, dfg, ctx)
-    parent_ty = subscript.parent.ty
-    assert is_array_type(parent_ty)
-    elem_ty = get_element_type(parent_ty).to_hugr(ctx)
-    length_arg = get_array_length(parent_ty).to_arg().to_hugr(ctx)
-    idx = dfg.builder.add_op(convert_itousize(), dfg[subscript.item])
-    dfg[subscript.parent], dfg[subscript] = dfg.builder.add_op(
-        barray_borrow(elem_ty, length_arg),
-        dfg[subscript.parent],
-        idx,
-    )
 
 
 def _write_back_control_subscript(
     subscript: SubscriptAccess,
     dfg: DFContainer,
-    ctx: CompilerContext,
     expr_compiler: ExprCompiler,
-    parents_borrowed: bool = False,
 ) -> None:
-    """Restore a returned control value and any containing borrowed subscripts.
-
-    For nested places, use the synthesized setter; plain array subscripts can
-    be restored directly with the borrow_array return op."""
-
-    if subscript.setitem_call is not None:
-        dfg[subscript.setitem_call.value_var] = dfg[subscript]
-        expr_compiler.visit(subscript.setitem_call.call)
-    else:
-        parent_subscript = contains_subscript(subscript.parent)
-        if parent_subscript is not None and not parents_borrowed:
-            # Nested getitem compilation returns the inner array before the modified
-            # call, so recreate the parent borrow before writing the control back.
-            _borrow_control_subscript(parent_subscript, dfg, ctx)
-        _return_control_subscript(subscript, dfg, ctx)
-        if parent_subscript is not None:
-            _write_back_control_subscript(
-                parent_subscript, dfg, ctx, expr_compiler, parents_borrowed=True
-            )
+    """Restore a returned control value using the setter from type checking."""
+    assert subscript.setitem_call is not None
+    dfg[subscript.setitem_call.value_var] = dfg[subscript]
+    expr_compiler.visit(subscript.setitem_call.call)
 
 
 def compile_modified_block(
@@ -239,6 +178,8 @@ def compile_modified_block(
             c = control.ctrl[0]
             assert isinstance(c, PlaceNode)
             dfg[c.place] = control_array
+            if subscript := contains_subscript(c.place):
+                control_subscripts.append(subscript)
         else:
             control_array = dfg.builder.add_op(
                 std_array_to_array(ht.Qubit, qubit_num_args[i]), outport
@@ -256,6 +197,6 @@ def compile_modified_block(
             dfg[arg] = next(outports)
 
     for subscript in control_subscripts:
-        _write_back_control_subscript(subscript, dfg, ctx, expr_compiler)
+        _write_back_control_subscript(subscript, dfg, expr_compiler)
 
     return call
