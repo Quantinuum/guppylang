@@ -82,6 +82,33 @@ def test_multidimensional_control_subscript(validate):
     validate(main.compile_function())
 
 
+def test_nested_element_control_subscript(validate):
+    @guppy
+    def main(qs: array[array[qubit, 2], 2], target: qubit) -> None:
+        with control(qs[0][0]):
+            h(target)
+
+    validate(main.compile_function())
+
+
+def test_3d_array_control_subscript(validate):
+    @guppy
+    def main(qs: array[array[array[qubit, 2], 2], 2], target: qubit) -> None:
+        with control(qs[0][0][0]):
+            h(target)
+
+    validate(main.compile_function())
+
+
+def test_4d_array_control_subscript(validate):
+    @guppy
+    def main(qs: array[array[array[array[qubit, 2], 2], 2], 2], target: qubit) -> None:
+        with control(qs[0][0][0][0]):
+            h(target)
+
+    validate(main.compile_function())
+
+
 def test_control_subscript_nested(validate):
 
     @guppy
