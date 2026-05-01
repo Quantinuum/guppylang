@@ -23,17 +23,6 @@ from guppylang_internals.tys.builtin import int_type, is_array_type
 from guppylang_internals.tys.ty import InputFlags
 
 
-def _write_back_control_subscript(
-    subscript: SubscriptAccess,
-    dfg: DFContainer,
-    expr_compiler: ExprCompiler,
-) -> None:
-    """Restore a returned control value using the setter from type checking."""
-    assert subscript.setitem_call is not None
-    dfg[subscript.setitem_call.value_var] = dfg[subscript]
-    expr_compiler.visit(subscript.setitem_call.call)
-
-
 def compile_modified_block(
     modified_block: CheckedModifiedBlock,
     dfg: DFContainer,
@@ -78,10 +67,10 @@ def compile_modified_block(
     cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
     func_builder.set_outputs(*cfg)
 
-    # add the LoadFunc node
+    # Add the LoadFunc node
     call = dfg.builder.load_function(func_builder, hugr_ty)
 
-    # captured values to be the function inputs
+    # Captured values to be the function inputs
     captured = [v for v, _ in modified_block.captured.values()]
     captured = non_copyable_front_others_back(captured)
 
@@ -197,6 +186,9 @@ def compile_modified_block(
             dfg[arg] = next(outports)
 
     for subscript in control_subscripts:
-        _write_back_control_subscript(subscript, dfg, expr_compiler)
+        # Restore a returned control value using the setter from type checking."""
+        assert subscript.setitem_call is not None
+        dfg[subscript.setitem_call.value_var] = dfg[subscript]
+        expr_compiler.visit(subscript.setitem_call.call)
 
     return call
