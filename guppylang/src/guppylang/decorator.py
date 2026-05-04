@@ -152,6 +152,7 @@ class _Guppy:
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
                 link_name=parsed.link_name,
+                max_effects=parsed.max_effects,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -197,6 +198,7 @@ class _Guppy:
                 f,
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
+                max_effects=parsed.max_effects,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -410,6 +412,7 @@ class _Guppy:
                 unitary_flags=parsed.flags,
                 link_name=parsed.link_name,
                 metadata=parsed.metadata,
+                max_effects=parsed.max_effects,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -769,7 +772,7 @@ class ParsedGuppyKwargs(NamedTuple):
     metadata: FunctionMetadata
     # The empty list means no effects, whereas None means unspecified - i.e. assume all
     # effects are possible until we can analyse the call-graph to calculate exactly.
-    max_effects: list[Effect] | None
+    max_effects: list[str] | None
     link_name: str | None
 
 
@@ -793,7 +796,12 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         metadata.set_max_qubits(kwargs.pop("max_qubits"))
 
     link_name = kwargs.pop("link_name", None)
-    max_effects = kwargs.pop("max_effects", None)
+    max_effects_input = kwargs.pop("max_effects", None)
+    max_effects = (
+        None
+        if max_effects_input is None
+        else [effect._name_ for effect in max_effects_input]
+    )
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"

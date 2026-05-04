@@ -55,6 +55,8 @@ class RawTracedFunctionDef(ParsableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    max_effects: list[str] | None = field(default=None, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, _docstring = parse_py_func(self.python_func, sources)
