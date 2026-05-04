@@ -135,6 +135,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             docstring,
             link_name,
             metadata=self.metadata,
+            max_effects=self.max_effects,
         )
 
 
@@ -165,6 +166,8 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    max_effects: list[str] | None = field(default=None, kw_only=True)
+
     @property
     def params(self) -> "Sequence[Parameter]":
         """Generic parameters of this function."""
@@ -184,6 +187,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_link_name,
             cfg,
             metadata=self.metadata,
+            max_effects=self.max_effects,
         )
 
     def check_call(
@@ -269,6 +273,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.cfg,
             func_def,
             metadata=self.metadata,
+            max_effects=self.max_effects,
         )
 
 

@@ -73,6 +73,7 @@ class RawTracedFunctionDef(ParsableDef):
             self.python_func,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
+            max_effects=self.max_effects,
         )
 
 
@@ -130,6 +131,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
             func_def,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
+            max_effects=self.max_effects,
         )
 
 

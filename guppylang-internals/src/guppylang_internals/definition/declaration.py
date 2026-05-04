@@ -115,6 +115,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
             docstring=docstring,
             link_name=link_name,
             metadata=self.metadata,
+            max_effects=self.max_effects,
         )
 
 
@@ -139,6 +140,8 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     link_name: str
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    max_effects: list[str] | None = field(default=None, kw_only=True)
+
     @property
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
@@ -154,6 +157,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
             docstring=self.docstring,
             link_name=mono_link_name,
             type_args=type_args,
+            max_effects=self.max_effects,
         )
 
     def check_call(
@@ -222,6 +226,7 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
             type_args=self.type_args,
             declaration=node,
             metadata=self.metadata,
+            max_effects=self.max_effects,
         )
 
 
