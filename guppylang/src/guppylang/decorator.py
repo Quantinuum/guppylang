@@ -98,6 +98,7 @@ class GuppyKwargs(TypedDict, total=False):
     power: bool
     max_qubits: int
     link_name: str
+    max_effects: list[str]
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -760,6 +761,9 @@ def _with_optional_kwargs(
 class ParsedGuppyKwargs(NamedTuple):
     flags: UnitaryFlags
     metadata: FunctionMetadata
+    # The empty list means no effects, whereas None means unspecified - i.e. assume all
+    # effects are possible until we can analyse the call-graph to calculate exactly.
+    max_effects: list[str] | None
     link_name: str | None
 
 
@@ -783,6 +787,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         metadata.set_max_qubits(kwargs.pop("max_qubits"))
 
     link_name = kwargs.pop("link_name", None)
+    max_effects = kwargs.pop("max_effects", None)
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
@@ -792,6 +797,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         flags=flags,
         metadata=metadata,
         link_name=link_name,
+        max_effects=max_effects,
     )
 
 
