@@ -26,6 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      # TODO: remove this when the required tket2 wheel is released
+      - uses: quantinuum/hugrverse-env/install-hugrenv-action@main
+
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.9
       - name: Install rust toolchain
