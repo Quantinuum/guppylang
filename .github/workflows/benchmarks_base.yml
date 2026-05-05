@@ -32,7 +32,7 @@ jobs:
       - name: Set up Just
         uses: extractions/setup-just@v4
 
-      - name: Benchmark main with Bencher
+      - name: Benchmark with Bencher
         run: |
           just bench-upload \
                --token '${{ secrets.BENCHER_API_TOKEN }}' \
@@ -40,7 +40,7 @@ jobs:
                --branch main \
                --github-actions '${{ secrets.GITHUB_TOKEN }}' \
 
-      - name: Benchmark main with CodSpeed
+      - name: Benchmark with CodSpeed
         uses: CodSpeedHQ/action@v4
         with:
           mode: simulation
