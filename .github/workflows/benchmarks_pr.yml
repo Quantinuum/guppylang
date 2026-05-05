@@ -7,6 +7,10 @@ on:
 env:
   UV_VERSION: "0.9.5"
 
+permissions:
+  contents: read
+  id-token: write # required for OIDC auth with Codspeed
+
 jobs:
   benchmark_pr_branch:
     name: Benchmark PR
@@ -49,5 +53,4 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           mode: simulation
-          token: ${{ secrets.CODSPEED_API_TOKEN }}
           run: uv run pytest tests/ --codspeed -k "not executable"
