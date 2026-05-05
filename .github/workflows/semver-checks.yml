@@ -31,7 +31,7 @@ jobs:
       - uses: quantinuum/hugrverse-env/install-hugrenv-action@main
 
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Set up uv

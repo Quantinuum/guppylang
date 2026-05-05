@@ -34,7 +34,7 @@ jobs:
       - uses: quantinuum/hugrverse-env/install-hugrenv-action@main
 
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -58,8 +58,11 @@ jobs:
           uv run ruff --version
           uv run ruff check
 
-      - name: Run tests
-        run: uv run pytest -n auto
+      - name: Run tests and export hugr test cases
+        run: uv run pytest -n auto --export-test-cases=guppy-exports
+
+      - name: Validate exported hugr test cases
+        run: uv run pytest -n auto -m test_exported_hugrs
 
   test-coverage:
     name: Check Python (3.14) with coverage
@@ -74,7 +77,7 @@ jobs:
       - uses: quantinuum/hugrverse-env/install-hugrenv-action@main
 
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
 

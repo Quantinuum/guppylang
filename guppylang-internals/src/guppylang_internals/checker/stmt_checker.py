@@ -440,11 +440,28 @@ class StmtChecker(AstVisitor[BBStatement]):
                     )
                     dummy_array_ty = array_type(qubit_ty(), n)
                     raise GuppyTypeError(TypeMismatchError(ctrl[0], dummy_array_ty, ty))
+                # We may have that the control is an array obtained via subscripting,
+                # e.g. `control(qs[0]) with qs: array[array[qubit, 2], 2]`.
+                if isinstance(ctrl[0], PlaceNode):
+                    ctrl[0].place = check_place_assignable(
+                        ctrl[0].place,
+                        self.ctx,
+                        ctrl[0],
+                        "able to control subscripted elements",
+                    )
                 control.qubit_num = get_array_length(ty)
             else:
                 for i in range(len(ctrl)):
                     ctrl[i], subst = self._check_expr(ctrl[i], qubit_ty())
                     assert len(subst) == 0
+                    ctrl_arg = ctrl[i]
+                    if isinstance(ctrl_arg, PlaceNode):
+                        ctrl_arg.place = check_place_assignable(
+                            ctrl_arg.place,
+                            self.ctx,
+                            ctrl_arg,
+                            "able to control subscripted elements",
+                        )
                 control.qubit_num = len(ctrl)
 
         for power in node.power:

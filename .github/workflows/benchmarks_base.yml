@@ -9,7 +9,7 @@ env:
 
 jobs:
   benchmark_base_branch:
-    name: Continuous Benchmarking with Bencher
+    name: Continuous Benchmarking
     permissions:
       checks: write
     runs-on: ubuntu-latest
@@ -30,7 +30,7 @@ jobs:
 
       - name: Track base branch benchmarks with Bencher
         run: |
-          just bench_upload \
+          just bench-upload \
                --token '${{ secrets.BENCHER_API_TOKEN }}' \
                --testbed Linux \
                --branch main \
