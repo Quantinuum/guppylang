@@ -344,18 +344,17 @@ def ext_module_decorator(
                         )
 
             # Add a constructor to the class
-            if init_arg:
-                init_fn_ty = FunctionType(
-                    [
-                        FuncInput(
-                            NumericType(NumericType.Kind.Nat),
-                            flags=InputFlags.Owned,
-                        )
-                    ],
-                    ext_module_ty,
-                )
-            else:
-                init_fn_ty = FunctionType([], ext_module_ty)
+            init_fn_ty = FunctionType(
+                [
+                    FuncInput(
+                        NumericType(NumericType.Kind.Nat),
+                        flags=InputFlags.Owned,
+                    )
+                ]
+                if init_arg
+                else [],
+                ext_module_ty,
+            )
 
             call_method = CustomFunctionDef(
                 DefId.fresh(),
