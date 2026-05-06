@@ -49,6 +49,17 @@ class ConstMismatchError(Error):
 
 
 @dataclass(frozen=True)
+class TooManyEffectsError(Error):
+    title: ClassVar[str] = "Too many effects"
+    span_label: ClassVar[str] = (
+        "Callee of type `{ty}` has effects that exceed the "
+        "allowed effects `{allowed_effects}`"
+    )
+    ty: Type
+    allowed_effects: list[str]
+
+
+@dataclass(frozen=True)
 class AssignFieldTypeMismatchError(Error):
     title: ClassVar[str] = "Type mismatch"
     span_label: ClassVar[str] = (

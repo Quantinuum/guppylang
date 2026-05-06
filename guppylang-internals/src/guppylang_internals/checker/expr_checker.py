@@ -81,6 +81,7 @@ from guppylang_internals.checker.errors.type_errors import (
     NonLinearInstantiateError,
     NotCallableError,
     ParameterInferenceError,
+    TooManyEffectsError,
     TupleIndexOutOfBoundsError,
     TypeApplyNotGenericError,
     TypeInferenceError,
@@ -1261,6 +1262,12 @@ def synthesize_call(
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(args), node, func_ty)
 
+    if ctx.max_effects is not None and (
+        func_ty.max_effects is None
+        or any(e not in ctx.max_effects for e in func_ty.max_effects)
+    ):
+        raise GuppyTypeError(TooManyEffectsError(node, func_ty, ctx.max_effects))
+
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
@@ -1291,6 +1298,12 @@ def check_call(
     """
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
+
+    if ctx.max_effects is not None and (
+        func_ty.max_effects is None
+        or any(e not in ctx.max_effects for e in func_ty.max_effects)
+    ):
+        raise GuppyTypeError(TooManyEffectsError(node, func_ty, ctx.max_effects))
 
     # When checking, we can use the information from the expected return type to infer
     # some type arguments. However, this pushes errors inwards. For example, given a
