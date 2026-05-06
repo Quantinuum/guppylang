@@ -41,7 +41,7 @@ jobs:
           enable-cache: true
 
       - name: Install Guppy
-        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
+        run: uv sync --locked --python ${{ env.PYTHON_VERSION }}
 
       - name: Type check with mypy
         run: uv run mypy guppylang guppylang-internals
@@ -77,7 +77,7 @@ jobs:
           enable-cache: true
 
       - name: Install Guppy
-        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
+        run: uv sync --locked --python ${{ env.PYTHON_VERSION }}
 
       - name: Run python tests with coverage instrumentation
         run: uv run pytest -n auto --cov=./ --cov-report=xml
