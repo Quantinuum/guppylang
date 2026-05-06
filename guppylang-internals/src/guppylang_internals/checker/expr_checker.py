@@ -1479,7 +1479,12 @@ def check_generator(
     # The rest is checked in a new nested context to ensure that variables don't escape
     # their scope
     inner_locals: Locals[str, Variable] = Locals({}, parent_scope=ctx.locals)
-    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_param_inst)
+    inner_ctx = Context(
+        ctx.globals,
+        inner_locals,
+        ctx.generic_param_inst,
+        ctx.max_effects,
+    )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
     gen.iter = with_type(iter_ty, gen.iter)

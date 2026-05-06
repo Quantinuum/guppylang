@@ -101,20 +101,17 @@ class StmtChecker(AstVisitor[BBStatement]):
     ctx: Context
     bb: BB | None
     return_ty: Type | None
-    max_effects: list[str] | None
 
     def __init__(
         self,
         ctx: Context,
         bb: BB | None = None,
         return_ty: Type | None = None,
-        max_effects: list[str] | None = None,
     ) -> None:
         assert not return_ty or not return_ty.unsolved_vars
         self.ctx = ctx
         self.bb = bb
         self.return_ty = return_ty
-        self.max_effects = max_effects
 
     def check_stmts(self, stmts: Sequence[BBStatement]) -> list[BBStatement]:
         return [self.visit(s) for s in stmts]
@@ -420,7 +417,7 @@ class StmtChecker(AstVisitor[BBStatement]):
         # to @guppy), but we will wait for callgraph analysis to compute precisely:
         # nested functions are not part of any public API, so changes are not breaking.
         func_def = check_nested_func_def(
-            node, self.bb, self.ctx, max_effects=self.max_effects
+            node, self.bb, self.ctx, max_effects=self.ctx.max_effects
         )
         self.ctx.locals[func_def.name] = Variable(func_def.name, func_def.ty, func_def)
         return func_def
@@ -433,7 +430,7 @@ class StmtChecker(AstVisitor[BBStatement]):
 
         # check the body of the modified block
         modified_block = check_modified_block(
-            node, self.bb, self.ctx, max_effects=self.max_effects
+            node, self.bb, self.ctx, max_effects=self.ctx.max_effects
         )
 
         # check the arguments of the control and power.

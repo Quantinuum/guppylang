@@ -248,10 +248,10 @@ def check_bb(
                 raise GuppyError(VarNotDefinedError(use, x))
 
     # Check the basic block
-    ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
-    checked_stmts = StmtChecker(
-        ctx, bb, return_ty, max_effects=max_effects
-    ).check_stmts(bb.statements)
+    ctx = Context(
+        globals, Locals({v.name: v for v in inputs}), generic_args, max_effects
+    )
+    checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
     # If we branch, we also have to check the branch predicate
     if len(bb.successors) > 1:
