@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, override
 
 import hugr.build.function as hf
 import hugr.tys as ht
@@ -79,6 +79,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
     ty: FunctionType
     defined_at: ast.FunctionDef
 
+    @override
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
@@ -88,6 +89,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Type]:

@@ -2,7 +2,7 @@ import ast
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, override
 
 from hugr import Wire, ops
 from hugr import tys as ht
@@ -223,6 +223,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
         mono_ty = self.ty.instantiate(type_args) if self.has_signature else self.ty
         return CustomMonoFunctionDef(
@@ -239,6 +240,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             type_args,
         )
 
+    @override
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
@@ -250,6 +252,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
         new_node, subst = self.call_checker.check(args, ty)
         return with_type(ty, with_loc(node, new_node)), subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
@@ -434,11 +437,13 @@ class CustomCallCompiler(CustomInoutCallCompiler, ABC):
 class DefaultCallChecker(CustomCallChecker):
     """Checks function calls by comparing to a type signature."""
 
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)

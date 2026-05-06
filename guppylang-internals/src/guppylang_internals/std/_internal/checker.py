@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, override
 
 from typing_extensions import assert_never
 
@@ -79,6 +79,7 @@ class ReversingChecker(CustomCallChecker):
         assert name.startswith("r")
         return f"__{name[1:]}__"
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         [self_arg, other_arg] = args
         self_arg, self_ty = ExprSynthesizer(self.ctx).synthesize(self_arg)
@@ -93,12 +94,14 @@ class UnsupportedChecker(CustomCallChecker):
     Gives the uses a nicer error message when they try to use an unsupported feature.
     """
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         err = UnsupportedError(
             self.node, f"Builtin method `{self.func.name}`", singular=True
         )
         raise GuppyError(err)
 
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         err = UnsupportedError(
             self.node, f"Builtin method `{self.func.name}`", singular=True
@@ -117,6 +120,7 @@ class DunderChecker(CustomCallChecker):
         self.dunder_name = dunder_name
         self.num_args = num_args
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         check_num_args(self.num_args, len(args), self.node)
         fst, *rest = args
@@ -132,6 +136,7 @@ class DunderChecker(CustomCallChecker):
 class CallableChecker(CustomCallChecker):
     """Call checker for the builtin `callable` function"""
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         check_num_args(1, len(args), self.node)
         [arg] = args
@@ -157,6 +162,7 @@ class ArrayCopyChecker(CustomCallChecker):
         class Explanation(Note):
             message: ClassVar[str] = "Only arrays with copyable elements can be copied"
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # First, check if we're trying to copy a non-copyable element type to give a
         # nicer error message. Then, do the full `synthesize_call` type check
@@ -247,6 +253,7 @@ class ArrayIndexChecker(CustomCallChecker):
                 )
             )
 
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         """Check-mode: verify arguments against
         expected type and perform bounds check."""
@@ -261,6 +268,7 @@ class ArrayIndexChecker(CustomCallChecker):
         node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
         return with_loc(self.node, node), subs
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         """Synthesize-mode: infer return type and perform bounds check."""
         # Run regular type synthesis for the arguments
@@ -288,6 +296,7 @@ class NewArrayChecker(CustomCallChecker):
                 "Consider adding a type annotation: `x: array[???] = ...`"
             )
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         match args:
             case []:
@@ -410,6 +419,7 @@ class AbortChecker(CustomCallChecker):
     def __init__(self, exit_kind: AbortKind):
         self.exit_kind = exit_kind
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         match args:
             case []:
@@ -465,6 +475,7 @@ def to_sized_iter(
 class BarrierChecker(CustomCallChecker):
     """Call checker for the `barrier` function."""
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         tys = [ExprSynthesizer(self.ctx).synthesize(val)[1] for val in args]
         func_ty = FunctionType(
@@ -478,12 +489,14 @@ class BarrierChecker(CustomCallChecker):
 
 
 class WasmCallChecker(CustomCallChecker):
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
 
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)

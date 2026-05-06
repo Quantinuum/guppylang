@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, override
 
 from hugr import Node, Wire
 from hugr.build import function as hf
@@ -154,6 +154,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
             type_args=type_args,
         )
 
+    @override
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
@@ -164,6 +165,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
         ENGINE.register_generic_use(self, inst)
         return node, subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[GlobalCall, Type]:
