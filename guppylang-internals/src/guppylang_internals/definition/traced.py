@@ -89,6 +89,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Type]:

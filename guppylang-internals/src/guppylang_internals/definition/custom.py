@@ -251,6 +251,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
         new_node, subst = self.call_checker.check(args, ty)
         return with_type(ty, with_loc(node, new_node)), subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:

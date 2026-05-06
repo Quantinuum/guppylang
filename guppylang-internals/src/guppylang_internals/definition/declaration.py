@@ -165,6 +165,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
         ENGINE.register_generic_use(self, inst)
         return node, subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[GlobalCall, Type]:
