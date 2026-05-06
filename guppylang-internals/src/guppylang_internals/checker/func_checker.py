@@ -137,7 +137,6 @@ def check_global_func_def(
     generic_ty: FunctionType,
     type_args: Inst,
     globals: Globals,
-    max_effects: list[str] | None,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -164,7 +163,7 @@ def check_global_func_def(
         generic_args,
         func_def.name,
         globals,
-        max_effects=max_effects,
+        max_effects=ty.max_effects,
     )
 
 
@@ -175,7 +174,7 @@ def check_nested_func_def(
     max_effects: list[str] | None,
 ) -> CheckedNestedFunctionDef:
     """Type checks a local (nested) function definition."""
-    func_ty = check_signature(func_def, ctx.globals)
+    func_ty = check_signature(func_def, ctx.globals).with_effects(max_effects)
     assert func_ty.input_names is not None
 
     if func_ty.parametrized:
@@ -246,7 +245,6 @@ def check_nested_func_def(
                 func_ty,
                 None,
                 link_name,
-                max_effects=max_effects,
             )
             DEF_STORE.register_def(func, parent_frame)
             ENGINE.parsed[def_id] = func
@@ -287,7 +285,6 @@ def check_nested_func_def(
         func_def.docstring,
         link_name,
         checked_cfg,
-        max_effects=max_effects,
     )
     return with_loc(func_def, checked_def)
 

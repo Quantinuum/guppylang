@@ -99,7 +99,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
-        )
+        ).with_effects(self.max_effects)
         link_name = self._user_set_link_name or default_func_link_name(self)
 
         # TODO: For the guppylang 1.0 break, we should consider disallowing generic
@@ -115,7 +115,6 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
             docstring=docstring,
             link_name=link_name,
             metadata=self.metadata,
-            max_effects=self.max_effects,
         )
 
 
@@ -140,8 +139,6 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     link_name: str
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    max_effects: list[str] | None = field(default=None, kw_only=True)
-
     @property
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
@@ -157,7 +154,6 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
             docstring=self.docstring,
             link_name=mono_link_name,
             type_args=type_args,
-            max_effects=self.max_effects,
         )
 
     def check_call(
@@ -226,7 +222,6 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
             type_args=self.type_args,
             declaration=node,
             metadata=self.metadata,
-            max_effects=self.max_effects,
         )
 
 

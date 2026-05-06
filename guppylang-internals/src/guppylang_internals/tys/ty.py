@@ -413,6 +413,8 @@ class FunctionType(ParametrizedTypeBase):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
 
+    max_effects: list[str] | None = field(default=None, init=True)
+
     def __init__(
         self,
         inputs: Sequence[FuncInput],
@@ -420,6 +422,7 @@ class FunctionType(ParametrizedTypeBase):
         params: Sequence[Parameter] | None = None,
         comptime_args: Sequence[ConstArg] | None = None,
         unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        max_effects: list[str] | None = None,
     ) -> None:
         # We need a custom __init__ to set the args
         args: list[Argument] = [TypeArg(inp.ty) for inp in inputs]
@@ -448,6 +451,7 @@ class FunctionType(ParametrizedTypeBase):
         object.__setattr__(self, "output", output)
         object.__setattr__(self, "params", params)
         object.__setattr__(self, "unitary_flags", unitary_flags)
+        object.__setattr__(self, "max_effects", max_effects)
 
     @property
     def parametrized(self) -> bool:
@@ -501,6 +505,8 @@ class FunctionType(ParametrizedTypeBase):
         The resulting `FunctionType` can then be embedded into a Hugr `Type` or a Hugr
         `PolyFuncType`.
         """
+        # At some point we may want to represent the max_effects as input and
+        # perhaps output "token" types in Hugr, but for now we will use Order edges.
         ins = [
             inp.ty.to_hugr(ctx)
             for inp in self.inputs
@@ -535,6 +541,7 @@ class FunctionType(ParametrizedTypeBase):
             self.params,
             comptime_args=self.comptime_args,
             unitary_flags=self.unitary_flags,
+            max_effects=self.max_effects,
         )
 
     def instantiate_partial(self, args: "PartialInst") -> "FunctionType":
@@ -564,6 +571,7 @@ class FunctionType(ParametrizedTypeBase):
                 cast("ConstArg", arg.transform(inst)) for arg in self.comptime_args
             ],
             unitary_flags=self.unitary_flags,
+            max_effects=self.max_effects,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
@@ -594,6 +602,24 @@ class FunctionType(ParametrizedTypeBase):
             self.params,
             self.comptime_args,
             flags,
+            max_effects=self.max_effects,
+        )
+
+    def with_effects(self, max_effects: list[str] | None) -> "FunctionType":
+        """Returns a copy of this function type with the specified max_effects."""
+        # N.B. we can't use `dataclasses.replace` here since `FunctionType` has a custom
+        # constructor
+        if self.max_effects is not None:
+            raise InternalGuppyError(
+                "Tried to set max_effects on a FunctionType that already has them"
+            )
+        return FunctionType(
+            self.inputs,
+            self.output,
+            self.params,
+            self.comptime_args,
+            self.unitary_flags,
+            max_effects=max_effects,
         )
 
 

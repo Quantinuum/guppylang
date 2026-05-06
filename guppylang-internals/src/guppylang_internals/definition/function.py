@@ -124,7 +124,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
-        )
+        ).with_effects(self.max_effects)
         link_name = self._user_set_link_name or default_func_link_name(self)
 
         return ParsedFunctionDef(
@@ -135,7 +135,6 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             docstring,
             link_name,
             metadata=self.metadata,
-            max_effects=self.max_effects,
         )
 
 
@@ -166,8 +165,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    max_effects: list[str] | None = field(default=None, kw_only=True)
-
     @property
     def params(self) -> "Sequence[Parameter]":
         """Generic parameters of this function."""
@@ -180,7 +177,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             self.ty,
             type_args,
             globals,
-            max_effects=self.max_effects,
         )
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
@@ -193,7 +189,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_link_name,
             cfg,
             metadata=self.metadata,
-            max_effects=self.max_effects,
         )
 
     def check_call(
@@ -279,7 +274,6 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.cfg,
             func_def,
             metadata=self.metadata,
-            max_effects=self.max_effects,
         )
 
 
