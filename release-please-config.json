@@ -12,7 +12,8 @@
       "release-type": "python",
       "component": "guppylang",
       "package-name": "guppylang",
-      "draft": false,
+      "draft": true,
+      "force-tag-creation": true,
       "prerelease": false,
       "draft-pull-request": true,
       "extra-files": [
@@ -27,7 +28,8 @@
       "release-type": "python",
       "component": "guppylang-internals",
       "package-name": "guppylang_internals",
-      "draft": false,
+      "draft": true,
+      "force-tag-creation": true,
       "prerelease": false,
       "draft-pull-request": true,
       "extra-files": [
