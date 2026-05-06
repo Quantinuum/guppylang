@@ -363,8 +363,8 @@ def test_qsystem_exec():
 
         guppy_circ(a, b)
 
-        result("a", measure(a))
-        result("b", measure(b))
+        result("a", measure(a).read())
+        result("b", measure(b).read())
 
     # deterministic - should always be 0
     res = main.emulator(n_qubits=2).run()

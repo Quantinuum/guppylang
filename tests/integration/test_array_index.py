@@ -122,7 +122,7 @@ def test_method_take_valid_index():
     def main() -> None:
         qs = array(qubit() for _ in range(10))
         q = qs.take(5)  # inbounds, take qubit out of array
-        measure(q)
+        measure(q).read()
         discard_array(qs)
 
     main.compile()
@@ -142,7 +142,7 @@ def test_method_take_put_valid_index():
     @guppy
     def main() -> None:
         qs = array(qubit() for _ in range(10))
-        measure(qs.take(3))  # Take it out to make space for the new one
+        measure(qs.take(3)).read()  # Take it out to make space for the new one
         qs.put(qubit(), 3)
         h(qs[3])
         discard_array(qs)

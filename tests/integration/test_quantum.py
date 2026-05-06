@@ -7,7 +7,6 @@ from guppylang.std.angles import angle
 from guppylang.std.builtins import owned, array, panic, result
 from guppylang.std.platform import barrier
 
-
 from guppylang.std import quantum as q
 from guppylang.std.quantum import (
     discard,
@@ -16,6 +15,7 @@ from guppylang.std.quantum import (
     maybe_qubit,
     measure_array,
     discard_array,
+    Measurement,
 )
 from guppylang.std.quantum.functional import (
     cx,
@@ -46,7 +46,7 @@ from tests.util import guppy
 
 def test_alloc(validate):
     @guppy
-    def test() -> tuple[bool, bool]:
+    def test() -> tuple[Measurement, Measurement]:
         q1, q2 = qubit(), maybe_qubit().unwrap()
         q1, q2 = cx(q1, q2)
         return (measure(q1), measure(q2))
@@ -99,7 +99,7 @@ def test_measure_ops(validate):
     """Compile various measurement-related operations."""
 
     @guppy
-    def test(q1: qubit @ owned, q2: qubit @ owned) -> tuple[bool, bool]:
+    def test(q1: qubit @ owned, q2: qubit @ owned) -> tuple[bool, Measurement]:
         q1, b1 = project_z(q1)
         q1 = discard(q1)
         q2 = reset(q2)
@@ -127,7 +127,7 @@ def test_measure_array(validate):
     """Build and measure array."""
 
     @guppy
-    def test() -> array[bool, 10]:
+    def test() -> array[Measurement, 10]:
         qs = array(qubit() for _ in range(10))
         return measure_array(qs)
 
@@ -249,6 +249,6 @@ def test_barrier_misc(validate):
         barrier(q1, array(1, 2, 3), 2 + 3, x)
 
         result("c", x)
-        result("c2", measure(q1))
+        result("c2", measure(q1).read())
 
     validate(test.compile_function())

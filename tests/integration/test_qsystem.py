@@ -5,7 +5,6 @@ from guppylang.std.qsystem.random import make_discrete_distribution, RNG
 
 from guppylang.std.qsystem import (
     MaybeLeaked,
-    collect_measurements,
     lazy_measure,
     lazy_measure_array,
     lazy_measure_and_reset,
@@ -14,7 +13,13 @@ from guppylang.std.qsystem import (
     measure_leaked,
 )
 from guppylang.std.qsystem.utils import get_current_shot
-from guppylang.std.quantum import qubit, measure_array, x
+from guppylang.std.quantum import (
+    qubit,
+    measure_array,
+    x,
+    collect_measurements,
+    Measurement,
+)
 from guppylang.std.qsystem.functional import (
     phased_x,
     zz_phase,
@@ -36,17 +41,18 @@ def test_qsystem(validate):  # type: ignore[no-untyped-def]
     """Compile various operations from the qsystem extension."""
 
     @guppy
-    def test(q1: qubit @ owned, q2: qubit @ owned, a1: angle) -> bool:
+    def test(q1: qubit @ owned, q2: qubit @ owned, a1: angle) -> Measurement:
         shot = get_current_shot()
         q1 = phased_x(q1, a1, a1)
         q1, q2 = zz_phase(q1, q2, a1)
         q1 = rz(q1, a1)
         q1, q2 = zz_max(q1, q2)
-        q1, b = measure_and_reset(q1)
+        q1, msmt1 = measure_and_reset(q1)
+        msmt1.read()
         q1 = reset(q1)
-        b = measure(q1)
+        msmt2 = measure(q1)
         qfree(q2)
-        return b
+        return msmt2
 
     validate(test.compile_function())
 
@@ -62,7 +68,7 @@ def test_qsystem_random(validate):  # type: ignore[no-untyped-def]
         rint_bnd = rng.random_int_bounded(100)
         ar = array(qubit() for _ in range(5))
         rng.shuffle(ar)
-        _ = measure_array(ar)
+        _ = collect_measurements(measure_array(ar))
         dist = make_discrete_distribution(array(0.0, 1.0, 2.0, 3.0))
         rint_discrete = dist.sample(rng)
         rangle = rng.random_angle()
@@ -153,8 +159,8 @@ def test_lazy_measure_and_reset(validate, run_int_fn):  # type: ignore[no-untype
     def test() -> int:
         q = qubit()
         x(q)
-        first_result = lazy_measure_and_reset(q)
-        second_result = measure(q)
+        first_result = lazy_measure_and_reset(q).read()
+        second_result = measure(q).read()
         if first_result and not second_result:  # First expect flip, then expect reset
             return 1
         return 0
@@ -169,7 +175,7 @@ def test_lazy_measure_and_reset_functional(validate, run_int_fn):  # type: ignor
         q = qubit()
         x(q)
         q, first_result = lazy_measure_and_reset_fn(q)
-        second_result = measure(q)
+        second_result = measure(q).read()
         if first_result.read() and not second_result:
             return 1
         return 0
@@ -189,8 +195,8 @@ def test_measure_and_reset_array(validate, run_int_fn):  # type: ignore[no-untyp
             if pattern[i]:
                 x(qubits[i])
 
-        first = measure_and_reset_array(qubits)
-        second = qsystem_measure_array(qubits)
+        first = collect_measurements(measure_and_reset_array(qubits))
+        second = collect_measurements(qsystem_measure_array(qubits))
 
         for i in range(len(first)):
             if int(first[i]) != pattern[i] or second[i]:
@@ -212,7 +218,7 @@ def test_measure_array_functional(validate, run_int_fn):  # type: ignore[no-unty
             if pattern[i]:
                 x(qubits[i])
 
-        bits = measure_array_fn(qubits)
+        bits = collect_measurements(measure_array_fn(qubits))
 
         for i in range(len(bits)):
             if int(bits[i]) != pattern[i]:
@@ -234,8 +240,9 @@ def test_measure_and_reset_array_functional(validate, run_int_fn):  # type: igno
             if pattern[i]:
                 x(qubits[i])
 
-        qubits, first = measure_and_reset_array_fn(qubits)
-        second = measure_array(qubits)
+        qubits, first_msmts = measure_and_reset_array_fn(qubits)
+        first = collect_measurements(first_msmts)
+        second = collect_measurements(measure_array(qubits))
 
         for i in range(len(first)):
             if int(first[i]) != pattern[i] or second[i]:
@@ -257,12 +264,12 @@ def test_lazy_measure_and_reset_array_functional(validate, run_int_fn):  # type:
             if pattern[i]:
                 x(qubits[i])
 
-        qubits, measurements = lazy_measure_and_reset_array_fn(qubits)
-        results = collect_measurements(measurements)
-        second = qsystem_measure_array(qubits)
+        qubits, first_msmts = lazy_measure_and_reset_array_fn(qubits)
+        first = collect_measurements(first_msmts)
+        second = collect_measurements(qsystem_measure_array(qubits))
 
-        for i in range(len(results)):
-            if int(results[i]) != pattern[i] or second[i]:
+        for i in range(len(first)):
+            if int(first[i]) != pattern[i] or second[i]:
                 return 0
         return 1
 

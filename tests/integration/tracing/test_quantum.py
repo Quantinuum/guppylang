@@ -18,7 +18,7 @@ def test_basics(validate):
     def bar(q1: qubit) -> None:
         q2 = qubit()
         cx(q1, q2)
-        measure(q2)
+        measure(q2).read()
 
     validate(foo.compile_function())
 

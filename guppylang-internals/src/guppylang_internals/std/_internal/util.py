@@ -16,11 +16,7 @@ from hugr import ops
 from hugr import tys as ht
 
 from guppylang_internals.compiler.hugr_extension import UnsupportedOp
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool
-from guppylang_internals.std._internal.compiler.tket_exts import (
-    BOOL_EXTENSION,
-    QUANTUM_EXTENSION,
-)
+from guppylang_internals.std._internal.compiler.tket_exts import QUANTUM_EXTENSION
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import NumericType
@@ -244,28 +240,6 @@ def unsupported_op(
             op_name=op_name,
             inputs=ty.input,
             outputs=ty.output,
-        )
-
-    return op
-
-
-def bool_logic_op(
-    op_name: str,
-) -> Callable[[ht.FunctionType, Inst, ToHugrContext], ops.DataflowOp]:
-    """Utility method to create binary `tket.bool` logic ops.
-
-    args:
-        op_name: The name of the operation.
-
-    Returns:
-        A function that takes an instantiation of the type arguments and returns
-        a concrete HUGR op.
-    """
-
-    def op(ty: ht.FunctionType, inst: Inst, ctx: ToHugrContext) -> ops.DataflowOp:
-        return ops.ExtOp(
-            BOOL_EXTENSION.get_op(op_name),
-            ht.FunctionType([OpaqueBool, OpaqueBool], [OpaqueBool]),
         )
 
     return op

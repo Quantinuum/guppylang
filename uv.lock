@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10, <4"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -1021,7 +1021,7 @@ dependencies = [
 requires-dist = [
     { name = "hugr", specifier = "~=0.16.0" },
     { name = "pytket", specifier = ">=1.34" },
-    { name = "tket", specifier = ">=0.13.0" },
+    { name = "tket", git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=c2739b3" },
     { name = "tket-exts", specifier = "~=0.12.0" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "wasmtime", specifier = ">=38.0,<44.1" },
@@ -3766,41 +3766,25 @@ wheels = [
 [[package]]
 name = "tket"
 version = "0.13.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=c2739b3#c2739b34a694f0b635deb45a60b8a7e739dcb00a" }
 dependencies = [
     { name = "hugr" },
     { name = "pytket" },
     { name = "tket-eccs" },
     { name = "tket-exts" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/94/72/7d1eddd68475a453fba17d010f5b0484061b370c4a669ef241e05f7c1136/tket-0.13.0.tar.gz", hash = "sha256:7ccbcd6379f0bad5e6d701bc38b0e73ae09a89316a948ba79a4dd3d0800374bf", size = 587556, upload-time = "2026-04-07T15:58:47.276Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/34/62/d56c2af222ceaf53e2b2366fd887aa813c9b9a795a5a09db18fda34289e9/tket-0.13.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:e4d6d7e02409c741b3db8d1feedb9ba24962ea09769d177eb18631ec7227cc11", size = 9821143, upload-time = "2026-04-07T15:58:35.375Z" },
-    { url = "https://files.pythonhosted.org/packages/b3/b9/09f1d165a64ffe2885a19bd1942c91cfaf0827df8328999eb5749ac4ed9f/tket-0.13.0-cp310-abi3-macosx_11_0_x86_64.whl", hash = "sha256:d3a3169e232eb3576fd529f1aacb87d5a2cfeffcd1b604f81ff80169c8ef35f9", size = 10709085, upload-time = "2026-04-07T15:58:37.804Z" },
-    { url = "https://files.pythonhosted.org/packages/1f/39/6a3d69429f25dd3c178de76c5e0d40f6526799e632357714c5ed4d55b449/tket-0.13.0-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:fa73f33e83fe59c9669723d105cdc8b4cc9e494b5ca808be4aff8525b3ca3cdc", size = 11900149, upload-time = "2026-04-07T15:58:40.426Z" },
-    { url = "https://files.pythonhosted.org/packages/94/82/df1610831c76007a7146c0fb1ae9af9672c389dff24e727f8e7a498a6fba/tket-0.13.0-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:c044aa8b4a83ddd7362fd139e32c5dd1b5a9c132176cf8e31ccc9691d446463f", size = 12888623, upload-time = "2026-04-07T15:58:42.832Z" },
-    { url = "https://files.pythonhosted.org/packages/7b/d1/0b478d69c744849cf94af21079d8b702c322eed85031c5cb6effb54ffdbf/tket-0.13.0-cp310-abi3-win_amd64.whl", hash = "sha256:2f147c0d378930f7a6f676ce5e880fda9c0258512ebed4f929b1add976a798f5", size = 9450232, upload-time = "2026-04-07T15:58:45.1Z" },
-]
 
 [[package]]
 name = "tket-eccs"
 version = "0.5.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/bb/35/0433336cbe94775e79d1e27823e95f05c697be0010c4c06252bc562cabc4/tket_eccs-0.5.1.tar.gz", hash = "sha256:7e3118569c64f29bab09b9c2dbf20b769ceb1db80ca9b2cec59dfae09023e7d2", size = 7615434, upload-time = "2025-08-19T16:55:12.648Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/56/ef17291924c26e02ce19d062d4698234f499c156a7ed670a0ec556a37d96/tket_eccs-0.5.1-py3-none-any.whl", hash = "sha256:a28f66fde5fe0f52f286a5aca19b821a3182328596d79c7d26c7ede7a4659537", size = 7616506, upload-time = "2025-08-19T16:55:10.576Z" },
-]
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-eccs&rev=c2739b3#c2739b34a694f0b635deb45a60b8a7e739dcb00a" }
 
 [[package]]
 name = "tket-exts"
 version = "0.12.3"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-exts&rev=c2739b3#c2739b34a694f0b635deb45a60b8a7e739dcb00a" }
 dependencies = [
     { name = "hugr" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/10/68/036b38ded9ad6ef8aedb93817127af0b5535e52eeb68ef8f19b368d0e035/tket_exts-0.12.3.tar.gz", hash = "sha256:de9faa87e35a7cc2250ab1022a026f129d05dc7bf41ad4fd86914d5a9c81541e", size = 21797, upload-time = "2026-04-07T15:26:51.422Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/77/df/ab123f36707d0fb4deaa96c48a992b90f574348f79aefb94c120dd695f1b/tket_exts-0.12.3-py3-none-any.whl", hash = "sha256:34b03fa69160606bb7ef86735671aa8e7a70149947d630c48a7ebf2f61c49417", size = 34309, upload-time = "2026-04-07T15:26:49.84Z" },
 ]
 
 [[package]]

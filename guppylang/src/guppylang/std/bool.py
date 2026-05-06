@@ -9,7 +9,7 @@ from typing import no_type_check
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.std._internal.checker import DunderChecker, ReversingChecker
-from guppylang_internals.std._internal.util import bool_logic_op
+from guppylang_internals.std._internal.util import logic_op
 from guppylang_internals.tys.builtin import bool_type_def
 
 from guppylang import guppy
@@ -26,13 +26,13 @@ class bool:
     ``False`` using the standard truth testing procedure.
     """
 
-    @hugr_op(bool_logic_op("and"))
+    @hugr_op(logic_op("And"))
     def __and__(self: bool, other: bool) -> bool: ...
 
     @custom_function(NoopCompiler())
     def __bool__(self: bool) -> bool: ...
 
-    @hugr_op(bool_logic_op("eq"))
+    @hugr_op(logic_op("Eq"))
     def __eq__(self: bool, other: bool) -> bool: ...
 
     @guppy
@@ -56,10 +56,10 @@ class bool:
     @custom_function(checker=DunderChecker("__bool__"), higher_order_value=False)
     def __new__(x): ...
 
-    @hugr_op(bool_logic_op("or"))
+    @hugr_op(logic_op("Or"))
     def __or__(self: bool, other: bool) -> bool: ...
 
-    @hugr_op(bool_logic_op("xor"))
+    @hugr_op(logic_op("Xor"))
     def __xor__(self: bool, other: bool) -> bool: ...
 
     @custom_function(checker=ReversingChecker())
