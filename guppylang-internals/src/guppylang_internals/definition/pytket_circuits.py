@@ -161,7 +161,6 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         use_arrays: Whether the circuit function should use arrays as input types.
     """
 
-    ty: FunctionType
     input_circuit: Any
     use_arrays: bool
 
