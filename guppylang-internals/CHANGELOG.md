@@ -3,6 +3,21 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.34.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v0.34.0) (2026-05-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* Metadata Generation with Nested Modifiers ([#1691](https://github.com/Quantinuum/guppylang/issues/1691))
+* Better scoping for existentials ([#1602](https://github.com/Quantinuum/guppylang/issues/1602))
+
+### Bug Fixes
+
+* Better scoping for existentials ([#1602](https://github.com/Quantinuum/guppylang/issues/1602)) ([0483dfd](https://github.com/Quantinuum/guppylang/commit/0483dfd334d4d31583bcb161ad9837713d136750))
+* **internals:** Act upon and resolve Python 3.15 AST deprecations ([#1668](https://github.com/Quantinuum/guppylang/issues/1668)) ([618ce5b](https://github.com/Quantinuum/guppylang/commit/618ce5b9b46a11ff2df77a175107430e569fb833))
+* Metadata Generation with Nested Modifiers ([#1691](https://github.com/Quantinuum/guppylang/issues/1691)) ([263e919](https://github.com/Quantinuum/guppylang/commit/263e9193ce2c1c5d90a6dac9113630c718445c82))
+* Use of array subscript as argument of control modifiers ([#1708](https://github.com/Quantinuum/guppylang/issues/1708)) ([1881cb8](https://github.com/Quantinuum/guppylang/commit/1881cb8b9a12c95bffbea302f396ecd0b00152e2))
+
 ## [0.33.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.32.0...guppylang-internals-v0.33.0) (2026-04-16)
 
 
