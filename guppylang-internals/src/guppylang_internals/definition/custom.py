@@ -2,7 +2,7 @@ import ast
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, override
 
 from hugr import Wire, ops
 from hugr import tys as ht
@@ -239,6 +239,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             type_args,
         )
 
+    @override
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:

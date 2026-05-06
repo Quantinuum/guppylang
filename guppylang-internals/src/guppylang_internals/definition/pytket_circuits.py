@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, cast, override
 
 import hugr.build.function as hf
 from guppylang.defs import GuppyDefinition
@@ -338,6 +338,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             outer_func,
         )
 
+    @override
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:

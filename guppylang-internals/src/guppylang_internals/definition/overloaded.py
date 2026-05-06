@@ -2,7 +2,7 @@ import ast
 import copy
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import ClassVar, NamedTuple, NoReturn
+from typing import ClassVar, NamedTuple, NoReturn, override
 
 from hugr import Wire
 
@@ -93,6 +93,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         raise GuppyError(OverloadHigherOrderError(node, self.name))
 
+    @override
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
