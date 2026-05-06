@@ -23,6 +23,15 @@ def test_dagger_call_simple(validate):
     validate(bar.compile_function())
 
 
+def test_subscript_dagger(validate):
+    @guppy
+    def main(array_qubits: array[qubit, 2]) -> None:
+        with dagger:
+            h(array_qubits[1])
+
+    validate(main.compile_function())
+
+
 def test_control_simple(validate):
     @guppy
     def bar(q: qubit) -> None:
