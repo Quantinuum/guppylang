@@ -223,6 +223,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
         mono_ty = self.ty.instantiate(type_args) if self.has_signature else self.ty
         return CustomMonoFunctionDef(
@@ -436,11 +437,13 @@ class CustomCallCompiler(CustomInoutCallCompiler, ABC):
 class DefaultCallChecker(CustomCallChecker):
     """Checks function calls by comparing to a type signature."""
 
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)

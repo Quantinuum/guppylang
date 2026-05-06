@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from guppylang_internals.ast_util import with_loc
 from guppylang_internals.checker.core import ComptimeVariable
@@ -44,6 +44,7 @@ class StateResultChecker(CustomCallChecker):
             "Qubits whose state should be reported must be passed explicitly"
         )
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         tag, _ = ExprChecker(self.ctx).check(args[0], string_type())
         tag_value: Const
