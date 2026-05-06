@@ -137,6 +137,7 @@ def check_global_func_def(
     generic_ty: FunctionType,
     type_args: Inst,
     globals: Globals,
+    max_effects: list[str] | None,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -156,13 +157,22 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    return check_cfg(cfg, inputs, ty.output, generic_args, func_def.name, globals)
+    return check_cfg(
+        cfg,
+        inputs,
+        ty.output,
+        generic_args,
+        func_def.name,
+        globals,
+        max_effects=max_effects,
+    )
 
 
 def check_nested_func_def(
     func_def: NestedFunctionDef,
     bb: BB,
     ctx: Context,
+    max_effects: list[str] | None,
 ) -> CheckedNestedFunctionDef:
     """Type checks a local (nested) function definition."""
     func_ty = check_signature(func_def, ctx.globals)
@@ -236,6 +246,7 @@ def check_nested_func_def(
                 func_ty,
                 None,
                 link_name,
+                max_effects=max_effects,
             )
             DEF_STORE.register_def(func, parent_frame)
             ENGINE.parsed[def_id] = func
@@ -244,7 +255,15 @@ def check_nested_func_def(
             # Otherwise, we treat it like a local name
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
-    checked_cfg = check_cfg(cfg, inputs, func_ty.output, {}, func_def.name, globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        max_effects=max_effects,
+    )
     checked_def = CheckedNestedFunctionDef(
         def_id,
         checked_cfg,
@@ -268,6 +287,7 @@ def check_nested_func_def(
         func_def.docstring,
         link_name,
         checked_cfg,
+        max_effects=max_effects,
     )
     return with_loc(func_def, checked_def)
 
