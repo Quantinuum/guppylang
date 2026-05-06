@@ -155,7 +155,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     """
 
     defined_at: ast.FunctionDef
-    ty: FunctionType
     docstring: str | None
     link_name: str
 
