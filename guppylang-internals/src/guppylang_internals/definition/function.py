@@ -117,12 +117,14 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    max_effects: list[str] | None = field(default=None, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
-        )
+        ).with_effects(self.max_effects)
         link_name = self._user_set_link_name or default_func_link_name(self)
 
         return ParsedFunctionDef(
@@ -170,7 +172,12 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
-        cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
+        cfg = check_global_func_def(
+            self.defined_at,
+            self.ty,
+            type_args,
+            globals,
+        )
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
         return CheckedFunctionDef(

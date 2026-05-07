@@ -81,6 +81,7 @@ from guppylang_internals.checker.errors.type_errors import (
     NonLinearInstantiateError,
     NotCallableError,
     ParameterInferenceError,
+    TooManyEffectsError,
     TupleIndexOutOfBoundsError,
     TypeApplyNotGenericError,
     TypeInferenceError,
@@ -1261,6 +1262,15 @@ def synthesize_call(
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(args), node, func_ty)
 
+    if ctx.max_effects is not None and (
+        func_ty.max_effects is None
+        or any(e not in ctx.max_effects for e in func_ty.max_effects)
+    ):
+        effects = "<UNKNOWN>" if func_ty.max_effects is None else func_ty.max_effects
+        raise GuppyTypeError(
+            TooManyEffectsError(node, func_ty, effects, ctx.max_effects)
+        )
+
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
@@ -1291,6 +1301,15 @@ def check_call(
     """
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
+
+    if ctx.max_effects is not None and (
+        func_ty.max_effects is None
+        or any(e not in ctx.max_effects for e in func_ty.max_effects)
+    ):
+        effects = "<UNKNOWN>" if func_ty.max_effects is None else func_ty.max_effects
+        raise GuppyTypeError(
+            TooManyEffectsError(node, func_ty, effects, ctx.max_effects)
+        )
 
     # When checking, we can use the information from the expected return type to infer
     # some type arguments. However, this pushes errors inwards. For example, given a
@@ -1479,7 +1498,12 @@ def check_generator(
     # The rest is checked in a new nested context to ensure that variables don't escape
     # their scope
     inner_locals: Locals[str, Variable] = Locals({}, parent_scope=ctx.locals)
-    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_param_inst)
+    inner_ctx = Context(
+        ctx.globals,
+        inner_locals,
+        ctx.generic_param_inst,
+        ctx.max_effects,
+    )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
     gen.iter = with_type(iter_ty, gen.iter)

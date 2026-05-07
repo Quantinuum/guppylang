@@ -156,7 +156,15 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    return check_cfg(cfg, inputs, ty.output, generic_args, func_def.name, globals)
+    return check_cfg(
+        cfg,
+        inputs,
+        ty.output,
+        generic_args,
+        func_def.name,
+        globals,
+        max_effects=ty.max_effects,
+    )
 
 
 def check_nested_func_def(
@@ -165,7 +173,11 @@ def check_nested_func_def(
     ctx: Context,
 ) -> CheckedNestedFunctionDef:
     """Type checks a local (nested) function definition."""
-    func_ty = check_signature(func_def, ctx.globals)
+    # For now we assume the nested function has the same effects as that enclosing.
+    # We could do better by allowing a separate annotation (rather than a parameter
+    # to @guppy), but we will wait for callgraph analysis to compute precisely:
+    # nested functions are not part of any public API, so changes are not breaking.
+    func_ty = check_signature(func_def, ctx.globals).with_effects(ctx.max_effects)
     assert func_ty.input_names is not None
 
     if func_ty.parametrized:
@@ -244,7 +256,15 @@ def check_nested_func_def(
             # Otherwise, we treat it like a local name
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
-    checked_cfg = check_cfg(cfg, inputs, func_ty.output, {}, func_def.name, globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        max_effects=func_ty.max_effects,
+    )
     checked_def = CheckedNestedFunctionDef(
         def_id,
         checked_cfg,

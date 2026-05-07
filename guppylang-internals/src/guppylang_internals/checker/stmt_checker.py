@@ -420,7 +420,9 @@ class StmtChecker(AstVisitor[BBStatement]):
             raise InternalGuppyError("BB required to check with block!")
 
         # check the body of the modified block
-        modified_block = check_modified_block(node, self.bb, self.ctx)
+        modified_block = check_modified_block(
+            node, self.bb, self.ctx, max_effects=self.ctx.max_effects
+        )
 
         # check the arguments of the control and power.
         for control in modified_block.control:

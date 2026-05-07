@@ -76,6 +76,7 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
+    max_effects: list[str] | None,
     first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
@@ -99,7 +100,13 @@ def check_cfg(
     # We start by compiling the entry BB
     checked_cfg: CheckedCFG[Variable] = CheckedCFG([v.ty for v in inputs], return_ty)
     checked_cfg.entry_bb = check_bb(
-        cfg.entry_bb, checked_cfg, inputs, return_ty, generic_args, globals
+        cfg.entry_bb,
+        checked_cfg,
+        inputs,
+        return_ty,
+        generic_args,
+        globals,
+        max_effects=max_effects,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -126,7 +133,13 @@ def check_cfg(
         else:
             # Otherwise, check the BB and enqueue its successors
             checked_bb = check_bb(
-                bb, checked_cfg, input_row, return_ty, generic_args, globals
+                bb,
+                checked_cfg,
+                input_row,
+                return_ty,
+                generic_args,
+                globals,
+                max_effects=max_effects,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -218,6 +231,7 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
+    max_effects: list[str] | None,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -234,7 +248,9 @@ def check_bb(
                 raise GuppyError(VarNotDefinedError(use, x))
 
     # Check the basic block
-    ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
+    ctx = Context(
+        globals, Locals({v.name: v for v in inputs}), generic_args, max_effects
+    )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
     # If we branch, we also have to check the branch predicate

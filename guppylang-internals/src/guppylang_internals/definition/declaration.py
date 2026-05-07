@@ -92,12 +92,14 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    max_effects: list[str] | None = field(default=None, kw_only=True)
+
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
-        )
+        ).with_effects(self.max_effects)
         link_name = self._user_set_link_name or default_func_link_name(self)
 
         # TODO: For the guppylang 1.0 break, we should consider disallowing generic

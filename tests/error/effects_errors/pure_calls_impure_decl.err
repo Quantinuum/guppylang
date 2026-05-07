@@ -1,0 +1,9 @@
+Error: Too many effects (at $FILE:9:10)
+  | 
+7 | @guppy(max_effects=[])
+8 | def main() -> int:
+9 |    return impure_func(5)
+  |           ^^^^^^^^^^^^^^ Callee of type `int -> int` has effects <UNKNOWN>
+  |                          that exceed the allowed effects `[]`
+
+Guppy compilation failed due to 1 previous error
