@@ -103,10 +103,7 @@ class StmtChecker(AstVisitor[BBStatement]):
     return_ty: Type | None
 
     def __init__(
-        self,
-        ctx: Context,
-        bb: BB | None = None,
-        return_ty: Type | None = None,
+        self, ctx: Context, bb: BB | None = None, return_ty: Type | None = None
     ) -> None:
         assert not return_ty or not return_ty.unsolved_vars
         self.ctx = ctx
@@ -412,13 +409,7 @@ class StmtChecker(AstVisitor[BBStatement]):
         if not self.bb:
             raise InternalGuppyError("BB required to check nested function def!")
 
-        # For now we assume the nested function has the same effects as that enclosing.
-        # We could do better by allowing a separate annotation (rather than a parameter
-        # to @guppy), but we will wait for callgraph analysis to compute precisely:
-        # nested functions are not part of any public API, so changes are not breaking.
-        func_def = check_nested_func_def(
-            node, self.bb, self.ctx, max_effects=self.ctx.max_effects
-        )
+        func_def = check_nested_func_def(node, self.bb, self.ctx)
         self.ctx.locals[func_def.name] = Variable(func_def.name, func_def.ty, func_def)
         return func_def
 
