@@ -20,7 +20,7 @@ def test_pure_decl_from_pure(validate):
 
     @guppy(max_effects=[])
     def pure_func2(x: int) -> int:
-        return pure_func1(pure_func1(x))
+        return pure_func1(x) + 2
 
     validate(pure_func2.compile_function())
 
@@ -28,11 +28,11 @@ def test_pure_decl_from_pure(validate):
 def test_pure_from_impure(validate):
     @guppy(max_effects=[])
     def pure_func(x: int) -> int:
-        return x
+        return x + 1
 
     @guppy
     def normal_func(x: int) -> int:
-        return pure_func(x) + 1
+        return pure_func(x) + 2
 
     validate(normal_func.compile_function())
 
@@ -40,10 +40,10 @@ def test_pure_from_impure(validate):
 def test_pure_from_pure(validate):
     @guppy(max_effects=[])
     def pure_func1(x: int) -> int:
-        return x
+        return x + 1
 
     @guppy(max_effects=[])
     def pure_func2(x: int) -> int:
-        return pure_func1(pure_func1(x))
+        return pure_func1(pure_func1(x)) + 1
 
     validate(pure_func2.compile_function())
