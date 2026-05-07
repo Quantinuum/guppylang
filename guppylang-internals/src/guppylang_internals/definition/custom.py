@@ -124,6 +124,8 @@ class RawCustomFunctionDef(ParsableDef):
     # in Guppy functions in general but some custom functions make use of them).
     has_var_args: bool = field(default=False)
 
+    max_effects: list[str] | None = field(default=None)
+
     description: str = field(default="function", init=False)
 
     def parse(self, globals: "Globals", sources: SourceMap) -> "CustomFunctionDef":
@@ -146,7 +148,7 @@ class RawCustomFunctionDef(ParsableDef):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         sig = self.signature or self._get_signature(func_ast, globals)
         ty = sig or FunctionType([], NoneType())
-        ty = ty.with_unitary_flags(self.unitary_flags)
+        ty = ty.with_unitary_flags(self.unitary_flags).with_effects(self.max_effects)
         return CustomFunctionDef(
             self.id,
             self.name,
