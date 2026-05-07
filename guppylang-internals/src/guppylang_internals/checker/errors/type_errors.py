@@ -52,11 +52,16 @@ class ConstMismatchError(Error):
 class TooManyEffectsError(Error):
     title: ClassVar[str] = "Too many effects"
     span_label: ClassVar[str] = (
-        "Callee of type `{ty}` has effects that exceed the "
-        "allowed effects `{allowed_effects}`"
+        "Callee of type `{ty}` has effects {effects}\n"
+        "that exceed the allowed effects `{allowed_effects}`"
     )
     ty: Type
+    # ALAN TODO can we transform None -> str in __init__ rather than caller doing that?
+    effects: list[str] | str
     allowed_effects: list[str]
+
+    # ALAN would be good to Note both where the callee is defined
+    # and where the caller is declared as excluding those effects.
 
 
 @dataclass(frozen=True)
