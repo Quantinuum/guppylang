@@ -1,3 +1,4 @@
+from guppylang.std.builtins import result
 from typing import Generic
 import pytest
 from guppylang.decorator import guppy
@@ -125,3 +126,29 @@ def test_staticmethod_overload(validate):
         Test.overloaded(2.0)
 
     validate(main.compile())
+
+
+def test_library_staticmethod():
+    @guppy.struct(link_name="super_struct")
+    class MyStruct:
+        @guppy
+        @staticmethod
+        def super_func(a: int) -> int:
+            return 5
+
+    lib = guppy.library(MyStruct).compile()
+
+    @guppy.struct(link_name="super_struct")
+    class MyStructInterface:
+        @guppy.declare
+        @staticmethod
+        def super_func(a: int) -> int: ...
+
+    @guppy
+    def main() -> None:
+        m = MyStructInterface()
+        m.super_func(2)
+        result("result", MyStructInterface.super_func(1))
+
+    results = main.emulator(n_qubits=1, libs=[lib]).run().results[0].entries
+    assert results == [("result", 5)]
