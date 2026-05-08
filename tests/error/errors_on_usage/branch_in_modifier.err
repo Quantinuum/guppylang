@@ -1,15 +1,15 @@
-Error: Variable modified in modifier block (at $FILE:11:8)
+Error: Variable modified in modifier block (at $FILE:10:8)
    | 
- 9 |             x = 3 # probably here is not visited?
-10 |     a = b
-11 |     c = x +1
+ 8 |         if b:
+ 9 |             x = 3
+10 |     c = x +1
    |         ^ Cannot use `x` because it was modified inside a modifier
    |           block
 
 Note:
    | 
  8 |         if b:
- 9 |             x = 3 # probably here is not visited?
+ 9 |             x = 3
    |             ----- `x` modified here
 
 Help: Modifications inside modifier blocks are not reflected outside the block

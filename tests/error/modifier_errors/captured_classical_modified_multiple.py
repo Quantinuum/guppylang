@@ -9,7 +9,7 @@ def test(q: qubit) -> int:
     with control(q):  # noqa: SIM117
         with power(3):
             x += 1
-            y -= 2
+            y = 2
     return x + y
 
 
