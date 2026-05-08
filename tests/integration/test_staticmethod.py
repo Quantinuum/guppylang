@@ -85,8 +85,8 @@ def test_staticmethod_enum_instantiated(validate):
 
     @guppy.enum
     class MyEnum:
-        VariantA = {}  # noqa: RUF012
-        VariantB = {"x": int}  # noqa: RUF012
+        VariantA = {}
+        VariantB = {"x": int}
 
         @guppy
         @staticmethod

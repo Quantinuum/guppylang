@@ -1,8 +1,11 @@
-Error: Unitary constraint violation (at $FILE:13:8)
+Error: Dagger constraint violation (at $FILE:13:8)
    | 
 11 | def test(q: qubit) -> None:
 12 |     with dagger, dagger, dagger:
 13 |         foo(q)
    |         ^^^^^^ This function cannot be called in a dagger context
+
+Help: Consider adding the flag `(dagger=True)` to the decorator of the function
+`foo`
 
 Guppy compilation failed due to 1 previous error

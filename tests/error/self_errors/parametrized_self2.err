@@ -1,0 +1,8 @@
+Error: Non-parametric type (at $FILE:13:19)
+   | 
+11 |     Var = {}
+12 |     @guppy
+13 |     def foo(self: "Self[int]") -> None:
+   |                    ^^^^^^^^^ Type `Self` is not parametric
+
+Guppy compilation failed due to 1 previous error

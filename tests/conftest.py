@@ -33,3 +33,10 @@ def pytest_addoption(parser):
         action="store_false",
         help="Disable validation tests (run by default)",
     )
+
+    parser.addoption(
+        "--test-exported-hugrs",
+        action="store_true",
+        default=False,
+        help="Validate hugrs exported via --export-test-cases",
+    )

@@ -12,12 +12,27 @@ from guppylang.defs import GuppyDefinition
 from guppylang.std.num import nat
 
 
+def pytest_generate_tests(metafunc):
+    if "exported_hugr" in metafunc.fixturenames:
+        exported_hugrs = list(
+            Path(__file__)
+            .parent.parent.parent.resolve()
+            .rglob("tests.integration*.hugr")
+        )
+        metafunc.parametrize(
+            "exported_hugr",
+            exported_hugrs,
+            ids=lambda p: f"{p.suffixes[-2]}" if len(p.suffixes) >= 2 else f"{p.name}",
+        )
+
+
 @pytest.fixture(scope="session")
 def export_test_cases_dir(request):
     r = request.config.getoption("--export-test-cases")
-    if r and not r.exists():
-        r.mkdir(parents=True)
-    return r
+    if r is not None:
+        if not r.exists():
+            r.mkdir(parents=True)
+        return Path(r).absolute()
 
 
 @pytest.fixture

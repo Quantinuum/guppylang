@@ -198,6 +198,28 @@ def test_struct_reassign(validate):
     validate(test.compile_function())
 
 
+def test_enum_reassign(validate):
+    @guppy.enum
+    class MyEnum:
+        VariantA = {"q": qubit}
+        VariantB = {}
+
+    @guppy.declare
+    def consume(e: MyEnum @ owned) -> None: ...
+
+    @guppy
+    def test(e: MyEnum @ owned, b: bool) -> MyEnum:
+        consume(e)
+        if b:
+            e = MyEnum.VariantA(qubit())
+            return e
+        else:
+            e = MyEnum.VariantB()
+        return e
+
+    validate(test.compile_function())
+
+
 def test_struct_reassign2(validate):
     @guppy.struct
     class MyStruct:

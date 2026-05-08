@@ -360,10 +360,11 @@ class CFGBuilder(AstVisitor[BB | None]):
         accumulated_flags = self.cfg.unitary_flags | modifiers.flags()
         cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
         new_node = ModifiedBlock(
-            cfg=cfg,
-            modifiers=modifiers,
+            cfg,
+            modifiers,
             # we save the first modifier node for a better error rendering
-            first_modifier_node=node.items[0].context_expr,
+            node.items[0].context_expr,
+            accumulated_flags,
             **dict(ast.iter_fields(node)),
         )
 

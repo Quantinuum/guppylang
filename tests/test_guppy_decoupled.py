@@ -43,7 +43,7 @@ def test_broken_tket():
     """Asserts that the module breaker works as intended to break tket imports."""
 
     with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):
-        from tket.circuit import Tk2Circuit  # noqa: F401
+        from tket.passes import PassResult  # noqa: F401
 
 
 @pytest.mark.isolate(timeout=1)

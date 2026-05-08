@@ -29,3 +29,15 @@ def test_struct(validate):
         StringStruct("Lorem Ipsum")
 
     validate(main.compile_function())
+
+
+def test_enum(validate):
+    @guppy.enum
+    class StringEnum:
+        Var1 = {"x": str}
+
+    @guppy
+    def main() -> StringEnum:
+        return StringEnum.Var1("Lorem Ipsum")
+
+    validate(main.compile_function())

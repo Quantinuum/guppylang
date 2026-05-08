@@ -198,17 +198,14 @@ def determine_static(defn: Definition) -> bool:
                 return False
             else:
                 static_indices = [i for i, static in enumerate(is_static) if static]
+                non_static_indices = [
+                    i for i in range(num_overloads) if i not in static_indices
+                ]
                 raise TypeError(
                     f"Some implementations of overloaded method are static whereas "
                     "others are not "
                     f"static: {[func_defs[i].name for i in static_indices]} "
-                    f"non-static: {
-                        [
-                            func_defs[i].name
-                            for i in range(num_overloads)
-                            if i not in static_indices
-                        ]
-                    }"
+                    f"non-static: {[func_defs[i].name for i in non_static_indices]}"
                 )
         case _:
             raise InternalGuppyError(

@@ -1,0 +1,16 @@
+Error: Shadowed generic parameters (at $FILE:10:20)
+   | 
+ 8 | 
+ 9 |     @guppy
+10 |     def foo[T: nat](my_self) -> None:   # Shadow
+   |                     ^^^^^^^ Cannot infer type for `my_self` since parameter `T` of `Foo`
+   |                             is shadowed
+
+Help:
+   | 
+ 9 |     @guppy
+10 |     def foo[T: nat](my_self) -> None:   # Shadow
+   |                     ------- Consider specifying the type explicitly: `my_self:
+   |                             "Foo[?T]"`
+
+Guppy compilation failed due to 1 previous error
