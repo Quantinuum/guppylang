@@ -28,7 +28,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, NoReturn, cast
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -88,7 +88,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import Definition, ParsedDef
+from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
@@ -584,14 +584,13 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # visit node for case of staticmethods on a non-instantiated type
             ty = get_type_opt(node.value)
             if node.value.id in self.ctx.globals:
-                defn = cast("ParsedDef", self.ctx.globals[node.value.id])
-                if not isinstance(defn, PythonObject):
-                    ty_def = ENGINE.parsed[defn.id]
+                defn_or_python_object = self.ctx.globals[node.value.id]
+                if isinstance(defn_or_python_object, TypeDef):
+                    ty_def = ENGINE.parsed[defn_or_python_object.id]
                     if (
                         node.attr in DEF_STORE.type_members[ty_def.id]
                         and isinstance(ty_def, TypeDef)
                         and (func := ENGINE.get_instance_func(ty_def, node.attr))
-                        and DEF_STORE.type_members[ty_def.id][node.attr].is_static
                     ):
                         return with_loc(
                             node, GlobalName(id=node.attr, def_id=func.id)

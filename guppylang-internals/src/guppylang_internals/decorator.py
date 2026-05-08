@@ -181,20 +181,35 @@ def determine_static(defn: Definition) -> bool:
         # comptime methods not yet supported
         case RawTracedFunctionDef():
             if isinstance(defn.python_func, staticmethod):
-                # TODO guppy error handling
-                raise TypeError("comptime static functions not yet supported")
+                raise TypeError(
+                    f"Unsupported: static method `{defn.name}`\
+                    comptime static methods not supported"
+                )
             else:
                 return False
         case OverloadedFunctionDef():
             # check all the methods in the overload are also static
-            for func_id in defn.func_ids:
-                func_def = DEF_STORE.raw_defs[func_id]
-                if not determine_static(func_def):
-                    # TODO guppy error handling
-                    raise TypeError(
-                        "one of the functions in this overload is not static"
-                    )
-            return True
+            num_overloads = len(defn.func_ids)
+            func_defs = [DEF_STORE.raw_defs[func_id] for func_id in defn.func_ids]
+            is_static = [determine_static(func_def) for func_def in func_defs]
+            if all(is_static):
+                return True
+            elif not any(is_static):
+                return False
+            else:
+                static_indices = [i for i, static in enumerate(is_static) if static]
+                raise TypeError(
+                    f"Some implementations of overloaded method are static whereas "
+                    "others are not "
+                    f"static: {[func_defs[i].name for i in static_indices]} "
+                    f"non-static: {
+                        [
+                            func_defs[i].name
+                            for i in range(num_overloads)
+                            if i not in static_indices
+                        ]
+                    }"
+                )
         case _:
             raise InternalGuppyError(
                 f"Cannot determine staticness of Definition of type \
