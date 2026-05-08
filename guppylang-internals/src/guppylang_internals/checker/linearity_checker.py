@@ -330,12 +330,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                 # A modifier-block assignment makes the original binding stale, so
                 # any subsequent use in the same scope is rejected.
                 if prev_use and prev_use.kind == UseKind.DEFINED_IN_MODIFIER:
-                    err = ModifiedVariableUsedError(node, place)
-                    err.add_sub_diagnostic(
-                        ModifiedVariableUsedError.ModifiedHere(prev_use.node, place)
-                    )
-                    err.add_sub_diagnostic(ModifiedVariableUsedError.Explanation(None))
-                    raise GuppyError(err)
+                    _raise_modified_variable_used_error(node, place, prev_use)
                 self.scope.use(x, node, use_kind)
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -741,14 +736,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                             used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                         raise GuppyError(used_err)
                     if prev_use.kind == UseKind.DEFINED_IN_MODIFIER:
-                        err = ModifiedVariableUsedError(use, place)
-                        err.add_sub_diagnostic(
-                            ModifiedVariableUsedError.ModifiedHere(prev_use.node, place)
-                        )
-                        err.add_sub_diagnostic(
-                            ModifiedVariableUsedError.Explanation(None)
-                        )
-                        raise GuppyError(err)
+                        _raise_modified_variable_used_error(use, place, prev_use)
 
                 self.scope.use(x, node, use_kind)
 
@@ -763,8 +751,7 @@ class BBLinearityChecker(ast.NodeVisitor):
             if InputFlags.Inout in var.flags:
                 self._reassign_single_inout_arg(var, var.defined_at or use)
 
-        for name, assignment in node.modified_captured.items():
-            var, _ = node.captured[name]
+        for var, assignment in node.modified_captured.values():
             if var.ty.copyable:
                 for place in leaf_places(var):
                     self.scope.use(place.id, assignment, UseKind.DEFINED_IN_MODIFIER)
@@ -960,15 +947,9 @@ def check_cfg_linearity(
                         raise GuppyError(err)
                     # then we check for variable used inside the modifier block
                     if prev_use.kind == UseKind.DEFINED_IN_MODIFIER:
-                        use = use_scope.used_parent[x]
-                        err = ModifiedVariableUsedError(use.node, place)
-                        err.add_sub_diagnostic(
-                            ModifiedVariableUsedError.ModifiedHere(prev_use.node, place)
+                        _raise_modified_variable_used_error(
+                            use_scope.used_parent[x].node, place, prev_use
                         )
-                        err.add_sub_diagnostic(
-                            ModifiedVariableUsedError.Explanation(None)
-                        )
-                        raise GuppyError(err)
 
         # On the other hand, unused variables that are not droppable *must* be outputted
         for place in scope.values():
@@ -1052,3 +1033,12 @@ def check_cfg_linearity(
         checked[bb].predecessors = [checked[pred] for pred in bb.predecessors]
         checked[bb].successors = [checked[succ] for succ in bb.successors]
     return result_cfg
+
+
+def _raise_modified_variable_used_error(
+    node: AstNode, place: Place, prev_use: Use
+) -> None:
+    err = ModifiedVariableUsedError(node, place)
+    err.add_sub_diagnostic(ModifiedVariableUsedError.ModifiedHere(prev_use.node, place))
+    err.add_sub_diagnostic(ModifiedVariableUsedError.Explanation(None))
+    raise GuppyError(err)

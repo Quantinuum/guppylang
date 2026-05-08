@@ -1,7 +1,6 @@
 """Type checking code for modifiers."""
 
 import ast
-from collections.abc import Collection
 
 from guppylang_internals.ast_util import AstNode, loop_in_ast, with_loc
 from guppylang_internals.cfg.bb import BB
@@ -37,7 +36,7 @@ def check_modified_block(
         for x, using_bb in cfg.live_before[cfg.entry_bb].items()
         if x in ctx.locals
     }
-    modified_captured = _modified_captured_vars(modified_block, captured.keys())
+    modified_captured = _modified_captured_vars(modified_block, ctx)
 
     # We do not allow any assignments if it is daggered.
     if modified_block.has_dagger():
@@ -93,16 +92,17 @@ def check_modified_block(
 
 
 def _modified_captured_vars(
-    modified_block: ModifiedBlock, captured_names: Collection[str]
-) -> dict[str, AstNode]:
+    modified_block: ModifiedBlock, ctx: Context
+) -> dict[str, tuple["Variable", AstNode]]:
     """Find captured variables assigned anywhere in a modifier body."""
     modified = {}
+
     for body_bb in modified_block.cfg.bbs:
         modified.update(
             {
-                x: assignment
+                x: (ctx.locals[x], assignment)
                 for x, assignment in body_bb.vars.assigned.items()
-                if x in captured_names
+                if x in ctx.locals
             }
         )
         for stmt in body_bb.statements:
@@ -111,7 +111,7 @@ def _modified_captured_vars(
             )
             if isinstance(stmt, ModifiedBlock):
                 # Recursively check nested modified blocks
-                modified.update(_modified_captured_vars(stmt, captured_names))
+                modified.update(_modified_captured_vars(stmt, ctx))
 
     return modified
 
