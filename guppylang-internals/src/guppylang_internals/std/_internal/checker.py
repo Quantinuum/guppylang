@@ -323,6 +323,7 @@ class NewArrayChecker(CustomCallChecker):
             case args:
                 return assert_never(args)  # type: ignore[arg-type]
 
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         if not is_array_type(ty):
             dummy_array_ty = array_type_def.check_instantiate(
@@ -453,6 +454,7 @@ class AbortChecker(CustomCallChecker):
             case args:
                 return assert_never(args)  # type: ignore[arg-type]
 
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Panic may return any type, so we don't have to check anything. Consequently
         # we also can't infer anything in the expected type, so we always return an

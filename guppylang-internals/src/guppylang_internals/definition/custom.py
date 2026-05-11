@@ -224,7 +224,6 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
-    @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
         mono_ty = self.ty.instantiate(type_args) if self.has_signature else self.ty
         return CustomMonoFunctionDef(
