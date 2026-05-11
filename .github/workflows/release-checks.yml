@@ -119,6 +119,9 @@ jobs:
   check-guppy-docs-build:
     name: Check the guppy-docs build for `guppylang` release 
     runs-on: ubuntu-latest
+    if: |
+     github.event_name == 'workflow_dispatch' ||
+     (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang'))
     steps:
       - uses: actions/checkout@v6
         with:
@@ -166,6 +169,5 @@ jobs:
       - name: Run docs build
         run: |
           cd guppy-docs
-          git submodule update --init
           just build-docs
 
