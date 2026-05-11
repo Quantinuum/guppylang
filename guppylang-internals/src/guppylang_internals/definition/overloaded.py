@@ -2,9 +2,10 @@ import ast
 import copy
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import ClassVar, NamedTuple, NoReturn, override
+from typing import ClassVar, NamedTuple, NoReturn
 
 from hugr import Wire
+from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Context
