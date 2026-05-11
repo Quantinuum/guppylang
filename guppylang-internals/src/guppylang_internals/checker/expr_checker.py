@@ -1258,9 +1258,10 @@ def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
         func_ty.max_effects is None
         or any(e not in ctx.max_effects for e in func_ty.max_effects)
     ):
+        loc_node = node.func if isinstance(node, ast.Call) else node
         effects = "<UNKNOWN>" if func_ty.max_effects is None else func_ty.max_effects
         raise GuppyTypeError(
-            TooManyEffectsError(node, func_ty, effects, ctx.max_effects)
+            TooManyEffectsError(loc_node, func_ty, effects, ctx.max_effects)
         )
 
 
