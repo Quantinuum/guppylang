@@ -137,28 +137,30 @@ jobs:
         run: |
           cd guppy-docs
           uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang"
+      - name: Checkout guppylang release-please manifest
+        uses: actions/checkout@v6
+        with:
+          repository: Quantinuum/guppylang
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: guppylang-src
+          sparse-checkout: |
+            .release-please-manifest.json
+          sparse-checkout-cone-mode: false
       - name: Verify guppylang version
         run: |
-          cd guppy-docs
+          cd guppylang
           uv run python <<'PY'
           import json
           from pathlib import Path
-
           import guppylang
 
+          GUPPYLANG_PACKAGE_VERSION = guppylang.__version__
 
-          def main() -> None:
-              GUPPYLANG_PACKAGE_VERSION = guppylang.__version__
+          with Path.open(Path(".release-please-manifest.json")) as json_data:
+              release_please_data = json.load(json_data)
+              MANIFEST_GUPPYLANG_VERSION = release_please_data["guppylang"]
 
-              with Path.open(Path(".release-please-manifest.json")) as json_data:
-                  release_please_data = json.load(json_data)
-                  MANIFEST_GUPPYLANG_VERSION = release_please_data["guppylang"]
-
-              assert GUPPYLANG_PACKAGE_VERSION == MANIFEST_GUPPYLANG_VERSION
-
-
-          if __name__ == "__main__":
-              main()
+          assert GUPPYLANG_PACKAGE_VERSION == MANIFEST_GUPPYLANG_VERSION
           PY
       - name: Run docs build
         run: |
