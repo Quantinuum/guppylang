@@ -1,5 +1,4 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array
 
 @guppy
 def impure_func(x: int) -> int:

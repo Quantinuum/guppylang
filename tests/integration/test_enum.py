@@ -23,11 +23,8 @@ fn main() {
 from guppylang import guppy
 from tests.util import compile_guppy
 
-from typing import Generic, TYPE_CHECKING
-
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from typing import Generic
+from collections.abc import Callable
 
 
 def test_basic_enum(validate):
@@ -250,7 +247,7 @@ def test_higher_order(validate):
         VariantA = {"x": T}
 
     @guppy
-    def factory(mk_enum: "Callable[[int], Enum[int]]", x: int) -> Enum[int]:
+    def factory(mk_enum: Callable[[int], Enum[int]], x: int) -> Enum[int]:
         return mk_enum(x)
 
     @guppy
