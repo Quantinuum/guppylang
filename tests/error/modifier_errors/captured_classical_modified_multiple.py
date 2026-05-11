@@ -6,7 +6,7 @@ from guppylang.std.builtins import power, control, qubit
 def test(q: qubit) -> int:
     x = 1
     y = 10
-    with control(q):  # noqa: SIM117
+    with control(q):
         with power(3):
             x += 1
             y = 2

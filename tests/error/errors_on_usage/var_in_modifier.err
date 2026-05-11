@@ -1,0 +1,8 @@
+Error: Variable not defined (at $FILE:8:11)
+  | 
+6 |     with control(q):
+7 |         x = 3
+8 |     return x +1
+  |            ^ `x` is not defined
+
+Guppy compilation failed due to 1 previous error
