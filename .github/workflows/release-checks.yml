@@ -138,7 +138,27 @@ jobs:
           cd guppy-docs
           uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang"
       - name: Verify guppylang version
-        run: uv run .github/workflows/check_guppylang_version.py
+        run: |
+          uv run python <<'PY'
+          import json
+          from pathlib import Path
+
+          import guppylang
+
+
+          def main() -> None:
+              GUPPYLANG_PACKAGE_VERSION = guppylang.__version__
+
+              with Path.open(Path(".release-please-manifest.json")) as json_data:
+                  release_please_data = json.load(json_data)
+                  MANIFEST_GUPPYLANG_VERSION = release_please_data["guppylang"]
+
+              assert GUPPYLANG_PACKAGE_VERSION == MANIFEST_GUPPYLANG_VERSION
+
+
+          if __name__ == "__main__":
+              main()
+          PY
       - name: Run docs build
         run: |
           cd guppy-docs
