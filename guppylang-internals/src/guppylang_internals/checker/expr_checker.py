@@ -1047,9 +1047,13 @@ def try_coerce_to(
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
     if act.kind < exp.kind:
-        f = ENGINE.get_instance_func(act, f"__{exp.kind.name.lower()}__")
+        name = f"__{exp.kind.name.lower()}__"
+        f = ENGINE.get_instance_func(act, name)
         assert f is not None
-        node, subst = f.check_call([node], exp, node, ctx)
+        call = with_loc(
+            node, ast.Call(func=ast.Name(id=name, ctx=ast.Load()), args=[node])
+        )
+        node, subst = f.check_call([node], exp, call, ctx)
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
     return None
