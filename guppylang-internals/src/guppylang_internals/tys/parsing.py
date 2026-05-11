@@ -234,16 +234,34 @@ def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
 def _parse_callable_type(
     args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx
 ) -> FunctionType:
-    """Helper function to parse a `Callable[[<arguments>], <return type>]` type."""
+    """Helper function to parse a `Callable` type:
+    either `Callable[[<arguments>], <return type>]`
+        or `Callable[[<arguments>], <return type>, <max-effects>]`."""
     err = InvalidCallableTypeError(loc)
-    if len(args) != 2:
+    if len(args) not in [2, 3]:
         raise GuppyError(err)
-    [inputs, output] = args
+    inputs = args[0]
+    output = args[1]
     if not isinstance(inputs, ast.List):
         raise GuppyError(err)
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
     output = type_from_ast(output, ctx)
-    return FunctionType(inputs, output)
+
+    max_effects: list[str] | None
+    if len(args) == 2:
+        max_effects = None
+    elif not isinstance(args[2], ast.List):
+        raise GuppyError(err)
+    else:
+        max_effects = []
+        for e in args[2].elts:
+            # TODO The max_effects should be a list of `class Effect` i.e. a
+            # guppylang_internals version of that in guppylang.decorator.
+            # Then we could parse each to an element of that.
+            if True or (not isinstance(e, ast.Name)):  # noqa: SIM222
+                raise GuppyError(err)
+            max_effects.append(e.id)
+    return FunctionType(inputs, output, max_effects=max_effects)
 
 
 def _parse_self_type(args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx) -> Type:
