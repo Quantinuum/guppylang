@@ -39,6 +39,7 @@ from guppylang_internals.std._internal.compiler.tket_bool import (
     make_opaque,
     read_bool,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
@@ -124,7 +125,7 @@ class RawCustomFunctionDef(ParsableDef):
     # in Guppy functions in general but some custom functions make use of them).
     has_var_args: bool = field(default=False)
 
-    max_effects: list[str] | None = field(default=None)
+    max_effects: list[Effect] | None = field(default=None)
 
     description: str = field(default="function", init=False)
 

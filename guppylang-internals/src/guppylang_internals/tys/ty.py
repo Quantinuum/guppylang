@@ -10,6 +10,7 @@ import hugr.std.int
 from hugr import tys as ht
 
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
     ToHugr,
@@ -413,7 +414,7 @@ class FunctionType(ParametrizedTypeBase):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
 
-    max_effects: list[str] | None = field(default=None, init=True)
+    max_effects: list[Effect] | None = field(default=None, init=True)
 
     def __init__(
         self,
@@ -422,7 +423,7 @@ class FunctionType(ParametrizedTypeBase):
         params: Sequence[Parameter] | None = None,
         comptime_args: Sequence[ConstArg] | None = None,
         unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-        max_effects: list[str] | None = None,
+        max_effects: list[Effect] | None = None,
     ) -> None:
         # We need a custom __init__ to set the args
         args: list[Argument] = [TypeArg(inp.ty) for inp in inputs]
@@ -605,7 +606,7 @@ class FunctionType(ParametrizedTypeBase):
             max_effects=self.max_effects,
         )
 
-    def with_effects(self, max_effects: list[str] | None) -> "FunctionType":
+    def with_effects(self, max_effects: list[Effect] | None) -> "FunctionType":
         """Returns a copy of this function type with the specified max_effects."""
         # N.B. we can't use `dataclasses.replace` here since `FunctionType` has a custom
         # constructor

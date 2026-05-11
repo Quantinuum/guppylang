@@ -17,6 +17,7 @@ from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import CallableTypeDef, SelfTypeDef, bool_type
 from guppylang_internals.tys.const import ConstValue
@@ -247,7 +248,7 @@ def _parse_callable_type(
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
     output = type_from_ast(output, ctx)
 
-    max_effects: list[str] | None
+    max_effects: list[Effect] | None
     if len(args) == 2:
         max_effects = None
     elif not isinstance(args[2], ast.List):
@@ -255,12 +256,12 @@ def _parse_callable_type(
     else:
         max_effects = []
         for e in args[2].elts:
-            # TODO The max_effects should be a list of `class Effect` i.e. a
-            # guppylang_internals version of that in guppylang.decorator.
-            # Then we could parse each to an element of that.
-            if True or (not isinstance(e, ast.Name)):  # noqa: SIM222
+            if not isinstance(e, ast.Name):
                 raise GuppyError(err)
-            max_effects.append(e.id)
+            try:
+                max_effects.append(Effect.__from_str__(e.id))
+            except ValueError:
+                raise GuppyError(err)  # noqa: B904
     return FunctionType(inputs, output, max_effects=max_effects)
 
 

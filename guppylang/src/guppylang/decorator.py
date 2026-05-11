@@ -4,7 +4,16 @@ import inspect
 from collections.abc import Callable, Sequence
 from enum import Enum
 from types import FrameType
-from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
+from typing import (
+    Any,
+    NamedTuple,
+    ParamSpec,
+    TypedDict,
+    TypeVar,
+    assert_never,
+    cast,
+    overload,
+)
 
 from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.compiler.core import (
@@ -46,6 +55,7 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
+from guppylang_internals.tys import Effect as _Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst
@@ -91,6 +101,12 @@ __all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
 class Effect(Enum):
     # No instances yet.
     names = ()
+
+    def to_internal(self) -> _Effect:
+        match self:
+            case _ as unreachable:
+                # Seems assert_never doesn't handle Enum's without cases yet
+                assert_never(unreachable)  # type: ignore[arg-type]
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -772,7 +788,7 @@ class ParsedGuppyKwargs(NamedTuple):
     metadata: FunctionMetadata
     # The empty list means no effects, whereas None means unspecified - i.e. assume all
     # effects are possible until we can analyse the call-graph to calculate exactly.
-    max_effects: list[str] | None
+    max_effects: list[_Effect] | None
     link_name: str | None
 
 
@@ -800,7 +816,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     max_effects = (
         None
         if max_effects_input is None
-        else [effect._name_ for effect in max_effects_input]
+        else [effect.to_internal() for effect in max_effects_input]
     )
 
     if remaining := next(iter(kwargs), None):

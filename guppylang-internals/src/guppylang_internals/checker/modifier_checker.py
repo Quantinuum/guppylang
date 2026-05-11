@@ -10,6 +10,7 @@ from guppylang_internals.checker.errors.generic import InvalidUnderDagger
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -23,7 +24,7 @@ def check_modified_block(
     modified_block: ModifiedBlock,
     bb: BB,
     ctx: Context,
-    max_effects: list[str] | None,
+    max_effects: list[Effect] | None,
 ) -> CheckedModifiedBlock:
     """Type checks a modifier definition."""
     cfg = modified_block.cfg

@@ -39,6 +39,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
@@ -55,7 +56,7 @@ class RawTracedFunctionDef(ParsableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    max_effects: list[str] | None = field(default=None, kw_only=True)
+    max_effects: list[Effect] | None = field(default=None, kw_only=True)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""

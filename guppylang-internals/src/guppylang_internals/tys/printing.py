@@ -95,7 +95,11 @@ class TypePrinter:
         if len(ty.inputs) != 1:
             inputs = f"({inputs})"
         output = self._visit(ty.output, True)
-        arrow = "->" if ty.max_effects is None else f"-[{', '.join(ty.max_effects)}]->"
+        arrow = (
+            "->"
+            if ty.max_effects is None
+            else f"-[{', '.join(str(e) for e in ty.max_effects)}]->"
+        )
         if ty.parametrized:
             params = [
                 self._visit(param, False)

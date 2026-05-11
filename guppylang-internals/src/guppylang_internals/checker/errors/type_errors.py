@@ -7,6 +7,7 @@ from guppylang_internals.diagnostic import Error, Help, Note
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.util import CheckedField
+    from guppylang_internals.tys import Effect
     from guppylang_internals.tys.const import Const
     from guppylang_internals.tys.param import TypeParam
     from guppylang_internals.tys.ty import FunctionType, Type
@@ -56,8 +57,8 @@ class TooManyEffectsError(Error):
         "that exceed the allowed effects `{allowed_effects}`"
     )
     ty: Type
-    effects: list[str] | str
-    allowed_effects: list[str]
+    effects: list[Effect] | str
+    allowed_effects: list[Effect]
 
     # ALAN would be good to Note both where the callee is defined
     # and where the caller is declared as excluding those effects.

@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from types import FrameType
 
+    from guppylang_internals.tys import Effect
     from guppylang_internals.tys.arg import Argument
     from guppylang_internals.tys.param import Parameter
     from guppylang_internals.tys.subst import Inst
@@ -88,7 +89,7 @@ def custom_function(
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
     has_var_args: bool = False,
-    max_effects: list[str] | None = None,
+    max_effects: list[Effect] | None = None,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
 
@@ -128,7 +129,7 @@ def hugr_op(
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    max_effects: list[str] | None = None,
+    max_effects: list[Effect] | None = None,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to annotate function declarations as HUGR ops.
 

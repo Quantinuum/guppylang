@@ -26,6 +26,7 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
 from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.ty import (
@@ -447,7 +448,7 @@ class Context(NamedTuple):
     globals: Globals
     locals: Locals[str, Variable]
     generic_param_inst: dict[str, Argument]
-    max_effects: list[str] | None = None
+    max_effects: list[Effect] | None = None
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

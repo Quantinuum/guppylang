@@ -53,6 +53,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
@@ -117,7 +118,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    max_effects: list[str] | None = field(default=None, kw_only=True)
+    max_effects: list[Effect] | None = field(default=None, kw_only=True)
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
