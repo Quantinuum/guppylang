@@ -139,6 +139,7 @@ jobs:
           uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang"
       - name: Verify guppylang version
         run: |
+          cd guppy-docs
           uv run python <<'PY'
           import json
           from pathlib import Path
