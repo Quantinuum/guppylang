@@ -1,6 +1,8 @@
 import ast
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, cast, override
+from typing import TYPE_CHECKING, ClassVar, cast
+
+from typing_extensions import override
 
 from guppylang_internals.ast_util import with_loc
 from guppylang_internals.checker.core import ComptimeVariable

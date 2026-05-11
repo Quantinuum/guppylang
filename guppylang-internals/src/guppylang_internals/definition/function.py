@@ -2,13 +2,14 @@ import ast
 import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DISubprogram
 from hugr.hugr.node_port import ToNode
+from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,

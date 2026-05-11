@@ -2,11 +2,12 @@ import ast
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar, override
+from typing import TYPE_CHECKING, ClassVar
 
 from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
+from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,
