@@ -136,7 +136,7 @@ jobs:
       - name: Install a develop wheel of guppylang
         run: |
           cd guppy-docs
-          uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang" || uv sync
+          uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang" || uv sync --group docs
       - name: Checkout guppylang release-please manifest
         uses: actions/checkout@v6
         with:
@@ -161,6 +161,7 @@ jobs:
               MANIFEST_GUPPYLANG_VERSION = release_please_data["guppylang"]
 
           assert GUPPYLANG_PACKAGE_VERSION == MANIFEST_GUPPYLANG_VERSION
+          print(f"Verification complete! Verified Guppy version is {GUPPYLANG_PACKAGE_VERSION}")
           PY
       - name: Run docs build
         run: |
