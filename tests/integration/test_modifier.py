@@ -2,7 +2,7 @@ from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.builtins import control, dagger, owned, power
 from guppylang.std.num import nat
-from guppylang.std.quantum import cx, discard, discard_array, h, qubit
+from guppylang.std.quantum import angle, cx, discard, h, qubit, rx, discard_array
 
 
 def test_dagger_simple(validate):
@@ -21,6 +21,35 @@ def test_dagger_call_simple(validate):
             pass
 
     validate(bar.compile_function())
+
+
+def test_subscript_dagger(validate):
+    @guppy
+    def main(array_qubits: array[qubit, 2]) -> None:
+        with dagger:
+            h(array_qubits[1])
+
+    validate(main.compile_function())
+
+
+def test_assignment_in_dagger(validate):
+    @guppy
+    def main() -> None:
+        q = qubit()
+        c = qubit()
+        y = 1
+        with dagger:
+            x = 5
+            rx(q, angle(1 / x))
+        with dagger:
+            y = 2
+            with power(2), control(c):
+                rx(q, angle(1 / y))
+
+        discard(q)
+        discard(c)
+
+    validate(main.compile_function())
 
 
 def test_control_simple(validate):
