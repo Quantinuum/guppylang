@@ -149,7 +149,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: Verify guppylang version
         run: |
-          cd guppylang
+          cd guppy-docs
           uv run python <<'PY'
           import json
           from pathlib import Path
@@ -157,7 +157,7 @@ jobs:
 
           GUPPYLANG_PACKAGE_VERSION = guppylang.__version__
 
-          with Path.open(Path(".release-please-manifest.json")) as json_data:
+          with Path.open(Path("../guppylang/.release-please-manifest.json")) as json_data:
               release_please_data = json.load(json_data)
               MANIFEST_GUPPYLANG_VERSION = release_please_data["guppylang"]
 
