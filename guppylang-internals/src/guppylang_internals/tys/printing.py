@@ -95,6 +95,7 @@ class TypePrinter:
         if len(ty.inputs) != 1:
             inputs = f"({inputs})"
         output = self._visit(ty.output, True)
+        arrow = "->" if ty.max_effects is None else f"-[{', '.join(ty.max_effects)}]->"
         if ty.parametrized:
             params = [
                 self._visit(param, False)
@@ -104,12 +105,9 @@ class TypePrinter:
             ]
             quantified = ", ".join(params)
             del self.bound_names[: -len(ty.params)]
-            desc = f"forall {quantified}. {inputs} -> {output}"
+            desc = f"forall {quantified}. {inputs} {arrow} {output}"
         else:
-            desc = f"{inputs} -> {output}"
-        if ty.max_effects is not None:
-            effects = ", ".join(ty.max_effects)
-            desc += f" w/fx [{effects}]"
+            desc = f"{inputs} {arrow} {output}"
         return _wrap(desc, inside_row)
 
     @_visit.register(OpaqueType)
