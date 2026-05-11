@@ -7,7 +7,7 @@ def test(b: bool) -> int:
     with power(2):
         if b:
             x = 3
-    c = x +1
+    c = x + 1
     return 0
 
 

@@ -103,7 +103,7 @@ class UseKind(Enum):
     MOVE = auto()
 
     #: A captured value is assigned inside a modifier block
-    DEFINED_IN_MODIFIER = auto()
+    REDEFINED_IN_MODIFIER = auto()
 
     @property
     def indicative(self) -> str:
@@ -130,7 +130,7 @@ class UseKind(Enum):
                 return "returned"
             case UseKind.MOVE:
                 return "moved"
-            case UseKind.DEFINED_IN_MODIFIER:
+            case UseKind.REDEFINED_IN_MODIFIER:
                 return "modified"
 
 
@@ -329,7 +329,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     raise GuppyError(err)
                 # A modifier-block assignment makes the original binding stale, so
                 # any subsequent use in the same scope is rejected.
-                if prev_use and prev_use.kind == UseKind.DEFINED_IN_MODIFIER:
+                if prev_use and prev_use.kind == UseKind.REDEFINED_IN_MODIFIER:
                     _raise_modified_variable_used_error(node, place, prev_use)
                 self.scope.use(x, node, use_kind)
 
@@ -719,7 +719,7 @@ class BBLinearityChecker(ast.NodeVisitor):
 
         # Check captured variables:
         # We check that the modifier is not using consumed variables or copyable
-        # variables already used by other modifiers
+        # variables redefined by other modifiers
         for var, use in node.captured.values():
             for place in leaf_places(var):
                 use_kind = (
@@ -735,7 +735,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                         if has_explicit_copy(place.ty):
                             used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                         raise GuppyError(used_err)
-                    if prev_use.kind == UseKind.DEFINED_IN_MODIFIER:
+                    if prev_use.kind == UseKind.REDEFINED_IN_MODIFIER:
                         _raise_modified_variable_used_error(use, place, prev_use)
 
                 self.scope.use(x, node, use_kind)
@@ -754,7 +754,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         for var, assignment in node.modified_captured.values():
             if var.ty.copyable:
                 for place in leaf_places(var):
-                    self.scope.use(place.id, assignment, UseKind.DEFINED_IN_MODIFIER)
+                    self.scope.use(place.id, assignment, UseKind.REDEFINED_IN_MODIFIER)
 
 
 def leaf_places(place: Place) -> Iterator[Place]:
@@ -946,7 +946,7 @@ def check_cfg_linearity(
                             err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                         raise GuppyError(err)
                     # then we check for variable used inside the modifier block
-                    if prev_use.kind == UseKind.DEFINED_IN_MODIFIER:
+                    if prev_use.kind == UseKind.REDEFINED_IN_MODIFIER:
                         _raise_modified_variable_used_error(
                             use_scope.used_parent[x].node, place, prev_use
                         )
