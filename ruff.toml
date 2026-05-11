@@ -80,7 +80,7 @@ ignore = [
 "guppy/decorator.py" = ["B010"]
 "tests/integration/*" = ["F841", "C416", "RUF005", "RUF012", "TC001"]
 "tests/{hugr,integration}/*" = ["B", "FBT", "SIM", "I"]
-"__init__.py" = ["F401"]                                          # module imported but unused
+"__init__.py" = ["F401"]                                              # module imported but unused
 
 [per-file-target-version]
 "tests/*/*_py312.py" = "py312"
