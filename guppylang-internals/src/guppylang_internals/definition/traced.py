@@ -100,6 +100,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, ty
 
+    @override
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledTracedFunctionDef":
@@ -145,6 +146,7 @@ class CompiledTracedFunctionDef(
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
+    @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         type_args: Inst = ()  # Comptime functions are not generic
@@ -152,6 +154,7 @@ class CompiledTracedFunctionDef(
         type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         return dfg.builder.load_function(self.func_def, func_ty, type_args)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],
@@ -173,6 +176,7 @@ class CompiledTracedFunctionDef(
             inout_returns=list(call[num_returns:]),
         )
 
+    @override
     def compile_inner(self, ctx: CompilerContext) -> None:
         """Compiles the body of the function by tracing it."""
         from guppylang_internals.tracing.function import trace_function

@@ -151,6 +151,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         err.add_sub_diagnostic(AvailableOverloadsHint(None, self.name, available_sigs))
         raise GuppyError(err)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],

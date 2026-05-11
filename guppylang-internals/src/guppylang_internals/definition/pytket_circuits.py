@@ -80,6 +80,7 @@ class RawPytketDef(ParsableDef):
 
     description: str = field(default="pytket circuit", init=False)
 
+    @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedPytketDef":
         """Parses and checks the user-provided signature matches the user-provided
         circuit.
@@ -132,6 +133,7 @@ class RawLoadPytketDef(ParsableDef):
 
     description: str = field(default="pytket circuit", init=False)
 
+    @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedPytketDef":
         """Creates a function signature based on the user-provided circuit."""
         circuit_signature = _signature_from_circuit(
@@ -170,6 +172,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
     description: str = field(default="pytket circuit", init=False)
 
+    @override
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledPytketDef":
@@ -381,11 +384,13 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
+    @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
         return load(dfg, self.func_def)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],

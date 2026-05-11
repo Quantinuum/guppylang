@@ -93,6 +93,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
@@ -142,6 +143,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDecl":
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
@@ -194,6 +196,7 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
 
     type_args: Inst
 
+    @override
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledFunctionDecl":
@@ -250,11 +253,13 @@ class CompiledFunctionDecl(
         """The Hugr node this definition was compiled into."""
         return self.declaration
 
+    @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
         return load(dfg, self.declaration)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],

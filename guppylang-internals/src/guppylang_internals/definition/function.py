@@ -118,6 +118,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
@@ -169,6 +170,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         """Generic parameters of this function."""
         return self.ty.params
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
         cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
@@ -233,6 +235,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         # We should be monomorphized at this point
         assert not self.params
 
+    @override
     def compile_outer(
         self,
         module: DefinitionBuilder[OpVar],
@@ -298,10 +301,12 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
+    @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         return load(dfg, self.func_def)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],
@@ -312,6 +317,7 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         """Compiles a call to the function."""
         return compile_call(args, dfg, self.ty, self.func_def, node)
 
+    @override
     def compile_inner(self, globals: CompilerContext) -> None:
         """Compiles the body of the function."""
         compile_global_func_def(self, self.func_def, globals)
