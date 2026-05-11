@@ -721,7 +721,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return func.synthesize_call([node.operand], node, self.ctx)
 
     def _synthesize_binary(
-        self, left_expr: ast.expr, right_expr: ast.expr, op: AstOp, node: ast.expr
+        self,
+        left_expr: ast.expr,
+        right_expr: ast.expr,
+        op: AstOp,
+        node: ast.BinOp | ast.Compare,
     ) -> tuple[ast.expr, Type]:
         """Helper method to compile binary operators by calling out to dunder methods.
 
