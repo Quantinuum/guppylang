@@ -2,7 +2,6 @@ from guppylang.decorator import guppy
 
 @guppy
 def impure_func(x: int) -> int:
-    #Use result, or similar?
     return x + 1
 
 @guppy(max_effects=[])
