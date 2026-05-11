@@ -1251,6 +1251,19 @@ def check_comptime_arg(
     return subst
 
 
+def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
+    """Checks that a function call (AST provided) to a specified FunctionType
+    respects the effect constraints in the context."""
+    if ctx.max_effects is not None and (
+        func_ty.max_effects is None
+        or any(e not in ctx.max_effects for e in func_ty.max_effects)
+    ):
+        effects = "<UNKNOWN>" if func_ty.max_effects is None else func_ty.max_effects
+        raise GuppyTypeError(
+            TooManyEffectsError(node, func_ty, effects, ctx.max_effects)
+        )
+
+
 def synthesize_call(
     func_ty: FunctionType, args: list[ast.expr], node: AstNode, ctx: Context
 ) -> tuple[list[ast.expr], Type, Inst]:
@@ -1262,14 +1275,7 @@ def synthesize_call(
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(args), node, func_ty)
 
-    if ctx.max_effects is not None and (
-        func_ty.max_effects is None
-        or any(e not in ctx.max_effects for e in func_ty.max_effects)
-    ):
-        effects = "<UNKNOWN>" if func_ty.max_effects is None else func_ty.max_effects
-        raise GuppyTypeError(
-            TooManyEffectsError(node, func_ty, effects, ctx.max_effects)
-        )
+    _check_effects(func_ty, ctx, node)
 
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
@@ -1302,14 +1308,7 @@ def check_call(
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
 
-    if ctx.max_effects is not None and (
-        func_ty.max_effects is None
-        or any(e not in ctx.max_effects for e in func_ty.max_effects)
-    ):
-        effects = "<UNKNOWN>" if func_ty.max_effects is None else func_ty.max_effects
-        raise GuppyTypeError(
-            TooManyEffectsError(node, func_ty, effects, ctx.max_effects)
-        )
+    _check_effects(func_ty, ctx, node)
 
     # When checking, we can use the information from the expected return type to infer
     # some type arguments. However, this pushes errors inwards. For example, given a

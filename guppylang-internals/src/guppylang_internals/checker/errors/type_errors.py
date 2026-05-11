@@ -56,7 +56,6 @@ class TooManyEffectsError(Error):
         "that exceed the allowed effects `{allowed_effects}`"
     )
     ty: Type
-    # ALAN TODO can we transform None -> str in __init__ rather than caller doing that?
     effects: list[str] | str
     allowed_effects: list[str]
 
