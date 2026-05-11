@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, ClassVar
 from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
+from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -126,6 +127,7 @@ class RawCustomFunctionDef(ParsableDef):
 
     description: str = field(default="function", init=False)
 
+    @override
     def parse(self, globals: "Globals", sources: SourceMap) -> "CustomFunctionDef":
         """Parses and checks the signature of the custom function.
 
@@ -222,6 +224,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
         mono_ty = self.ty.instantiate(type_args) if self.has_signature else self.ty
         return CustomMonoFunctionDef(
@@ -238,6 +241,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             type_args,
         )
 
+    @override
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
@@ -249,6 +253,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
         new_node, subst = self.call_checker.check(args, ty)
         return with_type(ty, with_loc(node, new_node)), subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
@@ -283,9 +288,11 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
 
     type_args: Inst
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
         raise InternalGuppyError("Function is already monomorphized and checked")
 
+    @override
     def load(self, dfg: "DFContainer", ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the custom function as a value into a local dataflow graph.
 
@@ -313,6 +320,7 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
         # Finally, load the function into the local DFG
         return dfg.builder.load_function(func)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],
@@ -426,6 +434,7 @@ class CustomCallCompiler(CustomInoutCallCompiler, ABC):
     def compile(self, args: list[Wire]) -> list[Wire]:
         """Compiles a custom function call and returns the resulting ports."""
 
+    @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         return CallReturnWires(self.compile(args), inout_returns=[])
 
@@ -433,11 +442,13 @@ class CustomCallCompiler(CustomInoutCallCompiler, ABC):
 class DefaultCallChecker(CustomCallChecker):
     """Checks function calls by comparing to a type signature."""
 
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
@@ -452,6 +463,7 @@ class NotImplementedCallCompiler(CustomCallCompiler):
     thus doesn't need to be compiled.
     """
 
+    @override
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Function should have been removed during checking")
 
@@ -471,6 +483,7 @@ class OpCompiler(CustomInoutCallCompiler):
     ) -> None:
         self.op = op
 
+    @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         op = self.op(self.ty, self.type_args, self.ctx)
         node = self.builder.add_op(op, *args)
@@ -500,6 +513,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
     ) -> None:
         self.op = op
 
+    @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         converted_in = [ht.Bool if inp == OpaqueBool else inp for inp in self.ty.input]
         converted_out = [
@@ -530,6 +544,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
 class NoopCompiler(CustomCallCompiler):
     """Call compiler for functions that are noops."""
 
+    @override
     def compile(self, args: list[Wire]) -> list[Wire]:
         return args
 
@@ -537,6 +552,7 @@ class NoopCompiler(CustomCallCompiler):
 class CopyInoutCompiler(CustomInoutCallCompiler):
     """Call compiler for functions that borrow one argument to copy it."""
 
+    @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         assert len(self.ty.input) == 1
         inp_ty = self.ty.input[0]
