@@ -137,7 +137,8 @@ jobs:
         run: |
           cd guppy-docs
           uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang"
-      - name: Checkout guppylang release-please manifest and verify version
+          uv sync
+      - name: Checkout guppylang release-please manifest
         uses: actions/checkout@v6
         with:
           repository: Quantinuum/guppylang
