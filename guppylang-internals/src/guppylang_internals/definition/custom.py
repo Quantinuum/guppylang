@@ -209,7 +209,6 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     """
 
     defined_at: AstNode | None
-    ty: FunctionType
     call_checker: "CustomCallChecker"
     call_compiler: "CustomInoutCallCompiler"
     higher_order_value: bool

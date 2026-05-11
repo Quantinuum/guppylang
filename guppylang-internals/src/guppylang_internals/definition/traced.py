@@ -40,7 +40,7 @@ from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
+from guppylang_internals.tys.ty import Type, UnitaryFlags, type_to_row
 
 PyFunc = Callable[..., Any]
 
@@ -76,7 +76,6 @@ class RawTracedFunctionDef(ParsableDef):
 
 @dataclass(frozen=True)
 class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
-    ty: FunctionType
     defined_at: ast.FunctionDef
 
     def check_call(
