@@ -136,8 +136,7 @@ jobs:
       - name: Install a develop wheel of guppylang
         run: |
           cd guppy-docs
-          uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang"
-          uv sync
+          uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang" || uv sync
       - name: Checkout guppylang release-please manifest
         uses: actions/checkout@v6
         with:
