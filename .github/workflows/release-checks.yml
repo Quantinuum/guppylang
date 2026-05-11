@@ -136,7 +136,7 @@ jobs:
       - name: Install a develop wheel of guppylang
         run: |
           cd guppy-docs
-          uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@main#subdirectory=guppylang"
+          uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang"
       - name: Run docs build
         run: |
           cd guppy-docs
