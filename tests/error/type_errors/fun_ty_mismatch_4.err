@@ -1,0 +1,9 @@
+Error: Type mismatch (at $FILE:10:11)
+   | 
+ 8 |         return x > 0
+ 9 | 
+10 |     return bar
+   |            ^^^ Expected return value of type `nat -> bool`, got `int ->
+   |                bool`
+
+Guppy compilation failed due to 1 previous error
