@@ -34,6 +34,7 @@ from guppylang_internals.ast_util import (
     AstNode,
     AstVisitor,
     breaks_in_loop,
+    fake_call,
     get_type,
     get_type_opt,
     return_nodes_in_ast,
@@ -1054,9 +1055,7 @@ def try_coerce_to(
         name = f"__{exp.kind.name.lower()}__"
         f = ENGINE.get_instance_func(act, name)
         assert f is not None
-        call = with_loc(
-            node, ast.Call(func=ast.Name(id=name, ctx=ast.Load()), args=[node])
-        )
+        call = with_loc(node, fake_call(name, [node]))
         node, subst = f.check_call([node], exp, call, ctx)
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
