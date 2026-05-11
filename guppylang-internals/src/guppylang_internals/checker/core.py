@@ -361,6 +361,7 @@ class Globals:
                         return ENGINE.get_parsed(val.id)
                     # Before falling back to returning the Python object, check if we
                     # have defined the name as a builtin
+                    # NICOLA: Here we have the CallableDef
                     elif name in self.builtin_defs():
                         defn = self.builtin_defs()[name]
                         return ENGINE.get_parsed(defn.id)

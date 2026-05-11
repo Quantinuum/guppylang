@@ -89,6 +89,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
         raise GuppyError(VarNotDefinedError(node, node.id))
 
     # A parametrised type, e.g. `list[??]`
+    # NICOLA: here we parse the Callable[...]
     if isinstance(node, ast.Subscript) and (
         defn := _try_parse_defn(node.value, ctx.globals)
     ):
@@ -155,6 +156,7 @@ def _try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
         case ast.Name(id=x):
             if x not in globals:
                 return None
+            # NICOLA: see how the callable type is parsed here
             defn = globals[x]
             if isinstance(defn, PythonObject):
                 return None
@@ -184,6 +186,8 @@ def _arg_from_instantiated_defn(
     match defn:
         # Special case for the `Callable` type
         case CallableTypeDef():
+            # NICOLA: Here we call the helper function to get the type from the
+            # arguments of the python Callable
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx))
             # Special case for the `Callable` type
         case SelfTypeDef():
