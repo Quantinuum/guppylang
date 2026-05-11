@@ -893,6 +893,12 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
         case FunctionType() as s, FunctionType() as t if s.params == t.params:
             if len(s.inputs) != len(t.inputs):
                 return None
+            if s.max_effects != t.max_effects:
+                # There are no "effect variables" yet, and we enforce exact matching
+                # (invariance) as covariance will become difficult when we replace Order
+                # edges with explicit tokens. (Requiring runtime closures or codegen for
+                # a statically-predictable function being assigned.)
+                return None
             for a, b in zip(s.inputs, t.inputs, strict=True):
                 if a.ty.linear and b.ty.linear and a.flags != b.flags:
                     return None

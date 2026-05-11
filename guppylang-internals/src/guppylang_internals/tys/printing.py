@@ -104,8 +104,13 @@ class TypePrinter:
             ]
             quantified = ", ".join(params)
             del self.bound_names[: -len(ty.params)]
-            return _wrap(f"forall {quantified}. {inputs} -> {output}", inside_row)
-        return _wrap(f"{inputs} -> {output}", inside_row)
+            desc = f"forall {quantified}. {inputs} -> {output}"
+        else:
+            desc = f"{inputs} -> {output}"
+        if ty.max_effects is not None:
+            effects = ", ".join(ty.max_effects)
+            desc += f" w/fx [{effects}]"
+        return _wrap(desc, inside_row)
 
     @_visit.register(OpaqueType)
     @_visit.register(StructType)
