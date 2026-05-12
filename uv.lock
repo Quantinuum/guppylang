@@ -1038,7 +1038,7 @@ requires-dist = [
     { name = "selene-hugr-qis-compiler", specifier = "~=0.2.9" },
     { name = "selene-sim", specifier = "~=0.2.7" },
     { name = "tqdm", specifier = ">=4.67.1" },
-    { name = "types-tqdm", specifier = ">=4.67.3.20260508" },
+    { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]
 provides-extras = ["pytket"]
 
