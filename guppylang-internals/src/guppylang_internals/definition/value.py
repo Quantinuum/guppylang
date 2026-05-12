@@ -58,8 +58,6 @@ class CallableDef(ValueDef):
 class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, unused-ignore]
     """Abstract base class a global module-level function."""
 
-    ty: FunctionType
-
     @abstractmethod
     def compile_call(
         self,

@@ -11,6 +11,7 @@ from hugr.debug_info import DILocation, DISubprogram
 from hugr.envelope import EnvelopeConfig
 from hugr.metadata import HugrDebugInfo
 from hugr.std.float import FLOAT_T
+from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals
@@ -78,6 +79,7 @@ class RawPytketDef(ParsableDef):
 
     description: str = field(default="pytket circuit", init=False)
 
+    @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedPytketDef":
         """Parses and checks the user-provided signature matches the user-provided
         circuit.
@@ -130,6 +132,7 @@ class RawLoadPytketDef(ParsableDef):
 
     description: str = field(default="pytket circuit", init=False)
 
+    @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedPytketDef":
         """Creates a function signature based on the user-provided circuit."""
         circuit_signature = _signature_from_circuit(
@@ -160,7 +163,6 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         use_arrays: Whether the circuit function should use arrays as input types.
     """
 
-    ty: FunctionType
     input_circuit: Any
     use_arrays: bool
 
@@ -168,6 +170,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
     description: str = field(default="pytket circuit", init=False)
 
+    @override
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledPytketDef":
@@ -330,6 +333,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             outer_func,
         )
 
+    @override
     def check_call(
         self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Subst]:
@@ -339,6 +343,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Type]:
@@ -370,11 +375,13 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
+    @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
         return load(dfg, self.func_def)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],
