@@ -150,8 +150,8 @@ class CompiledTracedFunctionDef(
         """Loads the function as a value into a local Hugr dataflow graph."""
         type_args: Inst = ()  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
-        type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
-        return dfg.builder.load_function(self.func_def, func_ty, type_args)
+        hugr_type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
+        return dfg.builder.load_function(self.func_def, func_ty, hugr_type_args)
 
     @override
     def compile_call(
@@ -164,11 +164,11 @@ class CompiledTracedFunctionDef(
         """Compiles a call to the function."""
         type_args: Inst = ()  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
-        type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
+        hugr_type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         num_returns = len(type_to_row(self.ty.output))
         with dfg.builder.set_ast_context(node):
             call = dfg.builder.call(
-                self.func_def, *args, instantiation=func_ty, type_args=type_args
+                self.func_def, *args, instantiation=func_ty, type_args=hugr_type_args
             )
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),

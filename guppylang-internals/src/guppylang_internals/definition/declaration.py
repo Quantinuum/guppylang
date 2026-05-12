@@ -204,7 +204,6 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
         assert isinstance(module, hf.Module), (
             "Functions can only be declared in modules"
         )
-        module: hf.Module = module
 
         node = module.declare_function(self.link_name, self.ty.to_hugr_poly(ctx))
         add_metadata(
