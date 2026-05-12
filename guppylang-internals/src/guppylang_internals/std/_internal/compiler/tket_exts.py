@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-import tket_exts
 from hugr import val
 from tket_exts import (
     debug,
@@ -18,7 +17,6 @@ from tket_exts import (
     wasm,
 )
 
-BOOL_EXTENSION = tket_exts.bool()
 DEBUG_EXTENSION = debug()
 FUTURES_EXTENSION = futures()
 GLOBAL_PHASE_EXTENSION = global_phase()
@@ -34,7 +32,6 @@ ROTATION_EXTENSION = rotation()
 WASM_EXTENSION = wasm()
 
 TKET_EXTENSIONS = [
-    BOOL_EXTENSION,
     DEBUG_EXTENSION,
     FUTURES_EXTENSION,
     GLOBAL_PHASE_EXTENSION,
