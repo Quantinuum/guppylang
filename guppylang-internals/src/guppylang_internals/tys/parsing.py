@@ -18,7 +18,12 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.builtin import CallableTypeDef, SelfTypeDef, bool_type
+from guppylang_internals.tys.builtin import (
+    CallableTypeDef,
+    SelfTypeDef,
+    UnitaryCallableTypeDef,
+    bool_type,
+)
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.errors import (
     CallableComptimeError,
@@ -47,6 +52,7 @@ from guppylang_internals.tys.ty import (
     NumericType,
     TupleType,
     Type,
+    UnitaryFlags,
 )
 
 
@@ -89,14 +95,20 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
         raise GuppyError(VarNotDefinedError(node, node.id))
 
     # A parametrised type, e.g. `list[??]`
-    # NICOLA: here we parse the Callable[...]
     if isinstance(node, ast.Subscript) and (
+        # NICOLA 3:
         defn := _try_parse_defn(node.value, ctx.globals)
     ):
+        # defn can be a CallableDef
         arg_nodes = (
             node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
         )
-        return _arg_from_instantiated_defn(defn, arg_nodes, node, ctx)
+        # Here we parse the CallableDef
+        # NICOLA 4
+        tmp = _arg_from_instantiated_defn(defn, arg_nodes, node, ctx)
+        # NICOLA 6
+        print(tmp)
+        return tmp
 
     # We allow tuple types to be written as `(int, bool)`
     if isinstance(node, ast.Tuple):
@@ -156,7 +168,7 @@ def _try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
         case ast.Name(id=x):
             if x not in globals:
                 return None
-            # NICOLA: see how the callable type is parsed here
+            # NICOLA 2: here we have the CallableDef
             defn = globals[x]
             if isinstance(defn, PythonObject):
                 return None
@@ -184,12 +196,14 @@ def _arg_from_instantiated_defn(
 ) -> Argument:
     """Parses a globals definition with type args into an argument."""
     match defn:
-        # Special case for the `Callable` type
+        # Special cases for the `Callable` type
         case CallableTypeDef():
-            # NICOLA: Here we call the helper function to get the type from the
             # arguments of the python Callable
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx))
-            # Special case for the `Callable` type
+        case UnitaryCallableTypeDef():
+            # NICOLA 5: Here we call the helper function to get the type from the
+            # arguments of the python Callable
+            return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flag=True))
         case SelfTypeDef():
             return TypeArg(_parse_self_type(arg_nodes, node, ctx))
         # Either a defined type (e.g. `int`, `bool`, ...)
@@ -235,8 +249,9 @@ def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
         return stmt.value
 
 
+# NICOLA Possible breaking change: added a field
 def _parse_callable_type(
-    args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx
+    args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx, flag: bool = False
 ) -> FunctionType:
     """Helper function to parse a `Callable[[<arguments>], <return type>]` type."""
     err = InvalidCallableTypeError(loc)
@@ -247,6 +262,8 @@ def _parse_callable_type(
         raise GuppyError(err)
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
     output = type_from_ast(output, ctx)
+    if flag:
+        return FunctionType(inputs, output, unitary_flags=UnitaryFlags.Unitary)
     return FunctionType(inputs, output)
 
 
@@ -381,6 +398,7 @@ def type_with_flags_from_ast(
         return type_with_flags_from_ast(node, ctx)
     else:
         # Parse an argument and check that it's valid for a `TypeParam`
+        # NICOLA 7: Here we have the Argument from the (Unitary)CallableDef
         arg = arg_from_ast(node, ctx)
         tyarg = _type_param.check_arg(arg, node)
         return tyarg.ty, InputFlags.NoFlags

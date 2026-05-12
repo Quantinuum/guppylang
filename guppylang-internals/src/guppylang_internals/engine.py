@@ -62,6 +62,7 @@ from guppylang_internals.tys.builtin import (
     sized_iter_type_def,
     string_type_def,
     tuple_type_def,
+    unitary_callable_type_def,
 )
 from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.param import Parameter
@@ -82,6 +83,7 @@ from guppylang_internals.tys.ty import (
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     callable_type_def,
+    unitary_callable_type_def,
     self_type_def,
     tuple_type_def,
     none_type_def,
@@ -350,6 +352,7 @@ class CompilationEngine:
                     case kind:
                         return assert_never(kind)
             case FunctionType():
+                # NICOLA: we should check the function unitarity flags here?
                 type_defn = callable_type_def
             case OpaqueType() as ty:
                 type_defn = ty.defn
