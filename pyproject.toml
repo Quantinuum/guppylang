@@ -28,6 +28,12 @@ members = ["guppylang", "guppylang-internals", "miette-py"]
 guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
+tket-exts = { git = "https://github.com/Quantinuum/tket2", branch = "ss/push-xxonxqrlptsq", subdirectory = "tket-exts" }
+# tket/selene-hugr-qis-compiler require conan + LLVM to build from source;
+# install pre-built wheels separately, or set TKET_C_API_PATH + LLVM_SYS_211_PREFIX:
+# tket = { git = "https://github.com/Quantinuum/tket2", branch = "ss/push-xxonxqrlptsq", subdirectory = "tket-py" }
+# selene-sim = { git = "https://github.com/Quantinuum/selene", branch = "0.3-series" }
+# selene-hugr-qis-compiler = { git = "https://github.com/Quantinuum/tket2", branch = "ss/push-xxonxqrlptsq", subdirectory = "qis-compiler" }
 # Uncomment these to test the latest dependency version during development
 #  hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
 

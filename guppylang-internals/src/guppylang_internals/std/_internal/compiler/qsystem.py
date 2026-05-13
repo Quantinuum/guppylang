@@ -1,5 +1,6 @@
 from hugr import Wire
 from hugr import tys as ht
+from hugr.ext import Extension as HugrExtension
 from hugr.std.int import int_t
 
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
@@ -12,7 +13,7 @@ from guppylang_internals.std._internal.compiler.quantum import (
 from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.std._internal.compiler.tket_exts import (
     FUTURES_EXTENSION,
-    QSYSTEM_EXTENSION,
+    QSYSTEM_HELIOS_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
 )
 from guppylang_internals.std._internal.util import external_op, quantum_op
@@ -52,10 +53,19 @@ class RandomIntBoundedCompiler(CustomInoutCallCompiler):
 
 
 class LazyMeasureResetCompiler(CustomInoutCallCompiler):
+    """Compiler for the ``LazyMeasureReset`` qsystem op.
+
+    Accepts the target extension so it can be used for both helios and sol.
+    Defaults to the Helios extension for backwards compatibility.
+    """
+
+    def __init__(self, ext: HugrExtension | None = None) -> None:
+        self._ext = ext if ext is not None else QSYSTEM_HELIOS_EXTENSION
+
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [q] = args
         [q, measurement] = self.builder.add_op(
-            quantum_op("LazyMeasureReset", ext=QSYSTEM_EXTENSION)(
+            quantum_op("LazyMeasureReset", ext=self._ext)(
                 ht.FunctionType([ht.Qubit], [ht.Qubit, future_bool_type()]),
                 (),
                 self.ctx,
