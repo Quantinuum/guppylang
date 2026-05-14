@@ -96,7 +96,6 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
 
     # A parametrised type, e.g. `list[??]`
     if isinstance(node, ast.Subscript) and (
-        # NICOLA 3:
         defn := _try_parse_defn(node.value, ctx.globals)
     ):
         # defn can be a CallableDef
@@ -104,11 +103,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
             node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
         )
         # Here we parse the CallableDef
-        # NICOLA 4
-        tmp = _arg_from_instantiated_defn(defn, arg_nodes, node, ctx)
-        # NICOLA 6
-        print(tmp)
-        return tmp
+        return _arg_from_instantiated_defn(defn, arg_nodes, node, ctx)
 
     # We allow tuple types to be written as `(int, bool)`
     if isinstance(node, ast.Tuple):
@@ -168,7 +163,6 @@ def _try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
         case ast.Name(id=x):
             if x not in globals:
                 return None
-            # NICOLA 2: here we have the CallableDef
             defn = globals[x]
             if isinstance(defn, PythonObject):
                 return None
@@ -201,7 +195,6 @@ def _arg_from_instantiated_defn(
             # arguments of the python Callable
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx))
         case UnitaryCallableTypeDef():
-            # NICOLA 5: Here we call the helper function to get the type from the
             # arguments of the python Callable
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flag=True))
         case SelfTypeDef():
@@ -398,7 +391,6 @@ def type_with_flags_from_ast(
         return type_with_flags_from_ast(node, ctx)
     else:
         # Parse an argument and check that it's valid for a `TypeParam`
-        # NICOLA 7: Here we have the Argument from the (Unitary)CallableDef
         arg = arg_from_ast(node, ctx)
         tyarg = _type_param.check_arg(arg, node)
         return tyarg.ty, InputFlags.NoFlags

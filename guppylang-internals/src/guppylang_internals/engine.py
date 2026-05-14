@@ -352,7 +352,6 @@ class CompilationEngine:
                     case kind:
                         return assert_never(kind)
             case FunctionType():
-                # NICOLA: we should check the function unitarity flags here?
                 type_defn = callable_type_def
             case OpaqueType() as ty:
                 type_defn = ty.defn
