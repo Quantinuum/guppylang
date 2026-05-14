@@ -1,5 +1,4 @@
 import ast
-import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -26,6 +25,14 @@ from guppylang_internals.definition.custom import (
     DefaultCallChecker,
 )
 from guppylang_internals.definition.ty import TypeDef
+from guppylang_internals.definition.util import (
+    CheckedField,
+    DuplicateFieldError,
+    NonGuppyMethodError,
+    UncheckedField,
+    extract_generic_params,
+    parse_py_class,
+)
 from guppylang_internals.diagnostic import Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
@@ -39,18 +46,6 @@ from guppylang_internals.tys.ty import (
     InputFlags,
     StructType,
     Type,
-)
-
-if sys.version_info >= (3, 12):
-    pass
-
-from guppylang_internals.definition.util import (
-    CheckedField,
-    DuplicateFieldError,
-    NonGuppyMethodError,
-    UncheckedField,
-    extract_generic_params,
-    parse_py_class,
 )
 
 
