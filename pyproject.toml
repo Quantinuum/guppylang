@@ -60,4 +60,5 @@ markers = "test_exported_hugrs"
 filterwarnings = [
   "ignore::DeprecationWarning",  # TODO remove after removing guppy.compile()
   "ignore::SyntaxWarning",  # Python 3.14 complains about guppy tuple callables
+  "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",  # benchmark fixture not used in the mem usage tests
 ]

@@ -2,11 +2,13 @@ from guppylang.decorator import guppy
 from guppylang.std.collections import Queue, empty_queue
 from hugr.package import Package
 
+from tests.util import compile_and_get_peak_memory
+
 
 @guppy
 def queue_push_benchmark() -> int:
-    q: Queue[int, 10000] = empty_queue()
-    for i in range(10000):
+    q: Queue[int, 10_000] = empty_queue()
+    for i in range(10_000):
         q = q.push(i)
     # Return the length so the value is used and not optimized away.
     return len(q)
@@ -14,8 +16,8 @@ def queue_push_benchmark() -> int:
 
 @guppy
 def queue_push_pop_benchmark() -> int:
-    q: Queue[int, 10000] = empty_queue()
-    for i in range(10000):
+    q: Queue[int, 10_000] = empty_queue()
+    for i in range(10_000):
         q = q.push(i)
     total = 0
     while len(q) > 0:
@@ -39,6 +41,9 @@ def test_queue_push_benchmark_compile(benchmark):
     hugr: Package = benchmark(queue_push_compile)
     benchmark.extra_info["nodes"] = hugr.modules[0].num_nodes()
     benchmark.extra_info["bytes"] = len(hugr.to_bytes())
+    benchmark.extra_info["mem_compile_once"] = compile_and_get_peak_memory(
+        queue_push_benchmark
+    )
 
 
 def test_queue_push_pop_benchmark(benchmark):
@@ -56,3 +61,6 @@ def test_queue_push_pop_benchmark_compile(benchmark):
     hugr: Package = benchmark(queue_push_pop_compile)
     benchmark.extra_info["nodes"] = hugr.modules[0].num_nodes()
     benchmark.extra_info["bytes"] = len(hugr.to_bytes())
+    benchmark.extra_info["mem_compile_once"] = compile_and_get_peak_memory(
+        queue_push_pop_benchmark
+    )

@@ -5,6 +5,8 @@ from guppylang.std.builtins import array, py
 from guppylang.std.quantum import cx, discard_array, h, qubit
 from hugr.package import Package
 
+from tests.util import compile_and_get_peak_memory
+
 n_q = 20
 n_a = 5
 
@@ -256,6 +258,7 @@ def test_big_array_compile(benchmark) -> None:
     hugr: Package = benchmark(big_array_compile)
     benchmark.extra_info["nodes"] = hugr.modules[0].num_nodes()
     benchmark.extra_info["bytes"] = len(hugr.to_bytes())
+    benchmark.extra_info["mem_compile_once"] = compile_and_get_peak_memory(big_array)
 
 
 def test_big_array_check(benchmark) -> None:

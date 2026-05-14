@@ -26,6 +26,12 @@ def create_bencher_BMF(pytest_benchmark_file: str, bencher_file: str) -> None:
             if extra_info.get("nodes"):
                 nodes_info = extra_info["nodes"]
                 BMF[name]["hugr_nodes"] = {"value": nodes_info}
+            if extra_info.get("mem_compile_once"):
+                mem_info = extra_info["mem_compile_once"]
+                BMF[name]["mem_compile_once"] = {"value": mem_info}
+            if extra_info.get("mem_compile_multiple"):
+                mem_info = extra_info["mem_compile_multiple"]
+                BMF[name]["mem_compile_multiple"] = {"value": mem_info}
 
     with Path(bencher_file).open("w") as bmf_file:
         json.dump(BMF, bmf_file)
