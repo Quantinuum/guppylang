@@ -360,6 +360,8 @@ class CustomCallChecker(ABC):
         """
         A context manager to temporarily set up the checker with required arguments, and
         properly tear down the checker afterwards to avoid memory leaks.
+
+        See https://github.com/Quantinuum/guppylang/issues/1735.
         """
         self.ctx = ctx
         self.node = node
@@ -419,8 +421,10 @@ class CustomInoutCallCompiler(ABC):
         func: CustomMonoFunctionDef | None,
     ) -> Generator["CustomInoutCallCompiler", None, None]:
         """
-        A context manager to temporarily set up the checker with required arguments, and
-        properly tear down the checker afterwards to avoid memory leaks.
+        A context manager to temporarily set up the compiler with required arguments,
+        and properly tear down the compiler afterwards to avoid memory leaks.
+
+        See https://github.com/Quantinuum/guppylang/issues/1735.
         """
         self.type_args = type_args
         self.dfg = dfg
