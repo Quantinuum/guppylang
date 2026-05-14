@@ -1,6 +1,7 @@
 import ast
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Generator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
@@ -249,8 +250,8 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
 
         This is done by invoking the provided `CustomCallChecker`.
         """
-        self.call_checker._setup(ctx, node, self)
-        new_node, subst = self.call_checker.check(args, ty)
+        with self.call_checker._setup(ctx, node, self) as checker:
+            new_node, subst = checker.check(args, ty)
         return with_type(ty, with_loc(node, new_node)), subst
 
     @override
@@ -261,8 +262,8 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
 
         This is done by invoking the provided `CustomCallChecker`.
         """
-        self.call_checker._setup(ctx, node, self)
-        new_node, ty = self.call_checker.synthesize(args)
+        with self.call_checker._setup(ctx, node, self) as checker:
+            new_node, ty = checker.synthesize(args)
         return with_type(ty, with_loc(node, new_node)), ty
 
 
@@ -339,8 +340,10 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
             )
         hugr_ty = concrete_ty.to_hugr(ctx)
 
-        self.call_compiler._setup(self.type_args, dfg, ctx, node, hugr_ty, self)
-        return self.call_compiler.compile_with_inouts(args)
+        with self.call_compiler._setup(
+            self.type_args, dfg, ctx, node, hugr_ty, self
+        ) as compiler:
+            return compiler.compile_with_inouts(args)
 
 
 class CustomCallChecker(ABC):
@@ -350,10 +353,23 @@ class CustomCallChecker(ABC):
     node: AstNode
     func: CustomFunctionDef
 
-    def _setup(self, ctx: Context, node: AstNode, func: CustomFunctionDef) -> None:
+    @contextmanager
+    def _setup(
+        self, ctx: Context, node: AstNode, func: CustomFunctionDef
+    ) -> Generator["CustomCallChecker", None, None]:
+        """
+        A context manager to temporarily set up the checker with required arguments, and
+        properly tear down the checker afterwards to avoid memory leaks.
+        """
         self.ctx = ctx
         self.node = node
         self.func = func
+        try:
+            yield self
+        finally:
+            del self.ctx
+            del self.node
+            del self.func
 
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         """Checks the return value against a given type.
@@ -392,6 +408,7 @@ class CustomInoutCallCompiler(ABC):
     ty: ht.FunctionType
     func: CustomMonoFunctionDef | None
 
+    @contextmanager
     def _setup(
         self,
         type_args: Inst,
@@ -400,7 +417,11 @@ class CustomInoutCallCompiler(ABC):
         node: AstNode,
         hugr_ty: ht.FunctionType,
         func: CustomMonoFunctionDef | None,
-    ) -> None:
+    ) -> Generator["CustomInoutCallCompiler", None, None]:
+        """
+        A context manager to temporarily set up the checker with required arguments, and
+        properly tear down the checker afterwards to avoid memory leaks.
+        """
         self.type_args = type_args
         self.dfg = dfg
         self.ctx = ctx
@@ -412,6 +433,15 @@ class CustomInoutCallCompiler(ABC):
         # function to is the function definition itself, so we set the function
         # definition node as the AST context in the builder.
         self.builder.current_ast_node = self.node
+        try:
+            yield self
+        finally:
+            del self.type_args
+            del self.dfg
+            del self.ctx
+            del self.node
+            del self.ty
+            del self.func
 
     @abstractmethod
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
