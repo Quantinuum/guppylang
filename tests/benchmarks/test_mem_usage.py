@@ -36,10 +36,9 @@ def main_list() -> None:
     [main_array, main_single_qubit, main_list],
     ids=["array", "qubit", "list"],
 )
-def test_compile_one_time(benchmark, guppy_fn) -> None:
+def test_mem_compile_once(benchmark, guppy_fn) -> None:
     benchmark(guppy_fn.compile)
-
-    benchmark.extra_info["mem_compile_once"] = compile_and_get_peak_memory(guppy_fn)
+    benchmark.extra_info["memory"] = compile_and_get_peak_memory(guppy_fn)
 
 
 @pytest.mark.parametrize(
@@ -47,9 +46,8 @@ def test_compile_one_time(benchmark, guppy_fn) -> None:
     [main_array, main_single_qubit, main_list],
     ids=["array", "qubit", "list"],
 )
-def test_compile_multiple_times(benchmark, guppy_fn) -> None:
+def test_mem_compile_multiple(benchmark, guppy_fn) -> None:
     benchmark(guppy_fn.compile)
-
-    benchmark.extra_info["mem_compile_multiple"] = compile_and_get_peak_memory(
+    benchmark.extra_info["memory"] = compile_and_get_peak_memory(
         guppy_fn, n_compilations
     )

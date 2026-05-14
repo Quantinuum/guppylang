@@ -55,10 +55,7 @@ def test_many_ctrl_flow_compile(benchmark):
     hugr = benchmark(comp)
     benchmark.extra_info["nodes"] = hugr.modules[0].num_nodes()
     benchmark.extra_info["bytes"] = len(hugr.to_bytes())
-
-    benchmark.extra_info["mem_compile_once"] = compile_and_get_peak_memory(
-        many_ctrl_flow
-    )
+    benchmark.extra_info["memory"] = compile_and_get_peak_memory(many_ctrl_flow)
 
 
 def test_many_ctrl_flow_check(benchmark) -> None:

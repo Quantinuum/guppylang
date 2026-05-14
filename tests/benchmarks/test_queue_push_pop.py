@@ -41,9 +41,7 @@ def test_queue_push_benchmark_compile(benchmark):
     hugr: Package = benchmark(queue_push_compile)
     benchmark.extra_info["nodes"] = hugr.modules[0].num_nodes()
     benchmark.extra_info["bytes"] = len(hugr.to_bytes())
-    benchmark.extra_info["mem_compile_once"] = compile_and_get_peak_memory(
-        queue_push_benchmark
-    )
+    benchmark.extra_info["memory"] = compile_and_get_peak_memory(queue_push_benchmark)
 
 
 def test_queue_push_pop_benchmark(benchmark):
@@ -61,6 +59,6 @@ def test_queue_push_pop_benchmark_compile(benchmark):
     hugr: Package = benchmark(queue_push_pop_compile)
     benchmark.extra_info["nodes"] = hugr.modules[0].num_nodes()
     benchmark.extra_info["bytes"] = len(hugr.to_bytes())
-    benchmark.extra_info["mem_compile_once"] = compile_and_get_peak_memory(
+    benchmark.extra_info["memory"] = compile_and_get_peak_memory(
         queue_push_pop_benchmark
     )

@@ -96,6 +96,9 @@ bench-compare *BENCHER_FLAGS:
             --threshold-measure hugr_nodes \
             --threshold-test percentage \
             --threshold-upper-boundary 0.01 \
+            --threshold-measure compile_mem \
+            --threshold-test percentage \
+            --threshold-upper-boundary 0.05 \
             --err \
             --quiet \
             {{BENCHER_FLAGS}}
