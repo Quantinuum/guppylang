@@ -353,6 +353,8 @@ class CustomCallChecker(ABC):
     node: AstNode
     func: CustomFunctionDef
 
+    _depth = 0
+
     @contextmanager
     def _setup(
         self, ctx: Context, node: AstNode, func: CustomFunctionDef
@@ -369,9 +371,13 @@ class CustomCallChecker(ABC):
         try:
             yield self
         finally:
-            del self.ctx
-            del self.node
-            del self.func
+            self._depth -= 1
+            # Only clean when there are no parent recursions, as otherwise the fields
+            # may still be in use.
+            if self._depth == 0:
+                del self.ctx
+                del self.node
+                del self.func
 
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         """Checks the return value against a given type.
@@ -410,6 +416,8 @@ class CustomInoutCallCompiler(ABC):
     ty: ht.FunctionType
     func: CustomMonoFunctionDef | None
 
+    _depth = 0
+
     @contextmanager
     def _setup(
         self,
@@ -437,15 +445,20 @@ class CustomInoutCallCompiler(ABC):
         # function to is the function definition itself, so we set the function
         # definition node as the AST context in the builder.
         self.builder.current_ast_node = self.node
+        self._depth += 1
         try:
             yield self
         finally:
-            del self.type_args
-            del self.dfg
-            del self.ctx
-            del self.node
-            del self.ty
-            del self.func
+            self._depth -= 1
+            # Only clean when there are no parent recursions, as otherwise the fields
+            # may still be in use.
+            if self._depth == 0:
+                del self.type_args
+                del self.dfg
+                del self.ctx
+                del self.node
+                del self.ty
+                del self.func
 
     @abstractmethod
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
