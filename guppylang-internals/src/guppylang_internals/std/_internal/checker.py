@@ -470,7 +470,7 @@ def to_sized_iter(
     sized_iter_ty = sized_iter_type(range_ty, size)
     make_sized_iter = ENGINE.get_instance_func(sized_iter_ty, "__new__")
     assert make_sized_iter is not None
-    call = with_loc(iterator, fake_call("__new__", [iterator]))
+    call = fake_call("__new__", iterator, [iterator])
     sized_iter, _ = make_sized_iter.check_call([iterator], sized_iter_ty, call, ctx)
     return sized_iter, sized_iter_ty
 

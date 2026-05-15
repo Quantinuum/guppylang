@@ -1055,7 +1055,7 @@ def try_coerce_to(
         name = f"__{exp.kind.name.lower()}__"
         f = ENGINE.get_instance_func(act, name)
         assert f is not None
-        call = with_loc(node, fake_call(name, [node]))
+        call = fake_call(name, node, [node])
         node, subst = f.check_call([node], exp, call, ctx)
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
