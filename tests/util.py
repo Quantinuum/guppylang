@@ -38,19 +38,26 @@ def get_h2_wasm_file() -> str:
 
 def compile_and_get_peak_memory(
     guppy_fn: GuppyFunctionDefinition, n_compilations: int = 1
-) -> float:
+) -> int:
     """Compile the given Guppy function `n_compilations` times and
     return the peak memory used in bytes as reported by
     `tracemalloc.get_traced_memory()`."""
     import gc
     import tracemalloc
 
-    gc.disable()
-    tracemalloc.start()
-    for _ in range(n_compilations):
-        guppy_fn.compile()
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
-    gc.enable()
-    _ = gc.collect()
-    return peak
+    was_tracing = tracemalloc.is_tracing()
+    if not was_tracing:
+        tracemalloc.start()
+    tracemalloc.clear_traces()
+
+    try:
+        gc.disable()
+        for _ in range(n_compilations):
+            guppy_fn.compile()
+        _, peak = tracemalloc.get_traced_memory()
+        gc.enable()
+        _ = gc.collect()
+        return peak
+    finally:
+        if not was_tracing:
+            tracemalloc.stop()

@@ -55,10 +55,9 @@ exclude_also = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--benchmark-disable -m 'not test_exported_hugrs'"  # benchmarks run explicitly with `just bench`
+addopts = "--benchmark-disable -m 'not test_exported_hugrs'" # benchmarks run explicitly with `just bench`
 markers = "test_exported_hugrs"
 filterwarnings = [
-  "ignore::DeprecationWarning",  # TODO remove after removing guppy.compile()
-  "ignore::SyntaxWarning",  # Python 3.14 complains about guppy tuple callables
-  "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",  # benchmark fixture not used in the mem usage tests
+  "ignore::DeprecationWarning", # TODO remove after removing guppy.compile()
+  "ignore::SyntaxWarning",      # Python 3.14 complains about guppy tuple callables
 ]
