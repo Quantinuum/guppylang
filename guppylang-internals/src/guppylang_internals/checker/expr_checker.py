@@ -1065,8 +1065,9 @@ def try_coerce_to(
     return None
 
 
+# NICOLA: We need to make this check finer
 def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
-    if exp.unitary_flags != act.unitary_flags:
+    if not exp.unitary_flags.is_weaker_than(act.unitary_flags):
         raise GuppyTypeError(
             UnitaryFlagMismatchError(node, exp.unitary_flags, act.unitary_flags)
         )
@@ -1098,6 +1099,7 @@ def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Ins
         err.add_sub_diagnostic(WrongNumberOfArgsError.SignatureHint(None, ty))
         raise GuppyError(err)
 
+    # Other call, not interested
     inst = tuple(arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs)
     check_all_args(ty.params, inst, "", node, arg_exprs)
     return inst

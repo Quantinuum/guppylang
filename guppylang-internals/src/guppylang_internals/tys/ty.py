@@ -382,6 +382,28 @@ class UnitaryFlags(Flag):
 
     Unitary = Control | Dagger | Power
 
+    def is_weaker_than(self, other: "UnitaryFlags") -> bool:
+        """Whether this flag is weaker than the other,
+        i.e. whether this flag allows more contexts than the other."""
+
+        if self == UnitaryFlags.NoFlags:
+            return True
+
+        return self in other
+
+    def __str__(self) -> str:
+        match self:
+            case UnitaryFlags.Dagger:
+                return "dagger"
+            case UnitaryFlags.Control:
+                return "control"
+            case UnitaryFlags.Power:
+                return "power"
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case _:  # If we have multiple flags, we represent them as unitary
+                return "unitary"
+
 
 @dataclass(frozen=True)
 class FuncInput:
