@@ -1505,8 +1505,6 @@ def check_generator(
         ctx.globals,
         inner_locals,
         ctx.generic_param_inst,
-        # If the nested func *could* change the max_effects then we'd use its
-        # declaration here, but we don't allow that.
         ctx.max_effects_from,
     )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)

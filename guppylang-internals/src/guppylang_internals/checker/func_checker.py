@@ -285,6 +285,8 @@ def check_nested_func_def(
         {},
         func_def.name,
         globals,
+        # As comment above, assume nested func has same effects as enclosing
+        # (hence the decl giving the effects is that of the enclosing func too).
         max_effects_from=ctx.max_effects_from,
     )
     checked_def = CheckedNestedFunctionDef(
