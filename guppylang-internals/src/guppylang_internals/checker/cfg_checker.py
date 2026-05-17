@@ -10,7 +10,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Generic, TypeVar
 
-from guppylang_internals.ast_util import line_col
+from guppylang_internals.ast_util import AstNode, line_col
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
@@ -77,7 +77,7 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
-    max_effects: list[Effect] | None,
+    max_effects_from: tuple[list[Effect], AstNode] | None,
     first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
@@ -107,7 +107,7 @@ def check_cfg(
         return_ty,
         generic_args,
         globals,
-        max_effects=max_effects,
+        max_effects_from=max_effects_from,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -140,7 +140,7 @@ def check_cfg(
                 return_ty,
                 generic_args,
                 globals,
-                max_effects=max_effects,
+                max_effects_from=max_effects_from,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -232,7 +232,7 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
-    max_effects: list[Effect] | None,
+    max_effects_from: tuple[list[Effect], AstNode] | None,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -250,7 +250,7 @@ def check_bb(
 
     # Check the basic block
     ctx = Context(
-        globals, Locals({v.name: v for v in inputs}), generic_args, max_effects
+        globals, Locals({v.name: v for v in inputs}), generic_args, max_effects_from
     )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 

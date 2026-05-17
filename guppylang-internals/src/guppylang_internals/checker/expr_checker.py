@@ -1254,14 +1254,17 @@ def check_comptime_arg(
 def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
     """Checks that a function call (AST provided) to a specified FunctionType
     respects the effect constraints in the context."""
-    if ctx.max_effects is not None and (
+    if ctx.max_effects_from is not None and (
         func_ty.max_effects is None
-        or any(e not in ctx.max_effects for e in func_ty.max_effects)
+        or any(e not in ctx.max_effects_from[0] for e in func_ty.max_effects)
     ):
         loc_node = node.func if isinstance(node, ast.Call) else node
         effects = "<UNKNOWN>" if func_ty.max_effects is None else func_ty.max_effects
+        effects_allowed, effects_decl = ctx.max_effects_from
         raise GuppyTypeError(
-            TooManyEffectsError(loc_node, func_ty, effects, ctx.max_effects)
+            TooManyEffectsError(loc_node, func_ty, effects).add_sub_diagnostic(
+                TooManyEffectsError.MaxFromDecl(effects_decl, effects_allowed)
+            )
         )
 
 
@@ -1502,7 +1505,9 @@ def check_generator(
         ctx.globals,
         inner_locals,
         ctx.generic_param_inst,
-        ctx.max_effects,
+        # If the nested func *could* change the max_effects then we'd use its
+        # declaration here, but we don't allow that.
+        ctx.max_effects_from,
     )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)

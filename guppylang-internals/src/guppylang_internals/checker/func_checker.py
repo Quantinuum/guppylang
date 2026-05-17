@@ -22,7 +22,7 @@ from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang_internals.error import GuppyError
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
 from guppylang_internals.tys.parsing import (
@@ -156,6 +156,15 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
+    if ty.max_effects is None:
+        max_effects_from = None
+    else:
+        dec = _find_guppy_decorator(func_def.decorator_list)
+        if dec is None:
+            raise InternalGuppyError(
+                "Expected to find a `@guppy` decorator on a function with max effects"
+            )
+        max_effects_from = (ty.max_effects, dec)
     return check_cfg(
         cfg,
         inputs,
@@ -163,8 +172,19 @@ def check_global_func_def(
         generic_args,
         func_def.name,
         globals,
-        max_effects=ty.max_effects,
+        max_effects_from=max_effects_from,
     )
+
+
+def _find_guppy_decorator(decorators: list[ast.expr]) -> ast.expr | None:
+    for d in decorators:
+        if (
+            isinstance(d, ast.Call)
+            and isinstance(d.func, ast.Name)
+            and d.func.id == "guppy"  # or declare?
+        ):
+            return d
+    return None
 
 
 def check_nested_func_def(
@@ -177,7 +197,9 @@ def check_nested_func_def(
     # We could do better by allowing a separate annotation (rather than a parameter
     # to @guppy), but we will wait for callgraph analysis to compute precisely:
     # nested functions are not part of any public API, so changes are not breaking.
-    func_ty = check_signature(func_def, ctx.globals).with_effects(ctx.max_effects)
+    func_ty = check_signature(func_def, ctx.globals).with_effects(
+        None if ctx.max_effects_from is None else ctx.max_effects_from[0]
+    )
     assert func_ty.input_names is not None
 
     if func_ty.parametrized:
@@ -263,7 +285,7 @@ def check_nested_func_def(
         {},
         func_def.name,
         globals,
-        max_effects=func_ty.max_effects,
+        max_effects_from=ctx.max_effects_from,
     )
     checked_def = CheckedNestedFunctionDef(
         def_id,

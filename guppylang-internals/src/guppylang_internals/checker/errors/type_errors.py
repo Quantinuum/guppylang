@@ -53,15 +53,15 @@ class ConstMismatchError(Error):
 class TooManyEffectsError(Error):
     title: ClassVar[str] = "Too many effects"
     span_label: ClassVar[str] = (
-        "Callee of type `{ty}` has effects {effects}\n"
-        "that exceed the allowed effects `{allowed_effects}`"
+        "Callee of type `{ty}` has effects {effects}\nthat exceed the allowed effects"
     )
     ty: Type
     effects: list[Effect] | str
-    allowed_effects: list[Effect]
 
-    # ALAN would be good to Note both where the callee is defined
-    # and where the caller is declared as excluding those effects.
+    @dataclass(frozen=True)
+    class MaxFromDecl(Note):
+        span_label: ClassVar[str] = "Allowed effects `{allowed_effects}` declared here"
+        allowed_effects: list[Effect]
 
 
 @dataclass(frozen=True)
