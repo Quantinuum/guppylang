@@ -34,6 +34,7 @@ from guppylang_internals.ast_util import (
     AstNode,
     AstVisitor,
     breaks_in_loop,
+    fake_call,
     get_type,
     get_type_opt,
     return_nodes_in_ast,
@@ -721,7 +722,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return func.synthesize_call([node.operand], node, self.ctx)
 
     def _synthesize_binary(
-        self, left_expr: ast.expr, right_expr: ast.expr, op: AstOp, node: ast.expr
+        self,
+        left_expr: ast.expr,
+        right_expr: ast.expr,
+        op: AstOp,
+        node: ast.BinOp | ast.Compare,
     ) -> tuple[ast.expr, Type]:
         """Helper method to compile binary operators by calling out to dunder methods.
 
@@ -1047,9 +1052,11 @@ def try_coerce_to(
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
     if act.kind < exp.kind:
-        f = ENGINE.get_instance_func(act, f"__{exp.kind.name.lower()}__")
+        name = f"__{exp.kind.name.lower()}__"
+        f = ENGINE.get_instance_func(act, name)
         assert f is not None
-        node, subst = f.check_call([node], exp, node, ctx)
+        call = fake_call(name, node, [node])
+        node, subst = f.check_call([node], exp, call, ctx)
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
     return None
