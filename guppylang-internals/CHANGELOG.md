@@ -3,6 +3,22 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.36.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.35.0...guppylang-internals-v0.36.0) (2026-05-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **guppy_internals:** Allow indexes access and assignment in dagger contex, fixing use of  array subscript as argument of control modifiers ([#1738](https://github.com/Quantinuum/guppylang/issues/1738))
+
+### Features
+
+* **guppy_internals:** Allow indexes access and assignment in dagger contex, fixing use of  array subscript as argument of control modifiers ([#1738](https://github.com/Quantinuum/guppylang/issues/1738)) ([cd01574](https://github.com/Quantinuum/guppylang/commit/cd01574fbc32efff5a47b1ad4e27aeac2acd4012))
+
+
+### Bug Fixes
+
+* Prevent leaking memory in custom call compilers and checkers ([#1740](https://github.com/Quantinuum/guppylang/issues/1740)) ([0ef6121](https://github.com/Quantinuum/guppylang/commit/0ef6121183eae87e16bedd76e5cb686f50423dbc))
+
 ## [0.35.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.34.0...guppylang-internals-v0.35.0) (2026-04-29)
 
 
