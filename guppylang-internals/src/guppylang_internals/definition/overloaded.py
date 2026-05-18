@@ -1,6 +1,5 @@
 import ast
 import copy
-from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import ClassVar, NamedTuple, NoReturn
 
@@ -8,6 +7,7 @@ from hugr import Wire
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Context
+from guppylang_internals.checker.errors.type_errors import TooManyEffectsError
 from guppylang_internals.checker.expr_checker import ExprSynthesizer
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
@@ -102,12 +102,18 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             assert isinstance(defn, CallableDef)
             has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
             available_sigs.append(OverloadVariant(defn.ty, has_var_args))
-            with suppress(GuppyError):
+            try:
                 # check_call may modify args and node,
                 # thus we deepcopy them before passing in the function
                 node_copy = copy.deepcopy(node)
                 args_copy = copy.deepcopy(args)
                 return defn.check_call(args_copy, ty, node_copy, ctx)
+            except GuppyError as e:
+                if isinstance(e.error, TooManyEffectsError):
+                    # We do not allow overloading on effects, so if this error is raised
+                    # then this is the relevant overload, so report the error.
+                    raise
+                continue
         return self._call_error(args, node, ctx, available_sigs, ty)
 
     def synthesize_call(
@@ -119,12 +125,18 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             assert isinstance(defn, CallableDef)
             has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
             available_sigs.append(OverloadVariant(defn.ty, has_var_args))
-            with suppress(GuppyError):
+            try:
                 # synthesize_call may modify args and node,
                 # thus we deepcopy them before passing in the function
                 node_copy = copy.deepcopy(node)
                 args_copy = copy.deepcopy(args)
                 return defn.synthesize_call(args_copy, node_copy, ctx)
+            except GuppyError as e:
+                if isinstance(e.error, TooManyEffectsError):
+                    # We do not allow overloading on effects, so if this error is raised
+                    # then this is the relevant overload, so report the error.
+                    raise
+                continue
         return self._call_error(args, node, ctx, available_sigs)
 
     def _call_error(

@@ -1279,8 +1279,6 @@ def synthesize_call(
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(args), node, func_ty)
 
-    _check_effects(func_ty, ctx, node)
-
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
@@ -1292,6 +1290,9 @@ def synthesize_call(
 
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
+
+    # Check effects last so we can avoid using them to resolve overloading
+    _check_effects(func_ty, ctx, node)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1311,8 +1312,6 @@ def check_call(
     """
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
-
-    _check_effects(func_ty, ctx, node)
 
     # When checking, we can use the information from the expected return type to infer
     # some type arguments. However, this pushes errors inwards. For example, given a
@@ -1380,6 +1379,9 @@ def check_call(
 
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
+
+    # Check effects last so we can avoid using them to resolve overloading
+    _check_effects(func_ty, ctx, node)
 
     return inputs, subst, inst
 
