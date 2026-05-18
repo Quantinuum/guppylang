@@ -3,8 +3,8 @@ Error: Too many effects (at $FILE:8:10)
 6 | @guppy(max_effects=[])
 7 | def main() -> int:
 8 |    return impure_func(5)
-  |           ^^^^^^^^^^^ Callee of type `int -> int` has effects <UNKNOWN>
-  |                       that exceed the allowed effects
+  |           ^^^^^^^^^^^ Callee of type `int -> int` has effects <UNKNOWN> that
+  |                       exceed those allowed
 
 Note:
   | 

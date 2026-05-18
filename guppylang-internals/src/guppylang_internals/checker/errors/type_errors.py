@@ -53,7 +53,7 @@ class ConstMismatchError(Error):
 class TooManyEffectsError(Error):
     title: ClassVar[str] = "Too many effects"
     span_label: ClassVar[str] = (
-        "Callee of type `{ty}` has effects {effects}\nthat exceed the allowed effects"
+        "Callee of type `{ty}` has effects {effects} that exceed those allowed"
     )
     ty: Type
     effects: list[Effect] | str
