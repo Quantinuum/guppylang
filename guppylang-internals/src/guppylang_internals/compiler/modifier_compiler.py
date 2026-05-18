@@ -4,6 +4,7 @@ from hugr import Wire, ops
 from hugr import tys as ht
 
 from guppylang_internals.ast_util import get_type
+from guppylang_internals.checker.core import SubscriptAccess, contains_subscript
 from guppylang_internals.checker.modifier_checker import non_copyable_front_others_back
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
@@ -66,13 +67,12 @@ def compile_modified_block(
     cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
     func_builder.set_outputs(*cfg)
 
-    # LoadFunc
+    # Add the LoadFunc node
     call = dfg.builder.load_function(func_builder, hugr_ty)
 
-    # Function inputs
+    # Captured values to be the function inputs
     captured = [v for v, _ in modified_block.captured.values()]
     captured = non_copyable_front_others_back(captured)
-    args = [dfg[v] for v in captured]
 
     # Apply modifiers
     if modified_block.has_dagger():
@@ -110,7 +110,7 @@ def compile_modified_block(
             qubit_num_args.append(qubit_num)
             std_array = standard_array_type(ht.Qubit, qubit_num)
 
-            # control operator
+            # Control adds a standard qubit array before the body inputs.
             input_fn_ty = hugr_ty
             output_fn_ty = ht.FunctionType(
                 [std_array, *hugr_ty.input], [std_array, *hugr_ty.output]
@@ -121,11 +121,11 @@ def compile_modified_block(
                 [qubit_num, in_out_arg, other_in_arg],
             )
             call = dfg.builder.add_op(op, call)
-            # update types
+            # Update types: later modifiers see the newly wrapped function type
             in_out_arg = ht.ListArg([std_array.type_arg(), *in_out_arg.elems])
             hugr_ty = output_fn_ty
 
-    # Prepare control arguments
+    # Compile control expressions and pack individual controls into arrays.
     ctrl_args: list[Wire] = []
     for i, control in enumerate(modified_block.control):
         if is_array_type(get_type(control.ctrl[0])):
@@ -144,7 +144,10 @@ def compile_modified_block(
             )
             ctrl_args.append(control_array)
 
-    # Call
+    # Wires corresponding to captured values before the indirect call.
+    args = [dfg[v] for v in captured]
+
+    # Call the modified block.
     call = dfg.builder.add_op(
         ops.CallIndirect(),
         call,
@@ -153,7 +156,8 @@ def compile_modified_block(
     )
     outports = iter(call)
 
-    # Unpack controls
+    # Unpack returned controls
+    control_subscripts: list[SubscriptAccess] = []
     for i, control in enumerate(modified_block.control):
         outport = next(outports)
         if is_array_type(get_type(control.ctrl[0])):
@@ -163,6 +167,8 @@ def compile_modified_block(
             c = control.ctrl[0]
             assert isinstance(c, PlaceNode)
             dfg[c.place] = control_array
+            if subscript := contains_subscript(c.place):
+                control_subscripts.append(subscript)
         else:
             control_array = dfg.builder.add_op(
                 std_array_to_array(ht.Qubit, qubit_num_args[i]), outport
@@ -171,9 +177,18 @@ def compile_modified_block(
             for c, new_c in zip(control.ctrl, unpacked, strict=False):
                 assert isinstance(c, PlaceNode)
                 dfg[c.place] = new_c
+                if subscript := contains_subscript(c.place):
+                    control_subscripts.append(subscript)
 
     for arg in captured:
+        # captured inout values are returned after the control arrays.
         if InputFlags.Inout in arg.flags:
             dfg[arg] = next(outports)
+
+    for subscript in control_subscripts:
+        # Restore a returned control value using the setter from type checking.
+        assert subscript.setitem_call is not None
+        dfg[subscript.setitem_call.value_var] = dfg[subscript]
+        expr_compiler.visit(subscript.setitem_call.call)
 
     return call
