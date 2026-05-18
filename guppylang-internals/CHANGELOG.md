@@ -8,11 +8,11 @@ from `guppylang`.
 
 ### ⚠ BREAKING CHANGES
 
-* **guppy_internals:** Allow indexes access and assignment in dagger contex, fixing use of  array subscript as argument of control modifiers ([#1738](https://github.com/Quantinuum/guppylang/issues/1738))
+* **guppy_internals:** Allow indexes access and assignment in dagger context, fixing use of  array subscript as argument of control modifiers ([#1738](https://github.com/Quantinuum/guppylang/issues/1738))
 
 ### Features
 
-* **guppy_internals:** Allow indexes access and assignment in dagger contex, fixing use of  array subscript as argument of control modifiers ([#1738](https://github.com/Quantinuum/guppylang/issues/1738)) ([cd01574](https://github.com/Quantinuum/guppylang/commit/cd01574fbc32efff5a47b1ad4e27aeac2acd4012))
+* **guppy_internals:** Allow indexes access and assignment in dagger context, fixing use of  array subscript as argument of control modifiers ([#1738](https://github.com/Quantinuum/guppylang/issues/1738)) ([cd01574](https://github.com/Quantinuum/guppylang/commit/cd01574fbc32efff5a47b1ad4e27aeac2acd4012))
 
 
 ### Bug Fixes
