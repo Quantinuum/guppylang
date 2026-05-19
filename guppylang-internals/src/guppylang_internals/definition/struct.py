@@ -58,6 +58,13 @@ class FieldFormHint(Help):
 
 
 @dataclass(frozen=True)
+class ProtocolHint(Help):
+    message: ClassVar[str] = (
+        "Add a `@guppy.protocol` annotation to turn this struct into a protocol"
+    )
+
+
+@dataclass(frozen=True)
 class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw struct type definition that has not been parsed yet."""
 
@@ -91,7 +98,9 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     v = getattr(self.python_class, name)
                     if not isinstance(v, GuppyDefinition):
                         raise GuppyError(
-                            NonGuppyMethodError(node, self.name, name, "struct")
+                            NonGuppyMethodError(
+                                node, self.name, name, "struct", "@guppy"
+                            )
                         )
                     used_func_names[name] = node
                     if name in used_field_names:

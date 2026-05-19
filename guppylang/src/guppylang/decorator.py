@@ -33,6 +33,7 @@ from guppylang_internals.definition.parameter import (
     RawConstVarDef,
     TypeVarDef,
 )
+from guppylang_internals.definition.protocol import RawProtocolDef
 from guppylang_internals.definition.pytket_circuits import (
     RawLoadPytketDef,
     RawPytketDef,
@@ -310,6 +311,57 @@ class _Guppy:
             return GuppyEnumDefinition(defn)
 
         return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
+
+    @dataclass_transform()
+    def protocol(self, cls: builtins.type[T]) -> builtins.type[T]:
+        """Registers a class as a Guppy protocol.
+
+        .. code-block:: python
+            from guppylang import guppy
+
+            @guppy.protocol
+            class MyProtocol:
+
+                @guppy.declare
+                def describe(self: Self) -> str: ...
+        """
+        defn = RawProtocolDef(DefId.fresh(), cls.__name__, None, cls)
+        frame = get_calling_frame()
+        DEF_STORE.register_def(defn, frame)
+        for val in cls.__dict__.values():
+            if isinstance(val, GuppyDefinition):
+                DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
+        # We need the the `__firstlineno__` attribute to look up the source later.
+        cls = _set_firstlineno(cls, frame)
+        # We're pretending to return the class unchanged, but in fact we return
+        # a `GuppyDefinition` that handles the comptime logic
+        return GuppyDefinition(defn)  # type: ignore[return-value]
+
+    def require(
+        self, *args: Any, **kwargs: Unpack[GuppyKwargs]
+    ) -> (
+        GuppyFunctionDefinition[P, T]
+        | Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]
+    ):
+        """Declares a required method for a protocol."""
+
+        def decorator(
+            f: Callable[P, T], kwargs: GuppyKwargs
+        ) -> GuppyFunctionDefinition[P, T]:
+            parsed = _parse_kwargs(kwargs)
+            defn = RawFunctionDecl(
+                DefId.fresh(),
+                f.__name__,
+                None,
+                f,
+                unitary_flags=parsed.flags,
+                link_name=parsed.link_name,
+                metadata=parsed.metadata,
+            )
+            DEF_STORE.register_def(defn, get_calling_frame())
+            return GuppyFunctionDefinition(defn)
+
+        return _with_optional_kwargs(decorator, args, kwargs)
 
     def type_var(
         self,
@@ -695,6 +747,19 @@ def _find_load_call(sources: SourceMap) -> Span | None:
             end = Loc(filename, lineno, max_offset)
             return Span(start, end)
     return None
+
+
+def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T]:
+    """Helper function to set the `__firstlineno__` attribute on a class if it is not
+    already there.
+
+    Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
+    However, we need this information to precisely look up the source for the
+    class later. If it's not there, we can set it from the calling frame.
+    """
+    if not hasattr(cls, "__firstlineno__"):
+        cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
+    return cls
 
 
 def custom_guppy_decorator(f: F) -> F:
