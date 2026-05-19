@@ -659,15 +659,13 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         self, ty: Type, node: ast.Attribute
     ) -> tuple[ast.expr, FunctionType] | None:
         """Helper method to check if an attribute access corresponds to a method call"""
-        if func := ENGINE.get_instance_func(ty, node.attr):
+        if (impl_def := ENGINE.get_type_member(ty, node.attr)) and (
+            func := ENGINE.get_instance_func(ty, node.attr)
+        ):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
             )
-            ty_id = DEF_STORE.type_member_parents[func.id]
-
-            if (
-                impl_def := DEF_STORE.type_members[ty_id].get(node.attr)
-            ) and impl_def.is_static:
+            if impl_def.is_static:
                 # if this is a staticmethod do not partially apply `self`
                 return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
             else:
