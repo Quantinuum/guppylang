@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:7:18)
+  | 
+5 | class Foo:
+6 |     @guppy.require
+7 |     def foo(self: Self) -> None: ...
+  |                   ^^^^ `Self` type annotation is not supported in protocol methods
+
+Guppy compilation failed due to 1 previous error

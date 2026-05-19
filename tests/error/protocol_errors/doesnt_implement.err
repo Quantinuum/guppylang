@@ -1,0 +1,8 @@
+Error: Missing protocol implementation (at $FILE:25:22)
+   | 
+23 | @guppy
+24 | def baz(f: FooInt) -> None:
+25 |     return eat_foostr(f)
+   |                       ^ Type `FooInt` does not implement protocol `Foo`
+
+Guppy compilation failed due to 1 previous error

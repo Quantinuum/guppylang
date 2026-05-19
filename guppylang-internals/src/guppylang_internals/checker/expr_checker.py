@@ -121,6 +121,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     PartialApply,
     PlaceNode,
+    ProtocolCall,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
@@ -158,6 +159,7 @@ from guppylang_internals.tys.param import (
 from guppylang_internals.tys.parsing import arg_from_ast
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
+    BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
     FuncInput,
@@ -336,11 +338,16 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(func_ty, FunctionType)
-                raise GuppyError(
-                    UnsupportedError(
-                        node.func, "Checking protocol method calls", singular=True
-                    )
-                )
+                args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+                return with_loc(
+                    node,
+                    ProtocolCall(
+                        member=node.func.id,
+                        proto_id=node.func.def_id,
+                        args=args,
+                        type_args=inst,
+                    ),
+                ), subst
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -624,6 +631,29 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # you loose access to all fields besides `a`).
                 expr = FieldAccessAndDrop(value=node.value, struct_ty=ty, field=field)
             return with_loc(node, expr), field.ty
+        elif isinstance(ty, BoundTypeVar):
+            from guppylang_internals.definition.protocol import CheckedProtocolDef
+
+            for proto in ty.implements:
+                proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
+                assert isinstance(proto_def, CheckedProtocolDef)
+                for member_name in proto_def.member_defs:
+                    member_ty = proto_def.member_sig(member_name)
+                    if node.attr == member_name:
+                        name_node = with_type(
+                            member_ty,
+                            with_loc(
+                                node,
+                                # TODO: Should we have a different AST node for this?
+                                GlobalName(id=member_name, def_id=proto.def_id),
+                            ),
+                        )
+                        ty_without_self = FunctionType(
+                            member_ty.inputs[1:], member_ty.output, member_ty.params
+                        )
+                        return with_loc(
+                            node, PartialApply(func=name_node, args=[node.value])
+                        ), ty_without_self
         elif isinstance(ty, EnumType):
             if node.attr in ty.variants_as_dict:
                 # If we are accessing to a variant, we need to check that node.value is
@@ -893,6 +923,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
+                # TODO: Should we error here if not callable?
                 return defn.synthesize_call(node.args, node, self.ctx)
 
             from guppylang_internals.definition.protocol import ParsedProtocolDef
@@ -900,11 +931,17 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # Protocol methods don't have their own definition, we have to look up the
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
-                raise GuppyError(
-                    UnsupportedError(
-                        node.func, "Checking protocol method calls", singular=True
-                    )
-                )
+                assert isinstance(ty, FunctionType)
+                args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
+                return with_loc(
+                    node,
+                    ProtocolCall(
+                        member=node.func.id,
+                        proto_id=node.func.def_id,
+                        args=args,
+                        type_args=inst,
+                    ),
+                ), return_ty
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1212,7 +1249,6 @@ def type_check_args(
         raise GuppyTypeInferenceError(
             TypeInferenceError(node, func_ty.output.substitute(subst))
         )
-
     return new_args, subst
 
 
@@ -1406,8 +1442,18 @@ def check_call(
     if subst is None:
         raise GuppyTypeError(TypeMismatchError(node, ty, unquantified.output, kind))
 
+    # Replace quantified variables with free unification variables and try to infer an
+    # instantiation by checking the arguments
+    var_mapping = {}
+    inst_tele: list[Argument | None] = [None for _ in free_vars]
+    for ix, (var, param) in enumerate(zip(free_vars, func_ty.params, strict=True)):
+        var_mapping[var] = param.instantiate_bounds(inst_tele)
+        if isinstance(var, ExistentialTypeVar):
+            inst_tele[ix] = TypeArg(var)
+        elif isinstance(var, ExistentialConstVar):
+            inst_tele[ix] = ConstArg(var)
     # Try to infer more by checking against the arguments
-    inputs, subst = type_check_args(inputs, unquantified, subst, {}, ctx, node)
+    inputs, subst = type_check_args(inputs, unquantified, subst, var_mapping, ctx, node)
 
     # Also make sure we found an instantiation for all free vars in the type we're
     # checking against

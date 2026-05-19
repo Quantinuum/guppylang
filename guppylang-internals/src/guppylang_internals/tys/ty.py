@@ -918,6 +918,7 @@ def _unify_const_var(
 
     if var in t.unsolved_vars:
         return None
+    # TODO: Check that `t` implements all protocols required by `var`.
     return {var: t, **subst}
 
 
@@ -939,6 +940,20 @@ def _unify_args(
                 if res is None:
                     return None
                 subst = res
+            case _:
+                return None
+    return subst
+
+
+def unify_type_args(
+    ss: Sequence[Argument], ts: Sequence[Argument], subst: "Subst | None"
+) -> "Subst | None":
+    for s, t in zip(ss, ts, strict=True):
+        match s, t:
+            case TypeArg(), TypeArg():
+                subst = unify(s.ty, t.ty, subst)
+            case ConstArg(), ConstArg():
+                subst = unify(s.const, t.const, subst)
             case _:
                 return None
     return subst

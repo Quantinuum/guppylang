@@ -18,12 +18,14 @@ from guppylang_internals.definition.common import (
     ParsableDef,
 )
 from guppylang_internals.definition.declaration import ParsedFunctionDecl
+from guppylang_internals.definition.struct import (
+    params_from_ast,
+    try_parse_generic_base,
+)
 from guppylang_internals.definition.util import (
     NonGuppyMethodError,
     RedundantParamsError,
-    params_from_ast,
     parse_py_class,
-    try_parse_generic_base,
 )
 from guppylang_internals.diagnostic import Help
 from guppylang_internals.engine import DEF_STORE, ENGINE
@@ -51,11 +53,6 @@ class ProtocolDef(Definition):
 @dataclass(frozen=True)
 class EmptyBodyHint(Help):
     message: ClassVar[str] = "The body of protocol function definitions must be empty"
-
-
-@dataclass(frozen=True)
-class NoAnnotationHint(Help):
-    message: ClassVar[str] = "Protocol function definitions don't need to be annotated"
 
 
 @dataclass(frozen=True)
