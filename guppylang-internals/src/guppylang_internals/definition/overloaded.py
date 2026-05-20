@@ -96,7 +96,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
 
     @override
     def check_call(
-        self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
+        self, args: list[ast.expr], ty: Type, node: ast.Call, ctx: Context
     ) -> tuple[ast.expr, Subst]:
         available_sigs: list[OverloadVariant] = []
         for def_id in self.func_ids:
