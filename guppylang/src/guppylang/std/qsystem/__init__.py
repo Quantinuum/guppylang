@@ -115,18 +115,22 @@ def rz(q: qubit, angle: angle) -> None:
     _rz(q, f1)
 
 
-@hugr_op(quantum_op("Measure", ext=QSYSTEM_EXTENSION))
+@guppy
 @no_type_check
 def measure(q: qubit @ owned) -> Measurement:
     """Request a destructive lazy measurement of a qubit, returning a `Measurement`
-    value. Call `.read()` on the value to block until the result is available.
+    value. Call `.read()` on the value to block until the result is available. This is
+    equivalent to `lazy_measure`.
     """
+    return lazy_measure(q)
 
 
-@custom_function(InoutMeasureCompiler("MeasureReset", QSYSTEM_EXTENSION))
+@guppy
 @no_type_check
 def measure_and_reset(q: qubit) -> Measurement:
-    """Like `measure`, but also resets the qubit after measurement."""
+    """Like `measure`, but also resets the qubit after measurement. This is
+    equivalent to `lazy_measure_and_reset`."""
+    return lazy_measure_and_reset(q)
 
 
 @hugr_op(quantum_op("Reset", ext=QSYSTEM_EXTENSION))
@@ -197,17 +201,38 @@ class MaybeLeaked:
 @guppy
 @no_type_check
 def lazy_measure(q: qubit @ owned) -> Measurement:
-    """Same as `measure` as the standard measurement behaviour is already lazy."""
-    return measure(q)
+    """Request a destructive lazy measurement of a qubit, returning a `Measurement`
+    value. Call `.read()` on the value to block until the result is available. This is
+    equivalent to `measure`.
+    """
+    result = _lazy_measure(q)
+    return _future_to_measurement(result)
 
 
 @guppy
 @no_type_check
 def lazy_measure_and_reset(q: qubit) -> Measurement:
-    """Same as `measure_and_reset` as the standard measurement behaviour is already
-    lazy.
-    """
-    return measure_and_reset(q)
+    """Like `lazy_measure`, but also resets the qubit after measurement. This is
+    equivalent to `measure_and_reset`."""
+    result = _lazy_measure_and_reset(q)
+    return _future_to_measurement(result)
+
+
+# Measurement functions directly mapping onto `tket.qsystem` ops without the conversion
+# to measurement (which ensures compatibility with `std.quantum` functions).
+@hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_EXTENSION))
+@no_type_check
+def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...
+
+
+@custom_function(InoutMeasureCompiler("LazyMeasureReset", ext=QSYSTEM_EXTENSION))
+@no_type_check
+def _lazy_measure_and_reset(q: qubit) -> Future[bool]: ...
+
+
+@hugr_op(quantum_op("FutureToMeasurement", ext=QSYSTEM_EXTENSION))
+@no_type_check
+def _future_to_measurement(result: Future[bool] @ owned) -> Measurement: ...
 
 
 N = guppy.nat_var("N")

@@ -12,7 +12,7 @@ from hugr.std.float import FLOAT_T
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.std._internal.compiler.tket_exts import (
-    MEASUREMENT_EXTENSION,
+    FUTURES_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
     QUANTUM_EXTENSION,
     ROTATION_EXTENSION,
@@ -65,7 +65,9 @@ class InoutMeasureCompiler(CustomInoutCallCompiler):
         return_ty = (
             ht.Bool
             if self.use_bool
-            else ht.ExtType(MEASUREMENT_EXTENSION.get_type("Measurement"))
+            else FUTURES_EXTENSION.get_type("Future").instantiate(
+                [ht.TypeTypeArg(ht.Bool)]
+            )
         )
         [q] = args
         [q, bit] = self.builder.add_op(
