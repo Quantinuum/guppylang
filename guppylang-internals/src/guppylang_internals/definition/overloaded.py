@@ -1,5 +1,7 @@
 import ast
 import copy
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import ClassVar, NamedTuple, NoReturn
 
@@ -89,6 +91,28 @@ class InternalExpectOverloadError(Error):
     )
 
 
+@contextmanager
+def suppress_overload_match_errors() -> Iterator[None]:
+    try:
+        yield
+    except GuppyError as e:
+        if isinstance(
+            e.error,
+            (
+                TypeMismatchError,
+                WrongNumberOfArgsError,
+                OverloadNoMatchError,  # As OverloadedFunctionDef's can be nested
+                ComptimeUnknownError,
+                InternalExpectOverloadError,
+            ),
+        ):
+            return  # Try the next overload
+        # Pass on e.g. TooManyEffectsError since we do not allow overloading on effects
+        # and effects are checked only after other arguments that ensure this is the
+        # correct overload.
+        raise
+
+
 @dataclass(frozen=True)
 class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
@@ -106,28 +130,12 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             assert isinstance(defn, CallableDef)
             has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
             available_sigs.append(OverloadVariant(defn.ty, has_var_args))
-            try:
+            with suppress_overload_match_errors():
                 # check_call may modify args and node,
                 # thus we deepcopy them before passing in the function
                 node_copy = copy.deepcopy(node)
                 args_copy = copy.deepcopy(args)
                 return defn.check_call(args_copy, ty, node_copy, ctx)
-            except GuppyError as e:
-                if isinstance(
-                    e.error,
-                    (
-                        TypeMismatchError,
-                        WrongNumberOfArgsError,
-                        OverloadNoMatchError,
-                        ComptimeUnknownError,
-                        InternalExpectOverloadError,
-                    ),
-                ):
-                    continue  # Try the next overload
-                # Pass on e.g. TooManyEffectsError since we do not allow overloading
-                # on effects, and effects are checked only after other arguments that
-                # ensure this is the correct overload.
-                raise
         return self._call_error(args, node, ctx, available_sigs, ty)
 
     def synthesize_call(
@@ -139,28 +147,12 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             assert isinstance(defn, CallableDef)
             has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
             available_sigs.append(OverloadVariant(defn.ty, has_var_args))
-            try:
+            with suppress_overload_match_errors():
                 # synthesize_call may modify args and node,
                 # thus we deepcopy them before passing in the function
                 node_copy = copy.deepcopy(node)
                 args_copy = copy.deepcopy(args)
                 return defn.synthesize_call(args_copy, node_copy, ctx)
-            except GuppyError as e:
-                if isinstance(
-                    e.error,
-                    (
-                        TypeMismatchError,
-                        WrongNumberOfArgsError,
-                        OverloadNoMatchError,
-                        ComptimeUnknownError,
-                        InternalExpectOverloadError,
-                    ),
-                ):
-                    continue  # Try the next overload
-                # Pass on e.g. TooManyEffectsError since we do not allow overloading
-                # on effects, and effects are checked only after other arguments that
-                # ensure this is the correct overload.
-                raise
         return self._call_error(args, node, ctx, available_sigs)
 
     def _call_error(
