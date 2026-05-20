@@ -348,7 +348,7 @@ def check_signature(
                     "TypeDef", ENGINE.get_checked(self_def_id, mono_args=())
                 )
                 assert isinstance(self_defn, TypeDef)
-                input = parse_self_arg_type(inp, self_defn, ctx, func_def)
+                input = parse_self_arg(inp, self_defn, ctx)
 
             if input.name is None:
                 input = replace(input, name="self")
@@ -368,9 +368,7 @@ def check_signature(
     )
 
 
-def parse_self_arg_type(
-    arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx, _loc: AstNode
-) -> FuncInput:
+def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> FuncInput:
     """Handles parsing of the `self` argument on methods.
 
     This argument is special since its type annotation may be omitted. Furthermore, if a
@@ -387,7 +385,7 @@ def parse_self_arg_type(
         [param.to_existential()[0] for param in self_defn.params]
     )
     self_ty_placeholder = ExistentialTypeVar.fresh(
-        "Self", copyable=True, droppable=True
+        "Self", copyable=self_ty_head.copyable, droppable=self_ty_head.droppable
     )
     assert ctx.self_ty is None
     ctx = replace(ctx, self_ty=self_ty_placeholder)
