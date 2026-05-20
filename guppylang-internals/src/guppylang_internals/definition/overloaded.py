@@ -7,7 +7,11 @@ from hugr import Wire
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Context
-from guppylang_internals.checker.errors.type_errors import TooManyEffectsError
+from guppylang_internals.checker.errors.comptime_errors import ComptimeUnknownError
+from guppylang_internals.checker.errors.type_errors import (
+    TypeMismatchError,
+    WrongNumberOfArgsError,
+)
 from guppylang_internals.checker.expr_checker import ExprSynthesizer
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
@@ -109,11 +113,21 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
                 args_copy = copy.deepcopy(args)
                 return defn.check_call(args_copy, ty, node_copy, ctx)
             except GuppyError as e:
-                if isinstance(e.error, TooManyEffectsError):
-                    # We do not allow overloading on effects, so if this error is raised
-                    # then this is the relevant overload, so report the error.
-                    raise
-                continue
+                if isinstance(
+                    e.error,
+                    (
+                        TypeMismatchError,
+                        WrongNumberOfArgsError,
+                        OverloadNoMatchError,
+                        ComptimeUnknownError,
+                        InternalExpectOverloadError,
+                    ),
+                ):
+                    continue  # Try the next overload
+                # Pass on e.g. TooManyEffectsError since we do not allow overloading
+                # on effects, and effects are checked only after other arguments that
+                # ensure this is the correct overload.
+                raise
         return self._call_error(args, node, ctx, available_sigs, ty)
 
     def synthesize_call(
@@ -132,11 +146,21 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
                 args_copy = copy.deepcopy(args)
                 return defn.synthesize_call(args_copy, node_copy, ctx)
             except GuppyError as e:
-                if isinstance(e.error, TooManyEffectsError):
-                    # We do not allow overloading on effects, so if this error is raised
-                    # then this is the relevant overload, so report the error.
-                    raise
-                continue
+                if isinstance(
+                    e.error,
+                    (
+                        TypeMismatchError,
+                        WrongNumberOfArgsError,
+                        OverloadNoMatchError,
+                        ComptimeUnknownError,
+                        InternalExpectOverloadError,
+                    ),
+                ):
+                    continue  # Try the next overload
+                # Pass on e.g. TooManyEffectsError since we do not allow overloading
+                # on effects, and effects are checked only after other arguments that
+                # ensure this is the correct overload.
+                raise
         return self._call_error(args, node, ctx, available_sigs)
 
     def _call_error(
