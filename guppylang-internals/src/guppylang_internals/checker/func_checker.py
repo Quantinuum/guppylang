@@ -457,7 +457,7 @@ def parse_self_arg_proto(
         # Check that the annotation matches the parent type. We can do this by unifying
         # with the expected self type where all params are instantiated with unification
         # vars
-        raise GuppyError(UnsupportedError(loc, "Protocol checking"))
+        raise GuppyError(UnsupportedError(loc, "Protocol checking", singular=True))
     else:
         # I'm pretty sure the first arg is *not* a protocol
         # This raises future problems for trying to backport protocols to std

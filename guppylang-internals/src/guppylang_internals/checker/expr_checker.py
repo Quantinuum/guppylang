@@ -337,7 +337,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(func_ty, FunctionType)
                 raise GuppyError(
-                    UnsupportedError(node.func, "Checking protocol method calls")
+                    UnsupportedError(
+                        node.func, "Checking protocol method calls", singular=True
+                    )
                 )
 
         # When calling a `PartialApply` node, we just move the args into this call
@@ -899,7 +901,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 raise GuppyError(
-                    UnsupportedError(node.func, "Checking protocol method calls")
+                    UnsupportedError(
+                        node.func, "Checking protocol method calls", singular=True
+                    )
                 )
 
         # When calling a `PartialApply` node, we just move the args into this call

@@ -127,7 +127,9 @@ class TypeParam(ParameterBase):
                     )
                     raise GuppyTypeError(err)
                 if self.must_implement:
-                    raise GuppyError(UnsupportedError(loc, "Protocol checking"))
+                    raise GuppyError(
+                        UnsupportedError(loc, "Protocol checking", singular=True)
+                    )
                 return arg, subst
 
     def to_existential(self) -> tuple[Argument, ExistentialVar]:
