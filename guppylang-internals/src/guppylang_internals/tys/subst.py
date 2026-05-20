@@ -75,7 +75,7 @@ class Instantiator(Transformer):
             ty.idx - len(self.inst),
             ty.copyable,
             ty.droppable,
-            ty.implements,
+            [self.transform(impl) or impl for impl in ty.implements],
         )
 
     @transform.register

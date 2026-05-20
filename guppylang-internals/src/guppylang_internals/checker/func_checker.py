@@ -414,8 +414,7 @@ def parse_self_arg_proto(
 ) -> FuncInput:
     """Handles parsing of the `self` argument on methods of protocols.
 
-    This argument is special since its type annotation may be omitted. Furthermore, if a
-    type is provided then it must match the parent type.
+    If a type is provided then it must match the parent type.
     """
     assert self_defn.params is not None
     if arg.annotation is None:

@@ -241,14 +241,17 @@ def _arg_from_proto(
     """Parses a protocol definition with type args into an argument."""
     proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
     inst = proto_defn.check_instantiate(proto_args, node)
-    param = TypeParam(
-        len(ctx.param_var_mapping),
-        proto_defn.name,
-        must_implement=[inst],
-        must_be_copyable=True,
-        must_be_droppable=True,
-    )
-    ctx.param_var_mapping[proto_defn.name] = param
+    if proto_defn.name in ctx.param_var_mapping:
+        param = ctx.param_var_mapping[proto_defn.name]
+    else:
+        param = TypeParam(
+            len(ctx.param_var_mapping),
+            proto_defn.name,
+            must_be_copyable=True,
+            must_be_droppable=True,
+            must_implement=[inst],
+        )
+        ctx.param_var_mapping[proto_defn.name] = param
     return param.to_bound()
 
 

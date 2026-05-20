@@ -97,7 +97,13 @@ class TypeParam(ParameterBase):
 
     def with_idx(self, idx: int) -> "TypeParam":
         """Returns a copy of the parameter with a new index."""
-        return TypeParam(idx, self.name, self.must_be_copyable, self.must_be_droppable)
+        return TypeParam(
+            idx,
+            self.name,
+            self.must_be_copyable,
+            self.must_be_droppable,
+            self.must_implement,
+        )
 
     def check_arg(
         self, arg: Argument, loc: AstNode | None = None

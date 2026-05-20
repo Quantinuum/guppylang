@@ -322,7 +322,7 @@ class _Guppy:
             @guppy.protocol
             class MyProtocol:
 
-                @guppy.declare
+                @guppy.require
                 def describe(self: Self) -> str: ...
         """
         defn = RawProtocolDef(DefId.fresh(), cls.__name__, None, cls)
@@ -331,7 +331,7 @@ class _Guppy:
         for val in cls.__dict__.values():
             if isinstance(val, GuppyDefinition):
                 DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
-        # We need the the `__firstlineno__` attribute to look up the source later.
+        # We need the `__firstlineno__` attribute to look up the source later.
         cls = _set_firstlineno(cls, frame)
         # We're pretending to return the class unchanged, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
