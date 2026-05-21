@@ -12,6 +12,7 @@ from guppylang_internals.compiler.core import (
 from guppylang_internals.decorator import (
     custom_function,
     custom_type,
+    determine_static,
     hugr_op,
 )
 from guppylang_internals.definition.common import DefId
@@ -255,7 +256,12 @@ class _Guppy:
             DEF_STORE.register_def(defn, frame)
             for val in cls.__dict__.values():
                 if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
+                    DEF_STORE.register_type_member(
+                        defn.id,
+                        val.wrapped.name,
+                        val.id,
+                        is_static=determine_static(val.wrapped),
+                    )
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:
@@ -299,7 +305,12 @@ class _Guppy:
             DEF_STORE.register_def(defn, frame)
             for val in cls.__dict__.values():
                 if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
+                    DEF_STORE.register_type_member(
+                        defn.id,
+                        val.wrapped.name,
+                        val.id,
+                        is_static=determine_static(val.wrapped),
+                    )
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:

@@ -107,13 +107,13 @@ class GuppyEnumDefinition(GuppyDefinition):
         defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
         assert isinstance(defn, CheckedEnumDef)
         if (
-            # We can only access the variants of the enum from the enum class,
-            # not methods
-            name in defn.variants
-            and defn.id in DEF_STORE.type_members
+            # We can only access enum variants or static methods from the enum class
+            defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[defn.id]
+        ) and (
+            name in defn.variants or DEF_STORE.type_members[defn.id][name].is_static
         ):
-            member_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name]]
+            member_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name].id]
             return TracingDefMixin(member_def)
         raise AttributeError(
             f"{defn.description.capitalize()} `{defn.name}` has no attribute `{name}`"
@@ -270,7 +270,10 @@ class GuppyLibrary:
         for def_id in self.members:
             # TODO automatic member inclusion should be based on the automatic
             # collection when available
-            members.extend(DEF_STORE.type_members[def_id].values())
+            members.extend(
+                type_member.id
+                for type_member in DEF_STORE.type_members[def_id].values()
+            )
 
         return members
 

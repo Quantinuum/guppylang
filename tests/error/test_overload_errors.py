@@ -56,3 +56,26 @@ def test_non_function_overload():
     ):
         @guppy.overload(foo, qubit)
         def overloaded(): ...
+
+
+def test_mixed_static_overload():
+    with pytest.raises(
+        TypeError, 
+        match="Some implementations of overloaded method are static whereas "
+        "others are not "
+        "static: \['func2'\] "
+        "non-static: \['func1'\]"
+    ):
+        @guppy.struct
+        class MyClass:
+            @guppy
+            def func1(x: int) -> int:
+                return x + 1
+
+            @guppy
+            @staticmethod
+            def func2(x: int) -> int:
+                return x + 2
+
+            @guppy.overload(func1, func2)
+            def overloaded()->None: ...

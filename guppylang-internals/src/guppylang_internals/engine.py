@@ -4,7 +4,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, cast
+from typing import ClassVar, NamedTuple, cast
 
 import hugr
 import hugr.build.function as hf
@@ -109,6 +109,11 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 MonoDefId = tuple[DefId, Inst]
 
 
+class TypeMember(NamedTuple):
+    id: DefId
+    is_static: bool
+
+
 class DefinitionStore:
     """Storage class holding references to all Guppy definitions created in the current
     interpreter session.
@@ -117,7 +122,7 @@ class DefinitionStore:
     """
 
     raw_defs: dict[DefId, RawDef]
-    type_members: defaultdict[DefId, dict[str, DefId]]
+    type_members: defaultdict[DefId, dict[str, TypeMember]]
     type_member_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
@@ -135,9 +140,11 @@ class DefinitionStore:
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
 
-    def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
+    def register_type_member(
+        self, ty_id: DefId, name: str, member_id: DefId, *, is_static: bool = False
+    ) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
-        self.type_members[ty_id][name] = member_id
+        self.type_members[ty_id][name] = TypeMember(member_id, is_static)
         self.type_member_parents[member_id] = ty_id
         # Update the frame of the definition to the frame of the defining class
         if member_id in self.frames:
@@ -328,11 +335,8 @@ class CompilationEngine:
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
 
-    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
-        """Looks up an instance function with a given name for a type.
-
-        Returns `None` if the name doesn't exist or isn't a function.
-        """
+    def typedef_from_type(self, ty: Type | TypeDef) -> TypeDef | None:
+        """Normalises a Type into a TypeDef."""
         type_defn: TypeDef
         match ty:
             case TypeDef() as type_defn:
@@ -365,14 +369,39 @@ class CompilationEngine:
                 return assert_never(ty)
 
         type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
+        return type_defn
+
+    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
+        """Looks up an instance function with a given name for a type.
+
+        Returns `None` if the name doesn't exist or isn't a function.
+        """
+        type_defn = self.typedef_from_type(ty)
+        if type_defn is None:
+            return None
         if (
             type_defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[type_defn.id]
         ):
-            def_id = DEF_STORE.type_members[type_defn.id][name]
+            def_id = DEF_STORE.type_members[type_defn.id][name].id
             defn = ENGINE.get_parsed(def_id)
             if isinstance(defn, CallableDef):
                 return defn
+        return None
+
+    def get_type_member(self, ty: Type | TypeDef, name: str) -> TypeMember | None:
+        """Looks up an type member with a given name for a type.
+
+        Returns `None` if the name doesn't exist or isn't a function.
+        """
+        type_defn = self.typedef_from_type(ty)
+        if type_defn is None:
+            return None
+        if (
+            type_defn.id in DEF_STORE.type_members
+            and name in DEF_STORE.type_members[type_defn.id]
+        ):
+            return DEF_STORE.type_members[type_defn.id].get(name)
         return None
 
     @pretty_errors
