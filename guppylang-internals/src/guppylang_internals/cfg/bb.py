@@ -232,6 +232,8 @@ class VariableVisitor(ast.NodeVisitor):
         from guppylang_internals.cfg.analysis import LivenessAnalysis
 
         stats = {bb: bb.compute_variable_stats() for bb in node.cfg.bbs}
+        # NICOLA: Should use this stats: store here the vars assigned in the block,
+        # and save during the visitor if a used variable had been assigned in the block or not.
         live = LivenessAnalysis(stats).run(node.cfg.bbs)
         assigned_before_in_bb = self.stats.assigned.keys()
         self.stats.used |= {
