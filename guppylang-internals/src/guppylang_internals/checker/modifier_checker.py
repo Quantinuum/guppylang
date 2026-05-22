@@ -24,7 +24,7 @@ def check_modified_block(
     modified_block: ModifiedBlock,
     bb: BB,
     ctx: Context,
-    max_effects_from: tuple[list[Effect], AstNode | None],
+    max_effects_from: tuple[list[Effect], AstNode] | None,
 ) -> CheckedModifiedBlock:
     """Type checks a modifier definition."""
     cfg = modified_block.cfg

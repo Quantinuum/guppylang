@@ -448,7 +448,7 @@ class Context(NamedTuple):
     globals: Globals
     locals: Locals[str, Variable]
     generic_param_inst: dict[str, Argument]
-    max_effects_from: tuple[list[Effect], AstNode | None]
+    max_effects_from: tuple[list[Effect], AstNode] | None = None
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

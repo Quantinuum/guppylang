@@ -37,7 +37,6 @@ from guppylang_internals.tracing.unpacking import (
     update_packed_value,
 )
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.ty import (
     FunctionType,
     InputFlags,
@@ -184,9 +183,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
         ]
         # ALAN add max_effects to Tracing?
-        ctx = Context(
-            Globals(DEF_STORE.frames[func.id]), locals, {}, ([Effect.ANY], None)
-        )
+        ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
         call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
         # Here we check if unitary constraints are respected by the caller
