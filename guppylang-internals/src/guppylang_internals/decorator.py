@@ -59,7 +59,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from types import FrameType
 
-    from guppylang_internals.tys import Effect
+    from guppylang import Effect
+
     from guppylang_internals.tys.arg import Argument
     from guppylang_internals.tys.param import Parameter
     from guppylang_internals.tys.subst import Inst
@@ -114,7 +115,9 @@ def custom_function(
             signature,
             unitary_flags,
             has_var_args,
-            max_effects=max_effects,
+            max_effects=None
+            if max_effects is None
+            else [e.to_internal() for e in max_effects],
         )
         DEF_STORE.register_def(func, get_calling_frame())
         return GuppyFunctionDefinition(func)
