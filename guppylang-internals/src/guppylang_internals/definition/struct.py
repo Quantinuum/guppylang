@@ -91,7 +91,9 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     v = getattr(self.python_class, name)
                     if not isinstance(v, GuppyDefinition):
                         raise GuppyError(
-                            NonGuppyMethodError(node, self.name, name, "struct")
+                            NonGuppyMethodError(
+                                node, self.name, name, "struct", "@guppy"
+                            )
                         )
                     used_func_names[name] = node
                     if name in used_field_names:

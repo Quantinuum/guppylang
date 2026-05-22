@@ -67,11 +67,12 @@ class NonGuppyMethodError(Error):
     class_name: str
     method_name: str
     class_type: str
+    ann: str
 
     @dataclass(frozen=True)
     class Suggestion(Help):
         message: ClassVar[str] = (
-            "Add a `@guppy` annotation to turn `{method_name}` into a Guppy method"
+            "Add a `{ann}` annotation to turn `{method_name}` into a Guppy method"
         )
 
     def __post_init__(self) -> None:
@@ -83,6 +84,13 @@ class RepeatedTypeParamError(Error):
     title: ClassVar[str] = "Duplicate type parameter"
     span_label: ClassVar[str] = "Type parameter `{name}` cannot be used multiple times"
     name: str
+
+
+@dataclass(frozen=True)
+class ProtocolHint(Help):
+    message: ClassVar[str] = (
+        "Add a `@guppy.protocol` annotation to turn this struct into a protocol"
+    )
 
 
 @dataclass(frozen=True)
@@ -140,13 +148,13 @@ def parse_py_class(
     return cls_ast
 
 
-def try_parse_generic_base(node: ast.expr) -> list[ast.expr] | None:
-    """Checks if an AST node corresponds to a `Generic[T1, ..., Tn]` base class.
+def try_parse_generic_base(node: ast.expr, base_name: str) -> list[ast.expr] | None:
+    """Checks if an AST node corresponds to a `base_name[T1, ..., Tn]` base class.
 
     Returns the generic parameters or `None` if the AST has a different shape
     """
     match node:
-        case ast.Subscript(value=ast.Name(id="Generic"), slice=elem):
+        case ast.Subscript(value=ast.Name(id=name), slice=elem) if base_name == name:
             return elem.elts if isinstance(elem, ast.Tuple) else [elem]
         case _:
             return None
@@ -156,7 +164,7 @@ def extract_generic_params(
     cls_def: ast.ClassDef, class_name: str, globals: Globals, class_kind: str
 ) -> list[Parameter]:
     """Extracts generic parameters from a class definition."""
-    params = []
+    params: list[Parameter] = []
     params_span: Span | None = None
 
     # Look for generic parameters from Python 3.12 style syntax
@@ -170,27 +178,38 @@ def extract_generic_params(
                 param_vars_mapping[param.name] = param
                 params.append(param)
 
-    # The only base we allow is `Generic[...]` to specify generic parameters with
-    # the legacy syntax
-    match cls_def.bases:
-        case []:
-            pass
-        case [base] if elems := try_parse_generic_base(base):
+    base_params: list[Parameter] = []
+    for base in cls_def.bases:
+        if elems := try_parse_generic_base(base, "Generic"):
+            # Complain if there's already been a `Generic[T]` parent
+            if base_params != []:
+                raise GuppyError(
+                    UnsupportedError(
+                        base,
+                        "Multiple `Generic` inheritance",
+                        singular=True,
+                    )
+                )
+
             # Complain if we already have Python 3.12 generic params
             if params_span is not None:
                 err: Error = RedundantParamsError(base, class_name)
                 err.add_sub_diagnostic(RedundantParamsError.PrevSpec(params_span))
                 raise GuppyError(err)
-            params = params_from_ast(elems, globals)
-        case bases:
+            base_params = params_from_ast(elems, globals)
+        elif elems := try_parse_generic_base(base, "Protocol"):
+            err = UnsupportedError(base, "Protocol base", singular=True)
+            err.add_sub_diagnostic(ProtocolHint(None))
+            raise GuppyError(err)
+        else:
             err = UnsupportedError(
-                bases[0],
+                base,
                 f"{class_kind} inheritance",
                 singular=True,
             )
             raise GuppyError(err)
 
-    return params
+    return params + base_params
 
 
 def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Parameter]:
