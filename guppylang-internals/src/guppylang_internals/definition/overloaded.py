@@ -1,7 +1,6 @@
 import ast
 import copy
-from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import ClassVar, NamedTuple, NoReturn
 
@@ -9,11 +8,6 @@ from hugr import Wire
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Context
-from guppylang_internals.checker.errors.comptime_errors import ComptimeUnknownError
-from guppylang_internals.checker.errors.type_errors import (
-    TypeMismatchError,
-    WrongNumberOfArgsError,
-)
 from guppylang_internals.checker.expr_checker import ExprSynthesizer
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
@@ -28,6 +22,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.printing import signature_to_str
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
@@ -44,6 +39,7 @@ class OverloadNoMatchError(Error):
     func: str
     arg_tys: list[Type]
     return_ty: Type | None
+    max_effects_from: tuple[list[Effect], AstNode] | None
 
     @property
     def rendered_span_label(self) -> str:
@@ -58,6 +54,11 @@ class OverloadNoMatchError(Error):
                 stem += f"takes arguments {args}"
         if self.return_ty:
             stem += f" and returns `{self.return_ty}`"
+        if self.max_effects_from:
+            effects, _node = self.max_effects_from
+            stem += f" with effects no more than {effects}"
+        else:
+            stem += " with any effects"
         return stem
 
 
@@ -91,28 +92,6 @@ class InternalExpectOverloadError(Error):
     )
 
 
-@contextmanager
-def suppress_overload_match_errors() -> Iterator[None]:
-    try:
-        yield
-    except GuppyError as e:
-        if isinstance(
-            e.error,
-            (
-                TypeMismatchError,
-                WrongNumberOfArgsError,
-                OverloadNoMatchError,  # As OverloadedFunctionDef's can be nested
-                ComptimeUnknownError,
-                InternalExpectOverloadError,
-            ),
-        ):
-            return  # Try the next overload
-        # Pass on e.g. TooManyEffectsError since we do not allow overloading on effects
-        # and effects are checked only after other arguments that ensure this is the
-        # correct overload.
-        raise
-
-
 @dataclass(frozen=True)
 class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
@@ -130,7 +109,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             assert isinstance(defn, CallableDef)
             has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
             available_sigs.append(OverloadVariant(defn.ty, has_var_args))
-            with suppress_overload_match_errors():
+            with suppress(GuppyError):
                 # check_call may modify args and node,
                 # thus we deepcopy them before passing in the function
                 node_copy = copy.deepcopy(node)
@@ -147,7 +126,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             assert isinstance(defn, CallableDef)
             has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
             available_sigs.append(OverloadVariant(defn.ty, has_var_args))
-            with suppress_overload_match_errors():
+            with suppress(GuppyError):
                 # synthesize_call may modify args and node,
                 # thus we deepcopy them before passing in the function
                 node_copy = copy.deepcopy(node)
@@ -172,7 +151,9 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
 
         synth = ExprSynthesizer(ctx)
         arg_tys = [synth.synthesize(arg)[1] for arg in args]
-        err = OverloadNoMatchError(span, self.name, arg_tys, return_ty)
+        err = OverloadNoMatchError(
+            span, self.name, arg_tys, return_ty, ctx.max_effects_from
+        )
         err.add_sub_diagnostic(AvailableOverloadsHint(None, self.name, available_sigs))
         raise GuppyError(err)
 

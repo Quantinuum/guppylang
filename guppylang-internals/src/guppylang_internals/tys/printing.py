@@ -175,4 +175,5 @@ def signature_to_str(name: str, sig: FunctionType, has_var_args: bool = False) -
         for inp in sig.inputs
     )
     s += ", ..." if has_var_args else ""
+    # TODO Not clear how to display effects in a Python-like syntax? (skip for now)
     return s + ") -> " + str(sig.output)
