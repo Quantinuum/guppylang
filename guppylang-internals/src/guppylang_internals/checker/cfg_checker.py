@@ -275,8 +275,6 @@ def check_bb(
     ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
-    # Here we want to raise the error about variable defined in modifier blocks
-
     # If we branch, we also have to check the branch predicate
     if len(bb.successors) > 1:
         assert bb.branch_pred is not None
