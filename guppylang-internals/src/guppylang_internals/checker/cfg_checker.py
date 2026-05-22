@@ -23,7 +23,7 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.expr_checker import ExprSynthesizer, to_bool
 from guppylang_internals.checker.stmt_checker import StmtChecker
-from guppylang_internals.diagnostic import Error, Note
+from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import InputFlags, Type
@@ -180,6 +180,14 @@ class VarNotDefinedError(Error):
     span_label: ClassVar[str] = "`{var}` is not defined"
     var: str
 
+    @dataclass(frozen=True)
+    class DefinedInModBlock(Help):
+        span_label: ClassVar[str] = (
+            "{var} is defined inside a modifier block, but variable defined in a"
+            " modifier block are not available outside of it"
+        )
+        message: ClassVar[str] = ""
+
 
 @dataclass(frozen=True)
 class VarMaybeNotDefinedError(Error):
@@ -212,6 +220,26 @@ class BranchTypeError(Error):
         ty: Type
 
 
+@dataclass(frozen=True)
+class AssignedInModifierError(Error):
+    title: ClassVar[str] = "Variable assigned in modifier block"
+    span_label: ClassVar[str] = (
+        "Cannot use `{var}` because it was assigned inside a modifier block"
+    )
+    var: str
+
+    @dataclass(frozen=True)
+    class AssignedHere(Note):
+        span_label: ClassVar[str] = "`{var}` assigned here"
+        var: str
+
+    @dataclass(frozen=True)
+    class Explanation(Help):
+        message: ClassVar[str] = (
+            "Assignments inside modifier blocks are not reflected outside the block"
+        )
+
+
 def check_bb(
     bb: BB,
     checked_cfg: CheckedCFG[Variable],
@@ -232,11 +260,22 @@ def check_bb(
                 and x not in globals
                 and x not in generic_args
             ):
-                raise GuppyError(VarNotDefinedError(use, x))
+                if x in bb.vars.assigned_in_modifier_block:
+                    vnd_err = VarNotDefinedError(use, x)
+                    vnd_err.add_sub_diagnostic(
+                        VarNotDefinedError.DefinedInModBlock(
+                            bb.vars.assigned_in_modifier_block[x]
+                        )
+                    )
+                    raise GuppyError(vnd_err)
+                else:
+                    raise GuppyError(VarNotDefinedError(use, x))
 
     # Check the basic block
     ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
+
+    # Here we want to raise the error about variable defined in modifier blocks
 
     # If we branch, we also have to check the branch predicate
     if len(bb.successors) > 1:
@@ -263,11 +302,25 @@ def check_bb(
                             )
                             err.add_sub_diagnostic(note)
                     else:
-                        err = VarNotDefinedError(use_bb.vars.used[x], x)
+                        err = _var_not_defined_error(x, cfg, use_bb)
                     raise GuppyError(err)
             # If x is not a local, then it must be a global or generic param
             elif x not in ctx.globals and x not in generic_args:
-                raise GuppyError(VarNotDefinedError(use_bb.vars.used[x], x))
+                raise GuppyError(_var_not_defined_error(x, cfg, use_bb))
+
+    # We check that the block does not use defined variables that has been redefined
+    # inside a modifier block
+
+    if bb.vars.badly_used_after_modifier_block:
+        x, use = next(iter(bb.vars.badly_used_after_modifier_block.items()))
+        err = AssignedInModifierError(use, x)
+        err.add_sub_diagnostic(
+            AssignedInModifierError.AssignedHere(
+                bb.vars.assigned_in_modifier_block[x], x
+            )
+        )
+        err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
+        raise GuppyError(err)
 
     # Finally, we need to compute the signature of the basic block
     outputs = [
@@ -290,6 +343,20 @@ def check_bb(
     checked_bb.successors = [None] * len(bb.successors)  # type: ignore[list-item]
     checked_bb.branch_pred = bb.branch_pred
     return checked_bb
+
+
+def _var_not_defined_error(
+    var: str, cfg: BaseCFG[BB], use_bb: BB
+) -> VarNotDefinedError:
+    err = VarNotDefinedError(use_bb.vars.used[var], var)
+    if var in cfg.assigned_in_mod_before[use_bb]:
+        err.add_sub_diagnostic(
+            VarNotDefinedError.DefinedInModBlock(
+                cfg.assigned_in_mod_before[use_bb][var]
+            )
+        )
+
+    return err
 
 
 def check_rows_match(row1: Row[Variable], row2: Row[Variable], bb: BB) -> None:

@@ -37,6 +37,13 @@ class VariableStats(Generic[VId]):
     # created in the BB are not included here.
     used: dict[VId, AstNode] = field(default_factory=dict)
 
+    # Variables that are reassigned inside a modifier block.
+    assigned_in_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
+
+    # Variables that are used after being assigned in a modifier block.
+    # This is used to return an error later.
+    badly_used_after_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
+
 
 BBStatement = (
     ast.Assign
@@ -112,10 +119,12 @@ class VariableVisitor(ast.NodeVisitor):
 
     bb: BB
     stats: VariableStats[str]
+    last_assigned_in_modifier_block: list[str]
 
     def __init__(self, bb: BB):
         self.bb = bb
         self.stats = VariableStats()
+        self.last_assigned_in_modifier_block = []
 
     def _update_used(self, node: ast.AST) -> None:
         """Marks the variables occurring in a statement as used.
@@ -128,6 +137,11 @@ class VariableVisitor(ast.NodeVisitor):
             x = name.id
             if x not in self.stats.assigned and x not in self.stats.used:
                 self.stats.used[x] = name
+            if (
+                x in self.last_assigned_in_modifier_block
+                and x not in self.stats.badly_used_after_modifier_block
+            ):
+                self.stats.badly_used_after_modifier_block[x] = name
 
     def visit_Name(self, node: ast.Name) -> None:
         self._update_used(node)
@@ -151,6 +165,8 @@ class VariableVisitor(ast.NodeVisitor):
         match lhs:
             case ast.Name(id=name):
                 self.stats.assigned[name] = node
+                if name in self.last_assigned_in_modifier_block:
+                    self.last_assigned_in_modifier_block.remove(name)
             case ast.Tuple(elts=elts) | ast.List(elts=elts):
                 for elt in elts:
                     self._handle_assign_target(elt, node)
@@ -231,11 +247,28 @@ class VariableVisitor(ast.NodeVisitor):
         # Similarly to nested functions
         from guppylang_internals.cfg.analysis import LivenessAnalysis
 
-        stats = {bb: bb.compute_variable_stats() for bb in node.cfg.bbs}
-        # NICOLA: Should use this stats: store here the vars assigned in the block,
-        # and save during the visitor if a used variable had been assigned in the block or not.
+        stats: dict[BB, VariableStats[str]] = {}
+
+        for bb in node.cfg.bbs:
+            bb_stat = bb.compute_variable_stats()
+            # We update the `assigned_in_modifier_block` field of the stats for each BB.
+            for var, ast_node in (
+                # We union the two dicts in this order to prioritize variables assigned
+                # in the outer modifier block
+                bb_stat.assigned_in_modifier_block | bb_stat.assigned
+            ).items():
+                # for var, ast_node in (bb_stat.assigned).items():
+                # if already present we keep the first assignment
+                if var not in self.stats.assigned_in_modifier_block:
+                    self.stats.assigned_in_modifier_block[var] = ast_node
+                self.last_assigned_in_modifier_block.append(var)
+            stats[bb] = bb_stat
+
         live = LivenessAnalysis(stats).run(node.cfg.bbs)
         assigned_before_in_bb = self.stats.assigned.keys()
+
+        # Variables used by the modifier block that are not assigned in the modifier
+        # block or in this current BB
         self.stats.used |= {
             x: using_bb.vars.used[x]
             for x, using_bb in live[node.cfg.entry_bb].items()
