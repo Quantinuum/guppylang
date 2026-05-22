@@ -371,7 +371,7 @@ def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
     """
 
 
-@custom_function(InoutMeasureCompiler(use_bool=True))
+@custom_function(InoutMeasureCompiler())
 @no_type_check
 def project_z(q: qubit) -> bool:
     """Project a single qubit into the Z-basis (a non-destructive measurement)."""

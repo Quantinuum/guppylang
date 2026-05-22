@@ -35,7 +35,7 @@ def zz_phase(q1: qubit @ owned, q2: qubit @ owned, angle: angle) -> tuple[qubit,
 @guppy
 @no_type_check
 def measure_and_reset(q: qubit @ owned) -> tuple[qubit, Measurement]:
-    """Functional measure_and_reset command."""
+    """Functional lazy measure_and_reset command."""
     b = qsystem.measure_and_reset(q)
     return q, b
 
@@ -51,7 +51,7 @@ def lazy_measure_and_reset(q: qubit @ owned) -> tuple[qubit, Measurement]:
 @guppy
 @no_type_check
 def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
-    """Functional measure_array command."""
+    """Functional lazy measure_array command."""
     return qsystem.measure_array(qubits)
 
 
@@ -60,7 +60,7 @@ def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
 def measure_and_reset_array(
     qubits: array[qubit, N] @ owned,
 ) -> tuple[array[qubit, N], array[Measurement, N]]:
-    """Functional measure_and_reset_array command."""
+    """Functional lazy measure_and_reset_array command."""
     bs = qsystem.measure_and_reset_array(qubits)
     return qubits, bs
 
@@ -94,7 +94,7 @@ def rz(q: qubit @ owned, angle: angle) -> qubit:
 @guppy
 @no_type_check
 def measure(q: qubit @ owned) -> Measurement:
-    """Functional destructive measurement command."""
+    """Functional lazy destructive measurement command."""
     result = qsystem.measure(q)
     return result
 

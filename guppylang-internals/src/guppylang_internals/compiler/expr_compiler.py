@@ -554,7 +554,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         op = ops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args)
 
-        qubit_arr_in: Node | list[Wire]
+        qubit_arr_in: Wire
         if not node.array_len:
             # If the input is a sequence of qubits, we pack them into an array first.
             qubits_in = [self.visit(e) for e in node.args[1:]]
@@ -562,11 +562,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 array_new(ht.Qubit, len(node.args) - 1), *qubits_in
             )
         else:
-            qubit_arr_in = [self.visit(node.args[1])]
+            qubit_arr_in = self.visit(node.args[1])
         # Turn into standard array from borrow array.
         qubit_arr_in = self.builder.add_op(
             array_to_std_array(ht.Qubit, num_qubits_arg),
-            *qubit_arr_in,
+            qubit_arr_in,
         )
 
         qubit_arr_out = self.builder.add_op(op, qubit_arr_in)

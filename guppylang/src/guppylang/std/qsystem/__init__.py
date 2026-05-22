@@ -225,7 +225,9 @@ def lazy_measure_and_reset(q: qubit) -> Measurement:
 def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...
 
 
-@custom_function(InoutMeasureCompiler("LazyMeasureReset", ext=QSYSTEM_EXTENSION))
+@custom_function(
+    InoutMeasureCompiler("LazyMeasureReset", ext=QSYSTEM_EXTENSION, return_future=True)
+)
 @no_type_check
 def _lazy_measure_and_reset(q: qubit) -> Future[bool]: ...
 
@@ -241,14 +243,18 @@ N = guppy.nat_var("N")
 @guppy
 @no_type_check
 def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
-    """Measure an array of qubits, returning an array of bools."""
+    """Lazily measure an array of qubits using `measure`, returning an array of
+    measurements. Equivalent to `lazy_measure_array`.
+    """
     return array(measure(q) for q in qubits)
 
 
 @guppy
 @no_type_check
 def measure_and_reset_array(qubits: array[qubit, N]) -> array[Measurement, N]:
-    """Measure and reset an array of qubits, returning an array of bools."""
+    """Lazily measure and reset an array of qubits using `measure_and_reset`,
+    returning an array of measurements. Equivalent to `lazy_measure_and_reset_array`.
+    """
     return array(measure_and_reset(qubits[i]) for i in range(N))
 
 

@@ -43,28 +43,36 @@ def from_halfturns_unchecked() -> ops.ExtOp:
 
 
 class InoutMeasureCompiler(CustomInoutCallCompiler):
-    """Compiler for the measure functions with an inout qubit"""
+    """Compiler for the measure functions with an inout qubit."""
 
     opname: str
     ext: he.Extension
-    use_bool: bool
+    return_future: bool
 
     def __init__(
         self,
         opname: str | None = None,
         ext: he.Extension | None = None,
-        use_bool: bool = False,
+        *,
+        return_future: bool = False,
     ):
+        """
+        Args:
+            opname: Name of operation to compile. Defaults to ``"Measure"``.
+            ext: Extension that provides ``opname``. Defaults to ``QUANTUM_EXTENSION``.
+            return_future: Whether `opname` returns a future instead of a bool as the
+                measurement result.
+        """
         self.opname = opname or "Measure"
         self.ext = ext or QUANTUM_EXTENSION
-        self.use_bool = use_bool
+        self.return_future = return_future
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         from guppylang_internals.std._internal.util import quantum_op
 
         return_ty = (
             ht.Bool
-            if self.use_bool
+            if not self.return_future
             else FUTURES_EXTENSION.get_type("Future").instantiate(
                 [ht.TypeTypeArg(ht.Bool)]
             )
