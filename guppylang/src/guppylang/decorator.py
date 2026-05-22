@@ -99,14 +99,14 @@ __all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
 
 
 class Effect(Enum):
-    # No instances yet.
-    names = ()
+    ANY = "ANY"
 
     def to_internal(self) -> _Effect:
         match self:
+            case Effect.ANY:
+                return _Effect.ANY
             case _ as unreachable:
-                # Seems assert_never doesn't handle Enum's without cases yet
-                assert_never(unreachable)  # type: ignore[arg-type]
+                assert_never(unreachable)
 
 
 class GuppyKwargs(TypedDict, total=False):
