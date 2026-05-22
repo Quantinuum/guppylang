@@ -101,9 +101,6 @@ class UseKind(Enum):
     #: An owned value is renamed or stored in a tuple/list
     MOVE = auto()
 
-    #: A captured value is assigned inside a modifier block
-    REDEFINED_IN_MODIFIER = auto()
-
     @property
     def indicative(self) -> str:
         """Describes a use in an indicative mood.
@@ -129,8 +126,6 @@ class UseKind(Enum):
                 return "returned"
             case UseKind.MOVE:
                 return "moved"
-            case UseKind.REDEFINED_IN_MODIFIER:
-                return "modified"
 
 
 class Use(NamedTuple):
@@ -306,8 +301,7 @@ class BBLinearityChecker(ast.NodeVisitor):
             # Check each leaf separately so we catch partial moves, e.g. struct fields
             for place in leaf_places(node.place):
                 x = place.id
-                prev_use = self.scope.used(x)
-                if prev_use and not place.ty.copyable:
+                if (prev_use := self.scope.used(x)) and not place.ty.copyable:
                     # When the user's expression (node.place) differs from the
                     # conflicting leaf (place), report the error about the parent
                     # and explain which child was already moved.
@@ -326,7 +320,6 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
-
                 self.scope.use(x, node, use_kind)
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -722,7 +715,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
                 )
                 x = place.id
-                if prev_use := self.scope.used(x) and not place.ty.copyable:
+                if (prev_use := self.scope.used(x)) and not place.ty.copyable:
                     used_err = AlreadyUsedError(use, place, use_kind)
                     used_err.add_sub_diagnostic(
                         AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
@@ -730,7 +723,6 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(used_err)
-
                 self.scope.use(x, node, use_kind)
 
         # reassign controls
@@ -743,11 +735,6 @@ class BBLinearityChecker(ast.NodeVisitor):
         for var, use in node.captured.values():
             if InputFlags.Inout in var.flags:
                 self._reassign_single_inout_arg(var, var.defined_at or use)
-
-        for var, assignment in node.modified_captured.values():
-            if var.ty.copyable:
-                for place in leaf_places(var):
-                    self.scope.use(place.id, assignment, UseKind.REDEFINED_IN_MODIFIER)
 
 
 def leaf_places(place: Place) -> Iterator[Place]:
@@ -904,40 +891,36 @@ def check_cfg_linearity(
     for bb, scope in scopes.items():
         live_before_bb = live_before[bb]
 
-        # Check that values made unusable in this block are not live in successors.
-        # This catches both non-copyable values that were already used and copyable
-        # captures that were re-assigned inside a modifier block.
+        # We have to check that used not copyable variables are not being outputted
         for succ in bb.successors:
             live = live_before[succ]
             for x, use_bb in live.items():
                 use_scope = scopes[use_bb]
                 place = use_scope[x]
-                if prev_use := scope.used(x):  # noqa: SIM102
-                    # first we check for variable non-copyable variable
-                    if not place.ty.copyable:
-                        use = use_scope.used_parent[x]
-                        # Special case if this is a use arising from the implicit
-                        # returning of a borrowed argument
-                        if isinstance(use.node, InoutReturnSentinel):
-                            assert isinstance(use.node.var, Variable)
-                            assert InputFlags.Inout in use.node.var.flags
-                            err: Error = BorrowSubPlaceUsedError(
-                                use.node.var.defined_at, use.node.var, place
-                            )
-                            err.add_sub_diagnostic(
-                                BorrowSubPlaceUsedError.PrevUse(
-                                    prev_use.node, prev_use.kind
-                                )
-                            )
-                            err.add_sub_diagnostic(BorrowSubPlaceUsedError.Fix(None))
-                            raise GuppyError(err)
-                        err = AlreadyUsedError(use.node, place, use.kind)
-                        err.add_sub_diagnostic(
-                            AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
+                if not place.ty.copyable and (prev_use := scope.used(x)):
+                    use = use_scope.used_parent[x]
+                    # Special case if this is a use arising from the implicit returning
+                    # of a borrowed argument
+                    if isinstance(use.node, InoutReturnSentinel):
+                        assert isinstance(use.node.var, Variable)
+                        assert InputFlags.Inout in use.node.var.flags
+                        err: Error = BorrowSubPlaceUsedError(
+                            use.node.var.defined_at, use.node.var, place
                         )
-                        if has_explicit_copy(place.ty):
-                            err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
+                        err.add_sub_diagnostic(
+                            BorrowSubPlaceUsedError.PrevUse(
+                                prev_use.node, prev_use.kind
+                            )
+                        )
+                        err.add_sub_diagnostic(BorrowSubPlaceUsedError.Fix(None))
                         raise GuppyError(err)
+                    err = AlreadyUsedError(use.node, place, use.kind)
+                    err.add_sub_diagnostic(
+                        AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
+                    )
+                    if has_explicit_copy(place.ty):
+                        err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
+                    raise GuppyError(err)
 
         # On the other hand, unused variables that are not droppable *must* be outputted
         for place in scope.values():
