@@ -12,7 +12,8 @@ def main() -> int:
     with power(3): 
         b = 4
         with control(q):
-            a = 4
+            if b:
+                a = 4
     
     measure(q)
 
