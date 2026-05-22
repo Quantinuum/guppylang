@@ -36,7 +36,7 @@ class nat:
     @hugr_op(int_op("iand"), max_effects=[])
     def __and__(self: nat, other: nat) -> nat: ...
 
-    @guppy
+    @guppy(max_effects=[])
     @no_type_check
     def __bool__(self: nat) -> bool:
         return self != 0
@@ -185,7 +185,7 @@ class int:
     @hugr_op(int_op("iand"), max_effects=[])
     def __and__(self: int, other: int) -> int: ...
 
-    @guppy
+    @guppy(max_effects=[])
     @no_type_check
     def __bool__(self: int) -> bool:
         return self != 0
@@ -347,7 +347,7 @@ class float:
     @hugr_op(float_op("fadd"), max_effects=[])
     def __add__(self: float, other: float) -> float: ...
 
-    @guppy
+    @guppy(max_effects=[])
     @no_type_check
     def __bool__(self: float) -> bool:
         return self != 0.0
