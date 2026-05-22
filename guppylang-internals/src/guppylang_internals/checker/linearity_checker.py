@@ -36,7 +36,6 @@ from guppylang_internals.checker.errors.linearity import (
     ComprAlreadyUsedError,
     DropAfterCallError,
     InCallArg,
-    ModifiedVariableUsedError,
     MoveOutOfSubscriptError,
     NonCopyableCaptureError,
     NonCopyablePartialApplyError,
@@ -327,10 +326,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
-                # A modifier-block assignment makes the original binding stale, so
-                # any subsequent use in the same scope is rejected.
-                if prev_use and prev_use.kind == UseKind.REDEFINED_IN_MODIFIER:
-                    _raise_modified_variable_used_error(node, place, prev_use)
+
                 self.scope.use(x, node, use_kind)
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -726,17 +722,14 @@ class BBLinearityChecker(ast.NodeVisitor):
                     UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
                 )
                 x = place.id
-                if prev_use := self.scope.used(x):
-                    if not place.ty.copyable:
-                        used_err = AlreadyUsedError(use, place, use_kind)
-                        used_err.add_sub_diagnostic(
-                            AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
-                        )
-                        if has_explicit_copy(place.ty):
-                            used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
-                        raise GuppyError(used_err)
-                    if prev_use.kind == UseKind.REDEFINED_IN_MODIFIER:
-                        _raise_modified_variable_used_error(use, place, prev_use)
+                if prev_use := self.scope.used(x) and not place.ty.copyable:
+                    used_err = AlreadyUsedError(use, place, use_kind)
+                    used_err.add_sub_diagnostic(
+                        AlreadyUsedError.PrevUse(prev_use.node, prev_use.kind)
+                    )
+                    if has_explicit_copy(place.ty):
+                        used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
+                    raise GuppyError(used_err)
 
                 self.scope.use(x, node, use_kind)
 
@@ -919,7 +912,7 @@ def check_cfg_linearity(
             for x, use_bb in live.items():
                 use_scope = scopes[use_bb]
                 place = use_scope[x]
-                if prev_use := scope.used(x):
+                if prev_use := scope.used(x):  # noqa: SIM102
                     # first we check for variable non-copyable variable
                     if not place.ty.copyable:
                         use = use_scope.used_parent[x]
@@ -945,11 +938,6 @@ def check_cfg_linearity(
                         if has_explicit_copy(place.ty):
                             err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                         raise GuppyError(err)
-                    # then we check for variable used inside the modifier block
-                    if prev_use.kind == UseKind.REDEFINED_IN_MODIFIER:
-                        _raise_modified_variable_used_error(
-                            use_scope.used_parent[x].node, place, prev_use
-                        )
 
         # On the other hand, unused variables that are not droppable *must* be outputted
         for place in scope.values():
@@ -1033,12 +1021,3 @@ def check_cfg_linearity(
         checked[bb].predecessors = [checked[pred] for pred in bb.predecessors]
         checked[bb].successors = [checked[succ] for succ in bb.successors]
     return result_cfg
-
-
-def _raise_modified_variable_used_error(
-    node: AstNode, place: Place, prev_use: Use
-) -> None:
-    err = ModifiedVariableUsedError(node, place)
-    err.add_sub_diagnostic(ModifiedVariableUsedError.ModifiedHere(prev_use.node, place))
-    err.add_sub_diagnostic(ModifiedVariableUsedError.Explanation(None))
-    raise GuppyError(err)
