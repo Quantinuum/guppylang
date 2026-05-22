@@ -414,7 +414,18 @@ class FunctionType(ParametrizedTypeBase):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
 
-    max_effects: list[Effect] | None = field(default=None, init=True)
+    # The None here is to distinguish between explicit and implicit in guppy source code
+    # but is otherwise equivalent to default [Effect.ANY]. Generally use
+    # `max_effects` instead.
+    max_effects_declared: list[Effect] | None = field(default=None, init=True)
+
+    @property
+    def max_effects(self) -> list[Effect]:
+        return (
+            self.max_effects_declared
+            if self.max_effects_declared is not None
+            else [Effect.ANY]
+        )
 
     def __init__(
         self,
@@ -423,7 +434,7 @@ class FunctionType(ParametrizedTypeBase):
         params: Sequence[Parameter] | None = None,
         comptime_args: Sequence[ConstArg] | None = None,
         unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-        max_effects: list[Effect] | None = None,
+        max_effects_declared: list[Effect] | None = None,
     ) -> None:
         # We need a custom __init__ to set the args
         args: list[Argument] = [TypeArg(inp.ty) for inp in inputs]
@@ -452,7 +463,7 @@ class FunctionType(ParametrizedTypeBase):
         object.__setattr__(self, "output", output)
         object.__setattr__(self, "params", params)
         object.__setattr__(self, "unitary_flags", unitary_flags)
-        object.__setattr__(self, "max_effects", max_effects)
+        object.__setattr__(self, "max_effects_declared", max_effects_declared)
 
     @property
     def parametrized(self) -> bool:
@@ -542,7 +553,7 @@ class FunctionType(ParametrizedTypeBase):
             self.params,
             comptime_args=self.comptime_args,
             unitary_flags=self.unitary_flags,
-            max_effects=self.max_effects,
+            max_effects_declared=self.max_effects_declared,
         )
 
     def instantiate_partial(self, args: "PartialInst") -> "FunctionType":
@@ -572,7 +583,7 @@ class FunctionType(ParametrizedTypeBase):
                 cast("ConstArg", arg.transform(inst)) for arg in self.comptime_args
             ],
             unitary_flags=self.unitary_flags,
-            max_effects=self.max_effects,
+            max_effects_declared=self.max_effects_declared,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
@@ -603,14 +614,14 @@ class FunctionType(ParametrizedTypeBase):
             self.params,
             self.comptime_args,
             flags,
-            max_effects=self.max_effects,
+            max_effects_declared=self.max_effects_declared,
         )
 
-    def with_effects(self, max_effects: list[Effect] | None) -> "FunctionType":
+    def with_effects(self, max_effects_declared: list[Effect] | None) -> "FunctionType":
         """Returns a copy of this function type with the specified max_effects."""
         # N.B. we can't use `dataclasses.replace` here since `FunctionType` has a custom
         # constructor
-        if self.max_effects is not None:
+        if self.max_effects_declared is not None:
             raise InternalGuppyError(
                 "Tried to set max_effects on a FunctionType that already has them"
             )
@@ -620,7 +631,7 @@ class FunctionType(ParametrizedTypeBase):
             self.params,
             self.comptime_args,
             self.unitary_flags,
-            max_effects=max_effects,
+            max_effects_declared=max_effects_declared,
         )
 
 

@@ -125,7 +125,7 @@ class RawCustomFunctionDef(ParsableDef):
     # in Guppy functions in general but some custom functions make use of them).
     has_var_args: bool = field(default=False)
 
-    max_effects: list[Effect] | None = field(default=None)
+    max_effects: list[Effect] | None = field(default=None, kw_only=True)
 
     description: str = field(default="function", init=False)
 

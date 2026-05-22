@@ -1,8 +1,9 @@
+from collections.abc import Iterable
 from enum import Enum
 
 
 class Effect(Enum):
-    names = ()
+    ANY = "Any"
 
     @classmethod
     def __from_str__(cls, s: str) -> "Effect":
@@ -10,3 +11,7 @@ class Effect(Enum):
             if effect.name == s:
                 return effect
         raise ValueError(f"Invalid effect name: {s}")
+
+    @staticmethod
+    def format_list(effects: Iterable["Effect"]) -> str:
+        return f"[{', '.join(e.name for e in effects)}]"

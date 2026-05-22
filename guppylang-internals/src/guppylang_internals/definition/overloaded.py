@@ -56,7 +56,8 @@ class OverloadNoMatchError(Error):
             stem += f" and returns `{self.return_ty}`"
         if self.max_effects_from:
             effects, _node = self.max_effects_from
-            stem += f" with effects no more than {effects}"
+            if Effect.ANY not in effects:
+                stem += f" with effects no more than {effects}"
         return stem
 
 

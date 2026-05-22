@@ -1,6 +1,7 @@
 from functools import singledispatchmethod
 
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.param import ConstParam, TypeParam
@@ -97,8 +98,8 @@ class TypePrinter:
         output = self._visit(ty.output, True)
         arrow = (
             "->"
-            if ty.max_effects is None
-            else f"-[{', '.join(str(e) for e in ty.max_effects)}]->"
+            if ty.max_effects_declared is None
+            else f"-{Effect.format_list(ty.max_effects_declared)}->"
         )
         if ty.parametrized:
             params = [
