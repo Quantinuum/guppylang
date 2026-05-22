@@ -310,7 +310,6 @@ def check_bb(
 
     # We check that the block does not use defined variables that has been redefined
     # inside a modifier block
-
     if bb.vars.badly_used_after_modifier_block:
         x, use = next(iter(bb.vars.badly_used_after_modifier_block.items()))
         err = AssignedInModifierError(use, x)
