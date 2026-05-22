@@ -131,7 +131,8 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     if comptime_expr := is_comptime_expression(node):
         from guppylang_internals.checker.expr_checker import eval_comptime_expr
 
-        v = eval_comptime_expr(comptime_expr, Context(ctx.globals, Locals({}), {}))
+        fx = ([Effect.ANY], None)  # Or no effects?
+        v = eval_comptime_expr(comptime_expr, Context(ctx.globals, Locals({}), {}, fx))
         if isinstance(v, int):
             nat_ty = NumericType(NumericType.Kind.Nat)
             return ConstArg(ConstValue(nat_ty, v))
