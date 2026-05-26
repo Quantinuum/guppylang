@@ -2,7 +2,6 @@ from collections.abc import Callable
 from typing import Generic
 
 from guppylang.decorator import guppy
-from guppylang.std.effects import effects
 
 
 def test_create(run_int_fn):
@@ -115,7 +114,7 @@ def test_load_constructor(validate):
         x: int
 
     @guppy.comptime
-    def test() -> Callable[[int], S] @ effects():
+    def test() -> Callable[[int], S]:
         return S
 
     validate(test.compile_function())

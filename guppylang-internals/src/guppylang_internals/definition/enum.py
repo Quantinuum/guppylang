@@ -306,7 +306,6 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 ],
                 output=enum_type,
                 params=self.params,
-                declared_effects=[],
             )
 
             constructor_def = CustomFunctionDef(

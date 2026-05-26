@@ -5,6 +5,6 @@ Error: Not enough arguments (at $FILE:11:12)
 11 |     MyStruct()
    |             ^^ Missing argument (expected 1, got 0)
 
-Note: Function signature is `int -[]-> MyStruct`
+Note: Function signature is `int -> MyStruct`
 
 Guppy compilation failed due to 1 previous error
