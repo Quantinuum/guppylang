@@ -50,9 +50,6 @@ class ConcreteImplProof(ImplProofBase):
     #: `B := int`.
     member_impls: Mapping[str, tuple[DefId, Inst]]
 
-    # def __post_init__(self) -> None:
-    #     assert self.member_impls.keys() == self.proto.members.keys()
-
 
 @dataclass(frozen=True)
 class AssumptionImplProof(ImplProofBase):
@@ -60,7 +57,6 @@ class AssumptionImplProof(ImplProofBase):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        # assert self.proto in self.ty.implements
 
 
 ImplProof: TypeAlias = ConcreteImplProof | AssumptionImplProof

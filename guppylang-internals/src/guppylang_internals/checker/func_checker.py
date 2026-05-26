@@ -424,7 +424,6 @@ def parse_self_arg_proto(
                 arg, "Inference of type for `self`", True, "protocol methods"
             )
         )
-        # return handle_implicit_proto_self_arg(arg, self_defn, ctx, user_flags)
 
     # If the user has provided an annotation for `self`, then we go ahead and parse it.
     # However, in the annotation the user is also allowed to use `Self`, so we have to
@@ -449,7 +448,6 @@ def parse_self_arg_proto(
                 arg.annotation, "`Self` type annotation", True, "protocol methods"
             )
         )
-        # return handle_implicit_proto_self_arg(arg, self_defn, ctx, user_flags)
 
     # Annotations like `self: Foo[Self]` are not allowed (would be an infinite type)
     if self_ty_placeholder in user_ty.unsolved_vars:
