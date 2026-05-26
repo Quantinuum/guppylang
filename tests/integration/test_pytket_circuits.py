@@ -1,5 +1,7 @@
 """Tests for loading pytket circuits as functions."""
 
+import pytest
+
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle, pi
 from guppylang.std.quantum import qubit, discard_array, discard, measure
@@ -38,6 +40,9 @@ def test_multi_qubit_circuit(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_measure(validate):
     circ = Circuit(1)
     circ.H(0)
@@ -53,6 +58,9 @@ def test_measure(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_measure_multiple(validate):
     circ = Circuit(2, 2)
     circ.H(0)
@@ -68,6 +76,9 @@ def test_measure_multiple(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_measure_not_last(validate):
     circ = Circuit(1, 1)
     circ.H(0)
@@ -97,6 +108,9 @@ def test_load_circuit(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_load_circuits(validate):
     circ1 = Circuit(1)
     circ1.H(0)
@@ -116,6 +130,9 @@ def test_load_circuits(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_measure_some(validate):
     circ = Circuit(2, 1)
     circ.CX(0, 1)
@@ -142,6 +159,9 @@ def test_register_arrays_default(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_register_arrays(validate):
     circ = Circuit(2)
     reg = circ.add_q_register("extra_reg", 3)
@@ -158,6 +178,9 @@ def test_register_arrays(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_register_arrays_multiple_measure(validate):
     circ = Circuit(2)
     reg1 = circ.add_q_register("extra_reg1", 3)
@@ -181,6 +204,9 @@ def test_register_arrays_multiple_measure(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_register_arrays_mixed(validate):
     circ = Circuit(2, 1)
     reg = circ.add_q_register("q2", 3)
@@ -217,6 +243,9 @@ def test_compile_load(validate):
     validate(pytket_func.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_symbolic(validate):
     a = Symbol("alpha")
     b = Symbol("beta")
@@ -239,6 +268,9 @@ def test_symbolic(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_symbolic_array(validate):
     a = Symbol("alpha")
     b = Symbol("beta")
@@ -260,6 +292,9 @@ def test_symbolic_array(validate):
     validate(foo.compile_function())
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_symbolic_exec(validate, run_int_fn):
     a = Symbol("alpha")
 
@@ -282,6 +317,9 @@ def test_symbolic_exec(validate, run_int_fn):
     run_int_fn(main, 1, num_qubits=2)
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_exec(validate, run_int_fn):
     circ = Circuit(2, 2)
     circ.X(0)
@@ -330,6 +368,9 @@ def test_qsystem_ops(validate):
         assert "tk1op" not in op_name
 
 
+@pytest.mark.skip(
+    "Requires decoding of measurements: https://github.com/Quantinuum/tket2/issues/1570"
+)
 def test_qsystem_exec():
     circ = Circuit(2)
     circ.H(0)
@@ -363,8 +404,8 @@ def test_qsystem_exec():
 
         guppy_circ(a, b)
 
-        result("a", measure(a))
-        result("b", measure(b))
+        result("a", measure(a).read())
+        result("b", measure(b).read())
 
     # deterministic - should always be 0
     res = main.emulator(n_qubits=2).run()

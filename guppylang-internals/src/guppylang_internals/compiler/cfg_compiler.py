@@ -1,6 +1,5 @@
 import functools
 from collections.abc import Sequence
-from typing import cast
 
 from hugr import Wire, ops
 from hugr import tys as ht
@@ -23,7 +22,6 @@ from guppylang_internals.compiler.core import (
 )
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.compiler.stmt_compiler import StmtCompiler
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, read_bool
 from guppylang_internals.tys.ty import type_to_row
 
 
@@ -107,11 +105,6 @@ def compile_bb(
     if len(bb.successors) > 1:
         assert bb.branch_pred is not None
         branch_port = ExprCompiler(ctx).compile(bb.branch_pred, dfg)
-        # Convert the bool predicate into a sum for branching.
-        pred_ty = builder.hugr.port_type(branch_port.out_port())
-        assert pred_ty == OpaqueBool
-        branch_port = dfg.builder.add_op(read_bool(), branch_port, set_debug_info=False)
-        branch_port = cast("Wire", branch_port)
     else:
         # Even if we don't branch, we still have to add a `Sum(())` predicates
         branch_port = dfg.builder.add_op(

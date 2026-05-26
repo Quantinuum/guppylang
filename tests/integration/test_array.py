@@ -694,7 +694,7 @@ def test_take_put(validate):
         q = qs.take(3)
         result("after_take", qs.is_borrowed(3))  # True
         qs.try_take(3).unwrap_nothing()
-        measure(q)
+        measure(q).read()
 
         # But we can put something back
         qs.put(qubit(), 3)

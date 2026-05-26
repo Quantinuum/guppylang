@@ -6,7 +6,7 @@ from guppylang.std.quantum import qubit, measure
 @guppy.comptime
 def test(qs: array[qubit, 10] @ owned) -> None:
     for i in range(9):
-        measure(qs[i])
+        measure(qs[i]).read()
 
 
 test.compile()

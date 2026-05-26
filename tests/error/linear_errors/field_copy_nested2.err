@@ -1,7 +1,7 @@
 Error: Copy violation (at $FILE:20:21)
    | 
 18 | def foo(s: MyStruct1 @owned) -> MyStruct1:
-19 |     measure(s.x.q1)
+19 |     measure(s.x.q1).read()
 20 |     return MyStruct1(s.x)
    |                      ^^^ Field `s.x` with non-copyable type `MyStruct2` cannot be
    |                          consumed ...
@@ -9,7 +9,7 @@ Error: Copy violation (at $FILE:20:21)
 Note:
    | 
 18 | def foo(s: MyStruct1 @owned) -> MyStruct1:
-19 |     measure(s.x.q1)
+19 |     measure(s.x.q1).read()
    |             ------ ... since the member `s.x.q1` with non-copyable type `qubit`
    |                    was already consumed here
 

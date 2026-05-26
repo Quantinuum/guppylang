@@ -25,6 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # TODO: remove this when the required tket2 wheel is released
+      - uses: quantinuum/hugrverse-env/install-hugrenv-action@main
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
