@@ -31,47 +31,47 @@ class angle:
 
     halfturns: float
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __add__(self: "angle", other: "angle") -> "angle":
         return angle(self.halfturns + other.halfturns)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __sub__(self: "angle", other: "angle") -> "angle":
         return angle(self.halfturns - other.halfturns)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __mul__(self: "angle", other: float) -> "angle":
         return angle(self.halfturns * other)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __rmul__(self: "angle", other: float) -> "angle":
         return angle(self.halfturns * other)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __truediv__(self: "angle", other: float) -> "angle":
         return angle(self.halfturns / other)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __rtruediv__(self: "angle", other: float) -> "angle":
         return angle(other / self.halfturns)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __neg__(self: "angle") -> "angle":
         return angle(-self.halfturns)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __float__(self: "angle") -> float:
         return self.halfturns * py(math.pi)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __eq__(self: "angle", other: "angle") -> bool:
         return self.halfturns == other.halfturns

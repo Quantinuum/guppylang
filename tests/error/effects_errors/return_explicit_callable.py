@@ -1,6 +1,6 @@
 from guppylang.decorator import guppy, Effect
 
-@guppy(max_effects=[Effect.ANY])
+@guppy(effects=[Effect.ANY])
 def impure_func(x: int) -> int:
     return x + 1
 

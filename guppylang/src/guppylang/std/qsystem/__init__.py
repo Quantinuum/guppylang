@@ -257,14 +257,14 @@ class Measurement:
     before being used."""
 
     # We do *not* model the pipeline as a side-effect
-    @custom_function(compiler=ReadFutureBoolCompiler(), max_effects=[])
+    @custom_function(compiler=ReadFutureBoolCompiler(), effects=[])
     @no_type_check
     def read(self: "Measurement" @ owned) -> bool:
         """Read the measurement result, consuming it. Blocks until the result is
         available if the measurement hasn't been performed yet since being requested.
         """
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __consume_as_bool__(self: "Measurement" @ owned) -> bool:
         return self.read()

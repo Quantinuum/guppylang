@@ -94,7 +94,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    max_effects: list[Effect] | None = field(default=None, kw_only=True)
+    effects: list[Effect] | None = field(default=None, kw_only=True)
 
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
@@ -102,7 +102,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
-        ).with_effects(self.max_effects)
+        ).with_effects(self.effects)
         link_name = self._user_set_link_name or default_func_link_name(self)
 
         # TODO: For the guppylang 1.0 break, we should consider disallowing generic

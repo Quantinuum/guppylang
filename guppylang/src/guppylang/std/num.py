@@ -27,92 +27,92 @@ from guppylang import Effect, guppy
 class nat:
     """A 64-bit unsigned integer."""
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __abs__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("iadd"), max_effects=[])
+    @hugr_op(int_op("iadd"), effects=[])
     def __add__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("iand"), max_effects=[])
+    @hugr_op(int_op("iand"), effects=[])
     def __and__(self: nat, other: nat) -> nat: ...
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __bool__(self: nat) -> bool:
         return self != 0
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __ceil__(self: nat) -> nat: ...
 
     # Panics if other == 0
-    @hugr_op(int_op("idivmod_u", n_vars=2), max_effects=[Effect.ANY])
+    @hugr_op(int_op("idivmod_u", n_vars=2), effects=[Effect.ANY])
     def __divmod__(self: nat, other: nat) -> tuple[nat, nat]: ...
 
-    @custom_function(BoolOpCompiler(int_op("ieq")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ieq")), effects=[])
     def __eq__(self: nat, other: nat) -> bool: ...
 
-    @hugr_op(int_op("convert_u", hugr.std.int.CONVERSIONS_EXTENSION), max_effects=[])
+    @hugr_op(int_op("convert_u", hugr.std.int.CONVERSIONS_EXTENSION), effects=[])
     def __float__(self: nat) -> float: ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __floor__(self: nat) -> nat: ...
 
     # Panics if other == 0
-    @hugr_op(int_op("idiv_u"), max_effects=[Effect.ANY])
+    @hugr_op(int_op("idiv_u"), effects=[Effect.ANY])
     def __floordiv__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ige_u")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ige_u")), effects=[])
     def __ge__(self: nat, other: nat) -> bool: ...
 
-    @custom_function(BoolOpCompiler(int_op("igt_u")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("igt_u")), effects=[])
     def __gt__(self: nat, other: nat) -> bool: ...
 
-    @hugr_op(int_op("iu_to_s"), max_effects=[])
+    @hugr_op(int_op("iu_to_s"), effects=[])
     def __int__(self: nat) -> int: ...
 
-    @hugr_op(int_op("inot"), max_effects=[])
+    @hugr_op(int_op("inot"), effects=[])
     def __invert__(self: nat) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ile_u")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ile_u")), effects=[])
     def __le__(self: nat, other: nat) -> bool: ...
 
-    @hugr_op(int_op("ishl"), max_effects=[])
+    @hugr_op(int_op("ishl"), effects=[])
     def __lshift__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ilt_u")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ilt_u")), effects=[])
     def __lt__(self: nat, other: nat) -> bool: ...
 
     # Panics if other == 0
-    @hugr_op(int_op("imod_u"), max_effects=[Effect.ANY])
+    @hugr_op(int_op("imod_u"), effects=[Effect.ANY])
     def __mod__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("imul"), max_effects=[])
+    @hugr_op(int_op("imul"), effects=[])
     def __mul__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __nat__(self: nat) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ine")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ine")), effects=[])
     def __ne__(self: nat, other: nat) -> bool: ...
 
     @custom_function(
-        checker=DunderChecker("__nat__"), higher_order_value=False, max_effects=[]
+        checker=DunderChecker("__nat__"), higher_order_value=False, effects=[]
     )
     def __new__(x): ...
 
-    @hugr_op(int_op("ior"), max_effects=[])
+    @hugr_op(int_op("ior"), effects=[])
     def __or__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __pos__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("ipow"), max_effects=[])
+    @hugr_op(int_op("ipow"), effects=[])
     def __pow__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __radd__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rand__(self: nat, other: nat) -> nat: ...
 
     @custom_function(checker=ReversingChecker())
@@ -121,40 +121,40 @@ class nat:
     @custom_function(checker=ReversingChecker())
     def __rfloordiv__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rlshift__(self: nat, other: nat) -> nat: ...
 
     @custom_function(checker=ReversingChecker())
     def __rmod__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rmul__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __ror__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __round__(self: nat) -> nat: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rpow__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rrshift__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("ishr"), max_effects=[])
+    @hugr_op(int_op("ishr"), effects=[])
     def __rshift__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rsub__(self: nat, other: nat) -> nat: ...
 
     @custom_function(checker=ReversingChecker())
     def __rtruediv__(self: nat, other: nat) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rxor__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("isub"), max_effects=[])
+    @hugr_op(int_op("isub"), effects=[])
     def __sub__(self: nat, other: nat) -> nat: ...
 
     @guppy
@@ -162,10 +162,10 @@ class nat:
     def __truediv__(self: nat, other: nat) -> float:
         return float(self) / float(other)
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __trunc__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("ixor"), max_effects=[])
+    @hugr_op(int_op("ixor"), effects=[])
     def __xor__(self: nat, other: nat) -> nat: ...
 
 
@@ -175,54 +175,54 @@ class int:
 
     @hugr_op(
         int_op("iabs"),  # TODO: Maybe wrong? (signed vs unsigned!)
-        max_effects=[],
+        effects=[],
     )
     def __abs__(self: int) -> int: ...
 
-    @hugr_op(int_op("iadd"), max_effects=[])
+    @hugr_op(int_op("iadd"), effects=[])
     def __add__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("iand"), max_effects=[])
+    @hugr_op(int_op("iand"), effects=[])
     def __and__(self: int, other: int) -> int: ...
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __bool__(self: int) -> bool:
         return self != 0
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __ceil__(self: int) -> int: ...
 
     # Panics if other == 0
-    @hugr_op(int_op("idivmod_s"), max_effects=[Effect.ANY])
+    @hugr_op(int_op("idivmod_s"), effects=[Effect.ANY])
     def __divmod__(self: int, other: int) -> tuple[int, int]: ...
 
-    @custom_function(BoolOpCompiler(int_op("ieq")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ieq")), effects=[])
     def __eq__(self: int, other: int) -> bool: ...
 
-    @hugr_op(int_op("convert_s", hugr.std.int.CONVERSIONS_EXTENSION), max_effects=[])
+    @hugr_op(int_op("convert_s", hugr.std.int.CONVERSIONS_EXTENSION), effects=[])
     def __float__(self: int) -> float: ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __floor__(self: int) -> int: ...
 
     # Panics if other == 0
-    @hugr_op(int_op("idiv_s"), max_effects=[Effect.ANY])
+    @hugr_op(int_op("idiv_s"), effects=[Effect.ANY])
     def __floordiv__(self: int, other: int) -> int: ...
 
-    @custom_function(BoolOpCompiler(int_op("ige_s")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ige_s")), effects=[])
     def __ge__(self: int, other: int) -> bool: ...
 
-    @custom_function(BoolOpCompiler(int_op("igt_s")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("igt_s")), effects=[])
     def __gt__(self: int, other: int) -> bool: ...
 
     @custom_function(NoopCompiler())
     def __int__(self: int) -> int: ...
 
-    @hugr_op(int_op("inot"), max_effects=[])
+    @hugr_op(int_op("inot"), effects=[])
     def __invert__(self: int) -> int: ...
 
-    @custom_function(BoolOpCompiler(int_op("ile_s")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ile_s")), effects=[])
     def __le__(self: int, other: int) -> bool: ...
 
     @hugr_op(int_op("ishl"))  # TODO: RHS is unsigned
@@ -231,30 +231,30 @@ class int:
     @custom_function(BoolOpCompiler(int_op("ilt_s")))
     def __lt__(self: int, other: int) -> bool: ...
 
-    @hugr_op(int_op("imod_s"), max_effects=[])
+    @hugr_op(int_op("imod_s"), effects=[])
     def __mod__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("imul"), max_effects=[])
+    @hugr_op(int_op("imul"), effects=[])
     def __mul__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("is_to_u"), max_effects=[])
+    @hugr_op(int_op("is_to_u"), effects=[])
     def __nat__(self: int) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ine")), max_effects=[])
+    @custom_function(BoolOpCompiler(int_op("ine")), effects=[])
     def __ne__(self: int, other: int) -> bool: ...
 
-    @hugr_op(int_op("ineg"), max_effects=[])
+    @hugr_op(int_op("ineg"), effects=[])
     def __neg__(self: int) -> int: ...
 
     @custom_function(
-        checker=DunderChecker("__int__"), higher_order_value=False, max_effects=[]
+        checker=DunderChecker("__int__"), higher_order_value=False, effects=[]
     )
     def __new__(x): ...
 
-    @hugr_op(int_op("ior"), max_effects=[])
+    @hugr_op(int_op("ior"), effects=[])
     def __or__(self: int, other: int) -> int: ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __pos__(self: int) -> int: ...
 
     @guppy
@@ -267,13 +267,13 @@ class int:
             )
         return self.__pow_impl(exponent)
 
-    @hugr_op(int_op("ipow"), max_effects=[])  # Exponent is treated as unsigned
+    @hugr_op(int_op("ipow"), effects=[])  # Exponent is treated as unsigned
     def __pow_impl(self: int, exponent: int) -> int: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __radd__(self: int, other: int) -> int: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rand__(self: int, other: int) -> int: ...
 
     @custom_function(checker=ReversingChecker())
@@ -284,7 +284,7 @@ class int:
 
     @custom_function(
         checker=ReversingChecker(),  # TODO: RHS is unsigned
-        max_effects=[],
+        effects=[],
     )
     def __rlshift__(self: int, other: int) -> int: ...
 
@@ -292,13 +292,13 @@ class int:
     @custom_function(checker=ReversingChecker())
     def __rmod__(self: int, other: int) -> int: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rmul__(self: int, other: int) -> int: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __ror__(self: int, other: int) -> int: ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __round__(self: int) -> int: ...
 
     @custom_function(checker=ReversingChecker())
@@ -309,31 +309,31 @@ class int:
 
     @hugr_op(
         int_op("ishr"),  # TODO: RHS is unsigned
-        max_effects=[],
+        effects=[],
     )
     def __rshift__(self: int, other: int) -> int: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rsub__(self: int, other: int) -> int: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rtruediv__(self: int, other: int) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rxor__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("isub"), max_effects=[])
+    @hugr_op(int_op("isub"), effects=[])
     def __sub__(self: int, other: int) -> int: ...
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __truediv__(self: int, other: int) -> float:
         return float(self) / float(other)
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __trunc__(self: int) -> int: ...
 
-    @hugr_op(int_op("ixor"), max_effects=[])
+    @hugr_op(int_op("ixor"), effects=[])
     def __xor__(self: int, other: int) -> int: ...
 
 
@@ -341,43 +341,43 @@ class int:
 class float:
     """An IEEE754 double-precision floating point value."""
 
-    @hugr_op(float_op("fabs"), max_effects=[])
+    @hugr_op(float_op("fabs"), effects=[])
     def __abs__(self: float) -> float: ...
 
-    @hugr_op(float_op("fadd"), max_effects=[])
+    @hugr_op(float_op("fadd"), effects=[])
     def __add__(self: float, other: float) -> float: ...
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __bool__(self: float) -> bool:
         return self != 0.0
 
-    @hugr_op(float_op("fceil"), max_effects=[])
+    @hugr_op(float_op("fceil"), effects=[])
     def __ceil__(self: float) -> float: ...
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __divmod__(self: float, other: float) -> tuple[float, float]:
         return self // other, self.__mod__(other)
 
-    @custom_function(BoolOpCompiler(float_op("feq")), max_effects=[])
+    @custom_function(BoolOpCompiler(float_op("feq")), effects=[])
     def __eq__(self: float, other: float) -> bool: ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __float__(self: float) -> float: ...
 
-    @hugr_op(float_op("ffloor"), max_effects=[])
+    @hugr_op(float_op("ffloor"), effects=[])
     def __floor__(self: float) -> float: ...
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __floordiv__(self: float, other: float) -> float:
         return (self / other).__floor__()
 
-    @custom_function(BoolOpCompiler(float_op("fge")), max_effects=[])
+    @custom_function(BoolOpCompiler(float_op("fge")), effects=[])
     def __ge__(self: float, other: float) -> bool: ...
 
-    @custom_function(BoolOpCompiler(float_op("fgt")), max_effects=[])
+    @custom_function(BoolOpCompiler(float_op("fgt")), effects=[])
     def __gt__(self: float, other: float) -> bool: ...
 
     @custom_function(
@@ -385,22 +385,22 @@ class float:
             # Use `int_op` to instantiate type arg with 64-bit integer.
             int_op("trunc_s", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
-        max_effects=[],
+        effects=[],
     )
     def __int__(self: float) -> int: ...
 
-    @custom_function(BoolOpCompiler(float_op("fle")), max_effects=[])
+    @custom_function(BoolOpCompiler(float_op("fle")), effects=[])
     def __le__(self: float, other: float) -> bool: ...
 
-    @custom_function(BoolOpCompiler(float_op("flt")), max_effects=[])
+    @custom_function(BoolOpCompiler(float_op("flt")), effects=[])
     def __lt__(self: float, other: float) -> bool: ...
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     @no_type_check
     def __mod__(self: float, other: float) -> float:
         return self - (self // other) * other
 
-    @hugr_op(float_op("fmul"), max_effects=[])
+    @hugr_op(float_op("fmul"), effects=[])
     def __mul__(self: float, other: float) -> float: ...
 
     @custom_function(
@@ -408,63 +408,61 @@ class float:
             # Use `int_op` to instantiate type arg with 64-bit integer.
             int_op("trunc_u", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
-        max_effects=[],
+        effects=[],
     )
     def __nat__(self: float) -> nat: ...
 
-    @custom_function(BoolOpCompiler(float_op("fne")), max_effects=[])
+    @custom_function(BoolOpCompiler(float_op("fne")), effects=[])
     def __ne__(self: float, other: float) -> bool: ...
 
-    @hugr_op(float_op("fneg"), max_effects=[])
+    @hugr_op(float_op("fneg"), effects=[])
     def __neg__(self: float) -> float: ...
 
     @custom_function(
-        checker=DunderChecker("__float__"), higher_order_value=False, max_effects=[]
+        checker=DunderChecker("__float__"), higher_order_value=False, effects=[]
     )
     def __new__(x): ...
 
-    @custom_function(NoopCompiler(), max_effects=[])
+    @custom_function(NoopCompiler(), effects=[])
     def __pos__(self: float) -> float: ...
 
-    @hugr_op(float_op("fpow"), max_effects=[])  # TODO
+    @hugr_op(float_op("fpow"), effects=[])  # TODO
     def __pow__(self: float, other: float) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __radd__(self: float, other: float) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rdivmod__(self: float, other: float) -> tuple[float, float]: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rfloordiv__(self: float, other: float) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rmod__(self: float, other: float) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rmul__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fround"), max_effects=[])  # TODO
+    @hugr_op(float_op("fround"), effects=[])  # TODO
     def __round__(self: float) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rpow__(self: float, other: float) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rsub__(self: float, other: float) -> float: ...
 
-    @custom_function(checker=ReversingChecker(), max_effects=[])
+    @custom_function(checker=ReversingChecker(), effects=[])
     def __rtruediv__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fsub"), max_effects=[])
+    @hugr_op(float_op("fsub"), effects=[])
     def __sub__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fdiv"), max_effects=[])
+    @hugr_op(float_op("fdiv"), effects=[])
     def __truediv__(self: float, other: float) -> float: ...
 
-    @hugr_op(
-        unsupported_op("trunc_s"), max_effects=[]
-    )  # TODO `trunc_s` returns an option
+    @hugr_op(unsupported_op("trunc_s"), effects=[])  # TODO `trunc_s` returns an option
     def __trunc__(self: float) -> float: ...
 
 

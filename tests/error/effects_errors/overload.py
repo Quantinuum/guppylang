@@ -5,13 +5,13 @@ T = guppy.type_var("T")
 @guppy.declare
 def variant1(x : T) -> T: ...
 
-@guppy.declare(max_effects=[])
+@guppy.declare(effects=[])
 def variant2(x : int) -> int: ...
 
 @guppy.overload(variant1, variant2)
 def only_pure_for_int(): ...
 
-@guppy(max_effects=[])
+@guppy(effects=[])
 def pure_func(x: int) -> int:
     return only_pure_for_int(x + 1)
 
@@ -19,7 +19,7 @@ def pure_func(x: int) -> int:
 def impure_func(x: float) -> float:
     return only_pure_for_int(x + 1.0)
 
-@guppy(max_effects=[])
+@guppy(effects=[])
 def bad_pure_func(x: float) -> float:
     return only_pure_for_int(x)
 

@@ -1,6 +1,6 @@
 Error: Invalid call of overloaded function (at $FILE:6:10)
   | 
-4 | @guppy(max_effects=[])
+4 | @guppy(effects=[])
 5 | def main() -> int:
 6 |    result("foo", True)
   |           ^^^^^^^^^^^ No variant of overloaded function `result` takes arguments

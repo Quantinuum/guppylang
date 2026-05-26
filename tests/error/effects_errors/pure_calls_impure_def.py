@@ -4,7 +4,7 @@ from guppylang.decorator import guppy
 def impure_func(x: int) -> int:
     return x + 1
 
-@guppy(max_effects=[])
+@guppy(effects=[])
 def main() -> int:
    return impure_func(5)
 

@@ -1,6 +1,6 @@
 from guppylang.decorator import guppy
 
-@guppy(max_effects=[])
+@guppy(effects=[])
 def pure_func(x: int) -> int:
     return x + 1
 

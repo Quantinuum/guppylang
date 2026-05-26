@@ -1,4 +1,4 @@
-"""Tests of max_effects annotation."""
+"""Tests of effects annotation."""
 
 import pytest
 from collections.abc import Callable
@@ -8,7 +8,7 @@ from guppylang.std.builtins import result
 
 
 def test_pure_decl_from_impure(validate):
-    @guppy.declare(max_effects=[])
+    @guppy.declare(effects=[])
     def pure_func(x: int) -> int: ...
 
     @guppy
@@ -19,10 +19,10 @@ def test_pure_decl_from_impure(validate):
 
 
 def test_pure_decl_from_explicit_impure(validate):
-    @guppy.declare(max_effects=[])
+    @guppy.declare(effects=[])
     def pure_func(x: int) -> int: ...
 
-    @guppy(max_effects=[Effect.ANY])
+    @guppy(effects=[Effect.ANY])
     def impure_func(x: int) -> int:
         return pure_func(x) + 1
 
@@ -30,10 +30,10 @@ def test_pure_decl_from_explicit_impure(validate):
 
 
 def test_pure_decl_from_pure(validate):
-    @guppy.declare(max_effects=[])
+    @guppy.declare(effects=[])
     def pure_func1(x: int) -> int: ...
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def pure_func2(x: int) -> int:
         return pure_func1(x) + 2
 
@@ -43,9 +43,9 @@ def test_pure_decl_from_pure(validate):
 @pytest.mark.parametrize(
     ("caller", "callee"),
     [
-        ({"max_effects": [Effect.ANY]}, {}),
-        ({}, {"max_effects": [Effect.ANY]}),
-        ({"max_effects": [Effect.ANY]}, {"max_effects": [Effect.ANY]}),
+        ({"effects": [Effect.ANY]}, {}),
+        ({}, {"effects": [Effect.ANY]}),
+        ({"effects": [Effect.ANY]}, {"effects": [Effect.ANY]}),
     ],
 )
 def test_impure_decl_explicit(caller, callee, validate):
@@ -60,7 +60,7 @@ def test_impure_decl_explicit(caller, callee, validate):
 
 
 def test_pure_from_impure(validate):
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def pure_func(x: int) -> int:
         return x + 1
 
@@ -72,11 +72,11 @@ def test_pure_from_impure(validate):
 
 
 def test_pure_from_explicit_impure(validate):
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def pure_func(x: int) -> int:
         return x + 1
 
-    @guppy(max_effects=[Effect.ANY])
+    @guppy(effects=[Effect.ANY])
     def normal_func(x: int) -> int:
         return pure_func(x) + 2
 
@@ -86,9 +86,9 @@ def test_pure_from_explicit_impure(validate):
 @pytest.mark.parametrize(
     ("caller", "callee"),
     [
-        ({"max_effects": [Effect.ANY]}, {}),
-        ({}, {"max_effects": [Effect.ANY]}),
-        ({"max_effects": [Effect.ANY]}, {"max_effects": [Effect.ANY]}),
+        ({"effects": [Effect.ANY]}, {}),
+        ({}, {"effects": [Effect.ANY]}),
+        ({"effects": [Effect.ANY]}, {"effects": [Effect.ANY]}),
     ],
 )
 def test_impure_explicit(caller, callee, validate):
@@ -105,11 +105,11 @@ def test_impure_explicit(caller, callee, validate):
 
 
 def test_pure_from_pure(validate):
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def pure_func1(x: int) -> int:
         return x + 1
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def pure_func2(x: int) -> int:
         return pure_func1(pure_func1(x)) + 1
 
@@ -125,7 +125,7 @@ def test_pure_callable_from_impure(validate):
 
 
 def test_pure_callable_from_pure(validate):
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def pure_func(pure_f: Callable[[int], int, []]) -> int:
         return pure_f(5) + 1
 
@@ -133,7 +133,7 @@ def test_pure_callable_from_pure(validate):
 
 
 def test_pure_callable_from_impure_explicit(validate):
-    @guppy(max_effects=[Effect.ANY])
+    @guppy(effects=[Effect.ANY])
     def impure_func(pure_f: Callable[[int], int, []]) -> int:
         return pure_f(5) + 1
 
@@ -145,7 +145,7 @@ def test_return_callable1(validate):
     def impure_func(x: int) -> int:
         return x + 1
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def higher_order() -> Callable[[int], int, [ANY]]:  # noqa: F821
         return impure_func
 
@@ -153,11 +153,11 @@ def test_return_callable1(validate):
 
 
 def test_return_callable2(validate):
-    @guppy(max_effects=[Effect.ANY])
+    @guppy(effects=[Effect.ANY])
     def explicit_impure_func(x: int) -> int:
         return x + 1
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def higher_order() -> Callable[[int], int]:
         return explicit_impure_func
 

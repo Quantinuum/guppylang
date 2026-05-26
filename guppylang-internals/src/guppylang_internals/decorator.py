@@ -90,7 +90,7 @@ def custom_function(
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
     has_var_args: bool = False,
-    max_effects: list[Effect] | None = None,
+    effects: list[Effect] | None = None,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
 
@@ -115,9 +115,7 @@ def custom_function(
             signature,
             unitary_flags,
             has_var_args,
-            max_effects=None
-            if max_effects is None
-            else [e.to_internal() for e in max_effects],
+            effects=None if effects is None else [e.to_internal() for e in effects],
         )
         DEF_STORE.register_def(func, get_calling_frame())
         return GuppyFunctionDefinition(func)
@@ -132,7 +130,7 @@ def hugr_op(
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    max_effects: list[Effect] | None = None,
+    effects: list[Effect] | None = None,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to annotate function declarations as HUGR ops.
 
@@ -151,7 +149,7 @@ def hugr_op(
         name,
         signature,
         unitary_flags=unitary_flags,
-        max_effects=max_effects,
+        effects=effects,
     )
 
 

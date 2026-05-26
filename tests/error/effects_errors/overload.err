@@ -1,6 +1,6 @@
 Error: Invalid call of overloaded function (at $FILE:24:11)
    | 
-22 | @guppy(max_effects=[])
+22 | @guppy(effects=[])
 23 | def bad_pure_func(x: float) -> float:
 24 |     return only_pure_for_int(x)
    |            ^^^^^^^^^^^^^^^^^^^^ No variant of overloaded function `only_pure_for_int` takes

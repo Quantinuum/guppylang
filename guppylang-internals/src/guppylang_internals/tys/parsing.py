@@ -290,21 +290,21 @@ def _parse_callable_type(
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
     output = type_from_ast(output, ctx)
 
-    max_effects: list[Effect] | None
+    effects: list[Effect] | None
     if len(args) == 2:
-        max_effects = None
+        effects = None
     elif not isinstance(args[2], ast.List):
         raise GuppyError(err)
     else:
-        max_effects = []
+        effects = []
         for e in args[2].elts:
             if not isinstance(e, ast.Name):
                 raise GuppyError(err)
             try:
-                max_effects.append(Effect.__from_str__(e.id))
+                effects.append(Effect.__from_str__(e.id))
             except ValueError:
                 raise GuppyError(err)  # noqa: B904
-    return FunctionType(inputs, output, max_effects_declared=max_effects)
+    return FunctionType(inputs, output, max_effects_declared=effects)
 
 
 def _parse_self_type(args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx) -> Type:

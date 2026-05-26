@@ -182,7 +182,7 @@ def test_y_combinator(validate):
 # https://github.com/Quantinuum/guppylang/issues/1760
 # but presently exists to show the part of the test that *does* work
 def test_higher_order_effects1(validate):
-    @guppy(max_effects=[Effect.ANY])
+    @guppy(effects=[Effect.ANY])
     def impure_func(x: int) -> int:
         return x + 1
 
@@ -200,7 +200,7 @@ def test_higher_order_effects1(validate):
 
 @pytest.mark.xfail(reason="Pending https://github.com/Quantinuum/guppylang/issues/1760")
 def test_higher_order_effects2(validate):
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def pure_func(x: int) -> int:
         return x + 1
 
@@ -210,7 +210,7 @@ def test_higher_order_effects2(validate):
     def higher_order(f: Callable[[int], int], x: int) -> int:
         return f(x)
 
-    @guppy(max_effects=[])
+    @guppy(effects=[])
     def main() -> int:
         return higher_order(pure_func, 5)
 

@@ -423,11 +423,11 @@ class FunctionType(ParametrizedTypeBase):
 
     # The None here is to distinguish between explicit and implicit in guppy source code
     # but is otherwise equivalent to default [Effect.ANY]. Generally use
-    # `max_effects` instead.
+    # `effects` instead.
     max_effects_declared: list[Effect] | None = field(default=None, init=True)
 
     @property
-    def max_effects(self) -> list[Effect]:
+    def effects(self) -> list[Effect]:
         return (
             self.max_effects_declared
             if self.max_effects_declared is not None
@@ -524,7 +524,7 @@ class FunctionType(ParametrizedTypeBase):
         The resulting `FunctionType` can then be embedded into a Hugr `Type` or a Hugr
         `PolyFuncType`.
         """
-        # At some point we may want to represent the max_effects as input and
+        # At some point we may want to represent the effects as input and
         # perhaps output "token" types in Hugr, but for now we will use Order edges.
         ins = [
             inp.ty.to_hugr(ctx)
@@ -625,12 +625,12 @@ class FunctionType(ParametrizedTypeBase):
         )
 
     def with_effects(self, max_effects_declared: list[Effect] | None) -> "FunctionType":
-        """Returns a copy of this function type with the specified max_effects."""
+        """Returns a copy of this function type with the specified effects."""
         # N.B. we can't use `dataclasses.replace` here since `FunctionType` has a custom
         # constructor
         if self.max_effects_declared is not None:
             raise InternalGuppyError(
-                "Tried to set max_effects on a FunctionType that already has them"
+                "Tried to set effects on a FunctionType that already has them"
             )
         return FunctionType(
             self.inputs,
@@ -912,7 +912,7 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
         case FunctionType() as s, FunctionType() as t if s.params == t.params:
             if len(s.inputs) != len(t.inputs):
                 return None
-            if s.max_effects != t.max_effects:
+            if s.effects != t.effects:
                 # There are no "effect variables" yet, and we enforce exact matching
                 # (invariance) as covariance will become difficult when we replace Order
                 # edges with explicit tokens. (Requiring runtime closures or codegen for
