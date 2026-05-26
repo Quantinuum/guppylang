@@ -15,7 +15,7 @@ from guppylang.std.lang import owned
 from guppylang.std.quantum import qubit
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def h(q: qubit @ owned) -> qubit:
     """Functional Hadamard gate command."""
@@ -23,7 +23,7 @@ def h(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def cz(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
     """Functional CZ gate command."""
@@ -31,7 +31,7 @@ def cz(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
     return control, target
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def cx(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
     """Functional CX gate command."""
@@ -39,7 +39,7 @@ def cx(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
     return control, target
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def cy(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
     """Functional CY gate command."""
@@ -47,7 +47,7 @@ def cy(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
     return control, target
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def t(q: qubit @ owned) -> qubit:
     """Functional T gate command."""
@@ -55,7 +55,7 @@ def t(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def s(q: qubit @ owned) -> qubit:
     """Functional S gate command."""
@@ -63,7 +63,7 @@ def s(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def v(q: qubit @ owned) -> qubit:
     """Functional V gate command."""
@@ -71,7 +71,7 @@ def v(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def x(q: qubit @ owned) -> qubit:
     """Functional X gate command."""
@@ -79,7 +79,7 @@ def x(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def y(q: qubit @ owned) -> qubit:
     """Functional Y gate command."""
@@ -87,7 +87,7 @@ def y(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def z(q: qubit @ owned) -> qubit:
     """Functional Z gate command."""
@@ -95,7 +95,7 @@ def z(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def tdg(q: qubit @ owned) -> qubit:
     """Functional Tdg gate command."""
@@ -103,7 +103,7 @@ def tdg(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def sdg(q: qubit @ owned) -> qubit:
     """Functional Sdg gate command."""
@@ -111,7 +111,7 @@ def sdg(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def vdg(q: qubit @ owned) -> qubit:
     """Functional Vdg gate command."""
@@ -119,7 +119,7 @@ def vdg(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def rz(q: qubit @ owned, angle: angle) -> qubit:
     """Functional Rz gate command."""
@@ -127,7 +127,7 @@ def rz(q: qubit @ owned, angle: angle) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def rx(q: qubit @ owned, angle: angle) -> qubit:
     """Functional Rx gate command."""
@@ -135,7 +135,7 @@ def rx(q: qubit @ owned, angle: angle) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def ry(q: qubit @ owned, angle: angle) -> qubit:
     """Functional Ry gate command."""
@@ -143,7 +143,7 @@ def ry(q: qubit @ owned, angle: angle) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def crz(
     control: qubit @ owned, target: qubit @ owned, angle: angle
@@ -153,7 +153,7 @@ def crz(
     return control, target
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def toffoli(
     control1: qubit @ owned, control2: qubit @ owned, target: qubit @ owned
@@ -163,7 +163,7 @@ def toffoli(
     return control1, control2, target
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def reset(q: qubit @ owned) -> qubit:
     """Functional Reset command."""
@@ -171,7 +171,7 @@ def reset(q: qubit @ owned) -> qubit:
     return q
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def project_z(q: qubit @ owned) -> tuple[qubit, bool]:
     """Functional project_z command."""
@@ -182,7 +182,7 @@ def project_z(q: qubit @ owned) -> tuple[qubit, bool]:
 # -------NON-PRIMITIVE-------
 
 
-@guppy(effects=[])
+@guppy
 @no_type_check
 def ch(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
     """Functional Controlled-H gate command."""
