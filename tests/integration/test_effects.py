@@ -4,7 +4,8 @@ import pytest
 from collections.abc import Callable
 
 from guppylang.decorator import guppy, Effect
-from guppylang.std.builtins import effects, result
+from guppylang.std.builtins import result
+from guppylang.std.effects import effects, ANY
 
 
 def test_pure_decl_from_impure(validate):
@@ -146,7 +147,7 @@ def test_return_callable1(validate):
         return x + 1
 
     @guppy(effects=[])
-    def higher_order() -> Callable[[int], int] @ effects(Effect.ANY):
+    def higher_order() -> Callable[[int], int] @ effects(ANY):
         return impure_func
 
     validate(higher_order.compile_function())

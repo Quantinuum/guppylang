@@ -5,7 +5,7 @@ from guppylang.decorator import guppy
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from guppylang.std.builtins import effects
+    from guppylang.std.effects import effects
 
 
 def test_basic_defs(validate):

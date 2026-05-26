@@ -1,12 +1,9 @@
 """Provides Python objects for builtin language keywords."""
 
 from collections.abc import Generator
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
 from guppylang_internals.error import GuppyComptimeError
-
-if TYPE_CHECKING:
-    from guppylang.decorator import Effect
 
 T = TypeVar("T")
 
@@ -44,22 +41,6 @@ class _Owned:
 
 
 owned = _Owned()
-
-
-class Effects:
-    """Dummy class to support `@effects` annotations."""
-
-    effects: list["Effect"]
-
-    def __init__(self, *effects: "Effect") -> None:
-        self.effects = list(effects)
-
-    def __rmatmul__(self, other: Any) -> Any:
-        # This method is to make the Python interpreter happy with @comptime at runtime
-        return other
-
-
-effects = Effects
 
 
 class Copy(Protocol):

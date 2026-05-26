@@ -2,7 +2,7 @@ from typing import Callable
 
 from guppylang.decorator import guppy
 from guppylang.std.quantum.functional import h
-from guppylang.std.builtins import effects
+from guppylang.std.effects import effects
 
 T = guppy.type_var("T")
 

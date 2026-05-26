@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 from guppylang.decorator import guppy, Effect
+from guppylang.std.effects import effects
 
 @guppy(effects=[Effect.ANY])
 def impure_func(x: int) -> int:

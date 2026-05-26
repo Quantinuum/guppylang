@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import effects
+from guppylang.std.effects import effects, ANY
 
 @guppy(effects=[])
 def main(impure_f: Callable[[int], int] @ effects(ANY)) -> int:

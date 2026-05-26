@@ -2,7 +2,7 @@ from collections.abc import Callable
 from typing import Generic
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import effects
+from guppylang.std.effects import effects
 
 
 def test_create(run_int_fn):
