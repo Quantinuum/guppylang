@@ -1,9 +1,10 @@
 from collections.abc import Callable
 
 from guppylang.decorator import guppy
+from guppylang.std.builtins import effects
 
 @guppy(effects=[])
-def main(impure_f: Callable[[int], int, [ANY]]) -> int:
+def main(impure_f: Callable[[int], int] @ effects(ANY)) -> int:
    return impure_f(5)
 
 main.compile()

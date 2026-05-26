@@ -4,7 +4,7 @@ import pytest
 from collections.abc import Callable
 
 from guppylang.decorator import guppy, Effect
-from guppylang.std.builtins import result
+from guppylang.std.builtins import effects, result
 
 
 def test_pure_decl_from_impure(validate):
@@ -118,7 +118,7 @@ def test_pure_from_pure(validate):
 
 def test_pure_callable_from_impure(validate):
     @guppy
-    def impure_func(pure_f: Callable[[int], int, []]) -> int:
+    def impure_func(pure_f: Callable[[int], int] @ effects()) -> int:
         return pure_f(5) + 1
 
     validate(impure_func.compile_function())
@@ -126,7 +126,7 @@ def test_pure_callable_from_impure(validate):
 
 def test_pure_callable_from_pure(validate):
     @guppy(effects=[])
-    def pure_func(pure_f: Callable[[int], int, []]) -> int:
+    def pure_func(pure_f: Callable[[int], int] @ effects()) -> int:
         return pure_f(5) + 1
 
     validate(pure_func.compile_function())
@@ -134,7 +134,7 @@ def test_pure_callable_from_pure(validate):
 
 def test_pure_callable_from_impure_explicit(validate):
     @guppy(effects=[Effect.ANY])
-    def impure_func(pure_f: Callable[[int], int, []]) -> int:
+    def impure_func(pure_f: Callable[[int], int] @ effects()) -> int:
         return pure_f(5) + 1
 
     validate(impure_func.compile_function())
@@ -146,7 +146,7 @@ def test_return_callable1(validate):
         return x + 1
 
     @guppy(effects=[])
-    def higher_order() -> Callable[[int], int, [ANY]]:  # noqa: F821
+    def higher_order() -> Callable[[int], int] @ effects(Effect.ANY):
         return impure_func
 
     validate(higher_order.compile_function())

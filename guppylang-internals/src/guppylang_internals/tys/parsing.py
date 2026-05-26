@@ -277,34 +277,16 @@ def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
 def _parse_callable_type(
     args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx
 ) -> FunctionType:
-    """Helper function to parse a `Callable` type:
-    either `Callable[[<arguments>], <return type>]`
-        or `Callable[[<arguments>], <return type>, <max-effects>]`."""
+    """Helper function to parse a `Callable[[<arguments>], <return type>]` type."""
     err = InvalidCallableTypeError(loc)
-    if len(args) not in [2, 3]:
+    if len(args) != 2:
         raise GuppyError(err)
-    inputs = args[0]
-    output = args[1]
+    [inputs, output] = args
     if not isinstance(inputs, ast.List):
         raise GuppyError(err)
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
     output = type_from_ast(output, ctx)
-
-    effects: list[Effect] | None
-    if len(args) == 2:
-        effects = None
-    elif not isinstance(args[2], ast.List):
-        raise GuppyError(err)
-    else:
-        effects = []
-        for e in args[2].elts:
-            if not isinstance(e, ast.Name):
-                raise GuppyError(err)
-            try:
-                effects.append(Effect.__from_str__(e.id))
-            except ValueError:
-                raise GuppyError(err)  # noqa: B904
-    return FunctionType(inputs, output, declared_effects=effects)
+    return FunctionType(inputs, output)
 
 
 def _parse_self_type(args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx) -> Type:
@@ -489,6 +471,20 @@ def type_with_flags_from_ast(
                 flags |= InputFlags.Comptime
                 if not ty.copyable or not ty.droppable:
                     raise GuppyError(LinearComptimeError(node.right, ty))
+            case ast.Call(func=ast.Name(id="effects")) as fx:
+                if not isinstance(ty, FunctionType):
+                    raise GuppyError(InvalidFlagError(node.right))
+                if ty.declared_effects is not None:
+                    raise GuppyError(InvalidFlagError(node.right))
+                effects: list[Effect] = []
+                for e in fx.args:
+                    if not isinstance(e, ast.Name):
+                        raise GuppyError(InvalidFlagError(node.right))
+                    try:
+                        effects.append(Effect.__from_str__(e.id))
+                    except ValueError:
+                        raise GuppyError(InvalidFlagError(node.right))  # noqa: B904
+                ty = ty.with_effects(effects)
             case _:
                 raise GuppyError(InvalidFlagError(node.right))
         return ty, flags

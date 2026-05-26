@@ -95,7 +95,7 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
+__all__ = ("Effect", "GuppyKwargs", "custom_guppy_decorator", "guppy")
 
 
 class Effect(Enum):
