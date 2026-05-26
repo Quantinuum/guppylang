@@ -304,7 +304,7 @@ def _parse_callable_type(
                 effects.append(Effect.__from_str__(e.id))
             except ValueError:
                 raise GuppyError(err)  # noqa: B904
-    return FunctionType(inputs, output, max_effects_declared=effects)
+    return FunctionType(inputs, output, declared_effects=effects)
 
 
 def _parse_self_type(args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx) -> Type:

@@ -160,16 +160,16 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    if ty.max_effects_declared is None:
+    if ty.declared_effects is None:
         max_effects_from = None
     else:
         dec = _find_guppy_decorator(func_def.decorator_list)
-        if dec is None and ty.max_effects_declared is not None:
+        if dec is None and ty.declared_effects is not None:
             raise InternalGuppyError(
-                f"Effects limited to {Effect.format_list(ty.max_effects_declared)}"
+                f"Effects limited to {Effect.format_list(ty.declared_effects)}"
                 " but cannot identify decorator imposing this limit"
             )
-        max_effects_from = (ty.max_effects_declared, dec)
+        max_effects_from = (ty.declared_effects, dec)
     return check_cfg(
         cfg,
         inputs,

@@ -225,7 +225,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
                 defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
             ),
             params=self.params,
-            max_effects_declared=[],
+            declared_effects=[],
         )
         constructor_def = CustomFunctionDef(
             id=DefId.fresh(),

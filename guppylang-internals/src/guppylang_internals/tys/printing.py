@@ -98,8 +98,8 @@ class TypePrinter:
         output = self._visit(ty.output, True)
         arrow = (
             "->"
-            if ty.max_effects_declared is None
-            else f"-{Effect.format_list(ty.max_effects_declared)}->"
+            if ty.declared_effects is None
+            else f"-{Effect.format_list(ty.declared_effects)}->"
         )
         if ty.parametrized:
             params = [
