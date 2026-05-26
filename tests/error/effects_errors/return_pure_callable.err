@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:10:10)
+Error: Type mismatch (at $FILE:12:10)
    | 
- 8 | @guppy
- 9 | def main() -> Callable[[int], int]:
-10 |    return pure_func
+10 | @guppy
+11 | def main() -> Callable[[int], int]:
+12 |    return pure_func
    |           ^^^^^^^^^ Expected return value of type `int -> int`, got `int -[]->
    |                     int`
 
