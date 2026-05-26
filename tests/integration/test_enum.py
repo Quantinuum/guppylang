@@ -247,7 +247,7 @@ def test_higher_order(validate):
         VariantA = {"x": T}
 
     @guppy
-    def factory(mk_enum: Callable[[int], Enum[int]], x: int) -> Enum[int]:
+    def factory(mk_enum: Callable[[int], Enum[int], []], x: int) -> Enum[int]:
         return mk_enum(x)
 
     @guppy

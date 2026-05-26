@@ -107,7 +107,7 @@ def test_load_constructor(validate):
         VariantA = {"x": int}
 
     @guppy.comptime
-    def test() -> Callable[[int], MyEnum]:
+    def test() -> Callable[[int], MyEnum, []]:
         return MyEnum.VariantA
 
     validate(test.compile_function())
