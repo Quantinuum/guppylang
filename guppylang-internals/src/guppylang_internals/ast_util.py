@@ -418,3 +418,10 @@ def parse_source(source_lines: list[str], line_offset: int) -> tuple[str, ast.AS
     else:
         node = ast.parse(source).body[0]
     return source, node, line_offset
+
+
+def fake_call(name: str, loc_from: ast.AST, args: list[ast.expr]) -> ast.Call:
+    """Creates a fake call node with the given name and arguments."""
+    call = ast.Call(func=ast.Name(id=name, ctx=ast.Load()), args=args, keywords=[])
+    set_location_from(call, loc_from)
+    return call

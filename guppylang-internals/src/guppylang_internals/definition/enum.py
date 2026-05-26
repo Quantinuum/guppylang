@@ -185,7 +185,9 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
             v = getattr(self.python_class, func_name)
             if not isinstance(v, GuppyDefinition):
                 raise GuppyError(
-                    NonGuppyMethodError(func_def, self.name, func_name, "enum")
+                    NonGuppyMethodError(
+                        func_def, self.name, func_name, "enum", "@guppy"
+                    )
                 )
 
         link_name_prefix = (

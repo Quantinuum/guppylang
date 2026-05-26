@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, NamedTuple, NoReturn
 
 from hugr import Wire
+from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Context
@@ -99,8 +100,9 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         raise GuppyError(OverloadHigherOrderError(node, self.name))
 
+    @override
     def check_call(
-        self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
+        self, args: list[ast.expr], ty: Type, node: ast.Call, ctx: Context
     ) -> tuple[ast.expr, Subst]:
         available_sigs: list[OverloadVariant] = []
         for def_id in self.func_ids:
@@ -116,6 +118,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
                 return defn.check_call(args_copy, ty, node_copy, ctx)
         return self._call_error(args, node, ctx, available_sigs, ty)
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
@@ -156,6 +159,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         err.add_sub_diagnostic(AvailableOverloadsHint(None, self.name, available_sigs))
         raise GuppyError(err)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],

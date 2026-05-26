@@ -1,5 +1,4 @@
 import ast
-import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -26,6 +25,14 @@ from guppylang_internals.definition.custom import (
     DefaultCallChecker,
 )
 from guppylang_internals.definition.ty import TypeDef
+from guppylang_internals.definition.util import (
+    CheckedField,
+    DuplicateFieldError,
+    NonGuppyMethodError,
+    UncheckedField,
+    extract_generic_params,
+    parse_py_class,
+)
 from guppylang_internals.diagnostic import Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
@@ -39,18 +46,6 @@ from guppylang_internals.tys.ty import (
     InputFlags,
     StructType,
     Type,
-)
-
-if sys.version_info >= (3, 12):
-    pass
-
-from guppylang_internals.definition.util import (
-    CheckedField,
-    DuplicateFieldError,
-    NonGuppyMethodError,
-    UncheckedField,
-    extract_generic_params,
-    parse_py_class,
 )
 
 
@@ -96,7 +91,9 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     v = getattr(self.python_class, name)
                     if not isinstance(v, GuppyDefinition):
                         raise GuppyError(
-                            NonGuppyMethodError(node, self.name, name, "struct")
+                            NonGuppyMethodError(
+                                node, self.name, name, "struct", "@guppy"
+                            )
                         )
                     used_func_names[name] = node
                     if name in used_field_names:

@@ -1,10 +1,9 @@
-Error: Not defined for linear argument (at $FILE:19:4)
+Error: Expected a copyable type (at $FILE:19:8)
    | 
 17 | @guppy
 18 | def main() -> None:
 19 |     foo(h)
-   |     ^^^^^^ Cannot instantiate copyable type parameter `T` in type
-   |            `forall T. (T -> None) -> None` with non-copyable type
-   |            `qubit`
+   |         ^ Expected a copyable type, got type `qubit` which is not
+   |           implicitly copyable
 
 Guppy compilation failed due to 1 previous error

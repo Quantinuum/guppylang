@@ -1,12 +1,14 @@
 import ast
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Generator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
 from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
+from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -129,6 +131,7 @@ class RawCustomFunctionDef(ParsableDef):
 
     description: str = field(default="function", init=False)
 
+    @override
     def parse(self, globals: "Globals", sources: SourceMap) -> "CustomFunctionDef":
         """Parses and checks the signature of the custom function.
 
@@ -212,7 +215,6 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     """
 
     defined_at: AstNode | None
-    ty: FunctionType
     call_checker: "CustomCallChecker"
     call_compiler: "CustomInoutCallCompiler"
     higher_order_value: bool
@@ -226,6 +228,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
         mono_ty = self.ty.instantiate(type_args) if self.has_signature else self.ty
         return CustomMonoFunctionDef(
@@ -242,17 +245,19 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             type_args,
         )
 
+    @override
     def check_call(
-        self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
+        self, args: list[ast.expr], ty: Type, node: ast.Call, ctx: Context
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type.
 
         This is done by invoking the provided `CustomCallChecker`.
         """
-        self.call_checker._setup(ctx, node, self)
-        new_node, subst = self.call_checker.check(args, ty)
+        with self.call_checker._setup(ctx, node, self) as checker:
+            new_node, subst = checker.check(args, ty)
         return with_type(ty, with_loc(node, new_node)), subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
@@ -260,8 +265,8 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
 
         This is done by invoking the provided `CustomCallChecker`.
         """
-        self.call_checker._setup(ctx, node, self)
-        new_node, ty = self.call_checker.synthesize(args)
+        with self.call_checker._setup(ctx, node, self) as checker:
+            new_node, ty = checker.synthesize(args)
         return with_type(ty, with_loc(node, new_node)), ty
 
 
@@ -287,9 +292,11 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
 
     type_args: Inst
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
         raise InternalGuppyError("Function is already monomorphized and checked")
 
+    @override
     def load(self, dfg: "DFContainer", ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the custom function as a value into a local dataflow graph.
 
@@ -317,6 +324,7 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
         # Finally, load the function into the local DFG
         return dfg.builder.load_function(func)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],
@@ -335,8 +343,10 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
             )
         hugr_ty = concrete_ty.to_hugr(ctx)
 
-        self.call_compiler._setup(self.type_args, dfg, ctx, node, hugr_ty, self)
-        return self.call_compiler.compile_with_inouts(args)
+        with self.call_compiler._setup(
+            self.type_args, dfg, ctx, node, hugr_ty, self
+        ) as compiler:
+            return compiler.compile_with_inouts(args)
 
 
 class CustomCallChecker(ABC):
@@ -346,10 +356,31 @@ class CustomCallChecker(ABC):
     node: AstNode
     func: CustomFunctionDef
 
-    def _setup(self, ctx: Context, node: AstNode, func: CustomFunctionDef) -> None:
+    _depth = 0
+
+    @contextmanager
+    def _setup(
+        self, ctx: Context, node: AstNode, func: CustomFunctionDef
+    ) -> Generator["CustomCallChecker", None, None]:
+        """
+        A context manager to temporarily set up the checker with required arguments, and
+        properly tear down the checker afterwards to avoid memory leaks.
+
+        See https://github.com/Quantinuum/guppylang/issues/1735.
+        """
         self.ctx = ctx
         self.node = node
         self.func = func
+        try:
+            yield self
+        finally:
+            self._depth -= 1
+            # Only clean when there are no parent recursions, as otherwise the fields
+            # may still be in use.
+            if self._depth == 0:
+                del self.ctx
+                del self.node
+                del self.func
 
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         """Checks the return value against a given type.
@@ -388,6 +419,9 @@ class CustomInoutCallCompiler(ABC):
     ty: ht.FunctionType
     func: CustomMonoFunctionDef | None
 
+    _depth = 0
+
+    @contextmanager
     def _setup(
         self,
         type_args: Inst,
@@ -396,7 +430,13 @@ class CustomInoutCallCompiler(ABC):
         node: AstNode,
         hugr_ty: ht.FunctionType,
         func: CustomMonoFunctionDef | None,
-    ) -> None:
+    ) -> Generator["CustomInoutCallCompiler", None, None]:
+        """
+        A context manager to temporarily set up the compiler with required arguments,
+        and properly tear down the compiler afterwards to avoid memory leaks.
+
+        See https://github.com/Quantinuum/guppylang/issues/1735.
+        """
         self.type_args = type_args
         self.dfg = dfg
         self.ctx = ctx
@@ -408,6 +448,20 @@ class CustomInoutCallCompiler(ABC):
         # function to is the function definition itself, so we set the function
         # definition node as the AST context in the builder.
         self.builder.current_ast_node = self.node
+        self._depth += 1
+        try:
+            yield self
+        finally:
+            self._depth -= 1
+            # Only clean when there are no parent recursions, as otherwise the fields
+            # may still be in use.
+            if self._depth == 0:
+                del self.type_args
+                del self.dfg
+                del self.ctx
+                del self.node
+                del self.ty
+                del self.func
 
     @abstractmethod
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
@@ -430,6 +484,7 @@ class CustomCallCompiler(CustomInoutCallCompiler, ABC):
     def compile(self, args: list[Wire]) -> list[Wire]:
         """Compiles a custom function call and returns the resulting ports."""
 
+    @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         return CallReturnWires(self.compile(args), inout_returns=[])
 
@@ -437,11 +492,13 @@ class CustomCallCompiler(CustomInoutCallCompiler, ABC):
 class DefaultCallChecker(CustomCallChecker):
     """Checks function calls by comparing to a type signature."""
 
+    @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
 
+    @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
@@ -456,6 +513,7 @@ class NotImplementedCallCompiler(CustomCallCompiler):
     thus doesn't need to be compiled.
     """
 
+    @override
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Function should have been removed during checking")
 
@@ -475,6 +533,7 @@ class OpCompiler(CustomInoutCallCompiler):
     ) -> None:
         self.op = op
 
+    @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         op = self.op(self.ty, self.type_args, self.ctx)
         node = self.builder.add_op(op, *args)
@@ -504,6 +563,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
     ) -> None:
         self.op = op
 
+    @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         converted_in = [ht.Bool if inp == OpaqueBool else inp for inp in self.ty.input]
         converted_out = [
@@ -534,6 +594,7 @@ class BoolOpCompiler(CustomInoutCallCompiler):
 class NoopCompiler(CustomCallCompiler):
     """Call compiler for functions that are noops."""
 
+    @override
     def compile(self, args: list[Wire]) -> list[Wire]:
         return args
 
@@ -541,6 +602,7 @@ class NoopCompiler(CustomCallCompiler):
 class CopyInoutCompiler(CustomInoutCallCompiler):
     """Call compiler for functions that borrow one argument to copy it."""
 
+    @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         assert len(self.ty.input) == 1
         inp_ty = self.ty.input[0]
