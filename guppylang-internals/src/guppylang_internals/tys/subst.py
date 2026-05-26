@@ -39,9 +39,17 @@ class Substituter(Transformer):
 
     @transform.register
     def _transform_ExistentialTypeVar(self, ty: ExistentialTypeVar) -> Type | None:
-        s = self.subst.get(ty, None)
-        assert not isinstance(s, ConstBase)
-        return s
+        if s := self.subst.get(ty, None):
+            assert not isinstance(s, ConstBase)
+            return s
+        if ty.implements:
+            return replace(
+                ty,
+                implements=tuple(
+                    impl.transform(self) or impl for impl in ty.implements
+                ),
+            )
+        return None
 
     @transform.register
     def _transform_ExistentialConstVar(self, c: ExistentialConstVar) -> Const | None:
