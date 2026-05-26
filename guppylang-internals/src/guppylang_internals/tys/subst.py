@@ -53,15 +53,9 @@ class Substituter(Transformer):
 
     @transform.register
     def _transform_ExistentialConstVar(self, c: ExistentialConstVar) -> Const | None:
-        if s := self.subst.get(c, None):
-            assert not isinstance(s, TypeBase)
-            return s
-        c = replace(c, ty=c.ty.transform(self))
-        if s := self.subst.get(c, None):
-            assert not isinstance(s, TypeBase)
-            return s
-
-        return c
+        s = self.subst.get(c, None)
+        assert not isinstance(s, TypeBase)
+        return s
 
 
 class Instantiator(Transformer):

@@ -695,19 +695,6 @@ class _Guppy:
         return GuppyFunctionDefinition(defn)
 
 
-def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T]:
-    """Helper function to set the `__firstlineno__` attribute on a class if it is not
-    already there.
-
-    Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
-    However, we need this information to precisely look up the source for the
-    class later. If it's not there, we can set it from the calling frame.
-    """
-    if not hasattr(cls, "__firstlineno__"):
-        cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
-    return cls
-
-
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
     """Helper function to parse expressions that are provided as strings.
 
@@ -760,6 +747,19 @@ def _find_load_call(sources: SourceMap) -> Span | None:
             end = Loc(filename, lineno, max_offset)
             return Span(start, end)
     return None
+
+
+def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T]:
+    """Helper function to set the `__firstlineno__` attribute on a class if it is not
+    already there.
+
+    Prior to Python 3.13, the `__firstlineno__` attribute on classes is not set.
+    However, we need this information to precisely look up the source for the
+    class later. If it's not there, we can set it from the calling frame.
+    """
+    if not hasattr(cls, "__firstlineno__"):
+        cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
+    return cls
 
 
 def custom_guppy_decorator(f: F) -> F:
