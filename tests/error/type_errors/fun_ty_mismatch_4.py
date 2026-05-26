@@ -1,5 +1,7 @@
 from collections.abc import Callable
 
+from guppylang.std.builtins import nat
+
 from tests.util import compile_guppy
 
 
