@@ -1517,6 +1517,9 @@ def to_bool(node: ast.expr, node_ty: Type, ctx: Context) -> tuple[ast.expr, Type
         return node, node_ty
     synth = ExprSynthesizer(ctx)
     exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Inout)], bool_type())
+    # When we have effect variables, we should use an existential
+    # variable upper-bounded by those allowed in the context.
+    exp_sig = exp_sig.with_effects([])
     try:
         return synth.synthesize_instance_func(
             node, [], "__bool__", "truthy", exp_sig, True
@@ -1525,7 +1528,9 @@ def to_bool(node: ast.expr, node_ty: Type, ctx: Context) -> tuple[ast.expr, Type
         if not node_ty.copyable:
             # Linear types may implement a `__consume_as_bool__` method that consumes
             # the value, instead of borrowing it.
-            exp_sig = FunctionType([FuncInput(node_ty, InputFlags.Owned)], bool_type())
+            exp_sig = FunctionType(
+                [FuncInput(node_ty, InputFlags.Owned)], bool_type()
+            ).with_effects([])
             return synth.synthesize_instance_func(
                 node, [], "__consume_as_bool__", "truthy", exp_sig, True
             )
