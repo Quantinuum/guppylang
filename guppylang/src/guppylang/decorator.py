@@ -10,7 +10,6 @@ from typing import (
     ParamSpec,
     TypedDict,
     TypeVar,
-    assert_never,
     cast,
     overload,
 )
@@ -70,7 +69,7 @@ from hugr import ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.package import ModulePointer
-from typing_extensions import Unpack, dataclass_transform, deprecated
+from typing_extensions import Unpack, assert_never, dataclass_transform, deprecated
 
 from guppylang.defs import (
     GuppyDefinition,
