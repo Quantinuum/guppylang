@@ -260,11 +260,11 @@ def check_bb(
                 and x not in globals
                 and x not in generic_args
             ):
-                if x in bb.vars.last_assigned_in_modifier_block:
+                if x in bb.vars.assigned_in_modifier_block:
                     vnd_err = VarNotDefinedError(use, x)
                     vnd_err.add_sub_diagnostic(
                         VarNotDefinedError.DefinedInModBlock(
-                            bb.vars.last_assigned_in_modifier_block[x]
+                            bb.vars.assigned_in_modifier_block[x]
                         )
                     )
                     raise GuppyError(vnd_err)
@@ -311,9 +311,7 @@ def check_bb(
     if bb.vars.badly_used_after_modifier_block:
         x, use = next(iter(bb.vars.badly_used_after_modifier_block.items()))
         raise GuppyError(
-            _assigned_in_modifier_error(
-                x, use, bb.vars.last_assigned_in_modifier_block[x]
-            )
+            _assigned_in_modifier_error(x, use, bb.vars.assigned_in_modifier_block[x])
         )
     # We also check that the variables used in the block was not assigned in a modifier
     # block in a predecessor
@@ -350,10 +348,10 @@ def _var_not_defined_error(
     var: str, cfg: BaseCFG[BB], use_bb: BB
 ) -> VarNotDefinedError:
     err = VarNotDefinedError(use_bb.vars.used[var], var)
-    if var in use_bb.vars.last_assigned_in_modifier_block:
+    if var in use_bb.vars.assigned_in_modifier_block:
         err.add_sub_diagnostic(
             VarNotDefinedError.DefinedInModBlock(
-                use_bb.vars.last_assigned_in_modifier_block[var]
+                use_bb.vars.assigned_in_modifier_block[var]
             )
         )
     elif var in cfg.last_assigned_in_mod[use_bb]:

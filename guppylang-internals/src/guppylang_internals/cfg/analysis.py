@@ -265,14 +265,9 @@ class AssignedInModifierAnalysis(
     ) -> AssignedInModifierDomain[VId]:
         stats = self.stats[bb]
         res = {
-            var: node
-            for var, node in val_before.items()
-            if (
-                var not in stats.assigned
-                # or var in stats.badly_used_after_modifier_block
-            )
+            var: node for var, node in val_before.items() if var not in stats.assigned
         }
         # If a variable is already assigned in the modifier block, we keep the last new
         # assignment
-        res.update(stats.last_assigned_in_modifier_block)
+        res.update(stats.assigned_in_modifier_block)
         return res

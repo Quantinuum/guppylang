@@ -9,7 +9,7 @@ Help:
    | 
 12 |     with power(3):
 13 |         a = 3
-   |         ----- a is defined inside a modifier block, but variable defined
+   |         ----- a is defined inside a modifier block, but variables defined
    |               in a modifier block are not available outside of it
 
 Guppy compilation failed due to 1 previous error

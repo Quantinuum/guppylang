@@ -42,7 +42,7 @@ class VariableStats(Generic[VId]):
     badly_used_after_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
 
     # Variables whose last assignment in this BB happened inside a modifier block.
-    last_assigned_in_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
+    assigned_in_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
 
 
 BBStatement = (
@@ -136,7 +136,7 @@ class VariableVisitor(ast.NodeVisitor):
             if x not in self.stats.assigned and x not in self.stats.used:
                 self.stats.used[x] = name
             if (
-                x in self.stats.last_assigned_in_modifier_block
+                x in self.stats.assigned_in_modifier_block
                 and x not in self.stats.badly_used_after_modifier_block
             ):
                 self.stats.badly_used_after_modifier_block[x] = name
@@ -166,7 +166,7 @@ class VariableVisitor(ast.NodeVisitor):
                 # We remove the variable from `last_assigned_in_modifier_block` only if
                 # it has not been used yet
                 if name not in self.stats.badly_used_after_modifier_block:
-                    self.stats.last_assigned_in_modifier_block.pop(name, None)
+                    self.stats.assigned_in_modifier_block.pop(name, None)
             case ast.Tuple(elts=elts) | ast.List(elts=elts):
                 for elt in elts:
                     self._handle_assign_target(elt, node)
@@ -251,17 +251,16 @@ class VariableVisitor(ast.NodeVisitor):
 
         for bb in node.cfg.bbs:
             bb_stat = bb.compute_variable_stats()
-            # We update the `last_assigned_in_modifier_block` field of the stats for
+            # We update the `assigned_in_modifier_block` field of the stats for
             # each BB.
             for var, ast_node in (
                 # We union the two dicts in this order to prioritize variables assigned
                 # in the outer modifier block
-                bb_stat.last_assigned_in_modifier_block | bb_stat.assigned
+                bb_stat.assigned_in_modifier_block | bb_stat.assigned
             ).items():
-                # for var, ast_node in (bb_stat.assigned).items():
                 # if already present we keep the first assignment
-                if var not in self.stats.last_assigned_in_modifier_block:
-                    self.stats.last_assigned_in_modifier_block[var] = ast_node
+                if var not in self.stats.assigned_in_modifier_block:
+                    self.stats.assigned_in_modifier_block[var] = ast_node
             stats[bb] = bb_stat
 
         live = LivenessAnalysis(stats).run(node.cfg.bbs)
