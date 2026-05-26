@@ -898,6 +898,13 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
         return unify(var, subst[t], subst)
     if var in t.unsolved_vars:
         return None
+    # Check that `t` implements all protocols required by `var`.
+    if var.implements:
+        from guppylang_internals.checker.protocol_checker import check_protocol
+
+        for proto in var.implements:
+            _, proto_subst = check_protocol(t, proto)
+            subst |= proto_subst
     return {var: t, **subst}
 
 
@@ -918,7 +925,6 @@ def _unify_const_var(
 
     if var in t.unsolved_vars:
         return None
-    # TODO: Check that `t` implements all protocols required by `var`.
     return {var: t, **subst}
 
 

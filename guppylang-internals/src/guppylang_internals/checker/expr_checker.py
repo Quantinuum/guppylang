@@ -644,7 +644,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                             member_ty,
                             with_loc(
                                 node,
-                                # TODO: Should we have a different AST node for this?
                                 GlobalName(id=member_name, def_id=proto.def_id),
                             ),
                         )

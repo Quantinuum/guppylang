@@ -12,6 +12,7 @@ from guppylang_internals.tys.const import (
     ConstBase,
     ExistentialConstVar,
 )
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
     ExistentialTypeVar,
@@ -67,6 +68,12 @@ class Instantiator(Transformer):
         return None
 
     @transform.register
+    def _transform_ExistentialTypeVar(self, ty: ExistentialTypeVar) -> Type | None:
+        return replace(
+            ty, implements=tuple(self.transform(impl) or impl for impl in ty.implements)
+        )
+
+    @transform.register
     def _transform_BoundTypeVar(self, ty: BoundTypeVar) -> Type | None:
         # Instantiate if type for the index is available
         if ty.idx < len(self.inst):
@@ -105,6 +112,10 @@ class Instantiator(Transformer):
         if ty.parametrized:
             raise InternalGuppyError("Tried to instantiate under binder")
         return None
+
+    @transform.register
+    def _transform_ProtocolInst(self, inst: ProtocolInst) -> ProtocolInst | None:
+        return inst.transform(self)
 
 
 class BoundVarFinder(Visitor):

@@ -70,7 +70,6 @@ def _unify_args(
     xs: Sequence[ExistentialVar], ys: Sequence[Argument], subst: Subst | None
 ) -> Subst | None:
     for x, y in zip(xs, ys, strict=True):
-        ## CR TODO: What are we doing about potential must_implement protocols in `ty`?
         match x, y:
             case ExistentialTypeVar(), TypeArg(ty=ty):
                 subst = unify(x, ty, subst)
@@ -130,8 +129,6 @@ def check_protocol(
         candidates: list[tuple[ProtocolInst, Subst]] = []
         for impl in ty.implements:
             if impl.def_id == protocol.def_id:
-                # TODO: Is this correct?
-                # Does it break if we have protocols with other proto args
                 subst = unify_type_args(protocol.type_args, impl.type_args, {})
                 if subst is not None:
                     candidates.append((impl, subst))

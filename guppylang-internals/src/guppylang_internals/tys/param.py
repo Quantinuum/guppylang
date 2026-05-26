@@ -164,7 +164,7 @@ class TypeParam(ParameterBase):
             self.name,
             self.must_be_copyable,
             self.must_be_droppable,
-            tuple(self.must_implement),
+            tuple(impl for impl in self.must_implement),
         )
         return TypeArg(var), var
 
