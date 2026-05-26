@@ -448,6 +448,9 @@ class Context(NamedTuple):
     globals: Globals
     locals: Locals[str, Variable]
     generic_param_inst: dict[str, Argument]
+
+    """If not None, the effect constraints that function calls in this context must
+    respect, together with the AST node that gives rise to said constraint"""
     max_effects_from: tuple[list[Effect], AstNode] | None = None
 
     @property

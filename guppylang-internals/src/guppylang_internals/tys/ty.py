@@ -421,9 +421,9 @@ class FunctionType(ParametrizedTypeBase):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
 
-    # The None here is to distinguish between explicit and implicit in guppy source code
-    # but is otherwise equivalent to default [Effect.ANY]. Generally use
-    # `effects` instead.
+    """ Effects declared in source code (i.e. as third argument to Callable).
+    None means there was no declaration, which is equivalent to [Effect.ANY]
+    except for error reporting. Generally use `effects` instead."""
     declared_effects: list[Effect] | None = field(default=None, init=True)
 
     @property
