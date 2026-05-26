@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from guppylang.decorator import guppy, Effect
 
 @guppy(effects=[Effect.ANY])
