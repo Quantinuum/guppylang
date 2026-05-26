@@ -342,8 +342,6 @@ def check_signature(
                 )
                 assert isinstance(self_defn, CheckedProtocolDef)
                 input = parse_self_arg_proto(inp, self_defn, ctx, func_def)
-                # protocol_params = params
-                # CR: We could update the param_var_mapping in the ctx here?
             else:
                 self_defn = cast(
                     "TypeDef", ENGINE.get_checked(self_def_id, mono_args=())

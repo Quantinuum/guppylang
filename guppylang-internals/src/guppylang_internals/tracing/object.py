@@ -580,7 +580,6 @@ class TracingDefMixin(DunderMixin):
         if isinstance(self.wrapped, TypeDef | ProtocolDef):
             # It doesn't really matter what we return here since we don't support types
             # as comptime values yet, so just give back the definition
-            # TODO: How do protocols interact with comptime?
             return self
         # TODO: Alternatively, it could be a type application on a generic function.
         #  Supporting those requires a comptime representation of types as values
