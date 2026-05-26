@@ -114,7 +114,7 @@ def test_load_constructor(validate):
         x: int
 
     @guppy.comptime
-    def test() -> Callable[[int], S]:
+    def test() -> Callable[[int], S, []]:
         return S
 
     validate(test.compile_function())
