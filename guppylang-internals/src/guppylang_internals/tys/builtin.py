@@ -38,7 +38,14 @@ class CallableTypeDef(TypeDef, CompiledDef):
     Any impls on functions can be registered with this definition.
     """
 
-    name: Literal["Callable"] = field(default="Callable", init=False)
+    name: Literal[
+        "Callable",
+        "Unitary",
+        "Powerable",
+        "Daggerable",
+        "Controllable",
+        "PowerControllable",
+    ] = field(default="Callable", kw_only=True)
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -48,58 +55,22 @@ class CallableTypeDef(TypeDef, CompiledDef):
 
 
 # NICOLA: Temporary definition here, see what is better with the final syntax
-@dataclass(frozen=True)
-class UnitaryCallableTypeDef(TypeDef, CompiledDef):
-    """Type definition associated with the builtin `UnitaryCallable` type.
+# @dataclass(frozen=True)
+# class UnitaryCallableTypeDef(TypeDef, CompiledDef):
+#     """Type definition associated with the builtin `UnitaryCallable` type.
 
-    Any impls on unitary callables can be registered with this definition.
-    """
+#     Any impls on unitary callables can be registered with this definition.
+#     """
 
-    name: Literal["UnitaryCallable"] = field(default="UnitaryCallable", init=False)
+#     name: Literal["UnitaryCallable"] = field(default="UnitaryCallable", init=False)
 
-    def check_instantiate(
-        self, args: Sequence[Argument], loc: AstNode | None = None
-    ) -> FunctionType:
-        # UnitaryCallable types are constructed using special logic in the type parser
-        raise InternalGuppyError(
-            "Tried to `UnitaryCallable` type via `check_instantiate`"
-        )
-
-
-@dataclass(frozen=True)
-class DaggerCallableTypeDef(TypeDef, CompiledDef):
-    """Type definition associated with the builtin `DaggerCallable` type.
-
-    Any impls on dagger callables can be registered with this definition.
-    """
-
-    name: Literal["DaggerCallable"] = field(default="DaggerCallable", init=False)
-
-    def check_instantiate(
-        self, args: Sequence[Argument], loc: AstNode | None = None
-    ) -> FunctionType:
-        # DaggerCallable types are constructed using special logic in the type parser
-        raise InternalGuppyError(
-            "Tried to `DaggerCallable` type via `check_instantiate`. "
-        )
-
-
-@dataclass(frozen=True)
-class PowerCallableTypeDef(TypeDef, CompiledDef):
-    """Type definition associated with the builtin `PowerCallable` type.
-
-    Any impls on power callables can be registered with this definition.
-    """
-
-    name: Literal["PowerCallable"] = field(default="PowerCallable", init=False)
-
-    def check_instantiate(
-        self, args: Sequence[Argument], loc: AstNode | None = None
-    ) -> FunctionType:
-        # PowerCallable types are constructed using special logic in the type parser
-        raise InternalGuppyError(
-            "Tried to `PowerCallable` type via `check_instantiate`. "
-        )
+#     def check_instantiate(
+#         self, args: Sequence[Argument], loc: AstNode | None = None
+#     ) -> FunctionType:
+#         # UnitaryCallable types are constructed using special logic in the type parser
+#         raise InternalGuppyError(
+#             "Tried to `UnitaryCallable` type via `check_instantiate`"
+#         )
 
 
 @dataclass(frozen=True)
@@ -266,9 +237,11 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 callable_type_def = CallableTypeDef(DefId.fresh(), None, None)
 
 # NICOLA: Temporary definition here, see what is better with the final syntax
-unitary_callable_type_def = UnitaryCallableTypeDef(DefId.fresh(), None, None)
-power_callable_type_def = PowerCallableTypeDef(DefId.fresh(), None, None)
-dagger_callable_type_def = DaggerCallableTypeDef(DefId.fresh(), None, None)
+unitary_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Unitary")
+powerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Powerable")
+daggerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Daggerable")
+controllable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Controllable")
+pc_able_type_def = CallableTypeDef(DefId.fresh(), None, None, name="PowerControllable")
 
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)

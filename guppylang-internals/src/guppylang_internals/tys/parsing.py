@@ -4,6 +4,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
 
+from typing_extensions import assert_never
+
 from guppylang_internals.ast_util import (
     AstNode,
     set_location_from,
@@ -20,10 +22,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableTypeDef,
-    DaggerCallableTypeDef,
-    PowerCallableTypeDef,
     SelfTypeDef,
-    UnitaryCallableTypeDef,
     bool_type,
 )
 from guppylang_internals.tys.const import ConstValue
@@ -192,24 +191,23 @@ def _arg_from_instantiated_defn(
     """Parses a globals definition with type args into an argument."""
     match defn:
         # Special cases for the `Callable` type
-        case CallableTypeDef():
+        case CallableTypeDef(name=name):
             # arguments of the python Callable
-            return TypeArg(_parse_callable_type(arg_nodes, node, ctx))
-        case UnitaryCallableTypeDef():
-            # NICOLA: arguments of the python Callable
-            return TypeArg(
-                _parse_callable_type(arg_nodes, node, ctx, flag=UnitaryFlags.Unitary)
-            )
-        case DaggerCallableTypeDef():
-            # NICOLA: arguments of the python Callable
-            return TypeArg(
-                _parse_callable_type(arg_nodes, node, ctx, flag=UnitaryFlags.Dagger)
-            )
-        case PowerCallableTypeDef():
-            # NICOLA: arguments of the python Callable
-            return TypeArg(
-                _parse_callable_type(arg_nodes, node, ctx, flag=UnitaryFlags.Power)
-            )
+            if name == "Callable":
+                flag = UnitaryFlags.NoFlags
+            elif name == "Unitary":
+                flag = UnitaryFlags.Unitary
+            elif name == "Daggerable":
+                flag = UnitaryFlags.Dagger
+            elif name == "Powerable":
+                flag = UnitaryFlags.Power
+            elif name == "Controllable":
+                flag = UnitaryFlags.Control
+            elif name == "PowerControllable":
+                flag = UnitaryFlags.Power | UnitaryFlags.Control
+            else:
+                assert_never(name)
+            return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flag=flag))
         case SelfTypeDef():
             return TypeArg(_parse_self_type(arg_nodes, node, ctx))
         # Either a defined type (e.g. `int`, `bool`, ...)
