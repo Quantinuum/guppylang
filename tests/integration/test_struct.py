@@ -133,8 +133,10 @@ def test_higher_order(validate):
     class Struct(Generic[T]):
         x: T
 
+    # Pending https://github.com/Quantinuum/guppylang/issues/1760
+    # we must explicitly state the effects of `mk_struct`
     @guppy
-    def factory(mk_struct: "Callable[[int], Struct[int]]", x: int) -> Struct[int]:
+    def factory(mk_struct: "Callable[[int], Struct[int], []]", x: int) -> Struct[int]:
         return mk_struct(x)
 
     @guppy
