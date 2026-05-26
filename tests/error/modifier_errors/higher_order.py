@@ -1,5 +1,6 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import dagger, effects
+from guppylang.std.builtins import dagger
+from guppylang.std.effects import effects
 from guppylang.std.quantum import qubit, h, discard
 from collections.abc import Callable
 
