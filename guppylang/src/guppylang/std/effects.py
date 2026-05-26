@@ -12,7 +12,7 @@ class Effects:
         self.effects = list(effects)
 
     def __rmatmul__(self, other: Any) -> Any:
-        # This method is to make the Python interpreter happy with @comptime at runtime
+        # This method is to make the Python interpreter happy
         return other
 
 

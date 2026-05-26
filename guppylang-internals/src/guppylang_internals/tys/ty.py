@@ -421,7 +421,7 @@ class FunctionType(ParametrizedTypeBase):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
 
-    """ Effects declared in source code (i.e. as third argument to Callable).
+    """ Effects declared in source code, i.e. `Callable[...] @ effects(EFFECTS)`.
     None means there was no declaration, which is equivalent to [Effect.ANY]
     except for error reporting. Generally use `effects` instead."""
     declared_effects: list[Effect] | None = field(default=None, init=True)

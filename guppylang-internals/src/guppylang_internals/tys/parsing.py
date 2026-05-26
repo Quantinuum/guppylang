@@ -478,6 +478,8 @@ def type_with_flags_from_ast(
                     raise GuppyError(InvalidFlagError(node.right))
                 effects: list[Effect] = []
                 for e in fx.args:
+                    # We might want to support ast.Attribute with LHS "Effects"
+                    # and look at RHS
                     if not isinstance(e, ast.Name):
                         raise GuppyError(InvalidFlagError(node.right))
                     try:

@@ -1355,9 +1355,8 @@ def synthesize_call(
     inst = check_all_solved(subst, free_vars, func_ty, node)
 
     # Finally, check that the instantiation respects the linearity requirements
+    # and the effects allowed in the context.
     check_inst(func_ty, inst, node)
-
-    # Check effects last so we can avoid using them to resolve overloading
     _check_effects(func_ty, ctx, node)
 
     return args, unquantified.output.substitute(subst), inst
@@ -1444,9 +1443,8 @@ def check_call(
     subst = {v: t for v, t in subst.items() if v in ty.unsolved_vars}
 
     # Finally, check that the instantiation respects the linearity requirements
+    # and the effects allowed in the context.
     check_inst(func_ty, inst, node)
-
-    # Check effects last so we can avoid using them to resolve overloading
     _check_effects(func_ty, ctx, node)
 
     return inputs, subst, inst
