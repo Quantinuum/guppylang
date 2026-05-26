@@ -316,9 +316,9 @@ def check_bb(
     # We also check that the variables used in the block was not assigned in a modifier
     # block in a predecessor
     for x, use in bb.vars.used.items():
-        if x in cfg.last_assigned_in_mod[bb] and x in cfg.live_before[bb]:
+        if x in cfg.assigned_in_mod[bb] and x in cfg.live_before[bb]:
             raise GuppyError(
-                _assigned_in_modifier_error(x, use, cfg.last_assigned_in_mod[bb][x])
+                _assigned_in_modifier_error(x, use, cfg.assigned_in_mod[bb][x])
             )
 
     # Finally, we need to compute the signature of the basic block
@@ -354,9 +354,9 @@ def _var_not_defined_error(
                 use_bb.vars.assigned_in_modifier_block[var]
             )
         )
-    elif var in cfg.last_assigned_in_mod[use_bb]:
+    elif var in cfg.assigned_in_mod[use_bb]:
         err.add_sub_diagnostic(
-            VarNotDefinedError.DefinedInModBlock(cfg.last_assigned_in_mod[use_bb][var])
+            VarNotDefinedError.DefinedInModBlock(cfg.assigned_in_mod[use_bb][var])
         )
 
     return err

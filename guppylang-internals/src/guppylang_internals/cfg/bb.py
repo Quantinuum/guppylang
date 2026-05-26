@@ -163,8 +163,8 @@ class VariableVisitor(ast.NodeVisitor):
         match lhs:
             case ast.Name(id=name):
                 self.stats.assigned[name] = node
-                # We remove the variable from `last_assigned_in_modifier_block` only if
-                # it has not been used yet
+                # We remove the variable from `assigned_in_modifier_block` only if it
+                # has not been used yet
                 if name not in self.stats.badly_used_after_modifier_block:
                     self.stats.assigned_in_modifier_block.pop(name, None)
             case ast.Tuple(elts=elts) | ast.List(elts=elts):
