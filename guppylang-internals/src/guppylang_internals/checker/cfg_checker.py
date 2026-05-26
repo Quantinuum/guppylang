@@ -183,7 +183,7 @@ class VarNotDefinedError(Error):
     @dataclass(frozen=True)
     class DefinedInModBlock(Help):
         span_label: ClassVar[str] = (
-            "{var} is defined inside a modifier block, but variable defined in a"
+            "{var} is defined inside a modifier block, but variables defined in a"
             " modifier block are not available outside of it"
         )
         message: ClassVar[str] = ""
