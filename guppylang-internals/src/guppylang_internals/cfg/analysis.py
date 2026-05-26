@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import Generic, TypeVar
 
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.cfg.bb import BB, VariableStats, VId
 
 # Type variable for the lattice domain
@@ -228,3 +229,50 @@ class AssignmentAnalysis(ForwardAnalysis[AssignmentDomain[VId]], Generic[VId]):
         """Runs the analysis and unpacks the definite- and maybe-assignment results."""
         res = self.run(bbs)
         return {bb: res[bb][0] for bb in res}, {bb: res[bb][1] for bb in res}
+
+
+AssignedInModifierDomain = dict[VId, AstNode]
+
+
+class AssignedInModifierAnalysis(
+    ForwardAnalysis[AssignedInModifierDomain[VId]], Generic[VId]
+):
+    """Tracks modifier-block assignments that are visible before each BB."""
+
+    stats: dict[BB, VariableStats[VId]]
+
+    def __init__(
+        self, stats: dict[BB, VariableStats[VId]], include_unreachable: bool = False
+    ) -> None:
+        self.stats = stats
+        self._include_unreachable = include_unreachable
+
+    def initial(self) -> AssignedInModifierDomain[VId]:
+        return {}
+
+    def include_unreachable(self) -> bool:
+        return self._include_unreachable
+
+    def join(self, *ts: AssignedInModifierDomain[VId]) -> AssignedInModifierDomain[VId]:
+        res: AssignedInModifierDomain[VId] = {}
+        for t in ts:
+            for var, node in t.items():
+                res.setdefault(var, node)
+        return res
+
+    def apply_bb(
+        self, val_before: AssignedInModifierDomain[VId], bb: BB
+    ) -> AssignedInModifierDomain[VId]:
+        stats = self.stats[bb]
+        res = {
+            var: node
+            for var, node in val_before.items()
+            if (
+                var not in stats.assigned
+                # or var in stats.badly_used_after_modifier_block
+            )
+        }
+        # If a variable is already assigned in the modifier block, we keep the last new
+        # assignment
+        res.update(stats.last_assigned_in_modifier_block)
+        return res

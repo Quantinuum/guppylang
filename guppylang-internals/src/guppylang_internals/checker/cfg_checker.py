@@ -260,11 +260,11 @@ def check_bb(
                 and x not in globals
                 and x not in generic_args
             ):
-                if x in bb.vars.assigned_in_modifier_block:
+                if x in bb.vars.last_assigned_in_modifier_block:
                     vnd_err = VarNotDefinedError(use, x)
                     vnd_err.add_sub_diagnostic(
                         VarNotDefinedError.DefinedInModBlock(
-                            bb.vars.assigned_in_modifier_block[x]
+                            bb.vars.last_assigned_in_modifier_block[x]
                         )
                     )
                     raise GuppyError(vnd_err)
@@ -310,14 +310,18 @@ def check_bb(
     # inside a modifier block
     if bb.vars.badly_used_after_modifier_block:
         x, use = next(iter(bb.vars.badly_used_after_modifier_block.items()))
-        err = AssignedInModifierError(use, x)
-        err.add_sub_diagnostic(
-            AssignedInModifierError.AssignedHere(
-                bb.vars.assigned_in_modifier_block[x], x
+        raise GuppyError(
+            _assigned_in_modifier_error(
+                x, use, bb.vars.last_assigned_in_modifier_block[x]
             )
         )
-        err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
-        raise GuppyError(err)
+    # We also check that the variables used in the block was not assigned in a modifier
+    # block in a predecessor
+    for x, use in bb.vars.used.items():
+        if x in cfg.last_assigned_in_mod[bb] and x in cfg.live_before[bb]:
+            raise GuppyError(
+                _assigned_in_modifier_error(x, use, cfg.last_assigned_in_mod[bb][x])
+            )
 
     # Finally, we need to compute the signature of the basic block
     outputs = [
@@ -346,13 +350,26 @@ def _var_not_defined_error(
     var: str, cfg: BaseCFG[BB], use_bb: BB
 ) -> VarNotDefinedError:
     err = VarNotDefinedError(use_bb.vars.used[var], var)
-    if var in cfg.assigned_in_mod_before[use_bb]:
+    if var in use_bb.vars.last_assigned_in_modifier_block:
         err.add_sub_diagnostic(
             VarNotDefinedError.DefinedInModBlock(
-                cfg.assigned_in_mod_before[use_bb][var]
+                use_bb.vars.last_assigned_in_modifier_block[var]
             )
         )
+    elif var in cfg.last_assigned_in_mod[use_bb]:
+        err.add_sub_diagnostic(
+            VarNotDefinedError.DefinedInModBlock(cfg.last_assigned_in_mod[use_bb][var])
+        )
 
+    return err
+
+
+def _assigned_in_modifier_error(
+    var: str, use: ast.AST, assignment: ast.AST
+) -> AssignedInModifierError:
+    err = AssignedInModifierError(use, var)
+    err.add_sub_diagnostic(AssignedInModifierError.AssignedHere(assignment, var))
+    err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
     return err
 
 

@@ -37,12 +37,12 @@ class VariableStats(Generic[VId]):
     # created in the BB are not included here.
     used: dict[VId, AstNode] = field(default_factory=dict)
 
-    # Variables that are reassigned inside a modifier block.
-    assigned_in_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
-
     # Variables that are used after being assigned in a modifier block.
     # This is used to return an error later.
     badly_used_after_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
+
+    # Variables whose last assignment in this BB happened inside a modifier block.
+    last_assigned_in_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
 
 
 BBStatement = (
@@ -119,12 +119,10 @@ class VariableVisitor(ast.NodeVisitor):
 
     bb: BB
     stats: VariableStats[str]
-    last_assigned_in_modifier_block: list[str]
 
     def __init__(self, bb: BB):
         self.bb = bb
         self.stats = VariableStats()
-        self.last_assigned_in_modifier_block = []
 
     def _update_used(self, node: ast.AST) -> None:
         """Marks the variables occurring in a statement as used.
@@ -138,7 +136,7 @@ class VariableVisitor(ast.NodeVisitor):
             if x not in self.stats.assigned and x not in self.stats.used:
                 self.stats.used[x] = name
             if (
-                x in self.last_assigned_in_modifier_block
+                x in self.stats.last_assigned_in_modifier_block
                 and x not in self.stats.badly_used_after_modifier_block
             ):
                 self.stats.badly_used_after_modifier_block[x] = name
@@ -165,8 +163,10 @@ class VariableVisitor(ast.NodeVisitor):
         match lhs:
             case ast.Name(id=name):
                 self.stats.assigned[name] = node
-                if name in self.last_assigned_in_modifier_block:
-                    self.last_assigned_in_modifier_block.remove(name)
+                # We remove the variable from `last_assigned_in_modifier_block` only if
+                # it has not been used yet
+                if name not in self.stats.badly_used_after_modifier_block:
+                    self.stats.last_assigned_in_modifier_block.pop(name, None)
             case ast.Tuple(elts=elts) | ast.List(elts=elts):
                 for elt in elts:
                     self._handle_assign_target(elt, node)
@@ -251,17 +251,17 @@ class VariableVisitor(ast.NodeVisitor):
 
         for bb in node.cfg.bbs:
             bb_stat = bb.compute_variable_stats()
-            # We update the `assigned_in_modifier_block` field of the stats for each BB.
+            # We update the `last_assigned_in_modifier_block` field of the stats for
+            # each BB.
             for var, ast_node in (
                 # We union the two dicts in this order to prioritize variables assigned
                 # in the outer modifier block
-                bb_stat.assigned_in_modifier_block | bb_stat.assigned
+                bb_stat.last_assigned_in_modifier_block | bb_stat.assigned
             ).items():
                 # for var, ast_node in (bb_stat.assigned).items():
                 # if already present we keep the first assignment
-                if var not in self.stats.assigned_in_modifier_block:
-                    self.stats.assigned_in_modifier_block[var] = ast_node
-                self.last_assigned_in_modifier_block.append(var)
+                if var not in self.stats.last_assigned_in_modifier_block:
+                    self.stats.last_assigned_in_modifier_block[var] = ast_node
             stats[bb] = bb_stat
 
         live = LivenessAnalysis(stats).run(node.cfg.bbs)
