@@ -1,6 +1,8 @@
+import pytest
+
 from collections.abc import Callable
 
-from guppylang.decorator import guppy
+from guppylang.decorator import guppy, Effect
 from tests.util import compile_guppy
 
 
@@ -174,3 +176,42 @@ def test_y_combinator(validate):
         return Y(fac_)(x)
 
     validate(fac.compile_function())
+
+
+# This should be combined with `test_higher_order_effects2` once we have solved
+# https://github.com/Quantinuum/guppylang/issues/1760
+# but presently exists to show the part of the test that *does* work
+def test_higher_order_effects1(validate):
+    @guppy(max_effects=[Effect.ANY])
+    def impure_func(x: int) -> int:
+        return x + 1
+
+    # Same def as `test_higher_order_effects2`
+    @guppy
+    def higher_order(f: Callable[[int], int], x: int) -> int:
+        return f(x)
+
+    @guppy
+    def main() -> int:
+        return higher_order(impure_func, 5)
+
+    validate(main.compile_function())
+
+
+@pytest.mark.xfail(reason="Pending https://github.com/Quantinuum/guppylang/issues/1760")
+def test_higher_order_effects2(validate):
+    @guppy(max_effects=[])
+    def pure_func(x: int) -> int:
+        return x + 1
+
+    @guppy  # we'd love this to be "as pure as f is", but no way to do that yet.
+    # (Alternatively https://github.com/Quantinuum/guppylang/issues/1752 will allow
+    # explicitly declaring such effect-polymorphism, but that won't parse yet)
+    def higher_order(f: Callable[[int], int], x: int) -> int:
+        return f(x)
+
+    @guppy(max_effects=[])
+    def main() -> int:
+        return higher_order(pure_func, 5)
+
+    validate(main.compile_function())
