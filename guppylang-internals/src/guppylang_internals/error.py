@@ -106,7 +106,11 @@ FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
 def pretty_errors(f: FuncT) -> FuncT:
-    """Decorator to print custom error banners when a `GuppyError` occurs."""
+    """Decorator to print custom error banners when a `GuppyError` occurs.
+
+    This is also the standard boundary for warning collection on top-level engine
+    operations: wrapped calls participate in one `diagnostic_report()` session.
+    """
 
     def hook(
         excty: type[BaseException], err: BaseException, traceback: TracebackType | None
@@ -127,7 +131,9 @@ def pretty_errors(f: FuncT) -> FuncT:
 
     @functools.wraps(f)
     def pretty_errors_wrapped(*args: Any, **kwargs: Any) -> Any:
-        with exception_hook(hook):
+        from guppylang_internals.warning import diagnostic_report
+
+        with diagnostic_report(), exception_hook(hook):
             return f(*args, **kwargs)
 
     return cast("FuncT", pretty_errors_wrapped)

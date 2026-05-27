@@ -1,15 +1,15 @@
-import importlib.util
+import importlib
 import inspect
 import pathlib
 import re
 import sys
 
 import pytest
+from guppylang_internals.decorator import custom_type
+from guppylang_internals.diagnostic import DiagnosticsRenderer, wrap
 from hugr import tys
 from hugr.tys import TypeBound
 
-from guppylang_internals.decorator import custom_type
-from guppylang_internals.diagnostic import DiagnosticsRenderer, wrap
 from tests.util import get_wasm_file
 
 # Regular expression to match the `~~~~~^^^~~~` highlights that are printed in
@@ -40,7 +40,7 @@ def filter_traceback_not_containing(s: str, disallowed_regex: re.Pattern[str]) -
 def run_error_test(file, capsys, snapshot):
     file = pathlib.Path(file)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:  # noqa: PT011
         importlib.import_module(f"tests.error.{file.parent.name}.{file.stem}")
 
     # Remove the importlib frames from the traceback by skipping beginning frames until
