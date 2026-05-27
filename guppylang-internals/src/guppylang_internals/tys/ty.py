@@ -424,7 +424,7 @@ class UnitaryFlags(Flag):
                 UnitaryFlags.Control,
                 UnitaryFlags.Power,
             ]
-            if flag in self
+            if (self & flag) == flag
         )
 
 

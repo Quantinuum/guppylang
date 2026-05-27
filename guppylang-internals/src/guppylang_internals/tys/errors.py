@@ -226,7 +226,7 @@ class UnitaryCallError(Error):
                 UnitaryFlags.Control,
                 UnitaryFlags.Power,
             ]
-            if flag in self.flags
+            if (self.flags & flag) == flag
         )
 
     # Nicola: better function to render the Hint message here
