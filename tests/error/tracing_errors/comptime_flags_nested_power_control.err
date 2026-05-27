@@ -1,9 +1,10 @@
-Error: Control constraint violation (at $FILE:16:12)
+Error: Control and power constraint violation (at $FILE:16:12)
    | 
 14 |     with power(2):
 15 |         with control(ctrl):
 16 |             foo(q)
-   |             ^^^^^^ This function cannot be called in a control context
+   |             ^^^^^^ This function cannot be called in a control and power
+   |                    context
 
 Help: Consider adding the flag `(control=True)` to the decorator of the function
 `foo`

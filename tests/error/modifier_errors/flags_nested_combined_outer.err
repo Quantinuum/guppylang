@@ -1,10 +1,9 @@
-Error: Dagger and control constraint violation (at $FILE:16:12)
+Error: Unitary constraint violation (at $FILE:16:12)
    | 
 14 |     with control(ctrl), dagger:
 15 |         with power(2):
 16 |             foo(q)
-   |             ^^^^^^ This function cannot be called in a dagger and control
-   |                    context
+   |             ^^^^^^ This function cannot be called in a unitary context
 
 Help: Consider adding the flag `(dagger=True, control=True)` to the decorator of
 the function `foo`

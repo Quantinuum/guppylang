@@ -207,35 +207,35 @@ class UnitaryCallError(Error):
             "`{rendered_flags}` context"
         )
 
-    @property
-    def hint_rendering(self) -> str:
-        from guppylang_internals.tys.ty import UnitaryFlags
-
-        # No flags is not expected
-        if self.flags == UnitaryFlags.NoFlags:
-            raise ValueError("Unexpected UnitaryFlags with no flags set")
-
-        # If all flags are set, we can just say "unitary"
-        if self.flags == UnitaryFlags.Unitary:
-            return "unitary=True"
-
-        # Otherwise, we list the individual flags that are set
-        sep = ", "
-        return sep.join(
-            f"{flag.__str__()}=True"
-            for flag in [
-                UnitaryFlags.Dagger,
-                UnitaryFlags.Control,
-                UnitaryFlags.Power,
-            ]
-            if (self.flags & flag) == flag
-        )
-
-    # Nicola: better function to render the Hint message here
     @dataclass(frozen=True)
     class Hint(Help):
         func_name: str
+        missing_flags: "UnitaryFlags"
         message: ClassVar[str] = (
             "Consider adding the flag `({hint_rendering})` to the decorator of "
             "the function `{func_name}`"
         )
+
+        @property
+        def hint_rendering(self) -> str:
+            from guppylang_internals.tys.ty import UnitaryFlags
+
+            # No flags is not expected
+            if self.missing_flags == UnitaryFlags.NoFlags:
+                raise ValueError("Unexpected UnitaryFlags with no flags set")
+
+            # If all flags are set, we can just say "unitary"
+            if self.missing_flags == UnitaryFlags.Unitary:
+                return "unitary=True"
+
+            # Otherwise, we list the individual flags that are set
+            sep = ", "
+            return sep.join(
+                f"{flag.__str__()}=True"
+                for flag in [
+                    UnitaryFlags.Dagger,
+                    UnitaryFlags.Control,
+                    UnitaryFlags.Power,
+                ]
+                if (self.missing_flags & flag) == flag
+            )
