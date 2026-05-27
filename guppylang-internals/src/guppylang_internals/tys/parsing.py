@@ -272,7 +272,6 @@ def _parse_callable_type(
 
     # NICOLA: Here we add the flag on the Callable type
     return FunctionType(inputs, output, unitary_flags=flag)
-    # return FunctionType(inputs, output)
 
 
 def _parse_self_type(args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx) -> Type:
@@ -397,11 +396,6 @@ def type_with_flags_from_ast(
                 flags |= InputFlags.Comptime
                 if not ty.copyable or not ty.droppable:
                     raise GuppyError(LinearComptimeError(node.right, ty))
-            # NICOLA 0: Here we need to add the case for `@unitary`, `@dagger` and `@power` flags...  # noqa: E501
-            case ast.Name(id="unitary") if isinstance(ty, FunctionType):
-                object.__setattr__(
-                    ty, "unitary_flags", ty.unitary_flags | UnitaryFlags.Unitary
-                )
             case _:
                 raise GuppyError(InvalidFlagError(node.right))
         return ty, flags

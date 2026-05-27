@@ -388,8 +388,8 @@ class UnitaryFlags(Flag):
 
         if self == UnitaryFlags.NoFlags:
             return True
-
-        return self in other
+        else:
+            return self in other
 
     def __str__(self) -> str:
         match self:

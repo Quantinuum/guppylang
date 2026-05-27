@@ -241,7 +241,9 @@ unitary_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Unitary")
 powerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Powerable")
 daggerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Daggerable")
 controllable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Controllable")
-pc_able_type_def = CallableTypeDef(DefId.fresh(), None, None, name="PowerControllable")
+powerctrlable_type_def = CallableTypeDef(
+    DefId.fresh(), None, None, name="PowerControllable"
+)
 
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)

@@ -1037,9 +1037,9 @@ def check_type_against(
             return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
 
+    # If we have a function type, we also check that unitary flags match
     if isinstance(act, FunctionType):
         assert isinstance(exp, FunctionType)
-        # we also check that unitary flags match
         check_unitary_flags(exp, act, node)
 
     return node, subst, ()
