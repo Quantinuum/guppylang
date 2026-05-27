@@ -187,9 +187,7 @@ class FlagNotAllowedError(Error):
 @dataclass(frozen=True)
 class UnitaryCallError(Error):
     title: ClassVar[str] = "{capitalized_render_flags} constraint violation"
-    span_label: ClassVar[str] = (
-        "This function cannot be called in a {rendered_flags} context"
-    )
+    span_label: ClassVar[str] = "This function cannot be called in a {flags} context"
     flags: "UnitaryFlags"
 
     @property
@@ -198,7 +196,29 @@ class UnitaryCallError(Error):
 
     @property
     def capitalized_render_flags(self) -> str:
-        return self.rendered_flags.capitalize()
+        return str(self.flags).capitalize()
+
+    @property
+    def hint_rendering(self) -> str:
+        from guppylang_internals.tys.ty import UnitaryFlags
+
+        # No flags is not expected
+        if self.flags == UnitaryFlags.NoFlags:
+            raise ValueError("Unexpected UnitaryFlags with no flags set")
+
+        flags = [
+            flag
+            for flag in [
+                UnitaryFlags.Dagger,
+                UnitaryFlags.Control,
+                UnitaryFlags.Power,
+            ]
+            if (self.flags & flag) == flag
+        ]
+        if len(flags) == 1:
+            return f"{flags[0].__str__()}=True"
+        else:
+            return "unitary=True"
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
@@ -210,32 +230,7 @@ class UnitaryCallError(Error):
     @dataclass(frozen=True)
     class Hint(Help):
         func_name: str
-        missing_flags: "UnitaryFlags"
         message: ClassVar[str] = (
             "Consider adding the flag `({hint_rendering})` to the decorator of "
             "the function `{func_name}`"
         )
-
-        @property
-        def hint_rendering(self) -> str:
-            from guppylang_internals.tys.ty import UnitaryFlags
-
-            # No flags is not expected
-            if self.missing_flags == UnitaryFlags.NoFlags:
-                raise ValueError("Unexpected UnitaryFlags with no flags set")
-
-            # If all flags are set, we can just say "unitary"
-            if self.missing_flags == UnitaryFlags.Unitary:
-                return "unitary=True"
-
-            # Otherwise, we list the individual flags that are set
-            sep = ", "
-            return sep.join(
-                f"{flag.__str__()}=True"
-                for flag in [
-                    UnitaryFlags.Dagger,
-                    UnitaryFlags.Control,
-                    UnitaryFlags.Power,
-                ]
-                if (self.missing_flags & flag) == flag
-            )

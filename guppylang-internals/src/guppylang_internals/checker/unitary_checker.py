@@ -72,7 +72,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
         classic_args = self._check_classical_args(node.args)
         flag_ok = self.flags in ty.unitary_flags
         if not classic_args and not flag_ok:
-            err = UnitaryCallError(node, self.flags)
+            err = UnitaryCallError(node, self.flags & (~ty.unitary_flags))
             if func is not None:
                 from guppylang_internals.definition.custom import CustomFunctionDef
 
@@ -80,11 +80,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
                     # We want the hint only for non-custom functions, since for custom
                     # functions are usually quantum operations, such as gates or
                     # measurement
-                    err.add_sub_diagnostic(
-                        UnitaryCallError.Hint(
-                            None, func.name, self.flags & (~ty.unitary_flags)
-                        )
-                    )
+                    err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
             raise GuppyTypeError(err)
 
         # If we are under any modifier, we cannot allocate qubits
