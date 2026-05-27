@@ -8,7 +8,6 @@ from typing_extensions import Self
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.generic import ExpectedError
 from guppylang_internals.checker.errors.type_errors import (
-    DoesntImplementProtocol,
     TypeMismatchError,
 )
 from guppylang_internals.error import GuppyError, GuppyTypeError
@@ -146,10 +145,6 @@ class TypeParam(ParameterBase):
                             new_prfs = arg.proto_proofs
                             proof, subst = check_protocol(ty, proto, loc)
                             arg = replace(arg, proto_proofs=(proof, *new_prfs))
-                        else:
-                            raise GuppyError(
-                                DoesntImplementProtocol(loc, str(ty), str(proto.def_id))
-                            )
                 return arg, subst
 
     def to_existential(self) -> tuple[Argument, ExistentialVar]:

@@ -339,8 +339,6 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 assert isinstance(func_ty, FunctionType)
                 raise RequiresMonomorphizationError
 
-            raise GuppyError(NotCallableError(node.func, ty))
-
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
             node.args = [*node.func.args, *node.args]
@@ -923,8 +921,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(ty, FunctionType)
                 raise RequiresMonomorphizationError
-
-            raise GuppyError(NotCallableError(node.func, ty))
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
