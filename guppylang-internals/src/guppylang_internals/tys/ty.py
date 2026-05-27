@@ -383,8 +383,8 @@ class UnitaryFlags(Flag):
     Unitary = Control | Dagger | Power
 
     def is_weaker_than(self, other: "UnitaryFlags") -> bool:
-        """Whether this flag is weaker than the other,
-        i.e. whether this flag allows more contexts than the other."""
+        """Whether this flag is weaker than `other`,
+        i.e. whether this flag allows more contexts than `other`."""
 
         if self == UnitaryFlags.NoFlags:
             return True
@@ -416,7 +416,7 @@ class UnitaryFlags(Flag):
             return fmt("unitary")
 
         # Otherwise, we list the individual flags that are set
-        sep = " & "
+        sep = " and "
         return sep.join(
             fmt(flag.__str__())
             for flag in [

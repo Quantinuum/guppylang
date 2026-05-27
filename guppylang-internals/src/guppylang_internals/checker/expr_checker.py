@@ -1065,7 +1065,6 @@ def try_coerce_to(
     return None
 
 
-# NICOLA: We need to make this check finer
 def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
     if not exp.unitary_flags.is_weaker_than(act.unitary_flags):
         raise GuppyTypeError(

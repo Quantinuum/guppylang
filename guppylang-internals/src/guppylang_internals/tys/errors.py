@@ -187,7 +187,9 @@ class FlagNotAllowedError(Error):
 @dataclass(frozen=True)
 class UnitaryCallError(Error):
     title: ClassVar[str] = "{capitalized_render_flags} constraint violation"
-    span_label: ClassVar[str] = "This function cannot be called in a {flags} context"
+    span_label: ClassVar[str] = (
+        "This function cannot be called in a {rendered_flags} context"
+    )
     flags: "UnitaryFlags"
 
     @property

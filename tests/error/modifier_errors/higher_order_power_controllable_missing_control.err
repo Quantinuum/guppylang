@@ -3,7 +3,7 @@ Error: Unitary flag mismatch (at $FILE:17:24)
 15 | @guppy
 16 | def test(q: qubit) -> None:
 17 |     apply_power_control(power_only, q)
-   |                         ^^^^^^^^^^ Expected function with unitary flags: `control` & `power`,
+   |                         ^^^^^^^^^^ Expected function with unitary flags: `control` and `power`,
    |                                    got: `power`
 
 Guppy compilation failed due to 1 previous error

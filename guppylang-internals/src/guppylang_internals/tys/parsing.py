@@ -102,7 +102,6 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
         arg_nodes = (
             node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
         )
-        # NICOLA: Here we parse the CallableDef or similar this comes from `_try_parse_defn`  # noqa: E501
         return _arg_from_instantiated_defn(defn, arg_nodes, node, ctx)
 
     # We allow tuple types to be written as `(int, bool)`
@@ -253,7 +252,6 @@ def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
         return stmt.value
 
 
-# NICOLA Possible breaking change: added a field
 def _parse_callable_type(
     args: list[ast.expr],
     loc: AstNode,
@@ -270,7 +268,6 @@ def _parse_callable_type(
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
     output = type_from_ast(output, ctx)
 
-    # NICOLA: Here we add the flag on the Callable type
     return FunctionType(inputs, output, unitary_flags=flag)
 
 
