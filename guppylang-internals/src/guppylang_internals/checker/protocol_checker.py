@@ -1,5 +1,5 @@
 from abc import ABC
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TypeAlias
 
@@ -17,18 +17,16 @@ from guppylang_internals.definition.protocol import CheckedProtocolDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.const import BoundConstVar, ExistentialConstVar
+from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.subst import Inst, Subst, Substituter
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
-    ExistentialTypeVar,
     FunctionType,
     Type,
     unify,
     unify_type_args,
 )
-from guppylang_internals.tys.var import ExistentialVar
 
 
 @dataclass(frozen=True)
@@ -60,20 +58,6 @@ class AssumptionImplProof(ImplProofBase):
 
 
 ImplProof: TypeAlias = ConcreteImplProof | AssumptionImplProof
-
-
-def _unify_args(
-    xs: Sequence[ExistentialVar], ys: Sequence[Argument], subst: Subst | None
-) -> Subst | None:
-    for x, y in zip(xs, ys, strict=True):
-        match x, y:
-            case ExistentialTypeVar(), TypeArg(ty=ty):
-                subst = unify(x, ty, subst)
-            case ExistentialConstVar(), ConstArg(const=const):
-                subst = unify(x, const, subst)
-            case _:
-                return None  # Kind mismatch
-    return subst
 
 
 def _instantiate_self(
