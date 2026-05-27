@@ -54,25 +54,6 @@ class CallableTypeDef(TypeDef, CompiledDef):
         raise InternalGuppyError("Tried to `Callable` type via `check_instantiate`")
 
 
-# NICOLA: Temporary definition here, see what is better with the final syntax
-# @dataclass(frozen=True)
-# class UnitaryCallableTypeDef(TypeDef, CompiledDef):
-#     """Type definition associated with the builtin `UnitaryCallable` type.
-
-#     Any impls on unitary callables can be registered with this definition.
-#     """
-
-#     name: Literal["UnitaryCallable"] = field(default="UnitaryCallable", init=False)
-
-#     def check_instantiate(
-#         self, args: Sequence[Argument], loc: AstNode | None = None
-#     ) -> FunctionType:
-#         # UnitaryCallable types are constructed using special logic in the type parser
-#         raise InternalGuppyError(
-#             "Tried to `UnitaryCallable` type via `check_instantiate`"
-#         )
-
-
 @dataclass(frozen=True)
 class SelfTypeDef(TypeDef, CompiledDef):
     """Type definition associated with the `Self` type on methods.
@@ -235,8 +216,6 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 
 callable_type_def = CallableTypeDef(DefId.fresh(), None, None)
-
-# NICOLA: Temporary definition here, see what is better with the final syntax
 unitary_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Unitary")
 powerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Powerable")
 daggerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Daggerable")
@@ -244,7 +223,6 @@ controllable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Control
 powerctrlable_type_def = CallableTypeDef(
     DefId.fresh(), None, None, name="PowerControllable"
 )
-
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)
 none_type_def = _NoneTypeDef(DefId.fresh(), None, [])

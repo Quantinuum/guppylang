@@ -1,6 +1,16 @@
 from guppylang.decorator import guppy
 from guppylang.std.array import array
-from guppylang.std.builtins import control, dagger, owned, power
+
+from guppylang.std.builtins import (
+    Controllable,
+    Daggerable,
+    PowerControllable,
+    Unitary,
+    control,
+    dagger,
+    owned,
+    power,
+)
 from guppylang.std.num import nat
 from guppylang.std.quantum import angle, cx, discard, h, qubit, rx, discard_array
 
@@ -299,6 +309,67 @@ def test_nested_triple_all_flags(validate):
                     foo(q)
 
     validate(bar.compile_function())
+
+
+def test_higher_order_daggerable_callable(validate):
+    """Higher-order arguments can require dagger support."""
+
+    @guppy(dagger=True)
+    def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main(q: qubit) -> None:
+        with dagger:
+            apply_dagger(h, q)
+
+    validate(main.compile_function())
+
+
+def test_higher_order_control_controllable_callable(validate):
+    """Higher-order arguments can require control support."""
+
+    @guppy(control=True)
+    def apply_control(f: Controllable[[qubit], None], ctrl: qubit, q: qubit) -> None:
+        with control(ctrl):
+            f(q)
+
+    @guppy
+    def main(ctrl: qubit, q: qubit) -> None:
+        apply_control(h, ctrl, q)
+
+    validate(main.compile_function())
+
+
+def test_higher_order_unitary_callable(validate):
+    """A unitary higher-order argument can be used in a combined modifier context."""
+
+    @guppy(unitary=True)
+    def apply_unitary(f: Unitary[[qubit], None], ctrl: qubit, q: qubit) -> None:
+        with dagger:
+            with control(ctrl):
+                with power(2):
+                    f(q)
+
+    validate(apply_unitary.compile_function())
+
+
+def test_higher_order_power_controllable_callable(validate):
+    """Higher-order arguments can require exactly the power+control capabilities."""
+
+    @guppy(power=True, control=True)
+    def apply_power_control(
+        f: PowerControllable[[qubit], None], ctrl: qubit, q: qubit
+    ) -> None:
+        with power(2):
+            with control(ctrl):
+                f(q)
+
+    @guppy
+    def main(ctrl: qubit, q: qubit) -> None:
+        apply_power_control(h, ctrl, q)
+
+    validate(main.compile_function())
 
 
 def test_nested_same_modifier(validate):
