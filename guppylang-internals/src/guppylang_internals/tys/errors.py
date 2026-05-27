@@ -224,7 +224,7 @@ class UnitaryCallError(Error):
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
             "The function allocates qubits, which is not allowed in a "
-            "`{rendered_flags}` context"
+            "{rendered_flags} context"
         )
 
     @dataclass(frozen=True)
