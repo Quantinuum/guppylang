@@ -2,7 +2,7 @@ import ast
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
@@ -27,7 +27,7 @@ from guppylang_internals.definition.util import (
     RedundantParamsError,
     parse_py_class,
 )
-from guppylang_internals.diagnostic import Help
+from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.span import SourceMap, Span, to_span
@@ -35,9 +35,6 @@ from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.ty import FunctionType
-
-if TYPE_CHECKING:
-    from guppylang_internals.diagnostic import Error
 
 if sys.version_info >= (3, 12):
     from guppylang_internals.tys.parsing import parse_parameter
@@ -53,6 +50,14 @@ class ProtocolDef(Definition):
 @dataclass(frozen=True)
 class EmptyBodyHint(Help):
     message: ClassVar[str] = "The body of protocol function definitions must be empty"
+
+
+@dataclass(frozen=True)
+class MethodNotRequire(Error):
+    title: ClassVar[str] = "Unrecognised protocol method"
+    span_label: ClassVar[str] = (
+        "Protocol methods must be annotated with `@guppy.require`"
+    )
 
 
 @dataclass(frozen=True)
@@ -182,5 +187,6 @@ class CheckedProtocolDef(ProtocolDef, CompiledDef):
 
     def member_sig(self, name: str) -> FunctionType:
         def_ = ENGINE.get_parsed(self.member_defs[name])
-        assert isinstance(def_, ParsedFunctionDecl)
+        if not isinstance(def_, ParsedFunctionDecl):
+            raise GuppyError(MethodNotRequire(def_.defined_at))
         return def_.ty

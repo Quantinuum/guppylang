@@ -1,0 +1,8 @@
+Error: Unrecognised protocol method (at $FILE:6:4)
+  | 
+4 | class Foo:
+5 |     @guppy
+6 |     def foo(self: "Foo") -> None: ...
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Protocol methods must be annotated with `@guppy.require`
+
+Guppy compilation failed due to 1 previous error
