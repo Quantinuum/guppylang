@@ -3,7 +3,7 @@ from guppylang import guppy
 @guppy.protocol
 class AdderProto[T]:
     @guppy.require
-    def add[T](x: T, y: T) -> T: ...
+    def add(x: T, y: T) -> T: ...
 
 @guppy.struct
 class AdderInt:
