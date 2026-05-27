@@ -405,6 +405,9 @@ class UnitaryFlags(Flag):
                 return "unitary"
 
     def _render_flags(self, backtick: bool) -> str:
+        """Renders the flags as a string.
+        If there are two flags, we print them separated by 'and'."""
+
         def fmt(s: str) -> str:
             return f"`{s}`" if backtick else s
 
@@ -416,15 +419,16 @@ class UnitaryFlags(Flag):
             return fmt("unitary")
 
         # Otherwise, we list the individual flags that are set
+        individual_flags: list[UnitaryFlags] = [
+            UnitaryFlags.Dagger,
+            UnitaryFlags.Control,
+            UnitaryFlags.Power,
+        ]
         sep = " and "
         return sep.join(
             fmt(flag.__str__())
-            for flag in [
-                UnitaryFlags.Dagger,
-                UnitaryFlags.Control,
-                UnitaryFlags.Power,
-            ]
-            if (self & flag) == flag
+            for flag in individual_flags
+            if (self.value & flag.value) == flag.value
         )
 
 

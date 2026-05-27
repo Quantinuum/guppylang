@@ -200,20 +200,23 @@ class UnitaryCallError(Error):
 
     @property
     def hint_rendering(self) -> str:
+        """We check which flag are we missing. If we miss more than one, we just say
+        `unitary=True`"""
         from guppylang_internals.tys.ty import UnitaryFlags
 
         # No flags is not expected
         if self.flags == UnitaryFlags.NoFlags:
             raise ValueError("Unexpected UnitaryFlags with no flags set")
 
+        individual_flags: list[UnitaryFlags] = [
+            UnitaryFlags.Dagger,
+            UnitaryFlags.Control,
+            UnitaryFlags.Power,
+        ]
         flags = [
             flag
-            for flag in [
-                UnitaryFlags.Dagger,
-                UnitaryFlags.Control,
-                UnitaryFlags.Power,
-            ]
-            if (self.flags & flag) == flag
+            for flag in individual_flags
+            if (self.flags.value & flag.value) == flag.value
         ]
         if len(flags) == 1:
             return f"{flags[0].__str__()}=True"
