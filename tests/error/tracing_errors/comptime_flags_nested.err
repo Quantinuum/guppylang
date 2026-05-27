@@ -1,9 +1,9 @@
-Error: Dagger and power constraint violation (at $FILE:16:12)
+Error: Dagger constraint violation (at $FILE:16:12)
    | 
 14 |     with dagger:
 15 |         with power(2):
 16 |             foo(q)
-   |             ^^^^^^ This function cannot be called in a dagger and power context
+   |             ^^^^^^ This function cannot be called in a dagger context
 
 Help: Consider adding the flag `(dagger=True)` to the decorator of the function
 `foo`

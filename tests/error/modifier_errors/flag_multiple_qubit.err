@@ -1,10 +1,9 @@
-Error: Control and power constraint violation (at $FILE:11:8)
+Error: Unitary constraint violation (at $FILE:11:8)
    | 
  9 | @guppy(control=True, power=True)
 10 | def test() -> None:
 11 |     p = qubit()
-   |         ^^^^^^^ This function cannot be called in a control and power
-   |                 context
+   |         ^^^^^^^ This function cannot be called in a unitary context
 
 Note: The function allocates qubits, which is not allowed in a `control and
 power` context
