@@ -404,30 +404,27 @@ class UnitaryFlags(Flag):
             case _:  # If we have multiple flags, we represent them as unitary
                 return "unitary"
 
-    def _render_flags(self) -> str:
-        # No flags is not expected
+    def _render_flags(self, backtick: bool) -> str:
+        def fmt(s: str) -> str:
+            return f"`{s}`" if backtick else s
+
         if self == UnitaryFlags.NoFlags:
-            return "`None`"
+            return fmt("None")
 
         # If all flags are set, we can just say "unitary"
         if self == UnitaryFlags.Unitary:
-            return "`unitary`"
+            return fmt("unitary")
 
         # Otherwise, we list the individual flags that are set
-        return (
-            "`"
-            + "` & `".join(
-                [
-                    flag.__str__()
-                    for flag in [
-                        UnitaryFlags.Dagger,
-                        UnitaryFlags.Control,
-                        UnitaryFlags.Power,
-                    ]
-                    if flag in self
-                ]
-            )
-            + "`"
+        sep = " & "
+        return sep.join(
+            fmt(flag.__str__())
+            for flag in [
+                UnitaryFlags.Dagger,
+                UnitaryFlags.Control,
+                UnitaryFlags.Power,
+            ]
+            if flag in self
         )
 
 

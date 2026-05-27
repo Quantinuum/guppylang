@@ -191,19 +191,49 @@ class UnitaryCallError(Error):
     flags: "UnitaryFlags"
 
     @property
+    def rendered_flags(self) -> str:
+        return self.flags._render_flags(False)
+
+    @property
     def capitalized_render_flags(self) -> str:
-        return self.flags.__str__().capitalize()
+        return self.rendered_flags.capitalize()
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
-            "The function allocates qubits, which is not allowed in a {flags} context"
+            "The function allocates qubits, which is not allowed in a "
+            "`{rendered_flags}` context"
         )
 
+    @property
+    def hint_rendering(self) -> str:
+        from guppylang_internals.tys.ty import UnitaryFlags
+
+        # No flags is not expected
+        if self.flags == UnitaryFlags.NoFlags:
+            raise ValueError("Unexpected UnitaryFlags with no flags set")
+
+        # If all flags are set, we can just say "unitary"
+        if self.flags == UnitaryFlags.Unitary:
+            return "unitary=True"
+
+        # Otherwise, we list the individual flags that are set
+        sep = ", "
+        return sep.join(
+            f"{flag.__str__()}=True"
+            for flag in [
+                UnitaryFlags.Dagger,
+                UnitaryFlags.Control,
+                UnitaryFlags.Power,
+            ]
+            if flag in self.flags
+        )
+
+    # Nicola: better function to render the Hint message here
     @dataclass(frozen=True)
     class Hint(Help):
         func_name: str
         message: ClassVar[str] = (
-            "Consider adding the flag `({flags}=True)` to the decorator of "
+            "Consider adding the flag `({hint_rendering})` to the decorator of "
             "the function `{func_name}`"
         )

@@ -52,11 +52,11 @@ class UnitaryFlagMismatchError(Error):
 
     @property
     def rendered_expected(self) -> str:
-        return self.expected._render_flags()
+        return self.expected._render_flags(True)
 
     @property
     def rendered_actual(self) -> str:
-        return self.actual._render_flags()
+        return self.actual._render_flags(True)
 
 
 @dataclass(frozen=True)
