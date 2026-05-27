@@ -54,11 +54,6 @@ class EmptyBodyHint(Help):
 
 
 @dataclass(frozen=True)
-class NoAnnotationHint(Help):
-    message: ClassVar[str] = "Protocol function definitions don't need to be annotated"
-
-
-@dataclass(frozen=True)
 class RawProtocolDef(ProtocolDef, ParsableDef):
     """A raw protocol definition that has not been parsed yet."""
 
