@@ -2,7 +2,9 @@ from collections import deque
 from collections.abc import Iterator
 from typing import Generic, TypeVar
 
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.cfg.analysis import (
+    AssignedInModifierAnalysis,
     AssignmentAnalysis,
     DefAssignmentDomain,
     LivenessAnalysis,
@@ -27,6 +29,7 @@ class BaseCFG(Generic[T]):
     live_before: Result[LivenessDomain[str]]
     ass_before: Result[DefAssignmentDomain[str]]
     maybe_ass_before: Result[MaybeAssignmentDomain[str]]
+    assigned_in_mod: Result[dict[str, AstNode]]
 
     #: Set of variables defined in this CFG
     assigned_somewhere: set[str]
@@ -43,6 +46,7 @@ class BaseCFG(Generic[T]):
         self.live_before = {}
         self.ass_before = {}
         self.maybe_ass_before = {}
+        self.assigned_in_mod = {}
         self.assigned_somewhere = set()
         self.unitary_flags = UnitaryFlags.NoFlags
 
@@ -137,4 +141,8 @@ class CFG(BaseCFG[BB]):
         self.ass_before, self.maybe_ass_before = AssignmentAnalysis(
             stats, def_ass_before, maybe_ass_before, include_unreachable=True
         ).run_unpacked(self.bbs)
+        self.assigned_in_mod = AssignedInModifierAnalysis(
+            stats, include_unreachable=True
+        ).run(self.bbs)
+
         return stats

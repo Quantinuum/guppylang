@@ -2,12 +2,14 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import power
 
 
-# TODO: The error message is confusing.
 @guppy
 def test() -> int:
-    with power(1):
+    x = 3
+    with power(2):
         x = 1
-    return x + 2
+    with power(3):
+        x += 2
+    return x
 
 
 test.compile()

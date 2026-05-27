@@ -1,0 +1,15 @@
+Error: Variable not defined (at $FILE:18:11)
+   | 
+16 | 
+17 |     measure(q)
+18 |     return a
+   |            ^ `a` is not defined
+
+Help:
+   | 
+12 |     with power(3):
+13 |         a = 3
+   |         ----- a is defined inside a modifier block, but variables defined
+   |               in a modifier block are not available outside of it
+
+Guppy compilation failed due to 1 previous error

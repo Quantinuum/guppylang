@@ -298,6 +298,7 @@ class BBLinearityChecker(ast.NodeVisitor):
             self.visit(subscript.getitem_call)
         # For all other places, we record uses of all leaves
         else:
+            # Check each leaf separately so we catch partial moves, e.g. struct fields
             for place in leaf_places(node.place):
                 x = place.id
                 if (prev_use := self.scope.used(x)) and not place.ty.copyable:
@@ -694,7 +695,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         #   body(q1, q2, ...)
         # ```
 
-        # check control
+        # Check control
         for ctrl in node.control:
             for arg in ctrl.ctrl:
                 if isinstance(arg, PlaceNode):
@@ -705,7 +706,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     unnamed_err.add_sub_diagnostic(UnnamedExprNotUsedError.Fix(None))
                     raise GuppyTypeError(unnamed_err)
 
-        # check power
+        # Check power
         for power in node.power:
             if isinstance(power.iter, PlaceNode):
                 self.visit_PlaceNode(
@@ -714,13 +715,13 @@ class BBLinearityChecker(ast.NodeVisitor):
             else:
                 self.visit(power.iter)
 
-        # check captured variables
+        # Check captured variables: we check that the modifier is not using
+        # consumed variables
         for var, use in node.captured.values():
             for place in leaf_places(var):
                 use_kind = (
                     UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
                 )
-
                 x = place.id
                 if (prev_use := self.scope.used(x)) and not place.ty.copyable:
                     used_err = AlreadyUsedError(use, place, use_kind)

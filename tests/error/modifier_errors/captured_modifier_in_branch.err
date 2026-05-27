@@ -1,0 +1,17 @@
+Error: Variable assigned in modifier block (at $FILE:10:8)
+   | 
+ 8 |         if b:
+ 9 |             x = 3
+10 |     c = x + 1
+   |         ^ Cannot use `x` because it was assigned inside a modifier
+   |           block
+
+Note:
+   | 
+ 8 |         if b:
+ 9 |             x = 3
+   |             ----- `x` assigned here
+
+Help: Assignments inside modifier blocks are not reflected outside the block
+
+Guppy compilation failed due to 1 previous error
