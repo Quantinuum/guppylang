@@ -103,7 +103,7 @@ jobs:
           UV_RESOLUTION="$RES" uv lock --no-sources -U
           UV_RESOLUTION="$RES" uv sync --no-sources --no-install-workspace
           # Install the latest published release of guppylang-internals.
-          uv pip install --no-sources guppylang-internals
+          uv pip install --no-sources --prerelease allow guppylang-internals
           # Install the local version of guppylang.
           uv pip install -e guppylang --no-deps
           echo "\nDone! Installed dependencies:"
