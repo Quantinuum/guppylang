@@ -38,7 +38,14 @@ class CallableTypeDef(TypeDef, CompiledDef):
     Any impls on functions can be registered with this definition.
     """
 
-    name: Literal["Callable"] = field(default="Callable", init=False)
+    name: Literal[
+        "Callable",
+        "Unitary",
+        "Powerable",
+        "Daggerable",
+        "Controllable",
+        "PowerControllable",
+    ] = field(default="Callable", kw_only=True)
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -209,6 +216,13 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 
 callable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+unitary_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Unitary")
+powerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Powerable")
+daggerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Daggerable")
+controllable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Controllable")
+powerctrlable_type_def = CallableTypeDef(
+    DefId.fresh(), None, None, name="PowerControllable"
+)
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)
 none_type_def = _NoneTypeDef(DefId.fresh(), None, [])

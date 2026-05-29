@@ -389,6 +389,55 @@ class UnitaryFlags(Flag):
 
     Unitary = Control | Dagger | Power
 
+    def is_weaker_than(self, other: "UnitaryFlags") -> bool:
+        """Whether this flag is weaker than `other`,
+        i.e. whether this flag allows more contexts than `other`."""
+
+        if self == UnitaryFlags.NoFlags:
+            return True
+        else:
+            return self in other
+
+    def __str__(self) -> str:
+        match self:
+            case UnitaryFlags.Dagger:
+                return "dagger"
+            case UnitaryFlags.Control:
+                return "control"
+            case UnitaryFlags.Power:
+                return "power"
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case _:  # If we have multiple flags, we represent them as unitary
+                return "unitary"
+
+    def _render_flags(self, backtick: bool) -> str:
+        """Renders the flags as a string.
+        If there are two flags, we print them separated by 'and'."""
+
+        def fmt(s: str) -> str:
+            return f"`{s}`" if backtick else s
+
+        if self == UnitaryFlags.NoFlags:
+            return fmt("None")
+
+        # If all flags are set, we can just say "unitary"
+        if self == UnitaryFlags.Unitary:
+            return fmt("unitary")
+
+        # Otherwise, we list the individual flags that are set
+        individual_flags: list[UnitaryFlags] = [
+            UnitaryFlags.Dagger,
+            UnitaryFlags.Control,
+            UnitaryFlags.Power,
+        ]
+        sep = " and "
+        return sep.join(
+            fmt(flag.__str__())
+            for flag in individual_flags
+            if (self.value & flag.value) == flag.value
+        )
+
 
 @dataclass(frozen=True)
 class FuncInput:
