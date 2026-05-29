@@ -13,6 +13,7 @@
       "draft": false,
       "prerelease": true,
       "prerelease-type": "alpha",
+      "versioning": "prerelease",
       "draft-pull-request": true,
       "extra-files": [
         {
@@ -29,6 +30,7 @@
       "draft": false,
       "prerelease": true,
       "prerelease-type": "alpha",
+      "versioning": "prerelease",
       "draft-pull-request": true,
       "extra-files": [
         {
