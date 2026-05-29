@@ -165,9 +165,6 @@ def _try_parse_defn(node: AstNode, ctx: TypeParsingCtx) -> Definition | None:
     match node:
         case ast.Name(id=x):
             if x not in ctx.globals:
-                # if self_type := ctx.self_ty:
-                #    if isinstance(self_type, TypeDefn) and self_type.name == x:
-                #        return self_type
                 return None
             defn = ctx.globals[x]
             if isinstance(defn, PythonObject):
