@@ -1,0 +1,17 @@
+Error: Recursive type alias (at $FILE:4:0)
+  | 
+2 | 
+3 | 
+4 | MyAlias = guppy.type_alias("MyAlias")
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type alias `MyAlias` expands to itself
+
+Note:
+  | 
+3 | 
+4 | MyAlias = guppy.type_alias("MyAlias")
+  | ------------------------------------- Alias `MyAlias` is part of this cycle
+
+Help: Type aliases must eventually resolve to a non-alias type. Break the cycle
+by inlining one alias or introducing a struct or enum wrapper.
+
+Guppy compilation failed due to 1 previous error
