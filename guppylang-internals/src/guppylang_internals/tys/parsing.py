@@ -90,7 +90,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
 
     # A single (possibly qualified) identifier
-    if defn := _try_parse_defn(node, ctx.globals):
+    if defn := _try_parse_defn(node, ctx):
         return _arg_from_instantiated_defn(defn, [], node, ctx)
 
     # An identifier referring to a quantified variable
@@ -102,9 +102,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
         raise GuppyError(VarNotDefinedError(node, node.id))
 
     # A parametrised type, e.g. `list[??]`
-    if isinstance(node, ast.Subscript) and (
-        defn := _try_parse_defn(node.value, ctx.globals)
-    ):
+    if isinstance(node, ast.Subscript) and (defn := _try_parse_defn(node.value, ctx)):
         arg_nodes = (
             node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
         )
@@ -158,7 +156,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     raise GuppyError(InvalidTypeArgError(node))
 
 
-def _try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
+def _try_parse_defn(node: AstNode, ctx: TypeParsingCtx) -> Definition | None:
     """Tries to parse a (possibly qualified) name into a global definition."""
     from guppylang.defs import GuppyDefinition
 
@@ -166,16 +164,16 @@ def _try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
 
     match node:
         case ast.Name(id=x):
-            if x not in globals:
+            if x not in ctx.globals:
                 return None
-            defn = globals[x]
+            defn = ctx.globals[x]
             if isinstance(defn, PythonObject):
                 return None
             return defn
         case ast.Attribute(value=ast.Name(id=module_name) as value, attr=x):
-            if module_name not in globals:
+            if module_name not in ctx.globals:
                 raise GuppyError(VarNotDefinedError(value, module_name))
-            match globals[module_name]:
+            match ctx.globals[module_name]:
                 case PythonObject(ModuleType() as module):
                     if x in module.__dict__:
                         val = module.__dict__[x]
@@ -200,7 +198,7 @@ def _arg_from_instantiated_defn(
         # Special case for the `Callable` type
         case CallableTypeDef():
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx))
-            # Special case for the `Callable` type
+        # Special case for the `Self` type
         case SelfTypeDef():
             self_ty = _parse_self_type(arg_nodes, node, ctx)
             return TypeArg(self_ty)
@@ -438,7 +436,7 @@ if sys.version_info >= (3, 12):
         proto_defn = None
         proto_args = []
         if isinstance(bound, ast.Subscript):
-            proto_defn = _try_parse_defn(bound.value, ctx.globals)
+            proto_defn = _try_parse_defn(bound.value, ctx)
             arg_nodes = (
                 bound.slice.elts
                 if isinstance(bound.slice, ast.Tuple)
@@ -446,7 +444,7 @@ if sys.version_info >= (3, 12):
             )
             proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
         else:
-            proto_defn = _try_parse_defn(bound, ctx.globals)
+            proto_defn = _try_parse_defn(bound, ctx)
 
         if isinstance(proto_defn, ParsedProtocolDef):
             inst = proto_defn.check_instantiate(proto_args, bound)

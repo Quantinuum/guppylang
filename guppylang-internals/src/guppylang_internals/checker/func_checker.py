@@ -25,7 +25,7 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
-from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.param import Parameter, TypeParam
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
     check_function_arg,
@@ -415,17 +415,14 @@ def parse_self_arg_proto(
 ) -> FuncInput:
     """Handles parsing of the `self` argument on methods of protocols.
 
-    If a type is provided then it must match the parent type.
+    This argument is special since its type annotation may be omitted. Furthermore, if a
+    type is provided then it must match the parent type.
     """
     from guppylang_internals.checker.protocol_checker import check_protocol
 
     assert self_defn.params is not None
     if arg.annotation is None:
-        raise GuppyError(
-            UnsupportedError(
-                arg, "Inference of type for `self`", True, "protocol methods"
-            )
-        )
+        return handle_implicit_self_arg_proto(arg, self_defn, ctx)
 
     # If the user has provided an annotation for `self`, then we go ahead and parse it.
     # However, in the annotation the user is also allowed to use `Self`, so we have to
@@ -445,11 +442,7 @@ def parse_self_arg_proto(
     # If the user just annotates `self: Self` then we can fall back to the case where
     # no annotation is provided at all
     if user_ty == self_ty_placeholder:
-        raise GuppyError(
-            UnsupportedError(
-                arg.annotation, "`Self` type annotation", True, "protocol methods"
-            )
-        )
+        return handle_implicit_self_arg_proto(arg, self_defn, ctx)
 
     # Annotations like `self: Foo[Self]` are not allowed (would be an infinite type)
     if self_ty_placeholder in user_ty.unsolved_vars:
@@ -476,7 +469,7 @@ def parse_self_arg_proto(
         )
 
 
-def handle_implicit_proto_self_arg(
+def handle_implicit_self_arg_proto(
     arg: ast.arg,
     self_defn: "CheckedProtocolDef",
     ctx: TypeParsingCtx,
@@ -493,6 +486,13 @@ def handle_implicit_proto_self_arg(
     self_args = [param.to_bound() for param in self_defn.params]
     proto_inst = self_defn.check_instantiate(self_args, loc=arg)
     self_arg = BoundTypeVar("self", len(self_args), True, True, (proto_inst,))
+    ctx.param_var_mapping["self"] = TypeParam(
+        idx=0,
+        name="self",
+        must_be_copyable=True,
+        must_be_droppable=True,
+        must_implement=[proto_inst],
+    )
     return FuncInput(self_arg, InputFlags.NoFlags)
 
 

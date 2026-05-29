@@ -9,7 +9,7 @@ def test_def():
     @guppy.protocol
     class MyProto:
         @guppy.require
-        def foo(self: "MyProto") -> "MyProto": ...
+        def foo(self: Self) -> "MyProto": ...
 
         # TODO: Implement Self support for protocols.
         @guppy.require
@@ -44,7 +44,7 @@ def test_use_def_as_type():
     @guppy.protocol
     class MyProto:
         @guppy.require
-        def foo(self: "MyProto") -> "MyProto": ...
+        def foo(self) -> "MyProto": ...
 
     @guppy.declare
     def bar(a: MyProto) -> MyProto: ...
@@ -63,7 +63,7 @@ def test_use_def_as_type_parameterised():
     @guppy.protocol
     class MyProto[T, S]:
         @guppy.require
-        def foo(self: "MyProto[T, S]") -> "MyProto[T, S]": ...
+        def foo(self) -> "MyProto[T, S]": ...
 
     T = guppy.type_var("T")
     S = guppy.type_var("S")
@@ -83,7 +83,7 @@ def test_basic(validate):
     @guppy.protocol
     class MyProto:
         @guppy.require
-        def foo(self: "MyProto", x: int) -> str: ...
+        def foo(self, x: int) -> str: ...
 
     @guppy.struct
     class MyType:
@@ -115,7 +115,7 @@ def test_basic_parameterised_concrete(validate):
     @guppy.protocol
     class MyProto[T, S]:
         @guppy.require
-        def foo(self: "MyProto[T, S]", x: T @ owned) -> S: ...
+        def foo(self: Self, x: T @ owned) -> S: ...
 
     @guppy.struct
     class MyType:
@@ -139,7 +139,7 @@ def test_basic_parameterised_generic(validate):
     @guppy.protocol
     class MyProto[T, S]:
         @guppy.require
-        def foo(self: "MyProto[T, S]", x: T) -> S: ...
+        def foo(self, x: T) -> S: ...
 
     @guppy.struct
     class MyType:
@@ -166,7 +166,7 @@ def test_basic_parameterised_more_generic(validate):
     @guppy.protocol
     class MyProto:
         @guppy.require
-        def foo(self: "MyProto", x: int) -> int: ...
+        def foo(self, x: int) -> int: ...
 
     @guppy.struct
     class MyType[T]:
@@ -189,7 +189,7 @@ def test_assumption(validate):
     @guppy.protocol
     class MyProto:
         @guppy.require
-        def foo(self: "MyProto", x: int) -> str: ...
+        def foo(self, x: int) -> str: ...
 
     @guppy
     def bar(a: MyProto) -> str:
@@ -283,7 +283,7 @@ def test_nested(validate):
     @guppy.protocol
     class AnyId[T]:
         @guppy.require
-        def id(self: "AnyId[T]", t: T) -> T: ...
+        def id(self: Self, t: T) -> T: ...
 
     @guppy.struct
     class Foo:
@@ -382,7 +382,7 @@ def test_run_int(validate, run_int_fn):
     @guppy.protocol
     class Animal:
         @guppy.require
-        def fav_num(self: "Animal") -> nat: ...
+        def fav_num(self: Self) -> nat: ...
 
     @guppy.struct
     class Dog:
