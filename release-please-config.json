@@ -12,7 +12,8 @@
       "package-name": "guppylang",
       "draft": false,
       "prerelease": true,
-      "prerelease-type": "alpha",
+      "prerelease-type": "a",
+      "versioning": "prerelease",
       "draft-pull-request": true,
       "extra-files": [
         {
@@ -28,7 +29,8 @@
       "package-name": "guppylang_internals",
       "draft": false,
       "prerelease": true,
-      "prerelease-type": "alpha",
+      "prerelease-type": "a",
+      "versioning": "prerelease",
       "draft-pull-request": true,
       "extra-files": [
         {
