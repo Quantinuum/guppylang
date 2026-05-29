@@ -77,6 +77,11 @@ class ExperimentalFeatureError(Error):
         self.add_sub_diagnostic(ExperimentalFeatureError.Suggestion(None))
 
 
+def check_partial_functions_enabled(node: expr | None = None) -> None:
+    if not EXPERIMENTAL_FEATURES_ENABLED:
+        raise GuppyError(ExperimentalFeatureError(node, "Partial functions"))
+
+
 def check_function_tensors_enabled(node: expr | None = None) -> None:
     if not EXPERIMENTAL_FEATURES_ENABLED:
         raise GuppyError(ExperimentalFeatureError(node, "Function tensors"))
