@@ -107,6 +107,7 @@ from guppylang_internals.error import (
 from guppylang_internals.experimental import (
     check_function_tensors_enabled,
     check_lists_enabled,
+    check_partial_functions_enabled,
 )
 from guppylang_internals.nodes import (
     ComptimeExpr,
@@ -344,6 +345,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
+            check_partial_functions_enabled(node.func)
             node.args = [*node.func.args, *node.args]
             node.func = node.func.func
             return self.visit_Call(node, ty)
