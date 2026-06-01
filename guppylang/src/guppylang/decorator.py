@@ -337,6 +337,21 @@ class _Guppy:
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
+    def unitary(self, cls: builtins.type[T]) -> builtins.type[T]:
+        """TODO...
+
+        .. code-block:: python
+            from guppylang import guppy
+
+            @guppy.unitary
+            class myUnitary
+        """
+        for name, val in cls.__dict__.items():
+            if name == "__call__":
+                print(f"Found __call__ method: {val}")
+            else:
+                print(f"Found member {name}: {val}")
+
     def require(
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
     ) -> (
