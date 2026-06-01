@@ -1,18 +1,23 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import dagger, power
-from guppylang.std.quantum import qubit
+from guppylang.std.builtins import control, dagger, power
+from guppylang.std.quantum import discard, qubit
 
 
-@guppy.declare(power=True)
-def foo(q: qubit) -> None: ...
 
+@guppy.comptime(control=True, power=True)
+def foo(q: qubit) -> None:
+    pass
 
 @guppy
-def test(q: qubit) -> None:
-    with dagger, dagger:
-        with power(2):
-            with dagger:
-                foo(q)
-
-
-test.compile()
+def main() -> None:
+    q = qubit()
+    c2 = qubit()
+    with dagger():
+        with power(2), dagger:
+            with control(c2), dagger:
+                    foo(q)
+    
+    discard(q)
+    discard(c2)
+                
+main.check()

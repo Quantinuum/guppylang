@@ -824,11 +824,13 @@ class ModifiedBlock(ast.With):
 
     parameters:
     - `cfg`: the CFG of the body of the block
+    - `modifiers`: the modifiers of the block
     - `first_modifier_node`: the AST node of the first modifier, used in error reporting
     - `accumulated_flags`: the UnitaryFlags accumulated from outer modified blocks
     """
 
     cfg: "CFG"
+    modifiers: Modifiers
     first_modifier_node: ast.expr
     accumulated_flags: UnitaryFlags
 
@@ -887,6 +889,7 @@ class CheckedModifiedBlock(ast.With):
     ty: FunctionType
     #: Mapping from names to variables captured in the body.
     captured: Mapping[str, tuple["Variable", AstNode]]
+    modifiers: Modifiers
 
     def __init__(
         self,
