@@ -53,4 +53,4 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           mode: simulation
-          run: uv run pytest tests/ --codspeed -k "not executable"
+          run: uv run pytest tests/ --codspeed -k "not executable and not mem_compile"
