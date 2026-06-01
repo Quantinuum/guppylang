@@ -898,6 +898,13 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
         return unify(var, subst[t], subst)
     if var in t.unsolved_vars:
         return None
+    # Check that `t` implements all protocols required by `var`.
+    if var.implements:
+        from guppylang_internals.checker.protocol_checker import check_protocol
+
+        for proto in var.implements:
+            _, proto_subst = check_protocol(t, proto)
+            subst |= proto_subst
     return {var: t, **subst}
 
 
@@ -939,6 +946,20 @@ def _unify_args(
                 if res is None:
                     return None
                 subst = res
+            case _:
+                return None
+    return subst
+
+
+def unify_type_args(
+    ss: Sequence[Argument], ts: Sequence[Argument], subst: "Subst | None"
+) -> "Subst | None":
+    for s, t in zip(ss, ts, strict=True):
+        match s, t:
+            case TypeArg(), TypeArg():
+                subst = unify(s.ty, t.ty, subst)
+            case ConstArg(), ConstArg():
+                subst = unify(s.const, t.const, subst)
             case _:
                 return None
     return subst

@@ -49,7 +49,6 @@ from guppylang_internals.tys.ty import (
 if TYPE_CHECKING:
     from guppylang_internals.definition.protocol import CheckedProtocolDef
 
-
 if sys.version_info >= (3, 12):
     from guppylang_internals.tys.parsing import parse_parameter
 
@@ -385,7 +384,7 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
         [param.to_existential()[0] for param in self_defn.params]
     )
     self_ty_placeholder = ExistentialTypeVar.fresh(
-        "Self", copyable=self_ty_head.copyable, droppable=self_ty_head.droppable
+        "Self", copyable=True, droppable=True
     )
     assert ctx.self_ty is None
     ctx = replace(ctx, self_ty=self_ty_placeholder)
@@ -416,6 +415,8 @@ def parse_self_arg_proto(
 
     If a type is provided then it must match the parent type.
     """
+    from guppylang_internals.checker.protocol_checker import check_protocol
+
     assert self_defn.params is not None
     if arg.annotation is None:
         raise GuppyError(
@@ -437,7 +438,7 @@ def parse_self_arg_proto(
     )
     assert ctx.self_ty is None
     ctx = replace(ctx, self_ty=self_ty_placeholder)
-    user_ty, _user_flags = type_with_flags_from_ast(arg.annotation, ctx)
+    user_ty, user_flags = type_with_flags_from_ast(arg.annotation, ctx)
 
     # If the user just annotates `self: Self` then we can fall back to the case where
     # no annotation is provided at all
@@ -456,7 +457,10 @@ def parse_self_arg_proto(
         # Check that the annotation matches the parent type. We can do this by unifying
         # with the expected self type where all params are instantiated with unification
         # vars
-        raise GuppyError(UnsupportedError(loc, "Protocol checking", singular=True))
+        _impl_proof, subst = check_protocol(user_ty, self_ty_head, arg)
+        if subst is None:
+            raise GuppyError(InvalidSelfError(arg.annotation, arg.arg, self_ty_head))
+        return check_function_arg(user_ty, user_flags, arg, arg.arg, ctx)
     else:
         # I'm pretty sure the first arg is *not* a protocol
         # This raises future problems for trying to backport protocols to std
@@ -468,6 +472,26 @@ def parse_self_arg_proto(
                 BoundTypeVar("self", 0, True, True, (self_ty_head,)),
             )
         )
+
+
+def handle_implicit_proto_self_arg(
+    arg: ast.arg,
+    self_defn: "CheckedProtocolDef",
+    ctx: TypeParsingCtx,
+    flags: InputFlags = InputFlags.NoFlags,
+) -> FuncInput:
+    # The generic params inherited from the parent type should appear first in the
+    # parameter list, so we have to shift the existing ones
+    for name, param in ctx.param_var_mapping.items():
+        ctx.param_var_mapping[name] = param.with_idx(
+            param.idx + len(self_defn.params) + 1
+        )
+
+    ctx.param_var_mapping.update({param.name: param for param in self_defn.params})
+    self_args = [param.to_bound() for param in self_defn.params]
+    proto_inst = self_defn.check_instantiate(self_args, loc=arg)
+    self_arg = BoundTypeVar("self", len(self_args), True, True, (proto_inst,))
+    return FuncInput(self_arg, InputFlags.NoFlags)
 
 
 def handle_implicit_self_arg(
