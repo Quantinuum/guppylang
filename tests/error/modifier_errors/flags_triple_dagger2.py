@@ -15,7 +15,7 @@ def main() -> None:
     with dagger():
         with power(2), dagger:
             with control(c2), dagger:
-                    foo(q)
+                foo(q)
     
     discard(q)
     discard(c2)

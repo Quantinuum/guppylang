@@ -820,7 +820,7 @@ class Modifiers:
 
 
 class ModifiedBlock(ast.With):
-    """Node representing a unchecked `with` block
+    """Node representing an unchecked `with` block
 
     parameters:
     - `cfg`: the CFG of the body of the block
