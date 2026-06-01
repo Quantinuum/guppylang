@@ -23,6 +23,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.printing import signature_to_str
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
@@ -39,6 +40,7 @@ class OverloadNoMatchError(Error):
     func: str
     arg_tys: list[Type]
     return_ty: Type | None
+    max_effects_from: tuple[list[Effect], AstNode] | None
 
     @property
     def rendered_span_label(self) -> str:
@@ -53,6 +55,10 @@ class OverloadNoMatchError(Error):
                 stem += f"takes arguments {args}"
         if self.return_ty:
             stem += f" and returns `{self.return_ty}`"
+        if self.max_effects_from:
+            effects, _node = self.max_effects_from
+            if Effect.ANY not in effects:
+                stem += f" with effects no more than {effects}"
         return stem
 
 
@@ -147,7 +153,9 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
 
         synth = ExprSynthesizer(ctx)
         arg_tys = [synth.synthesize(arg)[1] for arg in args]
-        err = OverloadNoMatchError(span, self.name, arg_tys, return_ty)
+        err = OverloadNoMatchError(
+            span, self.name, arg_tys, return_ty, ctx.max_effects_from
+        )
         err.add_sub_diagnostic(AvailableOverloadsHint(None, self.name, available_sigs))
         raise GuppyError(err)
 

@@ -19,6 +19,7 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import CallableTypeDef, SelfTypeDef, bool_type
 from guppylang_internals.tys.const import ConstValue
@@ -470,6 +471,22 @@ def type_with_flags_from_ast(
                 flags |= InputFlags.Comptime
                 if not ty.copyable or not ty.droppable:
                     raise GuppyError(LinearComptimeError(node.right, ty))
+            case ast.Call(func=ast.Name(id="effects")) as fx:
+                if not isinstance(ty, FunctionType):
+                    raise GuppyError(InvalidFlagError(node.right))
+                if ty.declared_effects is not None:
+                    raise GuppyError(InvalidFlagError(node.right))
+                effects: list[Effect] = []
+                for e in fx.args:
+                    # We might want to support ast.Attribute with LHS "Effects"
+                    # and look at RHS
+                    if not isinstance(e, ast.Name):
+                        raise GuppyError(InvalidFlagError(node.right))
+                    try:
+                        effects.append(Effect.__from_str__(e.id))
+                    except ValueError:
+                        raise GuppyError(InvalidFlagError(node.right))  # noqa: B904
+                ty = ty.with_effects(effects)
             case _:
                 raise GuppyError(InvalidFlagError(node.right))
         return ty, flags

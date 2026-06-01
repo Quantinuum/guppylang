@@ -1,13 +1,13 @@
 from guppylang.decorator import guppy
 from guppylang.std.builtins import dagger
+from guppylang.std.effects import effects
 from guppylang.std.quantum import qubit, h, discard
 from collections.abc import Callable
 
 
-# The flag is required to be used in dagger context
+# f would need a flag to be used in dagger context, but no way to specify that yet
 @guppy(dagger=True)
-def test_ho(f: Callable[[qubit], None], q: qubit) -> None:
-    # There is no way to use specify flags for f
+def test_ho(f: Callable[[qubit], None] @ effects(), q: qubit) -> None:
     f(q)
 
 

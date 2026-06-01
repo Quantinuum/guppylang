@@ -2,8 +2,17 @@ import ast
 import builtins
 import inspect
 from collections.abc import Callable, Sequence
+from enum import Enum
 from types import FrameType
-from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
+from typing import (
+    Any,
+    NamedTuple,
+    ParamSpec,
+    TypedDict,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.compiler.core import (
@@ -46,6 +55,7 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
+from guppylang_internals.tys import Effect as _Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst
@@ -59,7 +69,7 @@ from hugr import ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.package import ModulePointer
-from typing_extensions import Unpack, dataclass_transform, deprecated
+from typing_extensions import Unpack, assert_never, dataclass_transform, deprecated
 
 from guppylang.defs import (
     GuppyDefinition,
@@ -85,7 +95,18 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
+__all__ = ("Effect", "GuppyKwargs", "custom_guppy_decorator", "guppy")
+
+
+class Effect(Enum):
+    ANY = "ANY"
+
+    def to_internal(self) -> _Effect:
+        match self:
+            case Effect.ANY:
+                return _Effect.ANY
+            case _ as unreachable:
+                assert_never(unreachable)
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -99,6 +120,7 @@ class GuppyKwargs(TypedDict, total=False):
     power: bool
     max_qubits: int
     link_name: str
+    effects: list[Effect]
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -146,6 +168,7 @@ class _Guppy:
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
                 link_name=parsed.link_name,
+                effects=parsed.effects,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -191,6 +214,7 @@ class _Guppy:
                 f,
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
+                effects=parsed.effects,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -455,6 +479,7 @@ class _Guppy:
                 unitary_flags=parsed.flags,
                 link_name=parsed.link_name,
                 metadata=parsed.metadata,
+                effects=parsed.effects,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -825,6 +850,9 @@ def _with_optional_kwargs(
 class ParsedGuppyKwargs(NamedTuple):
     flags: UnitaryFlags
     metadata: FunctionMetadata
+    # The empty list means no effects, whereas None means unspecified - i.e. assume all
+    # effects are possible until we can analyse the call-graph to calculate exactly.
+    effects: list[_Effect] | None
     link_name: str | None
 
 
@@ -848,6 +876,12 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         metadata.set_max_qubits(kwargs.pop("max_qubits"))
 
     link_name = kwargs.pop("link_name", None)
+    max_effects_input = kwargs.pop("effects", None)
+    effects = (
+        None
+        if max_effects_input is None
+        else [effect.to_internal() for effect in max_effects_input]
+    )
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
@@ -857,6 +891,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         flags=flags,
         metadata=metadata,
         link_name=link_name,
+        effects=effects,
     )
 
 

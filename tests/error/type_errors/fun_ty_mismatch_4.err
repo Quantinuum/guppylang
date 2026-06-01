@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:14:11)
+   | 
+12 |         return x
+13 | 
+14 |     return bar
+   |            ^^^ Expected return value of type `nat -> int`, got `nat -> nat`
+
+Guppy compilation failed due to 1 previous error

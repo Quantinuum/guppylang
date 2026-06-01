@@ -59,6 +59,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from types import FrameType
 
+    from guppylang import Effect
+
     from guppylang_internals.tys.arg import Argument
     from guppylang_internals.tys.param import Parameter
     from guppylang_internals.tys.subst import Inst
@@ -88,6 +90,7 @@ def custom_function(
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
     has_var_args: bool = False,
+    effects: list[Effect] | None = None,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
 
@@ -112,6 +115,7 @@ def custom_function(
             signature,
             unitary_flags,
             has_var_args,
+            effects=None if effects is None else [e.to_internal() for e in effects],
         )
         DEF_STORE.register_def(func, get_calling_frame())
         return GuppyFunctionDefinition(func)
@@ -126,6 +130,7 @@ def hugr_op(
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    effects: list[Effect] | None = None,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to annotate function declarations as HUGR ops.
 
@@ -144,6 +149,7 @@ def hugr_op(
         name,
         signature,
         unitary_flags=unitary_flags,
+        effects=effects,
     )
 
 
@@ -344,18 +350,17 @@ def ext_module_decorator(
                         )
 
             # Add a constructor to the class
-            if init_arg:
-                init_fn_ty = FunctionType(
-                    [
-                        FuncInput(
-                            NumericType(NumericType.Kind.Nat),
-                            flags=InputFlags.Owned,
-                        )
-                    ],
-                    ext_module_ty,
-                )
-            else:
-                init_fn_ty = FunctionType([], ext_module_ty)
+            init_fn_ty = FunctionType(
+                [
+                    FuncInput(
+                        NumericType(NumericType.Kind.Nat),
+                        flags=InputFlags.Owned,
+                    )
+                ]
+                if init_arg
+                else [],
+                ext_module_ty,
+            )
 
             call_method = CustomFunctionDef(
                 DefId.fresh(),

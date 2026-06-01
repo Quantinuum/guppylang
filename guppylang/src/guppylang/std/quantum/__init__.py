@@ -26,12 +26,12 @@ class qubit:
     @no_type_check
     def __new__() -> "qubit": ...
 
-    @guppy
+    @guppy  # not pure: this is measure+free
     @no_type_check
     def measure(self: "qubit" @ owned) -> bool:
         return measure(self)
 
-    @guppy
+    @guppy(effects=[])
     @no_type_check
     def project_z(self: "qubit") -> bool:
         return project_z(self)
@@ -49,7 +49,7 @@ def maybe_qubit() -> Option[qubit]:
     if allocation succeeds or `nothing` if it fails."""
 
 
-@hugr_op(quantum_op("H"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("H"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def h(q: qubit) -> None:
     r"""Hadamard gate command
@@ -63,7 +63,7 @@ def h(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CZ"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("CZ"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def cz(control: qubit, target: qubit) -> None:
     r"""Controlled-Z gate command.
@@ -83,7 +83,7 @@ def cz(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CY"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("CY"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def cy(control: qubit, target: qubit) -> None:
     r"""Controlled-Y gate command.
@@ -103,7 +103,7 @@ def cy(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CX"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("CX"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def cx(control: qubit, target: qubit) -> None:
     r"""Controlled-X gate command.
@@ -123,7 +123,7 @@ def cx(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("T"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("T"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def t(q: qubit) -> None:
     r"""T gate.
@@ -138,7 +138,7 @@ def t(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("S"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("S"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def s(q: qubit) -> None:
     r"""S gate.
@@ -153,7 +153,7 @@ def s(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("V"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("V"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def v(q: qubit) -> None:
     r"""V gate.
@@ -168,7 +168,7 @@ def v(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("X"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("X"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def x(q: qubit) -> None:
     r"""X gate.
@@ -183,7 +183,7 @@ def x(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Y"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Y"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def y(q: qubit) -> None:
     r"""Y gate.
@@ -198,7 +198,7 @@ def y(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Z"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Z"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def z(q: qubit) -> None:
     r"""Z gate.
@@ -213,7 +213,7 @@ def z(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Tdg"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Tdg"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def tdg(q: qubit) -> None:
     r"""Tdg gate.
@@ -228,7 +228,7 @@ def tdg(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Sdg"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Sdg"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def sdg(q: qubit) -> None:
     r"""Sdg gate.
@@ -243,7 +243,7 @@ def sdg(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Vdg"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Vdg"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def vdg(q: qubit) -> None:
     r"""Vdg gate.
@@ -258,7 +258,7 @@ def vdg(q: qubit) -> None:
     """
 
 
-@custom_function(RotationCompiler("Rz"), unitary_flags=UnitaryFlags.Unitary)
+@custom_function(RotationCompiler("Rz"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def rz(q: qubit, angle: angle) -> None:
     r"""Rz gate.
@@ -274,7 +274,7 @@ def rz(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("Rx"), unitary_flags=UnitaryFlags.Unitary)
+@custom_function(RotationCompiler("Rx"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def rx(q: qubit, angle: angle) -> None:
     r"""Rx gate.
@@ -289,7 +289,7 @@ def rx(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("Ry"), unitary_flags=UnitaryFlags.Unitary)
+@custom_function(RotationCompiler("Ry"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def ry(q: qubit, angle: angle) -> None:
     r"""Ry gate.
@@ -304,7 +304,9 @@ def ry(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("CRz"), unitary_flags=UnitaryFlags.Unitary)
+@custom_function(
+    RotationCompiler("CRz"), unitary_flags=UnitaryFlags.Unitary, effects=[]
+)
 @no_type_check
 def crz(control: qubit, target: qubit, angle: angle) -> None:
     r"""Controlled-Rz gate command.
@@ -324,7 +326,7 @@ def crz(control: qubit, target: qubit, angle: angle) -> None:
     """
 
 
-@hugr_op(quantum_op("Toffoli"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Toffoli"), unitary_flags=UnitaryFlags.Unitary, effects=[])
 @no_type_check
 def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
     r"""A Toffoli gate command. Also sometimes known as a CCX gate.
@@ -348,7 +350,7 @@ def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
     """
 
 
-@custom_function(InoutMeasureCompiler())
+@custom_function(InoutMeasureCompiler(), effects=[])
 @no_type_check
 def project_z(q: qubit) -> bool:
     """Project a single qubit into the Z-basis (a non-destructive measurement)."""
@@ -366,7 +368,7 @@ def measure(q: qubit @ owned) -> bool:
     """Measure a single qubit destructively."""
 
 
-@hugr_op(quantum_op("Reset"))
+@hugr_op(quantum_op("Reset"), effects=[])
 @no_type_check
 def reset(q: qubit) -> None:
     """Reset a single qubit to the :math:`|0\rangle` state."""
@@ -375,7 +377,7 @@ def reset(q: qubit) -> None:
 N = guppy.nat_var("N")
 
 
-@guppy
+@guppy  # This does N calls to QFree, so it is not pure
 @no_type_check
 def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
     """Measure an array of qubits, returning an array of bools."""
@@ -395,7 +397,7 @@ def discard_array(qubits: array[qubit, N] @ owned) -> None:
 # -------NON-PRIMITIVE-------
 
 
-@guppy
+@guppy(effects=[])
 @no_type_check
 def ch(control: qubit, target: qubit) -> None:
     r"""Controlled-H gate command.

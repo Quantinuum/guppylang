@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.util import CheckedField
@@ -46,6 +47,31 @@ class ConstMismatchError(Error):
 
     expected: Const
     actual: Const
+
+
+@dataclass(frozen=True)
+class TooManyEffectsError(Error):
+    title: ClassVar[str] = "Too many effects"
+    span_label: ClassVar[str] = (
+        "Callee of type `{ty}` has effects {effects_str} that exceed those allowed"
+    )
+    ty: Type
+    effects: list[Effect]
+
+    @property
+    def effects_str(self) -> str:
+        return Effect.format_list(self.effects)
+
+    @dataclass(frozen=True)
+    class MaxFromDecl(Note):
+        span_label: ClassVar[str] = (
+            "Allowed effects `{allowed_effects_str}` declared here"
+        )
+        allowed_effects: list[Effect]
+
+        @property
+        def allowed_effects_str(self) -> str:
+            return Effect.format_list(self.allowed_effects)
 
 
 @dataclass(frozen=True)
