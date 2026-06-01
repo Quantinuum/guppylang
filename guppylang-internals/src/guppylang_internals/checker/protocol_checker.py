@@ -115,7 +115,7 @@ def check_protocol(
         if len(candidates) == 0:
             raise GuppyError(
                 DoesntImplementProtocol(
-                    loc or protocol_def.defined_at, str(ty), protocol_def.name
+                    loc or protocol_def.defined_at, str(ty), str(protocol)
                 )
             )
         elif len(candidates) > 1:

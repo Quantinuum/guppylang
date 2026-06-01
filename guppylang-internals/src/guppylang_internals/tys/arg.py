@@ -52,6 +52,9 @@ class ArgumentBase(ToHugr[ht.TypeArg], Transformable["Argument"], ABC):
     def bound_vars(self) -> set[BoundVar]:
         """The bound type variables contained in this argument."""
 
+    @abstractmethod
+    def __str__(self) -> str: ...
+
 
 @dataclass(frozen=True)
 class TypeArg(ArgumentBase):
@@ -84,6 +87,9 @@ class TypeArg(ArgumentBase):
     def transform(self, transformer: Transformer) -> Argument:
         """Accepts a transformer on this argument."""
         return transformer.transform(self) or TypeArg(self.ty.transform(transformer))
+
+    def __str__(self) -> str:
+        return str(self.ty)
 
 
 @dataclass(frozen=True)
@@ -135,3 +141,6 @@ class ConstArg(ArgumentBase):
         return transformer.transform(self) or ConstArg(
             self.const.transform(transformer)
         )
+
+    def __str__(self) -> str:
+        return str(self.const)
