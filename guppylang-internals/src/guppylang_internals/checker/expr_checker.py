@@ -627,14 +627,14 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             for proto in ty.implements:
                 proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
                 assert isinstance(proto_def, CheckedProtocolDef)
-                for member_name in proto_def.member_defs:
+                for member_name, member_id in proto_def.member_defs.items():
                     member_ty = proto_def.member_sig(member_name)
                     if node.attr == member_name:
                         name_node = with_type(
                             member_ty,
                             with_loc(
                                 node,
-                                GlobalName(id=member_name, def_id=proto.def_id),
+                                GlobalName(id=member_name, def_id=member_id),
                             ),
                         )
                         ty_without_self = FunctionType(
