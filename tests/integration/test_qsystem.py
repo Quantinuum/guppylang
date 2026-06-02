@@ -6,12 +6,11 @@ import guppylang.std.qsystem.sol as sol_mod
 import guppylang.std.qsystem.sol.functional as sol_fn_mod
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle
-from guppylang.std.builtins import array, owned
-from guppylang.std.lang import comptime
 from typing import NamedTuple
 from types import ModuleType
 
 from guppylang.std.qsystem.random import RNG, make_discrete_distribution
+from guppylang.std.qsystem.helios import get_platform_config, HELIOS_CONFIG_KEY
 from guppylang.std.qsystem.utils import get_current_shot
 from guppylang.std.quantum import Measurement, measure_array, qubit, x
 
@@ -447,3 +446,50 @@ def test_lazy_measure_and_reset_array_functional(
 
     validate(test.compile_function())
     run_int_fn(test, 1, num_qubits=NUM_QUBITS, platform=qsys_mod_fn.platform)
+
+
+def test_set_platform_config_defaults(validate):  # type: ignore[no-untyped-def]
+    """set_platform_config sets the expected metadata with default values."""
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+    set_platform_config(package)
+
+    validate(package)
+
+    for module in package.modules:
+        config = module.module_root.metadata[HELIOS_CONFIG_META_KEY]
+        assert config == {
+            "squash_rxys": True,
+            "enable_replay": False,
+            "dd_threshold": 0,
+        }
+
+
+def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
+    """set_platform_config sets the expected metadata with custom values."""
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+    set_platform_config(
+        package,
+        squash_rxys=False,
+        enable_replay=True,
+        dd_threshold=5,
+    )
+
+    validate(package)
+
+    for module in package.modules:
+        config = module.module_root.metadata[HELIOS_CONFIG_META_KEY]
+        assert config == {
+            "squash_rxys": False,
+            "enable_replay": True,
+            "dd_threshold": 5,
+        }
