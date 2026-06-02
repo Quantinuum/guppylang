@@ -41,7 +41,6 @@ from guppylang_internals.tys.ty import (
     FunctionType,
     InputFlags,
     NoneType,
-    Type,
     UnitaryFlags,
     unify,
 )
@@ -102,7 +101,7 @@ class InvalidSelfError(Error):
     title: ClassVar[str] = "Invalid self annotation"
     span_label: ClassVar[str] = "`{self_arg}` must be of type `{self_ty}`"
     self_arg: str
-    self_ty: Type
+    self_ty: str
 
 
 @dataclass(frozen=True)
@@ -403,7 +402,7 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
     # the expected self type where all params are instantiated with unification vars
     subst = unify(user_ty, self_ty_head, {})
     if subst is None:
-        raise GuppyError(InvalidSelfError(arg.annotation, arg.arg, self_ty_head))
+        raise GuppyError(InvalidSelfError(arg.annotation, arg.arg, str(self_ty_head)))
 
     return check_function_arg(user_ty, user_flags, arg, arg.arg, ctx)
 
@@ -459,7 +458,9 @@ def parse_self_arg_proto(
         # vars
         _impl_proof, subst = check_protocol(user_ty, self_ty_head, arg)
         if subst is None:
-            raise GuppyError(InvalidSelfError(arg.annotation, arg.arg, self_ty_head))
+            raise GuppyError(
+                InvalidSelfError(arg.annotation, arg.arg, str(self_ty_head))
+            )
         return check_function_arg(user_ty, user_flags, arg, arg.arg, ctx)
     else:
         # I'm pretty sure the first arg is *not* a protocol
@@ -469,7 +470,7 @@ def parse_self_arg_proto(
             InvalidSelfError(
                 arg.annotation,
                 arg.arg,
-                BoundTypeVar("self", 0, True, True, (self_ty_head,)),
+                str(self_ty_head),
             )
         )
 
