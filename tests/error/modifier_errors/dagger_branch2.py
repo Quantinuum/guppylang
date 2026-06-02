@@ -1,10 +1,10 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import dagger
+from guppylang.std.builtins import dagger, power
 
 
 @guppy
 def test() -> None:
-    with dagger:
+    with dagger, power(2):
         x = 1 if 2 > 46 else 0
 
 

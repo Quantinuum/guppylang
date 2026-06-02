@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.diagnostic import Error, Help, Note
-from guppylang_internals.error import InternalGuppyError
 
 if TYPE_CHECKING:
     from guppylang_internals.tys.ty import UnitaryFlags
@@ -111,11 +110,7 @@ class InvalidUnderDagger(Error):
         def flags(self) -> str:
             from guppylang_internals.tys.ty import UnitaryFlags
 
-            if self.unitary_flags == UnitaryFlags.Dagger:
-                return "dagger=True"
-            elif self.unitary_flags == UnitaryFlags.Unitary:
+            if self.unitary_flags == UnitaryFlags.Unitary:
                 return "unitary=True"
-            else:
-                raise InternalGuppyError(
-                    f"Unexpected unitary flags: {self.unitary_flags}"
-                )
+            assert UnitaryFlags.Dagger in self.unitary_flags
+            return "dagger=True"
