@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:16:11)
+   | 
+14 |     else:
+15 |         t = s
+16 |     return s
+   |            ^ Field `s.x` cannot be returned ...
+
+Note:
+   | 
+14 |     else:
+15 |         t = s
+   |             - ... since variable `s` with non-copyable type `MyStruct` was
+   |               already moved here
+
+Guppy compilation failed due to 1 previous error
