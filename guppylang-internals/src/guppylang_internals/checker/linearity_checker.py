@@ -782,9 +782,13 @@ def leaf_places(place: Place) -> Iterator[Place]:
     while stack:
         place = stack.pop()
         if isinstance(place.ty, StructType):
-            stack += [
-                FieldAccess(place, field, place.defined_at) for field in place.ty.fields
-            ]
+            if place.ty.fields:
+                stack += [
+                    FieldAccess(place, field, place.defined_at)
+                    for field in place.ty.fields
+                ]
+            else:
+                yield place
         elif isinstance(place.ty, TupleType):
             stack += [
                 TupleAccess(place, elem_ty, idx, None)
