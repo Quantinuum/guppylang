@@ -6,7 +6,7 @@ from guppylang.std.quantum import qubit
 
 @guppy(dagger=True)
 def test(x: qubit @owned) -> None:
-    measure(x).read()
+    measure(x)
 
 
 test.compile_function()

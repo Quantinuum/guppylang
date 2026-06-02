@@ -2,7 +2,7 @@ Error: Dagger constraint violation (at $FILE:9:4)
   | 
 7 | @guppy(dagger=True)
 8 | def test(x: qubit @owned) -> None:
-9 |     measure(x).read()
+9 |     measure(x)
   |     ^^^^^^^^^^ This function cannot be called in a dagger context
 
 Help: Consider adding the flag `(dagger=True)` to the decorator of the function

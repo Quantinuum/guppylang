@@ -103,7 +103,7 @@ def test_qalloc_qfree(validate):
         q1 = qubit()
         discard(q1)
         q2 = qubit()
-        measure(q2).read()
+        measure(q2)
 
     compiled = test.compile_function()
     validate(compiled)
