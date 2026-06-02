@@ -101,7 +101,7 @@ class InvalidUnderDagger(Error):
     @dataclass(frozen=True)
     class FunctionHelp(Help):
         message: ClassVar[str] = (
-            "The function {name} is declared with the unitary flag: `{flags}`."
+            "The function `{name}` is declared with the unitary flag: `{flags}`."
             " Thus dagger constraints apply to its body."
         )
         name: str

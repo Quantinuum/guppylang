@@ -31,7 +31,8 @@ def check_invalid_under_dagger(
     stmt_list: list[ast.stmt] = (
         def_node.body
         if isinstance(def_node, ast.FunctionDef)
-        # we want the original AST before the builder desugars it
+        # When analyzing a `ModifiedBlock` we need the original AST before
+        # the builder transforms it
         else def_node.original_ast_body
     )
     for stmt in stmt_list:

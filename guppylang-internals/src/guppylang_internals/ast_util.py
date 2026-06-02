@@ -2,12 +2,15 @@ import ast
 import textwrap
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, cast
 
 if TYPE_CHECKING:
     from guppylang_internals.tys.ty import Type
 
-LoopNodes: TypeAlias = ast.For | ast.While | ast.ListComp | ast.GeneratorExp
+
+LoopNodes = (
+    ast.For | ast.While | ast.ListComp | ast.GeneratorExp | ast.SetComp | ast.DictComp
+)
 
 AstNode = (
     ast.AST
@@ -117,7 +120,7 @@ def loop_in_ast(
     found = find_nodes(
         lambda n: isinstance(
             n,
-            ast.For | ast.While | ast.ListComp | ast.GeneratorExp,
+            LoopNodes,
         ),
         node,
         {ast.FunctionDef},
