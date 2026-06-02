@@ -1061,7 +1061,7 @@ requires-dist = [
     { name = "hugr", specifier = "~=0.16.0" },
     { name = "pytket", specifier = ">=1.34" },
     { name = "tket", specifier = ">=0.13.0" },
-    { name = "tket-exts", git = "https://github.com/Quantinuum/tket2?subdirectory=tket-exts&branch=ss%2Fpush-xxonxqrlptsq" },
+    { name = "tket-exts", git = "https://github.com/Quantinuum/tket2?subdirectory=tket-exts&rev=8800257" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "wasmtime", specifier = ">=38.0,<44.1" },
 ]
@@ -3571,7 +3571,7 @@ wheels = [
 
 [[package]]
 name = "selene-core"
-version = "0.2.9"
+version = "0.2.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hugr" },
@@ -3587,7 +3587,7 @@ dependencies = [
     { name = "ziglang" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4e/a9/a94ad38852346869a9c8da037a92cff867b2fe72e9f512bae561a6bc6d23/selene_core-0.2.9-py3-none-any.whl", hash = "sha256:847c78ea393de43e736adf20c3aa7006ae8f96765299a401abbbda6af9af3128", size = 33096, upload-time = "2026-04-28T12:47:34.292Z" },
+    { url = "https://files.pythonhosted.org/packages/13/33/32906365f8359588d7d05301a2e645563321bf39a11f076ee16f7aa5178a/selene_core-0.2.10-py3-none-any.whl", hash = "sha256:c53857781c25ce95e170dcf83044ba152e68d799a3585f4874281b306a24899c", size = 33014, upload-time = "2026-05-22T10:07:21.106Z" },
 ]
 
 [[package]]
@@ -3604,7 +3604,7 @@ wheels = [
 
 [[package]]
 name = "selene-sim"
-version = "0.2.15"
+version = "0.2.16"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -3615,11 +3615,11 @@ dependencies = [
     { name = "tqdm" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/05/76931c2c757b9a4ac44a75c3b8b1e50209dd94716dad8bc91f8a0023c344/selene_sim-0.2.15-py3-none-macosx_11_0_arm64.whl", hash = "sha256:44f301aeb84de22ab4c0d4a2fc0bfa42a035ae66bc2ba3acbcd6f8c67b0a1284", size = 4055479, upload-time = "2026-04-28T13:13:59.353Z" },
-    { url = "https://files.pythonhosted.org/packages/40/1c/90d029fe76a22fbd4462039b6dc35b6574d86775d4cf5fd27da760185d73/selene_sim-0.2.15-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:7d5f67ac8c19b3422e653d697eace0c9599b28b82ea1bdc35cc1c3e09f14145b", size = 4212319, upload-time = "2026-04-28T13:14:00.688Z" },
-    { url = "https://files.pythonhosted.org/packages/80/1e/87d3e225f32b05da5813bfe1ff8bf6c70f60c60919044ec48cae9c6ce625/selene_sim-0.2.15-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:2667b07b0d826b770e6381f7d78eda7559487f38e04abe37c5f343b7dbb2703b", size = 4498690, upload-time = "2026-04-28T13:14:02.208Z" },
-    { url = "https://files.pythonhosted.org/packages/ec/08/25d10f9c2c410b2d17cb2eb1c63bfe5dc84282e71081cd8e9e2b69db969d/selene_sim-0.2.15-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:aaf5dbee4c988d02f42b18fe3208aaec020743c17faf103e3e749b5459e5d059", size = 4672594, upload-time = "2026-04-28T13:14:03.59Z" },
-    { url = "https://files.pythonhosted.org/packages/a8/ed/db54b8a8a23533754d2b4fd7befa38097f82c38e532a6b2dc529db3a7cb6/selene_sim-0.2.15-py3-none-win_amd64.whl", hash = "sha256:564e2ab77eebe4e193fdc373c31f24c650302a00877f3735dc1f5d97718e88eb", size = 9602115, upload-time = "2026-04-28T13:14:05.331Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/6b/bf8f5775c0d0d56c712955ea591d61c467730a88c9de7694d011adf52dcd/selene_sim-0.2.16-py3-none-macosx_11_0_arm64.whl", hash = "sha256:6f2dd9b201641236381ddc0e2b6a630a994d154026bd9db7da6bec8fc2caf428", size = 4838048, upload-time = "2026-05-22T10:29:55.79Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/0e/48a157a1c2f05e783be6725ae22c49b76b5b614e756a7b0016377f128172/selene_sim-0.2.16-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:abed123cb9b38f402b5d90b4163089fbbdb082edbd7a0411937648700986d569", size = 5043163, upload-time = "2026-05-22T10:29:58.46Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/4e/ad52baec846567b0b106e1a0024eaff9fd625c4c7fa0695bd9f73b79d300/selene_sim-0.2.16-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:cfad4682d1dc9d468fb3d8d238ce1be28a3a65b0758a8bf21d40e15e9dc10e24", size = 4886685, upload-time = "2026-05-22T10:29:59.877Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/fd/f63cb665ea020aebe09e750ae24302285e25bfdba9e354c36064c7064489/selene_sim-0.2.16-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:27afd571454c478b6cfe4b80c4f4092e1047d61cab393e88700b2b5346ea0d93", size = 5065403, upload-time = "2026-05-22T10:30:01.61Z" },
+    { url = "https://files.pythonhosted.org/packages/65/f0/b57d7191763ed941d9945d7c26457f7e0facf2791096965e1d5d80fce6b3/selene_sim-0.2.16-py3-none-win_amd64.whl", hash = "sha256:45c4bc668557e7d44e7cac10a4f852eec2471cd29c8dd8e9ad03f9cb7d1914d3", size = 10408993, upload-time = "2026-05-22T10:30:03.804Z" },
 ]
 
 [[package]]
@@ -3905,7 +3905,7 @@ wheels = [
 [[package]]
 name = "tket-exts"
 version = "0.12.3"
-source = { git = "https://github.com/Quantinuum/tket2?subdirectory=tket-exts&branch=ss%2Fpush-xxonxqrlptsq#24f9794f245ab6e68464531bdf7eafcccbffc8dd" }
+source = { git = "https://github.com/Quantinuum/tket2?subdirectory=tket-exts&rev=8800257#88002572d2f5af63233c2c0179c25da477a5a4e4" }
 dependencies = [
     { name = "hugr" },
 ]
