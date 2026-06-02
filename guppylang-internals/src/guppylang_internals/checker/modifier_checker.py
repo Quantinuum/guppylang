@@ -37,8 +37,7 @@ def check_modified_block(
     }
 
     # We do not allow any loop or branching if it is daggered.
-    if modified_block.has_dagger():
-        check_invalid_under_dagger(modified_block)
+    check_invalid_under_dagger(modified_block, modified_block.accumulated_flags)
     # The other checks are done in unitary checking.
     # e.g. call to non-unitary function in a unitary modifier.
 

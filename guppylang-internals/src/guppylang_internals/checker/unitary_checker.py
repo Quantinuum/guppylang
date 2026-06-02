@@ -28,6 +28,9 @@ def check_invalid_under_dagger(
     def_node: ast.FunctionDef | ModifiedBlock, unitary_flags: UnitaryFlags | None = None
 ) -> None:
     """Check that there are no invalid constructs in a daggered CFG."""
+    if UnitaryFlags.Dagger not in unitary_flags:
+        return
+
     stmt_list: list[ast.stmt] = (
         def_node.body
         if isinstance(def_node, ast.FunctionDef)
@@ -36,6 +39,9 @@ def check_invalid_under_dagger(
         else def_node.original_ast_body
     )
     for stmt in stmt_list:
+        # we do not want to recursive check inside nested `with`blocks
+        if isinstance(stmt, ast.With):
+            continue
         loops = loop_in_ast(stmt)
         if len(loops) != 0:
             loop = next(iter(loops))

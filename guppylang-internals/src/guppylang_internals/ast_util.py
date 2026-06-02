@@ -111,9 +111,7 @@ def return_nodes_in_ast(node: Any) -> list[ast.Return]:
     return cast("list[ast.Return]", found)
 
 
-def loop_in_ast(
-    node: Any,
-) -> list[LoopNodes]:
+def loop_in_ast(node: Any) -> list[LoopNodes]:
     """Returns all `For` and `While` nodes occurring in an AST.
     Including comprehensions"""
 
@@ -123,7 +121,7 @@ def loop_in_ast(
             LoopNodes,
         ),
         node,
-        {ast.FunctionDef},
+        {ast.FunctionDef, ast.With},
     )
     return cast(
         "list[LoopNodes]",
@@ -134,7 +132,9 @@ def loop_in_ast(
 def branching_in_ast(node: Any) -> list[ast.If | ast.Match | ast.IfExp]:
     """Returns all `If`, `Match`, and `IfExp` nodes occurring in an AST."""
     found = find_nodes(
-        lambda n: isinstance(n, ast.If | ast.Match | ast.IfExp), node, {ast.FunctionDef}
+        lambda n: isinstance(n, ast.If | ast.Match | ast.IfExp),
+        node,
+        {ast.FunctionDef, ast.With},
     )
     return cast("list[ast.If | ast.Match | ast.IfExp]", found)
 
@@ -144,6 +144,7 @@ def breaks_in_loop(node: Any) -> list[ast.Break]:
 
     Note that breaks in nested loops are excluded.
     """
+
     found = find_nodes(
         lambda n: isinstance(n, ast.Break), node, {ast.For, ast.While, ast.FunctionDef}
     )

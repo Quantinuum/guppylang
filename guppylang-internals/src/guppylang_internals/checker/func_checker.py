@@ -148,8 +148,7 @@ def check_global_func_def(
     returns_none = isinstance(ty.output, NoneType)
     assert all(inp.name is not None for inp in ty.inputs)
 
-    if UnitaryFlags.Dagger in ty.unitary_flags:
-        check_invalid_under_dagger(func_def, ty.unitary_flags)
+    check_invalid_under_dagger(func_def, ty.unitary_flags)
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
     inputs = [
         Variable(cast("str", inp.name), inp.ty, loc, inp.flags, is_func_input=True)
