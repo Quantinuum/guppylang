@@ -160,26 +160,42 @@ class Scope(Locals[PlaceId, Place]):
         assert self.parent_scope is not None
         return self.parent_scope.used(x)
 
-    def use(self, x: PlaceId, node: AstNode, kind: UseKind) -> None:
-        """Records a use of a place.
+    def use_leaf(self, place: Place, node: AstNode, kind: UseKind) -> None:
+        """Records a use of a leaf place.
 
         Works for places in the current scope as well as places in any parent scope.
         """
+        assert not immediate_child_places(place), "Must be a leaf"
+        x = place.id
         if x in self.vars:
             self.used_local[x] = Use(node, kind)
         else:
             assert self.parent_scope is not None
             assert x in self.parent_scope
             self.used_parent[x] = Use(node, kind)
-            self.parent_scope.use(x, node, kind)
+            self.parent_scope.use_leaf(place, node, kind)
 
-    def assign(self, place: Place) -> None:
-        """Records an assignment of a place."""
+    def use(self, place: Place, node: AstNode, kind: UseKind) -> None:
+        """Records a use of a place.
+
+        Works for places in the current scope as well as places in any parent scope.
+        """
+        for leaf in leaf_places(place):
+            self.use_leaf(leaf, node, kind)
+
+    def assign_leaf(self, place: Place) -> None:
+        """Records an assignment of a leaf place."""
         assert place.defined_at is not None
+        assert not immediate_child_places(place), "Must be a leaf"
         x = place.id
         self.vars[x] = place
         if x in self.used_local:
             self.used_local.pop(x)
+
+    def assign(self, place: Place) -> None:
+        """Records an assignment of a place."""
+        for leaf in leaf_places(place):
+            self.assign_leaf(leaf)
 
     def stats(self) -> VariableStats[PlaceId]:
         assigned = {}
@@ -215,8 +231,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         # of this BB
         input_scope = Scope()
         for var in bb.sig.input_row:
-            for place in leaf_places(var):
-                input_scope.assign(place)
+            input_scope.assign(var)
         self.func_name = func_name
         self.func_inputs = func_inputs
         self.globals = globals
@@ -319,7 +334,9 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
-                self.scope.use(x, node, use_kind)
+
+            # Finally, mark the place as used
+            self.scope.use(node.place, node, use_kind)
 
     def visit_Assign(self, node: ast.Assign) -> None:
         self.visit(node.value)
@@ -417,17 +434,15 @@ class BBLinearityChecker(ast.NodeVisitor):
         if subscript := contains_subscript(place):
             if visit_setitem:
                 assert subscript.setitem_call is not None
-                for leaf in leaf_places(subscript.setitem_call.value_var):
-                    self.scope.assign(leaf)
+                self.scope.assign(subscript.setitem_call.value_var)
                 self.visit(subscript.setitem_call.call)
             self._reassign_single_inout_arg(
                 subscript.parent, node, visit_setitem=visit_setitem
             )
         else:
-            for leaf in leaf_places(place):
-                assert not isinstance(leaf, SubscriptAccess)
-                leaf = leaf.replace_defined_at(node)
-                self.scope.assign(leaf)
+            assert not isinstance(place, SubscriptAccess)
+            place = place.replace_defined_at(node)
+            self.scope.assign(place)
 
     def _call_name(self, node: AnyCall | None) -> str | None:
         """Tries to extract the name of a called function from a call AST node."""
@@ -545,8 +560,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     NonCopyableCaptureError.DefinedHere(var.defined_at)
                 )
                 raise GuppyError(err)
-            for place in leaf_places(var):
-                self.scope.use(place.id, use, UseKind.COPY)
+            self.scope.use(var, use, UseKind.COPY)
         self.scope.assign(Variable(node.name, node.ty, node))
 
     def _check_assign_targets(self, targets: list[ast.expr]) -> None:
@@ -579,7 +593,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                             err = PlaceNotUsedError(place.defined_at, place)
                             err.add_sub_diagnostic(PlaceNotUsedError.Fix(None))
                             raise GuppyError(err)
-                    self.scope.assign(tgt_place)
+                self.scope.assign(tgt.place)
 
     def _check_comprehension(
         self, gens: list[DesugaredGenerator], elt: ast.expr
@@ -650,14 +664,10 @@ class BBLinearityChecker(ast.NodeVisitor):
                     # borrow expires.
                     # Also mark this place as implicitly used so we don't complain about
                     # it later.
-                    for leaf in leaf_places(place):
-                        inner_scope.use(
-                            leaf.id, InoutReturnSentinel(leaf), UseKind.RETURN
-                        )
+                    inner_scope.use(place, InoutReturnSentinel(place), UseKind.RETURN)
 
             # Mark the iterator as used since it's carried into the next iteration
-            for leaf in leaf_places(gen.iter.place):
-                self.scope.use(leaf.id, gen.iter, UseKind.CONSUME)
+            self.scope.use(gen.iter.place, gen.iter, UseKind.CONSUME)
 
             # We have to make sure that all linear variables that were introduced in the
             # inner scope have been used
@@ -716,11 +726,10 @@ class BBLinearityChecker(ast.NodeVisitor):
 
         # check captured variables
         for var, use in node.captured.values():
+            use_kind = (
+                UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
+            )
             for place in leaf_places(var):
-                use_kind = (
-                    UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
-                )
-
                 x = place.id
                 if (prev_use := self.scope.used(x)) and not place.ty.copyable:
                     used_err = AlreadyUsedError(use, place, use_kind)
@@ -730,7 +739,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(used_err)
-                self.scope.use(x, node, use_kind)
+            self.scope.use(var, node, use_kind)
 
         # reassign controls
         for ctrl in node.control:
@@ -762,6 +771,20 @@ def leaf_places(place: Place) -> Iterator[Place]:
             ]
         else:
             yield place
+
+
+def immediate_child_places(place: Place) -> list[Place]:
+    """Returns a list of all immediate child projections of the given place."""
+    if isinstance(place.ty, StructType):
+        return [
+            FieldAccess(place, field, place.defined_at) for field in place.ty.fields
+        ]
+    elif isinstance(place.ty, TupleType):
+        return [
+            TupleAccess(place, elem_ty, idx, None)
+            for idx, elem_ty in enumerate(place.ty.element_types)
+        ]
+    return []
 
 
 def is_inout_var(place: Place) -> TypeGuard[Variable]:
@@ -865,8 +888,7 @@ def check_cfg_linearity(
     exit_scope = scopes[cfg.exit_bb]
     for var in cfg.entry_bb.sig.input_row:
         if InputFlags.Inout in var.flags:
-            for leaf in leaf_places(var):
-                exit_scope.use(leaf.id, InoutReturnSentinel(var=var), UseKind.RETURN)
+            exit_scope.use(var, InoutReturnSentinel(var=var), UseKind.RETURN)
 
     # Edge case: If the exit is unreachable, then the function will never terminate, so
     # there is no need to give the borrowed values back to the caller. To ensure that
@@ -906,6 +928,7 @@ def check_cfg_linearity(
             for x, use_bb in live.items():
                 use_scope = scopes[use_bb]
                 place = use_scope[x]
+                use = use_scope.used_parent[x]
                 if not place.ty.copyable and (prev_use := scope.used(x)):
                     use = use_scope.used_parent[x]
                     # Special case if this is a use arising from the implicit returning
