@@ -140,8 +140,7 @@ class TypeParam(ParameterBase):
                     )
 
                     for proto in self.must_implement:
-                        prfs = [prf for prf in arg.proto_proofs if proto == prf.proto]
-                        if len(prfs) == 0:
+                        if all(proto != prf.proto for prf in arg.proto_proofs):
                             new_prfs = arg.proto_proofs
                             proof, subst = check_protocol(ty, proto, loc)
                             arg = replace(arg, proto_proofs=(proof, *new_prfs))
