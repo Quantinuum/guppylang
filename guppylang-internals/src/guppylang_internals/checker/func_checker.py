@@ -383,7 +383,7 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
         [param.to_existential()[0] for param in self_defn.params]
     )
     self_ty_placeholder = ExistentialTypeVar.fresh(
-        "Self", copyable=True, droppable=True
+        "Self", copyable=self_ty_head.copyable, droppable=self_ty_head.droppable
     )
     assert ctx.self_ty is None
     ctx = replace(ctx, self_ty=self_ty_placeholder)
