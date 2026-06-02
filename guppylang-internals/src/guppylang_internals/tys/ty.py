@@ -712,8 +712,8 @@ class StructType(ParametrizedTypeBase):
 
     @cached_property
     def intrinsically_copyable(self) -> bool:
-        """Whether objects of this type can be  implicitly copied."""
-        return all(f.ty.copyable for f in self.fields)
+        """Whether objects of this type can be implicitly copied."""
+        return self.frozen and all(f.ty.copyable for f in self.fields)
 
     @cached_property
     def intrinsically_droppable(self) -> bool:

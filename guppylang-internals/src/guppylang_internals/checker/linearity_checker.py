@@ -40,6 +40,7 @@ from guppylang_internals.checker.errors.linearity import (
     NonCopyableCaptureError,
     NonCopyablePartialApplyError,
     NotOwnedError,
+    ParentAlreadyUsedError,
     PlaceNotUsedError,
     UnnamedExprNotUsedError,
     UnnamedFieldNotUsedError,
@@ -145,20 +146,30 @@ class Scope(Locals[PlaceId, Place]):
     """
 
     parent_scope: "Scope | None"
+
+    #: Tracks all leaf projections of used places that were defined in this scope
     used_local: dict[PlaceId, Use]
+
+    #: Tracks all leaf projections of used places that were defined in a parent scope
     used_parent: dict[PlaceId, Use]
+
+    #: Tracks all projections (not just the leaves) of used places. Includes places
+    #: defined in this or any parent scope
+    used_projections: dict[PlaceId, Use]
 
     def __init__(self, parent: "Scope | None" = None):
         self.used_local = {}
         self.used_parent = {}
+        self.used_projections = {}
         super().__init__({}, parent)
 
     def used(self, x: PlaceId) -> Use | None:
         """Checks whether a place has already been used."""
-        if x in self.vars:
-            return self.used_local.get(x, None)
-        assert self.parent_scope is not None
-        return self.parent_scope.used(x)
+        if x in self.used_projections:
+            return self.used_projections[x]
+        if self.parent_scope:
+            return self.parent_scope.used(x)
+        return None
 
     def use_leaf(self, place: Place, node: AstNode, kind: UseKind) -> None:
         """Records a use of a leaf place.
@@ -182,6 +193,8 @@ class Scope(Locals[PlaceId, Place]):
         """
         for leaf in leaf_places(place):
             self.use_leaf(leaf, node, kind)
+        for proj in projections(place):
+            self.used_projections[proj.id] = Use(node, kind)
 
     def assign_leaf(self, place: Place) -> None:
         """Records an assignment of a leaf place."""
@@ -196,6 +209,8 @@ class Scope(Locals[PlaceId, Place]):
         """Records an assignment of a place."""
         for leaf in leaf_places(place):
             self.assign_leaf(leaf)
+        for proj in projections(place):
+            self.used_projections.pop(proj.id, None)
 
     def stats(self) -> VariableStats[PlaceId]:
         assigned = {}
@@ -334,6 +349,10 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
+
+            # Also check if parents have been moved
+            use = Use(node, use_kind)
+            check_mutable_parent_already_used(node.place, use, self.scope)
 
             # Finally, mark the place as used
             self.scope.use(node.place, node, use_kind)
@@ -689,6 +708,9 @@ class BBLinearityChecker(ast.NodeVisitor):
             elif not place.ty.copyable:
                 raise GuppyTypeError(ComprAlreadyUsedError(use.node, place, use.kind))
 
+            # Also check if parents have been moved
+            check_mutable_parent_already_used(place, use, self.scope)
+
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
         # Linear usage of variables in a with statement
         # ```
@@ -773,6 +795,32 @@ def leaf_places(place: Place) -> Iterator[Place]:
             yield place
 
 
+def parent_places(place: Place, /, include_self: bool = False) -> Iterator[Place]:
+    """Returns an iterator over all parents of the given place, optionally including the
+    given place itself."""
+    if include_self:
+        yield place
+    while not isinstance(place, Variable):
+        yield place.parent
+        place = place.parent
+
+
+def projections(place: Place, /, include_self: bool = True) -> Iterator[Place]:
+    """Returns an iterator over the tree of all possible descendant projections of the
+    given place.
+
+    Includes the given place itself by default.
+    """
+    if include_self:
+        yield place
+    stack = [place]
+    while stack:
+        place = stack.pop()
+        children = immediate_child_places(place)
+        yield from children
+        stack += children
+
+
 def immediate_child_places(place: Place) -> list[Place]:
     """Returns a list of all immediate child projections of the given place."""
     if isinstance(place.ty, StructType):
@@ -855,6 +903,26 @@ def is_simple_literal_subscript(
         return None
 
     return (subscript, literal_idx)
+
+
+def check_mutable_parent_already_used(place: Place, use: Use, scope: Scope) -> None:
+    """Helper function to check uses of mutable projections.
+
+    If the given place is a projection of a mutable place, then we need to check that
+    the parent has not been moved. Note that this is independent of whether the
+    projection itself has an affine type.
+    """
+    for parent in parent_places(place, include_self=True):
+        match parent.ty:
+            case StructType(frozen=False):
+                mutable = True
+            case _:
+                mutable = False
+        if mutable and (prev_use := scope.used(parent.id)):
+            err = ParentAlreadyUsedError(use.node, place, use.kind)
+            sub = ParentAlreadyUsedError.ParentUse(prev_use.node, parent, prev_use.kind)
+            err.add_sub_diagnostic(sub)
+            raise GuppyError(err)
 
 
 def check_cfg_linearity(
@@ -953,6 +1021,9 @@ def check_cfg_linearity(
                     if has_explicit_copy(place.ty):
                         err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
+
+                # Also check if parents have been moved
+                check_mutable_parent_already_used(place, use, scope)
 
         # On the other hand, unused variables that are not droppable *must* be outputted
         for place in scope.values():
