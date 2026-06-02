@@ -231,9 +231,9 @@ class _Guppy:
                 field1: int
                 field2: int
 
-            @guppy
-            def add_fields(self: "MyStruct") -> int:
-                return self.field2 + self.field2
+                @guppy
+                def add_fields(self: "MyStruct") -> int:
+                    return self.field2 + self.field2
 
             # Add optional parameters
             @guppy.struct(link_name="my_struct")
