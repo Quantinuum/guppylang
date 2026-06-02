@@ -382,3 +382,14 @@ class IntOverflowError(Error):
     @property
     def signed_unsigned(self) -> str:
         return "signed" if self.signed else "unsigned"
+
+
+@dataclass(frozen=True)
+class KindMismatch(Error):
+    title: ClassVar[str] = "Kind mismatch"
+    span_label: ClassVar[str] = (
+        "`{arg}` is the wrong kind for param `{param}`. Expected a `{expected}` arg"
+    )
+    arg: str
+    param: str
+    expected: str

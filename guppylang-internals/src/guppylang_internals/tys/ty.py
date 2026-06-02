@@ -20,6 +20,7 @@ from guppylang_internals.tys.common import (
 )
 from guppylang_internals.tys.const import Const, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.param import ConstParam, Parameter
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
@@ -193,6 +194,7 @@ class BoundTypeVar(TypeBase, BoundVar):
 
     copyable: bool
     droppable: bool
+    implements: Sequence[ProtocolInst] = field(default_factory=tuple)
 
     @property
     def bound_vars(self) -> set[BoundVar]:
@@ -236,13 +238,18 @@ class ExistentialTypeVar(ExistentialVar, TypeBase):
 
     copyable: bool
     droppable: bool
+    implements: Sequence[ProtocolInst] = field(default_factory=tuple)
 
     @classmethod
     def fresh(
-        cls, display_name: str, copyable: bool, droppable: bool
+        cls,
+        display_name: str,
+        copyable: bool,
+        droppable: bool,
+        implements: Sequence[ProtocolInst] = (),
     ) -> "ExistentialTypeVar":
         return ExistentialTypeVar(
-            display_name, next(cls._fresh_id), copyable, droppable
+            display_name, next(cls._fresh_id), copyable, droppable, implements
         )
 
     @cached_property
@@ -430,6 +437,13 @@ class UnitaryFlags(Flag):
             for flag in individual_flags
             if (self.value & flag.value) == flag.value
         )
+
+    def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":
+        """Accumulates another set of unitary flags into this one."""
+        result = self | other
+        if self & UnitaryFlags.Dagger and other & UnitaryFlags.Dagger:
+            result &= ~UnitaryFlags.Dagger
+        return result
 
 
 @dataclass(frozen=True)

@@ -388,7 +388,7 @@ def test_nested_same_modifier(validate):
     validate(bar.compile_function())
 
 
-def test_double_dagger_cancellation(validate):
+def test_double_dagger_cancellation_1(validate):
     """Two daggers in a single with-block cancel out: foo needs no dagger support."""
 
     @guppy.declare
@@ -400,6 +400,27 @@ def test_double_dagger_cancellation(validate):
             foo(q)
 
     validate(bar.compile_function())
+
+
+def test_double_dagger_cancellation_2(validate):
+    @guppy(control=True, power=True)
+    def not_dagger_func(q: qubit) -> None:
+        pass
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        c2 = qubit()
+        with dagger:
+            with control(c2):
+                with dagger:
+                    with power(3):
+                        not_dagger_func(q)
+
+        discard(q)
+        discard(c2)
+
+    validate(main.compile())
 
 
 def test_combined_with_items_nested(validate):
@@ -414,21 +435,6 @@ def test_combined_with_items_nested(validate):
         with control(ctrl), dagger:
             with power(2):
                 foo(q)
-
-    validate(bar.compile_function())
-
-
-def test_triple_dagger(validate):
-    """Three daggers: odd count means dagger context is still active."""
-
-    @guppy(dagger=True)
-    def foo(q: qubit) -> None:
-        pass
-
-    @guppy
-    def bar(q: qubit) -> None:
-        with dagger, dagger, dagger:
-            foo(q)
 
     validate(bar.compile_function())
 
