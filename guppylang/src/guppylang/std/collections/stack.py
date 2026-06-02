@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, no_type_check
 
+from typing_extensions import Self
+
 from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.option import Option, nothing, some
@@ -15,7 +17,7 @@ TCopyable = guppy.type_var("TCopyable", copyable=True, droppable=False)
 MAX_SIZE = guppy.nat_var("MAX_SIZE")
 
 
-@guppy.struct
+@guppy.struct(frozen=False)
 class Stack(Generic[T, MAX_SIZE]):  # type: ignore[misc]
     """A last-in-first-out (LIFO) growable collection of values.
 
@@ -37,30 +39,28 @@ class Stack(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
     @guppy
     @no_type_check
-    def __len__(self: Stack[T, MAX_SIZE]) -> int:
+    def __len__(self) -> int:
         """Returns the number of elements currently stored in the stack."""
         return self.end
 
     @guppy
     @no_type_check
-    def __iter__(self: Stack[T, MAX_SIZE] @ owned) -> Stack[T, MAX_SIZE]:
+    def __iter__(self: Self @ owned) -> Self:
         """Returns an iterator over the elements in the stack from top to bottom."""
         return self
 
     @guppy
     @no_type_check
-    def __next__(
-        self: Stack[T, MAX_SIZE] @ owned,
-    ) -> Option[tuple[T, Stack[T, MAX_SIZE]]]:
+    def __next__(self: Self @ owned) -> Option[tuple[T, Self]]:
         if len(self) == 0:
             self.discard_empty()
             return nothing()
-        val, new_stack = self.pop()
-        return some((val, new_stack))
+        val = self.pop()
+        return some((val, self))
 
     @guppy
     @no_type_check
-    def push(self: Stack[T, MAX_SIZE] @ owned, elem: T @ owned) -> Stack[T, MAX_SIZE]:
+    def push(self, elem: T @ owned) -> None:
         """Adds an element to the top of the stack.
 
         Panics if the stack has already reached its maximum size.
@@ -68,11 +68,11 @@ class Stack(Generic[T, MAX_SIZE]):  # type: ignore[misc]
         if self.end >= MAX_SIZE:
             panic("Stack.push: max size reached")
         self.buf[self.end].swap(some(elem)).unwrap_nothing()
-        return Stack(self.buf, self.end + 1)
+        self.end += 1
 
     @guppy
     @no_type_check
-    def pop(self: Stack[T, MAX_SIZE] @ owned) -> tuple[T, Stack[T, MAX_SIZE]]:
+    def pop(self) -> T:
         """
         Removes the top element from the stack and returns it.
 
@@ -81,13 +81,12 @@ class Stack(Generic[T, MAX_SIZE]):  # type: ignore[misc]
         if self.end <= 0:
             panic("Stack.pop: stack is empty")
         elem = self.buf[self.end - 1].take().unwrap()
-        return elem, Stack(self.buf, self.end - 1)
+        self.end -= 1
+        return elem
 
     @guppy
     @no_type_check
-    def peek(
-        self: Stack[TCopyable, MAX_SIZE] @ owned,
-    ) -> tuple[TCopyable, Stack[TCopyable, MAX_SIZE]]:
+    def peek(self: Stack[TCopyable, MAX_SIZE] @ owned) -> TCopyable:
         """Returns a copy of the top element of the stack without removing it.
 
         Panics if the stack is empty.
@@ -97,7 +96,7 @@ class Stack(Generic[T, MAX_SIZE]):  # type: ignore[misc]
         if self.end <= 0:
             panic("Stack.peek: stack is empty")
         elem = self.buf[self.end - 1].unwrap()
-        return elem, Stack(self.buf, self.end)
+        return elem
 
     @guppy
     @no_type_check
