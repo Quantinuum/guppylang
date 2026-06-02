@@ -1,11 +1,9 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import dagger
 
 
 @guppy(dagger=True)
 def test(i: int) -> None:
-    with dagger:
-        while i < 46:
-            pass
+    x = (n**2 for n in [1,2] if n>5 if n<10)
+
 
 test.compile()

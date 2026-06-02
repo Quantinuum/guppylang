@@ -1,6 +1,6 @@
 import ast
 
-from guppylang_internals.ast_util import get_type, loop_in_ast
+from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Place
@@ -14,31 +14,53 @@ from guppylang_internals.nodes import (
     CheckedModifiedBlock,
     GlobalCall,
     LocalCall,
+    ModifiedBlock,
     StateResultExpr,
     TensorCall,
 )
+from guppylang_internals.span import ToSpan
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import FunctionType, UnitaryFlags
 
 
 def check_invalid_under_dagger(
-    fn_def: ast.FunctionDef, unitary_flags: UnitaryFlags
+    def_node: ast.FunctionDef | ModifiedBlock, unitary_flags: UnitaryFlags | None = None
 ) -> None:
-    """Check that there are no invalid constructs in a daggered CFG.
-    This checker checks the case the UnitaryFlags is given by
-    annotation (i.e., not inferred from `with dagger:`).
-    """
-    if UnitaryFlags.Dagger not in unitary_flags:
-        return
-
-    for stmt in fn_def.body:
+    """Check that there are no invalid constructs in a daggered CFG."""
+    stmt_list: list[ast.stmt] = (
+        def_node.body
+        if isinstance(def_node, ast.FunctionDef)
+        # we want the original AST before the builder desugars it
+        else def_node.original_ast_body
+    )
+    for stmt in stmt_list:
         loops = loop_in_ast(stmt)
         if len(loops) != 0:
             loop = next(iter(loops))
-            err = InvalidUnderDagger(loop, "Loop")
-            raise GuppyError(err)
-            # Note: sub-diagnostic for dagger context is not available here
+            _raise_invalid_under_dagger(loop, def_node, "Loop", unitary_flags)
+        branches = branching_in_ast(stmt)
+        if len(branches) != 0:
+            branch = next(iter(branches))
+            _raise_invalid_under_dagger(branch, def_node, "Branch", unitary_flags)
+
+
+def _raise_invalid_under_dagger(
+    span: ToSpan,
+    node: ast.FunctionDef | ModifiedBlock,
+    things: str,
+    unitary_flags: UnitaryFlags | None = None,
+) -> None:
+    err = InvalidUnderDagger(span, things)
+    if isinstance(node, ModifiedBlock):
+        err.add_sub_diagnostic(InvalidUnderDagger.Dagger(node.span_ctxt_manager()))
+    elif isinstance(node, ast.FunctionDef):
+        assert unitary_flags is not None
+        err.add_sub_diagnostic(
+            InvalidUnderDagger.FunctionHelp(None, node.name, unitary_flags)
+        )
+
+    raise GuppyError(err)
 
 
 class BBUnitaryChecker(ast.NodeVisitor):

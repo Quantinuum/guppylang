@@ -2,10 +2,20 @@ import ast
 import textwrap
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias, TypeVar, cast
 
 if TYPE_CHECKING:
+    from guppylang_internals.nodes import DesugaredGeneratorExpr, DesugaredListComp
     from guppylang_internals.tys.ty import Type
+
+    LoopNodes: TypeAlias = (
+        ast.For
+        | ast.While
+        | DesugaredGeneratorExpr
+        | DesugaredListComp
+        | ast.ListComp
+        | ast.GeneratorExp
+    )
 
 AstNode = (
     ast.AST
@@ -106,12 +116,38 @@ def return_nodes_in_ast(node: Any) -> list[ast.Return]:
     return cast("list[ast.Return]", found)
 
 
-def loop_in_ast(node: Any) -> list[ast.For | ast.While]:
-    """Returns all `For` and `While` nodes occurring in an AST."""
+def loop_in_ast(
+    node: Any,
+) -> "list[LoopNodes]":
+    """Returns all `For` and `While` nodes occurring in an AST.
+    Including comprehensions"""
+    from guppylang_internals.nodes import DesugaredGeneratorExpr, DesugaredListComp
+
     found = find_nodes(
-        lambda n: isinstance(n, ast.For | ast.While), node, {ast.FunctionDef}
+        lambda n: isinstance(
+            n,
+            ast.For
+            | ast.While
+            | DesugaredGeneratorExpr
+            | DesugaredListComp
+            | ast.ListComp
+            | ast.GeneratorExp,
+        ),
+        node,
+        {ast.FunctionDef},
     )
-    return cast("list[ast.For | ast.While]", found)
+    return cast(
+        "list[LoopNodes]",
+        found,
+    )
+
+
+def branching_in_ast(node: Any) -> list[ast.If | ast.Match | ast.IfExp]:
+    """Returns all `If`, `Match`, and `IfExp` nodes occurring in an AST."""
+    found = find_nodes(
+        lambda n: isinstance(n, ast.If | ast.Match | ast.IfExp), node, {ast.FunctionDef}
+    )
+    return cast("list[ast.If | ast.Match | ast.IfExp]", found)
 
 
 def breaks_in_loop(node: Any) -> list[ast.Break]:

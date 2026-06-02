@@ -1,7 +1,11 @@
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.error import InternalGuppyError
+
+if TYPE_CHECKING:
+    from guppylang_internals.tys.ty import UnitaryFlags
 
 
 @dataclass(frozen=True)
@@ -93,3 +97,25 @@ class InvalidUnderDagger(Error):
     @dataclass(frozen=True)
     class Dagger(Note):
         span_label: ClassVar[str] = "dagger modifier is used here"
+
+    @dataclass(frozen=True)
+    class FunctionHelp(Help):
+        message: ClassVar[str] = (
+            "The function {name} is declared with the unitary flag: `{flags}`."
+            " Thus dagger constraints apply to its body."
+        )
+        name: str
+        unitary_flags: "UnitaryFlags"
+
+        @property
+        def flags(self) -> str:
+            from guppylang_internals.tys.ty import UnitaryFlags
+
+            if self.unitary_flags == UnitaryFlags.Dagger:
+                return "dagger=True"
+            elif self.unitary_flags == UnitaryFlags.Unitary:
+                return "unitary=True"
+            else:
+                raise InternalGuppyError(
+                    f"Unexpected unitary flags: {self.unitary_flags}"
+                )
