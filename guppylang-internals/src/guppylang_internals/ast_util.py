@@ -5,17 +5,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias, TypeVar, cast
 
 if TYPE_CHECKING:
-    from guppylang_internals.nodes import DesugaredGeneratorExpr, DesugaredListComp
     from guppylang_internals.tys.ty import Type
 
-    LoopNodes: TypeAlias = (
-        ast.For
-        | ast.While
-        | DesugaredGeneratorExpr
-        | DesugaredListComp
-        | ast.ListComp
-        | ast.GeneratorExp
-    )
+LoopNodes: TypeAlias = ast.For | ast.While | ast.ListComp | ast.GeneratorExp
 
 AstNode = (
     ast.AST
@@ -118,20 +110,14 @@ def return_nodes_in_ast(node: Any) -> list[ast.Return]:
 
 def loop_in_ast(
     node: Any,
-) -> "list[LoopNodes]":
+) -> list[LoopNodes]:
     """Returns all `For` and `While` nodes occurring in an AST.
     Including comprehensions"""
-    from guppylang_internals.nodes import DesugaredGeneratorExpr, DesugaredListComp
 
     found = find_nodes(
         lambda n: isinstance(
             n,
-            ast.For
-            | ast.While
-            | DesugaredGeneratorExpr
-            | DesugaredListComp
-            | ast.ListComp
-            | ast.GeneratorExp,
+            ast.For | ast.While | ast.ListComp | ast.GeneratorExp,
         ),
         node,
         {ast.FunctionDef},

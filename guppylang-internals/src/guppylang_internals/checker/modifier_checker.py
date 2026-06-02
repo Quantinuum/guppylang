@@ -36,19 +36,9 @@ def check_modified_block(
         if x in ctx.locals
     }
 
-    # We do not allow any loop if it is daggered.
+    # We do not allow any loop or branching if it is daggered.
     if modified_block.has_dagger():
         check_invalid_under_dagger(modified_block)
-        # for stmt in modified_block.body:
-        #     loops = loop_in_ast(stmt)
-        #     if len(loops) != 0:
-        #         loop = next(iter(loops))
-        #         err = InvalidUnderDagger(loop, "Loop")
-        #         err.add_sub_diagnostic(
-        #             InvalidUnderDagger.Dagger(modified_block.span_ctxt_manager())
-        #         )
-        #         raise GuppyError(err)
-
     # The other checks are done in unitary checking.
     # e.g. call to non-unitary function in a unitary modifier.
 
