@@ -164,7 +164,7 @@ def measure_leaked(q: qubit @ owned) -> "MaybeLeaked":
     return MaybeLeaked(fm)
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 @no_type_check
 class MaybeLeaked:
     """A class representing a measurement that may have leaked.
