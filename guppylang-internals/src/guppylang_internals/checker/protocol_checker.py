@@ -31,6 +31,9 @@ from guppylang_internals.tys.ty import (
 
 @dataclass(frozen=True)
 class ImplProofBase(ABC):
+    """Base class for "ImplProofs" - proofs that the `proto` protocol instantiation is
+    implemented by type `ty`."""
+
     proto: ProtocolInst
     ty: Type
 
@@ -51,6 +54,8 @@ class ConcreteImplProof(ImplProofBase):
 
 @dataclass(frozen=True)
 class AssumptionImplProof(ImplProofBase):
+    #: Proof by assumption. The protocol is a BoundTypeVar that explicitly implements
+    #: the protocol instantiation we're looking for.
     ty: BoundTypeVar
 
     def __post_init__(self) -> None:
@@ -63,8 +68,13 @@ ImplProof: TypeAlias = ConcreteImplProof | AssumptionImplProof
 def _instantiate_self(
     proto_func: FunctionType, proto_inst: ProtocolInst, impl_ty: Type
 ) -> FunctionType:
-    # Invariant: proto_func must have non-zero inputs, and the first input must
-    # be a BoundVar representing the "self" of the protocol method.
+    """Given a generic protocol method signature, `proto_func`, instantiate its
+    variables, by instantiating the first (self) arg to `impl_ty` and the other type
+    vars according the type args in `proto_inst`.
+
+    Invariant: proto_func must have non-zero inputs, and the first input must be a
+    BoundVar representing the "self" of the protocol method.
+    """
     self_ty = proto_func.inputs[0].ty
     assert isinstance(self_ty, BoundTypeVar)
     for proto_bound in self_ty.implements:
@@ -92,7 +102,10 @@ def _instantiate_self(
 def check_protocol(
     ty: Type, protocol: ProtocolInst, loc: AstNode | None = None
 ) -> tuple[ImplProof, Subst]:
-    """Check that `ty` implements `protocol`"""
+    """Check that `ty` implements `protocol`, returning a proof and substitution.
+
+    The returned substitution will contain solutions for all existential variables in
+    `protocol`."""
 
     # Invariant: `ty` and `protocol` might have unsolved variables.
     protocol_def = ENGINE.get_checked(protocol.def_id, protocol.type_args)
