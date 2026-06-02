@@ -481,8 +481,14 @@ def handle_implicit_proto_self_arg(
     ctx: TypeParsingCtx,
     flags: InputFlags = InputFlags.NoFlags,
 ) -> FuncInput:
+    """Handle the case of a protocol method that leaves the protocol type implicit.
+    Add a type parameter to the function which implements the protocol, and the self
+    type is a BoundTypeVar referring to that parameter.
+    """
+
     # The generic params inherited from the parent type should appear first in the
-    # parameter list, so we have to shift the existing ones
+    # parameter list, so we have to shift the existing ones, then shift one more place
+    # to account for the "self" parameter.
     for name, param in ctx.param_var_mapping.items():
         ctx.param_var_mapping[name] = param.with_idx(
             param.idx + len(self_defn.params) + 1
