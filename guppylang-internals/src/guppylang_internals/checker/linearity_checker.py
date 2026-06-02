@@ -314,9 +314,8 @@ class BBLinearityChecker(ast.NodeVisitor):
         # Places involving subscripts are handled differently since we ignore everything
         # after the subscript for the purposes of linearity checking.
         if subscript := contains_subscript(node.place):
-            # We have to check the item type to determine if we can move out of the
-            # subscript.
-            if not is_inout_arg and not subscript.ty.copyable:
+            # We are only allowed to move copyable data out of a subscript
+            if not is_inout_arg and not node.place.ty.copyable:
                 err = MoveOutOfSubscriptError(node, use_kind, subscript.parent)
                 err.add_sub_diagnostic(MoveOutOfSubscriptError.Explanation(None))
                 raise GuppyError(err)
