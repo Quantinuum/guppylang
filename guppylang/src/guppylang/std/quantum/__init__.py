@@ -45,8 +45,8 @@ class qubit:
 
 @custom_type(
     ht.ExtType(MEASUREMENT_EXTENSION.get_type("Measurement")),
-    copyable=False,
-    droppable=False,
+    copyable=True,
+    droppable=True,
 )
 class Measurement:
     """Represents the result of a lazy measurement which needs to be explicitly read
@@ -54,14 +54,14 @@ class Measurement:
 
     @hugr_op(quantum_op("Read", MEASUREMENT_EXTENSION))
     @no_type_check
-    def read(self: "Measurement" @ owned) -> bool:
+    def read(self: "Measurement") -> bool:
         """Read the measurement result, consuming it. Blocks until the result is
         available if the measurement hasn't been performed yet since being requested.
         """
 
     @guppy
     @no_type_check
-    def __consume_as_bool__(self: "Measurement" @ owned) -> bool:
+    def __bool__(self: "Measurement") -> bool:
         return self.read()
 
 
