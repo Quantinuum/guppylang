@@ -11,6 +11,7 @@ from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
     AnyCall,
     BarrierExpr,
+    CheckedModifiedBlock,
     GlobalCall,
     LocalCall,
     StateResultExpr,
@@ -108,6 +109,10 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
     def visit_StateResultExpr(self, node: StateResultExpr) -> None:
         # StateResult is always allowed
+        pass
+
+    def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
+        # Nested modified blocks are checked separately by the CFG checker
         pass
 
     def _check_assign(self, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> None:
