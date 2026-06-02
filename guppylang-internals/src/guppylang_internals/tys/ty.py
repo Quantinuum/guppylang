@@ -720,6 +720,11 @@ class StructType(ParametrizedTypeBase):
         """Whether objects of this type can be dropped."""
         return all(f.ty.droppable for f in self.fields)
 
+    @property
+    def frozen(self) -> bool:
+        """Whether objects of this type are immutable."""
+        return self.defn.frozen
+
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
         return self

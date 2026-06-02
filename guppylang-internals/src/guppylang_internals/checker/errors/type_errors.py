@@ -125,6 +125,13 @@ class ModuleMemberNotFoundError(Error):
 
 
 @dataclass(frozen=True)
+class StructImmutableError(Error):
+    title: ClassVar[str] = "Immutable"
+    span_label: ClassVar[str] = "Struct `{ty}` is immutable"
+    ty: Type
+
+
+@dataclass(frozen=True)
 class AttributeNotFoundError(Error):
     title: ClassVar[str] = "Attribute not found"
     span_label: ClassVar[str] = "`{ty}` has no {element_name} `{attribute}`"
