@@ -26,10 +26,15 @@ class BaseCFG(Generic[T]):
     entry_bb: T
     exit_bb: T
 
+    #: Variables that are live at the start of each BB
     live_before: Result[LivenessDomain[str]]
+    #: Variables that are definitely assigned at the start of each BB
     ass_before: Result[DefAssignmentDomain[str]]
+    #: Variables that may be assigned at the start of each BB
+    # (i.e. assigned only on some paths)
     maybe_ass_before: Result[MaybeAssignmentDomain[str]]
-    assigned_in_mod: Result[dict[str, AstNode]]
+    #: Variables that are assigned under a modifier at the start of each BB
+    assigned_under_modifier: Result[dict[str, AstNode]]
 
     #: Set of variables defined in this CFG
     assigned_somewhere: set[str]
@@ -46,7 +51,7 @@ class BaseCFG(Generic[T]):
         self.live_before = {}
         self.ass_before = {}
         self.maybe_ass_before = {}
-        self.assigned_in_mod = {}
+        self.assigned_under_modifier = {}
         self.assigned_somewhere = set()
         self.unitary_flags = UnitaryFlags.NoFlags
 
@@ -141,7 +146,7 @@ class CFG(BaseCFG[BB]):
         self.ass_before, self.maybe_ass_before = AssignmentAnalysis(
             stats, def_ass_before, maybe_ass_before, include_unreachable=True
         ).run_unpacked(self.bbs)
-        self.assigned_in_mod = AssignedInModifierAnalysis(
+        self.assigned_under_modifier = AssignedInModifierAnalysis(
             stats, include_unreachable=True
         ).run(self.bbs)
 

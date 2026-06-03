@@ -3,15 +3,15 @@ Error: Variable assigned in modifier block (at $FILE:12:11)
 10 |         with control(q):
 11 |             x += 1
 12 |     return x
-   |            ^ Cannot use `x` because it was assigned inside a modifier
-   |              block
+   |            ^ `x` cannot be used...
 
 Note:
    | 
 10 |         with control(q):
 11 |             x += 1
-   |             ------ `x` assigned here
+   |             ------ ... since it was defined in a modifier block
 
-Help: Assignments inside modifier blocks are not reflected outside the block
+Help: Variables assigned inside a modifier block are not available outside the
+block
 
 Guppy compilation failed due to 1 previous error
