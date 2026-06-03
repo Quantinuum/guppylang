@@ -24,6 +24,7 @@ from guppylang_internals.definition.custom import (
     CustomFunctionDef,
     DefaultCallChecker,
 )
+from guppylang_internals.definition.recursion import check_not_recursive
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
     CheckedField,
@@ -161,7 +162,6 @@ class ParsedStructDef(TypeDef, CheckableDef):
 
         # Before checking the fields, make sure that this definition is not recursive,
         # otherwise the code below would not terminate.
-        # TODO: This is not ideal (see todo in `check_instantiate`)
         check_not_recursive(self, ctx)
 
         fields = [
@@ -239,23 +239,3 @@ class CheckedStructDef(TypeDef, CompiledDef):
             has_var_args=False,
         )
         return [constructor_def]
-
-
-# TODO: adapt the following to work also with enums, and move it to a common module
-def check_not_recursive(defn: ParsedStructDef, ctx: TypeParsingCtx) -> None:
-    """Throws a user error if the given struct definition is recursive."""
-    # TODO: The implementation below hijacks the type parsing logic to detect recursive
-    #  structs. This is not great since it repeats the work done during checking. We can
-    #  get rid of this after resolving the todo in `ParsedStructDef.check_instantiate()`
-
-    def dummy_check_instantiate(
-        args: Sequence[Argument],
-        loc: AstNode | None = None,
-    ) -> Type:
-        raise GuppyError(UnsupportedError(loc, "Recursive definitions"))
-
-    original = defn.check_instantiate
-    object.__setattr__(defn, "check_instantiate", dummy_check_instantiate)
-    for fld in defn.fields:
-        type_from_ast(fld.type_ast, ctx)
-    object.__setattr__(defn, "check_instantiate", original)
