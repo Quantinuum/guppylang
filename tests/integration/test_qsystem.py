@@ -465,7 +465,7 @@ def test_set_platform_config_defaults(validate):  # type: ignore[no-untyped-def]
         assert config == {
             "squash_rxys": True,
             "enable_replay": False,
-            "dd_threshold": 0,
+            "dd_threshold": None,
         }
 
 

@@ -13,7 +13,7 @@ def set_platform_config(
     hugr: Package | Hugr[Any],
     squash_rxys: bool = True,
     enable_replay: bool = False,
-    dd_threshold: int = 0,
+    dd_threshold: int | None = None,
 ) -> None:
     """Set Helios-specific job configuration options on a compiled HUGR.
 
@@ -23,9 +23,12 @@ def set_platform_config(
 
     Args:
         hugr: A compiled HUGR package or module to configure.
-        squash_rxys: Whether to squash RXY gates. Defaults to True.
+        squash_rxys: Whether to squash single-qubit gates at runtime (independent of any
+            compile-time squashing). Defaults to True.
         enable_replay: Whether to enable replay logging. Defaults to False.
-        dd_threshold: Dynamical decoupling threshold. Defaults to 0.
+        dd_threshold: Dynamical decoupling threshold. Set to zero to enable DD with auto
+            threshold, or to a nonzero value to manually specify a threshold. Set to
+            None to disable DD (the default).
     """
     config = {
         "squash_rxys": squash_rxys,
