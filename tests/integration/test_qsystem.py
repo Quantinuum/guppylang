@@ -1,9 +1,5 @@
 import pytest
 
-import guppylang.std.qsystem.helios as helios_mod
-import guppylang.std.qsystem.helios.functional as helios_fn_mod
-import guppylang.std.qsystem.sol as sol_mod
-import guppylang.std.qsystem.sol.functional as sol_fn_mod
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle
 from typing import NamedTuple
@@ -493,3 +489,21 @@ def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
             "enable_replay": True,
             "dd_threshold": 5,
         }
+
+
+def test_set_platform_config_rejects_bad_dd_threshold(validate):
+    """set_platform_config should reject a negative dd_threshold value."""
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+    validate(package)
+    with pytest.raises(ValueError, match="must be >= 0"):
+        set_platform_config(
+            package,
+            squash_rxys=False,
+            enable_replay=True,
+            dd_threshold=-1,
+        )

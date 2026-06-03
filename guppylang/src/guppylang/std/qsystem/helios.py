@@ -30,6 +30,9 @@ def set_platform_config(
             threshold, or to a nonzero value to manually specify a threshold. Set to
             None to disable DD (the default).
     """
+    if dd_threshold is not None and dd_threshold < 0:
+        raise ValueError("If dd_threshold is not None, it must be >= 0")
+
     config = {
         "squash_rxys": squash_rxys,
         "enable_replay": enable_replay,
