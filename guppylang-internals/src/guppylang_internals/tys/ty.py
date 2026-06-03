@@ -9,7 +9,7 @@ import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
 
-from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
     ToHugr,
@@ -902,9 +902,12 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
     if var.implements:
         from guppylang_internals.checker.protocol_checker import check_protocol
 
-        for proto in var.implements:
-            _, proto_subst = check_protocol(t, proto)
-            subst |= proto_subst
+        try:
+            for proto in var.implements:
+                _, proto_subst = check_protocol(t, proto)
+                subst |= proto_subst
+        except GuppyError:
+            return None
     return {var: t, **subst}
 
 
