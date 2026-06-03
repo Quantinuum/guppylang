@@ -140,10 +140,8 @@ class TypeParam(ParameterBase):
                     )
 
                     for proto in self.must_implement:
-                        if all(proto != prf.proto for prf in arg.proto_proofs):
-                            new_prfs = arg.proto_proofs
-                            proof, subst = check_protocol(ty, proto, loc)
-                            arg = replace(arg, proto_proofs=(proof, *new_prfs))
+                        _, proto_subst = check_protocol(ty, proto, loc)
+                        subst |= proto_subst
                 return arg, subst
 
     def to_existential(self) -> tuple[Argument, ExistentialVar]:
