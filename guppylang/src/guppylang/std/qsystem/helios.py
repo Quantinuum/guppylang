@@ -28,9 +28,9 @@ def set_platform_config(
         squash_rxys: Whether to squash single-qubit gates at runtime (independent of any
             compile-time squashing). Defaults to True.
         enable_replay: Whether to enable replay logging. Defaults to False.
-        dd_threshold: Dynamical decoupling threshold. Set to zero to enable DD with auto
-            threshold, or to a nonzero value to manually specify a threshold. Set to
-            None to disable DD (the default).
+        dd_threshold: Dynamical decoupling threshold in nanoseconds. Set to zero to
+            enable DD with auto threshold, or to a nonzero value to manually specify a
+            threshold. Set to None to disable DD (the default).
     """
     if dd_threshold is not None and dd_threshold < 0:
         raise ValueError("If dd_threshold is not None, it must be >= 0")
