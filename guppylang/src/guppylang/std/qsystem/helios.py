@@ -42,4 +42,4 @@ def set_platform_config(
     }
     modules = hugr.modules if isinstance(hugr, Package) else [hugr]
     for module in modules:
-        module.module_root.metadata[HELIOS_CONFIG_META_KEY] = config
+        module.module_root.metadata[HELIOS_CONFIG_META_KEY] = config.copy()
