@@ -15,7 +15,9 @@ def set_platform_config(
     enable_replay: bool = False,
     dd_threshold: int | None = None,
 ) -> None:
-    """Set Helios-specific job configuration options on a compiled HUGR.
+    """EXPERIMENTAL: Set Helios-specific job configuration options on a compiled HUGR.
+    This is currently provided for development purposes only - options may not work as
+    expected (or at all) and the interface may change in future releases.
 
     Note that this configuration is *Helios-only* - it only has effect on cloud
     submissions to the Helios hardware and Helios-specific emulators. In particular, it
