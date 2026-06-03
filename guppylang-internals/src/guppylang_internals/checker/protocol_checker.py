@@ -154,7 +154,6 @@ def check_protocol(
                 proto_sig = _instantiate_self(proto_sig, protocol, ty)
             else:
                 raise GuppyError(FirstArgNotProtocol(None, protocol_def.name))
-                proto_sig = _instantiate_self(proto_sig, protocol, ty)
         func = ENGINE.get_instance_func(ty, name)
         if not func:
             raise GuppyError(
