@@ -88,7 +88,15 @@ on the emulator instance.
 
     from selene_sim.backends.bundled_error_models import DepolarizingErrorModel
 
-    foo.emulator(1).with_error_model(DepolarizingErrorModel()).run()
+    error_model = DepolarizingErrorModel(
+        random_seed=123141,
+        p_1q=1e-5,
+        p_2q=1.4e-4,
+        p_meas=1e-3,
+        p_init=1e-5
+    )
+
+    foo.emulator(1).with_error_model(error_model).run()
 
 State results
 -----------------
