@@ -1,5 +1,5 @@
 import pytest
-from typing import no_type_check, Self
+from typing import Self
 from guppylang.decorator import guppy
 from guppylang.std.builtins import nat
 from guppylang.std.lang import Copy, Drop
@@ -35,48 +35,6 @@ def test_def_parameterised():
         def baz(self, y: int) -> int: ...
 
     MyProto.check()
-
-
-## TODO: See if this can work in light of the monomorphisation changes assuming
-## check and compile are called on entrypoints
-@pytest.mark.skip
-def test_use_def_as_type():
-    @guppy.protocol
-    class MyProto:
-        @guppy.require
-        def foo(self: "MyProto") -> "MyProto": ...
-
-    @guppy.declare
-    def bar(a: MyProto) -> MyProto: ...
-
-    @guppy.declare
-    def baz[M: MyProto](a: M) -> M: ...
-
-    bar.check()
-    baz.check()
-
-
-## TODO: See if this can work in light of the monomorphisation changes assuming
-## check and compile are called on entrypoints
-@pytest.mark.skip
-def test_use_def_as_type_parameterised():
-    @guppy.protocol
-    class MyProto[T, S]:
-        @guppy.require
-        def foo(self: "MyProto[T, S]") -> "MyProto[T, S]": ...
-
-    T = guppy.type_var("T")
-    S = guppy.type_var("S")
-
-    @guppy.declare
-    @no_type_check
-    def baz1(a: MyProto[T, S]) -> MyProto[T, S]: ...
-
-    @guppy.declare
-    def baz2(a: MyProto[bool, bool]) -> MyProto[int, int]: ...
-
-    baz1.check()
-    baz2.check()
 
 
 def test_basic(validate):
