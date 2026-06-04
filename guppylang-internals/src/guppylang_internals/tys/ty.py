@@ -3,7 +3,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, assert_never, cast
 
 import hugr.std.float
 import hugr.std.int
@@ -411,7 +411,7 @@ class UnitaryFlags(Flag):
             case _:  # If we have multiple flags, we represent them as unitary
                 return "unitary"
 
-    def _render_flags(self, backtick: bool) -> str:
+    def render_flags(self, backtick: bool) -> str:
         """Renders the flags as a string.
         If there are two flags, we print them separated by 'and'."""
 
@@ -437,6 +437,33 @@ class UnitaryFlags(Flag):
             for flag in individual_flags
             if (self.value & flag.value) == flag.value
         )
+
+    def callable_name(
+        self,
+    ) -> Literal[
+        "Callable",
+        "Unitary",
+        "Powerable",
+        "Daggerable",
+        "Controllable",
+        "PowerControllable",
+    ]:
+        """Returns the name of the corresponding Callable variant for this flag."""
+        match self:
+            case UnitaryFlags.NoFlags:
+                return "Callable"
+            case UnitaryFlags.Unitary:
+                return "Unitary"
+            case UnitaryFlags.Power:
+                return "Powerable"
+            case UnitaryFlags.Dagger:
+                return "Daggerable"
+            case UnitaryFlags.Control:
+                return "Controllable"
+            case UnitaryFlags.Power | UnitaryFlags.Control:
+                return "PowerControllable"
+            case _:
+                assert_never(self)
 
     def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":
         """Accumulates another set of unitary flags into this one."""

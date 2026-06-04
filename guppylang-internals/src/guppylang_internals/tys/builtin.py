@@ -1,6 +1,6 @@
 import ast
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal, TypeGuard
 
 import hugr.std
@@ -27,6 +27,7 @@ from guppylang_internals.tys.ty import (
     OpaqueType,
     TupleType,
     Type,
+    UnitaryFlags,
 )
 from guppylang_internals.wasm_util import WasmPlatform
 
@@ -45,7 +46,13 @@ class CallableTypeDef(TypeDef, CompiledDef):
         "Daggerable",
         "Controllable",
         "PowerControllable",
-    ] = field(default="Callable", kw_only=True)
+    ] = field(default="Callable", init=False)
+    flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=False)
+
+    def set_flags(self, flags: UnitaryFlags) -> None:
+        """Sets the unitary flags and name for this CallableTypeDef.
+        This is used to create the various special callable types like"""
+        replace(self, name=flags.callable_name(), flags=flags)
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -216,13 +223,16 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 
 callable_type_def = CallableTypeDef(DefId.fresh(), None, None)
-unitary_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Unitary")
-powerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Powerable")
-daggerable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Daggerable")
-controllable_type_def = CallableTypeDef(DefId.fresh(), None, None, name="Controllable")
-powerctrlable_type_def = CallableTypeDef(
-    DefId.fresh(), None, None, name="PowerControllable"
-)
+unitary_type_def = CallableTypeDef(DefId.fresh(), None, None)
+unitary_type_def.set_flags(UnitaryFlags.Unitary)
+powerable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+powerable_type_def.set_flags(UnitaryFlags.Power)
+daggerable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+daggerable_type_def.set_flags(UnitaryFlags.Dagger)
+controllable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+controllable_type_def.set_flags(UnitaryFlags.Control)
+powerctrlable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+powerctrlable_type_def.set_flags(UnitaryFlags.Power | UnitaryFlags.Control)
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)
 none_type_def = _NoneTypeDef(DefId.fresh(), None, [])

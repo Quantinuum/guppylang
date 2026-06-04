@@ -192,7 +192,7 @@ class UnitaryCallError(Error):
 
     @property
     def rendered_flags(self) -> str:
-        return self.flags._render_flags(False)
+        return self.flags.render_flags(False)
 
     @property
     def capitalized_render_flags(self) -> str:
