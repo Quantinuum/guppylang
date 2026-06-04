@@ -358,7 +358,12 @@ class CFGBuilder(AstVisitor[BB | None]):
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
             modifiers.push(self._handle_withitem(item))
         accumulated_flags = self.cfg.unitary_flags.accumulate(modifiers.flags())
-        original_ast_body = copy.deepcopy(node.body)
+        if UnitaryFlags.Dagger in accumulated_flags:
+            # `original_ast_body` is only needed for checking invalid constructs under
+            # dagger, so we only need to save it if dagger is present.
+            original_ast_body = copy.deepcopy(node.body)
+        else:
+            original_ast_body = None
 
         cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
         new_node = ModifiedBlock(

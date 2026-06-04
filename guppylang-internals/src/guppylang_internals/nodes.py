@@ -828,14 +828,15 @@ class ModifiedBlock(ast.With):
     - `first_modifier_node`: the AST node of the first modifier, used in error reporting
     - `accumulated_flags`: the UnitaryFlags accumulated from outer modified blocks
     - `original_ast_body`: the original AST body of the block, used for checking that
-      the body does not contain any invalid statements
+      the body does not contain any invalid statements. None if the block does not have
+      the Dagger modifier since in that case it is not needed
     """
 
     cfg: "CFG"
     modifiers: Modifiers
     first_modifier_node: ast.expr
     accumulated_flags: UnitaryFlags
-    original_ast_body: list[ast.stmt]
+    original_ast_body: list[ast.stmt] | None
 
     def __init__(
         self,
@@ -843,7 +844,7 @@ class ModifiedBlock(ast.With):
         modifiers: "Modifiers",
         first_modifier_node: ast.expr,
         accumulated_flags: UnitaryFlags,
-        original_ast_body: list[ast.stmt],
+        original_ast_body: list[ast.stmt] | None,
         *args: Any,
         **kwargs: Any,
     ) -> None:

@@ -25,21 +25,24 @@ from guppylang_internals.tys.ty import FunctionType, UnitaryFlags
 
 
 def check_invalid_under_dagger(
-    def_node: ast.FunctionDef | ModifiedBlock, unitary_flags: UnitaryFlags | None = None
+    def_node: ast.FunctionDef | ModifiedBlock, unitary_flags: UnitaryFlags
 ) -> None:
     """Check that there are no invalid constructs in a daggered CFG."""
     if UnitaryFlags.Dagger not in unitary_flags:
         return
 
-    stmt_list: list[ast.stmt] = (
-        def_node.body
-        if isinstance(def_node, ast.FunctionDef)
+    if isinstance(def_node, ast.FunctionDef):
+        stmt_list = def_node.body
+    else:
         # When analyzing a `ModifiedBlock` we need the original AST before
         # the builder transforms it
-        else def_node.original_ast_body
-    )
+        stmt_list = def_node.original_ast_body
+        assert stmt_list is not None, (
+            "original_ast_body should not be None for a daggered block"
+        )
+
     for stmt in stmt_list:
-        # we do not want to recursive check inside nested `with`blocks
+        # we do not want to recursively check inside nested `with` blocks
         if isinstance(stmt, ast.With):
             continue
         loops = loop_in_ast(stmt)
@@ -56,13 +59,12 @@ def _raise_invalid_under_dagger(
     span: ToSpan,
     node: ast.FunctionDef | ModifiedBlock,
     things: str,
-    unitary_flags: UnitaryFlags | None = None,
+    unitary_flags: UnitaryFlags,
 ) -> None:
     err = InvalidUnderDagger(span, things)
     if isinstance(node, ModifiedBlock):
         err.add_sub_diagnostic(InvalidUnderDagger.Dagger(node.span_ctxt_manager()))
     elif isinstance(node, ast.FunctionDef):
-        assert unitary_flags is not None
         err.add_sub_diagnostic(
             InvalidUnderDagger.FunctionHelp(None, node.name, unitary_flags)
         )
