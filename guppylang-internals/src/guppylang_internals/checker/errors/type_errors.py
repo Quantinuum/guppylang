@@ -43,8 +43,8 @@ class TypeMismatchError(Error):
 class UnitaryFlagMismatchError(Error):
     title: ClassVar[str] = "Unitary flag mismatch"
     span_label: ClassVar[str] = (
-        "Expected function with unitary flags: {rendered_expected},"
-        " got: {rendered_actual}"
+        "Expected function with unitary flags: `{rendered_expected}`,"
+        " got: `{rendered_actual}`"
     )
 
     expected: UnitaryFlags
@@ -52,11 +52,11 @@ class UnitaryFlagMismatchError(Error):
 
     @property
     def rendered_expected(self) -> str:
-        return self.expected.render_flags(True)
+        return self.expected.hint_rendering(True)
 
     @property
     def rendered_actual(self) -> str:
-        return self.actual.render_flags(True)
+        return self.actual.hint_rendering(True)
 
 
 @dataclass(frozen=True)

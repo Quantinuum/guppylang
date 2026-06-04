@@ -3,11 +3,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, assert_never, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
 
 import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
+from typing_extensions import assert_never
 
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
@@ -438,6 +439,30 @@ class UnitaryFlags(Flag):
             if (self.value & flag.value) == flag.value
         )
 
+    def hint_rendering(self, verbose: bool) -> str:
+        """We check which flag are we missing. If we miss more than one, we just say
+        `unitary=True`"""
+        from guppylang_internals.tys.ty import UnitaryFlags
+
+        # No flags is not expected
+        if self == UnitaryFlags.NoFlags:
+            return "None"
+
+        individual_flags: list[UnitaryFlags] = [
+            UnitaryFlags.Dagger,
+            UnitaryFlags.Control,
+            UnitaryFlags.Power,
+        ]
+        flags = [
+            flag for flag in individual_flags if (self.value & flag.value) == flag.value
+        ]
+        if len(flags) == 1:
+            return f"{flags[0].__str__()}=True"
+        elif len(flags) == 2 and verbose:
+            return " and ".join(f"{flag.__str__()}=True" for flag in flags)
+        else:
+            return "unitary=True"
+
     def callable_name(
         self,
     ) -> Literal[
@@ -460,9 +485,9 @@ class UnitaryFlags(Flag):
                 return "Daggerable"
             case UnitaryFlags.Control:
                 return "Controllable"
-            case UnitaryFlags.Power | UnitaryFlags.Control:
-                return "PowerControllable"
             case _:
+                if self == (UnitaryFlags.Power | UnitaryFlags.Control):
+                    return "PowerControllable"
                 assert_never(self)
 
     def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":

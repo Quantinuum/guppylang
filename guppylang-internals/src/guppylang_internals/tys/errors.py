@@ -202,26 +202,27 @@ class UnitaryCallError(Error):
     def hint_rendering(self) -> str:
         """We check which flag are we missing. If we miss more than one, we just say
         `unitary=True`"""
-        from guppylang_internals.tys.ty import UnitaryFlags
+        # from guppylang_internals.tys.ty import UnitaryFlags
 
-        # No flags is not expected
-        if self.flags == UnitaryFlags.NoFlags:
-            raise ValueError("Unexpected UnitaryFlags with no flags set")
+        # # No flags is not expected
+        # if self.flags == UnitaryFlags.NoFlags:
+        #     raise ValueError("Unexpected UnitaryFlags with no flags set")
 
-        individual_flags: list[UnitaryFlags] = [
-            UnitaryFlags.Dagger,
-            UnitaryFlags.Control,
-            UnitaryFlags.Power,
-        ]
-        flags = [
-            flag
-            for flag in individual_flags
-            if (self.flags.value & flag.value) == flag.value
-        ]
-        if len(flags) == 1:
-            return f"{flags[0].__str__()}=True"
-        else:
-            return "unitary=True"
+        # individual_flags: list[UnitaryFlags] = [
+        #     UnitaryFlags.Dagger,
+        #     UnitaryFlags.Control,
+        #     UnitaryFlags.Power,
+        # ]
+        # flags = [
+        #     flag
+        #     for flag in individual_flags
+        #     if (self.flags.value & flag.value) == flag.value
+        # ]
+        # if len(flags) == 1:
+        #     return f"{flags[0].__str__()}=True"
+        # else:
+        #     return "unitary=True"
+        return self.flags.hint_rendering(False)
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
