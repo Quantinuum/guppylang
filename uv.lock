@@ -1018,7 +1018,7 @@ wheels = [
 
 [[package]]
 name = "guppylang"
-version = "1.0.0a0"
+version = "1.0.0a1"
 source = { editable = "guppylang" }
 dependencies = [
     { name = "guppylang-internals" },
