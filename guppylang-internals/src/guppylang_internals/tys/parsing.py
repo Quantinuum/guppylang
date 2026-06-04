@@ -1,6 +1,6 @@
 import ast
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
 from typing import TYPE_CHECKING, ClassVar
@@ -271,6 +271,16 @@ def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
         raise GuppyError(InvalidTypeError(node)) from None
     else:
         return stmt.value
+
+
+def _annotation_nodes(node: ast.expr) -> Iterator[ast.expr]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        node = _parse_delayed_annotation(node.value, node)
+
+    yield node
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, ast.expr):
+            yield from _annotation_nodes(child)
 
 
 def _parse_callable_type(

@@ -24,13 +24,13 @@ from guppylang_internals.definition.custom import (
     CustomFunctionDef,
     DefaultCallChecker,
 )
-from guppylang_internals.definition.recursion import check_not_recursive
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
     CheckedField,
     DuplicateFieldError,
     NonGuppyMethodError,
     UncheckedField,
+    check_not_recursive,
     extract_generic_params,
     parse_py_class,
 )
