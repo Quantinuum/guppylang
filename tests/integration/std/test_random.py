@@ -62,7 +62,10 @@ def test_pcg32_deterministic_sequence(run_int_fn) -> None:
 
 
 def test_pcg32_motivating_example() -> None:
-    """Exact scenario from issue #1578: inner RNG must not affect outer."""
+    """Exact scenario from https://github.com/Quantinuum/guppylang/issues/1578.
+
+    Inner RNG must not affect the outer stream.
+    """
 
     @guppy
     def uses_inner_rng() -> int:
@@ -109,7 +112,7 @@ def test_pcg32_independent_streams(validate, run_int_fn) -> None:
 
 
 def test_pcg32_no_interference_with_quantum() -> None:
-    """Outer RNG output is independent of conditional inner RNG use."""
+    """Outer RNG is stable across branches; see https://github.com/Quantinuum/guppylang/issues/1578."""
 
     @guppy
     def some_outside_function(q: qubit @ owned) -> qubit:
