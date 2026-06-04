@@ -180,14 +180,6 @@ class VarNotDefinedError(Error):
     span_label: ClassVar[str] = "`{var}` is not defined"
     var: str
 
-    # @dataclass(frozen=True)
-    # class DefinedInModBlock(Help):
-    #     span_label: ClassVar[str] = (
-    #         "{var} is defined inside a modifier block, but variables defined in a"
-    #         " modifier block are not available outside of it"
-    #     )
-    #     message: ClassVar[str] = ""
-
 
 @dataclass(frozen=True)
 class VarMaybeNotDefinedError(Error):
@@ -258,18 +250,6 @@ def check_bb(
                 and x not in globals
                 and x not in generic_args
             ):
-                # if x in bb.vars.assigned_in_modifier_block:
-                #     vnd_err = AssignedInModifierError(use, x)
-                #     vnd_err.add_sub_diagnostic(
-                #         AssignedInModifierError.AssignedHere(
-                #             bb.vars.assigned_in_modifier_block[x]
-                #         )
-                #     )
-                #     vnd_err.add_sub_diagnostic(
-                #         AssignedInModifierError.Explanation(None)
-                #     )
-                #     raise GuppyError(vnd_err)
-                # else:
                 raise GuppyError(VarNotDefinedError(use, x))
 
     # We check that the block does not use defined variables that has been redefined
@@ -309,11 +289,11 @@ def check_bb(
                             )
                             err.add_sub_diagnostic(note)
                     else:
-                        err = _var_not_defined_error(x, cfg, use_bb)
+                        err = VarNotDefinedError(use_bb.vars.used[x], x)
                     raise GuppyError(err)
             # If x is not a local, then it must be a global or generic param
             elif x not in ctx.globals and x not in generic_args:
-                raise GuppyError(_var_not_defined_error(x, cfg, use_bb))
+                raise GuppyError(VarNotDefinedError(use_bb.vars.used[x], x))
 
             # We also check that the variables assigned in a modifier block are not
             # in successor blocks
@@ -345,29 +325,6 @@ def check_bb(
     checked_bb.successors = [None] * len(bb.successors)  # type: ignore[list-item]
     checked_bb.branch_pred = bb.branch_pred
     return checked_bb
-
-
-def _var_not_defined_error(var: str, cfg: BaseCFG[BB], use_bb: BB) -> Error:
-    # if var in use_bb.vars.assigned_in_modifier_block:
-    #     err: Error = AssignedInModifierError(use_bb.vars.used[var], var)
-    #     err.add_sub_diagnostic(
-    #         AssignedInModifierError.AssignedHere(
-    #             use_bb.vars.assigned_in_modifier_block[var]
-    #         )
-    #     )
-    #     err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
-    # elif var in cfg.assigned_under_modifier[use_bb]:
-    #     err = AssignedInModifierError(use_bb.vars.used[var], var)
-    #     err.add_sub_diagnostic(
-    #         AssignedInModifierError.AssignedHere(
-    #             cfg.assigned_under_modifier[use_bb][var]
-    #         )
-    #     )
-    #     err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
-    # else:
-    err = VarNotDefinedError(use_bb.vars.used[var], var)
-
-    return err
 
 
 def _assigned_in_modifier_error(

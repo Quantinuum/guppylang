@@ -713,6 +713,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                 use_kind = (
                     UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
                 )
+
                 x = place.id
                 if (prev_use := self.scope.used(x)) and not place.ty.copyable:
                     used_err = AlreadyUsedError(use, place, use_kind)
