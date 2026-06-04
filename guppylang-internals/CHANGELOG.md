@@ -3,6 +3,13 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [0.36.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.36.0...guppylang-internals-v0.36.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* Upgrade tket and require pytket extra ([#1814](https://github.com/Quantinuum/guppylang/issues/1814)) ([8377661](https://github.com/Quantinuum/guppylang/commit/8377661d0e8cf2bf27d073c58401181510fc1363))
+
 ## [0.36.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.35.0...guppylang-internals-v0.36.0) (2026-05-18)
 
 
