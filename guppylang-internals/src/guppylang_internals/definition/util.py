@@ -26,8 +26,8 @@ from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
-    _annotation_nodes,
-    _try_parse_defn,
+    annotation_nodes,
+    try_parse_defn,
 )
 from guppylang_internals.tys.ty import Type
 
@@ -149,8 +149,8 @@ def _dependencies(
     defn: ParsedRecursiveTypeDef, ctx: TypeParsingCtx
 ) -> Iterator[tuple[ParsedRecursiveTypeDef, AstNode]]:
     for type_ast in _field_type_asts(defn):
-        for node in _annotation_nodes(type_ast):
-            dependency = _try_parse_defn(node, ctx.globals)
+        for node in annotation_nodes(type_ast):
+            dependency = try_parse_defn(node, ctx.globals)
             if _is_parsed_struct_or_enum(dependency):
                 yield dependency, node
 
