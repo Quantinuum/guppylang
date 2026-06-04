@@ -145,7 +145,9 @@ class LivenessAnalysis(BackwardAnalysis[LivenessDomain[VId]], Generic[VId]):
     def apply_bb(self, live_after: LivenessDomain[VId], bb: BB) -> LivenessDomain[VId]:
         stats = self.stats[bb]
         return dict.fromkeys(stats.used, bb) | {
-            x: b for x, b in live_after.items() if x not in stats.assigned
+            x: b
+            for x, b in live_after.items()
+            if x not in stats.assigned and x not in stats.assigned_in_modifier_block
         }
 
 

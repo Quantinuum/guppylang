@@ -1,13 +1,13 @@
 Error: Variable assigned in modifier block (at $FILE:10:8)
    | 
- 8 |     with dagger:
+ 8 |     with power(3):
  9 |         i = 3
 10 |     u = i
    |         ^ `i` cannot be used...
 
 Note:
    | 
- 8 |     with dagger:
+ 8 |     with power(3):
  9 |         i = 3
    |         ----- ... since it was defined in a modifier block
 

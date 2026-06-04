@@ -258,19 +258,27 @@ def check_bb(
                 and x not in globals
                 and x not in generic_args
             ):
-                if x in bb.vars.assigned_in_modifier_block:
-                    vnd_err = AssignedInModifierError(use, x)
-                    vnd_err.add_sub_diagnostic(
-                        AssignedInModifierError.AssignedHere(
-                            bb.vars.assigned_in_modifier_block[x]
-                        )
-                    )
-                    vnd_err.add_sub_diagnostic(
-                        AssignedInModifierError.Explanation(None)
-                    )
-                    raise GuppyError(vnd_err)
-                else:
-                    raise GuppyError(VarNotDefinedError(use, x))
+                # if x in bb.vars.assigned_in_modifier_block:
+                #     vnd_err = AssignedInModifierError(use, x)
+                #     vnd_err.add_sub_diagnostic(
+                #         AssignedInModifierError.AssignedHere(
+                #             bb.vars.assigned_in_modifier_block[x]
+                #         )
+                #     )
+                #     vnd_err.add_sub_diagnostic(
+                #         AssignedInModifierError.Explanation(None)
+                #     )
+                #     raise GuppyError(vnd_err)
+                # else:
+                raise GuppyError(VarNotDefinedError(use, x))
+
+    # We check that the block does not use defined variables that has been redefined
+    # inside a modifier block
+    if bb.vars.badly_used_after_modifier_block:
+        x, use = next(iter(bb.vars.badly_used_after_modifier_block.items()))
+        raise GuppyError(
+            _assigned_in_modifier_error(x, use, bb.vars.assigned_in_modifier_block[x])
+        )
 
     # Check the basic block
     ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
@@ -307,20 +315,14 @@ def check_bb(
             elif x not in ctx.globals and x not in generic_args:
                 raise GuppyError(_var_not_defined_error(x, cfg, use_bb))
 
-    # We check that the block does not use defined variables that has been redefined
-    # inside a modifier block
-    if bb.vars.badly_used_after_modifier_block:
-        x, use = next(iter(bb.vars.badly_used_after_modifier_block.items()))
-        raise GuppyError(
-            _assigned_in_modifier_error(x, use, bb.vars.assigned_in_modifier_block[x])
-        )
-    # We also check that the variables used in the block was not assigned in a modifier
-    # block in a predecessor
-    for x, use in bb.vars.used.items():
-        if x in cfg.assigned_under_modifier[bb] and x in cfg.live_before[bb]:
-            raise GuppyError(
-                _assigned_in_modifier_error(x, use, cfg.assigned_under_modifier[bb][x])
-            )
+            # We also check that the variables assigned in a modifier block are not
+            # in successor blocks
+            if x in bb.vars.assigned_in_modifier_block:
+                raise GuppyError(
+                    _assigned_in_modifier_error(
+                        x, use_bb.vars.used[x], bb.vars.assigned_in_modifier_block[x]
+                    )
+                )
 
     # Finally, we need to compute the signature of the basic block
     outputs = [
@@ -346,24 +348,24 @@ def check_bb(
 
 
 def _var_not_defined_error(var: str, cfg: BaseCFG[BB], use_bb: BB) -> Error:
-    if var in use_bb.vars.assigned_in_modifier_block:
-        err: Error = AssignedInModifierError(use_bb.vars.used[var], var)
-        err.add_sub_diagnostic(
-            AssignedInModifierError.AssignedHere(
-                use_bb.vars.assigned_in_modifier_block[var]
-            )
-        )
-        err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
-    elif var in cfg.assigned_under_modifier[use_bb]:
-        err = AssignedInModifierError(use_bb.vars.used[var], var)
-        err.add_sub_diagnostic(
-            AssignedInModifierError.AssignedHere(
-                cfg.assigned_under_modifier[use_bb][var]
-            )
-        )
-        err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
-    else:
-        err = VarNotDefinedError(use_bb.vars.used[var], var)
+    # if var in use_bb.vars.assigned_in_modifier_block:
+    #     err: Error = AssignedInModifierError(use_bb.vars.used[var], var)
+    #     err.add_sub_diagnostic(
+    #         AssignedInModifierError.AssignedHere(
+    #             use_bb.vars.assigned_in_modifier_block[var]
+    #         )
+    #     )
+    #     err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
+    # elif var in cfg.assigned_under_modifier[use_bb]:
+    #     err = AssignedInModifierError(use_bb.vars.used[var], var)
+    #     err.add_sub_diagnostic(
+    #         AssignedInModifierError.AssignedHere(
+    #             cfg.assigned_under_modifier[use_bb][var]
+    #         )
+    #     )
+    #     err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
+    # else:
+    err = VarNotDefinedError(use_bb.vars.used[var], var)
 
     return err
 

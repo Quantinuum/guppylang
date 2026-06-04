@@ -133,7 +133,11 @@ class VariableVisitor(ast.NodeVisitor):
             # Should point to first use, so also check that the name is not already
             # contained
             x = name.id
-            if x not in self.stats.assigned and x not in self.stats.used:
+            if (
+                x not in self.stats.assigned
+                and x not in self.stats.used
+                and x not in self.stats.assigned_in_modifier_block
+            ):
                 self.stats.used[x] = name
             if (
                 x in self.stats.assigned_in_modifier_block
