@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from guppylang.decorator import guppy
 from guppylang.std.array import array
 
@@ -368,6 +370,75 @@ def test_higher_order_power_controllable_callable(validate):
     @guppy
     def main(ctrl: qubit, q: qubit) -> None:
         apply_power_control(h, ctrl, q)
+
+    validate(main.compile_function())
+
+
+def test_return_callable_with_stronger_flags(validate):
+    """Returning a callable with more flags than required is valid."""
+
+    @guppy(dagger=True)
+    def dagger_only(q: qubit) -> None:
+        pass
+
+    @guppy
+    def second_order(f: Daggerable[[qubit], None]) -> None:
+        pass
+
+    @guppy
+    def return_plain() -> Callable[[qubit], None]:
+        return dagger_only
+
+    @guppy
+    def return_daggerable() -> Daggerable[[qubit], None]:
+        return h
+
+    @guppy
+    def main() -> None:
+        second_order(return_daggerable())
+
+    validate(return_plain.compile_function())
+    validate(return_daggerable.compile_function())
+    validate(main.compile_function())
+
+
+def test_take_callable_taking_weaker_callable(validate):
+    """Arguments weaker than the required callable flags."""
+
+    @guppy(control=True)
+    def control_fun(q: qubit) -> None:
+        pass
+
+    @guppy(unitary=True)
+    def unitary_fun(q: qubit) -> None:
+        pass
+
+    @guppy
+    def apply_plain(f: Callable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy(dagger=True)
+    def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def take_plain_consumer(
+        consumer: Callable[[Callable[[qubit], None], qubit], None], q: qubit
+    ) -> None:
+        consumer(control_fun, q)
+
+    @guppy
+    def take_daggerable_consumer(
+        consumer: Callable[[Daggerable[[qubit], None], qubit], None], q: qubit
+    ) -> None:
+        consumer(unitary_fun, q)
+
+    @guppy
+    def main(q: qubit) -> None:
+        take_plain_consumer(apply_dagger, q)
+        take_daggerable_consumer(apply_plain, q)
+        apply_plain(control_fun, q)
+        apply_dagger(unitary_fun, q)
 
     validate(main.compile_function())
 
