@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from guppylang_internals.diagnostic import Error, Help, Note
 
@@ -112,5 +112,5 @@ class InvalidUnderDagger(Error):
 
             if self.unitary_flags == UnitaryFlags.Unitary:
                 return "unitary=True"
-            assert UnitaryFlags.Dagger in self.unitary_flags
+            assert UnitaryFlags.Dagger in cast("UnitaryFlags", self.unitary_flags)
             return "dagger=True"
