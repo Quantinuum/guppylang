@@ -5,7 +5,7 @@ Error: Invalid call of overloaded function (at $FILE:24:11)
 24 |     return only_pure_for_int(x)
    |            ^^^^^^^^^^^^^^^^^^^^ No variant of overloaded function `only_pure_for_int` takes
    |                                 a `float` argument and returns `float` with effects no more
-   |                                 than []
+   |                                 than `[]`
 
 Note: Available overloads are:
   def only_pure_for_int(x: T) -> T

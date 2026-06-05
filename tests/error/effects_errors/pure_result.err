@@ -4,7 +4,7 @@ Error: Invalid call of overloaded function (at $FILE:6:10)
 5 | def main() -> int:
 6 |    result("foo", True)
   |           ^^^^^^^^^^^ No variant of overloaded function `result` takes arguments
-  |                       `str`, `bool` with effects no more than []
+  |                       `str`, `bool` with effects no more than `[]`
 
 Note: Available overloads are:
   def result(tag: str @comptime, value: int) -> None

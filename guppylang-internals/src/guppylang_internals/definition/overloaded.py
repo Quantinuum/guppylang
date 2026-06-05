@@ -8,7 +8,7 @@ from hugr import Wire
 from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.core import Context
+from guppylang_internals.checker.core import Context, EffectLimitDecl
 from guppylang_internals.checker.expr_checker import ExprSynthesizer
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
@@ -40,7 +40,7 @@ class OverloadNoMatchError(Error):
     func: str
     arg_tys: list[Type]
     return_ty: Type | None
-    max_effects_from: tuple[list[Effect], Span | ast.expr] | None
+    max_effects_from: EffectLimitDecl | None
 
     @property
     def rendered_span_label(self) -> str:
@@ -56,9 +56,9 @@ class OverloadNoMatchError(Error):
         if self.return_ty:
             stem += f" and returns `{self.return_ty}`"
         if self.max_effects_from:
-            effects, _node = self.max_effects_from
+            effects = self.max_effects_from.effects
             if Effect.ANY not in effects:
-                stem += f" with effects no more than {effects}"
+                stem += f" with effects no more than `{effects}`"
         return stem
 
 
@@ -120,7 +120,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
 
     @override
     def synthesize_call(
-        self, args: list[ast.expr], node: AstNode, ctx: "Context"
+        self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Type]:
         available_sigs: list[OverloadVariant] = []
         for def_id in self.func_ids:
@@ -140,7 +140,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         self,
         args: list[ast.expr],
         node: AstNode,
-        ctx: "Context",
+        ctx: Context,
         available_sigs: list[OverloadVariant],
         return_ty: Type | None = None,
     ) -> NoReturn:

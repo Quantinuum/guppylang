@@ -443,6 +443,14 @@ class Locals(Generic[VId, V]):
         return itertools.chain(self.vars.items(), parent_items)
 
 
+@dataclass(frozen=True)
+class EffectLimitDecl:
+    """Records a declaration limiting the effects that may be used in a Context"""
+
+    effects: list[Effect]
+    decl: ast.expr | Span
+
+
 class Context(NamedTuple):
     """The type checking context."""
 
@@ -452,7 +460,7 @@ class Context(NamedTuple):
 
     """If not None, the effect constraints that function calls in this context must
     respect, together with the AST node that gives rise to said constraint"""
-    max_effects_from: tuple[list[Effect], Span | ast.expr] | None = None
+    max_effects_from: EffectLimitDecl | None = None
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

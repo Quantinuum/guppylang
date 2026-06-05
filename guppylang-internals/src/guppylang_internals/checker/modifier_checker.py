@@ -5,13 +5,11 @@ import ast
 from guppylang_internals.ast_util import loop_in_ast, with_loc
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.checker.cfg_checker import check_cfg
-from guppylang_internals.checker.core import Context, Variable
+from guppylang_internals.checker.core import Context, EffectLimitDecl, Variable
 from guppylang_internals.checker.errors.generic import InvalidUnderDagger
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
-from guppylang_internals.span import Span
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -25,7 +23,7 @@ def check_modified_block(
     modified_block: ModifiedBlock,
     bb: BB,
     ctx: Context,
-    max_effects_from: tuple[list[Effect], Span | ast.expr] | None,
+    max_effects_from: EffectLimitDecl | None,
 ) -> CheckedModifiedBlock:
     """Type checks a modifier definition."""
     cfg = modified_block.cfg

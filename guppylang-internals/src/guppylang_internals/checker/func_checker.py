@@ -16,7 +16,13 @@ from guppylang_internals.ast_util import AstNode, return_nodes_in_ast, with_loc
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.builder import CFGBuilder
 from guppylang_internals.checker.cfg_checker import CheckedCFG, check_cfg
-from guppylang_internals.checker.core import Context, Globals, Place, Variable
+from guppylang_internals.checker.core import (
+    Context,
+    EffectLimitDecl,
+    Globals,
+    Place,
+    Variable,
+)
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
@@ -163,23 +169,26 @@ def check_global_func_def(
     }
     if ty.declared_effects is None:
         max_effects_from = None
-    elif (deco := _find_guppy_decorator(func_def.decorator_list)) is not None:
-        max_effects_from = (ty.declared_effects, deco)
     else:
-        # Could not identify decorator, so include all in context; union with
-        # returns will include name etc. inbetween but avoid the function body.
-        elems = func_def.decorator_list
-        if func_def.returns is not None:
-            elems += [func_def.returns]
+        if (deco := _find_guppy_decorator(func_def.decorator_list)) is not None:
+            decl = deco
+        else:
+            # Could not identify decorator, so include all in context; union with
+            # returns will include name etc. inbetween but avoid the function body.
+            elems = func_def.decorator_list
+            if func_def.returns is not None:
+                elems += [func_def.returns]
 
-        def union(s1: Span, s2: Span) -> Span:
-            r = s1 | s2
-            assert r is not None  # Function def should not cross file boundary
-            return r
+            def union(s1: Span, s2: Span) -> Span:
+                r = s1 | s2
+                assert r is not None  # Function def should not cross file boundary
+                return r
 
-        max_effects_from = (
+            decl = reduce(union, (to_span(e) for e in elems))
+
+        max_effects_from = EffectLimitDecl(
             ty.declared_effects,
-            reduce(union, (to_span(e) for e in elems)),
+            decl,
         )
     return check_cfg(
         cfg,
@@ -216,7 +225,7 @@ def check_nested_func_def(
     # to @guppy), but we will wait for callgraph analysis to compute precisely:
     # nested functions are not part of any public API, so changes are not breaking.
     func_ty = check_signature(func_def, ctx.globals).with_effects(
-        None if ctx.max_effects_from is None else ctx.max_effects_from[0]
+        None if ctx.max_effects_from is None else ctx.max_effects_from.effects
     )
     assert func_ty.input_names is not None
 
