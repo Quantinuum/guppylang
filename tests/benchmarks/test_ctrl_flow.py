@@ -5,6 +5,8 @@ from guppylang.std.builtins import array, py
 from guppylang.std.quantum import cx, discard_array, h, measure, project_z, qubit
 from hugr.package import Package
 
+from tests.util import compile_and_get_peak_memory
+
 n_q = 20
 
 
@@ -53,6 +55,7 @@ def test_many_ctrl_flow_compile(benchmark):
     hugr = benchmark(comp)
     benchmark.extra_info["nodes"] = hugr.modules[0].num_nodes()
     benchmark.extra_info["bytes"] = len(hugr.to_bytes())
+    benchmark.extra_info["memory"] = compile_and_get_peak_memory(many_ctrl_flow)
 
 
 def test_many_ctrl_flow_check(benchmark) -> None:
