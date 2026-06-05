@@ -256,7 +256,6 @@ class Measurement:
     """Represents the result of a lazy measurement which needs to be explicitly read
     before being used."""
 
-    # We do *not* model the pipeline as a side-effect
     @custom_function(compiler=ReadFutureBoolCompiler(), effects=[])
     @no_type_check
     def read(self: "Measurement" @ owned) -> bool:
