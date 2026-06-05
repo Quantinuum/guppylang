@@ -1063,7 +1063,7 @@ requires-dist = [
     { name = "tket", extras = ["pytket"], specifier = ">=0.13.0" },
     { name = "tket-exts", specifier = "~=0.12.0" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-    { name = "wasmtime", specifier = ">=38.0,<44.1" },
+    { name = "wasmtime", specifier = ">=38.0,<45.1" },
 ]
 provides-extras = ["pytket"]
 
