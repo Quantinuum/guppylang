@@ -31,7 +31,7 @@ Traceback (most recent call last):
     ...<2 lines>...
         globals,
     )
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/checker/func_checker.py", line 168, in check_global_func_def
+  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/checker/func_checker.py", line 169, in check_global_func_def
     raise InternalGuppyError(
     ...<2 lines>...
     )

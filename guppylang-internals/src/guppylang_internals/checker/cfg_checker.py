@@ -10,7 +10,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Generic, TypeVar
 
-from guppylang_internals.ast_util import AstNode, line_col
+from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
@@ -25,6 +25,7 @@ from guppylang_internals.checker.expr_checker import ExprSynthesizer, to_bool
 from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError
+from guppylang_internals.span import Span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import InputFlags, Type
@@ -77,7 +78,7 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
-    max_effects_from: tuple[list[Effect], AstNode] | None,
+    max_effects_from: tuple[list[Effect], Span] | None,
     first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
@@ -232,7 +233,7 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
-    max_effects_from: tuple[list[Effect], AstNode] | None,
+    max_effects_from: tuple[list[Effect], Span] | None,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 

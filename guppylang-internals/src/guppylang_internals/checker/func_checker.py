@@ -25,6 +25,7 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
+from guppylang_internals.span import to_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import (
@@ -164,12 +165,12 @@ def check_global_func_def(
         max_effects_from = None
     else:
         dec = _find_guppy_decorator(func_def.decorator_list)
-        if dec is None and ty.declared_effects is not None:
+        if dec is None:
             raise InternalGuppyError(
                 f"Effects limited to {Effect.format_list(ty.declared_effects)}"
                 " but cannot identify decorator imposing this limit"
             )
-        max_effects_from = (ty.declared_effects, dec)
+        max_effects_from = (ty.declared_effects, to_span(dec))
     return check_cfg(
         cfg,
         inputs,

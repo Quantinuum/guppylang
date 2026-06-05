@@ -40,7 +40,7 @@ class OverloadNoMatchError(Error):
     func: str
     arg_tys: list[Type]
     return_ty: Type | None
-    max_effects_from: tuple[list[Effect], AstNode] | None
+    max_effects_from: tuple[list[Effect], Span] | None
 
     @property
     def rendered_span_label(self) -> str:
