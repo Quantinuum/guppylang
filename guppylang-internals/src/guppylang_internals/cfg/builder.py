@@ -357,7 +357,7 @@ class CFGBuilder(AstVisitor[BB | None]):
         for item in node.items:
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
             modifiers.push(self._handle_withitem(item))
-        accumulated_flags = self.cfg.unitary_flags | modifiers.flags()
+        accumulated_flags = self.cfg.unitary_flags.accumulate(modifiers.flags())
         cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
         new_node = ModifiedBlock(
             cfg,
