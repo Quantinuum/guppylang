@@ -19,6 +19,7 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
+from guppylang_internals.experimental import check_unitary_callable_enabled
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableTypeDef,
@@ -204,6 +205,8 @@ def _arg_from_instantiated_defn(
     match defn:
         # Special cases for the `Callable` type
         case CallableTypeDef(flags=flags):
+            if flags != UnitaryFlags.NoFlags:
+                check_unitary_callable_enabled(flags.callable_name(), node)
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flags=flags))
         case SelfTypeDef():
             return TypeArg(_parse_self_type(arg_nodes, node, ctx))

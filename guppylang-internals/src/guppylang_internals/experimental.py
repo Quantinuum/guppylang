@@ -62,8 +62,15 @@ class disable_experimental_features:
 @dataclass(frozen=True)
 class ExperimentalFeatureError(Error):
     title: ClassVar[str] = "Experimental feature"
-    span_label: ClassVar[str] = "{things} are an experimental feature"
+    # span_label: ClassVar[str] = "{things} are an experimental feature"
     things: str
+    singular_things: bool = False
+
+    @property
+    def span_label(self) -> str:
+        if self.singular_things:
+            return "{things} is an experimental feature"
+        return "{things} are an experimental feature"
 
     @dataclass(frozen=True)
     class Suggestion(Help):
@@ -100,3 +107,8 @@ def check_capturing_closures_enabled(loc: AstNode | None = None) -> None:
 def check_modifiers_enabled(loc: AstNode | None = None) -> None:
     if not EXPERIMENTAL_FEATURES_ENABLED:
         raise GuppyError(ExperimentalFeatureError(loc, "Modifiers"))
+
+
+def check_unitary_callable_enabled(thing, loc: AstNode | None = None) -> None:
+    if not EXPERIMENTAL_FEATURES_ENABLED:
+        raise GuppyError(ExperimentalFeatureError(loc, thing, singular_things=True))
