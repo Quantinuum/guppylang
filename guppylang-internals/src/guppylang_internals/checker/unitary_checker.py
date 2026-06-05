@@ -68,6 +68,7 @@ def _raise_invalid_under_dagger(
         err.add_sub_diagnostic(
             InvalidUnderDagger.FunctionHelp(None, node.name, unitary_flags)
         )
+    err.add_sub_diagnostic(InvalidUnderDagger.ControlFlowHelp(None))
 
     raise GuppyError(err)
 

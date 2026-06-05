@@ -11,4 +11,7 @@ Note:
  7 |     with dagger:
    |          ------ dagger modifier is used here
 
+Help: Control flow statements (e.g. loops and branches) are not allowed in
+daggered contexts.
+
 Guppy compilation failed due to 1 previous error

@@ -114,3 +114,10 @@ class InvalidUnderDagger(Error):
                 return "unitary=True"
             assert UnitaryFlags.Dagger in cast("UnitaryFlags", self.unitary_flags)
             return "dagger=True"
+
+    @dataclass(frozen=True)
+    class ControlFlowHelp(Help):
+        message: ClassVar[str] = (
+            "Control flow statements (e.g. loops and branches) are not allowed in "
+            "daggered contexts."
+        )

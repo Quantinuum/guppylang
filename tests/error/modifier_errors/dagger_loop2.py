@@ -8,4 +8,4 @@ def test(i: int) -> None:
         while i < 46:
             pass
 
-test.check()
+test.compile()

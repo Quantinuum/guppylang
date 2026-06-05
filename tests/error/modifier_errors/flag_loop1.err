@@ -10,4 +10,7 @@ Error: Invalid expression in dagger (at $FILE:6:4)
 Help: The function `test` is declared with the unitary flag: `dagger=True`. Thus
 dagger constraints apply to its body.
 
+Help: Control flow statements (e.g. loops and branches) are not allowed in
+daggered contexts.
+
 Guppy compilation failed due to 1 previous error
