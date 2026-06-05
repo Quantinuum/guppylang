@@ -189,6 +189,7 @@ def check_global_func_def(
         max_effects_from = EffectLimitDecl(
             ty.declared_effects,
             decl,
+            func_def.name,
         )
     return check_cfg(
         cfg,

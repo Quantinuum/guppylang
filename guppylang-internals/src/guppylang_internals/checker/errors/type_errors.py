@@ -53,10 +53,11 @@ class ConstMismatchError(Error):
 class TooManyEffectsError(Error):
     title: ClassVar[str] = "Too many effects"
     span_label: ClassVar[str] = (
-        "Callee of type `{ty}` has effects {effects_str} that exceed those allowed"
+        "Callee of type `{ty}` has effects {effects_str} not allowed inside `{in_func}`"
     )
     ty: Type
     effects: list[Effect]
+    in_func: str
 
     @property
     def effects_str(self) -> str:

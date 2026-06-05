@@ -1324,7 +1324,9 @@ def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
         # Otherwise, the error message points at all decorators, which may or may not
         # list the allowed effects, so list them explicitly
         raise GuppyTypeError(
-            TooManyEffectsError(loc_node, func_ty, func_ty.effects).add_sub_diagnostic(
+            TooManyEffectsError(
+                loc_node, func_ty, func_ty.effects, mf.decl_name
+            ).add_sub_diagnostic(
                 TooManyEffectsError.MaxFromDecl(mf.decl, effects_allowed)
             )
         )

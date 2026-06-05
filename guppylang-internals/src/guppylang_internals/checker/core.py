@@ -449,6 +449,7 @@ class EffectLimitDecl:
 
     effects: list[Effect]
     decl: ast.expr | Span
+    decl_name: str
 
 
 class Context(NamedTuple):
