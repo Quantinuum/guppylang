@@ -8,10 +8,10 @@ Error: Too many effects (at $FILE:12:10)
 
 Note:
    | 
+ 9 | 
 10 | @custom_pure
+   |  -----------
 11 | def main() -> int:
-   | ------------------
-12 |    return impure_func(5)
-   | ------------------------ Allowed effects `[]` declared here
+   | ----------------- Allowed effects `[]` declared here
 
 Guppy compilation failed due to 1 previous error
