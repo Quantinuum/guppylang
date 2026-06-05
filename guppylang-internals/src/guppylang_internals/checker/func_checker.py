@@ -164,7 +164,7 @@ def check_global_func_def(
     if ty.declared_effects is None:
         max_effects_from = None
     elif (deco := _find_guppy_decorator(func_def.decorator_list)) is not None:
-        max_effects_from = (ty.declared_effects, to_span(deco))
+        max_effects_from = (ty.declared_effects, deco)
     else:
         # Could not identify decorator, so include all in context; union with
         # returns will include name etc. inbetween but avoid the function body.

@@ -452,7 +452,7 @@ class Context(NamedTuple):
 
     """If not None, the effect constraints that function calls in this context must
     respect, together with the AST node that gives rise to said constraint"""
-    max_effects_from: tuple[list[Effect], Span] | None = None
+    max_effects_from: tuple[list[Effect], Span | ast.expr] | None = None
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

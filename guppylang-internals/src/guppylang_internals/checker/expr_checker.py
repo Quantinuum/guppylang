@@ -1318,6 +1318,12 @@ def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
     ):
         loc_node = node.func if isinstance(node, ast.Call) else node
         effects_allowed, effects_decl = ctx.max_effects_from
+        if isinstance(effects_decl, ast.expr):
+            # We found the decorator that is the source of the effect constraint,
+            # which will contain the allowed effects as an explicit argument
+            effects_allowed = None
+        # Otherwise, the error message points at all decorators, which may or may not
+        # list the allowed effects, so list them explicitly
         raise GuppyTypeError(
             TooManyEffectsError(loc_node, func_ty, func_ty.effects).add_sub_diagnostic(
                 TooManyEffectsError.MaxFromDecl(effects_decl, effects_allowed)

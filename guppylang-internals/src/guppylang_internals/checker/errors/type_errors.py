@@ -64,14 +64,14 @@ class TooManyEffectsError(Error):
 
     @dataclass(frozen=True)
     class MaxFromDecl(Note):
-        span_label: ClassVar[str] = (
-            "Allowed effects `{allowed_effects_str}` declared here"
-        )
-        allowed_effects: list[Effect]
+        span_label: ClassVar[str] = "Allowed effects {allowed_effects_str}declared here"
+        allowed_effects: list[Effect] | None
 
         @property
         def allowed_effects_str(self) -> str:
-            return Effect.format_list(self.allowed_effects)
+            if self.allowed_effects is None:
+                return ""
+            return "`" + Effect.format_list(self.allowed_effects) + "` "
 
 
 @dataclass(frozen=True)

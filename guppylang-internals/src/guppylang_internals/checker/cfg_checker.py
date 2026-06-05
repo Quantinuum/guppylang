@@ -78,7 +78,7 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
-    max_effects_from: tuple[list[Effect], Span] | None,
+    max_effects_from: tuple[list[Effect], Span | ast.expr] | None,
     first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
@@ -233,7 +233,7 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
-    max_effects_from: tuple[list[Effect], Span] | None,
+    max_effects_from: tuple[list[Effect], Span | ast.expr] | None,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
