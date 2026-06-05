@@ -173,6 +173,28 @@ class ComptimeArgShadowError(Error):
 
 
 @dataclass(frozen=True)
+class EffectsNotApplicableError(Error):
+    title: ClassVar[str] = "Invalid annotation"
+    span_label: ClassVar[str] = "Effects may be applied only to a Callable type"
+
+
+@dataclass(frozen=True)
+class EffectsRepeatedError(Error):
+    title: ClassVar[str] = "Invalid annotation"
+    span_label: ClassVar[str] = (
+        "Effects have already been applied to this Callable type"
+    )
+
+
+@dataclass(frozen=True)
+class InvalidEffectError(Error):
+    title: ClassVar[str] = "Invalid annotation"
+    span_label: ClassVar[str] = "Not a valid effect: {arg}"
+    # We could perhaps provide a list of possible effects?
+    arg: str
+
+
+@dataclass(frozen=True)
 class InvalidFlagError(Error):
     title: ClassVar[str] = "Invalid annotation"
     span_label: ClassVar[str] = "Invalid type annotation"

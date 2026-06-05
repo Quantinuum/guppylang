@@ -127,7 +127,7 @@ def test_pure_callable_from_impure(validate):
 
 def test_pure_callable_from_pure(validate):
     @guppy(effects=[])
-    def pure_func(pure_f: Callable[[int], int] @ effects()) -> int:
+    def pure_func(pure_f: Callable[[int], int] @ effects(None)) -> int:
         return pure_f(5) + 1
 
     validate(pure_func.compile_function())

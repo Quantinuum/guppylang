@@ -26,11 +26,14 @@ from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.errors import (
     CallableComptimeError,
     ComptimeArgShadowError,
+    EffectsNotApplicableError,
+    EffectsRepeatedError,
     FlagNotAllowedError,
     FreeTypeVarError,
     HigherKindedTypeVarError,
     IllegalComptimeTypeArgError,
     InvalidCallableTypeError,
+    InvalidEffectError,
     InvalidFlagError,
     InvalidTypeArgError,
     InvalidTypeError,
@@ -473,19 +476,26 @@ def type_with_flags_from_ast(
                     raise GuppyError(LinearComptimeError(node.right, ty))
             case ast.Call(func=ast.Name(id="effects")) as fx:
                 if not isinstance(ty, FunctionType):
-                    raise GuppyError(InvalidFlagError(node.right))
+                    raise GuppyError(EffectsNotApplicableError(node.right))
                 if ty.declared_effects is not None:
-                    raise GuppyError(InvalidFlagError(node.right))
+                    raise GuppyError(EffectsRepeatedError(node.right))
                 effects: list[Effect] = []
-                for e in fx.args:
-                    # We might want to support ast.Attribute with LHS "Effects"
-                    # and look at RHS
-                    if not isinstance(e, ast.Name):
-                        raise GuppyError(InvalidFlagError(node.right))
-                    try:
-                        effects.append(Effect.__from_str__(e.id))
-                    except ValueError:
-                        raise GuppyError(InvalidFlagError(node.right))  # noqa: B904
+                if (
+                    len(fx.args) == 1
+                    and isinstance(fx.args[0], ast.Constant)
+                    and fx.args[0].value is None
+                ):
+                    effects = []
+                else:
+                    for e in fx.args:
+                        # We might want to support ast.Attribute with LHS "Effects"
+                        # and look at RHS
+                        if not isinstance(e, ast.Name):
+                            raise GuppyError(InvalidEffectError(node.right, str(e)))
+                        try:
+                            effects.append(Effect.__from_str__(e.id))
+                        except ValueError:
+                            raise GuppyError(InvalidEffectError(node.right, e.id))  # noqa: B904
                 ty = ty.with_effects(effects)
             case _:
                 raise GuppyError(InvalidFlagError(node.right))
