@@ -23,7 +23,7 @@ def test_pure_decl_from_explicit_impure(validate):
     @guppy.declare(effects=[])
     def pure_func(x: int) -> int: ...
 
-    @guppy(effects=[Effect.ANY])
+    @guppy(effects=Effect.ANY)
     def impure_func(x: int) -> int:
         return pure_func(x) + 1
 
@@ -61,7 +61,7 @@ def test_impure_decl_explicit(caller, callee, validate):
 
 
 def test_pure_from_impure(validate):
-    @guppy(effects=[])
+    @guppy(effects=None)
     def pure_func(x: int) -> int:
         return x + 1
 

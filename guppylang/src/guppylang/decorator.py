@@ -120,7 +120,8 @@ class GuppyKwargs(TypedDict, total=False):
     power: bool
     max_qubits: int
     link_name: str
-    effects: list[Effect]
+    # effects=None means no effects, distinct from not specifying effects= at all
+    effects: list[Effect] | Effect | None
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -876,12 +877,19 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         metadata.set_max_qubits(kwargs.pop("max_qubits"))
 
     link_name = kwargs.pop("link_name", None)
-    max_effects_input = kwargs.pop("effects", None)
-    effects = (
-        None
-        if max_effects_input is None
-        else [effect.to_internal() for effect in max_effects_input]
-    )
+
+    if "effects" in kwargs:
+        max_effects_input = kwargs.pop("effects")
+        effects = (
+            []
+            if max_effects_input is None
+            else [max_effects_input.to_internal()]
+            if isinstance(max_effects_input, Effect)
+            else [effect.to_internal() for effect in max_effects_input]
+        )
+    else:
+        # Not specified
+        effects = None
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
