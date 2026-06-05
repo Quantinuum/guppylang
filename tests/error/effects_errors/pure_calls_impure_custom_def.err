@@ -1,38 +1,17 @@
-Traceback (most recent call last):
-  File "$FILE", line 14, in <module>
-    main.compile()
-  File "/Users/alanlawrence/repos/guppylang/guppylang/src/guppylang/defs.py", line 205, in compile
-    return self.compile_entrypoint()
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 131, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/alanlawrence/repos/guppylang/guppylang/src/guppylang/defs.py", line 218, in compile_entrypoint
-    pack = self.compile_function()
-  File "/Users/alanlawrence/repos/guppylang/guppylang/src/guppylang/defs.py", line 250, in compile_function
-    return super().compile()
-  File "/Users/alanlawrence/repos/guppylang/guppylang/src/guppylang/defs.py", line 88, in compile
-    package: Package = ENGINE.compile_single(self.id).package
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 131, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 438, in compile_single
-    pointer, [compiled_def] = self._compile([id])
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 463, in _compile
-    self.check(def_ids, reset=reset)
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 131, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 430, in check
-    self.checked[id, mono_args] = self.get_checked(id, mono_args)
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 131, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 294, in get_checked
-    checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/definition/function.py", line 178, in check
-    cfg = check_global_func_def(
-        self.defined_at,
-    ...<2 lines>...
-        globals,
-    )
-  File "/Users/alanlawrence/repos/guppylang/guppylang-internals/src/guppylang_internals/checker/func_checker.py", line 169, in check_global_func_def
-    raise InternalGuppyError(
-    ...<2 lines>...
-    )
-guppylang_internals.error.InternalGuppyError: Effects limited to [] but cannot identify decorator imposing this limit
+Error: Too many effects (at $FILE:12:10)
+   | 
+10 | @custom_pure
+11 | def main() -> int:
+12 |    return impure_func(5)
+   |           ^^^^^^^^^^^ Callee of type `int -> int` has effects [ANY] that exceed
+   |                       those allowed
+
+Note:
+   | 
+10 | @custom_pure
+11 | def main() -> int:
+   | ------------------
+12 |    return impure_func(5)
+   | ------------------------ Allowed effects `[]` declared here
+
+Guppy compilation failed due to 1 previous error

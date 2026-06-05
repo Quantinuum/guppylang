@@ -80,6 +80,12 @@ class Span:
             raise InternalGuppyError("Span: Tried to compute length of multi-line span")
         return self.end.column - self.start.column
 
+    def __bool__(self) -> bool:
+        """A span is considered false if it has zero length."""
+        # Avoid calling __len__: a multi-line span is considered True
+        # even though its length is not computable
+        return self.start != self.end
+
     @property
     def file(self) -> str:
         """The file containing this span."""
