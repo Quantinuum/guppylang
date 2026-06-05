@@ -910,7 +910,7 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
         case FunctionType() as s, FunctionType() as t if s.params == t.params:
             if len(s.inputs) != len(t.inputs):
                 return None
-            if s.effects != t.effects:
+            if set(s.effects) != set(t.effects):
                 # There are no "effect variables" yet, and we enforce exact matching
                 # (invariance) as covariance will become difficult when we replace Order
                 # edges with explicit tokens. (Requiring runtime closures or codegen for
