@@ -3,8 +3,8 @@ Error: Too many effects (at $FILE:12:10)
 10 | @custom_pure
 11 | def main() -> int:
 12 |    return impure_func(5)
-   |           ^^^^^^^^^^^ Callee of type `int -> int` has effects [ANY] not allowed
-   |                       inside `main`
+   |           ^^^^^^^^^^^ Call to `impure_func` has effects `[ANY]` not allowed inside
+   |                       `main`
 
 Note:
    | 

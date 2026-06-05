@@ -1313,21 +1313,25 @@ def check_comptime_arg(
 def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
     """Checks that a function call (AST provided) to a specified FunctionType
     respects the effect constraints in the context."""
-    mf = ctx.max_effects_from
-    if mf is not None and (any(e not in mf.effects for e in func_ty.effects)):
+    if (mf := ctx.max_effects_from) is None:
+        return
+    surplus_effects = [e for e in func_ty.effects if e not in mf.effects]
+    if surplus_effects:
         loc_node = node.func if isinstance(node, ast.Call) else node
-        effects_allowed = mf.effects
+        show_effects_allowed = mf.effects
         if isinstance(mf.decl, ast.expr):
             # We found the decorator that is the source of the effect constraint,
             # which will contain the allowed effects as an explicit argument
-            effects_allowed = None
+            show_effects_allowed = None
         # Otherwise, the error message points at all decorators, which may or may not
         # list the allowed effects, so list them explicitly
+
+        callee = loc_node.id if isinstance(loc_node, ast.Name) else func_ty
         raise GuppyTypeError(
             TooManyEffectsError(
-                loc_node, func_ty, func_ty.effects, mf.decl_name
+                loc_node, callee, surplus_effects, mf.decl_name
             ).add_sub_diagnostic(
-                TooManyEffectsError.MaxFromDecl(mf.decl, effects_allowed)
+                TooManyEffectsError.MaxFromDecl(mf.decl, show_effects_allowed)
             )
         )
 

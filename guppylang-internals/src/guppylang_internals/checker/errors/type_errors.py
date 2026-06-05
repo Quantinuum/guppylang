@@ -52,16 +52,23 @@ class ConstMismatchError(Error):
 @dataclass(frozen=True)
 class TooManyEffectsError(Error):
     title: ClassVar[str] = "Too many effects"
-    span_label: ClassVar[str] = (
-        "Callee of type `{ty}` has effects {effects_str} not allowed inside `{in_func}`"
-    )
-    ty: Type
+    span_label: ClassVar[str] = "{target} not allowed inside `{in_func}`"
+    callee: str | FunctionType
     effects: list[Effect]
     in_func: str
 
     @property
-    def effects_str(self) -> str:
-        return Effect.format_list(self.effects)
+    def target(self) -> str:
+        if isinstance(self.callee, str):
+            return f"Call to `{self.callee}`" + self.note_effects()
+        msg = f"Callee of type `{self.callee}`"
+        if self.callee.declared_effects is None:
+            # FunctionType that will not display any effects, so list separately
+            msg += self.note_effects()
+        return msg
+
+    def note_effects(self) -> str:
+        return f" has effects `{Effect.format_list(self.effects)}`"
 
     @dataclass(frozen=True)
     class MaxFromDecl(Note):
