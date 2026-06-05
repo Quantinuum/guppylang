@@ -11,8 +11,7 @@ from guppylang.std import qsystem
 from guppylang.std.angles import angle
 from guppylang.std.array import array
 from guppylang.std.builtins import owned
-from guppylang.std.qsystem import Measurement
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import Measurement, qubit
 
 N = guppy.nat_var("N")
 
@@ -35,8 +34,8 @@ def zz_phase(q1: qubit @ owned, q2: qubit @ owned, angle: angle) -> tuple[qubit,
 
 @guppy
 @no_type_check
-def measure_and_reset(q: qubit @ owned) -> tuple[qubit, bool]:
-    """Functional measure_and_reset command."""
+def measure_and_reset(q: qubit @ owned) -> tuple[qubit, Measurement]:
+    """Functional lazy measure_and_reset command."""
     b = qsystem.measure_and_reset(q)
     return q, b
 
@@ -51,8 +50,8 @@ def lazy_measure_and_reset(q: qubit @ owned) -> tuple[qubit, Measurement]:
 
 @guppy
 @no_type_check
-def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
-    """Functional measure_array command."""
+def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
+    """Functional lazy measure_array command."""
     return qsystem.measure_array(qubits)
 
 
@@ -60,8 +59,8 @@ def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
 @no_type_check
 def measure_and_reset_array(
     qubits: array[qubit, N] @ owned,
-) -> tuple[array[qubit, N], array[bool, N]]:
-    """Functional measure_and_reset_array command."""
+) -> tuple[array[qubit, N], array[Measurement, N]]:
+    """Functional lazy measure_and_reset_array command."""
     bs = qsystem.measure_and_reset_array(qubits)
     return qubits, bs
 
@@ -94,8 +93,8 @@ def rz(q: qubit @ owned, angle: angle) -> qubit:
 
 @guppy
 @no_type_check
-def measure(q: qubit @ owned) -> bool:
-    """Functional destructive measurement command."""
+def measure(q: qubit @ owned) -> Measurement:
+    """Functional lazy destructive measurement command."""
     result = qsystem.measure(q)
     return result
 

@@ -9,7 +9,7 @@ from typing import no_type_check
 
 import hugr.std.int
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
-from guppylang_internals.definition.custom import BoolOpCompiler, NoopCompiler
+from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.std._internal.checker import DunderChecker, ReversingChecker
 from guppylang_internals.std._internal.compiler.prelude import UnwrapOpCompiler
 from guppylang_internals.std._internal.util import (
@@ -47,7 +47,7 @@ class nat:
     @hugr_op(int_op("idivmod_u", n_vars=2))
     def __divmod__(self: nat, other: nat) -> tuple[nat, nat]: ...
 
-    @custom_function(BoolOpCompiler(int_op("ieq")))
+    @hugr_op(int_op("ieq"))
     def __eq__(self: nat, other: nat) -> bool: ...
 
     @hugr_op(int_op("convert_u", hugr.std.int.CONVERSIONS_EXTENSION))
@@ -59,10 +59,10 @@ class nat:
     @hugr_op(int_op("idiv_u"))
     def __floordiv__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ige_u")))
+    @hugr_op(int_op("ige_u"))
     def __ge__(self: nat, other: nat) -> bool: ...
 
-    @custom_function(BoolOpCompiler(int_op("igt_u")))
+    @hugr_op(int_op("igt_u"))
     def __gt__(self: nat, other: nat) -> bool: ...
 
     @hugr_op(int_op("iu_to_s"))
@@ -71,13 +71,13 @@ class nat:
     @hugr_op(int_op("inot"))
     def __invert__(self: nat) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ile_u")))
+    @hugr_op(int_op("ile_u"))
     def __le__(self: nat, other: nat) -> bool: ...
 
     @hugr_op(int_op("ishl"))
     def __lshift__(self: nat, other: nat) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ilt_u")))
+    @hugr_op(int_op("ilt_u"))
     def __lt__(self: nat, other: nat) -> bool: ...
 
     @hugr_op(int_op("imod_u"))
@@ -89,7 +89,7 @@ class nat:
     @custom_function(NoopCompiler())
     def __nat__(self: nat) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ine")))
+    @hugr_op(int_op("ine"))
     def __ne__(self: nat, other: nat) -> bool: ...
 
     @custom_function(checker=DunderChecker("__nat__"), higher_order_value=False)
@@ -188,7 +188,7 @@ class int:
     @hugr_op(int_op("idivmod_s"))
     def __divmod__(self: int, other: int) -> tuple[int, int]: ...
 
-    @custom_function(BoolOpCompiler(int_op("ieq")))
+    @hugr_op(int_op("ieq"))
     def __eq__(self: int, other: int) -> bool: ...
 
     @hugr_op(int_op("convert_s", hugr.std.int.CONVERSIONS_EXTENSION))
@@ -200,10 +200,10 @@ class int:
     @hugr_op(int_op("idiv_s"))
     def __floordiv__(self: int, other: int) -> int: ...
 
-    @custom_function(BoolOpCompiler(int_op("ige_s")))
+    @hugr_op(int_op("ige_s"))
     def __ge__(self: int, other: int) -> bool: ...
 
-    @custom_function(BoolOpCompiler(int_op("igt_s")))
+    @hugr_op(int_op("igt_s"))
     def __gt__(self: int, other: int) -> bool: ...
 
     @custom_function(NoopCompiler())
@@ -212,13 +212,13 @@ class int:
     @hugr_op(int_op("inot"))
     def __invert__(self: int) -> int: ...
 
-    @custom_function(BoolOpCompiler(int_op("ile_s")))
+    @hugr_op(int_op("ile_s"))
     def __le__(self: int, other: int) -> bool: ...
 
     @hugr_op(int_op("ishl"))  # TODO: RHS is unsigned
     def __lshift__(self: int, other: int) -> int: ...
 
-    @custom_function(BoolOpCompiler(int_op("ilt_s")))
+    @hugr_op(int_op("ilt_s"))
     def __lt__(self: int, other: int) -> bool: ...
 
     @hugr_op(int_op("imod_s"))
@@ -230,7 +230,7 @@ class int:
     @hugr_op(int_op("is_to_u"))
     def __nat__(self: int) -> nat: ...
 
-    @custom_function(BoolOpCompiler(int_op("ine")))
+    @hugr_op(int_op("ine"))
     def __ne__(self: int, other: int) -> bool: ...
 
     @hugr_op(int_op("ineg"))
@@ -341,7 +341,7 @@ class float:
     def __divmod__(self: float, other: float) -> tuple[float, float]:
         return self // other, self.__mod__(other)
 
-    @custom_function(BoolOpCompiler(float_op("feq")))
+    @hugr_op(float_op("feq"))
     def __eq__(self: float, other: float) -> bool: ...
 
     @custom_function(NoopCompiler())
@@ -355,10 +355,10 @@ class float:
     def __floordiv__(self: float, other: float) -> float:
         return (self / other).__floor__()
 
-    @custom_function(BoolOpCompiler(float_op("fge")))
+    @hugr_op(float_op("fge"))
     def __ge__(self: float, other: float) -> bool: ...
 
-    @custom_function(BoolOpCompiler(float_op("fgt")))
+    @hugr_op(float_op("fgt"))
     def __gt__(self: float, other: float) -> bool: ...
 
     @custom_function(
@@ -369,10 +369,10 @@ class float:
     )
     def __int__(self: float) -> int: ...
 
-    @custom_function(BoolOpCompiler(float_op("fle")))
+    @hugr_op(float_op("fle"))
     def __le__(self: float, other: float) -> bool: ...
 
-    @custom_function(BoolOpCompiler(float_op("flt")))
+    @hugr_op(float_op("flt"))
     def __lt__(self: float, other: float) -> bool: ...
 
     @guppy
@@ -391,7 +391,7 @@ class float:
     )
     def __nat__(self: float) -> nat: ...
 
-    @custom_function(BoolOpCompiler(float_op("fne")))
+    @hugr_op(float_op("fne"))
     def __ne__(self: float, other: float) -> bool: ...
 
     @hugr_op(float_op("fneg"))
