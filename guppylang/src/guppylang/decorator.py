@@ -2,7 +2,6 @@ import ast
 import builtins
 import inspect
 from collections.abc import Callable, Sequence
-from enum import Enum
 from types import FrameType
 from typing import (
     Any,
@@ -55,7 +54,7 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
-from guppylang_internals.tys import Effect as _Effect
+from guppylang_internals.tys import Effect  # Re-exported
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst
@@ -69,7 +68,7 @@ from hugr import ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.package import ModulePointer
-from typing_extensions import Unpack, assert_never, dataclass_transform, deprecated
+from typing_extensions import Unpack, dataclass_transform, deprecated
 
 from guppylang.defs import (
     GuppyDefinition,
@@ -95,18 +94,12 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("Effect", "GuppyKwargs", "custom_guppy_decorator", "guppy")
-
-
-class Effect(Enum):
-    ANY = "ANY"
-
-    def to_internal(self) -> _Effect:
-        match self:
-            case Effect.ANY:
-                return _Effect.ANY
-            case _ as unreachable:
-                assert_never(unreachable)
+__all__ = (
+    "Effect",  # Re-export
+    "GuppyKwargs",
+    "custom_guppy_decorator",
+    "guppy",
+)
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -853,7 +846,7 @@ class ParsedGuppyKwargs(NamedTuple):
     metadata: FunctionMetadata
     # The empty list means no effects, whereas None means unspecified - i.e. assume all
     # effects are possible until we can analyse the call-graph to calculate exactly.
-    effects: list[_Effect] | None
+    effects: list[Effect] | None
     link_name: str | None
 
 
@@ -878,14 +871,15 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 
     link_name = kwargs.pop("link_name", None)
 
+    effects: list[Effect] | None
     if "effects" in kwargs:
         max_effects_input = kwargs.pop("effects")
         effects = (
             []
             if max_effects_input is None
-            else [max_effects_input.to_internal()]
+            else [max_effects_input]
             if isinstance(max_effects_input, Effect)
-            else [effect.to_internal() for effect in max_effects_input]
+            else max_effects_input
         )
     else:
         # Not specified

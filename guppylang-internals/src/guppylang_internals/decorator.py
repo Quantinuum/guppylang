@@ -115,7 +115,7 @@ def custom_function(
             signature,
             unitary_flags,
             has_var_args,
-            effects=None if effects is None else [e.to_internal() for e in effects],
+            effects=effects,
         )
         DEF_STORE.register_def(func, get_calling_frame())
         return GuppyFunctionDefinition(func)
