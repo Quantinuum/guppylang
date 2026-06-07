@@ -59,8 +59,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from types import FrameType
 
-    from guppylang import Effect
-
+    from guppylang_internals.tys import Effect
     from guppylang_internals.tys.arg import Argument
     from guppylang_internals.tys.param import Parameter
     from guppylang_internals.tys.subst import Inst
