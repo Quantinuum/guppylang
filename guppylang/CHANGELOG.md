@@ -14,6 +14,40 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a0...guppylang-v1.0.0-a1) (2026-06-04)
+
+
+### Features
+
+* Add native PCG32 random number generator to std lib ([#1808](https://github.com/Quantinuum/guppylang/issues/1808)) ([a789648](https://github.com/Quantinuum/guppylang/commit/a7896489cfc969652e114af8d85336299baee389))
+
+
+### Documentation
+
+* Correct docstring formatting for std.quantum.reset ([#1810](https://github.com/Quantinuum/guppylang/issues/1810)) ([fb5ae49](https://github.com/Quantinuum/guppylang/commit/fb5ae499379e10ed92b2e410ff63249e8251927a))
+
+## [1.0.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.12...guppylang-v1.0.0-a0) (2026-05-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Protocol parsing ([#1754](https://github.com/Quantinuum/guppylang/issues/1754))
+
+### Features
+
+* Add array helpers for qubit measurements for qsystem measurement variants ([#1667](https://github.com/Quantinuum/guppylang/issues/1667)) ([fa6f85a](https://github.com/Quantinuum/guppylang/commit/fa6f85abbeeeb4746a726d9e810fb82dd43ed3de))
+* Protocol parsing ([#1754](https://github.com/Quantinuum/guppylang/issues/1754)) ([17282cd](https://github.com/Quantinuum/guppylang/commit/17282cdf71b9a238c737d2ddb19ad71e7e7d24d4))
+
+
+### Documentation
+
+* add parameters in error model snippet ([#1751](https://github.com/Quantinuum/guppylang/issues/1751)) ([ab9c8ca](https://github.com/Quantinuum/guppylang/commit/ab9c8ca0de91fa7da1a326bad0a9ba21e3c88439))
+
+
+### Miscellaneous Chores
+
+* release guppylang-internals 1.0.0-a0 ([#1782](https://github.com/Quantinuum/guppylang/issues/1782)) ([28e30e2](https://github.com/Quantinuum/guppylang/commit/28e30e207f56140c3196c51fb1ab9b9f0fbd5dae))
+
 ## [0.21.12](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.11...guppylang-v0.21.12) (2026-04-16)
 
 

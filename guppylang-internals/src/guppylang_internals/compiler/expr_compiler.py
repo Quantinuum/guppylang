@@ -36,6 +36,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import (
     AbortExpr,
     AbortKind,
@@ -443,6 +444,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         raise InternalGuppyError("Node should have been removed during type checking.")
 
     def visit_PartialApply(self, node: PartialApply) -> Wire:
+        check_partial_functions_enabled(node)
         func_ty = get_type(node.func)
         assert isinstance(func_ty, FunctionType)
         op = PartialOp.from_closure(
