@@ -113,7 +113,7 @@ def trace_function(
         with (
             exception_hook(tracing_except_hook),
             mock_builtins(python_func),
-            insert_generic_args(python_func, generic_values),
+            add_generic_to_function_globals(python_func, generic_values),
         ):
             py_out = python_func(*inputs)
 
@@ -258,7 +258,7 @@ def const_argument_to_python_value(arg: ConstArg) -> Any:
 
 
 @contextmanager
-def insert_generic_args(
+def add_generic_to_function_globals(
     f: Callable[..., Any], generic_values: dict[str, Any]
 ) -> Iterator[None]:
     """Context manager that updates the given function to allow access to the
