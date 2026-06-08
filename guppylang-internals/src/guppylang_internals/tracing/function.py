@@ -1,4 +1,3 @@
-import sys
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -264,21 +263,25 @@ def add_generic_to_function_globals(
 ) -> Iterator[None]:
     """Context manager that updates the given function to allow access to the
     instantiation of generic parameters."""
-    # The values of Python 3.12+ style generics are generated using an annotation scope
+    # There are two ways a function can refer to a type variable. Variables defined on
+    # module level via `guppy.type_var`, will be looked up in the functions'
+    # `__globals__` table. Variables defined in a non-module parent scope are looked up
+    # via the function's `__closure__` table. The latter is also the one that applies to
+    # variables defined via the Python 3.12+ syntax since they desugar into annotation
+    # scopes
     # (see https://docs.python.org/3/reference/compound_stmts.html#generic-functions).
-    # In particular, this means that they are looked up via the function's closure
-    # mappingproxy instead of the frame globals. Thus, their values will be bound in the
-    # `__closure__` table of the function and referenced in the `co_freevars` of the
-    # functions `__code__`.
-    if sys.version_info >= (3, 12) and f.__closure__ is not None:
+
+    # First, we check if the variable is bound via the `__closure__` table. Those are
+    # the ones that are mentioned in the `co_freevars` of the functions `__code__`.
+    if f.__closure__ is not None:
         for i, x in enumerate(f.__code__.co_freevars):
             if x in generic_values:
                 f.__closure__[i].cell_contents = generic_values.pop(x)
 
-    # Any remaining values must be pre Python 3.12 style generics and we can set them by
-    # updating the `__globals__` table of the function. Note that mutating
-    # `f.__globals__` also mutates the globals of other functions defined in the same
-    # frame. Thus, we need to cache the old values so we can restore them afterwards.
+    # The remaining ones can be set via the `__globals__` table of the function. Note
+    # that mutating `f.__globals__` also mutates the globals of other functions defined
+    # in the same frame. Thus, we need to cache the old values so we can restore them
+    # afterwards.
     old = {x: f.__globals__[x] for x in generic_values if x in f.__globals__}
     f.__globals__.update(generic_values)
     try:
