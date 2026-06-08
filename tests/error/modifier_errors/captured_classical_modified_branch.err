@@ -9,7 +9,7 @@ Note:
    | 
  8 |     with power(2):
  9 |         x += 1
-   |         ------ ... since it was defined in a modifier block
+   |         ------ ... since it was assigned in a modifier block
 
 Help: Variables assigned inside a modifier block are not available outside the
 block

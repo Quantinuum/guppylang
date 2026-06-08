@@ -7,9 +7,9 @@ Error: Variable assigned in modifier block (at $FILE:12:11)
 
 Note:
    | 
- 8 |     with power(2):
- 9 |         x = 1
-   |         ----- ... since it was defined in a modifier block
+10 |     with power(3):
+11 |         x += 2
+   |         ------ ... since it was assigned in a modifier block
 
 Help: Variables assigned inside a modifier block are not available outside the
 block

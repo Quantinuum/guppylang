@@ -220,7 +220,7 @@ class AssignedInModifierError(Error):
 
     @dataclass(frozen=True)
     class AssignedHere(Note):
-        span_label: ClassVar[str] = "... since it was defined in a modifier block"
+        span_label: ClassVar[str] = "... since it was assigned in a modifier block"
 
     @dataclass(frozen=True)
     class Explanation(Help):
@@ -252,13 +252,13 @@ def check_bb(
             ):
                 raise GuppyError(VarNotDefinedError(use, x))
 
-    # We check that the block does not use defined variables that has been redefined
+    # We check that the block does not use defined variables that have been redefined
     # inside a modifier block
     if bb.vars.badly_used_after_modifier_block:
-        x, use = next(iter(bb.vars.badly_used_after_modifier_block.items()))
-        raise GuppyError(
-            _assigned_in_modifier_error(x, use, bb.vars.assigned_in_modifier_block[x])
+        x, (use, assignment) = next(
+            iter(bb.vars.badly_used_after_modifier_block.items())
         )
+        raise GuppyError(_assigned_in_modifier_error(x, use, assignment))
 
     # Check the basic block
     ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
