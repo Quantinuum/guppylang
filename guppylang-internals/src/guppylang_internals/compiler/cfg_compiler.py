@@ -91,17 +91,17 @@ def compile_bb(
     assert bb.reachable
 
     # Otherwise, we use a regular `Block` node
-    block: hc.Block
+    hugr_block: hc.Block
     inputs: Sequence[Place]
     if is_entry:
         inputs = bb.sig.input_row
-        block = builder.add_entry()
+        hugr_block = builder.add_entry()
     else:
         inputs = sort_vars(bb.sig.input_row)
-        block = builder.add_block(*(v.ty.to_hugr(ctx) for v in inputs))
-
+        hugr_block = builder.add_block(*(v.ty.to_hugr(ctx) for v in inputs))
+    block = BlockBuilder(hugr_block, builder, outer)
     # Add input node and compile the statements
-    dfg = DFContainer(BlockBuilder(block, builder, outer), ctx)
+    dfg = DFContainer(block, ctx)
     for v, wire in zip(inputs, block.input_node, strict=True):
         dfg[v] = wire
     dfg = StmtCompiler(ctx).compile_stmts(bb.statements, dfg)

@@ -202,10 +202,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         Automatically adds the `Output` node once the context manager exits.
         """
         # TODO: `Case` is `_DfgBase`, but not `Dfg`?
-        case = conditional.add_case(case_id)
-        with self._new_dfcontainer(
-            inputs, CaseBuilder(case, conditional, self.builder)
-        ):
+        case = CaseBuilder(conditional.add_case(case_id), conditional, self.builder)
+        with self._new_dfcontainer(inputs, case):
             yield
             case.set_outputs(*(self.visit(name) for name in outputs))
 

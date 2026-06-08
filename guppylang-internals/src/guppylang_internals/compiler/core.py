@@ -429,6 +429,10 @@ class BlockBuilder(DFBuilder):
     def raw_builder(self) -> Block:
         return self._raw_builder
 
+    def set_block_outputs(self, branching: Wire, *other_outputs: Wire) -> None:
+        self.raw_builder.set_outputs(branching, *other_outputs)
+        self._outputs_set = True
+
 
 class CompilerBase(ABC):
     """Base class for the Guppy compiler."""
