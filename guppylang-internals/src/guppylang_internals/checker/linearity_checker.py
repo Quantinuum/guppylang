@@ -1008,7 +1008,6 @@ def check_cfg_linearity(
                 place = use_scope[x]
                 use = use_scope.used_parent[x]
                 if not place.ty.copyable and (prev_use := scope.used(x)):
-                    use = use_scope.used_parent[x]
                     # Special case if this is a use arising from the implicit returning
                     # of a borrowed argument
                     if isinstance(use.node, InoutReturnSentinel):
