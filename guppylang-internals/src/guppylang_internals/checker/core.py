@@ -3,7 +3,7 @@ import copy
 import itertools
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, replace
-from functools import cache, cached_property
+from functools import cache, cached_property, reduce
 from types import FrameType
 from typing import (
     TYPE_CHECKING,
@@ -26,11 +26,12 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
 from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
-from guppylang_internals.span import Span
+from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.ty import (
+    FunctionType,
     InputFlags,
     StructType,
     Type,
@@ -450,6 +451,47 @@ class EffectLimitDecl:
     effects: list[Effect]
     decl: ast.expr | Span
     decl_name: str
+
+    @classmethod
+    def for_def(
+        cls, ty: FunctionType, func_def: ast.FunctionDef
+    ) -> "EffectLimitDecl | None":
+        if ty.declared_effects is None:
+            return None
+        if (deco := _find_guppy_decorator(func_def.decorator_list)) is not None:
+            decl = deco
+        else:
+            # Could not identify decorator, so include all in context; union with
+            # returns will include name etc. inbetween but avoid the function body.
+            elems = func_def.decorator_list
+            if func_def.returns is not None:
+                elems += [func_def.returns]
+
+            def union(s1: Span, s2: Span) -> Span:
+                r = s1 | s2
+                assert r is not None  # Function def should not cross file boundary
+                return r
+
+            decl = reduce(union, (to_span(e) for e in elems))
+
+        return EffectLimitDecl(
+            ty.declared_effects,
+            decl,
+            func_def.name,
+        )
+
+
+def _find_guppy_decorator(decorators: list[ast.expr]) -> ast.expr | None:
+    for d in decorators:
+        if (
+            isinstance(d, ast.Call)
+            and isinstance(d.func, ast.Name)
+            and d.func.id == "guppy"
+        ):
+            return d
+        if isinstance(d, ast.Name) and d.id == "guppy":
+            return d
+    return None
 
 
 class Context(NamedTuple):

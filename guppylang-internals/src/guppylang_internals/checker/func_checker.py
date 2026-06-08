@@ -9,7 +9,6 @@ import ast
 import copy
 import sys
 from dataclasses import dataclass, replace
-from functools import reduce
 from typing import TYPE_CHECKING, ClassVar, cast
 
 from guppylang_internals.ast_util import AstNode, return_nodes_in_ast, with_loc
@@ -32,7 +31,6 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
-from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
@@ -167,30 +165,7 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    if ty.declared_effects is None:
-        max_effects_from = None
-    else:
-        if (deco := _find_guppy_decorator(func_def.decorator_list)) is not None:
-            decl = deco
-        else:
-            # Could not identify decorator, so include all in context; union with
-            # returns will include name etc. inbetween but avoid the function body.
-            elems = func_def.decorator_list
-            if func_def.returns is not None:
-                elems += [func_def.returns]
-
-            def union(s1: Span, s2: Span) -> Span:
-                r = s1 | s2
-                assert r is not None  # Function def should not cross file boundary
-                return r
-
-            decl = reduce(union, (to_span(e) for e in elems))
-
-        max_effects_from = EffectLimitDecl(
-            ty.declared_effects,
-            decl,
-            func_def.name,
-        )
+    max_effects_from = EffectLimitDecl.for_def(ty, func_def)
     return check_cfg(
         cfg,
         inputs,
@@ -200,19 +175,6 @@ def check_global_func_def(
         globals,
         max_effects_from=max_effects_from,
     )
-
-
-def _find_guppy_decorator(decorators: list[ast.expr]) -> ast.expr | None:
-    for d in decorators:
-        if (
-            isinstance(d, ast.Call)
-            and isinstance(d.func, ast.Name)
-            and d.func.id == "guppy"
-        ):
-            return d
-        if isinstance(d, ast.Name) and d.id == "guppy":
-            return d
-    return None
 
 
 def check_nested_func_def(
