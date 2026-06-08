@@ -3,7 +3,7 @@ Error: Copy violation (at $FILE:17:15)
 15 | def foo(s: MyStruct @owned, b: bool) -> MyStruct:
 16 |     if b or (t := s):
 17 |         return s
-   |                ^ Field `s.x` cannot be returned ...
+   |                ^ Variable `s` cannot be returned ...
 
 Note:
    | 

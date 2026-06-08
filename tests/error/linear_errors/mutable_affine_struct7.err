@@ -3,7 +3,7 @@ Error: Copy violation (at $FILE:13:12)
 11 | def foo(s: MyStruct @owned, b: bool) -> None:
 12 |     while b:
 13 |         t = s
-   |             ^ Field `s.x` cannot be moved ...
+   |             ^ Variable `s` cannot be moved ...
 
 Note:
    | 
