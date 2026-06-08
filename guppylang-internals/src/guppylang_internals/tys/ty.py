@@ -712,13 +712,18 @@ class StructType(ParametrizedTypeBase):
 
     @cached_property
     def intrinsically_copyable(self) -> bool:
-        """Whether objects of this type can be  implicitly copied."""
-        return all(f.ty.copyable for f in self.fields)
+        """Whether objects of this type can be implicitly copied."""
+        return self.frozen and all(f.ty.copyable for f in self.fields)
 
     @cached_property
     def intrinsically_droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
         return all(f.ty.droppable for f in self.fields)
+
+    @property
+    def frozen(self) -> bool:
+        """Whether objects of this type are immutable."""
+        return self.defn.frozen
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
