@@ -47,7 +47,11 @@ class CallableTypeDef(TypeDef, CompiledDef):
         "Controllable",
         "PowerControllable",
     ] = field(default="Callable", kw_only=True)
-    flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
+    flags: UnitaryFlags = UnitaryFlags.NoFlags
+
+    def set_flags_and_name(self, flags: UnitaryFlags) -> None:
+        object.__setattr__(self, "flags", flags)
+        object.__setattr__(self, "name", self.flags.callable_name())
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -218,41 +222,18 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 
 callable_type_def = CallableTypeDef(DefId.fresh(), None, None)
-unitary_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    name="Unitary",
-    flags=UnitaryFlags.Unitary,
-)
-powerable_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    name="Powerable",
-    flags=UnitaryFlags.Power,
-)
-daggerable_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    name="Daggerable",
-    flags=UnitaryFlags.Dagger,
-)
-controllable_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    name="Controllable",
-    flags=UnitaryFlags.Control,
-)
-powerctrlable_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    name="PowerControllable",
-    flags=UnitaryFlags.Power | UnitaryFlags.Control,
-)
+
+unitary_type_def = CallableTypeDef(DefId.fresh(), None, None)
+unitary_type_def.set_flags_and_name(UnitaryFlags.Unitary)
+powerable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+powerable_type_def.set_flags_and_name(UnitaryFlags.Power)
+daggerable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+daggerable_type_def.set_flags_and_name(UnitaryFlags.Dagger)
+controllable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+controllable_type_def.set_flags_and_name(UnitaryFlags.Control)
+powerctrlable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+powerctrlable_type_def.set_flags_and_name(UnitaryFlags.Power | UnitaryFlags.Control)
+
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)
 none_type_def = _NoneTypeDef(DefId.fresh(), None, [])
