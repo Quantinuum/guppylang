@@ -50,10 +50,8 @@ def compile_local_func_def(
     # Prepend captured variables to the function arguments
     func_ty = func.ty.to_hugr(ctx)
     closure_ty = ht.FunctionType([*captured_types, *func_ty.input], func_ty.output)
-    func_builder = FunctionBuilder(
-        dfg.builder.raw_builder.module_root_builder().define_function(
-            func.name, closure_ty.input, closure_ty.output
-        )
+    func_builder = dfg.builder.raw_builder.module_root_builder().define_function(
+        func.name, closure_ty.input, closure_ty.output
     )
 
     # Nested functions are not generic, so no need to worry about monomorphization
@@ -62,8 +60,9 @@ def compile_local_func_def(
     # If we have captured variables and the body contains a recursive occurrence of
     # the function itself, then we provide the partially applied function as a local
     # variable
-    call_args: list[Wire] = list(func_builder.inputs())
     if len(captured) > 0 and recursive:
+        func_builder = FunctionBuilder(func_builder)
+        call_args: list[Wire] = list(func_builder.inputs())
         check_partial_functions_enabled()
         loaded = func_builder.load_function(func_builder, closure_ty)
         partial = func_builder.add_op(
@@ -92,7 +91,7 @@ def compile_local_func_def(
             # so the hugr name does not really matter.
             func.name,
             func.cfg,
-            func_builder.raw_builder,
+            func_builder,
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 
