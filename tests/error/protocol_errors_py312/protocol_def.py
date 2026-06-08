@@ -2,21 +2,23 @@ from guppylang import guppy
 
 @guppy.protocol
 class Foo:
-    @guppy.require
+    @guppy
     def foo(self: "Foo") -> None: ...
 
-@guppy
-def bar(f: "Foo") -> None:
-    return
-
 @guppy.struct
-class FooStruct:
+class Foo2:
     @guppy
     def foo(self) -> None:
         return
 
 @guppy
-def main() -> None:
-    bar(FooStruct())
+def bar[F: Foo](f: F) -> None:
+    return f.foo()
 
-main.check()
+
+@guppy
+def main() -> None:
+    bar(Foo2())
+    return
+
+main.compile()

@@ -373,3 +373,63 @@ class KindMismatch(Error):
     arg: str
     param: str
     expected: str
+
+
+@dataclass(frozen=True)
+class ProtocolMemberMissing(Error):
+    title: ClassVar[str] = "Protocol member implementation missing"
+    span_label: ClassVar[str] = (
+        "Type `{impl_name}` does not have required method `{member_name}` of "
+        "protocol `{proto_name}`"
+    )
+    impl_name: str
+    proto_name: str
+    member_name: str
+
+
+@dataclass(frozen=True)
+class DoesntImplementProtocol(Error):
+    title: ClassVar[str] = "Missing protocol implementation"
+    span_label: ClassVar[str] = "Type `{ty}` does not implement protocol `{protocol}`"
+    ty: str
+    protocol: str
+
+
+@dataclass(frozen=True)
+class AmbiguousProtocol(Error):
+    title: ClassVar[str] = "Ambiguous protocol implementation"
+    span_label: ClassVar[str] = (
+        "There's more than one way for `{ty}` to implement protocol `{protocol}`"
+    )
+    ty: str
+    protocol: str
+
+
+@dataclass(frozen=True)
+class FirstArgNotProtocol(Error):
+    title: ClassVar[str] = "Misplaced self arg in protocol method"
+    span_label: ClassVar[str] = (
+        "First argument of a protocol method should have type `{protocol}`"
+    )
+    protocol: str
+
+
+@dataclass(frozen=True)
+class CouldntInferProtoArgs(Error):
+    title: ClassVar[str] = "Couldn't infer arguments to protocol"
+    span_label: ClassVar[str] = "Couldn't infer arguments to protocol `{protocol}`"
+    protocol: str
+
+    @dataclass(frozen=True)
+    class UnresolvedArg(Note):
+        span_label: ClassVar[str] = "Couldn't infer argument `{arg}`"
+        arg: str
+
+
+@dataclass(frozen=True)
+class SignatureDoesntMatchProto(Error):
+    title: ClassVar[str] = "Signature in implementation doesn't match protocol"
+    span_label: ClassVar[str] = (
+        "Type signature of method `{method}` differs from that required by protocol"
+    )
+    method: str
