@@ -138,6 +138,11 @@ class Use(NamedTuple):
     #: The kind of use, i.e. is the value consumed, borrowed, returned, ...?
     kind: UseKind
 
+    #: Reference to the original place that invoked the use. For example, the use of a
+    #: struct is tracked as uses of all their leaf projections, but for each of them,
+    #: we remember the original root place that was actually used here.
+    origin_place: Place
+
 
 class Scope(Locals[PlaceId, Place]):
     """Scoped collection of assigned places indexed by their id.
@@ -171,7 +176,9 @@ class Scope(Locals[PlaceId, Place]):
             return self.parent_scope.used(x)
         return None
 
-    def use_leaf(self, place: Place, node: AstNode, kind: UseKind) -> None:
+    def use_leaf(
+        self, place: Place, node: AstNode, kind: UseKind, origin_place: Place
+    ) -> None:
         """Records a use of a leaf place.
 
         Works for places in the current scope as well as places in any parent scope.
@@ -179,12 +186,12 @@ class Scope(Locals[PlaceId, Place]):
         assert not immediate_child_places(place), "Must be a leaf"
         x = place.id
         if x in self.vars:
-            self.used_local[x] = Use(node, kind)
+            self.used_local[x] = Use(node, kind, place)
         else:
             assert self.parent_scope is not None
             assert x in self.parent_scope
-            self.used_parent[x] = Use(node, kind)
-            self.parent_scope.use_leaf(place, node, kind)
+            self.used_parent[x] = Use(node, kind, origin_place)
+            self.parent_scope.use_leaf(place, node, kind, origin_place)
 
     def use(self, place: Place, node: AstNode, kind: UseKind) -> None:
         """Records a use of a place.
@@ -192,9 +199,9 @@ class Scope(Locals[PlaceId, Place]):
         Works for places in the current scope as well as places in any parent scope.
         """
         for leaf in leaf_places(place):
-            self.use_leaf(leaf, node, kind)
+            self.use_leaf(leaf, node, kind, place)
         for proj in projections(place):
-            self.used_projections[proj.id] = Use(node, kind)
+            self.used_projections[proj.id] = Use(node, kind, place)
 
     def assign_leaf(self, place: Place) -> None:
         """Records an assignment of a leaf place."""
@@ -350,7 +357,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     raise GuppyError(err)
 
             # Also check if parents have been moved
-            use = Use(node, use_kind)
+            use = Use(node, use_kind, node.place)
             check_mutable_parent_already_used(node.place, use, self.scope)
 
             # Finally, mark the place as used
@@ -922,7 +929,7 @@ def check_mutable_parent_already_used(place: Place, use: Use, scope: Scope) -> N
             case _:
                 mutable = False
         if mutable and (prev_use := scope.used(parent.id)):
-            err = ParentAlreadyUsedError(use.node, place, use.kind)
+            err = ParentAlreadyUsedError(use.node, use.origin_place, use.kind)
             sub = ParentAlreadyUsedError.ParentUse(prev_use.node, parent, prev_use.kind)
             err.add_sub_diagnostic(sub)
             raise GuppyError(err)
