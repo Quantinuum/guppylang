@@ -272,16 +272,10 @@ def insert_generic_args(
             if x in generic_values:
                 f.__closure__[i].cell_contents = generic_values.pop(x)
 
-    # If all values have been assigned, we can stop here
-    if not generic_values:
-        yield
-        return
-
-    # Otherwise, we know that the remaining ones are pre Python 3.12 style generics
-    # and we can set them by updating the `__globals__` table of the function. Note that
-    # mutating `f.__globals__` also mutates the globals of other functions defined in
-    # the same frame. Thus, we need to cache the old values so we can restore them
-    # afterwards.
+    # Any remaining values must be pre Python 3.12 style generics and we can set them by
+    # updating the `__globals__` table of the function. Note that mutating
+    # `f.__globals__` also mutates the globals of other functions defined in the same
+    # frame. Thus, we need to cache the old values so we can restore them afterwards.
     old = {x: f.__globals__[x] for x in generic_values if x in f.__globals__}
     f.__globals__.update(generic_values)
     try:
