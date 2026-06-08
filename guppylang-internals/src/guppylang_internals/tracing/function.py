@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from hugr import ops
-from hugr.build.dfg import DfBase
+from hugr.build.function import Function
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -31,7 +31,6 @@ from guppylang_internals.tracing.state import (
     set_tracing_state,
 )
 from guppylang_internals.tracing.unpacking import (
-    P,
     guppy_object_from_py,
     unpack_guppy_object,
     update_packed_value,
@@ -63,7 +62,7 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
-    builder: DfBase[P],
+    builder: Function,
     ctx: CompilerContext,
     node: AstNode,
     func_def: "CompiledTracedFunctionDef",
