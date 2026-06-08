@@ -8,8 +8,8 @@ def test_pcg32_compile(validate) -> None:
     @guppy
     def main() -> tuple[int, int]:
         rng = seeded_pcg32(1)
-        rng, first = rng.next_int()
-        rng, second = rng.next_int()
+        first = rng.next_int()
+        second = rng.next_int()
         return first, second
 
     validate(main.compile_function())
@@ -19,8 +19,8 @@ def test_pcg32_sequence_seed_1(run_int_fn) -> None:
     @guppy
     def main() -> int:
         rng = seeded_pcg32(1)
-        rng, first = rng.next_int()
-        rng, second = rng.next_int()
+        first = rng.next_int()
+        second = rng.next_int()
         return first + second
 
     run_int_fn(main, 1307692281 + -444364974)
@@ -30,7 +30,7 @@ def test_pcg32_sequence_seed_2(run_int_fn) -> None:
     @guppy
     def main() -> int:
         rng = seeded_pcg32(2)
-        _, first = rng.next_int()
+        first = rng.next_int()
         return first
 
     run_int_fn(main, -8000311)
@@ -44,7 +44,7 @@ def test_pcg32_deterministic_sequence(run_int_fn) -> None:
         rng = seeded_pcg32(54)
         total = 0
         for _ in range(5):
-            rng, value = rng.next_int()
+            value = rng.next_int()
             total += value
         return total
 
@@ -70,17 +70,17 @@ def test_pcg32_motivating_example() -> None:
     @guppy
     def uses_inner_rng() -> int:
         inner = seeded_pcg32(2)
-        _, value = inner.next_int()
+        value = inner.next_int()
         return value
 
     @guppy
     def main() -> None:
         outer = seeded_pcg32(1)
-        outer, first = outer.next_int()
+        first = outer.next_int()
 
         _ = uses_inner_rng()
 
-        outer, second = outer.next_int()
+        second = outer.next_int()
         result("first", first)
         result("second", second)
 
@@ -96,15 +96,15 @@ def test_pcg32_independent_streams(validate, run_int_fn) -> None:
     @guppy
     def uses_inner_rng() -> int:
         inner = seeded_pcg32(2)
-        _, value = inner.next_int()
+        value = inner.next_int()
         return value
 
     @guppy
     def main() -> int:
         outer = seeded_pcg32(1)
-        outer, first = outer.next_int()
+        first = outer.next_int()
         _ = uses_inner_rng()
-        outer, second = outer.next_int()
+        second = outer.next_int()
         return first + second
 
     validate(main.compile_function())
@@ -119,7 +119,7 @@ def test_pcg32_no_interference_with_quantum() -> None:
         p = qubit()
         if measure(q):
             rng_inner = seeded_pcg32(2)
-            _, value = rng_inner.next_int()
+            value = rng_inner.next_int()
             result("rng1_0", value)
             x(p)
         return p
@@ -127,17 +127,17 @@ def test_pcg32_no_interference_with_quantum() -> None:
     @guppy
     def main() -> None:
         rng_outer = seeded_pcg32(1)
-        rng_outer, value = rng_outer.next_int()
+        value = rng_outer.next_int()
         result("rng0_0", value)
 
         q = qubit()
         h(q)
         p = some_outside_function(q)
         if measure(p):
-            _, value = rng_outer.next_int()
+            value = rng_outer.next_int()
             result("rng0_1", value)
         else:
-            _, value = rng_outer.next_int()
+            value = rng_outer.next_int()
             result("rng0_1", value)
 
     results = main.emulator(2).coinflip_sim().with_seed(42).run().results[0].entries
