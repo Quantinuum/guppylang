@@ -177,10 +177,7 @@ class StmtChecker(AstVisitor[BBStatement]):
             err = UnsupportedError(value, "Assigning to this expression", singular=True)
             err.add_sub_diagnostic(AssignNonPlaceHelp(None, field))
             raise GuppyError(err)
-        # TODO: To avoid breakage, we currently allow mutation of non-copyable fields,
-        #  even if `frozen` is set. For the 1.0 release, we should drop the extra
-        #  `field.ty.copyable` check below:
-        if struct_ty.frozen and field.ty.copyable:  # Just `if struct_ty.frozen:` in 1.0
+        if struct_ty.frozen:
             raise GuppyTypeError(StructImmutableError(lhs, struct_ty))
         place = FieldAccess(value.place, struct_ty.field_dict[attr], lhs)
         place = check_place_assignable(place, self.ctx, lhs, "assignable")

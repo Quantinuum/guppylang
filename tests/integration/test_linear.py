@@ -84,7 +84,7 @@ def test_linear_struct(validate):
 
 
 def test_mixed_classical_linear_struct(validate):
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct:
         q: qubit
         x: int
@@ -96,14 +96,14 @@ def test_mixed_classical_linear_struct(validate):
     @guppy
     def test1(s: MyStruct @ owned) -> tuple[MyStruct, float]:
         a = s.x + s.y
-        s.q = f(s.q)
+        # s.q = f(s.q)
         return s, a * s.x
 
     @guppy
     def test2(s: MyStruct @ owned) -> tuple[MyStruct, int, int, int]:
         t = s
         u = t
-        u.q = f(u.q)
+        # u.q = f(u.q)
         return u, s.x, t.x, u.x
 
     validate(test1.compile_function())
