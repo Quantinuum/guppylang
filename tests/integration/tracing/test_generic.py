@@ -1,7 +1,7 @@
 from typing import Generic
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, comptime, nat
+from guppylang.std.builtins import array, comptime
 
 
 def test_generic_nats(run_int_fn):
