@@ -5,6 +5,7 @@
     ``guppylang.std.qsystem.helios``. Import from that module directly.
 """
 
+from guppylang import guppy
 from guppylang.std.qsystem.helios import (
     MaybeLeaked,
     Measurement,
@@ -25,6 +26,8 @@ from guppylang.std.qsystem.helios import (
     zz_max,
     zz_phase,
 )
+
+N = guppy.nat_var("N")
 
 __all__ = [
     "MaybeLeaked",
