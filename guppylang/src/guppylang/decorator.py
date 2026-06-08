@@ -347,15 +347,18 @@ class _Guppy:
             class myUnitary
         """
 
-        for name, val in cls.__dict__.items():
+        if "__call__" in cls.__dict__:
+            val = cls.__dict__["__call__"]
             if isinstance(val, GuppyDefinition):
-                if name == "__call__":
-                    print(f"Found __call__ method: {val}")
-                    return val
-                else:
-                    print(f"Found member {name}: {val}")
+                guppy_def = val
+                raw_func = guppy_def.wrapped
+                if isinstance(raw_func, RawFunctionDef):
+                    return guppy_def
 
-        raise TypeError(f"No __call__ method found on class {cls.__name__}")
+        raise TypeError(
+            f"The `@guppy.unitary` class `{cls.__name__}` requires a `@guppy` "
+            f"annotated `__call__` method"
+        )
 
     def require(
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
