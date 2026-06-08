@@ -248,11 +248,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
 
 def const_argument_to_python_value(arg: ConstArg) -> Any:
-    """Extracts a Python value from the given generic argument.
-
-    Returns the `_UNSUPPORTED` sentinel value if the argument cannot be translated.
-    This is because `None` could be a valid argument value.
-    """
+    """Extracts a Python value from the given generic argument."""
     match arg.const:
         case ConstValue(value=v):
             return v
