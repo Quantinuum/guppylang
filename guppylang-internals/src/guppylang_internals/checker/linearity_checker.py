@@ -706,8 +706,8 @@ class BBLinearityChecker(ast.NodeVisitor):
         # On the other hand, we have to ensure that no linear places from the
         # outer scope have been used inside the comprehension (they would be used
         # multiple times since the comprehension body is executed repeatedly)
-        for x, use in inner_scope.used_parent.items():
-            place = inner_scope[x]
+        for use in inner_scope.used_parent.values():
+            place = use.origin_place
             # The only exception are values that are only borrowed from the outer
             # scope. These can be safely reassigned.
             if use.kind == UseKind.BORROW:
