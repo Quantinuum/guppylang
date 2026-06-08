@@ -340,7 +340,7 @@ class DFBuilder(ABC, ToNode):
                 self.raw_builder.hugr[self._last_stateful_op].op, ops.Output
             )
         node = op_node.to_node()
-        if self._last_stateful_op != node: # avoid self-loops when propagating
+        if self._last_stateful_op != node:  # avoid self-loops when propagating
             self.raw_builder.add_state_order(self._last_stateful_op, node)
             self._last_stateful_op = node
 
@@ -384,12 +384,7 @@ class DFBuilder(ABC, ToNode):
     def add_tail_loop(
         self, just_inputs: Sequence[Wire], rest: Sequence[Wire]
     ) -> "TailLoopBuilder":
-        # Can't state this in the return type without adding a second type parameter
-        # to DFBuilder, which is horrendous (at least until we can provide
-        # default values for type parameters, which arrives in PEP 0696 / python 3.13).
-        # So just get a static check here
-        raw: TailLoop = self.raw_builder.add_tail_loop(just_inputs, rest)
-        return TailLoopBuilder(raw, self)
+        return TailLoopBuilder(self.raw_builder.add_tail_loop(just_inputs, rest), self)
 
     def load(
         self, const: ToNode | val.Value, const_parent: ToNode | None = None
@@ -471,7 +466,6 @@ class BlockBuilder(DFBuilder):
 
     def set_block_outputs(self, branching: Wire, *other_outputs: Wire) -> None:
         self.raw_builder.set_outputs(branching, *other_outputs)
-        self._outputs_set = True
         if self._last_stateful_op is not None:
             self._handle_side_effects(self.raw_builder.output_node)
 
