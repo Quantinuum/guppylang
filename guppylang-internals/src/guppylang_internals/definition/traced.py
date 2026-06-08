@@ -84,7 +84,10 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         return self.ty.params
 
     def check(self, type_args: Inst, globals: Globals) -> "TracedMonoFunctionDef":
-        """Type checks the body of the function."""
+        """Monomorphizes the function for the given type arg instantiation.
+
+        The actual checking happens during tracing while constructing the HUGR.
+        """
         mono_ty = self.ty.instantiate_partial(type_args)
         generic_args = {
             param.name: arg
