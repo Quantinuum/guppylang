@@ -57,10 +57,7 @@ class CallableTypeDef(TypeDef, CompiledDef):
         *,
         flags: UnitaryFlags = UnitaryFlags.NoFlags,
     ) -> None:
-        object.__setattr__(self, "id", id)
-        object.__setattr__(self, "name", flags.callable_name())
-        object.__setattr__(self, "defined_at", defined_at)
-        object.__setattr__(self, "params", params)
+        super().__init__(id, flags.callable_name(), defined_at, params)
         object.__setattr__(self, "flags", flags)
 
     def check_instantiate(
