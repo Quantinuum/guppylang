@@ -3,7 +3,7 @@ Error: Copy violation (at $FILE:14:11)
 12 |     if b:
 13 |         t = s
 14 |     return s
-   |            ^ Field `s.x` cannot be returned ...
+   |            ^ Variable `s` cannot be returned ...
 
 Note:
    | 
