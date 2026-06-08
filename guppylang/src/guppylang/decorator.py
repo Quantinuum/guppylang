@@ -840,8 +840,6 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         flags |= UnitaryFlags.Control
     if kwargs.pop("dagger", False):
         flags |= UnitaryFlags.Dagger
-    if kwargs.pop("power", False):
-        flags |= UnitaryFlags.Power
 
     metadata = FunctionMetadata()
     if "max_qubits" in kwargs:

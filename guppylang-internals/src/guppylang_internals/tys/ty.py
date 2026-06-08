@@ -385,9 +385,8 @@ class UnitaryFlags(Flag):
     NoFlags = 0
     Control = auto()
     Dagger = auto()
-    Power = auto()
 
-    Unitary = Control | Dagger | Power
+    Unitary = Control | Dagger
 
     def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":
         """Accumulates another set of unitary flags into this one."""

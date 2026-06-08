@@ -201,8 +201,6 @@ class UnitaryCallError(Error):
                 return "dagger"
             case UnitaryFlags.Control:
                 return "control"
-            case UnitaryFlags.Power:
-                return "power"
             case UnitaryFlags.NoFlags:
                 raise AssertionError("Expected a non-empty unitary flag")
             case _:
