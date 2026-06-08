@@ -185,7 +185,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
         call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
-        # Here we check if unitary constraints are respected by the caller
+        # Here we check if unitary constraints are respected in the function body
         unitary_flag = state.function_definition.unitary_flags
         if unitary_flag != UnitaryFlags.NoFlags:
             unitary_checker = BBUnitaryChecker()

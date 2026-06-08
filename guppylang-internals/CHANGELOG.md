@@ -3,6 +3,54 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0.0-a1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a0...guppylang-internals-v1.0.0-a1) (2026-06-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add shared recursive definition validation for structs and enums ([#1809](https://github.com/Quantinuum/guppylang/issues/1809))
+* Mark partial functions as experimental ([#1780](https://github.com/Quantinuum/guppylang/issues/1780))
+
+### Bug Fixes
+
+* Mark partial functions as experimental ([#1780](https://github.com/Quantinuum/guppylang/issues/1780)) ([8699d3a](https://github.com/Quantinuum/guppylang/commit/8699d3a6da6be93aedddd0d877de6bdac2a34961))
+* Removed inconsistent behavior with multiple dagger modifiers. ([#1790](https://github.com/Quantinuum/guppylang/issues/1790)) ([07d0ed4](https://github.com/Quantinuum/guppylang/commit/07d0ed4237834e3e2a1e719223150d8832eb40f6))
+* Upgrade tket and require pytket extra ([#1813](https://github.com/Quantinuum/guppylang/issues/1813)) ([b8e91dc](https://github.com/Quantinuum/guppylang/commit/b8e91dc6d33b09a02470709ace127639745e6642))
+
+
+### Code Refactoring
+
+* Add shared recursive definition validation for structs and enums ([#1809](https://github.com/Quantinuum/guppylang/issues/1809)) ([96dfb01](https://github.com/Quantinuum/guppylang/commit/96dfb01edc3df0b3b9c70499f4b0dc23da80d022))
+
+## [1.0.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v1.0.0-a0) (2026-05-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Delete redundant error message ([#1767](https://github.com/Quantinuum/guppylang/issues/1767))
+* Protocol parsing ([#1754](https://github.com/Quantinuum/guppylang/issues/1754))
+* Metadata Generation with Nested Modifiers ([#1691](https://github.com/Quantinuum/guppylang/issues/1691))
+* Better scoping for existentials ([#1602](https://github.com/Quantinuum/guppylang/issues/1602))
+
+### Features
+
+* Allow index access and assignment in dagger contexts ([#1706](https://github.com/Quantinuum/guppylang/issues/1706)) ([dcdf0bb](https://github.com/Quantinuum/guppylang/commit/dcdf0bb3252a6e56037ee7009bae5cdf7edb9628))
+* Protocol parsing ([#1754](https://github.com/Quantinuum/guppylang/issues/1754)) ([17282cd](https://github.com/Quantinuum/guppylang/commit/17282cdf71b9a238c737d2ddb19ad71e7e7d24d4))
+
+
+### Bug Fixes
+
+* Act upon and resolve Python 3.15 AST deprecations ([#1668](https://github.com/Quantinuum/guppylang/issues/1668)) ([618ce5b](https://github.com/Quantinuum/guppylang/commit/618ce5b9b46a11ff2df77a175107430e569fb833))
+* Better scoping for existentials ([#1602](https://github.com/Quantinuum/guppylang/issues/1602)) ([0483dfd](https://github.com/Quantinuum/guppylang/commit/0483dfd334d4d31583bcb161ad9837713d136750))
+* Metadata Generation with Nested Modifiers ([#1691](https://github.com/Quantinuum/guppylang/issues/1691)) ([263e919](https://github.com/Quantinuum/guppylang/commit/263e9193ce2c1c5d90a6dac9113630c718445c82))
+* Prevent leaking memory in custom call compilers and checkers ([#1736](https://github.com/Quantinuum/guppylang/issues/1736)) ([100b974](https://github.com/Quantinuum/guppylang/commit/100b974cd6da8da901b7beefc0558a939a548ddc))
+* Use of array subscript as argument of control modifiers ([#1708](https://github.com/Quantinuum/guppylang/issues/1708)) ([1881cb8](https://github.com/Quantinuum/guppylang/commit/1881cb8b9a12c95bffbea302f396ecd0b00152e2))
+
+
+### Code Refactoring
+
+* Delete redundant error message ([#1767](https://github.com/Quantinuum/guppylang/issues/1767)) ([2dc589a](https://github.com/Quantinuum/guppylang/commit/2dc589aaaf27d762875b96346d524d811d5201a6))
+
 ## [0.33.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.32.0...guppylang-internals-v0.33.0) (2026-04-16)
 
 

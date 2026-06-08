@@ -2,12 +2,12 @@ import ast
 import inspect
 import linecache
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from types import FrameType
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar, TypeAlias, TypeGuard
 
-from guppylang_internals.ast_util import annotate_location, parse_source
+from guppylang_internals.ast_util import AstNode, annotate_location, parse_source
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
     ExpectedError,
@@ -15,18 +15,31 @@ from guppylang_internals.checker.errors.generic import (
 )
 from guppylang_internals.definition.common import (
     DefId,
+    Definition,
     UnknownSourceError,
 )
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.diagnostic import Error, Help, Note
-from guppylang_internals.error import GuppyError
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.ipython_inspect import is_running_ipython
 from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.parsing import (
+    TypeParsingCtx,
+    annotation_nodes,
+    try_parse_defn,
+)
 from guppylang_internals.tys.ty import Type
 
 if sys.version_info >= (3, 12):
     from guppylang_internals.tys.parsing import parse_parameter
+
+if TYPE_CHECKING:
+    from guppylang_internals.definition.enum import ParsedEnumDef
+    from guppylang_internals.definition.struct import ParsedStructDef
+
+
+ParsedRecursiveTypeDef: TypeAlias = "ParsedStructDef | ParsedEnumDef"
 
 
 @dataclass(frozen=True)
@@ -67,11 +80,12 @@ class NonGuppyMethodError(Error):
     class_name: str
     method_name: str
     class_type: str
+    ann: str
 
     @dataclass(frozen=True)
     class Suggestion(Help):
         message: ClassVar[str] = (
-            "Add a `@guppy` annotation to turn `{method_name}` into a Guppy method"
+            "Add a `{ann}` annotation to turn `{method_name}` into a Guppy method"
         )
 
     def __post_init__(self) -> None:
@@ -83,6 +97,13 @@ class RepeatedTypeParamError(Error):
     title: ClassVar[str] = "Duplicate type parameter"
     span_label: ClassVar[str] = "Type parameter `{name}` cannot be used multiple times"
     name: str
+
+
+@dataclass(frozen=True)
+class ProtocolHint(Help):
+    message: ClassVar[str] = (
+        "Add a `@guppy.protocol` annotation to turn this struct into a protocol"
+    )
 
 
 @dataclass(frozen=True)
@@ -99,6 +120,75 @@ class CheckedField:
 
     name: str
     ty: Type
+
+
+def check_not_recursive(defn: ParsedRecursiveTypeDef, ctx: TypeParsingCtx) -> None:
+    """Raises a user error if a struct or enum definition depends on itself."""
+    _check_not_recursive(defn, ctx, [defn.id], set())
+
+
+def _check_not_recursive(
+    defn: ParsedRecursiveTypeDef,
+    ctx: TypeParsingCtx,
+    path: list[DefId],
+    checked: set[DefId],
+) -> None:
+    for dependency, loc in _dependencies(defn, ctx):
+        if dependency.id in path:
+            raise GuppyError(UnsupportedError(loc, "Recursive definitions"))
+        if dependency.id not in checked:
+            dependency_ctx = _type_parsing_ctx(dependency)
+            _check_not_recursive(
+                dependency, dependency_ctx, [*path, dependency.id], checked
+            )
+
+    checked.add(defn.id)
+
+
+def _dependencies(
+    defn: ParsedRecursiveTypeDef, ctx: TypeParsingCtx
+) -> Iterator[tuple[ParsedRecursiveTypeDef, AstNode]]:
+    for type_ast in _field_type_asts(defn):
+        for node in annotation_nodes(type_ast):
+            dependency = try_parse_defn(node, ctx.globals)
+            if _is_parsed_struct_or_enum(dependency):
+                yield dependency, node
+
+
+def _field_type_asts(defn: ParsedRecursiveTypeDef) -> Iterator[ast.expr]:
+    from guppylang_internals.definition.enum import ParsedEnumDef
+    from guppylang_internals.definition.struct import ParsedStructDef
+
+    if isinstance(defn, ParsedStructDef):
+        for field in defn.fields:
+            yield field.type_ast
+    elif isinstance(defn, ParsedEnumDef):
+        for variant in defn.variants.values():
+            for field in variant.fields:
+                yield field.type_ast
+    else:
+        raise InternalGuppyError("Expected a parsed struct or enum definition")
+
+
+def _type_parsing_ctx(defn: ParsedRecursiveTypeDef) -> TypeParsingCtx:
+    """Returns a type parsing context for the definition's own module scope.
+
+    Recursive checks may walk into definitions imported from other modules, so their
+    field annotations must be resolved against the frame where they were defined.
+    """
+    from guppylang_internals.engine import DEF_STORE
+
+    param_var_mapping = {p.name: p for p in defn.params}
+    return TypeParsingCtx(Globals(DEF_STORE.frames[defn.id]), param_var_mapping)
+
+
+def _is_parsed_struct_or_enum(
+    defn: Definition | None,
+) -> TypeGuard[ParsedRecursiveTypeDef]:
+    from guppylang_internals.definition.enum import ParsedEnumDef
+    from guppylang_internals.definition.struct import ParsedStructDef
+
+    return isinstance(defn, ParsedStructDef | ParsedEnumDef)
 
 
 def parse_py_class(
@@ -140,13 +230,13 @@ def parse_py_class(
     return cls_ast
 
 
-def try_parse_generic_base(node: ast.expr) -> list[ast.expr] | None:
-    """Checks if an AST node corresponds to a `Generic[T1, ..., Tn]` base class.
+def try_parse_generic_base(node: ast.expr, base_name: str) -> list[ast.expr] | None:
+    """Checks if an AST node corresponds to a `base_name[T1, ..., Tn]` base class.
 
     Returns the generic parameters or `None` if the AST has a different shape
     """
     match node:
-        case ast.Subscript(value=ast.Name(id="Generic"), slice=elem):
+        case ast.Subscript(value=ast.Name(id=name), slice=elem) if base_name == name:
             return elem.elts if isinstance(elem, ast.Tuple) else [elem]
         case _:
             return None
@@ -156,7 +246,7 @@ def extract_generic_params(
     cls_def: ast.ClassDef, class_name: str, globals: Globals, class_kind: str
 ) -> list[Parameter]:
     """Extracts generic parameters from a class definition."""
-    params = []
+    params: list[Parameter] = []
     params_span: Span | None = None
 
     # Look for generic parameters from Python 3.12 style syntax
@@ -170,27 +260,38 @@ def extract_generic_params(
                 param_vars_mapping[param.name] = param
                 params.append(param)
 
-    # The only base we allow is `Generic[...]` to specify generic parameters with
-    # the legacy syntax
-    match cls_def.bases:
-        case []:
-            pass
-        case [base] if elems := try_parse_generic_base(base):
+    base_params: list[Parameter] = []
+    for base in cls_def.bases:
+        if elems := try_parse_generic_base(base, "Generic"):
+            # Complain if there's already been a `Generic[T]` parent
+            if base_params != []:
+                raise GuppyError(
+                    UnsupportedError(
+                        base,
+                        "Multiple `Generic` inheritance",
+                        singular=True,
+                    )
+                )
+
             # Complain if we already have Python 3.12 generic params
             if params_span is not None:
                 err: Error = RedundantParamsError(base, class_name)
                 err.add_sub_diagnostic(RedundantParamsError.PrevSpec(params_span))
                 raise GuppyError(err)
-            params = params_from_ast(elems, globals)
-        case bases:
+            base_params = params_from_ast(elems, globals)
+        elif elems := try_parse_generic_base(base, "Protocol"):
+            err = UnsupportedError(base, "Protocol base", singular=True)
+            err.add_sub_diagnostic(ProtocolHint(None))
+            raise GuppyError(err)
+        else:
             err = UnsupportedError(
-                bases[0],
+                base,
                 f"{class_kind} inheritance",
                 singular=True,
             )
             raise GuppyError(err)
 
-    return params
+    return params + base_params
 
 
 def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Parameter]:
