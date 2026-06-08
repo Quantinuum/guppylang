@@ -130,14 +130,12 @@ def build_unwrap_either(
         case.set_outputs(*case.inputs())
     with conditional.add_case(panic_case_num) as case:
         error = build_static_error(case, error_signal, error_msg)
+        case = CaseBuilder(
+            case, conditional, builder, current_ast_node=builder.current_ast_node
+        )
         case.set_outputs(
             *build_panic(
-                CaseBuilder(
-                    case,
-                    conditional,
-                    builder,
-                    current_ast_node=builder.current_ast_node,
-                ),
+                case,
                 in_tys,
                 out_tys,
                 error,
@@ -229,16 +227,17 @@ UNWRAP_RESULT: Final[GlobalConstId] = GlobalConstId.fresh("unwrap_result")
 
 
 def _build_unwrap_result(func: DFBuilder, result_type_var: ht.Variable) -> None:
-    either = func.raw_builder.inputs()[0]
+    either = func.inputs()[0]
     conditional = func.add_conditional(either)
     with conditional.add_case(0) as case:
+        case = CaseBuilder(case, conditional, func)
         [error] = list(case.inputs())
         case.set_outputs(
             *build_panic(
                 # We don't want misleading debug info in global functions until
                 # https://github.com/Quantinuum/guppylang/issues/1609 is implemented,
                 # so `current_ast_node`is None here by default
-                CaseBuilder(case, conditional, func),
+                case,
                 [error_type()],
                 [result_type_var],
                 error,
@@ -247,7 +246,7 @@ def _build_unwrap_result(func: DFBuilder, result_type_var: ht.Variable) -> None:
         )
     with conditional.add_case(1) as case:
         case.set_outputs(*case.inputs())
-    func.raw_builder.set_outputs(*conditional.outputs())
+    func.set_outputs(*conditional.outputs())
 
 
 def unwrap_result(

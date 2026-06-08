@@ -24,7 +24,8 @@ def compile_global_func_def(
     ctx: CompilerContext,
 ) -> None:
     """Compiles a top-level function definition to Hugr."""
-    cfg = compile_cfg(func.cfg, FunctionBuilder(builder), builder.inputs(), ctx)
+    builder = FunctionBuilder(builder)
+    cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
 
 
@@ -49,8 +50,10 @@ def compile_local_func_def(
     # Prepend captured variables to the function arguments
     func_ty = func.ty.to_hugr(ctx)
     closure_ty = ht.FunctionType([*captured_types, *func_ty.input], func_ty.output)
-    func_builder = dfg.builder.raw_builder.module_root_builder().define_function(
-        func.name, closure_ty.input, closure_ty.output
+    func_builder = FunctionBuilder(
+        dfg.builder.raw_builder.module_root_builder().define_function(
+            func.name, closure_ty.input, closure_ty.output
+        )
     )
 
     # Nested functions are not generic, so no need to worry about monomorphization
@@ -73,7 +76,7 @@ def compile_local_func_def(
         func.cfg.input_tys.append(func.ty)
 
         # Compile the CFG
-        cfg = compile_cfg(func.cfg, FunctionBuilder(func_builder), call_args, ctx)
+        cfg = compile_cfg(func.cfg, func_builder, call_args, ctx)
         func_builder.set_outputs(*cfg)
     else:
         # Otherwise, we treat the function like a normal global variable
@@ -89,7 +92,7 @@ def compile_local_func_def(
             # so the hugr name does not really matter.
             func.name,
             func.cfg,
-            func_builder,
+            func_builder.raw_builder,
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 

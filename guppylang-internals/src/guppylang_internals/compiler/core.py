@@ -266,7 +266,7 @@ class DFContainer:
 
 
 @dataclass
-class DFBuilder(ABC):
+class DFBuilder(ABC, ToNode):
     """A wrapper around a dataflow graph builder which ensures compiler-specific
     additional actions can be performed every time an operation is added to the graph.
 
@@ -295,6 +295,19 @@ class DFBuilder(ABC):
             yield
         finally:
             self.current_ast_node = prev_node
+
+    def to_node(self) -> Node:
+        return self.raw_builder.to_node()
+
+    @property
+    def input_node(self) -> Node:
+        return self.raw_builder.input_node
+
+    def inputs(self) -> Sequence[Wire]:
+        return self.raw_builder.inputs()
+
+    def set_outputs(self, *outputs: Wire) -> None:
+        self.raw_builder.set_outputs(*outputs)
 
     def add_op(
         self,

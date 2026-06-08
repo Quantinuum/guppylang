@@ -66,11 +66,9 @@ def compile_modified_block(
         func_builder,
         additional_metadata={"unitary": modified_block.ty.unitary_flags.value},
     )
-
+    func_builder = FunctionBuilder(func_builder)
     # compile body
-    cfg = compile_cfg(
-        modified_block.cfg, FunctionBuilder(func_builder), func_builder.inputs(), ctx
-    )
+    cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
     func_builder.set_outputs(*cfg)
 
     # Add the LoadFunc node

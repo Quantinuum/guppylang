@@ -47,15 +47,15 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
             body=ht.FunctionType([StaticArray(var), INT_T], [var]),
         )
         func, already_exists = self.ctx.declare_global_func(FROZENARRAY_GETITEM, sig)
-        func_builder = FunctionBuilder(func, current_ast_node=self.node)
         if not already_exists:
+            func_builder = FunctionBuilder(func, current_ast_node=self.node)
             [arr, idx] = func.inputs()
             idx = func_builder.add_op(convert_itousize(), idx)
             elem_opt = func_builder.add_op(static_array_get(var), arr, idx)
             elem = build_unwrap(
                 func_builder, elem_opt, "Frozenarray index out of bounds"
             )
-            func.set_outputs(elem)
+            func_builder.set_outputs(elem)
         return func
 
     def compile(self, args: list[Wire]) -> list[Wire]:

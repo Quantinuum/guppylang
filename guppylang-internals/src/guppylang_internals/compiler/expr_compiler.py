@@ -26,6 +26,7 @@ from guppylang_internals.compiler.core import (
     CompilerContext,
     DFBuilder,
     DFContainer,
+    FunctionBuilder,
     GlobalConstId,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
@@ -154,7 +155,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             "Inputs are not unique"
         )
         self.dfg = DFContainer(builder, self.ctx, self.dfg.locals.copy())
-        hugr_input = builder.raw_builder.input_node
+        hugr_input = builder.input_node
         for input_node, wire in zip(inputs, hugr_input, strict=True):
             self.dfg[input_node.place] = wire
 
@@ -185,7 +186,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             do_break = self.visit(break_predicate)
             loop.set_loop_outputs(do_break, *(self.visit(name) for name in loop_vars))
         # Update the DFG with the outputs from the loop
-        for node, wire in zip(loop_vars, loop.raw_builder, strict=True):
+        for node, wire in zip(loop_vars, loop, strict=True):
             self.dfg[node.place] = wire
 
     @contextmanager
@@ -823,7 +824,8 @@ def array_read_bool(ctx: CompilerContext) -> hf.Function:
     )
     func, already_defined = ctx.declare_global_func(ARRAY_READ_BOOL, sig)
     if not already_defined:
-        func.set_outputs(func.add_op(read_bool(), func.inputs()[0]))
+        fb = FunctionBuilder(func)
+        fb.set_outputs(fb.add_op(read_bool(), fb.inputs()[0]))
     return func
 
 
@@ -836,7 +838,8 @@ def array_make_opaque_bool(ctx: CompilerContext) -> hf.Function:
     )
     func, already_defined = ctx.declare_global_func(ARRAY_MAKE_OPAQUE_BOOL, sig)
     if not already_defined:
-        func.set_outputs(func.add_op(make_opaque(), func.inputs()[0]))
+        fb = FunctionBuilder(func)
+        fb.set_outputs(fb.add_op(make_opaque(), fb.inputs()[0]))
     return func
 
 

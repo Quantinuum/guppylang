@@ -86,7 +86,7 @@ def trace_function(
                 # thus breaking the semantics expected from Python.
                 frozen=InputFlags.Inout not in inp.flags,
             )
-            for wire, inp in zip(builder.raw_builder.inputs(), ty.inputs, strict=True)
+            for wire, inp in zip(builder.inputs(), ty.inputs, strict=True)
         ]
 
         with exception_hook(tracing_except_hook), mock_builtins(python_func):
@@ -151,7 +151,7 @@ def trace_function(
         msg = f"Value with non-droppable type `{unused._ty}` is leaked by this function"
         raise GuppyError(TracingReturnError(node, msg)) from None
 
-    builder.raw_builder.set_outputs(*regular_returns, *inout_returns)
+    builder.set_outputs(*regular_returns, *inout_returns)
 
 
 def trace_call(func: CallableDef, *args: Any) -> Any:

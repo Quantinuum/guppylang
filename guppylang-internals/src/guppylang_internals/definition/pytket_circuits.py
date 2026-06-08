@@ -20,7 +20,11 @@ from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
-from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.compiler.core import (
+    CompilerContext,
+    DFContainer,
+    FunctionBuilder,
+)
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CompilableDef,
@@ -215,7 +219,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                     scope_line=None,
                 )
             outer_func.metadata[HugrDebugInfo] = func_metadata
-
+        outer_func = FunctionBuilder(outer_func)
         # Number of qubit inputs in the outer function.
         offset = (
             len(self.input_circuit.q_registers)
@@ -300,7 +304,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         # Convert hugr sum bools into the opaque bools that Guppy uses.
         wires = [
             outer_func.add_op(make_opaque(), wire)
-            if outer_func.hugr.port_type(wire.out_port()) == ht.Bool
+            if outer_func.get_wire_type(wire) == ht.Bool
             else wire
             for wire in wires
         ]
@@ -338,7 +342,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             self.input_circuit,
             self.use_arrays,
             self.source_span,
-            outer_func,
+            outer_func.raw_builder,
         )
 
     @override
