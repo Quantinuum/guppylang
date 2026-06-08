@@ -25,6 +25,16 @@ def test_py_alias(validate):
     validate(foo.compile_function())
 
 
+def test_implicit(validate):
+    x = 42
+
+    @guppy
+    def foo() -> int:
+        return x
+
+    validate(foo.compile_function())
+
+
 def test_builtin(validate):
     @compile_guppy
     def foo() -> int:
@@ -154,6 +164,30 @@ def test_func_type_arg(validate):
     @guppy.enum
     class Enum:
         VariantA = {"xs": array[int, comptime(n)]}
+
+    validate(foo.compile_function())
+    validate(bar.compile_function())
+    validate(Baz.compile())
+    validate(Enum.compile())
+
+
+def test_func_type_arg_implicit(validate):
+    n = 10
+
+    @guppy
+    def foo(xs: array[int, n] @ owned) -> array[int, n]:
+        return xs
+
+    @guppy.declare
+    def bar(xs: array[int, n]) -> array[int, n]: ...
+
+    @guppy.struct
+    class Baz:
+        xs: array[int, n]
+
+    @guppy.enum
+    class Enum:
+        VariantA = {"xs": array[int, n]}
 
     validate(foo.compile_function())
     validate(bar.compile_function())

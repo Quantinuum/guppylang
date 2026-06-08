@@ -3,7 +3,7 @@ import sys
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -107,6 +107,11 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
             return ctx.param_inst[node.id]
         if node.id in ctx.param_var_mapping:
             return ctx.param_var_mapping[node.id].to_bound()
+        if node.id in ctx.globals:
+            defn_or_python_obj = ctx.globals[node.id]
+            if isinstance(defn_or_python_obj, PythonObject):
+                return check_comptime_value(defn_or_python_obj.obj, node)
+
         raise GuppyError(VarNotDefinedError(node, node.id))
 
     # A parametrised type, e.g. `list[??]`
@@ -152,11 +157,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
         from guppylang_internals.checker.expr_checker import eval_comptime_expr
 
         v = eval_comptime_expr(comptime_expr, Context(ctx.globals, Locals({}), {}))
-        if isinstance(v, int):
-            nat_ty = NumericType(NumericType.Kind.Nat)
-            return ConstArg(ConstValue(nat_ty, v))
-        else:
-            raise GuppyError(IllegalComptimeTypeArgError(node, v))
+        return check_comptime_value(v, node)
 
     # Finally, we also support delayed annotations in strings
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -164,6 +165,15 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
         return arg_from_ast(node, ctx)
 
     raise GuppyError(InvalidTypeArgError(node))
+
+
+def check_comptime_value(v: Any, node: AstNode) -> Argument:
+    """Checks if a Python value is a valid type argument."""
+    if isinstance(v, int):
+        nat_ty = NumericType(NumericType.Kind.Nat)
+        return ConstArg(ConstValue(nat_ty, v))
+    else:
+        raise GuppyError(IllegalComptimeTypeArgError(node, v))
 
 
 def try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:

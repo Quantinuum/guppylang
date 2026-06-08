@@ -523,14 +523,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                             err.add_sub_diagnostic(ExpectedError.EnumHelp(None))
                             raise GuppyError(err)
                     return self._check_global(defn, name_id, node)
-                case PythonObject():
-                    from guppylang_internals.checker.cfg_checker import (
-                        VarNotDefinedError,
-                    )
-
-                    # TODO: Emit a hint that the variable could be accessed through a
-                    #  comptime expression
-                    raise GuppyError(VarNotDefinedError(node, node.id))
+                case PythonObject(obj=val):
+                    if ty := python_value_to_guppy_type(val, node):
+                        return with_loc(node, ast.Constant(value=val)), ty
+                    raise GuppyError(IllegalComptimeExpressionError(node, type(val)))
 
         raise InternalGuppyError(
             f"Variable `{name_id}` is not defined in `TypeSynthesiser`."
