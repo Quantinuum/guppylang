@@ -1,6 +1,7 @@
 from typing import Generic, TYPE_CHECKING
 
 from guppylang.decorator import guppy
+from tests.integration.modules import struct_scope_defs
 
 
 if TYPE_CHECKING:
@@ -67,6 +68,18 @@ def test_forward_ref(validate):
     @guppy
     def main(a: StructA, b: StructB) -> None:
         StructA(b)
+
+    validate(main.compile_function())
+
+
+def test_imported_struct_dependency_uses_defining_scope(validate):
+    @guppy.struct
+    class B:
+        a: struct_scope_defs.A
+
+    @guppy
+    def main() -> B:
+        return B(struct_scope_defs.A(struct_scope_defs.B(0)))
 
     validate(main.compile_function())
 

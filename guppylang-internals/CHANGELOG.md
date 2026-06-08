@@ -3,6 +3,25 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0.0-a1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a0...guppylang-internals-v1.0.0-a1) (2026-06-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add shared recursive definition validation for structs and enums ([#1809](https://github.com/Quantinuum/guppylang/issues/1809))
+* Mark partial functions as experimental ([#1780](https://github.com/Quantinuum/guppylang/issues/1780))
+
+### Bug Fixes
+
+* Mark partial functions as experimental ([#1780](https://github.com/Quantinuum/guppylang/issues/1780)) ([8699d3a](https://github.com/Quantinuum/guppylang/commit/8699d3a6da6be93aedddd0d877de6bdac2a34961))
+* Removed inconsistent behavior with multiple dagger modifiers. ([#1790](https://github.com/Quantinuum/guppylang/issues/1790)) ([07d0ed4](https://github.com/Quantinuum/guppylang/commit/07d0ed4237834e3e2a1e719223150d8832eb40f6))
+* Upgrade tket and require pytket extra ([#1813](https://github.com/Quantinuum/guppylang/issues/1813)) ([b8e91dc](https://github.com/Quantinuum/guppylang/commit/b8e91dc6d33b09a02470709ace127639745e6642))
+
+
+### Code Refactoring
+
+* Add shared recursive definition validation for structs and enums ([#1809](https://github.com/Quantinuum/guppylang/issues/1809)) ([96dfb01](https://github.com/Quantinuum/guppylang/commit/96dfb01edc3df0b3b9c70499f4b0dc23da80d022))
+
 ## [1.0.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.33.0...guppylang-internals-v1.0.0-a0) (2026-05-29)
 
 

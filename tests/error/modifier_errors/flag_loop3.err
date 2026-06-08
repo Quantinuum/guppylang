@@ -1,0 +1,14 @@
+Error: Invalid expression in dagger (at $FILE:6:8)
+  | 
+4 | @guppy(dagger=True, power=True)
+5 | def test(i: int) -> None:
+6 |     x = (n**2 for n in [1,2] if n>5 if n<10)
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Loop found in a dagger context
+
+Help: The function `test` is declared with the unitary flag: `dagger=True`. Thus
+dagger constraints apply to its body.
+
+Help: Control flow statements (e.g. loops and branches) are not allowed in
+daggered contexts.
+
+Guppy compilation failed due to 1 previous error
