@@ -55,8 +55,8 @@ class RandomIntBoundedCompiler(CustomInoutCallCompiler):
 class LazyMeasureResetCompiler(CustomInoutCallCompiler):
     """Compiler for the ``LazyMeasureReset`` qsystem op.
 
-    Accepts the target extension so it can be used for both helios and sol.
-    Defaults to the Helios extension for backwards compatibility.
+    Accepts the target extension so it can be used for different platforms (like Helios
+    and Sol). Defaults to the Helios platform for backward compatibility.
     """
 
     def __init__(self, ext: HugrExtension | None = None) -> None:
