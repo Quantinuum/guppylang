@@ -922,7 +922,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
-                # TODO: Should we error here if not callable?
                 return defn.synthesize_call(node.args, node, self.ctx)
 
             from guppylang_internals.definition.protocol import ParsedProtocolDef
