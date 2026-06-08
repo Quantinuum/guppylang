@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops, val
@@ -13,7 +12,7 @@ from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder
 from hugr.hugr.base import OpVarCov
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import HugrDebugInfo, NodeMetadata
+from hugr.metadata import HugrDebugInfo
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
@@ -135,8 +134,7 @@ class CompilerContext(ToHugrContext):
         while self.worklist:
             next_id, next_mono_args = self.worklist.popitem()[0]
             next_def = self.compiled[next_id, next_mono_args]
-            with track_hugr_side_effects():
-                next_def.compile_inner(self)
+            next_def.compile_inner(self)
 
         # Insert explicit drops for affine types
         # TODO: This is a quick workaround until we can properly insert these drops
@@ -342,8 +340,9 @@ class DFBuilder(ABC, ToNode):
                 self.raw_builder.hugr[self._last_stateful_op].op, ops.Output
             )
         node = op_node.to_node()
-        # self.raw_builder.add_state_order(self._last_stateful_op, node)
-        self._last_stateful_op = node
+        if self._last_stateful_op != node: # avoid self-loops when propagating
+            self.raw_builder.add_state_order(self._last_stateful_op, node)
+            self._last_stateful_op = node
 
     @abstractmethod
     def _propagate_side_effects(self) -> None:
@@ -551,75 +550,6 @@ def may_have_side_effect(op: ops.Op) -> bool:
             # TailLoops are only generated for array comprehensions which must have
             # statically-guaranteed (finite) size. TODO revisit this for lists.
             return False
-
-
-@contextmanager
-def track_hugr_side_effects() -> Iterator[None]:
-    """Initialises the tracking of nodes with side-effects during Hugr building.
-
-    Ensures that state-order edges are implicitly inserted between side-effectful nodes
-    to ensure they are executed in the order they are added.
-    """
-    # Remember original `Hugr.add_node` method that is monkey-patched below.
-    hugr_add_node = Hugr.add_node
-    # Last node with potential side effects for each dataflow parent
-    prev_node_with_side_effect: dict[Node, tuple[Node, Hugr[Any]]] = {}
-
-    def hugr_add_node_with_order(
-        self: Hugr[OpVarCov],
-        op: ops.Op,
-        parent: ToNode | None = None,
-        num_outs: int | None = None,
-        metadata: dict[str, Any] | NodeMetadata | None = None,
-    ) -> Node:
-        """Monkey-patched version of `Hugr.add_node` that takes care of implicitly
-        inserting state order edges between operations that could have side-effects.
-        """
-        new_node = hugr_add_node(self, op, parent, num_outs, metadata)
-        if may_have_side_effect(op):
-            handle_side_effect(new_node, self)
-        return new_node
-
-    def handle_side_effect(node: Node, hugr: Hugr[OpVarCov]) -> None:
-        """Performs the actual order-edge insertion, assuming that `node` has a side-
-        effect."""
-        parent = hugr[node].parent
-        assert parent is not None
-
-        if prev := prev_node_with_side_effect.get(parent):
-            prev_node = prev[0]
-        else:
-            # This is the first side-effectful op in this DFG. Recurse on the parent
-            # since the parent is also considered side-effectful now. We shouldn't walk
-            # up through function definitions (only the Module is above)
-            if not isinstance(hugr[parent].op, ops.FuncDefn):
-                handle_side_effect(parent, hugr)
-                # For DataflowBlocks and Cases, recurse to mark their containing CFG
-                # or Conditional as side-effectful as well, but there is nothing to do
-                # locally: we cannot add order edges, but Conditional/CFG semantics
-                # ensure execution if appropriate.
-                if isinstance(hugr[parent].op, ops.Conditional | ops.CFG):
-                    return
-            prev_node = hugr.children(parent)[0]
-            assert isinstance(hugr[prev_node].op, ops.Input)
-
-        # Add edge, but avoid self-loops for containers when recursing up the hierarchy.
-        if prev_node != node:
-            hugr.add_order_link(prev_node, node)
-            prev_node_with_side_effect[parent] = (node, hugr)
-
-    # Monkey-patch the `add_node` method
-    Hugr.add_node = hugr_add_node_with_order  # type: ignore[method-assign]
-    try:
-        yield
-        for parent, (last, hugr) in prev_node_with_side_effect.items():
-            # Connect the last side-effecting node to Output
-            outp = hugr.children(parent)[1]
-            assert isinstance(hugr[outp].op, ops.Output)
-            assert last != outp
-            hugr.add_order_link(last, outp)
-    finally:
-        Hugr.add_node = hugr_add_node  # type: ignore[method-assign]
 
 
 #: List of linear extension types that correspond to affine Guppy types and thus require
