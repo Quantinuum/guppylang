@@ -1,5 +1,5 @@
 import itertools
-from abc import ABC, abstractproperty
+from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -277,6 +277,7 @@ class DFBuilder(ABC, ToNode):
     """
 
     current_ast_node: AstNode | None = field(default=None, kw_only=True)
+    _last_stateful_op: Node | None = field(default=None, init=False)
 
     @abstractproperty
     def raw_builder(self) -> hf.Function | Case | TailLoop | Block:
@@ -308,6 +309,8 @@ class DFBuilder(ABC, ToNode):
 
     def set_outputs(self, *outputs: Wire) -> None:
         self.raw_builder.set_outputs(*outputs)
+        if self._last_stateful_op is not None:
+            self._handle_side_effects(self.raw_builder.output_node)
 
     def add_op(
         self,
@@ -320,12 +323,31 @@ class DFBuilder(ABC, ToNode):
         avoid automatic debug information attachment.
         """
         op_node = self.raw_builder.add_op(op, *args)
+        if may_have_side_effect(op):
+            self._handle_side_effects(op_node)
+
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
             op_node.metadata[HugrDebugInfo] = make_location_record(
                 self.current_ast_node
             )
         return op_node
+
+    def _handle_side_effects(self, op_node: ToNode) -> None:
+        if self._last_stateful_op is None:
+            self._propagate_side_effects()
+            self._last_stateful_op = self.input_node
+        else:
+            assert not isinstance(
+                self.raw_builder.hugr[self._last_stateful_op].op, ops.Output
+            )
+        node = op_node.to_node()
+        # self.raw_builder.add_state_order(self._last_stateful_op, node)
+        self._last_stateful_op = node
+
+    @abstractmethod
+    def _propagate_side_effects(self) -> None:
+        """Subclasses must implement"""
 
     def call(
         self,
@@ -341,6 +363,7 @@ class DFBuilder(ABC, ToNode):
         call = self.raw_builder.call(
             func, *args, instantiation=instantiation, type_args=type_args
         )
+        self._handle_side_effects(call)
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
             call.metadata[HugrDebugInfo] = make_location_record(self.current_ast_node)
@@ -397,6 +420,11 @@ class TailLoopBuilder(DFBuilder):
 
     def set_loop_outputs(self, predicate: Wire, *outputs: Wire) -> None:
         self.raw_builder.set_loop_outputs(predicate, *outputs)
+        if self._last_stateful_op is not None:
+            self._handle_side_effects(self.raw_builder.output_node)
+
+    def _propagate_side_effects(self) -> None:
+        self.parent._handle_side_effects(self.raw_builder)
 
 
 @dataclass
@@ -406,6 +434,9 @@ class FunctionBuilder(DFBuilder):
     @property
     def raw_builder(self) -> hf.Function:
         return self._raw_builder
+
+    def _propagate_side_effects(self) -> None:
+        pass  # No parent
 
 
 @dataclass
@@ -418,6 +449,11 @@ class CaseBuilder(DFBuilder):
     def raw_builder(self) -> Case:
         return self._raw_builder
 
+    def _propagate_side_effects(self) -> None:
+        # No need to do anything in the Conditional,
+        # but the Conditional itself needs to be ordered inside its parent
+        self.grandparent._handle_side_effects(self.parent)
+
 
 @dataclass
 class BlockBuilder(DFBuilder):
@@ -429,9 +465,16 @@ class BlockBuilder(DFBuilder):
     def raw_builder(self) -> Block:
         return self._raw_builder
 
+    def _propagate_side_effects(self) -> None:
+        # No need to do anything in the CFG, but the CFG itself
+        # needs to be ordered inside its parent,
+        self.grandparent._handle_side_effects(self.parent)
+
     def set_block_outputs(self, branching: Wire, *other_outputs: Wire) -> None:
         self.raw_builder.set_outputs(branching, *other_outputs)
         self._outputs_set = True
+        if self._last_stateful_op is not None:
+            self._handle_side_effects(self.raw_builder.output_node)
 
 
 class CompilerBase(ABC):
