@@ -389,6 +389,13 @@ class UnitaryFlags(Flag):
 
     Unitary = Control | Dagger | Power
 
+    def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":
+        """Accumulates another set of unitary flags into this one."""
+        result = self | other
+        if self & UnitaryFlags.Dagger and other & UnitaryFlags.Dagger:
+            result &= ~UnitaryFlags.Dagger
+        return result
+
 
 @dataclass(frozen=True)
 class FuncInput:

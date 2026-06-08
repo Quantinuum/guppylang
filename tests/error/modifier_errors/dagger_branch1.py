@@ -3,9 +3,10 @@ from guppylang.std.builtins import dagger
 
 
 @guppy
-def test(i: int) -> None:
+def test() -> None:
     with dagger:
-        while i < 46:
+        if 2 > 46:
             pass
+
 
 test.compile()

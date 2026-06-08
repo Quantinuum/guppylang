@@ -2,10 +2,9 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import dagger
 
 
-@guppy
-def test(i: int) -> None:
-    with dagger:
-        while i < 46:
-            pass
+@guppy(dagger=True, power=True)
+def test() -> None:
+        x = 3 if 2 > 46 else 0
+
 
 test.compile()

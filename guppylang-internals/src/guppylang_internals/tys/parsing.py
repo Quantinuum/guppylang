@@ -1,6 +1,6 @@
 import ast
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
 from typing import TYPE_CHECKING, ClassVar
@@ -90,7 +90,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
 
     # A single (possibly qualified) identifier
-    if defn := _try_parse_defn(node, ctx.globals):
+    if defn := try_parse_defn(node, ctx.globals):
         return _arg_from_instantiated_defn(defn, [], node, ctx)
 
     # An identifier referring to a quantified variable
@@ -103,7 +103,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
 
     # A parametrised type, e.g. `list[??]`
     if isinstance(node, ast.Subscript) and (
-        defn := _try_parse_defn(node.value, ctx.globals)
+        defn := try_parse_defn(node.value, ctx.globals)
     ):
         arg_nodes = (
             node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
@@ -158,7 +158,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     raise GuppyError(InvalidTypeArgError(node))
 
 
-def _try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
+def try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
     """Tries to parse a (possibly qualified) name into a global definition."""
     from guppylang.defs import GuppyDefinition
 
@@ -272,6 +272,16 @@ def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
         raise GuppyError(InvalidTypeError(node)) from None
     else:
         return stmt.value
+
+
+def annotation_nodes(node: ast.expr) -> Iterator[ast.expr]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        node = _parse_delayed_annotation(node.value, node)
+
+    yield node
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, ast.expr):
+            yield from annotation_nodes(child)
 
 
 def _parse_callable_type(
@@ -438,7 +448,7 @@ if sys.version_info >= (3, 12):
         proto_defn = None
         proto_args = []
         if isinstance(bound, ast.Subscript):
-            proto_defn = _try_parse_defn(bound.value, ctx.globals)
+            proto_defn = try_parse_defn(bound.value, ctx.globals)
             arg_nodes = (
                 bound.slice.elts
                 if isinstance(bound.slice, ast.Tuple)
@@ -446,7 +456,7 @@ if sys.version_info >= (3, 12):
             )
             proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
         else:
-            proto_defn = _try_parse_defn(bound, ctx.globals)
+            proto_defn = try_parse_defn(bound, ctx.globals)
 
         if isinstance(proto_defn, ParsedProtocolDef):
             inst = proto_defn.check_instantiate(proto_args, bound)
