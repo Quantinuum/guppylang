@@ -3,6 +3,28 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0.0-a2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a1...guppylang-internals-v1.0.0-a2) (2026-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Make structs mutable by default ([#1795](https://github.com/Quantinuum/guppylang/issues/1795))
+* Higher order functions with unitary modifiers ([#1768](https://github.com/Quantinuum/guppylang/issues/1768))
+* Mutable structs ([#1793](https://github.com/Quantinuum/guppylang/issues/1793))
+* Raise an error if control flow is present in dagger contexts ([#1794](https://github.com/Quantinuum/guppylang/issues/1794))
+
+### Features
+
+* Higher order functions with unitary modifiers ([#1768](https://github.com/Quantinuum/guppylang/issues/1768)) ([fb6c58f](https://github.com/Quantinuum/guppylang/commit/fb6c58f1c5191c1b3fd722034f63edbc7c8143df))
+* Make structs mutable by default ([#1795](https://github.com/Quantinuum/guppylang/issues/1795)) ([6b20646](https://github.com/Quantinuum/guppylang/commit/6b206466cb1c1bb62d47943c64f05822ec739a34))
+* Mutable structs ([#1793](https://github.com/Quantinuum/guppylang/issues/1793)) ([06a551d](https://github.com/Quantinuum/guppylang/commit/06a551d4f8ab902f68e610e91ef0ea380996ae51))
+* Raise an error if control flow is present in dagger contexts ([#1794](https://github.com/Quantinuum/guppylang/issues/1794)) ([85e42d1](https://github.com/Quantinuum/guppylang/commit/85e42d15bf9d60dd384466f13919301300130316))
+
+
+### Bug Fixes
+
+* Comptime attribute access in struct definitions ([#1824](https://github.com/Quantinuum/guppylang/issues/1824)) ([89b39e2](https://github.com/Quantinuum/guppylang/commit/89b39e25459679b34baf2320abdf36e9371569f2))
+
 ## [1.0.0-a1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a0...guppylang-internals-v1.0.0-a1) (2026-06-04)
 
 
