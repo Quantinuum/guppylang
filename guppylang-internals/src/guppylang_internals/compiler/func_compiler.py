@@ -7,6 +7,7 @@ from hugr.build.function import Function
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.hugr_extension import PartialOp
+from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ def compile_local_func_def(
     # Prepend captured variables to the function arguments
     func_ty = func.ty.to_hugr(ctx)
     closure_ty = ht.FunctionType([*captured_types, *func_ty.input], func_ty.output)
-    func_builder = dfg.builder.module_root_builder().define_function(
+    func_builder = dfg.builder.raw_builder.module_root_builder().define_function(
         func.name, closure_ty.input, closure_ty.output
     )
 
@@ -56,6 +57,7 @@ def compile_local_func_def(
     # variable
     call_args: list[Wire] = list(func_builder.inputs())
     if len(captured) > 0 and recursive:
+        check_partial_functions_enabled()
         loaded = func_builder.load_function(func_builder, closure_ty)
         partial = func_builder.add_op(
             PartialOp.from_closure(closure_ty, captured_types),
@@ -90,6 +92,7 @@ def compile_local_func_def(
     # Finally, load the function into the local data-flow graph
     loaded = dfg.builder.load_function(func_builder, closure_ty)
     if len(captured) > 0:
+        check_partial_functions_enabled()
         loaded = dfg.builder.add_op(
             PartialOp.from_closure(closure_ty, captured_types),
             loaded,

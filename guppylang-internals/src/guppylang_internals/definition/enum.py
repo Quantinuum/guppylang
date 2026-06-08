@@ -31,6 +31,7 @@ from guppylang_internals.definition.util import (
     DuplicateFieldError,
     NonGuppyMethodError,
     UncheckedField,
+    check_not_recursive,
     extract_generic_params,
     parse_py_class,
 )
@@ -185,7 +186,9 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
             v = getattr(self.python_class, func_name)
             if not isinstance(v, GuppyDefinition):
                 raise GuppyError(
-                    NonGuppyMethodError(func_def, self.name, func_name, "enum")
+                    NonGuppyMethodError(
+                        func_def, self.name, func_name, "enum", "@guppy"
+                    )
                 )
 
         link_name_prefix = (
@@ -217,7 +220,6 @@ class ParsedEnumDef(TypeDef, CheckableDef):
         param_var_mapping = {p.name: p for p in self.params}
         ctx = TypeParsingCtx(globals, param_var_mapping)
 
-        # TODO: not ideal, see `ParsedStructDef.check_instantiate`
         check_not_recursive(self, ctx)
 
         checked_variants: dict[str, EnumVariant[CheckedField]] = {}
@@ -282,10 +284,9 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 inst_enum_type = self.enum_ty.transform(instantiator)
                 assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
-                    self.builder.add(
-                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx))(
-                            *wires
-                        )
+                    self.builder.add_op(
+                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
+                        *wires,
                     )
                 )
 
@@ -360,49 +361,3 @@ def parse_enum_variant(
                 raise GuppyError(err)
 
     return EnumVariant(index, name, variant_fields)
-
-
-def check_not_recursive(defn: ParsedEnumDef, ctx: TypeParsingCtx) -> None:
-    """Throws a user error if the given enum definition is recursive.
-
-    This function temporarily replaces the enum's check_instantiate method with
-    a dummy that raises an error. Then it attempts to parse all variant field
-    types. If any variant references the enum being defined, the dummy method
-    will be called, catching the recursion.
-
-    Args:
-        defn: The parsed enum definition to check for recursion
-        ctx: The type parsing context containing available types
-
-    Raises:
-        GuppyError: If the enum is directly or mutually recursive
-
-    Note:
-        This is a TEMPORARY hacky implementation.
-    """
-    # TODO: The implementation below hijacks the type parsing logic to detect recursive
-    #  enums. This is not great since it repeats the work done during checking. We can
-    #  get rid of this after resolving the todo in `ParsedEnumDef.check_instantiate()`
-
-    def dummy_check_instantiate(
-        args: Sequence[Argument],
-        loc: AstNode | None = None,
-    ) -> Type:
-        """Dummy method that raises an error if called during type parsing."""
-        raise GuppyError(UnsupportedError(loc, "Recursive definitions"))
-
-    # Save the original check_instantiate method
-    original = defn.check_instantiate
-
-    # Temporarily replace it with the dummy that raises on recursion
-    object.__setattr__(defn, "check_instantiate", dummy_check_instantiate)
-
-    try:
-        # Attempt to parse all variant field types
-        # Note: defn.variants is a Mapping[str, EnumVariant[UncheckedField]]
-        for variant in defn.variants.values():
-            for field in variant.fields:
-                type_from_ast(field.type_ast, ctx)
-    finally:
-        # Always restore the original method
-        object.__setattr__(defn, "check_instantiate", original)

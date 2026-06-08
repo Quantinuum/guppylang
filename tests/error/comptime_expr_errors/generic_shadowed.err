@@ -1,0 +1,9 @@
+Error: Not compile-time evaluatable (at $FILE:10:13)
+   | 
+ 8 | def foo(xs: array[int, n]) -> None:
+ 9 |     n = 42
+10 |     comptime(n)
+   |              ^ Guppy variable `n` cannot be accessed in a comptime
+   |                expression
+
+Guppy compilation failed due to 1 previous error

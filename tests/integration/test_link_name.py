@@ -145,7 +145,7 @@ def test_enum_member_link_name_annotated(qualifier):
 
     @guppy.enum
     class MySuperbEnum:
-        Variant = {}  # noqa: RUF012
+        Variant = {}
 
         @guppy(link_name="totally_qualified_override_name")
         def some_name_that_is_crazy(self) -> None:
@@ -172,7 +172,7 @@ def test_enum_member_link_name_inferred(qualifier):
 
     @guppy.enum
     class MySuperbEnum:
-        Variant = {}  # noqa: RUF012
+        Variant = {}
 
         @guppy
         def some_name_that_is_crazy(self) -> None:
@@ -200,7 +200,7 @@ def test_enum_member_link_name_supported(qualifier):
 
     @guppy.enum(link_name="my.superb.qualifier")
     class MySuperbEnum:
-        Variant = {}  # noqa: RUF012
+        Variant = {}
 
         @guppy
         def some_name_that_is_crazy(self) -> None:
@@ -244,7 +244,7 @@ class FileLevelStruct:
 
 @guppy.enum
 class FileLevelEnum:
-    Variant = {}  # noqa: RUF012
+    Variant = {}
 
     @guppy
     def superb_name_defn(self) -> None:

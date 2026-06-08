@@ -124,3 +124,22 @@ def test_nested_struct(validate):
         return s
 
     validate(foo.compile_function())
+
+
+def test_nested_enum(validate):
+    @guppy.enum
+    class E:
+        VariantA = {"xe": frozenarray[int, 42]}
+
+        @guppy
+        def tag(self) -> int:
+            return 1
+
+    @guppy
+    def foo(es: frozenarray[E, 42]) -> int:
+        s = 0
+        for e in es:
+            s += e.tag()
+        return s
+
+    validate(foo.compile_function())

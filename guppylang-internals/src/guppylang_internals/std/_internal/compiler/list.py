@@ -4,7 +4,7 @@ multiple nodes.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 import hugr.std.collections.list
 from hugr import Wire, ops
@@ -26,7 +26,7 @@ from guppylang_internals.std._internal.compiler.prelude import (
 from guppylang_internals.tys.arg import TypeArg
 
 if TYPE_CHECKING:
-    from hugr.build.dfg import DfBase
+    from guppylang_internals.compiler.core import DFBuilder
 
 
 # ------------------------------------------------------
@@ -315,9 +315,10 @@ class ListLengthCompiler(CustomCallCompiler):
         raise InternalGuppyError("Call compile_with_inouts instead")
 
 
-def list_new(
-    builder: DfBase[ops.DfParentOp], elem_type: ht.Type, args: list[Wire]
-) -> Wire:
+P = TypeVar("P", bound=ops.DfParentOp)
+
+
+def list_new(builder: DFBuilder[P], elem_type: ht.Type, args: list[Wire]) -> Wire:
     if elem_type.type_bound() == ht.TypeBound.Linear:
         return _list_new_linear(builder, elem_type, args)
     else:
@@ -325,7 +326,7 @@ def list_new(
 
 
 def _list_new_classical(
-    builder: DfBase[ops.DfParentOp], elem_type: ht.Type, args: list[Wire]
+    builder: DFBuilder[P], elem_type: ht.Type, args: list[Wire]
 ) -> Wire:
     # This may be simplified in the future with a `new` or `with_capacity` list op
     # See https://github.com/quantinuum/hugr/issues/1508
@@ -337,7 +338,7 @@ def _list_new_classical(
 
 
 def _list_new_linear(
-    builder: DfBase[ops.DfParentOp], elem_type: ht.Type, args: list[Wire]
+    builder: DFBuilder[P], elem_type: ht.Type, args: list[Wire]
 ) -> Wire:
     elem_opt_ty = ht.Option(elem_type)
     lst = builder.load(ListVal([], elem_ty=elem_opt_ty))

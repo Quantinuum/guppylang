@@ -9,6 +9,7 @@ from hugr import tys as ht
 from hugr.std.collections.static_array import EXTENSION, StaticArray
 
 from guppylang_internals.compiler.core import (
+    DFBuilder,
     GlobalConstId,
 )
 from guppylang_internals.compiler.expr_compiler import unpack_wire
@@ -49,11 +50,14 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
             body=ht.FunctionType([StaticArray(var), INT_T], [var]),
         )
         func, already_exists = self.ctx.declare_global_func(FROZENARRAY_GETITEM, sig)
+        func_builder = DFBuilder(func, self.node)
         if not already_exists:
             [arr, idx] = func.inputs()
-            idx = func.add_op(convert_itousize(), idx)
-            elem_opt = func.add_op(static_array_get(var), arr, idx)
-            elem = build_unwrap(func, elem_opt, "Frozenarray index out of bounds")
+            idx = func_builder.add_op(convert_itousize(), idx)
+            elem_opt = func_builder.add_op(static_array_get(var), arr, idx)
+            elem = build_unwrap(
+                func_builder, elem_opt, "Frozenarray index out of bounds"
+            )
             func.set_outputs(elem)
         return func
 
@@ -63,7 +67,8 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
         elem_ty = ty_arg.ty.to_hugr(self.ctx)
         inst = ht.FunctionType([StaticArray(elem_ty), INT_T], [elem_ty])
         type_args = [ht.TypeTypeArg(elem_ty)]
-        out = self.builder.call(
-            self.getitem_func(), *args, instantiation=inst, type_args=type_args
-        )
+        with self.builder.set_ast_context(self.node):
+            out = self.builder.call(
+                self.getitem_func(), *args, instantiation=inst, type_args=type_args
+            )
         return unpack_wire(out, ty_arg.ty, self.builder, self.ctx)

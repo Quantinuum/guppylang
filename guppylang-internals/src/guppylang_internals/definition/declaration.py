@@ -6,12 +6,20 @@ from typing import ClassVar
 from hugr import Node, Wire
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder, OpVar
+from hugr.metadata import HugrDebugInfo
+from typing_extensions import override
 
-from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc, with_type
+from guppylang_internals.ast_util import (
+    AstNode,
+    has_empty_body,
+    with_loc,
+    with_type,
+)
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
@@ -23,6 +31,7 @@ from guppylang_internals.definition.function import (
     compile_call,
     default_func_link_name,
     load,
+    make_subprogram_record,
     monomorphized_link_name,
     parse_py_func,
 )
@@ -35,6 +44,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
+from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.param import Parameter
@@ -76,10 +86,14 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     """
 
     python_func: PyFunc
+
     description: str = field(default="function", init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
+
+    @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
@@ -100,6 +114,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
             ty=ty,
             docstring=docstring,
             link_name=link_name,
+            metadata=self.metadata,
         )
 
 
@@ -122,11 +137,13 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     defined_at: ast.FunctionDef
     docstring: str | None
     link_name: str
+    metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDecl":
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
@@ -140,8 +157,9 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
             type_args=type_args,
         )
 
+    @override
     def check_call(
-        self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
+        self, args: list[ast.expr], ty: Type, node: ast.Call, ctx: Context
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
@@ -150,6 +168,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
         ENGINE.register_generic_use(self, inst)
         return node, subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[GlobalCall, Type]:
@@ -177,6 +196,7 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
 
     type_args: Inst
 
+    @override
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledFunctionDecl":
@@ -184,9 +204,17 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
         assert isinstance(module, hf.Module), (
             "Functions can only be declared in modules"
         )
-        module: hf.Module = module
 
         node = module.declare_function(self.link_name, self.ty.to_hugr_poly(ctx))
+        add_metadata(
+            node,
+            self.metadata,
+            additional_metadata={"unitary": self.ty.unitary_flags.value},
+        )
+        if debug_mode_enabled():
+            node.metadata[HugrDebugInfo] = make_subprogram_record(
+                self.defined_at, ctx, is_decl=True
+            )
         return CompiledFunctionDecl(
             id=self.id,
             name=self.name,
@@ -196,6 +224,7 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
             link_name=self.link_name,
             type_args=self.type_args,
             declaration=node,
+            metadata=self.metadata,
         )
 
 
@@ -223,11 +252,13 @@ class CompiledFunctionDecl(
         """The Hugr node this definition was compiled into."""
         return self.declaration
 
+    @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         # Use implementation from function definition.
         return load(dfg, self.declaration)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],
@@ -237,4 +268,4 @@ class CompiledFunctionDecl(
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, dfg, self.ty, self.declaration)
+        return compile_call(args, dfg, self.ty, self.declaration, node)

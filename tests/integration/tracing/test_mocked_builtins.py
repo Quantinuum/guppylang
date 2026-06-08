@@ -92,7 +92,7 @@ def test_len(validate):
 
     @guppy.enum
     class E:
-        x = {"x": int}  # noqa: RUF012
+        x = {"x": int}
 
         @guppy
         def __len__(self: "E") -> int:

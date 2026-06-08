@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 19, in <module>
+    test.compile_function()
+  File "$FILE", line 15, in test
+    qp = init_qubits()
+guppylang_internals.error.GuppyComptimeError: Power constraint violation: This function cannot be called in a power context

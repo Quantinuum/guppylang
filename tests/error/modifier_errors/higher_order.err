@@ -1,4 +1,4 @@
-Error: Unitary constraint violation (at $FILE:11:4)
+Error: Dagger constraint violation (at $FILE:11:4)
    | 
  9 | def test_ho(f: Callable[[qubit], None], q: qubit) -> None:
 10 |     # There is no way to use specify flags for f

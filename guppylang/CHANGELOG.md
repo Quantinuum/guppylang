@@ -14,6 +14,56 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a0...guppylang-v1.0.0-a1) (2026-06-04)
+
+
+### Features
+
+* Add native PCG32 random number generator to std lib ([#1808](https://github.com/Quantinuum/guppylang/issues/1808)) ([a789648](https://github.com/Quantinuum/guppylang/commit/a7896489cfc969652e114af8d85336299baee389))
+
+
+### Documentation
+
+* Correct docstring formatting for std.quantum.reset ([#1810](https://github.com/Quantinuum/guppylang/issues/1810)) ([fb5ae49](https://github.com/Quantinuum/guppylang/commit/fb5ae499379e10ed92b2e410ff63249e8251927a))
+
+## [1.0.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.12...guppylang-v1.0.0-a0) (2026-05-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Protocol parsing ([#1754](https://github.com/Quantinuum/guppylang/issues/1754))
+
+### Features
+
+* Add array helpers for qubit measurements for qsystem measurement variants ([#1667](https://github.com/Quantinuum/guppylang/issues/1667)) ([fa6f85a](https://github.com/Quantinuum/guppylang/commit/fa6f85abbeeeb4746a726d9e810fb82dd43ed3de))
+* Protocol parsing ([#1754](https://github.com/Quantinuum/guppylang/issues/1754)) ([17282cd](https://github.com/Quantinuum/guppylang/commit/17282cdf71b9a238c737d2ddb19ad71e7e7d24d4))
+
+
+### Documentation
+
+* add parameters in error model snippet ([#1751](https://github.com/Quantinuum/guppylang/issues/1751)) ([ab9c8ca](https://github.com/Quantinuum/guppylang/commit/ab9c8ca0de91fa7da1a326bad0a9ba21e3c88439))
+
+
+### Miscellaneous Chores
+
+* release guppylang-internals 1.0.0-a0 ([#1782](https://github.com/Quantinuum/guppylang/issues/1782)) ([28e30e2](https://github.com/Quantinuum/guppylang/commit/28e30e207f56140c3196c51fb1ab9b9f0fbd5dae))
+
+## [0.21.12](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.11...guppylang-v0.21.12) (2026-04-16)
+
+
+### Features
+
+* Add `lazy_measure_and_reset` qsystem operation ([7b63997](https://github.com/Quantinuum/guppylang/commit/7b6399739ec24a50b605c67698e6daa474cd1c1d))
+* Joint compilation of Guppy symbols to a library ([0adefdb](https://github.com/Quantinuum/guppylang/commit/0adefdb623f25c3f2caf2fc9bf28dc1883ba93f6))
+* Monomorphise everything during type checking ([bde8404](https://github.com/Quantinuum/guppylang/commit/bde8404b773c25097aad726529498102fee0937b))
+* Support for compilation unit, subprogram and location debug metadata ([c0ff4d3](https://github.com/Quantinuum/guppylang/commit/c0ff4d38e96a3ec0857e8c9be31a7368b9f08317))
+* Support modifiers on compile time functions ([ca65da4](https://github.com/Quantinuum/guppylang/commit/ca65da41808d94f687b370947906d6c539b04c16))
+
+
+### Performance Improvements
+
+* std.collections.Queue.pop constant time instead of linear time ([#1651](https://github.com/Quantinuum/guppylang/issues/1651)) ([1530062](https://github.com/Quantinuum/guppylang/commit/1530062ddb50c7c83486455073c0813a9c1e417e))
+
 ## [0.21.11](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.10...guppylang-v0.21.11) (2026-04-01)
 
 

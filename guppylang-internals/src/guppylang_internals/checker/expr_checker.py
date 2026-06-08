@@ -24,7 +24,7 @@ import ast
 import copy
 import sys
 import traceback
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
@@ -34,6 +34,7 @@ from guppylang_internals.ast_util import (
     AstNode,
     AstVisitor,
     breaks_in_loop,
+    fake_call,
     get_type,
     get_type_opt,
     return_nodes_in_ast,
@@ -59,6 +60,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprIncoherentListError,
     ComptimeExprNotCPythonError,
     ComptimeExprNotStaticError,
+    ComptimeExprTypeVarError,
     ComptimeGuppyObjectError,
     ComptimeUnknownError,
     IllegalComptimeExpressionError,
@@ -76,6 +78,7 @@ from guppylang_internals.checker.errors.type_errors import (
     ConstMismatchError,
     IllegalConstant,
     IntOverflowError,
+    KindMismatch,
     ModuleMemberNotFoundError,
     NonLinearInstantiateError,
     NotCallableError,
@@ -98,6 +101,7 @@ from guppylang_internals.error import (
     GuppyTypeError,
     GuppyTypeInferenceError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
     saved_exception_hook,
 )
 from guppylang_internals.experimental import (
@@ -123,7 +127,7 @@ from guppylang_internals.nodes import (
     TypeApply,
 )
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tys.arg import ConstArg, TypeArg
+from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     bool_type,
     float_type,
@@ -145,7 +149,12 @@ from guppylang_internals.tys.const import (
     ConstValue,
     ExistentialConstVar,
 )
-from guppylang_internals.tys.param import TypeParam, check_all_args
+from guppylang_internals.tys.param import (
+    ConstParam,
+    Parameter,
+    TypeParam,
+    check_all_args,
+)
 from guppylang_internals.tys.parsing import arg_from_ast
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
@@ -321,6 +330,18 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
 
+            from guppylang_internals.definition.protocol import ParsedProtocolDef
+
+            # Protocol methods don't have their own definition, we have to look up the
+            # protocol definition itself first.
+            if isinstance(defn, ParsedProtocolDef):
+                assert isinstance(func_ty, FunctionType)
+                raise GuppyError(
+                    UnsupportedError(
+                        node.func, "Checking protocol method calls", singular=True
+                    )
+                )
+
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
             node.args = [*node.func.args, *node.args]
@@ -330,10 +351,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
-            args, return_ty, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
-            return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
+            return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
         if isinstance(func_ty, TupleType) and (
             function_elements := parse_function_tensor(func_ty)
@@ -618,13 +639,13 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 else:
                     # Not a global name, thus node.value is a instantiated variant
                     is_enum_class = False
-            elif (method_w_ty := self._check_method(ty, node)) and isinstance(
-                node.value, PlaceNode
+            elif (method_w_ty := self._check_method(ty, node)) and not isinstance(
+                node.value, GlobalName
             ):
                 # Otherwise, we may try to access a method from the enum class
-                # If the method exists, we also need to check that node.value is a
-                # variable (i.e. a PlaceNode) and not the enum class definition
-                # (i.e. a GlobalName): we cannot write `MyEnum.method`.
+                # If the method exists, we also need to check that node.value is not a
+                # GlobalName, i.e. it does not correspond to the enum class definition:
+                # we cannot write `MyEnum.method`.
                 return method_w_ty[0], method_w_ty[1]
             else:
                 # If node.value is a GlobalName it corresponds to the enum class
@@ -719,7 +740,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return func.synthesize_call([node.operand], node, self.ctx)
 
     def _synthesize_binary(
-        self, left_expr: ast.expr, right_expr: ast.expr, op: AstOp, node: ast.expr
+        self,
+        left_expr: ast.expr,
+        right_expr: ast.expr,
+        op: AstOp,
+        node: ast.BinOp | ast.Compare,
     ) -> tuple[ast.expr, Type]:
         """Helper method to compile binary operators by calling out to dunder methods.
 
@@ -869,6 +894,17 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
                 return defn.synthesize_call(node.args, node, self.ctx)
+
+            from guppylang_internals.definition.protocol import ParsedProtocolDef
+
+            # Protocol methods don't have their own definition, we have to look up the
+            # protocol definition itself first.
+            if isinstance(defn, ParsedProtocolDef):
+                raise GuppyError(
+                    UnsupportedError(
+                        node.func, "Checking protocol method calls", singular=True
+                    )
+                )
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1045,9 +1081,11 @@ def try_coerce_to(
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
     if act.kind < exp.kind:
-        f = ENGINE.get_instance_func(act, f"__{exp.kind.name.lower()}__")
+        name = f"__{exp.kind.name.lower()}__"
+        f = ENGINE.get_instance_func(act, name)
         assert f is not None
-        node, subst = f.check_call([node], exp, node, ctx)
+        call = fake_call(name, node, [node])
+        node, subst = f.check_call([node], exp, call, ctx)
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
     return None
@@ -1110,6 +1148,7 @@ def type_check_args(
     inputs: list[ast.expr],
     func_ty: FunctionType,
     subst: Subst,
+    free_var_mapping: Mapping[ExistentialVar, Parameter],
     ctx: Context,
     node: AstNode,
 ) -> tuple[list[ast.expr], Subst]:
@@ -1125,6 +1164,28 @@ def type_check_args(
     comptime_args = iter(func_ty.comptime_args)
     for inp, func_inp in zip(inputs, func_ty.inputs, strict=True):
         a, s = ExprChecker(ctx).check(inp, func_inp.ty.substitute(subst), "argument")
+        # For each new substitution we find for any previously uninstantiated parameter,
+        # we check it in order to possibly infer more substitutions through protocol
+        # checking.
+        for var in s:
+            if var in free_var_mapping:
+                param = free_var_mapping[var]
+                arg = s[var].to_arg()
+                match param, arg:
+                    case TypeParam(), TypeArg() as arg:
+                        check_arg, check_subst = param.check_arg(arg, a)
+                        subst |= check_subst
+                        subst[var] = check_arg.ty
+                    case ConstParam(), ConstArg() as arg:
+                        subst[var] = param.check_arg(arg, a).const
+                    case TypeParam(), _:
+                        raise GuppyError(
+                            KindMismatch(node, str(arg), str(param), "Type")
+                        )
+                    case ConstParam(), _:
+                        raise GuppyError(
+                            KindMismatch(node, str(arg), str(param), "Const")
+                        )
         subst |= s
         if InputFlags.Inout in func_inp.flags and isinstance(a, PlaceNode):
             a.place = check_place_assignable(
@@ -1262,7 +1323,16 @@ def synthesize_call(
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
     unquantified, free_vars = func_ty.unquantified()
-    args, subst = type_check_args(args, unquantified, {}, ctx, node)
+    var_mapping = {}
+    inst_tele: list[Argument | None] = [None for _ in free_vars]
+    for ix, (var, param) in enumerate(zip(free_vars, func_ty.params, strict=True)):
+        var_mapping[var] = param.instantiate_bounds(inst_tele)
+        if isinstance(var, ExistentialTypeVar):
+            inst_tele[ix] = TypeArg(var)
+        elif isinstance(var, ExistentialConstVar):
+            inst_tele[ix] = ConstArg(var)
+
+    args, subst = type_check_args(args, unquantified, {}, var_mapping, ctx, node)
 
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
@@ -1337,7 +1407,7 @@ def check_call(
         raise GuppyTypeError(TypeMismatchError(node, ty, unquantified.output, kind))
 
     # Try to infer more by checking against the arguments
-    inputs, subst = type_check_args(inputs, unquantified, subst, ctx, node)
+    inputs, subst = type_check_args(inputs, unquantified, subst, {}, ctx, node)
 
     # Also make sure we found an instantiation for all free vars in the type we're
     # checking against
@@ -1514,8 +1584,12 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
             python_val = eval(ast.unparse(node.value), DummyEvalDict(ctx, node.value))  # noqa: S307
     except DummyEvalDict.GuppyVarUsedError as e:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
+    except DummyEvalDict.GuppyTypeVarUsedError as e:
+        raise GuppyError(ComptimeExprTypeVarError(e.node or node, e.var)) from None
     except GuppyComptimeError as e:
         raise GuppyError(ComptimeGuppyObjectError(node.value, str(e))) from e
+    except RequiresMonomorphizationError:
+        raise
     except Exception as e:
         # Remove the top frame pointing to the `eval` call from the stack trace
         tb = e.__traceback__.tb_next if e.__traceback__ else None

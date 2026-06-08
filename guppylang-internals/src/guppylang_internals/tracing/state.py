@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.definition.traced import CompiledTracedFunctionDef
 from guppylang_internals.error import InternalGuppyError
 
 if TYPE_CHECKING:
@@ -24,6 +25,9 @@ class TracingState:
 
     #: An AST node capturing the code block that is currently being traced
     node: AstNode
+
+    #: The function definition currently being traced.
+    function_definition: CompiledTracedFunctionDef
 
     #: Set of all allocated undroppable GuppyObjects where the `used` flag is not set,
     #: indexed by their id. This is used to detect linearity violations.
