@@ -19,8 +19,13 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
+from guppylang_internals.experimental import check_unitary_callable_enabled
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.builtin import CallableTypeDef, SelfTypeDef, bool_type
+from guppylang_internals.tys.builtin import (
+    CallableTypeDef,
+    SelfTypeDef,
+    bool_type,
+)
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.errors import (
     CallableComptimeError,
@@ -50,6 +55,7 @@ from guppylang_internals.tys.ty import (
     NumericType,
     TupleType,
     Type,
+    UnitaryFlags,
 )
 
 if TYPE_CHECKING:
@@ -197,10 +203,11 @@ def _arg_from_instantiated_defn(
     from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     match defn:
-        # Special case for the `Callable` type
-        case CallableTypeDef():
-            return TypeArg(_parse_callable_type(arg_nodes, node, ctx))
-            # Special case for the `Callable` type
+        # Special cases for the `Callable` type
+        case CallableTypeDef(flags=flags):
+            if flags != UnitaryFlags.NoFlags:
+                check_unitary_callable_enabled(flags.callable_name(), node)
+            return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flags=flags))
         case SelfTypeDef():
             return TypeArg(_parse_self_type(arg_nodes, node, ctx))
         # Either a defined type (e.g. `int`, `bool`, ...)
@@ -284,7 +291,10 @@ def annotation_nodes(node: ast.expr) -> Iterator[ast.expr]:
 
 
 def _parse_callable_type(
-    args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx
+    args: list[ast.expr],
+    loc: AstNode,
+    ctx: TypeParsingCtx,
+    flags: UnitaryFlags = UnitaryFlags.NoFlags,
 ) -> FunctionType:
     """Helper function to parse a `Callable[[<arguments>], <return type>]` type."""
     err = InvalidCallableTypeError(loc)
@@ -295,7 +305,8 @@ def _parse_callable_type(
         raise GuppyError(err)
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
     output = type_from_ast(output, ctx)
-    return FunctionType(inputs, output)
+
+    return FunctionType(inputs, output, unitary_flags=flags)
 
 
 def _parse_self_type(args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx) -> Type:
