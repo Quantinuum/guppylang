@@ -69,10 +69,10 @@ def test_mixed(run_int_fn):
         assert isinstance(n, int)
         assert isinstance(m, int)
         assert isinstance(k, int)
-        return n + m + k
+        return xs[k] + ys[k]
 
     @guppy
     def main() -> int:
-        return foo(array(1), array(1, 2), 3)
+        return foo(array(1, 2), array(3, 4, 5), 1)
 
     run_int_fn(main, 6)
