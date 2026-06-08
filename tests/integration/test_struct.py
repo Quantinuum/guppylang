@@ -1,6 +1,9 @@
 from typing import Generic, TYPE_CHECKING
 
+from guppylang import comptime, qubit, array
 from guppylang.decorator import guppy
+from guppylang.std.quantum import discard_array
+
 from tests.integration.modules import struct_scope_defs
 
 
@@ -205,3 +208,28 @@ def test_redefine(validate):
         return MyStruct()
 
     validate(foo.compile_function())
+
+
+def test_comptime_attribute_access(validate):
+    """Tests that comptime expressions struct definitions can access attributes of local
+    variables. Regression test for https://github.com/Quantinuum/guppylang/issues/1816.
+    """
+
+    class Config:
+        x: int
+
+        def __init__(self, x: int):
+            self.x = x
+
+    config = Config(x=5)
+
+    @guppy.struct
+    class Struct:
+        qs: array[qubit, comptime(config.x)]
+
+    @guppy
+    def main() -> None:
+        s = Struct(array(qubit() for _ in range(comptime(config.x))))
+        discard_array(s.qs)
+
+    validate(main.compile_function())
