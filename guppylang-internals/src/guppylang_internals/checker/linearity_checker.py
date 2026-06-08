@@ -926,14 +926,13 @@ def check_mutable_parent_already_used(place: Place, use: Use, scope: Scope) -> N
     for parent in parent_places(place, include_self=True):
         match parent.ty:
             case StructType(frozen=False):
-                mutable = True
-            case _:
-                mutable = False
-        if mutable and (prev_use := scope.used(parent.id)):
-            err = ParentAlreadyUsedError(use.node, use.origin_place, use.kind)
-            sub = ParentAlreadyUsedError.ParentUse(prev_use.node, parent, prev_use.kind)
-            err.add_sub_diagnostic(sub)
-            raise GuppyError(err)
+                if prev_use := scope.used(parent.id):
+                    err = ParentAlreadyUsedError(use.node, use.origin_place, use.kind)
+                    sub = ParentAlreadyUsedError.ParentUse(
+                        prev_use.node, parent, prev_use.kind
+                    )
+                    err.add_sub_diagnostic(sub)
+                    raise GuppyError(err)
 
 
 def check_cfg_linearity(
