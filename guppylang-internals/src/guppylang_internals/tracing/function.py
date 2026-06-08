@@ -1,3 +1,4 @@
+import sys
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -265,9 +266,11 @@ def add_generic_to_function_globals(
     instantiation of generic parameters."""
     # The values of Python 3.12+ style generics are generated using an annotation scope
     # (see https://docs.python.org/3/reference/compound_stmts.html#generic-functions).
-    # Thus, their values will be bound in the `__closure__` table of the function and
-    # referenced in the `co_freevars` of the functions `__code__`.
-    if f.__closure__ is not None:
+    # In particular, this means that they are looked up via the function's closure
+    # mappingproxy instead of the frame globals. Thus, their values will be bound in the
+    # `__closure__` table of the function and referenced in the `co_freevars` of the
+    # functions `__code__`.
+    if sys.version_info >= (3, 12) and f.__closure__ is not None:
         for i, x in enumerate(f.__code__.co_freevars):
             if x in generic_values:
                 f.__closure__[i].cell_contents = generic_values.pop(x)
