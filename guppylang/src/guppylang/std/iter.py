@@ -47,7 +47,7 @@ class SizedIter:
         """Dummy implementation making sized iterators iterable themselves."""
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class Range:
     next: int
     stop: int

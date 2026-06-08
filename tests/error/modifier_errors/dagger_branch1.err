@@ -2,10 +2,10 @@ Error: Invalid expression in dagger (at $FILE:8:8)
   | 
 6 | def test() -> None:
 7 |     with dagger:
-8 |         for _ in range(46):
-  |         ^^^^^^^^^^^^^^^^^^^
+8 |         if 2 > 46:
+  |         ^^^^^^^^^^
 9 |             pass
-  | ^^^^^^^^^^^^^^^^ Loop found in a dagger context
+  | ^^^^^^^^^^^^^^^^ Branch found in a dagger context
 
 Note:
   | 

@@ -1,7 +1,10 @@
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from guppylang_internals.diagnostic import Error, Help, Note
+
+if TYPE_CHECKING:
+    from guppylang_internals.tys.ty import UnitaryFlags
 
 
 @dataclass(frozen=True)
@@ -93,3 +96,28 @@ class InvalidUnderDagger(Error):
     @dataclass(frozen=True)
     class Dagger(Note):
         span_label: ClassVar[str] = "dagger modifier is used here"
+
+    @dataclass(frozen=True)
+    class FunctionHelp(Help):
+        message: ClassVar[str] = (
+            "The function `{name}` is declared with the unitary flag: `{flags}`."
+            " Thus dagger constraints apply to its body."
+        )
+        name: str
+        unitary_flags: "UnitaryFlags"
+
+        @property
+        def flags(self) -> str:
+            from guppylang_internals.tys.ty import UnitaryFlags
+
+            if self.unitary_flags == UnitaryFlags.Unitary:
+                return "unitary=True"
+            assert UnitaryFlags.Dagger in cast("UnitaryFlags", self.unitary_flags)
+            return "dagger=True"
+
+    @dataclass(frozen=True)
+    class ControlFlowHelp(Help):
+        message: ClassVar[str] = (
+            "Control flow statements (e.g. loops and branches) are not allowed in "
+            "daggered contexts."
+        )

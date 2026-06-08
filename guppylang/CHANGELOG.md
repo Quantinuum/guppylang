@@ -14,6 +14,18 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a0...guppylang-v1.0.0-a1) (2026-06-04)
+
+
+### Features
+
+* Add native PCG32 random number generator to std lib ([#1808](https://github.com/Quantinuum/guppylang/issues/1808)) ([a789648](https://github.com/Quantinuum/guppylang/commit/a7896489cfc969652e114af8d85336299baee389))
+
+
+### Documentation
+
+* Correct docstring formatting for std.quantum.reset ([#1810](https://github.com/Quantinuum/guppylang/issues/1810)) ([fb5ae49](https://github.com/Quantinuum/guppylang/commit/fb5ae499379e10ed92b2e410ff63249e8251927a))
+
 ## [1.0.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.12...guppylang-v1.0.0-a0) (2026-05-29)
 
 
