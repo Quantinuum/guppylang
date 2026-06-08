@@ -14,6 +14,19 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a1...guppylang-v1.0.0-a2) (2026-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Make structs mutable by default ([#1795](https://github.com/Quantinuum/guppylang/issues/1795))
+
+### Features
+
+* Higher order functions with unitary modifiers ([#1768](https://github.com/Quantinuum/guppylang/issues/1768)) ([fb6c58f](https://github.com/Quantinuum/guppylang/commit/fb6c58f1c5191c1b3fd722034f63edbc7c8143df))
+* Make structs mutable by default ([#1795](https://github.com/Quantinuum/guppylang/issues/1795)) ([6b20646](https://github.com/Quantinuum/guppylang/commit/6b206466cb1c1bb62d47943c64f05822ec739a34))
+* Support mutable structs ([#1793](https://github.com/Quantinuum/guppylang/issues/1793)) ([06a551d](https://github.com/Quantinuum/guppylang/commit/06a551d4f8ab902f68e610e91ef0ea380996ae51))
+
 ## [1.0.0-a1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a0...guppylang-v1.0.0-a1) (2026-06-04)
 
 
