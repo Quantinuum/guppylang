@@ -150,6 +150,7 @@ class Scope(Locals[PlaceId, Place]):
     Keeps track of which places have already been used.
     """
 
+    #: Enclosing scope tracking variables defined in other basic blocks
     parent_scope: "Scope | None"
 
     #: Tracks all leaf projections of used places that were defined in this scope
