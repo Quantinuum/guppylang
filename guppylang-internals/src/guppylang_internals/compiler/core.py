@@ -1,16 +1,16 @@
 import itertools
-from abc import ABC
+from abc import ABC, abstractproperty
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Generic, cast
+from typing import Any
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops, val
 from hugr import tys as ht
-from hugr.build import Conditional, TailLoop
+from hugr.build import Block, Case, Cfg, Conditional, TailLoop
 from hugr.build import function as hf
-from hugr.build.dfg import DP, DefinitionBuilder, DfBase
+from hugr.build.dfg import DefinitionBuilder
 from hugr.hugr.base import OpVarCov
 from hugr.hugr.node_port import ToNode
 from hugr.metadata import HugrDebugInfo, NodeMetadata
@@ -197,22 +197,9 @@ class DFContainer:
     current compilation state.
     """
 
-    builder: "DFBuilder[ops.DfParentOp]"
+    builder: "DFBuilder"
     ctx: CompilerContext
     locals: CompiledLocals = field(default_factory=dict)
-
-    def __init__(
-        self,
-        builder: DfBase[DP],
-        ctx: CompilerContext,
-        locals: CompiledLocals | None = None,
-    ) -> None:
-        generic_builder = cast("DfBase[ops.DfParentOp]", builder)
-        if locals is None:
-            locals = {}
-        self.builder = DFBuilder(generic_builder)
-        self.ctx = ctx
-        self.locals = locals
 
     def __getitem__(self, place: Place) -> Wire:
         """Constructs a wire for a local place in this DFG.
@@ -275,11 +262,11 @@ class DFContainer:
     def __copy__(self) -> "DFContainer":
         # Make a copy of the var map so that mutating the copy doesn't
         # mutate our variable mapping
-        return DFContainer(self.builder.raw_builder, self.ctx, self.locals.copy())
+        return DFContainer(self.builder, self.ctx, self.locals.copy())
 
 
 @dataclass
-class DFBuilder(Generic[DP]):
+class DFBuilder(ABC):
     """A wrapper around a dataflow graph builder which ensures compiler-specific
     additional actions can be performed every time an operation is added to the graph.
 
@@ -289,8 +276,11 @@ class DFBuilder(Generic[DP]):
     The underlying builder can still be accessed through `raw_builder`.
     """
 
-    raw_builder: DfBase[DP]
-    current_ast_node: AstNode | None = None
+    current_ast_node: AstNode | None = field(default=None, kw_only=True)
+
+    @abstractproperty
+    def raw_builder(self) -> hf.Function | Case | TailLoop | Block:
+        """The underlying Hugr dataflow graph builder."""
 
     @contextmanager
     def set_ast_context(self, ast_node: AstNode) -> Iterator[None]:
@@ -353,10 +343,18 @@ class DFBuilder(Generic[DP]):
     def add_conditional(self, cond_wire: Wire, *args: Wire) -> Conditional:
         return self.raw_builder.add_conditional(cond_wire, *args)
 
+    def add_cfg(self, *args: Wire) -> Cfg:
+        return self.raw_builder.add_cfg(*args)
+
     def add_tail_loop(
         self, just_inputs: Sequence[Wire], rest: Sequence[Wire]
-    ) -> TailLoop:
-        return self.raw_builder.add_tail_loop(just_inputs, rest)
+    ) -> "TailLoopBuilder":
+        # Can't state this in the return type without adding a second type parameter
+        # to DFBuilder, which is horrendous (at least until we can provide
+        # default values for type parameters, which arrives in PEP 0696 / python 3.13).
+        # So just get a static check here
+        raw: TailLoop = self.raw_builder.add_tail_loop(just_inputs, rest)
+        return TailLoopBuilder(raw, self)
 
     def load(
         self, const: ToNode | val.Value, const_parent: ToNode | None = None
@@ -373,6 +371,50 @@ class DFBuilder(Generic[DP]):
 
     def add_const(self, value: val.Value, parent: ToNode | None = None) -> Node:
         return self.raw_builder.add_const(value, parent)
+
+
+@dataclass
+class TailLoopBuilder(DFBuilder):
+    _raw_builder: TailLoop
+    parent: DFBuilder
+
+    @property
+    def raw_builder(self) -> TailLoop:
+        return self._raw_builder
+
+    def set_loop_outputs(self, predicate: Wire, *outputs: Wire) -> None:
+        self.raw_builder.set_loop_outputs(predicate, *outputs)
+
+
+@dataclass
+class FunctionBuilder(DFBuilder):
+    _raw_builder: hf.Function
+
+    @property
+    def raw_builder(self) -> hf.Function:
+        return self._raw_builder
+
+
+@dataclass
+class CaseBuilder(DFBuilder):
+    _raw_builder: Case
+    parent: Conditional
+    grandparent: DFBuilder
+
+    @property
+    def raw_builder(self) -> Case:
+        return self._raw_builder
+
+
+@dataclass
+class BlockBuilder(DFBuilder):
+    _raw_builder: Block
+    parent: Cfg
+    grandparent: DFBuilder
+
+    @property
+    def raw_builder(self) -> Block:
+        return self._raw_builder
 
 
 class CompilerBase(ABC):

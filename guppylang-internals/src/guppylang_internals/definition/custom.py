@@ -24,6 +24,7 @@ from guppylang_internals.compiler.core import (
     CompilerContext,
     DFBuilder,
     DFContainer,
+    FunctionBuilder,
     GlobalConstId,
 )
 from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
@@ -313,7 +314,7 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
             self.type_args,
         )
         if not already_defined:
-            func_dfg = DFContainer(func, ctx, dfg.locals.copy())
+            func_dfg = DFContainer(FunctionBuilder(func), ctx, dfg.locals.copy())
             args: list[Wire] = list(func.inputs())
             returns = self.compile_call(args, func_dfg, ctx, node)
             func.set_outputs(*returns.regular_returns, *returns.inout_returns)
@@ -469,7 +470,7 @@ class CustomInoutCallCompiler(ABC):
         """
 
     @property
-    def builder(self) -> DFBuilder[ops.DfParentOp]:
+    def builder(self) -> DFBuilder:
         """The hugr dataflow builder."""
         return self.dfg.builder
 

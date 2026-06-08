@@ -14,7 +14,6 @@ from hugr import tys as ht
 from hugr import val as hv
 from hugr.build import function as hf
 from hugr.build.cond_loop import Conditional
-from hugr.build.dfg import DP, DfBase
 
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -22,6 +21,7 @@ from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
+    CaseBuilder,
     CompilerBase,
     CompilerContext,
     DFBuilder,
@@ -136,13 +136,13 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return [self.compile(e, dfg) for e in expr_to_row(expr)]
 
     @property
-    def builder(self) -> DFBuilder[ops.DfParentOp]:
+    def builder(self) -> DFBuilder:
         """The current Hugr dataflow graph builder."""
         return self.dfg.builder
 
     @contextmanager
     def _new_dfcontainer(
-        self, inputs: list[PlaceNode], builder: DfBase[DP]
+        self, inputs: list[PlaceNode], builder: DFBuilder
     ) -> Iterator[None]:
         """Context manager to build a graph inside a new `DFContainer`.
 
@@ -154,7 +154,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             "Inputs are not unique"
         )
         self.dfg = DFContainer(builder, self.ctx, self.dfg.locals.copy())
-        hugr_input = builder.input_node
+        hugr_input = builder.raw_builder.input_node
         for input_node, wire in zip(inputs, hugr_input, strict=True):
             self.dfg[input_node.place] = wire
 
@@ -185,7 +185,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             do_break = self.visit(break_predicate)
             loop.set_loop_outputs(do_break, *(self.visit(name) for name in loop_vars))
         # Update the DFG with the outputs from the loop
-        for node, wire in zip(loop_vars, loop, strict=True):
+        for node, wire in zip(loop_vars, loop.raw_builder, strict=True):
             self.dfg[node.place] = wire
 
     @contextmanager
@@ -202,7 +202,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """
         # TODO: `Case` is `_DfgBase`, but not `Dfg`?
         case = conditional.add_case(case_id)
-        with self._new_dfcontainer(inputs, case):
+        with self._new_dfcontainer(
+            inputs, CaseBuilder(case, conditional, self.builder)
+        ):
             yield
             case.set_outputs(*(self.visit(name) for name in outputs))
 
@@ -732,7 +734,7 @@ def expr_to_row(expr: ast.expr) -> list[ast.expr]:
 def pack_returns(
     returns: Sequence[Wire],
     return_ty: Type,
-    builder: DFBuilder[ops.DfParentOp],
+    builder: DFBuilder,
     ctx: CompilerContext,
 ) -> Wire:
     """Groups function return values into a tuple"""
@@ -750,7 +752,7 @@ def pack_returns(
 def unpack_wire(
     wire: Wire,
     return_ty: Type,
-    builder: DFBuilder[ops.DfParentOp],
+    builder: DFBuilder,
     ctx: CompilerContext,
     ast_node: AstNode | None = None,
 ) -> list[Wire]:
@@ -848,7 +850,7 @@ def doesnt_contain_none(xs: list[T | None]) -> TypeGuard[list[T]]:
 
 def apply_array_op_with_conversions(
     ctx: CompilerContext,
-    builder: DFBuilder[ops.DfParentOp],
+    builder: DFBuilder,
     op: ops.DataflowOp,
     elem_ty: ht.Type,
     size_arg: ht.TypeArg,

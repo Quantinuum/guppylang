@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from hugr import ops
-from hugr.build.function import Function
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -16,7 +15,11 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
-from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.compiler.core import (
+    CompilerContext,
+    DFContainer,
+    FunctionBuilder,
+)
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
@@ -62,7 +65,7 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
-    builder: Function,
+    builder: FunctionBuilder,
     ctx: CompilerContext,
     node: AstNode,
     func_def: "CompiledTracedFunctionDef",
@@ -83,7 +86,7 @@ def trace_function(
                 # thus breaking the semantics expected from Python.
                 frozen=InputFlags.Inout not in inp.flags,
             )
-            for wire, inp in zip(builder.inputs(), ty.inputs, strict=True)
+            for wire, inp in zip(builder.raw_builder.inputs(), ty.inputs, strict=True)
         ]
 
         with exception_hook(tracing_except_hook), mock_builtins(python_func):
@@ -148,7 +151,7 @@ def trace_function(
         msg = f"Value with non-droppable type `{unused._ty}` is leaked by this function"
         raise GuppyError(TracingReturnError(node, msg)) from None
 
-    builder.set_outputs(*regular_returns, *inout_returns)
+    builder.raw_builder.set_outputs(*regular_returns, *inout_returns)
 
 
 def trace_call(func: CallableDef, *args: Any) -> Any:
@@ -162,9 +165,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     with capture_guppy_errors():
         # Try to turn args into `GuppyObjects`
         args_objs = [
-            guppy_object_from_py(
-                arg, state.dfg.builder.raw_builder, state.node, state.ctx
-            )
+            guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
             for arg in args
         ]
 
@@ -205,7 +206,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                 ty = var.ty
                 inout_wire = state.dfg[var]
                 success = update_packed_value(
-                    arg, GuppyObject(ty, inout_wire), state.dfg.builder.raw_builder
+                    arg, GuppyObject(ty, inout_wire), state.dfg.builder
                 )
                 if not success:
                     # This means the user has passed an object that we cannot update,
@@ -216,4 +217,4 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                     )
 
     ret_obj = GuppyObject(ret_ty, ret_wire)
-    return unpack_guppy_object(ret_obj, state.dfg.builder.raw_builder)
+    return unpack_guppy_object(ret_obj, state.dfg.builder)

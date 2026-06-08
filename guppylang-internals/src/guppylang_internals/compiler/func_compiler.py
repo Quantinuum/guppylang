@@ -5,7 +5,11 @@ from hugr import tys as ht
 from hugr.build.function import Function
 
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
-from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.compiler.core import (
+    CompilerContext,
+    DFContainer,
+    FunctionBuilder,
+)
 from guppylang_internals.compiler.hugr_extension import PartialOp
 from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef
@@ -20,7 +24,7 @@ def compile_global_func_def(
     ctx: CompilerContext,
 ) -> None:
     """Compiles a top-level function definition to Hugr."""
-    cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
+    cfg = compile_cfg(func.cfg, FunctionBuilder(builder), builder.inputs(), ctx)
     builder.set_outputs(*cfg)
 
 
@@ -69,7 +73,7 @@ def compile_local_func_def(
         func.cfg.input_tys.append(func.ty)
 
         # Compile the CFG
-        cfg = compile_cfg(func.cfg, func_builder, call_args, ctx)
+        cfg = compile_cfg(func.cfg, FunctionBuilder(func_builder), call_args, ctx)
         func_builder.set_outputs(*cfg)
     else:
         # Otherwise, we treat the function like a normal global variable

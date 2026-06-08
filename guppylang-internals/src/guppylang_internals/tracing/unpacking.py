@@ -1,7 +1,6 @@
 from typing import Any, TypeVar
 
 from hugr import ops
-from hugr.build.dfg import DfBase
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.comptime_errors import (
@@ -33,7 +32,7 @@ P = TypeVar("P", bound=ops.DfParentOp)
 
 
 def unpack_guppy_object(
-    obj: GuppyObject, builder: DfBase[P], frozen: bool = False
+    obj: GuppyObject, builder: DFBuilder, frozen: bool = False
 ) -> Any:
     """Tries to turn as much of the structure of a GuppyObject into Python objects.
 
@@ -72,7 +71,7 @@ def unpack_guppy_object(
                     # them as Guppy objects here
                     return obj
                 elem_ty = get_element_type(ty)
-                elems = unpack_array(DFBuilder(builder), obj._use_wire(None))
+                elems = unpack_array(builder, obj._use_wire(None))
                 obj_list = [
                     unpack_guppy_object(GuppyObject(elem_ty, wire), builder, frozen)
                     for wire in elems
@@ -86,7 +85,7 @@ def unpack_guppy_object(
 
 
 def guppy_object_from_py(
-    v: Any, builder: DfBase[P], node: AstNode, ctx: CompilerContext
+    v: Any, builder: DFBuilder, node: AstNode, ctx: CompilerContext
 ) -> GuppyObject:
     """Constructs a Guppy object from a Python value.
 
@@ -148,7 +147,7 @@ def guppy_object_from_py(
             return GuppyObject(ty, builder.load(hugr_val))
 
 
-def update_packed_value(v: Any, obj: "GuppyObject", builder: DfBase[P]) -> bool:
+def update_packed_value(v: Any, obj: "GuppyObject", builder: DFBuilder) -> bool:
     """Given a Python value `v` and a `GuppyObject` `obj` that was constructed from `v`
     using `guppy_object_from_py`, tries to update the wires of any `GuppyObjects`
     contained in `v` to the new wires specified by `obj`.
@@ -194,7 +193,7 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: DfBase[P]) -> bool:
         case list(vs) if len(vs) > 0:
             assert is_array_type(obj._ty)
             elem_ty = get_element_type(obj._ty)
-            wires = unpack_array(DFBuilder(builder), obj._use_wire(None))
+            wires = unpack_array(builder, obj._use_wire(None))
             for i, (v, wire) in enumerate(zip(vs, wires, strict=True)):
                 success = update_packed_value(v, GuppyObject(elem_ty, wire), builder)
                 if not success:

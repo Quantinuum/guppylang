@@ -61,7 +61,7 @@ class StmtCompiler(CompilerBase, AstVisitor[None]):
         return self.dfg
 
     @property
-    def builder(self) -> DFBuilder[ops.DfParentOp]:
+    def builder(self) -> DFBuilder:
         """The Hugr dataflow graph builder."""
         return self.dfg.builder
 

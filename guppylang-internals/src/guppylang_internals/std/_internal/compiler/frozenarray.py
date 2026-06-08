@@ -8,10 +8,7 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.static_array import EXTENSION, StaticArray
 
-from guppylang_internals.compiler.core import (
-    DFBuilder,
-    GlobalConstId,
-)
+from guppylang_internals.compiler.core import FunctionBuilder, GlobalConstId
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.std._internal.compiler.arithmetic import (
@@ -50,7 +47,7 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
             body=ht.FunctionType([StaticArray(var), INT_T], [var]),
         )
         func, already_exists = self.ctx.declare_global_func(FROZENARRAY_GETITEM, sig)
-        func_builder = DFBuilder(func, self.node)
+        func_builder = FunctionBuilder(func, current_ast_node=self.node)
         if not already_exists:
             [arr, idx] = func.inputs()
             idx = func_builder.add_op(convert_itousize(), idx)

@@ -5,7 +5,6 @@ from typing import cast
 from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.build import cfg as hc
-from hugr.build.dfg import DP, DfBase
 from hugr.hugr.node_port import ToNode
 
 from guppylang_internals.checker.cfg_checker import (
@@ -16,7 +15,10 @@ from guppylang_internals.checker.cfg_checker import (
 )
 from guppylang_internals.checker.core import Place, Variable
 from guppylang_internals.compiler.core import (
+    BlockBuilder,
+    CaseBuilder,
     CompilerContext,
+    DFBuilder,
     DFContainer,
     is_return_var,
     return_var,
@@ -29,7 +31,7 @@ from guppylang_internals.tys.ty import type_to_row
 
 def compile_cfg(
     cfg: CheckedCFG[Place],
-    container: DfBase[DP],
+    container: DFBuilder,
     inputs: Sequence[Wire],
     ctx: CompilerContext,
 ) -> hc.Cfg:
@@ -46,7 +48,7 @@ def compile_cfg(
     ):
         insert_return_vars(cfg)
 
-    builder = container.add_cfg(*inputs)
+    builder: hc.Cfg = container.add_cfg(*inputs)
 
     # Explicitly annotate the output types since Hugr can't infer them if the exit is
     # unreachable
@@ -61,7 +63,7 @@ def compile_cfg(
 
     blocks: dict[CheckedBB[Place], ToNode] = {}
     for bb in cfg.bbs:
-        blocks[bb] = compile_bb(bb, builder, bb == cfg.entry_bb, ctx)
+        blocks[bb] = compile_bb(bb, builder, container, bb == cfg.entry_bb, ctx)
     for bb in cfg.bbs:
         for i, succ in enumerate(bb.successors):
             builder.branch(blocks[bb][i], blocks[succ])
@@ -72,6 +74,7 @@ def compile_cfg(
 def compile_bb(
     bb: CheckedBB[Place],
     builder: hc.Cfg,
+    outer: DFBuilder,
     is_entry: bool,
     ctx: CompilerContext,
 ) -> ToNode:
@@ -98,7 +101,7 @@ def compile_bb(
         block = builder.add_block(*(v.ty.to_hugr(ctx) for v in inputs))
 
     # Add input node and compile the statements
-    dfg = DFContainer(block, ctx)
+    dfg = DFContainer(BlockBuilder(block, builder, outer), ctx)
     for v, wire in zip(inputs, block.input_node, strict=True):
         dfg[v] = wire
     dfg = StmtCompiler(ctx).compile_stmts(bb.statements, dfg)
@@ -213,7 +216,9 @@ def choose_vars_for_tuple_sum(
             with conditional.add_case(i) as case:
                 case_inputs = case.inputs()
                 outputs = [case_inputs[all_vars_idxs[v.id]] for v in var_row]
-                tag = case.add_op(ops.Tag(i, sum_type), *outputs)
+                tag = CaseBuilder(case, conditional, dfg.builder).add_op(
+                    ops.Tag(i, sum_type), *outputs
+                )
                 case.set_outputs(tag)
         return conditional
 
