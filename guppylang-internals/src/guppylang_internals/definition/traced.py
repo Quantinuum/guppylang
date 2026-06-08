@@ -64,7 +64,7 @@ class RawTracedFunctionDef(ParsableDef):
         func_ast, _docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
-        )
+        ).with_effects(self.effects)
         if ty.parametrized:
             raise GuppyError(UnsupportedError(func_ast, "Generic comptime functions"))
         return TracedFunctionDef(

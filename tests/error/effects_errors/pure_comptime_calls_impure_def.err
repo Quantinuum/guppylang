@@ -1,15 +1,6 @@
-Error: Too many effects (at $FILE:9:10)
-  | 
-7 | @guppy(effects=[])
-8 | def main() -> int:
-9 |    return impure_func(5)
-  |           ^^^^^^^^^^^ Call to `impure_func` has effects `[ANY]` not allowed inside
-  |                       `main`
-
-Note:
-  | 
-6 | 
-7 | @guppy(effects=[])
-  |  ----------------- Allowed effects declared here
-
-Guppy compilation failed due to 1 previous error
+Traceback (most recent call last):
+  File "$FILE", line 11, in <module>
+    main.compile()
+  File "$FILE", line 9, in main
+    return impure_func(5)
+guppylang_internals.error.GuppyComptimeError: Too many effects: Callee of type `int -> int` has effects `[ANY]` not allowed inside `main`
