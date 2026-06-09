@@ -3,7 +3,19 @@
 from guppylang.std.array import ArrayIter, FrozenarrayIter, array, frozenarray
 from guppylang.std.bool import bool
 from guppylang.std.iter import Range, SizedIter, range
-from guppylang.std.lang import comptime, control, dagger, owned, power, py
+from guppylang.std.lang import (
+    Controllable,
+    Daggerable,
+    Powerable,
+    PowerControllable,
+    Unitary,
+    comptime,
+    control,
+    dagger,
+    owned,
+    power,
+    py,
+)
 from guppylang.std.list import list
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import (
@@ -170,6 +182,11 @@ __all__ = (  # noqa: RUF022
     "type",
     "vars",
     "zip",
+    "Unitary",
+    "Controllable",
+    "Daggerable",
+    "Powerable",
+    "PowerControllable",
     # TODO: Remove the following from prelude
     "ArrayIter",  # Deprecated reexport
     "barrier",  # Deprecated reexport

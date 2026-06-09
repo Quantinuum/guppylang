@@ -15,7 +15,7 @@ TCopyable = guppy.type_var("TCopyable", copyable=True, droppable=False)
 MAX_SIZE = guppy.nat_var("MAX_SIZE")
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class Stack(Generic[T, MAX_SIZE]):  # type: ignore[misc]
     """A last-in-first-out (LIFO) growable collection of values.
 

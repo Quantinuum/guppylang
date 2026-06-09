@@ -71,7 +71,11 @@ class Instantiator(Transformer):
 
         # Otherwise, lower the de Bruijn index
         return BoundTypeVar(
-            ty.display_name, ty.idx - len(self.inst), ty.copyable, ty.droppable
+            ty.display_name,
+            ty.idx - len(self.inst),
+            ty.copyable,
+            ty.droppable,
+            [self.transform(impl) or impl for impl in ty.implements],
         )
 
     @transform.register
@@ -85,7 +89,9 @@ class Instantiator(Transformer):
             return arg.const
 
         # Otherwise, lower the de Bruijn index
-        return BoundConstVar(c.ty, c.display_name, c.idx - len(self.inst))
+        return BoundConstVar(
+            self.transform(c.ty) or c.ty, c.display_name, c.idx - len(self.inst)
+        )
 
     @transform.register
     def _transform_FunctionType(self, ty: FunctionType) -> Type | None:

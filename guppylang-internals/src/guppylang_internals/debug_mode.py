@@ -1,7 +1,9 @@
 """Global state for determining whether to attach debug information to Hugr nodes
 during compilation."""
 
-_DEBUG_MODE_ENABLED = False
+import os
+
+_DEBUG_MODE_ENABLED = os.getenv("GUPPYLANG_FORCE_DEBUGINFO") == "1"
 
 
 def turn_on_debug_mode() -> None:

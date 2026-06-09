@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from guppylang_internals.ast_util import AstNode
+from guppylang_internals.ast_util import AstNode, set_location_from
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
@@ -47,9 +47,14 @@ class GlobalName(ast.Name):
         "id",
         "def_id",
     )
+    _field_types = getattr(ast.Name, "_field_types", {}) | {
+        "def_id": "DefId",
+    }
 
     def __init__(self, id: str, def_id: "DefId") -> None:
-        super().__init__(id=id)
+        # Python 3.15 validates subclass-defined AST fields in the base constructor,
+        # but typeshed still exposes `ast.Name.__init__` without custom kwargs.
+        super().__init__(id=id, def_id=def_id)  # type: ignore[call-arg]
         self.id = id
         self.def_id = def_id
 
@@ -74,9 +79,12 @@ class DummyGenericParamValue(ast.Name):
         "id",
         "var",
     )
+    _field_types = getattr(ast.Name, "_field_types", {}) | {
+        "var": BoundConstVar,
+    }
 
     def __init__(self, id: str, var: BoundConstVar) -> None:
-        super().__init__(id=id)
+        super().__init__(id=id, var=var)  # type: ignore[call-arg]
         self.id = id
         self.var = var
 
@@ -661,7 +669,13 @@ class NestedFunctionDef(ast.FunctionDef):
     ty: FunctionType
     docstring: str | None
 
+    _fields = (*ast.FunctionDef._fields, "docstring")
+    _field_types = getattr(ast.FunctionDef, "_field_types", {}) | {
+        "docstring": str | None,
+    }
+
     def __init__(self, cfg: "CFG", ty: FunctionType, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("docstring", None)
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.ty = ty
@@ -704,7 +718,8 @@ class Dagger(ast.expr):
     """The dagger modifier"""
 
     def __init__(self, node: ast.expr) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__()
+        set_location_from(self, node)
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -717,10 +732,24 @@ class Control(ast.Call):
     ctrl: list[ast.expr]
     qubit_num: int | Const | None
 
-    _fields = ("ctrl",)
+    _fields = (
+        "func",
+        "args",
+        "keywords",
+        "ctrl",
+    )
+    _field_types = getattr(ast.Call, "_field_types", {}) | {
+        "ctrl": list[ast.expr],
+    }
 
     def __init__(self, node: ast.Call, ctrl: list[ast.expr]) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__(
+            func=node.func,
+            args=node.args,
+            keywords=node.keywords,
+            ctrl=ctrl,
+        )  # type: ignore[call-arg]
+        set_location_from(self, node)
         self.ctrl = ctrl
         self.qubit_num = None
 
@@ -737,7 +766,8 @@ class Power(ast.expr):
     _fields = ("iter",)
 
     def __init__(self, node: ast.expr, iter: ast.expr) -> None:
-        super().__init__(**node.__dict__)
+        super().__init__()
+        set_location_from(self, node)
         self.iter = iter
 
     # See MakeIter for explanation
@@ -790,21 +820,31 @@ class Modifiers:
 
 
 class ModifiedBlock(ast.With):
-    """Node representing a unchecked `with` block
+    """Node representing an unchecked `with` block
 
     parameters:
     - `cfg`: the CFG of the body of the block
+    - `modifiers`: the modifiers of the block
     - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    - `accumulated_flags`: the UnitaryFlags accumulated from outer modified blocks
+    - `original_ast_body`: the original AST body of the block, used for checking that
+      the body does not contain any invalid statements. Is expected to beNone if the
+      block does not have the Dagger modifier since in that case it is not needed
     """
 
     cfg: "CFG"
+    modifiers: Modifiers
     first_modifier_node: ast.expr
+    accumulated_flags: UnitaryFlags
+    original_ast_body: list[ast.stmt] | None
 
     def __init__(
         self,
         cfg: "CFG",
         modifiers: "Modifiers",
         first_modifier_node: ast.expr,
+        accumulated_flags: UnitaryFlags,
+        original_ast_body: list[ast.stmt] | None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -812,6 +852,8 @@ class ModifiedBlock(ast.With):
         self.cfg = cfg
         self.modifiers = modifiers
         self.first_modifier_node = first_modifier_node
+        self.accumulated_flags = accumulated_flags
+        self.original_ast_body = original_ast_body
 
     @property
     def dagger(self) -> list[Dagger]:
@@ -844,16 +886,6 @@ class ModifiedBlock(ast.With):
             to_span(self.items[-1].context_expr).end,
         )
 
-    def flags(self) -> UnitaryFlags:
-        flags = UnitaryFlags.NoFlags
-        if self.has_dagger():
-            flags |= UnitaryFlags.Dagger
-        if self.has_control():
-            flags |= UnitaryFlags.Control
-        if self.has_power():
-            flags |= UnitaryFlags.Power
-        return flags
-
 
 class CheckedModifiedBlock(ast.With):
     def_id: "DefId"
@@ -863,6 +895,7 @@ class CheckedModifiedBlock(ast.With):
     ty: FunctionType
     #: Mapping from names to variables captured in the body.
     captured: Mapping[str, tuple["Variable", AstNode]]
+    modifiers: Modifiers
 
     def __init__(
         self,

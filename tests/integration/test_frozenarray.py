@@ -110,7 +110,7 @@ def test_nested_iter(run_int_fn):
 
 
 def test_nested_struct(validate):
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class S:
         xs: frozenarray[int, 10]
         y: int

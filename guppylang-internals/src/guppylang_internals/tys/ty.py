@@ -3,11 +3,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
 
 import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
+from typing_extensions import assert_never
 
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
@@ -20,6 +21,7 @@ from guppylang_internals.tys.common import (
 )
 from guppylang_internals.tys.const import Const, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.param import ConstParam, Parameter
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
@@ -193,6 +195,7 @@ class BoundTypeVar(TypeBase, BoundVar):
 
     copyable: bool
     droppable: bool
+    implements: Sequence[ProtocolInst] = field(default_factory=tuple)
 
     @property
     def bound_vars(self) -> set[BoundVar]:
@@ -236,13 +239,18 @@ class ExistentialTypeVar(ExistentialVar, TypeBase):
 
     copyable: bool
     droppable: bool
+    implements: Sequence[ProtocolInst] = field(default_factory=tuple)
 
     @classmethod
     def fresh(
-        cls, display_name: str, copyable: bool, droppable: bool
+        cls,
+        display_name: str,
+        copyable: bool,
+        droppable: bool,
+        implements: Sequence[ProtocolInst] = (),
     ) -> "ExistentialTypeVar":
         return ExistentialTypeVar(
-            display_name, next(cls._fresh_id), copyable, droppable
+            display_name, next(cls._fresh_id), copyable, droppable, implements
         )
 
     @cached_property
@@ -381,6 +389,113 @@ class UnitaryFlags(Flag):
     Power = auto()
 
     Unitary = Control | Dagger | Power
+
+    def is_weaker_than(self, other: "UnitaryFlags") -> bool:
+        """Whether this flag is weaker than `other`,
+        i.e. whether this flag allows more contexts than `other`."""
+
+        if self == UnitaryFlags.NoFlags:
+            return True
+        else:
+            return self in other
+
+    def __str__(self) -> str:
+        match self:
+            case UnitaryFlags.Dagger:
+                return "dagger"
+            case UnitaryFlags.Control:
+                return "control"
+            case UnitaryFlags.Power:
+                return "power"
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case _:  # If we have multiple flags, we represent them as unitary
+                return "unitary"
+
+    def render_flags(self, backtick: bool) -> str:
+        """Renders the flags as a string.
+        If there are two flags, we print them separated by 'and'."""
+
+        def fmt(s: str) -> str:
+            return f"`{s}`" if backtick else s
+
+        if self == UnitaryFlags.NoFlags:
+            return fmt("None")
+
+        # If all flags are set, we can just say "unitary"
+        if self == UnitaryFlags.Unitary:
+            return fmt("unitary")
+
+        # Otherwise, we list the individual flags that are set
+        individual_flags: list[UnitaryFlags] = [
+            UnitaryFlags.Dagger,
+            UnitaryFlags.Control,
+            UnitaryFlags.Power,
+        ]
+        sep = " and "
+        return sep.join(
+            fmt(flag.__str__())
+            for flag in individual_flags
+            if (self.value & flag.value) == flag.value
+        )
+
+    def hint_rendering(self, verbose: bool) -> str:
+        """We check which flag are we missing. If we miss more than one, we just say
+        `unitary=True`"""
+        from guppylang_internals.tys.ty import UnitaryFlags
+
+        # No flags is not expected
+        if self == UnitaryFlags.NoFlags:
+            return "None"
+
+        individual_flags: list[UnitaryFlags] = [
+            UnitaryFlags.Dagger,
+            UnitaryFlags.Control,
+            UnitaryFlags.Power,
+        ]
+        flags = [
+            flag for flag in individual_flags if (self.value & flag.value) == flag.value
+        ]
+        if len(flags) == 1:
+            return f"{flags[0].__str__()}=True"
+        elif len(flags) == 2 and verbose:
+            return " and ".join(f"{flag.__str__()}=True" for flag in flags)
+        else:
+            return "unitary=True"
+
+    def callable_name(
+        self,
+    ) -> Literal[
+        "Callable",
+        "Unitary",
+        "Powerable",
+        "Daggerable",
+        "Controllable",
+        "PowerControllable",
+    ]:
+        """Returns the name of the corresponding Callable variant for this flag."""
+        match self:
+            case UnitaryFlags.NoFlags:
+                return "Callable"
+            case UnitaryFlags.Unitary:
+                return "Unitary"
+            case UnitaryFlags.Power:
+                return "Powerable"
+            case UnitaryFlags.Dagger:
+                return "Daggerable"
+            case UnitaryFlags.Control:
+                return "Controllable"
+            case _:
+                if self == (UnitaryFlags.Power | UnitaryFlags.Control):
+                    return "PowerControllable"
+                assert_never(self)
+
+    def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":
+        """Accumulates another set of unitary flags into this one."""
+        result = self | other
+        if self & UnitaryFlags.Dagger and other & UnitaryFlags.Dagger:
+            result &= ~UnitaryFlags.Dagger
+        return result
 
 
 @dataclass(frozen=True)
@@ -572,9 +687,17 @@ class FunctionType(ParametrizedTypeBase):
 
     def unquantified(self) -> tuple["FunctionType", Sequence[ExistentialVar]]:
         """Instantiates all parameters with existential variables."""
-        exs = [param.to_existential() for param in self.params]
-        inst = tuple(arg for arg, _ in exs)
-        return self.instantiate(inst), [var for _, var in exs]
+        from guppylang_internals.tys.subst import Instantiator
+
+        args: list[Argument] = []
+        exes = []
+        for param in self.params:
+            arg, ex = param.to_existential()
+            inst = Instantiator(args)
+            exes.append(ex.transform(inst))
+            args.append(arg.transform(inst))
+
+        return self.instantiate(tuple(args)), exes
 
     def with_unitary_flags(self, flags: UnitaryFlags) -> "FunctionType":
         """Returns a copy of this function type with the specified unitary flags."""
@@ -690,13 +813,18 @@ class StructType(ParametrizedTypeBase):
 
     @cached_property
     def intrinsically_copyable(self) -> bool:
-        """Whether objects of this type can be  implicitly copied."""
-        return all(f.ty.copyable for f in self.fields)
+        """Whether objects of this type can be implicitly copied."""
+        return self.frozen and all(f.ty.copyable for f in self.fields)
 
     @cached_property
     def intrinsically_droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
         return all(f.ty.droppable for f in self.fields)
+
+    @property
+    def frozen(self) -> bool:
+        """Whether objects of this type are immutable."""
+        return self.defn.frozen
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
@@ -840,10 +968,14 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
     match s, t:
         case ExistentialVar(id=s_id), ExistentialVar(id=t_id) if s_id == t_id:
             return subst
-        case ExistentialTypeVar() | ExistentialConstVar() as s_var, t:
-            return _unify_var(s_var, t, subst)
-        case s, ExistentialTypeVar() | ExistentialConstVar() as t_var:
-            return _unify_var(t_var, s, subst)
+        case ExistentialTypeVar() as s_var, t if isinstance(t, Type):
+            return _unify_type_var(s_var, t, subst)
+        case ExistentialConstVar() as s_var, t if isinstance(t, Const):
+            return _unify_const_var(s_var, t, subst)
+        case s, ExistentialTypeVar() as t_var if isinstance(s, Type):
+            return _unify_type_var(t_var, s, subst)
+        case s, ExistentialConstVar() as t_var if isinstance(s, Const):
+            return _unify_const_var(t_var, s, subst)
         case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
             return subst
         case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
@@ -871,14 +1003,32 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return None
 
 
-def _unify_var(
-    var: ExistentialTypeVar | ExistentialConstVar, t: Type | Const, subst: "Subst"
-) -> "Subst | None":
-    """Helper function for unification of type or const variables."""
+def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst | None":
+    """Helper function for unification of type variables."""
     if var in subst:
         return unify(subst[var], t, subst)
     if isinstance(t, ExistentialTypeVar) and t in subst:
         return unify(var, subst[t], subst)
+    if var in t.unsolved_vars:
+        return None
+    return {var: t, **subst}
+
+
+def _unify_const_var(
+    var: ExistentialConstVar, t: Const, subst: "Subst"
+) -> "Subst | None":
+    """Helper function for unification of const variables."""
+    from guppylang_internals.tys.subst import Substituter
+
+    subst = unify(var.ty, t.ty, subst)
+    if subst is None:
+        return None
+    # Update the existential type variables according to subst
+    var = replace(var, ty=var.ty.transform(Substituter(subst)))
+    t = t.transform(Substituter(subst))
+    if var in subst:
+        return unify(subst[var], t, subst)
+
     if var in t.unsolved_vars:
         return None
     return {var: t, **subst}
