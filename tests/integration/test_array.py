@@ -265,6 +265,23 @@ def test_struct_nested_subscript(validate):
     validate(main.compile_function())
 
 
+def test_mutate_struct_array(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct:
+        x: int
+        xs: array[int, 42]
+
+    @guppy
+    def main(ss: array[MyStruct, 10]) -> int:
+        ss[0].x = 0
+        ss[1].xs[0] += ss[0].x + 2
+        if ss[1].x > ss[0].x:
+            ss[1].xs = ss[0].xs.copy()
+        return ss[0].x + ss[1].xs[0]
+
+    validate(main.compile_function())
+
+
 def test_generic_function(validate):
     T = guppy.type_var("T", copyable=False, droppable=False)
     n = guppy.nat_var("n")

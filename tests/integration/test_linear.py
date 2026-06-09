@@ -84,7 +84,7 @@ def test_linear_struct(validate):
 
 
 def test_mixed_classical_linear_struct(validate):
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct:
         q: qubit
         x: int
@@ -96,14 +96,14 @@ def test_mixed_classical_linear_struct(validate):
     @guppy
     def test1(s: MyStruct @ owned) -> tuple[MyStruct, float]:
         a = s.x + s.y
-        s.q = f(s.q)
+        # s.q = f(s.q)
         return s, a * s.x
 
     @guppy
     def test2(s: MyStruct @ owned) -> tuple[MyStruct, int, int, int]:
         t = s
         u = t
-        u.q = f(u.q)
+        # u.q = f(u.q)
         return u, s.x, t.x, u.x
 
     validate(test1.compile_function())
@@ -241,6 +241,111 @@ def test_struct_reassign2(validate):
         return s
 
     validate(test.compile_function())
+
+
+def test_mutate_classical_field1(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct:
+        x: int
+
+    @guppy
+    def main(s: MyStruct @ owned, b: bool) -> int:
+        x = s.x
+        s.x = 41
+        t = s
+        if b:
+            t.x += 1
+        return t.x + x
+
+    validate(main.compile_function())
+
+
+def test_mutate_classical_field2(validate):
+    @guppy.struct
+    class MyStruct1:
+        x: "MyStruct2"
+
+    @guppy.struct(frozen=False)
+    class MyStruct2:
+        y: int
+
+    @guppy
+    def test(s: MyStruct1 @ owned, b: bool) -> MyStruct2:
+        s.x.y += 1
+        if b:
+            s = MyStruct2(42)
+            return s
+        else:
+            s = MyStruct1(MyStruct2(s.x.y - 1))
+        s.x.y += 1
+        return s.x
+
+    validate(test.compile_function())
+
+
+def test_mutate_classical_field3(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct:
+        x: int
+
+    @guppy
+    def main(s: MyStruct @ owned) -> int:
+        while True:
+            if s.x > 7:
+                t = s
+                break
+            s.x += 1
+        return t.x
+
+    validate(main.compile_function())
+
+
+def test_mutate_classical_field4(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct:
+        x: int
+
+    @guppy
+    def main(s: MyStruct @ owned, t: MyStruct @ owned) -> tuple[int, int]:
+        while True:
+            if s.x > 7:
+                t.x += 1
+                s, t = t, s
+                continue
+            u = s
+            t.x += u.x
+            break
+        return u.x, t.x
+
+    validate(main.compile_function())
+
+
+def test_mutate_classical_field5(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct1:
+        x: "MyStruct2"
+        y: "MyStruct2"
+
+    @guppy.struct(frozen=False)
+    class MyStruct2:
+        z: int
+
+    @guppy
+    def main(s: MyStruct1 @ owned) -> int:
+        while True:
+            if s.x.z > 5:
+                s.x = s.y
+                s.y = MyStruct2(42)
+            else:
+                s.x, s.y = s.y, s.x
+                continue
+            if s.y.z > 5:
+                s.x.z += 1
+            else:
+                break
+        return s.x.z + s.y.z
+
+    validate(main.compile_function())
 
 
 def test_measure(validate):

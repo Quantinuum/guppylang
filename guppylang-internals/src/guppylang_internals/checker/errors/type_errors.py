@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.const import Const
     from guppylang_internals.tys.param import TypeParam
-    from guppylang_internals.tys.ty import FunctionType, Type
+    from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags
 
 
 @dataclass(frozen=True)
@@ -37,6 +37,26 @@ class TypeMismatchError(Error):
         )
         param: str
         illegal_inst: Type | Const
+
+
+@dataclass(frozen=True)
+class UnitaryFlagMismatchError(Error):
+    title: ClassVar[str] = "Unitary flag mismatch"
+    span_label: ClassVar[str] = (
+        "Expected function with unitary flags: `{rendered_expected}`,"
+        " got: `{rendered_actual}`"
+    )
+
+    expected: UnitaryFlags
+    actual: UnitaryFlags
+
+    @property
+    def rendered_expected(self) -> str:
+        return self.expected.hint_rendering(True)
+
+    @property
+    def rendered_actual(self) -> str:
+        return self.actual.hint_rendering(True)
 
 
 @dataclass(frozen=True)
@@ -122,6 +142,13 @@ class ModuleMemberNotFoundError(Error):
     span_label: ClassVar[str] = "Module `{module_name}` has no member `{member}`"
     module_name: str
     member: str
+
+
+@dataclass(frozen=True)
+class StructImmutableError(Error):
+    title: ClassVar[str] = "Immutable"
+    span_label: ClassVar[str] = "Struct `{ty}` is immutable"
+    ty: Type
 
 
 @dataclass(frozen=True)
@@ -362,3 +389,14 @@ class IntOverflowError(Error):
     @property
     def signed_unsigned(self) -> str:
         return "signed" if self.signed else "unsigned"
+
+
+@dataclass(frozen=True)
+class KindMismatch(Error):
+    title: ClassVar[str] = "Kind mismatch"
+    span_label: ClassVar[str] = (
+        "`{arg}` is the wrong kind for param `{param}`. Expected a `{expected}` arg"
+    )
+    arg: str
+    param: str
+    expected: str

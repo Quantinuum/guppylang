@@ -1,0 +1,17 @@
+Error: Variable assigned in modifier block (at $FILE:12:11)
+   | 
+10 |     with power(3):
+11 |         x += 2
+12 |     return x
+   |            ^ `x` cannot be used...
+
+Note:
+   | 
+10 |     with power(3):
+11 |         x += 2
+   |         ------ ... since it was assigned in a modifier block
+
+Help: Variables assigned inside a modifier block are not available outside the
+block
+
+Guppy compilation failed due to 1 previous error

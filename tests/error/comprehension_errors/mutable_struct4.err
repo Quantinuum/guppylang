@@ -1,0 +1,9 @@
+Error: Copy violation (at $FILE:16:33)
+   | 
+14 | @guppy
+15 | def foo(s: MyStruct @ owned) -> None:
+16 |     [0 for _ in range(10) if bar(s)]
+   |                                  ^ Variable `s` with non-copyable type `MyStruct` would be
+   |                                    consumed multiple times when evaluating this comprehension
+
+Guppy compilation failed due to 1 previous error

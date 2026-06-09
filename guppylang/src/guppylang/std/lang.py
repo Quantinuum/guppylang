@@ -1,7 +1,7 @@
 """Provides Python objects for builtin language keywords."""
 
 from collections.abc import Generator
-from typing import Any, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, Protocol, TypeVar
 
 from guppylang_internals.error import GuppyComptimeError
 
@@ -64,3 +64,37 @@ def dagger(*args: Any, **kwargs: Any) -> Generator[None]:
 def power(*args: Any, **kwargs: Any) -> Generator[None]:
     """Dummy function to support `with power(...):` blocks in Guppy code."""
     raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="power"))
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+class Unitary(Generic[P, R]):
+    if TYPE_CHECKING:
+
+        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
+
+
+class Daggerable(Generic[P, R]):
+    if TYPE_CHECKING:
+
+        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
+
+
+class Powerable(Generic[P, R]):
+    if TYPE_CHECKING:
+
+        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
+
+
+class Controllable(Generic[P, R]):
+    if TYPE_CHECKING:
+
+        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
+
+
+class PowerControllable(Generic[P, R]):
+    if TYPE_CHECKING:
+
+        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...

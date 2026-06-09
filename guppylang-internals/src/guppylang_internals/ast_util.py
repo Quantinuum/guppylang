@@ -7,6 +7,11 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, cast
 if TYPE_CHECKING:
     from guppylang_internals.tys.ty import Type
 
+
+LoopNodes = (
+    ast.For | ast.While | ast.ListComp | ast.GeneratorExp | ast.SetComp | ast.DictComp
+)
+
 AstNode = (
     ast.AST
     | ast.operator
@@ -106,12 +111,32 @@ def return_nodes_in_ast(node: Any) -> list[ast.Return]:
     return cast("list[ast.Return]", found)
 
 
-def loop_in_ast(node: Any) -> list[ast.For | ast.While]:
-    """Returns all `For` and `While` nodes occurring in an AST."""
+def loop_in_ast(node: Any) -> list[LoopNodes]:
+    """Returns all `For` and `While` nodes occurring in an AST.
+    Including comprehensions"""
+
     found = find_nodes(
-        lambda n: isinstance(n, ast.For | ast.While), node, {ast.FunctionDef}
+        lambda n: isinstance(
+            n,
+            LoopNodes,
+        ),
+        node,
+        {ast.FunctionDef, ast.With},
     )
-    return cast("list[ast.For | ast.While]", found)
+    return cast(
+        "list[LoopNodes]",
+        found,
+    )
+
+
+def branching_in_ast(node: Any) -> list[ast.If | ast.Match | ast.IfExp]:
+    """Returns all `If`, `Match`, and `IfExp` nodes occurring in an AST."""
+    found = find_nodes(
+        lambda n: isinstance(n, ast.If | ast.Match | ast.IfExp),
+        node,
+        {ast.FunctionDef, ast.With},
+    )
+    return cast("list[ast.If | ast.Match | ast.IfExp]", found)
 
 
 def breaks_in_loop(node: Any) -> list[ast.Break]:
@@ -119,6 +144,7 @@ def breaks_in_loop(node: Any) -> list[ast.Break]:
 
     Note that breaks in nested loops are excluded.
     """
+
     found = find_nodes(
         lambda n: isinstance(n, ast.Break), node, {ast.For, ast.While, ast.FunctionDef}
     )
@@ -418,3 +444,10 @@ def parse_source(source_lines: list[str], line_offset: int) -> tuple[str, ast.AS
     else:
         node = ast.parse(source).body[0]
     return source, node, line_offset
+
+
+def fake_call(name: str, loc_from: ast.AST, args: list[ast.expr]) -> ast.Call:
+    """Creates a fake call node with the given name and arguments."""
+    call = ast.Call(func=ast.Name(id=name, ctx=ast.Load()), args=args, keywords=[])
+    set_location_from(call, loc_from)
+    return call

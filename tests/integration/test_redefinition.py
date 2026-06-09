@@ -1,6 +1,8 @@
 import pytest
 
 from guppylang.decorator import guppy
+from guppylang.std.builtins import power
+
 from guppylang_internals.error import GuppyError
 
 
@@ -160,3 +162,14 @@ def test_struct_method_redefinition(validate):
         return Test(x).bar() + e.foo()
 
     validate(main.compile_function())
+
+
+def test_redefinition_after_modifier(validate):
+    @guppy
+    def foo(x: int) -> int:
+        with power(2):
+            x = x
+        x = 2
+        return x
+
+    validate(foo.compile_function())

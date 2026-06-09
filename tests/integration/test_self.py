@@ -56,7 +56,7 @@ def test_implicit_self_generic(validate):
 
 
 def test_explicit_self(validate):
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct:
         @guppy
         def foo(self, other: Self) -> Self:
@@ -86,7 +86,7 @@ def test_explicit_self(validate):
 def test_explicit_self_generic(validate):
     T = guppy.type_var("T")
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct(Generic[T]):
         x: T
 
@@ -114,7 +114,7 @@ def test_more_generic(validate):
     T = guppy.type_var("T")
     U = guppy.type_var("U")
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct(Generic[T]):
         c: bool
         x: T

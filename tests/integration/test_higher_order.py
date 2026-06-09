@@ -87,7 +87,7 @@ def test_nested(validate):
 
 
 def test_nested_capture_struct(validate):
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct:
         x: int
 

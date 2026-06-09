@@ -9,7 +9,7 @@ jobs:
         name: Add issue to project
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/add-to-project@v1.0.2
+            - uses: actions/add-to-project@v2.0.0
               with:
                   project-url: https://github.com/orgs/Quantinuum/projects/23
                   github-token: ${{ secrets.HUGRBOT_PAT }}

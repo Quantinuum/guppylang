@@ -14,7 +14,7 @@ def f(x: bool) -> bool:
 def h() -> int: ...
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class MyType:
     x: int
 

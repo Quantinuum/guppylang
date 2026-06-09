@@ -1,0 +1,17 @@
+Error: Invalid expression in dagger (at $FILE:10:12)
+   | 
+ 8 |         with dagger:
+ 9 |             ok = 3 if 2 > 46 else 0
+10 |         x = 1 if 2 > 46 else 0
+   |             ^^^^^^^^^^^^^^^^^^ Branch found in a dagger context
+
+Note:
+   | 
+ 6 | def test() -> None:
+ 7 |     with dagger, power(2):
+   |          ---------------- dagger modifier is used here
+
+Help: Control flow statements (e.g. loops and branches) are not allowed in
+daggered contexts.
+
+Guppy compilation failed due to 1 previous error

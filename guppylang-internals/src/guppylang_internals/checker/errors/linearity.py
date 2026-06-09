@@ -56,6 +56,27 @@ class AlreadyUsedError(Error):
 
 
 @dataclass(frozen=True)
+class ParentAlreadyUsedError(Error):
+    title: ClassVar[str] = "Copy violation"
+    span_label: ClassVar[str] = "{place.describe} cannot be {kind.subjunctive} ..."
+    place: Place
+    kind: UseKind
+
+    @dataclass(frozen=True)
+    class ParentUse(Note):
+        span_label: ClassVar[str] = (
+            "... since {parent_place_lower} with non-copyable type `{parent_place.ty}` "
+            "was already {use_kind.subjunctive} here"
+        )
+        parent_place: Place
+        use_kind: UseKind
+
+        @property
+        def parent_place_lower(self) -> str:
+            return self.parent_place.describe.lower()
+
+
+@dataclass(frozen=True)
 class ComprAlreadyUsedError(Error):
     title: ClassVar[str] = "Copy violation"
     span_label: ClassVar[str] = (

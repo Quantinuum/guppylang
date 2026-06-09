@@ -19,7 +19,7 @@ from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.errors import WrongNumberOfTypeArgsError
-from guppylang_internals.tys.param import ConstParam, TypeParam
+from guppylang_internals.tys.param import ConstParam, Parameter, TypeParam
 from guppylang_internals.tys.ty import (
     FunctionType,
     NoneType,
@@ -27,6 +27,7 @@ from guppylang_internals.tys.ty import (
     OpaqueType,
     TupleType,
     Type,
+    UnitaryFlags,
 )
 from guppylang_internals.wasm_util import WasmPlatform
 
@@ -38,7 +39,26 @@ class CallableTypeDef(TypeDef, CompiledDef):
     Any impls on functions can be registered with this definition.
     """
 
-    name: Literal["Callable"] = field(default="Callable", init=False)
+    name: Literal[
+        "Callable",
+        "Unitary",
+        "Powerable",
+        "Daggerable",
+        "Controllable",
+        "PowerControllable",
+    ] = field(default="Callable", kw_only=True)
+    flags: UnitaryFlags = UnitaryFlags.NoFlags
+
+    def __init__(
+        self,
+        id: DefId,
+        defined_at: ast.AST | None,
+        params: Sequence[Parameter] | None,
+        *,
+        flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    ) -> None:
+        super().__init__(id, flags.callable_name(), defined_at, params)
+        object.__setattr__(self, "flags", flags)
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -85,7 +105,7 @@ class _TupleTypeDef(TypeDef, CompiledDef):
         args = [
             # TODO: Better error location
             TypeParam(0, f"T{i}", must_be_copyable=False, must_be_droppable=False)
-            .check_arg(arg, loc)
+            .check_arg(arg, loc)[0]
             .ty
             for i, arg in enumerate(args)
         ]
@@ -209,6 +229,36 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 
 callable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+unitary_type_def = CallableTypeDef(
+    DefId.fresh(),
+    None,
+    None,
+    flags=UnitaryFlags.Unitary,
+)
+powerable_type_def = CallableTypeDef(
+    DefId.fresh(),
+    None,
+    None,
+    flags=UnitaryFlags.Power,
+)
+daggerable_type_def = CallableTypeDef(
+    DefId.fresh(),
+    None,
+    None,
+    flags=UnitaryFlags.Dagger,
+)
+controllable_type_def = CallableTypeDef(
+    DefId.fresh(),
+    None,
+    None,
+    flags=UnitaryFlags.Control,
+)
+powerctrlable_type_def = CallableTypeDef(
+    DefId.fresh(),
+    None,
+    None,
+    flags=UnitaryFlags.Power | UnitaryFlags.Control,
+)
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)
 none_type_def = _NoneTypeDef(DefId.fresh(), None, [])

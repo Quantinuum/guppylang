@@ -369,7 +369,7 @@ def measure(q: qubit @ owned) -> bool:
 @hugr_op(quantum_op("Reset"))
 @no_type_check
 def reset(q: qubit) -> None:
-    """Reset a single qubit to the :math:`|0\rangle` state."""
+    """Reset a single qubit to the :math:`|0\\rangle` state."""
 
 
 N = guppy.nat_var("N")

@@ -99,7 +99,7 @@ class RNG:
                 array_swap(array, i, j)
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class DiscreteDistribution(Generic[DISCRETE_N]):  # type: ignore[misc]
     """A generic probability distribution over a set of the form {0, 1, ..., N-1}.
 

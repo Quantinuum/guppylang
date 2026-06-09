@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:17:5)
+   | 
+15 | def foo(s: MyStruct @ owned) -> None:
+16 |     t = s
+17 |     [s.x for _ in range(10)]
+   |      ^^^ Field `s.x` cannot be moved ...
+
+Note:
+   | 
+15 | def foo(s: MyStruct @ owned) -> None:
+16 |     t = s
+   |         - ... since variable `s` with non-copyable type `MyStruct` was
+   |           already moved here
+
+Guppy compilation failed due to 1 previous error

@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:11:17)
+   | 
+ 9 | @guppy.struct
+10 | class MyStruct:
+11 |     field: "list[MyEnum]"
+   |                  ^^^^^^ Recursive definitions are not supported
+
+Guppy compilation failed due to 1 previous error

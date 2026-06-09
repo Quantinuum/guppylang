@@ -77,11 +77,11 @@ def test_generic_nested(validate, run_float_fn_approx):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructA(Generic[T]):
         x: tuple[int, T]
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructB(Generic[S, T]):
         x: S
         y: StructA[T]

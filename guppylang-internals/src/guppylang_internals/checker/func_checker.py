@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from guppylang_internals.ast_util import return_nodes_in_ast, with_loc
+from guppylang_internals.ast_util import AstNode, return_nodes_in_ast, with_loc
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.builder import CFGBuilder
 from guppylang_internals.checker.cfg_checker import CheckedCFG, check_cfg
@@ -25,6 +25,7 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
+from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
     check_function_arg,
@@ -34,6 +35,7 @@ from guppylang_internals.tys.parsing import (
 )
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
+    BoundTypeVar,
     ExistentialTypeVar,
     FuncInput,
     FunctionType,
@@ -44,11 +46,12 @@ from guppylang_internals.tys.ty import (
     unify,
 )
 
+if TYPE_CHECKING:
+    from guppylang_internals.definition.protocol import CheckedProtocolDef
+
+
 if sys.version_info >= (3, 12):
     from guppylang_internals.tys.parsing import parse_parameter
-
-if TYPE_CHECKING:
-    from guppylang_internals.tys.param import Parameter
 
 
 @dataclass(frozen=True)
@@ -276,6 +279,7 @@ def check_signature(
     func_def: ast.FunctionDef,
     globals: Globals,
     def_id: DefId | None = None,
+    param_var_mapping: dict[str, Parameter] | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
 ) -> FunctionType:
     """Checks the signature of a function definition and returns the corresponding
@@ -285,6 +289,8 @@ def check_signature(
     passed. This will be used to check or infer the type annotation for the `self`
     argument.
     """
+    from guppylang_internals.definition.protocol import CheckedProtocolDef, ProtocolDef
+
     if len(func_def.args.posonlyargs) != 0:
         raise GuppyError(
             UnsupportedError(func_def.args.posonlyargs[0], "Positional-only parameters")
@@ -311,26 +317,41 @@ def check_signature(
         raise GuppyError(err)
 
     # Prepopulate parameter mapping when using Python 3.12 style generic syntax
-    param_var_mapping: dict[str, Parameter] = {}
+    if param_var_mapping is None:
+        param_var_mapping = {}
     if sys.version_info >= (3, 12):
         for i, param_node in enumerate(func_def.type_params):
             param = parse_parameter(param_node, i, globals, param_var_mapping)
             param_var_mapping[param.name] = param
 
     # Figure out if this is a method
-    self_defn: TypeDef | None = None
-    if def_id is not None and def_id in DEF_STORE.type_member_parents:
-        self_def_id = DEF_STORE.type_member_parents[def_id]
-        self_defn = cast("TypeDef", ENGINE.get_checked(self_def_id, mono_args=()))
-        assert isinstance(self_defn, TypeDef)
-
+    self_defn: ProtocolDef | TypeDef | None = None
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
+    has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
     for i, inp in enumerate(func_def.args.args):
         # Special handling for `self` arguments. Note that `__new__` is excluded here
         # since it's not a method so doesn't take `self`.
-        if self_defn and i == 0 and func_def.name != "__new__":
-            input = parse_self_arg(inp, self_defn, ctx)
+        if i == 0 and func_def.name != "__new__" and has_parent and def_id is not None:
+            self_def_id = DEF_STORE.type_member_parents[def_id]
+            self_defn_untyped = ENGINE.get_checked(self_def_id, mono_args=())
+            input: FuncInput
+            if isinstance(self_defn_untyped, ProtocolDef):
+                self_defn = cast(
+                    "CheckedProtocolDef",
+                    ENGINE.get_checked(self_def_id, mono_args=()),
+                )
+                assert isinstance(self_defn, CheckedProtocolDef)
+                input = parse_self_arg_proto(inp, self_defn, ctx, func_def)
+            else:
+                self_defn = cast(
+                    "TypeDef", ENGINE.get_checked(self_def_id, mono_args=())
+                )
+                assert isinstance(self_defn, TypeDef)
+                input = parse_self_arg(inp, self_defn, ctx)
+
+            if input.name is None:
+                input = replace(input, name="self")
             ctx = replace(ctx, self_ty=input.ty)
         else:
             ty_ast = inp.annotation
@@ -386,6 +407,67 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
         raise GuppyError(InvalidSelfError(arg.annotation, arg.arg, self_ty_head))
 
     return check_function_arg(user_ty, user_flags, arg, arg.arg, ctx)
+
+
+def parse_self_arg_proto(
+    arg: ast.arg, self_defn: "CheckedProtocolDef", ctx: TypeParsingCtx, loc: AstNode
+) -> FuncInput:
+    """Handles parsing of the `self` argument on methods of protocols.
+
+    If a type is provided then it must match the parent type.
+    """
+    assert self_defn.params is not None
+    if arg.annotation is None:
+        raise GuppyError(
+            UnsupportedError(
+                arg, "Inference of type for `self`", True, "protocol methods"
+            )
+        )
+
+    # If the user has provided an annotation for `self`, then we go ahead and parse it.
+    # However, in the annotation the user is also allowed to use `Self`, so we have to
+    # specify a `self_ty` in the context.
+    self_ty_head = self_defn.check_instantiate(
+        [param.to_existential()[0] for param in self_defn.params]
+    )
+    self_ty_placeholder = ExistentialTypeVar.fresh(
+        "Self",
+        copyable=True,
+        droppable=True,
+    )
+    assert ctx.self_ty is None
+    ctx = replace(ctx, self_ty=self_ty_placeholder)
+    user_ty, _user_flags = type_with_flags_from_ast(arg.annotation, ctx)
+
+    # If the user just annotates `self: Self` then we can fall back to the case where
+    # no annotation is provided at all
+    if user_ty == self_ty_placeholder:
+        raise GuppyError(
+            UnsupportedError(
+                arg.annotation, "`Self` type annotation", True, "protocol methods"
+            )
+        )
+
+    # Annotations like `self: Foo[Self]` are not allowed (would be an infinite type)
+    if self_ty_placeholder in user_ty.unsolved_vars:
+        raise GuppyError(RecursiveSelfError(arg.annotation, arg.arg))
+
+    if isinstance(user_ty, BoundTypeVar):
+        # Check that the annotation matches the parent type. We can do this by unifying
+        # with the expected self type where all params are instantiated with unification
+        # vars
+        raise GuppyError(UnsupportedError(loc, "Protocol checking", singular=True))
+    else:
+        # I'm pretty sure the first arg is *not* a protocol
+        # This raises future problems for trying to backport protocols to std
+        # This isn't well scoped!
+        raise GuppyError(
+            InvalidSelfError(
+                arg.annotation,
+                arg.arg,
+                BoundTypeVar("self", 0, True, True, (self_ty_head,)),
+            )
+        )
 
 
 def handle_implicit_self_arg(

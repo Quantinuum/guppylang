@@ -1,8 +1,8 @@
-Error: Unsupported (at $FILE:14:6)
+Error: Immutable (at $FILE:14:4)
    | 
 12 | def foo(s: MyStruct) -> tuple[MyStruct, bool]:
 13 |     t = s
 14 |     t.x += 1
-   |       ^ Mutation of classical fields is not supported
+   |     ^^^ Struct `MyStruct` is immutable
 
 Guppy compilation failed due to 1 previous error

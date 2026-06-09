@@ -258,7 +258,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         return [*args]
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class ArrayIter(Generic[L, n]):
     """Iterator over arrays."""
 
@@ -325,7 +325,7 @@ class frozenarray(Generic[T, n]):
         return array(x for x in self)
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class FrozenarrayIter(Generic[T, n]):
     """Iterator for frozenarrays."""
 

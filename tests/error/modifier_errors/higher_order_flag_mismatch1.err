@@ -1,0 +1,9 @@
+Error: Unitary flag mismatch (at $FILE:17:16)
+   | 
+15 | @guppy
+16 | def test(q: qubit) -> None:
+17 |     apply_power(dagger_only, q)
+   |                 ^^^^^^^^^^^ Expected function with unitary flags: `power=True`, got:
+   |                             `dagger=True`
+
+Guppy compilation failed due to 1 previous error
