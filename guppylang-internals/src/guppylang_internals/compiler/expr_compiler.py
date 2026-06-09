@@ -818,8 +818,9 @@ def array_read_bool(ctx: CompilerContext) -> hf.Function:
         params=[],
         body=ht.FunctionType([OpaqueBool], [ht.Bool]),
     )
-    func = ctx.declare_global_func(ARRAY_READ_BOOL, sig)
-    if isinstance(func, FunctionBuilder):
+    func, already_defined = ctx.declare_global_func(ARRAY_READ_BOOL, sig)
+    if not already_defined:
+        func = FunctionBuilder(func)
         func = func.set_outputs(func.add_op(read_bool(), func.inputs()[0]))
     return func
 
@@ -831,8 +832,9 @@ def array_make_opaque_bool(ctx: CompilerContext) -> hf.Function:
         params=[],
         body=ht.FunctionType([ht.Bool], [OpaqueBool]),
     )
-    func = ctx.declare_global_func(ARRAY_MAKE_OPAQUE_BOOL, sig)
-    if isinstance(func, FunctionBuilder):
+    func, already_defined = ctx.declare_global_func(ARRAY_MAKE_OPAQUE_BOOL, sig)
+    if not already_defined:
+        func = FunctionBuilder(func)
         func = func.set_outputs(func.add_op(make_opaque(), func.inputs()[0]))
     return func
 

@@ -308,12 +308,13 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
 
         # We create a monomorphic `FunctionDef` that takes some inputs, contains the
         # results of compiling a call to the function, and returns those results
-        func = ctx.declare_global_func(
+        func, already_defined = ctx.declare_global_func(
             self.higher_order_func_id,
             self.ty.to_hugr_poly(ctx),
             self.type_args,
         )
-        if isinstance(func, FunctionBuilder):
+        if not already_defined:
+            func = FunctionBuilder(func)
             func_dfg = DFContainer(func, ctx, dfg.locals.copy())
             args: list[Wire] = list(func.inputs())
             returns = self.compile_call(args, func_dfg, ctx, node)
