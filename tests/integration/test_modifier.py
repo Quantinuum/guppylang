@@ -239,15 +239,20 @@ def test_free_copyable_variable_in_modifier(validate):
 def test_nested_dagger_power(validate):
     """Nested dagger+power: function supporting both flags is valid."""
 
-    @guppy(dagger=True, power=True)
-    def foo(q: qubit) -> None:
+    @guppy(dagger=True)
+    def foo_d(q: qubit) -> None:
+        pass
+
+    @guppy(unitary=True)
+    def foo_u(q: qubit) -> None:
         pass
 
     @guppy
     def bar(q: qubit) -> None:
         with dagger:
             with power(2):
-                foo(q)
+                foo_d(q)
+                foo_u(q)
 
     validate(bar.compile_function())
 
@@ -256,14 +261,19 @@ def test_nested_control_dagger(validate):
     """Nested control+dagger: function supporting both flags is valid."""
 
     @guppy(control=True, dagger=True)
-    def foo(q: qubit) -> None:
+    def foo_double(q: qubit) -> None:
+        pass
+
+    @guppy(unitary=True)
+    def foo_u(q: qubit) -> None:
         pass
 
     @guppy
     def bar(ctrl: qubit, q: qubit) -> None:
         with control(ctrl):
             with dagger:
-                foo(q)
+                foo_double(q)
+                foo_u(q)
 
     validate(bar.compile_function())
 
@@ -271,15 +281,20 @@ def test_nested_control_dagger(validate):
 def test_nested_power_control(validate):
     """Nested power+control: function supporting both flags is valid."""
 
-    @guppy(power=True, control=True)
-    def foo(q: qubit) -> None:
+    @guppy(control=True)
+    def foo_c(q: qubit) -> None:
+        pass
+
+    @guppy(unitary=True)
+    def foo_u(q: qubit) -> None:
         pass
 
     @guppy
     def bar(ctrl: qubit, q: qubit) -> None:
         with power(2):
             with control(ctrl):
-                foo(q)
+                foo_c(q)
+                foo_u(q)
 
     validate(bar.compile_function())
 
@@ -287,8 +302,12 @@ def test_nested_power_control(validate):
 def test_nested_triple_all_flags(validate):
     """Triple nesting with a function supporting all unitary flags is valid."""
 
-    @guppy(dagger=True, control=True, power=True)
-    def foo(q: qubit) -> None:
+    @guppy(dagger=True, control=True)
+    def foo_s(q: qubit) -> None:
+        pass
+
+    @guppy(unitary=True)
+    def foo_u(q: qubit) -> None:
         pass
 
     @guppy
@@ -296,7 +315,8 @@ def test_nested_triple_all_flags(validate):
         with dagger:
             with control(ctrl):
                 with power(2):
-                    foo(q)
+                    foo_s(q)
+                    foo_u(q)
 
     validate(bar.compile_function())
 
@@ -316,7 +336,7 @@ def test_double_dagger_cancellation_1(validate):
 
 
 def test_double_dagger_cancellation_2(validate):
-    @guppy(control=True, power=True)
+    @guppy(control=True)
     def not_dagger_func(q: qubit) -> None:
         pass
 
@@ -339,8 +359,12 @@ def test_double_dagger_cancellation_2(validate):
 def test_combined_with_items_nested(validate):
     """Multiple modifiers in one with-block are all propagated into a nested block."""
 
-    @guppy(dagger=True, control=True, power=True)
+    @guppy(dagger=True, control=True)
     def foo(q: qubit) -> None:
+        pass
+
+    @guppy(unitary=True)
+    def foo_u(q: qubit) -> None:
         pass
 
     @guppy
@@ -348,22 +372,7 @@ def test_combined_with_items_nested(validate):
         with control(ctrl), dagger:
             with power(2):
                 foo(q)
-
-    validate(bar.compile_function())
-
-
-def test_double_dagger_cancel_nested_power(validate):
-    """Cancelled daggers in outer block don't impose dagger constraint on nested."""
-
-    @guppy(power=True)
-    def foo(q: qubit) -> None:
-        pass
-
-    @guppy
-    def bar(q: qubit) -> None:
-        with dagger, dagger:
-            with power(2):
-                foo(q)
+                foo_u(q)
 
     validate(bar.compile_function())
 
@@ -378,21 +387,6 @@ def test_comptime_dagger(validate):
     @guppy
     def bar(q: qubit) -> None:
         with dagger:
-            foo(q)
-
-    validate(bar.compile_function())
-
-
-def test_comptime_power(validate):
-    """Comptime function with power=True can be called inside a power block."""
-
-    @guppy.comptime(power=True)
-    def foo(q: qubit) -> None:
-        h(q)
-
-    @guppy
-    def bar(q: qubit) -> None:
-        with power(2):
             foo(q)
 
     validate(bar.compile_function())
