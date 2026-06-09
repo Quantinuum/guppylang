@@ -355,7 +355,8 @@ class DFBuilder(ABC, ToNode):
 
     @abstractmethod
     def _propagate_side_effects(self) -> None:
-        """Subclasses must implement"""
+        """Subclasses must implement to mark the container node
+        as side-effecting within any parent/ancestor builder"""
 
     def call(
         self,
