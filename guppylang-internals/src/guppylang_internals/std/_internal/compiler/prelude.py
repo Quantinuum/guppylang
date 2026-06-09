@@ -278,7 +278,7 @@ def unwrap_result(
     )
     type_args = [ht.TypeTypeArg(*result_tys)]
     func_call = builder.call(
-        func.parent_node,
+        func,
         either,
         instantiation=concrete_ty,
         type_args=type_args,

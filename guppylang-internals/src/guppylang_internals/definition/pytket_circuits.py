@@ -332,7 +332,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 wire_idx = wire_idx + q_reg.size
             wires = array_wires
 
-        outer_func.set_outputs(*wires)
+        outer_func = outer_func.set_outputs(*wires)
 
         return CompiledPytketDef(
             self.id,
@@ -342,7 +342,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             self.input_circuit,
             self.use_arrays,
             self.source_span,
-            outer_func.raw_builder,
+            outer_func,
         )
 
     @override

@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from typing import override
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops, val
@@ -305,10 +306,11 @@ class DFBuilder(ABC, ToNode):
     def inputs(self) -> Sequence[Wire]:
         return self.raw_builder.inputs()
 
-    def set_outputs(self, *outputs: Wire) -> None:
+    def set_outputs(self, *outputs: Wire) -> hf.Function | Case | TailLoop | Block:
         self.raw_builder.set_outputs(*outputs)
         if self._last_stateful_op is not None:
             self._handle_side_effects(self.raw_builder.output_node)
+        return self.raw_builder
 
     def add_op(
         self,
@@ -431,6 +433,11 @@ class FunctionBuilder(DFBuilder):
 
     def _propagate_side_effects(self) -> None:
         pass  # No parent
+
+    @override
+    def set_outputs(self, *outputs: Wire) -> hf.Function:
+        super().set_outputs(*outputs)
+        return self.raw_builder
 
 
 @dataclass

@@ -822,8 +822,8 @@ def array_read_bool(ctx: CompilerContext) -> hf.Function:
     )
     func, already_defined = ctx.declare_global_func(ARRAY_READ_BOOL, sig)
     if not already_defined:
-        fb = FunctionBuilder(func)
-        fb.set_outputs(fb.add_op(read_bool(), fb.inputs()[0]))
+        func = FunctionBuilder(func)
+        func = func.set_outputs(func.add_op(read_bool(), func.inputs()[0]))
     return func
 
 
@@ -836,8 +836,8 @@ def array_make_opaque_bool(ctx: CompilerContext) -> hf.Function:
     )
     func, already_defined = ctx.declare_global_func(ARRAY_MAKE_OPAQUE_BOOL, sig)
     if not already_defined:
-        fb = FunctionBuilder(func)
-        fb.set_outputs(fb.add_op(make_opaque(), fb.inputs()[0]))
+        func = FunctionBuilder(func)
+        func = func.set_outputs(func.add_op(make_opaque(), func.inputs()[0]))
     return func
 
 
