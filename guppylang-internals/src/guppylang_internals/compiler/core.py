@@ -170,14 +170,14 @@ class CompilerContext(ToHugrContext):
         const_id: GlobalConstId,
         func_ty: ht.PolyFuncType,
         type_args: Inst | None = None,
-    ) -> tuple[hf.Function, bool]:
+    ) -> "hf.Function | FunctionBuilder":
         """
-        Creates a function builder for a global function if it doesn't already exist,
-        else returns the existing one.
+        Creates a FunctionBuilder for a global function if it doesn't already exist,
+        else returns the existing Function.
         """
         mono_args = type_args or ()
         if (const_id, mono_args) in self.global_funcs:
-            return self.global_funcs[const_id, mono_args], True
+            return self.global_funcs[const_id, mono_args]
         func = self.module.module_root_builder().define_function(
             name=const_id.name,
             input_types=func_ty.body.input,
@@ -185,7 +185,7 @@ class CompilerContext(ToHugrContext):
             type_params=func_ty.params,
         )
         self.global_funcs[const_id, mono_args] = func
-        return func, False
+        return FunctionBuilder(func)
 
 
 @dataclass

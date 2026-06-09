@@ -268,9 +268,9 @@ def unwrap_result(
         ),
     )
     # Build global unwrap result function if it doesn't already exist.
-    func, already_exists = ctx.declare_global_func(UNWRAP_RESULT, func_ty)
-    if not already_exists:
-        _build_unwrap_result(FunctionBuilder(func), ht.Variable(0, ht.TypeBound.Linear))
+    func = ctx.declare_global_func(UNWRAP_RESULT, func_ty)
+    if isinstance(func, FunctionBuilder):
+        _build_unwrap_result(func, ht.Variable(0, ht.TypeBound.Linear))
     # Call the global function.
     concrete_ty = ht.FunctionType(
         input=[ht.Either(error_tys, result_tys)], output=result_tys
