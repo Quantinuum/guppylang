@@ -11,6 +11,7 @@ def test_basic_nat(validate):
     def main() -> nat:
         return foo(42)
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -23,6 +24,7 @@ def test_basic_int(validate):
     def main() -> int:
         return foo(42)
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -35,6 +37,7 @@ def test_basic_float(validate):
     def main() -> float:
         return foo(42.0)
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -47,6 +50,7 @@ def test_basic_bool(validate):
     def main() -> bool:
         return foo(True)
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -61,6 +65,7 @@ def test_multiple(validate):
     def main() -> nat:
         return foo(1, 2, 3, 4, 5, 6)
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -86,6 +91,7 @@ def test_dependent(validate):
         foo(1, array(1))
         foo(2, array(1, 2))
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -128,6 +134,7 @@ def test_type_apply(validate):
         bar(0)
         bar(3)
 
+    bar.check()
     validate(main.compile_function())
 
 
@@ -142,6 +149,7 @@ def test_generic1(validate):
     def main(x: nat, y: int, z: float) -> float:
         return foo(x, 42) + foo(y, -10) + foo(z, 1.5)
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -156,6 +164,7 @@ def test_generic2(validate):
     def main() -> float:
         return foo(42) + foo(1.5)
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -171,4 +180,5 @@ def test_generic_tuple(validate):
     def main() -> bool:
         return foo(comptime((True, False)))
 
+    foo.check()
     validate(main.compile_function())

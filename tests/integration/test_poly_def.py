@@ -34,6 +34,7 @@ def test_id(validate):
     def identity(x: T) -> T:
         return x
 
+    identity.check()
     validate(build_main(identity).compile_function())
 
 
@@ -44,6 +45,7 @@ def test_nonlinear(validate):
     def copy(x: T) -> tuple[T, T]:
         return x, x
 
+    copy.check()
     validate(build_main(copy).compile_function())
 
 
@@ -74,6 +76,7 @@ def test_apply(validate):
         apply(bar, x[0])
         return apply(baz, x)
 
+    apply.check()
     validate(main.compile_function())
 
 
@@ -85,6 +88,7 @@ def test_annotate(validate):
         y: T = x
         return y
 
+    identity.check()
     validate(build_main(identity).compile_function())
 
 
@@ -101,6 +105,7 @@ def test_recurse(validate):
         y: tuple[int, float] = empty()
         z: None = empty()
 
+    empty.check()
     validate(main.compile_function())
 
 
@@ -172,6 +177,7 @@ def test_nat_recurse(validate):
         x: array[int, 42] = empty()
         y: array[int, 0] = empty()
 
+    empty.check()
     validate(main.compile_function())
 
 
@@ -204,4 +210,5 @@ def test_custom_func_higher_order(validate):
         y: Option[tuple[int, float]] = foo()
         z: Option[None] = foo()
 
+    foo.check()
     validate(main.compile_function())

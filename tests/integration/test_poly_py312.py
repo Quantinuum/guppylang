@@ -17,6 +17,7 @@ def test_function(validate):
         foo(1, 2)
         foo(True, False)
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -100,6 +101,8 @@ def test_copy_bound(validate):
         foo_enum(MyEnum.VariantA[int](42))
         foo_enum(MyEnum.VariantA[bool](False))
 
+    foo_enum.check()
+    foo_struct.check()
     validate(main.compile_function())
 
 
@@ -122,6 +125,7 @@ def test_drop_bound(validate):
     ) -> None:
         helper(s, e)
 
+    helper.check()
     validate(main.compile_function())
 
 
@@ -155,6 +159,7 @@ def test_copy_and_drop_bound(validate):
             MyEnum.VariantA[bool](True),
         )
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -177,6 +182,7 @@ def test_const_param(validate):
         foo(array(1, 2, 3), MyStruct(array(4, 5, 6)), MyEnum.VariantA(array(7, 8, 9)))
         foo[float, 0](array(), MyStruct(array()), MyEnum.VariantB[float, 0]())
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -192,6 +198,7 @@ def test_mixed_legacy_params(validate):
         foo(1, 2)
         return foo(qubit(), qubit())
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -206,6 +213,7 @@ def test_reference_inside(validate):
     def main() -> None:
         helper[int]()
 
+    helper.check()
     validate(main.compile_function())
 
 
@@ -218,6 +226,7 @@ def test_dependent_function(validate):
     def main() -> float:
         return foo[nat, 42]() + foo[float, 1.5]()
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -243,6 +252,7 @@ def test_dependent_struct(run_float_fn_approx):
     def main() -> float:
         return foo(Phantom())
 
+    foo.check()
     run_float_fn_approx(main, 0)
 
 
@@ -257,6 +267,7 @@ def test_dependent_comptime(validate):
     def main() -> int:
         return foo(42, Phantom())
 
+    foo.check()
     validate(main.compile_function())
 
 
@@ -289,4 +300,5 @@ def test_generic_tuple_chain(validate):
     def main() -> int:
         return foo(comptime((1, 2)))
 
+    foo.check()
     validate(main.compile_function())
