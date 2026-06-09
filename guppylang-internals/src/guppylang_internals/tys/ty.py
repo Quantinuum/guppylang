@@ -404,13 +404,12 @@ class UnitaryFlags(Flag):
                 return "dagger"
             case UnitaryFlags.Control:
                 return "control"
-            case UnitaryFlags.Power:
-                return "power"
             case UnitaryFlags.NoFlags:
                 raise AssertionError("Expected a non-empty unitary flag")
             case _:  # If we have multiple flags, we represent them as unitary
                 return "unitary"
 
+    # NICOLA TODO see if delete
     def render_flags(self, backtick: bool) -> str:
         """Renders the flags as a string.
         If there are two flags, we print them separated by 'and'."""
@@ -429,7 +428,6 @@ class UnitaryFlags(Flag):
         individual_flags: list[UnitaryFlags] = [
             UnitaryFlags.Dagger,
             UnitaryFlags.Control,
-            UnitaryFlags.Power,
         ]
         sep = " and "
         return sep.join(
@@ -438,6 +436,7 @@ class UnitaryFlags(Flag):
             if (self.value & flag.value) == flag.value
         )
 
+    # NICOLA TODO see refactor
     def hint_rendering(self, verbose: bool) -> str:
         """We check which flag are we missing. If we miss more than one, we just say
         `unitary=True`"""
@@ -450,7 +449,6 @@ class UnitaryFlags(Flag):
         individual_flags: list[UnitaryFlags] = [
             UnitaryFlags.Dagger,
             UnitaryFlags.Control,
-            UnitaryFlags.Power,
         ]
         flags = [
             flag for flag in individual_flags if (self.value & flag.value) == flag.value
@@ -467,10 +465,8 @@ class UnitaryFlags(Flag):
     ) -> Literal[
         "Callable",
         "Unitary",
-        "Powerable",
         "Daggerable",
         "Controllable",
-        "PowerControllable",
     ]:
         """Returns the name of the corresponding Callable variant for this flag."""
         match self:
@@ -478,15 +474,11 @@ class UnitaryFlags(Flag):
                 return "Callable"
             case UnitaryFlags.Unitary:
                 return "Unitary"
-            case UnitaryFlags.Power:
-                return "Powerable"
             case UnitaryFlags.Dagger:
                 return "Daggerable"
             case UnitaryFlags.Control:
                 return "Controllable"
             case _:
-                if self == (UnitaryFlags.Power | UnitaryFlags.Control):
-                    return "PowerControllable"
                 assert_never(self)
 
     def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":

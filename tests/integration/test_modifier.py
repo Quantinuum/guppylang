@@ -6,7 +6,6 @@ from guppylang.std.array import array
 from guppylang.std.builtins import (
     Controllable,
     Daggerable,
-    PowerControllable,
     Unitary,
     control,
     dagger,
@@ -374,24 +373,6 @@ def test_higher_order_unitary_callable(validate):
                     f(q)
 
     validate(apply_unitary.compile_function())
-
-
-def test_higher_order_power_controllable_callable(validate):
-    """Higher-order arguments can require exactly the power+control capabilities."""
-
-    @guppy(power=True, control=True)
-    def apply_power_control(
-        f: PowerControllable[[qubit], None], ctrl: qubit, q: qubit
-    ) -> None:
-        with power(2):
-            with control(ctrl):
-                f(q)
-
-    @guppy
-    def main(ctrl: qubit, q: qubit) -> None:
-        apply_power_control(h, ctrl, q)
-
-    validate(main.compile_function())
 
 
 def test_return_callable_with_stronger_flags(validate):
