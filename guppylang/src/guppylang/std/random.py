@@ -34,7 +34,7 @@ def _uint32_to_signed(value: nat) -> int:
     return int(masked)
 
 
-@guppy.struct(frozen=False)
+@guppy.struct
 class PCG32:
     """A deterministic 32-bit random number generator using the PCG32 algorithm.
 
