@@ -271,15 +271,13 @@ class DFBuilder(ABC, ToNode):
 
     Manages attaching debug information, which requires keeping track of the most
     relevant AST node for each operation being compiled with `current_ast_node`.
-
-    The underlying builder can still be accessed through `raw_builder`.
     """
 
     current_ast_node: AstNode | None = field(default=None, kw_only=True)
     _last_stateful_op: Node | None = field(default=None, init=False)
 
     @abstractproperty
-    def raw_builder(self) -> hf.Function | Case | TailLoop | Block:
+    def _raw(self) -> hf.Function | Case | TailLoop | Block:
         """The underlying Hugr dataflow graph builder."""
 
     @contextmanager
@@ -299,27 +297,27 @@ class DFBuilder(ABC, ToNode):
     def define_function(
         self, name: str, input_types: ht.TypeRow, output_types: ht.TypeRow
     ) -> hf.Function:
-        return self.raw_builder.module_root_builder().define_function(
+        return self._raw.module_root_builder().define_function(
             name,
             input_types,
             output_types,
         )
 
     def to_node(self) -> Node:
-        return self.raw_builder.to_node()
+        return self._raw.to_node()
 
     @property
     def input_node(self) -> Node:
-        return self.raw_builder.input_node
+        return self._raw.input_node
 
     def inputs(self) -> Sequence[Wire]:
-        return self.raw_builder.inputs()
+        return self._raw.inputs()
 
     def set_outputs(self, *outputs: Wire) -> hf.Function | Case | TailLoop | Block:
-        self.raw_builder.set_outputs(*outputs)
+        self._raw.set_outputs(*outputs)
         if self._last_stateful_op is not None:
-            self._handle_side_effects(self.raw_builder.output_node)
-        return self.raw_builder
+            self._handle_side_effects(self._raw.output_node)
+        return self._raw
 
     def add_op(
         self,
@@ -331,7 +329,7 @@ class DFBuilder(ABC, ToNode):
         """Adds an op to the dataflow graph builder. Set `set_debug_info=False` to
         avoid automatic debug information attachment.
         """
-        op_node = self.raw_builder.add_op(op, *args)
+        op_node = self._raw.add_op(op, *args)
         if may_have_side_effect(op):
             self._handle_side_effects(op_node)
 
@@ -347,12 +345,10 @@ class DFBuilder(ABC, ToNode):
             self._propagate_side_effects()
             self._last_stateful_op = self.input_node
         else:
-            assert not isinstance(
-                self.raw_builder.hugr[self._last_stateful_op].op, ops.Output
-            )
+            assert not isinstance(self._raw.hugr[self._last_stateful_op].op, ops.Output)
         node = op_node.to_node()
         if self._last_stateful_op != node:  # avoid self-loops when propagating
-            self.raw_builder.add_state_order(self._last_stateful_op, node)
+            self._raw.add_state_order(self._last_stateful_op, node)
             self._last_stateful_op = node
 
     @abstractmethod
@@ -370,7 +366,7 @@ class DFBuilder(ABC, ToNode):
         """Calls a static function in the graph. Set `set_debug_info=False` to
         avoid automatic debug information attachment.
         """
-        call = self.raw_builder.call(
+        call = self._raw.call(
             func, *args, instantiation=instantiation, type_args=type_args
         )
         self._handle_side_effects(call)
@@ -380,27 +376,27 @@ class DFBuilder(ABC, ToNode):
         return call
 
     # Other frequently used operations for which we want to avoid having to use
-    # `raw_builder` every time for convenience, even though we aren't setting any debug
+    # `_raw` every time for convenience, even though we aren't setting any debug
     # information in them (yet).
 
     def get_wire_type(self, wire: Wire) -> ht.Type | None:
-        return self.raw_builder.hugr.port_type(wire.out_port())
+        return self._raw.hugr.port_type(wire.out_port())
 
     def add_conditional(self, cond_wire: Wire, *args: Wire) -> Conditional:
-        return self.raw_builder.add_conditional(cond_wire, *args)
+        return self._raw.add_conditional(cond_wire, *args)
 
     def add_cfg(self, *args: Wire) -> Cfg:
-        return self.raw_builder.add_cfg(*args)
+        return self._raw.add_cfg(*args)
 
     def add_tail_loop(
         self, just_inputs: Sequence[Wire], rest: Sequence[Wire]
     ) -> "TailLoopBuilder":
-        return TailLoopBuilder(self.raw_builder.add_tail_loop(just_inputs, rest), self)
+        return TailLoopBuilder(self._raw.add_tail_loop(just_inputs, rest), self)
 
     def load(
         self, const: ToNode | val.Value, const_parent: ToNode | None = None
     ) -> Node:
-        return self.raw_builder.load(const, const_parent)
+        return self._raw.load(const, const_parent)
 
     def load_function(
         self,
@@ -408,10 +404,10 @@ class DFBuilder(ABC, ToNode):
         instantiation: ht.FunctionType | None = None,
         type_args: Sequence[ht.TypeArg] | None = None,
     ) -> Node:
-        return self.raw_builder.load_function(func, instantiation, type_args)
+        return self._raw.load_function(func, instantiation, type_args)
 
     def add_const(self, value: val.Value, parent: ToNode | None = None) -> Node:
-        return self.raw_builder.add_const(value, parent)
+        return self._raw.add_const(value, parent)
 
 
 @dataclass
@@ -420,16 +416,16 @@ class TailLoopBuilder(DFBuilder):
     parent: DFBuilder
 
     @property
-    def raw_builder(self) -> TailLoop:
+    def _raw(self) -> TailLoop:
         return self._raw_builder
 
     def set_loop_outputs(self, predicate: Wire, *outputs: Wire) -> None:
-        self.raw_builder.set_loop_outputs(predicate, *outputs)
+        self._raw.set_loop_outputs(predicate, *outputs)
         if self._last_stateful_op is not None:
-            self._handle_side_effects(self.raw_builder.output_node)
+            self._handle_side_effects(self._raw.output_node)
 
     def _propagate_side_effects(self) -> None:
-        self.parent._handle_side_effects(self.raw_builder)
+        self.parent._handle_side_effects(self._raw)
 
 
 @dataclass
@@ -437,7 +433,7 @@ class FunctionBuilder(DFBuilder):
     _raw_builder: hf.Function
 
     @property
-    def raw_builder(self) -> hf.Function:
+    def _raw(self) -> hf.Function:
         return self._raw_builder
 
     def _propagate_side_effects(self) -> None:
@@ -446,7 +442,7 @@ class FunctionBuilder(DFBuilder):
     @override
     def set_outputs(self, *outputs: Wire) -> hf.Function:
         super().set_outputs(*outputs)
-        return self.raw_builder
+        return self._raw
 
 
 @dataclass
@@ -456,7 +452,7 @@ class CaseBuilder(DFBuilder):
     grandparent: DFBuilder
 
     @property
-    def raw_builder(self) -> Case:
+    def _raw(self) -> Case:
         return self._raw_builder
 
     def _propagate_side_effects(self) -> None:
@@ -472,7 +468,7 @@ class BlockBuilder(DFBuilder):
     grandparent: DFBuilder
 
     @property
-    def raw_builder(self) -> Block:
+    def _raw(self) -> Block:
         return self._raw_builder
 
     def _propagate_side_effects(self) -> None:
@@ -481,9 +477,9 @@ class BlockBuilder(DFBuilder):
         self.grandparent._handle_side_effects(self.parent)
 
     def set_block_outputs(self, branching: Wire, *other_outputs: Wire) -> None:
-        self.raw_builder.set_outputs(branching, *other_outputs)
+        self._raw.set_outputs(branching, *other_outputs)
         if self._last_stateful_op is not None:
-            self._handle_side_effects(self.raw_builder.output_node)
+            self._handle_side_effects(self._raw.output_node)
 
 
 class CompilerBase(ABC):
