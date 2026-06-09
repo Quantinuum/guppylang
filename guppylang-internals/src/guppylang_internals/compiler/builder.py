@@ -53,11 +53,13 @@ class DFBuilder(ABC, ToNode):
 
     def define_function(
         self, name: str, input_types: ht.TypeRow, output_types: ht.TypeRow
-    ) -> hf.Function:
-        return self._raw.module_root_builder().define_function(
-            name,
-            input_types,
-            output_types,
+    ) -> "FunctionBuilder":
+        return FunctionBuilder(
+            self._raw.module_root_builder().define_function(
+                name,
+                input_types,
+                output_types,
+            )
         )
 
     def to_node(self) -> Node:

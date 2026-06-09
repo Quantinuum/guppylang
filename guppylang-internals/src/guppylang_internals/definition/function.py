@@ -4,7 +4,6 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import hugr.build.function as hf
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DISubprogram
@@ -28,6 +27,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
     parse_function_with_docstring,
 )
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
@@ -270,7 +270,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.docstring,
             self.link_name,
             self.cfg,
-            func_def,
+            FunctionBuilder(func_def),
             metadata=self.metadata,
         )
 
@@ -293,12 +293,12 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         func_def: The Hugr function definition.
     """
 
-    func_def: hf.Function
+    func_def: FunctionBuilder
 
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
-        return self.func_def.parent_node
+        return self.func_def.to_node()
 
     @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:

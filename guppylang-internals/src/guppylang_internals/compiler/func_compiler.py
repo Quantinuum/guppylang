@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from hugr import Wire
 from hugr import tys as ht
-from hugr.build.function import Function
 
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
@@ -17,11 +16,10 @@ if TYPE_CHECKING:
 
 def compile_global_func_def(
     func: "CheckedFunctionDef",
-    builder: Function,
+    builder: FunctionBuilder,
     ctx: CompilerContext,
 ) -> None:
     """Compiles a top-level function definition to Hugr."""
-    builder = FunctionBuilder(builder)
     cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
 
@@ -58,7 +56,6 @@ def compile_local_func_def(
     # the function itself, then we provide the partially applied function as a local
     # variable
     if len(captured) > 0 and recursive:
-        func_builder = FunctionBuilder(func_builder)
         call_args: list[Wire] = list(func_builder.inputs())
         check_partial_functions_enabled()
         loaded = func_builder.load_function(func_builder, closure_ty)
