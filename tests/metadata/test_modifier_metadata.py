@@ -20,10 +20,9 @@ def _check_block_metadata(hugr_module: Hugr, unitary_values: list[int]) -> list:
         if isinstance(data.op, FuncDefn) and data.op.f_name.startswith("__WithBlock__"):
             blocks.append(data.metadata)
 
-    if unitary_values is not None:
-        assert len(blocks) == len(unitary_values)
-        for block, unitary_value in zip(blocks, unitary_values, strict=True):
-            assert block["unitary"] == unitary_value
+    assert len(blocks) == len(unitary_values)
+    for block, unitary_value in zip(blocks, unitary_values, strict=True):
+        assert block["unitary"] == unitary_value
 
     return blocks
 
