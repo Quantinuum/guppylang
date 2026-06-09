@@ -276,7 +276,7 @@ class DFBuilder(ABC, ToNode):
     """
 
     current_ast_node: AstNode | None = field(default=None, kw_only=True)
-    _last_stateful_op: Node | None = field(default=None, init=False)
+    _last_side_effect: Node | None = field(default=None, init=False)
 
     @abstractproperty
     def _raw(self) -> hf.Function | Case | TailLoop | Block:
@@ -317,7 +317,7 @@ class DFBuilder(ABC, ToNode):
 
     def set_outputs(self, *outputs: Wire) -> hf.Function | Case | TailLoop | Block:
         self._raw.set_outputs(*outputs)
-        if self._last_stateful_op is not None:
+        if self._last_side_effect is not None:
             self._handle_side_effects(self._raw.output_node)
         return self._raw
 
@@ -343,15 +343,15 @@ class DFBuilder(ABC, ToNode):
         return op_node
 
     def _handle_side_effects(self, op_node: ToNode) -> None:
-        if self._last_stateful_op is None:
+        if self._last_side_effect is None:
             self._propagate_side_effects()
-            self._last_stateful_op = self.input_node
+            self._last_side_effect = self.input_node
         else:
-            assert not isinstance(self._raw.hugr[self._last_stateful_op].op, ops.Output)
+            assert not isinstance(self._raw.hugr[self._last_side_effect].op, ops.Output)
         node = op_node.to_node()
-        if self._last_stateful_op != node:  # avoid self-loops when propagating
-            self._raw.add_state_order(self._last_stateful_op, node)
-            self._last_stateful_op = node
+        if self._last_side_effect != node:  # avoid self-loops when propagating
+            self._raw.add_state_order(self._last_side_effect, node)
+            self._last_side_effect = node
 
     @abstractmethod
     def _propagate_side_effects(self) -> None:
@@ -431,7 +431,7 @@ class TailLoopBuilder(_DFBuilderRaw[TailLoop]):
 
     def set_loop_outputs(self, predicate: Wire, *outputs: Wire) -> None:
         self._raw.set_loop_outputs(predicate, *outputs)
-        if self._last_stateful_op is not None:
+        if self._last_side_effect is not None:
             self._handle_side_effects(self._raw.output_node)
 
     def _propagate_side_effects(self) -> None:
@@ -499,7 +499,7 @@ class BlockBuilder(_DFBuilderRaw[Block]):
 
     def set_block_outputs(self, branching: Wire, *other_outputs: Wire) -> None:
         self._raw.set_outputs(branching, *other_outputs)
-        if self._last_stateful_op is not None:
+        if self._last_side_effect is not None:
             self._handle_side_effects(self._raw.output_node)
 
 
