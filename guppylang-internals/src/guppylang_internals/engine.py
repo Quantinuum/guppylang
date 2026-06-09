@@ -418,13 +418,13 @@ class CompilationEngine:
                 self.checked[def_id, entry_mono_args] = self.get_checked(
                     def_id, entry_mono_args
                 )
-            except RequiresMonomorphizationError:
+            except RequiresMonomorphizationError as e:
                 # `RequiresMonomorphizationError` is raised whenever we cannot proceed
                 # checking without having the monomorphization available. In that case,
                 # we give up and prompt the user to specify the generic arguments.
                 assert isinstance(entry_defn, CheckableGenericDef)
                 err = EntryCheckMonomorphizeError(entry_defn.defined_at, entry_defn)
-                raise GuppyError(err) from None
+                raise GuppyError(err) from e
 
         # Checking the entrypoint will have populated the worklist, so now we need to
         # process it
