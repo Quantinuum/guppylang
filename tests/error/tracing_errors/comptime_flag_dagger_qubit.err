@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile_function()
   File "$FILE", line 10, in test
     q = qubit()
-guppylang_internals.error.GuppyComptimeError: Dagger constraint violation: This function cannot be called in a dagger context
+guppylang_internals.error.GuppyComptimeError: Dagger constraint violation: This function cannot be called in a daggerable context

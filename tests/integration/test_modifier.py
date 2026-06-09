@@ -216,7 +216,7 @@ def test_nested_modifiers(validate):
 def test_free_linear_variable_in_modifier(validate):
     T = guppy.type_var("T", copyable=False, droppable=False)
 
-    @guppy.declare(control=True)
+    @guppy.declare(controllable=True)
     def use(a: T) -> None: ...
 
     @guppy.declare
@@ -250,7 +250,7 @@ def test_free_copyable_variable_in_modifier(validate):
 def test_nested_dagger_power(validate):
     """Nested dagger+power: function supporting both flags is valid."""
 
-    @guppy(dagger=True)
+    @guppy(daggerable=True)
     def foo_d(q: qubit) -> None:
         pass
 
@@ -271,7 +271,7 @@ def test_nested_dagger_power(validate):
 def test_nested_control_dagger(validate):
     """Nested control+dagger: function supporting both flags is valid."""
 
-    @guppy(control=True, dagger=True)
+    @guppy(controllable=True, daggerable=True)
     def foo_double(q: qubit) -> None:
         pass
 
@@ -292,7 +292,7 @@ def test_nested_control_dagger(validate):
 def test_nested_power_control(validate):
     """Nested power+control: function supporting both flags is valid."""
 
-    @guppy(control=True)
+    @guppy(controllable=True)
     def foo_c(q: qubit) -> None:
         pass
 
@@ -313,7 +313,7 @@ def test_nested_power_control(validate):
 def test_nested_triple_all_flags(validate):
     """Triple nesting with a function supporting all unitary flags is valid."""
 
-    @guppy(dagger=True, control=True)
+    @guppy(daggerable=True, controllable=True)
     def foo_s(q: qubit) -> None:
         pass
 
@@ -335,7 +335,7 @@ def test_nested_triple_all_flags(validate):
 def test_higher_order_daggerable_callable(validate):
     """Higher-order arguments can require dagger support."""
 
-    @guppy(dagger=True)
+    @guppy(daggerable=True)
     def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
         f(q)
 
@@ -350,7 +350,7 @@ def test_higher_order_daggerable_callable(validate):
 def test_higher_order_control_controllable_callable(validate):
     """Higher-order arguments can require control support."""
 
-    @guppy(control=True)
+    @guppy(controllable=True)
     def apply_control(f: Controllable[[qubit], None], ctrl: qubit, q: qubit) -> None:
         with control(ctrl):
             f(q)
@@ -378,7 +378,7 @@ def test_higher_order_unitary_callable(validate):
 def test_return_callable_with_stronger_flags(validate):
     """Returning a callable with more flags than required is valid."""
 
-    @guppy(dagger=True)
+    @guppy(daggerable=True)
     def dagger_only(q: qubit) -> None:
         pass
 
@@ -406,7 +406,7 @@ def test_return_callable_with_stronger_flags(validate):
 def test_take_callable_taking_weaker_callable(validate):
     """Arguments weaker than the required callable flags."""
 
-    @guppy(control=True)
+    @guppy(controllable=True)
     def control_fun(q: qubit) -> None:
         pass
 
@@ -418,7 +418,7 @@ def test_take_callable_taking_weaker_callable(validate):
     def apply_plain(f: Callable[[qubit], None], q: qubit) -> None:
         f(q)
 
-    @guppy(dagger=True)
+    @guppy(daggerable=True)
     def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
         f(q)
 
@@ -447,7 +447,7 @@ def test_take_callable_taking_weaker_callable(validate):
 def test_nested_same_modifier(validate):
     """Double-nesting the same modifier (dagger) with a dagger-supporting function."""
 
-    @guppy(dagger=True)
+    @guppy(daggerable=True)
     def foo(q: qubit) -> None:
         pass
 
@@ -475,7 +475,7 @@ def test_double_dagger_cancellation_1(validate):
 
 
 def test_double_dagger_cancellation_2(validate):
-    @guppy(control=True)
+    @guppy(controllable=True)
     def not_dagger_func(q: qubit) -> None:
         pass
 
@@ -498,7 +498,7 @@ def test_double_dagger_cancellation_2(validate):
 def test_combined_with_items_nested(validate):
     """Multiple modifiers in one with-block are all propagated into a nested block."""
 
-    @guppy(dagger=True, control=True)
+    @guppy(daggerable=True, controllable=True)
     def foo(q: qubit) -> None:
         pass
 
@@ -517,9 +517,9 @@ def test_combined_with_items_nested(validate):
 
 
 def test_comptime_dagger(validate):
-    """Comptime function with dagger=True can be called inside a dagger block."""
+    """Comptime function with daggerable=True can be called inside a dagger block."""
 
-    @guppy.comptime(dagger=True)
+    @guppy.comptime(daggerable=True)
     def foo(q: qubit) -> None:
         h(q)
 
@@ -532,9 +532,9 @@ def test_comptime_dagger(validate):
 
 
 def test_comptime_control(validate):
-    """Comptime function with control=True can be called inside a control block."""
+    """Comptime function with controllable=True can be called inside a control block."""
 
-    @guppy.comptime(control=True)
+    @guppy.comptime(controllable=True)
     def foo(q: qubit) -> None:
         h(q)
 
