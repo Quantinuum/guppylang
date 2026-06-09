@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import override
+from typing import Generic, TypeVar, override
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops, val
@@ -410,14 +410,21 @@ class DFBuilder(ABC, ToNode):
         return self._raw.add_const(value, parent)
 
 
+B = TypeVar("B", bound=hf.Function | Case | TailLoop | Block)
+
+
 @dataclass
-class TailLoopBuilder(DFBuilder):
-    _raw_builder: TailLoop
-    parent: DFBuilder
+class _DFBuilderRaw(DFBuilder, Generic[B]):
+    _raw_builder: B
 
     @property
-    def _raw(self) -> TailLoop:
+    def _raw(self) -> B:
         return self._raw_builder
+
+
+@dataclass
+class TailLoopBuilder(_DFBuilderRaw[TailLoop]):
+    parent: DFBuilder
 
     def set_loop_outputs(self, predicate: Wire, *outputs: Wire) -> None:
         self._raw.set_loop_outputs(predicate, *outputs)
@@ -429,13 +436,7 @@ class TailLoopBuilder(DFBuilder):
 
 
 @dataclass
-class FunctionBuilder(DFBuilder):
-    _raw_builder: hf.Function
-
-    @property
-    def _raw(self) -> hf.Function:
-        return self._raw_builder
-
+class FunctionBuilder(_DFBuilderRaw[hf.Function]):
     def _propagate_side_effects(self) -> None:
         pass  # No parent
 
@@ -446,14 +447,9 @@ class FunctionBuilder(DFBuilder):
 
 
 @dataclass
-class CaseBuilder(DFBuilder):
-    _raw_builder: Case
+class CaseBuilder(_DFBuilderRaw[Case]):
     parent: Conditional
     grandparent: DFBuilder
-
-    @property
-    def _raw(self) -> Case:
-        return self._raw_builder
 
     def _propagate_side_effects(self) -> None:
         # No need to do anything in the Conditional,
@@ -462,14 +458,9 @@ class CaseBuilder(DFBuilder):
 
 
 @dataclass
-class BlockBuilder(DFBuilder):
-    _raw_builder: Block
+class BlockBuilder(_DFBuilderRaw[Block]):
     parent: Cfg
     grandparent: DFBuilder
-
-    @property
-    def _raw(self) -> Block:
-        return self._raw_builder
 
     def _propagate_side_effects(self) -> None:
         # No need to do anything in the CFG, but the CFG itself
