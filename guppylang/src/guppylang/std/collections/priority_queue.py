@@ -96,8 +96,8 @@ class PriorityQueue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
             panic("PriorityQueue.pop: priority queue is empty")
         return_prio, return_val = self._buf[0].take().unwrap()
         new_size = self._size - 1
+        self._size = new_size
         if new_size == 0:
-            self._size = new_size
             return return_prio, return_val
         displaced_prio, displaced_val = self._buf[new_size].take().unwrap()
         i = 0
@@ -129,7 +129,6 @@ class PriorityQueue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
             self._buf[i].swap(some((child_prio, child_val))).unwrap_nothing()
             i = child_i
         self._buf[i].swap(some((displaced_prio, displaced_val))).unwrap_nothing()
-        self._size = new_size
         return return_prio, return_val
 
     @guppy
