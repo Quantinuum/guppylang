@@ -86,7 +86,9 @@ class TypeArg(ArgumentBase):
         return transformer.transform(self) or TypeArg(self.ty.transform(transformer))
 
     def __str__(self) -> str:
-        return str(self.ty)
+        from guppylang_internals.tys.printing import TypePrinter
+
+        return TypePrinter().visit(self)
 
 
 @dataclass(frozen=True)
