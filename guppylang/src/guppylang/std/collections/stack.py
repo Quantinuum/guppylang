@@ -95,8 +95,7 @@ class Stack(Generic[T, MAX_SIZE]):  # type: ignore[misc]
         """
         if self._end <= 0:
             panic("Stack.peek: stack is empty")
-        elem = self._buf[self._end - 1].unwrap()
-        return elem
+        return self._buf[self._end - 1].unwrap()
 
     @guppy
     @no_type_check
