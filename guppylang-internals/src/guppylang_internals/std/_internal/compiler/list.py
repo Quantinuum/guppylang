@@ -26,7 +26,7 @@ from guppylang_internals.std._internal.compiler.prelude import (
 from guppylang_internals.tys.arg import TypeArg
 
 if TYPE_CHECKING:
-    from guppylang_internals.compiler.core import DFBuilder
+    from guppylang_internals.compiler.builder import DFBuilder
 
 
 # ------------------------------------------------------

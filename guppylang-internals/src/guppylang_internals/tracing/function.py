@@ -15,11 +15,8 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
-from guppylang_internals.compiler.core import (
-    CompilerContext,
-    DFContainer,
-    FunctionBuilder,
-)
+from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error

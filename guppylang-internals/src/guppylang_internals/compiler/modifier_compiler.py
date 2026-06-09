@@ -6,12 +6,9 @@ from hugr import tys as ht
 from guppylang_internals.ast_util import get_type
 from guppylang_internals.checker.core import SubscriptAccess, contains_subscript
 from guppylang_internals.checker.modifier_checker import non_copyable_front_others_back
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
-from guppylang_internals.compiler.core import (
-    CompilerContext,
-    DFContainer,
-    FunctionBuilder,
-)
+from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.metadata.common import add_metadata
 from guppylang_internals.nodes import CheckedModifiedBlock, PlaceNode

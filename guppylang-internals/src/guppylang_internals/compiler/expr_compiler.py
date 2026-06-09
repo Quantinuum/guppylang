@@ -18,14 +18,12 @@ from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
+from guppylang_internals.compiler.builder import CondBuilder, DFBuilder, FunctionBuilder
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
     CompilerBase,
     CompilerContext,
-    CondBuilder,
-    DFBuilder,
     DFContainer,
-    FunctionBuilder,
     GlobalConstId,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp

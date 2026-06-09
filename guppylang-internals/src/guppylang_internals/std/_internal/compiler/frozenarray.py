@@ -8,7 +8,8 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.static_array import EXTENSION, StaticArray
 
-from guppylang_internals.compiler.core import FunctionBuilder, GlobalConstId
+from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.std._internal.compiler.arithmetic import (

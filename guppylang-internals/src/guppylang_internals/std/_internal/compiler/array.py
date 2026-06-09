@@ -19,7 +19,7 @@ from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
     from guppylang_internals.ast_util import AstNode
-    from guppylang_internals.compiler.core import DFBuilder
+    from guppylang_internals.compiler.builder import DFBuilder
 
 
 # ------------------------------------------------------

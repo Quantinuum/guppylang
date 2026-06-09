@@ -6,10 +6,10 @@ from hugr import Wire, ops
 
 from guppylang_internals.ast_util import AstVisitor, get_type
 from guppylang_internals.checker.core import Variable, contains_subscript
+from guppylang_internals.compiler.builder import DFBuilder
 from guppylang_internals.compiler.core import (
     CompilerBase,
     CompilerContext,
-    DFBuilder,
     DFContainer,
     return_var,
 )

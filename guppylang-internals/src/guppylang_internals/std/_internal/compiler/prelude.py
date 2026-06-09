@@ -13,12 +13,8 @@ from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 
-from guppylang_internals.compiler.core import (
-    CompilerContext,
-    DFBuilder,
-    FunctionBuilder,
-    GlobalConstId,
-)
+from guppylang_internals.compiler.builder import DFBuilder, FunctionBuilder
+from guppylang_internals.compiler.core import CompilerContext, GlobalConstId
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,

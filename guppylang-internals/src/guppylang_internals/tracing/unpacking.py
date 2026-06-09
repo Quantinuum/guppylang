@@ -7,7 +7,8 @@ from guppylang_internals.checker.errors.comptime_errors import (
     IllegalComptimeExpressionError,
 )
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
-from guppylang_internals.compiler.core import CompilerContext, DFBuilder
+from guppylang_internals.compiler.builder import DFBuilder
+from guppylang_internals.compiler.core import CompilerContext
 from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.error import GuppyComptimeError, GuppyError
 from guppylang_internals.std._internal.compiler.array import array_new, unpack_array
