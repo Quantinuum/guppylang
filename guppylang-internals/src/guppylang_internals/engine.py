@@ -423,12 +423,7 @@ class CompilationEngine:
                 # checking without having the monomorphization available. In that case,
                 # we give up and prompt the user to specify the generic arguments.
                 assert isinstance(entry_defn, CheckableGenericDef)
-                description = (
-                    f"{entry_defn.description.capitalize()} `{entry_defn.name}`"
-                )
-                err = EntryCheckMonomorphizeError(
-                    entry_defn.defined_at, description, entry_defn.params
-                )
+                err = EntryCheckMonomorphizeError(entry_defn.defined_at, entry_defn)
                 raise GuppyError(err) from None
 
         # Checking the entrypoint will have populated the worklist, so now we need to
@@ -605,20 +600,23 @@ class EntryCheckMonomorphizeError(Error):
         "{thing} can only be checked if the value{plural_s} of its generic "
         "parameter{plural_s} {params_str} {is_are} known"
     )
-    thing: str
-    params: Sequence[Parameter]
+    defn: CheckableGenericDef
+
+    @property
+    def thing(self) -> str:
+        return f"{self.defn.description.capitalize()} `{self.defn.name}`"
 
     @property
     def plural_s(self) -> str:
-        return "s" if len(self.params) > 1 else ""
+        return "s" if len(self.defn.params) > 1 else ""
 
     @property
     def is_are(self) -> str:
-        return "are" if len(self.params) > 1 else "is"
+        return "are" if len(self.defn.params) > 1 else "is"
 
     @property
     def params_str(self) -> str:
-        return ", ".join(f"`{p.name}`" for p in self.params)
+        return ", ".join(f"`{p.name}`" for p in self.defn.params)
 
 
 def check_entry_point_non_generic(defn: ParsedDef) -> None:
