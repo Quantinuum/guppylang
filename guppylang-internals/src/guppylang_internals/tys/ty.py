@@ -398,67 +398,19 @@ class UnitaryFlags(Flag):
         else:
             return self in other
 
-    def __str__(self) -> str:
+    def hint_rendering(self) -> str:
+        """Return the corresponding decorator flag"""
         match self:
-            case UnitaryFlags.Dagger:
-                return "dagger"
-            case UnitaryFlags.Control:
-                return "control"
             case UnitaryFlags.NoFlags:
-                raise AssertionError("Expected a non-empty unitary flag")
-            case _:  # If we have multiple flags, we represent them as unitary
-                return "unitary"
-
-    # NICOLA TODO see if delete
-    def render_flags(self, backtick: bool) -> str:
-        """Renders the flags as a string.
-        If there are two flags, we print them separated by 'and'."""
-
-        def fmt(s: str) -> str:
-            return f"`{s}`" if backtick else s
-
-        if self == UnitaryFlags.NoFlags:
-            return fmt("None")
-
-        # If all flags are set, we can just say "unitary"
-        if self == UnitaryFlags.Unitary:
-            return fmt("unitary")
-
-        # Otherwise, we list the individual flags that are set
-        individual_flags: list[UnitaryFlags] = [
-            UnitaryFlags.Dagger,
-            UnitaryFlags.Control,
-        ]
-        sep = " and "
-        return sep.join(
-            fmt(flag.__str__())
-            for flag in individual_flags
-            if (self.value & flag.value) == flag.value
-        )
-
-    # NICOLA TODO see refactor
-    def hint_rendering(self, verbose: bool) -> str:
-        """We check which flag are we missing. If we miss more than one, we just say
-        `unitary=True`"""
-        from guppylang_internals.tys.ty import UnitaryFlags
-
-        # No flags is not expected
-        if self == UnitaryFlags.NoFlags:
-            return "None"
-
-        individual_flags: list[UnitaryFlags] = [
-            UnitaryFlags.Dagger,
-            UnitaryFlags.Control,
-        ]
-        flags = [
-            flag for flag in individual_flags if (self.value & flag.value) == flag.value
-        ]
-        if len(flags) == 1:
-            return f"{flags[0].__str__()}=True"
-        elif len(flags) == 2 and verbose:
-            return " and ".join(f"{flag.__str__()}=True" for flag in flags)
-        else:
-            return "unitary=True"
+                return "None"
+            case UnitaryFlags.Unitary:
+                return "unitary=True"
+            case UnitaryFlags.Dagger:
+                return "dagger=True"
+            case UnitaryFlags.Control:
+                return "control=True"
+            case _:
+                assert_never(self)
 
     def callable_name(
         self,
@@ -487,6 +439,19 @@ class UnitaryFlags(Flag):
         if self & UnitaryFlags.Dagger and other & UnitaryFlags.Dagger:
             result &= ~UnitaryFlags.Dagger
         return result
+
+    def __str__(self) -> str:
+        match self:
+            case UnitaryFlags.Dagger:
+                return "dagger"
+            case UnitaryFlags.Control:
+                return "control"
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case UnitaryFlags.Unitary:
+                return "unitary"
+            case _:
+                assert_never(self)
 
 
 @dataclass(frozen=True)

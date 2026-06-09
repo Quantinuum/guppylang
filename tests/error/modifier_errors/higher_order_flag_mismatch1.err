@@ -1,9 +1,9 @@
-Error: Unitary flag mismatch (at $FILE:17:16)
+Error: Unitary flag mismatch (at $FILE:15:15)
    | 
-15 | @guppy
-16 | def test(q: qubit) -> None:
-17 |     apply_power(dagger_only, q)
-   |                 ^^^^^^^^^^^ Expected function with unitary flags: `power=True`, got:
-   |                             `dagger=True`
+13 | @guppy
+14 | def test(q: qubit) -> None:
+15 |     apply_ctrl(dagger_only, q)
+   |                ^^^^^^^^^^^ Expected function with unitary flags: `control=True`, got:
+   |                            `dagger=True`
 
 Guppy compilation failed due to 1 previous error

@@ -191,10 +191,6 @@ class UnitaryCallError(Error):
     flags: "UnitaryFlags"
 
     @property
-    def rendered_flags(self) -> str:
-        return self.flags.render_flags(False)
-
-    @property
     def capitalized_render_flags(self) -> str:
         return str(self.flags).capitalize()
 
@@ -202,13 +198,12 @@ class UnitaryCallError(Error):
     def hint_rendering(self) -> str:
         """We check which flag are we missing. If we miss more than one, we just say
         `unitary=True`"""
-        return self.flags.hint_rendering(False)
+        return self.flags.hint_rendering()
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
-            "The function allocates qubits, which is not allowed in a "
-            "{rendered_flags} context"
+            "The function allocates qubits, which is not allowed in a {flags} context"
         )
 
     @dataclass(frozen=True)
