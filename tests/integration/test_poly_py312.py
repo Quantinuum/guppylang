@@ -12,12 +12,14 @@ def test_function(validate):
     def foo[S, T](x: S @ owned, y: T @ owned) -> tuple[T, S]:
         return y, x
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> None:
         foo(1, 2)
         foo(True, False)
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -94,6 +96,10 @@ def test_copy_bound(validate):
     def foo_struct[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
         return s.x, s.x
 
+    # We can't compile the functions on their own, but we can check them
+    foo_enum.check()
+    foo_struct.check()
+
     @guppy
     def main() -> None:
         foo_struct(MyStruct(42))
@@ -101,8 +107,6 @@ def test_copy_bound(validate):
         foo_enum(MyEnum.VariantA[int](42))
         foo_enum(MyEnum.VariantA[bool](False))
 
-    foo_enum.check()
-    foo_struct.check()
     validate(main.compile_function())
 
 
@@ -118,6 +122,9 @@ def test_drop_bound(validate):
     @guppy
     def helper[T: Drop](s: MyStruct[T] @ owned, e: MyEnum[T] @ owned) -> None:
         pass
+
+    # We can't compile helper on its own, but we can check it
+    helper.check()
 
     @guppy
     def main(
@@ -144,6 +151,9 @@ def test_copy_and_drop_bound(validate):
     ) -> tuple[T, T, MyEnum[T], MyEnum[T]]:
         return s1.x, s1.x, e1, e1
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> None:
         foo(
@@ -159,7 +169,6 @@ def test_copy_and_drop_bound(validate):
             MyEnum.VariantA[bool](True),
         )
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -177,12 +186,14 @@ def test_const_param(validate):
     def foo[T, n: nat](xs: array[T, n], s: MyStruct[T, n], e: MyEnum[T, n]) -> nat:
         return n
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> None:
         foo(array(1, 2, 3), MyStruct(array(4, 5, 6)), MyEnum.VariantA(array(7, 8, 9)))
         foo[float, 0](array(), MyStruct(array()), MyEnum.VariantB[float, 0]())
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -193,12 +204,14 @@ def test_mixed_legacy_params(validate):
     def foo[S](x: S @ owned, y: T @ owned) -> tuple[T, S]:
         return y, x
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> tuple[qubit, qubit]:
         foo(1, 2)
         return foo(qubit(), qubit())
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -208,12 +221,14 @@ def test_reference_inside(validate):
         x: Option[T] = nothing()
         nothing[T]()
 
+    # We can't compile helper on its own, but we can check it
+    helper.check()
+
     # Just check we can instantiate a Drop type-parameter with a classical type.
     @guppy
     def main() -> None:
         helper[int]()
 
-    helper.check()
     validate(main.compile_function())
 
 
@@ -222,11 +237,13 @@ def test_dependent_function(validate):
     def foo[T: (Copy, Drop), x: T]() -> T:
         return x
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> float:
         return foo[nat, 42]() + foo[float, 1.5]()
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -248,11 +265,13 @@ def test_dependent_struct(run_float_fn_approx):
     def foo(x: Phantom[bool, True]) -> float:
         return 0.0 if x.get() else make_phantom(42).get() + make_phantom(1.5).get()
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> float:
         return foo(Phantom())
 
-    foo.check()
     run_float_fn_approx(main, 0)
 
 
@@ -263,11 +282,13 @@ def test_dependent_comptime(validate):
     def foo(x: T @ comptime, y: "Phantom[T, x]") -> T:  # noqa: F821
         return y.get()
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> int:
         return foo(42, Phantom())
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -296,9 +317,11 @@ def test_generic_tuple_chain(validate):
     def foo(a: tuple[T, T] @ comptime) -> T:
         return bar(a, Phantom())
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> int:
         return foo(comptime((1, 2)))
 
-    foo.check()
     validate(main.compile_function())

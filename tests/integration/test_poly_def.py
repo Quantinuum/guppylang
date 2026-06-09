@@ -34,6 +34,7 @@ def test_id(validate):
     def identity(x: T) -> T:
         return x
 
+    # We can't compile the function on its own, but we can check it
     identity.check()
     validate(build_main(identity).compile_function())
 
@@ -45,6 +46,7 @@ def test_nonlinear(validate):
     def copy(x: T) -> tuple[T, T]:
         return x, x
 
+    # We can't compile the function on its own, but we can check it
     copy.check()
     validate(build_main(copy).compile_function())
 
@@ -56,6 +58,9 @@ def test_apply(validate):
     @guppy
     def apply(f: Callable[[S], T], x: S) -> T:
         return f(x)
+
+    # We can't compile apply on its own, but we can check it
+    apply.check()
 
     @guppy
     def foo(x: int) -> tuple[int, int]:
@@ -76,7 +81,6 @@ def test_apply(validate):
         apply(bar, x[0])
         return apply(baz, x)
 
-    apply.check()
     validate(main.compile_function())
 
 
@@ -88,6 +92,7 @@ def test_annotate(validate):
         y: T = x
         return y
 
+    # We can't compile the function on its own, but we can check it
     identity.check()
     validate(build_main(identity).compile_function())
 
@@ -99,13 +104,15 @@ def test_recurse(validate):
     def empty() -> T:
         return empty()
 
+    # We can't compile the function on its own, but we can check it
+    empty.check()
+
     @guppy
     def main() -> None:
         x: int = empty()
         y: tuple[int, float] = empty()
         z: None = empty()
 
-    empty.check()
     validate(main.compile_function())
 
 
@@ -172,12 +179,14 @@ def test_nat_recurse(validate):
     def empty() -> array[int, n]:
         return empty()
 
+    # We can't compile the function on its own, but we can check it
+    empty.check()
+
     @guppy
     def main() -> None:
         x: array[int, 42] = empty()
         y: array[int, 0] = empty()
 
-    empty.check()
     validate(main.compile_function())
 
 
@@ -204,11 +213,13 @@ def test_custom_func_higher_order(validate):
         f = nothing[T]
         return f()
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> None:
         x: Option[int] = foo()
         y: Option[tuple[int, float]] = foo()
         z: Option[None] = foo()
 
-    foo.check()
     validate(main.compile_function())

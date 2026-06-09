@@ -7,11 +7,13 @@ def test_basic_nat(validate):
     def foo(n: nat @ comptime) -> nat:
         return nat(n + 1)
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> nat:
         return foo(42)
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -20,11 +22,13 @@ def test_basic_int(validate):
     def foo(n: int @ comptime) -> int:
         return n + 1
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> int:
         return foo(42)
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -33,11 +37,13 @@ def test_basic_float(validate):
     def foo(f: float @ comptime) -> float:
         return f + 1.5
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> float:
         return foo(42.0)
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -46,11 +52,13 @@ def test_basic_bool(validate):
     def foo(b: bool @ comptime) -> bool:
         return not b
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> bool:
         return foo(True)
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -61,11 +69,13 @@ def test_multiple(validate):
     ) -> nat:
         return nat(a + b + c + d + e + f)
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> nat:
         return foo(1, 2, 3, 4, 5, 6)
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -85,13 +95,15 @@ def test_dependent(validate):
     def foo(n: nat @ comptime, xs: "array[int, n]") -> None:  # noqa: F821
         pass
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> None:
         foo(0, array())
         foo(1, array(1))
         foo(2, array(1, 2))
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -129,12 +141,14 @@ def test_type_apply(validate):
         g = foo[nat, m]
         g(42, m)
 
+    # We can't compile bar on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> None:
         bar(0)
         bar(3)
 
-    bar.check()
     validate(main.compile_function())
 
 
@@ -145,11 +159,13 @@ def test_generic1(validate):
     def foo(_x: T, y: T @ comptime) -> T:
         return y
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main(x: nat, y: int, z: float) -> float:
         return foo(x, 42) + foo(y, -10) + foo(z, 1.5)
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -160,11 +176,13 @@ def test_generic2(validate):
     def foo(x: T @ comptime) -> T:
         return x
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> float:
         return foo(42) + foo(1.5)
 
-    foo.check()
     validate(main.compile_function())
 
 
@@ -176,9 +194,11 @@ def test_generic_tuple(validate):
         x, _ = t
         return x
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> bool:
         return foo(comptime((True, False)))
 
-    foo.check()
     validate(main.compile_function())
