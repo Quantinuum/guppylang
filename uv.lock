@@ -1041,7 +1041,6 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]
-provides-extras = ["pytket"]
 
 [[package]]
 name = "guppylang-internals"
@@ -1065,7 +1064,6 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "wasmtime", specifier = ">=38.0,<45.1" },
 ]
-provides-extras = ["pytket"]
 
 [[package]]
 name = "hugr"

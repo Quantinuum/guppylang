@@ -38,9 +38,6 @@ dependencies = [
     "tket[pytket]>=0.13.0",
 ]
 
-[project.optional-dependencies]
-pytket = []
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
