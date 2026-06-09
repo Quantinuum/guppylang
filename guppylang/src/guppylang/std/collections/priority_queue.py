@@ -13,7 +13,7 @@ TCopyable = guppy.type_var("TCopyable", copyable=True, droppable=False)
 MAX_SIZE = guppy.nat_var("MAX_SIZE")
 
 
-@guppy.struct(frozen=False)
+@guppy.struct
 class PriorityQueue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
     """A queue of values ordered by priority.
 
