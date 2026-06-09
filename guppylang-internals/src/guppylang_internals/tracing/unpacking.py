@@ -5,7 +5,7 @@ from hugr.build.dfg import DfBase
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.comptime_errors import (
-    IllegalComptimeExpressionError,
+    UnsupportedPythonValueError,
 )
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
 from guppylang_internals.compiler.core import CompilerContext, DFBuilder
@@ -142,7 +142,7 @@ def guppy_object_from_py(
         case v:
             ty = python_value_to_guppy_type(v, node)
             if ty is None:
-                raise GuppyError(IllegalComptimeExpressionError(node, type(v)))
+                raise GuppyError(UnsupportedPythonValueError(node, type(v)))
             hugr_val = python_value_to_hugr(v, ty, ctx)
             assert hugr_val is not None
             return GuppyObject(ty, builder.load(hugr_val))
