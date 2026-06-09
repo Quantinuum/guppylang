@@ -1,7 +1,7 @@
 from guppylang.decorator import guppy
 from typing import Callable
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class MyStruct:
     @guppy
     def will_be_partial(self, a: int) -> None:

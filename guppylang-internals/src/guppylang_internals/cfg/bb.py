@@ -37,6 +37,16 @@ class VariableStats(Generic[VId]):
     # created in the BB are not included here.
     used: dict[VId, AstNode] = field(default_factory=dict)
 
+    # Variables that are used after being assigned in a modifier block.
+    # The value is the first usage after the modifier block and the node where the
+    # variable is assigned in the modifier block.
+    badly_used_after_modifier_block: dict[VId, tuple[AstNode, AstNode]] = field(
+        default_factory=dict
+    )
+
+    # Variables whose last assignment in this BB happened inside a modifier block.
+    assigned_in_modifier_block: dict[VId, AstNode] = field(default_factory=dict)
+
 
 BBStatement = (
     ast.Assign
@@ -126,8 +136,20 @@ class VariableVisitor(ast.NodeVisitor):
             # Should point to first use, so also check that the name is not already
             # contained
             x = name.id
-            if x not in self.stats.assigned and x not in self.stats.used:
+            if (
+                x not in self.stats.assigned
+                and x not in self.stats.used
+                and x not in self.stats.assigned_in_modifier_block
+            ):
                 self.stats.used[x] = name
+            if (
+                x in self.stats.assigned_in_modifier_block
+                and x not in self.stats.badly_used_after_modifier_block
+            ):
+                self.stats.badly_used_after_modifier_block[x] = (
+                    name,
+                    self.stats.assigned_in_modifier_block[x],
+                )
 
     def visit_Name(self, node: ast.Name) -> None:
         self._update_used(node)
@@ -151,6 +173,7 @@ class VariableVisitor(ast.NodeVisitor):
         match lhs:
             case ast.Name(id=name):
                 self.stats.assigned[name] = node
+                self.stats.assigned_in_modifier_block.pop(name, None)
             case ast.Tuple(elts=elts) | ast.List(elts=elts):
                 for elt in elts:
                     self._handle_assign_target(elt, node)
@@ -231,9 +254,25 @@ class VariableVisitor(ast.NodeVisitor):
         # Similarly to nested functions
         from guppylang_internals.cfg.analysis import LivenessAnalysis
 
-        stats = {bb: bb.compute_variable_stats() for bb in node.cfg.bbs}
+        stats: dict[BB, VariableStats[str]] = {}
+
+        for bb in node.cfg.bbs:
+            bb_stat = bb.compute_variable_stats()
+            # We update the `assigned_in_modifier_block` field of the stats for
+            # each BB.
+            for var, ast_node in (
+                # We union the two dicts in this order to prioritize variables assigned
+                # in the outer modifier block
+                bb_stat.assigned_in_modifier_block | bb_stat.assigned
+            ).items():
+                self.stats.assigned_in_modifier_block[var] = ast_node
+            stats[bb] = bb_stat
+
         live = LivenessAnalysis(stats).run(node.cfg.bbs)
         assigned_before_in_bb = self.stats.assigned.keys()
+
+        # Variables used by the modifier block that are not assigned in the modifier
+        # block or in this current BB
         self.stats.used |= {
             x: using_bb.vars.used[x]
             for x, using_bb in live[node.cfg.entry_bb].items()

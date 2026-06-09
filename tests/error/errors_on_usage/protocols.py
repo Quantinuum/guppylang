@@ -9,7 +9,7 @@ class Foo:
 def bar(f: "Foo") -> None:
     return
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class FooStruct:
     @guppy
     def foo(self) -> None:

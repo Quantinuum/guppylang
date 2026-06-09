@@ -1,6 +1,5 @@
 from ast import expr
 from dataclasses import dataclass
-from types import TracebackType
 from typing import ClassVar
 
 from guppylang_internals.ast_util import AstNode
@@ -11,59 +10,39 @@ from guppylang_internals.error import GuppyError
 EXPERIMENTAL_FEATURES_ENABLED = False
 
 
-class enable_experimental_features:
-    """Enables experimental Guppy features.
-
-    Can be used as a context manager to enable experimental features in a `with` block.
-    """
-
-    def __init__(self) -> None:
-        global EXPERIMENTAL_FEATURES_ENABLED
-        self.original = EXPERIMENTAL_FEATURES_ENABLED
-        EXPERIMENTAL_FEATURES_ENABLED = True
-
-    def __enter__(self) -> None:
-        pass
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        global EXPERIMENTAL_FEATURES_ENABLED
-        EXPERIMENTAL_FEATURES_ENABLED = self.original
+def are_experimental_features_enabled() -> bool:
+    """Whether experimental Guppy features are enabled."""
+    return EXPERIMENTAL_FEATURES_ENABLED
 
 
-class disable_experimental_features:
-    """Disables experimental Guppy features.
+def enable_experimental_features() -> None:
+    """Enables experimental Guppy features."""
+    set_experimental_features_enabled(True)
 
-    Can be used as a context manager to enable experimental features in a `with` block.
-    """
 
-    def __init__(self) -> None:
-        global EXPERIMENTAL_FEATURES_ENABLED
-        self.original = EXPERIMENTAL_FEATURES_ENABLED
-        EXPERIMENTAL_FEATURES_ENABLED = False
+def disable_experimental_features() -> None:
+    """Disables experimental Guppy features."""
+    set_experimental_features_enabled(False)
 
-    def __enter__(self) -> None:
-        pass
 
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        global EXPERIMENTAL_FEATURES_ENABLED
-        EXPERIMENTAL_FEATURES_ENABLED = self.original
+def set_experimental_features_enabled(enabled: bool) -> None:
+    """Sets whether experimental Guppy features are enabled."""
+    global EXPERIMENTAL_FEATURES_ENABLED
+    EXPERIMENTAL_FEATURES_ENABLED = enabled
 
 
 @dataclass(frozen=True)
 class ExperimentalFeatureError(Error):
     title: ClassVar[str] = "Experimental feature"
-    span_label: ClassVar[str] = "{things} are an experimental feature"
+    span_label: ClassVar[str] = "{things} {rendered_label_verb} an experimental feature"
     things: str
+    singular_things: bool = False
+
+    @property
+    def rendered_label_verb(self) -> str:
+        if self.singular_things:
+            return "is"
+        return "are"
 
     @dataclass(frozen=True)
     class Suggestion(Help):
@@ -100,3 +79,8 @@ def check_capturing_closures_enabled(loc: AstNode | None = None) -> None:
 def check_modifiers_enabled(loc: AstNode | None = None) -> None:
     if not EXPERIMENTAL_FEATURES_ENABLED:
         raise GuppyError(ExperimentalFeatureError(loc, "Modifiers"))
+
+
+def check_unitary_callable_enabled(thing: str, loc: AstNode | None = None) -> None:
+    if not EXPERIMENTAL_FEATURES_ENABLED:
+        raise GuppyError(ExperimentalFeatureError(loc, thing, singular_things=True))

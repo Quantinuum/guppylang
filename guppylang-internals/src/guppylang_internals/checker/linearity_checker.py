@@ -40,6 +40,7 @@ from guppylang_internals.checker.errors.linearity import (
     NonCopyableCaptureError,
     NonCopyablePartialApplyError,
     NotOwnedError,
+    ParentAlreadyUsedError,
     PlaceNotUsedError,
     UnnamedExprNotUsedError,
     UnnamedFieldNotUsedError,
@@ -137,6 +138,11 @@ class Use(NamedTuple):
     #: The kind of use, i.e. is the value consumed, borrowed, returned, ...?
     kind: UseKind
 
+    #: Reference to the original place that invoked the use. For example, the use of a
+    #: struct is tracked as uses of all their leaf projections, but for each of them,
+    #: we remember the original root place that was actually used here.
+    origin_place: Place
+
 
 class Scope(Locals[PlaceId, Place]):
     """Scoped collection of assigned places indexed by their id.
@@ -144,42 +150,75 @@ class Scope(Locals[PlaceId, Place]):
     Keeps track of which places have already been used.
     """
 
+    #: Enclosing scope tracking variables defined in other basic blocks
     parent_scope: "Scope | None"
+
+    #: Tracks all leaf projections of used places that were defined in this scope
     used_local: dict[PlaceId, Use]
+
+    #: Tracks all leaf projections of used places that were defined in a parent scope
     used_parent: dict[PlaceId, Use]
+
+    #: Tracks all projections (not just the leaves) of used places. Includes places
+    #: defined in this or any parent scope
+    used_projections: dict[PlaceId, Use]
 
     def __init__(self, parent: "Scope | None" = None):
         self.used_local = {}
         self.used_parent = {}
+        self.used_projections = {}
         super().__init__({}, parent)
 
     def used(self, x: PlaceId) -> Use | None:
         """Checks whether a place has already been used."""
-        if x in self.vars:
-            return self.used_local.get(x, None)
-        assert self.parent_scope is not None
-        return self.parent_scope.used(x)
+        if x in self.used_projections:
+            return self.used_projections[x]
+        if self.parent_scope:
+            return self.parent_scope.used(x)
+        return None
 
-    def use(self, x: PlaceId, node: AstNode, kind: UseKind) -> None:
+    def use_leaf(
+        self, place: Place, node: AstNode, kind: UseKind, origin_place: Place
+    ) -> None:
+        """Records a use of a leaf place.
+
+        Works for places in the current scope as well as places in any parent scope.
+        """
+        assert not immediate_child_places(place), "Must be a leaf"
+        x = place.id
+        if x in self.vars:
+            self.used_local[x] = Use(node, kind, place)
+        else:
+            assert self.parent_scope is not None
+            assert x in self.parent_scope
+            self.used_parent[x] = Use(node, kind, origin_place)
+            self.parent_scope.use_leaf(place, node, kind, origin_place)
+
+    def use(self, place: Place, node: AstNode, kind: UseKind) -> None:
         """Records a use of a place.
 
         Works for places in the current scope as well as places in any parent scope.
         """
-        if x in self.vars:
-            self.used_local[x] = Use(node, kind)
-        else:
-            assert self.parent_scope is not None
-            assert x in self.parent_scope
-            self.used_parent[x] = Use(node, kind)
-            self.parent_scope.use(x, node, kind)
+        for leaf in leaf_places(place):
+            self.use_leaf(leaf, node, kind, place)
+        for proj in projections(place):
+            self.used_projections[proj.id] = Use(node, kind, place)
 
-    def assign(self, place: Place) -> None:
-        """Records an assignment of a place."""
+    def assign_leaf(self, place: Place) -> None:
+        """Records an assignment of a leaf place."""
         assert place.defined_at is not None
+        assert not immediate_child_places(place), "Must be a leaf"
         x = place.id
         self.vars[x] = place
         if x in self.used_local:
             self.used_local.pop(x)
+
+    def assign(self, place: Place) -> None:
+        """Records an assignment of a place."""
+        for leaf in leaf_places(place):
+            self.assign_leaf(leaf)
+        for proj in projections(place):
+            self.used_projections.pop(proj.id, None)
 
     def stats(self) -> VariableStats[PlaceId]:
         assigned = {}
@@ -215,8 +254,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         # of this BB
         input_scope = Scope()
         for var in bb.sig.input_row:
-            for place in leaf_places(var):
-                input_scope.assign(place)
+            input_scope.assign(var)
         self.func_name = func_name
         self.func_inputs = func_inputs
         self.globals = globals
@@ -284,9 +322,8 @@ class BBLinearityChecker(ast.NodeVisitor):
         # Places involving subscripts are handled differently since we ignore everything
         # after the subscript for the purposes of linearity checking.
         if subscript := contains_subscript(node.place):
-            # We have to check the item type to determine if we can move out of the
-            # subscript.
-            if not is_inout_arg and not subscript.ty.copyable:
+            # We are only allowed to move copyable data out of a subscript
+            if not is_inout_arg and not node.place.ty.copyable:
                 err = MoveOutOfSubscriptError(node, use_kind, subscript.parent)
                 err.add_sub_diagnostic(MoveOutOfSubscriptError.Explanation(None))
                 raise GuppyError(err)
@@ -298,6 +335,7 @@ class BBLinearityChecker(ast.NodeVisitor):
             self.visit(subscript.getitem_call)
         # For all other places, we record uses of all leaves
         else:
+            # Check each leaf separately so we catch partial moves, e.g. struct fields
             for place in leaf_places(node.place):
                 x = place.id
                 if (prev_use := self.scope.used(x)) and not place.ty.copyable:
@@ -319,7 +357,13 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
-                self.scope.use(x, node, use_kind)
+
+            # Also check if parents have been moved
+            use = Use(node, use_kind, node.place)
+            check_mutable_parent_already_used(node.place, use, self.scope)
+
+            # Finally, mark the place as used
+            self.scope.use(node.place, node, use_kind)
 
     def visit_Assign(self, node: ast.Assign) -> None:
         self.visit(node.value)
@@ -417,17 +461,15 @@ class BBLinearityChecker(ast.NodeVisitor):
         if subscript := contains_subscript(place):
             if visit_setitem:
                 assert subscript.setitem_call is not None
-                for leaf in leaf_places(subscript.setitem_call.value_var):
-                    self.scope.assign(leaf)
+                self.scope.assign(subscript.setitem_call.value_var)
                 self.visit(subscript.setitem_call.call)
             self._reassign_single_inout_arg(
                 subscript.parent, node, visit_setitem=visit_setitem
             )
         else:
-            for leaf in leaf_places(place):
-                assert not isinstance(leaf, SubscriptAccess)
-                leaf = leaf.replace_defined_at(node)
-                self.scope.assign(leaf)
+            assert not isinstance(place, SubscriptAccess)
+            place = place.replace_defined_at(node)
+            self.scope.assign(place)
 
     def _call_name(self, node: AnyCall | None) -> str | None:
         """Tries to extract the name of a called function from a call AST node."""
@@ -545,8 +587,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     NonCopyableCaptureError.DefinedHere(var.defined_at)
                 )
                 raise GuppyError(err)
-            for place in leaf_places(var):
-                self.scope.use(place.id, use, UseKind.COPY)
+            self.scope.use(var, use, UseKind.COPY)
         self.scope.assign(Variable(node.name, node.ty, node))
 
     def _check_assign_targets(self, targets: list[ast.expr]) -> None:
@@ -579,7 +620,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                             err = PlaceNotUsedError(place.defined_at, place)
                             err.add_sub_diagnostic(PlaceNotUsedError.Fix(None))
                             raise GuppyError(err)
-                    self.scope.assign(tgt_place)
+                self.scope.assign(tgt.place)
 
     def _check_comprehension(
         self, gens: list[DesugaredGenerator], elt: ast.expr
@@ -650,14 +691,10 @@ class BBLinearityChecker(ast.NodeVisitor):
                     # borrow expires.
                     # Also mark this place as implicitly used so we don't complain about
                     # it later.
-                    for leaf in leaf_places(place):
-                        inner_scope.use(
-                            leaf.id, InoutReturnSentinel(leaf), UseKind.RETURN
-                        )
+                    inner_scope.use(place, InoutReturnSentinel(place), UseKind.RETURN)
 
             # Mark the iterator as used since it's carried into the next iteration
-            for leaf in leaf_places(gen.iter.place):
-                self.scope.use(leaf.id, gen.iter, UseKind.CONSUME)
+            self.scope.use(gen.iter.place, gen.iter, UseKind.CONSUME)
 
             # We have to make sure that all linear variables that were introduced in the
             # inner scope have been used
@@ -670,14 +707,17 @@ class BBLinearityChecker(ast.NodeVisitor):
         # On the other hand, we have to ensure that no linear places from the
         # outer scope have been used inside the comprehension (they would be used
         # multiple times since the comprehension body is executed repeatedly)
-        for x, use in inner_scope.used_parent.items():
-            place = inner_scope[x]
+        for use in inner_scope.used_parent.values():
+            place = use.origin_place
             # The only exception are values that are only borrowed from the outer
             # scope. These can be safely reassigned.
             if use.kind == UseKind.BORROW:
                 self._reassign_single_inout_arg(place, use.node)
             elif not place.ty.copyable:
                 raise GuppyTypeError(ComprAlreadyUsedError(use.node, place, use.kind))
+
+            # Also check if parents have been moved
+            check_mutable_parent_already_used(place, use, self.scope)
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
         # Linear usage of variables in a with statement
@@ -694,7 +734,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         #   body(q1, q2, ...)
         # ```
 
-        # check control
+        # Check control
         for ctrl in node.control:
             for arg in ctrl.ctrl:
                 if isinstance(arg, PlaceNode):
@@ -705,7 +745,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     unnamed_err.add_sub_diagnostic(UnnamedExprNotUsedError.Fix(None))
                     raise GuppyTypeError(unnamed_err)
 
-        # check power
+        # Check power
         for power in node.power:
             if isinstance(power.iter, PlaceNode):
                 self.visit_PlaceNode(
@@ -714,13 +754,13 @@ class BBLinearityChecker(ast.NodeVisitor):
             else:
                 self.visit(power.iter)
 
-        # check captured variables
+        # Check captured variables: we check that the modifier is not using
+        # consumed variables
         for var, use in node.captured.values():
+            use_kind = (
+                UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
+            )
             for place in leaf_places(var):
-                use_kind = (
-                    UseKind.BORROW if InputFlags.Inout in var.flags else UseKind.CONSUME
-                )
-
                 x = place.id
                 if (prev_use := self.scope.used(x)) and not place.ty.copyable:
                     used_err = AlreadyUsedError(use, place, use_kind)
@@ -730,7 +770,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(used_err)
-                self.scope.use(x, node, use_kind)
+            self.scope.use(var, node, use_kind)
 
         # reassign controls
         for ctrl in node.control:
@@ -752,9 +792,13 @@ def leaf_places(place: Place) -> Iterator[Place]:
     while stack:
         place = stack.pop()
         if isinstance(place.ty, StructType):
-            stack += [
-                FieldAccess(place, field, place.defined_at) for field in place.ty.fields
-            ]
+            if place.ty.fields:
+                stack += [
+                    FieldAccess(place, field, place.defined_at)
+                    for field in place.ty.fields
+                ]
+            else:
+                yield place
         elif isinstance(place.ty, TupleType):
             stack += [
                 TupleAccess(place, elem_ty, idx, None)
@@ -762,6 +806,46 @@ def leaf_places(place: Place) -> Iterator[Place]:
             ]
         else:
             yield place
+
+
+def parent_places(place: Place, /, include_self: bool = False) -> Iterator[Place]:
+    """Returns an iterator over all parents of the given place, optionally including the
+    given place itself."""
+    if include_self:
+        yield place
+    while not isinstance(place, Variable):
+        yield place.parent
+        place = place.parent
+
+
+def projections(place: Place, /, include_self: bool = True) -> Iterator[Place]:
+    """Returns an iterator over the tree of all possible descendant projections of the
+    given place.
+
+    Includes the given place itself by default.
+    """
+    if include_self:
+        yield place
+    stack = [place]
+    while stack:
+        place = stack.pop()
+        children = immediate_child_places(place)
+        yield from children
+        stack += children
+
+
+def immediate_child_places(place: Place) -> list[Place]:
+    """Returns a list of all immediate child projections of the given place."""
+    if isinstance(place.ty, StructType):
+        return [
+            FieldAccess(place, field, place.defined_at) for field in place.ty.fields
+        ]
+    elif isinstance(place.ty, TupleType):
+        return [
+            TupleAccess(place, elem_ty, idx, None)
+            for idx, elem_ty in enumerate(place.ty.element_types)
+        ]
+    return []
 
 
 def is_inout_var(place: Place) -> TypeGuard[Variable]:
@@ -834,6 +918,25 @@ def is_simple_literal_subscript(
     return (subscript, literal_idx)
 
 
+def check_mutable_parent_already_used(place: Place, use: Use, scope: Scope) -> None:
+    """Helper function to check uses of mutable projections.
+
+    If the given place is a projection of a mutable place, then we need to check that
+    the parent has not been moved. Note that this is independent of whether the
+    projection itself has an affine type.
+    """
+    for parent in parent_places(place, include_self=True):
+        match parent.ty:
+            case StructType(frozen=False):
+                if prev_use := scope.used(parent.id):
+                    err = ParentAlreadyUsedError(use.node, use.origin_place, use.kind)
+                    sub = ParentAlreadyUsedError.ParentUse(
+                        prev_use.node, parent, prev_use.kind
+                    )
+                    err.add_sub_diagnostic(sub)
+                    raise GuppyError(err)
+
+
 def check_cfg_linearity(
     cfg: "CheckedCFG[Variable]",
     func_name: str,
@@ -865,8 +968,7 @@ def check_cfg_linearity(
     exit_scope = scopes[cfg.exit_bb]
     for var in cfg.entry_bb.sig.input_row:
         if InputFlags.Inout in var.flags:
-            for leaf in leaf_places(var):
-                exit_scope.use(leaf.id, InoutReturnSentinel(var=var), UseKind.RETURN)
+            exit_scope.use(var, InoutReturnSentinel(var=var), UseKind.RETURN)
 
     # Edge case: If the exit is unreachable, then the function will never terminate, so
     # there is no need to give the borrowed values back to the caller. To ensure that
@@ -906,8 +1008,8 @@ def check_cfg_linearity(
             for x, use_bb in live.items():
                 use_scope = scopes[use_bb]
                 place = use_scope[x]
+                use = use_scope.used_parent[x]
                 if not place.ty.copyable and (prev_use := scope.used(x)):
-                    use = use_scope.used_parent[x]
                     # Special case if this is a use arising from the implicit returning
                     # of a borrowed argument
                     if isinstance(use.node, InoutReturnSentinel):
@@ -930,6 +1032,9 @@ def check_cfg_linearity(
                     if has_explicit_copy(place.ty):
                         err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(err)
+
+                # Also check if parents have been moved
+                check_mutable_parent_already_used(place, use, scope)
 
         # On the other hand, unused variables that are not droppable *must* be outputted
         for place in scope.values():

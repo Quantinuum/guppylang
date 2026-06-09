@@ -106,6 +106,7 @@ class GuppyStructKwargs(TypedDict, total=False):
     `@guppy.struct` decorator.
     """
 
+    frozen: bool
     link_name: str
 
 
@@ -250,6 +251,7 @@ class _Guppy:
                 cls.__name__,
                 None,
                 cls,
+                frozen=kwargs.pop("frozen", False),  # Mutable by default
                 link_name=kwargs.pop("link_name", None),
             )
             frame = get_calling_frame()

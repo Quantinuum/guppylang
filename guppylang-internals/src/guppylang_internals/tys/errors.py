@@ -187,40 +187,34 @@ class FlagNotAllowedError(Error):
 @dataclass(frozen=True)
 class UnitaryCallError(Error):
     title: ClassVar[str] = "{capitalized_render_flags} constraint violation"
-    span_label: ClassVar[str] = (
-        "This function cannot be called in a {render_flags} context"
-    )
+    span_label: ClassVar[str] = "This function cannot be called in a {flags} context"
     flags: "UnitaryFlags"
 
     @property
-    def render_flags(self) -> str:
-        from guppylang_internals.tys.ty import UnitaryFlags
-
-        match self.flags:
-            case UnitaryFlags.Dagger:
-                return "dagger"
-            case UnitaryFlags.Control:
-                return "control"
-            case UnitaryFlags.NoFlags:
-                raise AssertionError("Expected a non-empty unitary flag")
-            case _:
-                return "unitary"
+    def rendered_flags(self) -> str:
+        return self.flags.render_flags(False)
 
     @property
     def capitalized_render_flags(self) -> str:
-        return self.render_flags.capitalize()
+        return str(self.flags).capitalize()
+
+    @property
+    def hint_rendering(self) -> str:
+        """We check which flag are we missing. If we miss more than one, we just say
+        `unitary=True`"""
+        return self.flags.hint_rendering(False)
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
-            "The function allocates qubits,"
-            " which is not allowed in a {render_flags} context"
+            "The function allocates qubits, which is not allowed in a "
+            "{rendered_flags} context"
         )
 
     @dataclass(frozen=True)
     class Hint(Help):
         func_name: str
         message: ClassVar[str] = (
-            "Consider adding the flag `({render_flags}=True)` to the decorator of "
+            "Consider adding the flag `({hint_rendering})` to the decorator of "
             "the function `{func_name}`"
         )
