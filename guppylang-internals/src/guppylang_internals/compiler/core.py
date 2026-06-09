@@ -296,6 +296,15 @@ class DFBuilder(ABC, ToNode):
         finally:
             self.current_ast_node = prev_node
 
+    def define_function(
+        self, name: str, input_types: ht.TypeRow, output_types: ht.TypeRow
+    ) -> hf.Function:
+        return self.raw_builder.module_root_builder().define_function(
+            name,
+            input_types,
+            output_types,
+        )
+
     def to_node(self) -> Node:
         return self.raw_builder.to_node()
 
