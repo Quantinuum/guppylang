@@ -5,7 +5,7 @@ from guppylang.std.builtins import dagger, power
 
 
 
-@guppy.declare(dagger=True)
+@guppy.declare(daggerable=True)
 def discard(q: qubit @ owned) -> None: ...
 
 

@@ -187,12 +187,20 @@ class FlagNotAllowedError(Error):
 @dataclass(frozen=True)
 class UnitaryCallError(Error):
     title: ClassVar[str] = "{capitalized_render_flags} constraint violation"
-    span_label: ClassVar[str] = "This function cannot be called in a {flags} context"
+    span_label: ClassVar[str] = (
+        "This function cannot be called in a {flag_names} context"
+    )
     flags: "UnitaryFlags"
 
     @property
     def capitalized_render_flags(self) -> str:
-        return str(self.flags).capitalize()
+        name = self.flags.name
+        assert name
+        return name.capitalize()
+
+    @property
+    def flag_names(self) -> str:
+        return self.flags.flag_name()
 
     @property
     def hint_rendering(self) -> str:
@@ -203,7 +211,8 @@ class UnitaryCallError(Error):
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
-            "The function allocates qubits, which is not allowed in a {flags} context"
+            "The function allocates qubits, which is not allowed in a"
+            " {flag_names} context"
         )
 
     @dataclass(frozen=True)

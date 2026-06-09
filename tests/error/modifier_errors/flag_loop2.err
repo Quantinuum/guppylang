@@ -1,6 +1,6 @@
 Error: Invalid expression in dagger (at $FILE:6:4)
   | 
-4 | @guppy(dagger=True, control=True)
+4 | @guppy(daggerable=True, controllable=True)
 5 | def test(i: int) -> None:
 6 |     while i < 46:
   |     ^^^^^^^^^^^^^

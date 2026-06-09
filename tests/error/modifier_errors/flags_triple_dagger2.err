@@ -3,9 +3,9 @@ Error: Dagger constraint violation (at $FILE:18:16)
 16 |         with power(2), dagger:
 17 |             with control(c2), dagger:
 18 |                 foo(q)
-   |                 ^^^^^^ This function cannot be called in a dagger context
+   |                 ^^^^^^ This function cannot be called in a daggerable context
 
-Help: Consider adding the flag `(dagger=True)` to the decorator of the function
-`foo`
+Help: Consider adding the flag `(daggerable=True)` to the decorator of the
+function `foo`
 
 Guppy compilation failed due to 1 previous error

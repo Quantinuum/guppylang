@@ -206,7 +206,7 @@ def _arg_from_instantiated_defn(
         # Special cases for the `Callable` type
         case CallableTypeDef(flags=flags):
             if flags != UnitaryFlags.NoFlags:
-                check_unitary_callable_enabled(flags.callable_name(), node)
+                check_unitary_callable_enabled(flags.flag_name().capitalize(), node)
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flags=flags))
         case SelfTypeDef():
             return TypeArg(_parse_self_type(arg_nodes, node, ctx))

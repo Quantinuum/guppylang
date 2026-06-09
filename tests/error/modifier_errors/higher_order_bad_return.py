@@ -3,7 +3,7 @@ from guppylang.std.builtins import Controllable, Unitary
 from guppylang.std.quantum import h
 
 
-@guppy(dagger=True)
+@guppy(daggerable=True)
 def dagger_only(q: qubit) -> None:
     pass
 
