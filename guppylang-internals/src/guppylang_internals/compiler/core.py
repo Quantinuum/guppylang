@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from types import TracebackType
 from typing import Generic, TypeVar
 
 import tket_exts
@@ -17,7 +18,7 @@ from hugr.metadata import HugrDebugInfo
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
-from typing_extensions import override
+from typing_extensions import Self, override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import (
@@ -383,8 +384,8 @@ class DFBuilder(ABC, ToNode):
     def get_wire_type(self, wire: Wire) -> ht.Type | None:
         return self._raw.hugr.port_type(wire.out_port())
 
-    def add_conditional(self, cond_wire: Wire, *args: Wire) -> Conditional:
-        return self._raw.add_conditional(cond_wire, *args)
+    def add_conditional(self, cond_wire: Wire, *args: Wire) -> "CondBuilder":
+        return CondBuilder(self._raw.add_conditional(cond_wire, *args), self)
 
     def add_cfg(self, *args: Wire) -> Cfg:
         return self._raw.add_cfg(*args)
@@ -456,6 +457,33 @@ class CaseBuilder(_DFBuilderRaw[Case]):
         # No need to do anything in the Conditional,
         # but the Conditional itself needs to be ordered inside its parent
         self.grandparent._handle_side_effects(self.parent)
+
+
+@dataclass
+class CondBuilder(ToNode):
+    conditional: Conditional
+    parent: DFBuilder
+
+    def add_case(self, case_id: int) -> CaseBuilder:
+        return CaseBuilder(
+            self.conditional.add_case(case_id), self.conditional, self.parent
+        )
+
+    def to_node(self) -> Node:
+        return self.conditional.to_node()
+
+    def __enter__(self) -> Self:
+        c = self.conditional.__enter__()
+        assert c is self.conditional
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.conditional.__exit__(exc_type, exc_val, exc_tb)
 
 
 @dataclass

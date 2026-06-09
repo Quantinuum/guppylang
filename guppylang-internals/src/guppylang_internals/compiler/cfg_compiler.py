@@ -16,7 +16,6 @@ from guppylang_internals.checker.cfg_checker import (
 from guppylang_internals.checker.core import Place, Variable
 from guppylang_internals.compiler.core import (
     BlockBuilder,
-    CaseBuilder,
     CompilerContext,
     DFBuilder,
     DFContainer,
@@ -213,11 +212,10 @@ def choose_vars_for_tuple_sum(
 
     with dfg.builder.add_conditional(unit_sum, *all_vars_wires) as conditional:
         for i, var_row in enumerate(output_vars):
-            with conditional.add_case(i) as case:
-                case = CaseBuilder(case, conditional, dfg.builder)
-                outputs = [case.inputs()[all_vars_idxs[v.id]] for v in var_row]
-                tag = case.add_op(ops.Tag(i, sum_type), *outputs)
-                case.set_outputs(tag)
+            case = conditional.add_case(i)
+            outputs = [case.inputs()[all_vars_idxs[v.id]] for v in var_row]
+            tag = case.add_op(ops.Tag(i, sum_type), *outputs)
+            case.set_outputs(tag)
         return conditional
 
 

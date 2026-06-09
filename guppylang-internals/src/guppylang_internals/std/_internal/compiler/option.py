@@ -3,7 +3,6 @@ from abc import ABC
 from hugr import Wire, ops
 from hugr import tys as ht
 
-from guppylang_internals.compiler.core import CaseBuilder
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -54,11 +53,10 @@ class OptionTestCompiler(OptionCompiler):
         [opt] = args
         cond = self.builder.add_conditional(opt)
         for i in [0, 1]:
-            with cond.add_case(i) as case:
-                case = CaseBuilder(case, cond, self.builder)
-                val = OPAQUE_TRUE if i == self.tag else OPAQUE_FALSE
-                opt = case.add_op(ops.Tag(i, self.option_ty), *case.inputs())
-                case.set_outputs(case.load(val), opt)
+            case = cond.add_case(i)
+            val = OPAQUE_TRUE if i == self.tag else OPAQUE_FALSE
+            opt = case.add_op(ops.Tag(i, self.option_ty), *case.inputs())
+            case.set_outputs(case.load(val), opt)
         [res, opt] = cond.outputs()
         return CallReturnWires(regular_returns=[res], inout_returns=[opt])
 

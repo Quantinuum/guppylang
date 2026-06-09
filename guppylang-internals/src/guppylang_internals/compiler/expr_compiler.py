@@ -13,7 +13,6 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 from hugr.build import function as hf
-from hugr.build.cond_loop import Conditional
 
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -21,9 +20,9 @@ from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
-    CaseBuilder,
     CompilerBase,
     CompilerContext,
+    CondBuilder,
     DFBuilder,
     DFContainer,
     FunctionBuilder,
@@ -194,15 +193,14 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         self,
         inputs: list[PlaceNode],
         outputs: list[PlaceNode],
-        conditional: Conditional,
+        conditional: CondBuilder,
         case_id: int,
     ) -> Iterator[None]:
         """Context manager to build a graph inside a new `Case` node.
 
         Automatically adds the `Output` node once the context manager exits.
         """
-        # TODO: `Case` is `_DfgBase`, but not `Dfg`?
-        case = CaseBuilder(conditional.add_case(case_id), conditional, self.builder)
+        case = conditional.add_case(case_id)
         with self._new_dfcontainer(inputs, case):
             yield
             case.set_outputs(*(self.visit(name) for name in outputs))
