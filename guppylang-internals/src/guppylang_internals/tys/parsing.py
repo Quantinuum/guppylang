@@ -35,7 +35,7 @@ from guppylang_internals.tys.errors import (
     FreeTypeVarError,
     FunctionTypeComptimeError,
     HigherKindedTypeVarError,
-    IllegalComptimeTypeArgError,
+    IllegalPythonTypeArgError,
     InvalidFlagError,
     InvalidFunctionTypeError,
     InvalidTypeArgError,
@@ -173,7 +173,7 @@ def check_comptime_value(v: Any, node: AstNode) -> Argument:
         nat_ty = NumericType(NumericType.Kind.Nat)
         return ConstArg(ConstValue(nat_ty, v))
     else:
-        raise GuppyError(IllegalComptimeTypeArgError(node, v))
+        raise GuppyError(IllegalPythonTypeArgError(node, v))
 
 
 def try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
