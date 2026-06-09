@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar, override
+from typing import Generic, TypeVar
 
 import tket_exts
 from hugr import Hugr, Node, Wire, ops, val
@@ -17,6 +17,7 @@ from hugr.metadata import HugrDebugInfo
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
+from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import (
