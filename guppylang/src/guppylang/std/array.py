@@ -258,7 +258,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         return [*args]
 
 
-@guppy.struct(frozen=True)
+@guppy.struct
 class ArrayIter(Generic[L, n]):
     """Iterator over arrays."""
 
@@ -268,11 +268,12 @@ class ArrayIter(Generic[L, n]):
     @guppy
     @no_type_check
     def __next__(
-        self: ArrayIter[L, n] @ owned,
-    ) -> Option[tuple[L, ArrayIter[L, n]]]:
+        self: Self @ owned,
+    ) -> Option[tuple[L, Self]]:
         if self._i < int(n):
             elem = self._xs.take(self._i)
-            return some((elem, ArrayIter(self._xs, self._i + 1)))
+            self._i += 1
+            return some((elem, self))
         self._xs.discard_all_taken()
         return nothing()
 
@@ -325,7 +326,7 @@ class frozenarray(Generic[T, n]):
         return array(x for x in self)
 
 
-@guppy.struct(frozen=True)
+@guppy.struct
 class FrozenarrayIter(Generic[T, n]):
     """Iterator for frozenarrays."""
 
@@ -335,8 +336,10 @@ class FrozenarrayIter(Generic[T, n]):
     @guppy
     @no_type_check
     def __next__(
-        self: FrozenarrayIter[T, n],
-    ) -> Option[tuple[T, FrozenarrayIter[T, n]]]:
+        self: Self @ owned,
+    ) -> Option[tuple[T, Self]]:
         if self._i < int(n):
-            return some((self._xs[self._i], FrozenarrayIter(self._xs, self._i + 1)))
+            elem = self._xs[self._i]
+            self._i += 1
+            return some((elem, self))
         return nothing()
