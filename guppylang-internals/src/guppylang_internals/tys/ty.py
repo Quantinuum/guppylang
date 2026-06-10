@@ -426,10 +426,10 @@ class UnitaryFlags(Flag):
                 return "daggerable"
             case UnitaryFlags.Control:
                 return "controllable"
-            case UnitaryFlags.NoFlags:
-                raise AssertionError("Expected a non-empty unitary flag")
             case UnitaryFlags.Unitary:
                 return "unitary"
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
             case _:
                 assert_never(self)
 
