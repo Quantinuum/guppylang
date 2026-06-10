@@ -107,21 +107,30 @@ class BBUnitaryChecker(ast.NodeVisitor):
         if not classic_args and not flag_ok:
             from guppylang_internals.definition.custom import CustomFunctionDef
 
-            # We want the hint only for non-custom functions, since for custom
-            # functions are usually quantum operations, such as gates or
-            # measurement
+            # We want the hint only for non-custom functions, since custom
+            # functions are usually quantum operations (e.g. gates or measurement)
             if isinstance(func, CustomFunctionDef):
-                err = UnitaryCallError(node, self.flags & (~ty.unitary_flags), True)
+                err = UnitaryCallError(
+                    node,
+                    self.flags & (~ty.unitary_flags),
+                    missing_keyword_hint=True,
+                )
             else:
                 if func is not None:
                     err = UnitaryCallError(
-                        node, self.flags & (~ty.unitary_flags), False
+                        node,
+                        self.flags & (~ty.unitary_flags),
+                        missing_keyword_hint=False,
                     )
                     err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
                 else:
                     # If func is None, we are checking a higher-order call
                     missing_flags = self.flags & (~ty.unitary_flags)
-                    err = UnitaryCallError(node, missing_flags, False)
+                    err = UnitaryCallError(
+                        node,
+                        missing_flags,
+                        missing_keyword_hint=False,
+                    )
                     err.add_sub_diagnostic(
                         UnitaryCallError.HigherOrderHint(
                             None,
@@ -135,7 +144,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
         # If we are under any modifier, we cannot allocate qubits
         if contain_qubit_ty(ty.output) and self.flags != UnitaryFlags.NoFlags:
-            err = UnitaryCallError(node, self.flags, False)
+            err = UnitaryCallError(node, self.flags, missing_keyword_hint=False)
             err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
             raise GuppyError(err)
 

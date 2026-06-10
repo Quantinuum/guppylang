@@ -192,7 +192,7 @@ class UnitaryCallError(Error):
         "{continue_span_label}"
     )
     flags: "UnitaryFlags"
-    not_hint_label: bool
+    missing_keyword_hint: bool
 
     @property
     def capitalized_render_flags(self) -> str:
@@ -205,7 +205,7 @@ class UnitaryCallError(Error):
 
     @property
     def continue_span_label(self) -> str:
-        if self.not_hint_label:
+        if self.missing_keyword_hint:
             return f" because it is not {self.context_description} itself"
         else:
             return ""
@@ -239,7 +239,7 @@ class UnitaryCallError(Error):
     class HigherOrderHint(Help):
         message: ClassVar[str] = (
             "To be able to use a {function_description} function in a "
-            "{context_description} context, you have to declare it as {callable_name}"
+            "{context_description} context, you have to declare it as `{callable_name}`"
         )
         callable_name: str
         function_description: str
