@@ -262,18 +262,18 @@ class array(builtins.list[_T], Generic[_T, _n]):
 class ArrayIter(Generic[L, n]):
     """Iterator over arrays."""
 
-    xs: array[L, n]
-    i: int
+    _xs: array[L, n]
+    _i: int
 
     @guppy
     @no_type_check
     def __next__(
         self: ArrayIter[L, n] @ owned,
     ) -> Option[tuple[L, ArrayIter[L, n]]]:
-        if self.i < int(n):
-            elem = self.xs.take(self.i)
-            return some((elem, ArrayIter(self.xs, self.i + 1)))
-        self.xs.discard_all_taken()
+        if self._i < int(n):
+            elem = self._xs.take(self._i)
+            return some((elem, ArrayIter(self._xs, self._i + 1)))
+        self._xs.discard_all_taken()
         return nothing()
 
 
@@ -329,14 +329,14 @@ class frozenarray(Generic[T, n]):
 class FrozenarrayIter(Generic[T, n]):
     """Iterator for frozenarrays."""
 
-    xs: frozenarray[T, n]  # type: ignore[type-arg]
-    i: int
+    _xs: frozenarray[T, n]  # type: ignore[type-arg]
+    _i: int
 
     @guppy
     @no_type_check
     def __next__(
         self: FrozenarrayIter[T, n],
     ) -> Option[tuple[T, FrozenarrayIter[T, n]]]:
-        if self.i < int(n):
-            return some((self.xs[self.i], FrozenarrayIter(self.xs, self.i + 1)))
+        if self._i < int(n):
+            return some((self.xs[self._i], FrozenarrayIter(self.xs, self._i + 1)))
         return nothing()
