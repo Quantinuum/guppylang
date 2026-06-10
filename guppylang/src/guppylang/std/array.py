@@ -338,5 +338,5 @@ class FrozenarrayIter(Generic[T, n]):
         self: FrozenarrayIter[T, n],
     ) -> Option[tuple[T, FrozenarrayIter[T, n]]]:
         if self._i < int(n):
-            return some((self.xs[self._i], FrozenarrayIter(self.xs, self._i + 1)))
+            return some((self._xs[self._i], FrozenarrayIter(self._xs, self._i + 1)))
         return nothing()
