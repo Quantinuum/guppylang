@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, TypeVar
 
@@ -126,9 +125,7 @@ def build_unwrap_either(
 
     case = conditional.add_case(panic_case_num)
     error = build_static_error(case, error_signal, error_msg)
-    with ExitStack() as es:
-        if builder.current_ast_node is not None:
-            es.enter_context(case.set_ast_context(builder.current_ast_node))
+    with case.set_ast_context(builder.current_ast_node):
         case.set_outputs(
             *build_panic(
                 case,

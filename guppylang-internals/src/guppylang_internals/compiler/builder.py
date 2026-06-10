@@ -40,7 +40,7 @@ class DFBuilder(ABC, ToNode):
         """The underlying Hugr dataflow graph builder."""
 
     @contextmanager
-    def set_ast_context(self, ast_node: AstNode) -> Iterator[None]:
+    def set_ast_context(self, ast_node: AstNode | None) -> Iterator[None]:
         """Context manager to set the current AST node context for debug information
         attachment - within the context of this manager the given `ast_node` will be
         considered the most relevant AST node for any operation added, temporarily
