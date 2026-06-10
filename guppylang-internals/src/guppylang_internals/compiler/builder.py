@@ -27,7 +27,9 @@ class DFBuilder(ABC, ToNode):
     additional actions can be performed every time an operation is added to the graph.
 
     Manages attaching debug information, which requires keeping track of the most
-    relevant AST node for each operation being compiled with `current_ast_node`.
+    relevant AST node for each operation being compiled with `current_ast_node`,
+    and also manages adding Order edges for side-effecting operations, including
+    propagating side-effect-ness to parent builders (e.g. TailLoop, Conditional).
     """
 
     current_ast_node: AstNode | None = field(default=None, kw_only=True)
