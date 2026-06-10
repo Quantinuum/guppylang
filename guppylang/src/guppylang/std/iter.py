@@ -49,9 +49,9 @@ class SizedIter:
 
 @guppy.struct(frozen=True)
 class Range:
-    next: int
-    stop: int
-    step: int
+    _next: int
+    _stop: int
+    _step: int
 
     @guppy
     def __iter__(self: Range) -> Range:
@@ -60,10 +60,16 @@ class Range:
     @guppy
     @no_type_check
     def __next__(self: Range) -> Option[tuple[int, Range]]:
-        end = (self.next >= self.stop) if self.step >= 0 else (self.next <= self.stop)
+        end = (
+            (self._next >= self._stop)
+            if self._step >= 0
+            else (self._next <= self._stop)
+        )
         if end:
             return nothing()
-        return some((self.next, Range(self.next + self.step, self.stop, self.step)))
+        return some(
+            (self._next, Range(self._next + self._step, self._stop, self._step))
+        )
 
 
 @guppy
