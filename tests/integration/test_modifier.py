@@ -248,7 +248,8 @@ def test_free_copyable_variable_in_modifier(validate):
 
 
 def test_nested_dagger_power(validate):
-    """Nested dagger+power: function supporting both flags is valid."""
+    """Nested dagger+power: daggerable/unitary functions are valid
+    (power adds no unitary flag)."""
 
     @guppy(daggerable=True)
     def foo_d(q: qubit) -> None:
@@ -290,7 +291,8 @@ def test_nested_control_dagger(validate):
 
 
 def test_nested_power_control(validate):
-    """Nested power+control: function supporting both flags is valid."""
+    """Nested power+control: controllable/unitary functions are valid
+    (power adds no unitary flag)."""
 
     @guppy(controllable=True)
     def foo_c(q: qubit) -> None:
