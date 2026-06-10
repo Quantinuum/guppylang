@@ -1,11 +1,27 @@
+from typing import TYPE_CHECKING
+
 from hugr import Wire
 from hugr import tys as ht
 
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.hugr_extension import PartialOp
 from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef
+
+if TYPE_CHECKING:
+    from guppylang_internals.definition.function import CheckedFunctionDef
+
+
+def compile_global_func_def(
+    func: "CheckedFunctionDef",
+    builder: FunctionBuilder,
+    ctx: CompilerContext,
+) -> None:
+    """Compiles a top-level function definition to Hugr."""
+    cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
+    builder.set_outputs(*cfg)
 
 
 def compile_local_func_def(

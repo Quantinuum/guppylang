@@ -1,7 +1,7 @@
 import ast
 import inspect
 from collections.abc import Callable, Sequence
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from hugr import Node, Wire
@@ -28,11 +28,11 @@ from guppylang_internals.checker.func_checker import (
     parse_function_with_docstring,
 )
 from guppylang_internals.compiler.builder import FunctionBuilder
-from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
 )
+from guppylang_internals.compiler.func_compiler import compile_global_func_def
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
@@ -294,16 +294,12 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
                    should use `hugr_node`
     """
 
-    func_bldr: InitVar[FunctionBuilder] = field(default=None)
-    _bldr_node: FunctionBuilder | Node = field(init=False)
-
-    def __post_init__(self, func_bldr: FunctionBuilder) -> None:
-        object.__setattr__(self, "_bldr_node", func_bldr)
+    _func_bldr: FunctionBuilder
 
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
-        return self._bldr_node.to_node()
+        return self._func_bldr.to_node()
 
     @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
@@ -324,11 +320,7 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
     @override
     def compile_inner(self, globals: CompilerContext) -> None:
         """Compiles the body of the function."""
-        assert isinstance(self._bldr_node, FunctionBuilder)
-        cfg = compile_cfg(self.cfg, self._bldr_node, self._bldr_node.inputs(), globals)
-        object.__setattr__(
-            self, "_bldr_node", self._bldr_node.set_outputs(*cfg).to_node()
-        )
+        compile_global_func_def(self, self._func_bldr, globals)
 
 
 def load(dfg: DFContainer, func: ToNode) -> Wire:
