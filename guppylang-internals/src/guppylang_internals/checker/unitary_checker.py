@@ -105,20 +105,37 @@ class BBUnitaryChecker(ast.NodeVisitor):
         classic_args = self._check_classical_args(node.args)
         flag_ok = self.flags in ty.unitary_flags
         if not classic_args and not flag_ok:
-            err = UnitaryCallError(node, self.flags & (~ty.unitary_flags))
-            if func is not None:
-                from guppylang_internals.definition.custom import CustomFunctionDef
+            from guppylang_internals.definition.custom import CustomFunctionDef
 
-                if not isinstance(func, CustomFunctionDef):
-                    # We want the hint only for non-custom functions, since for custom
-                    # functions are usually quantum operations, such as gates or
-                    # measurement
+            # We want the hint only for non-custom functions, since for custom
+            # functions are usually quantum operations, such as gates or
+            # measurement
+            if isinstance(func, CustomFunctionDef):
+                err = UnitaryCallError(node, self.flags & (~ty.unitary_flags), True)
+            else:
+                if func is not None:
+                    err = UnitaryCallError(
+                        node, self.flags & (~ty.unitary_flags), False
+                    )
                     err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
+                else:
+                    # If func is None, we are checking a higher-order call
+                    missing_flags = self.flags & (~ty.unitary_flags)
+                    err = UnitaryCallError(node, missing_flags, False)
+                    err.add_sub_diagnostic(
+                        UnitaryCallError.HigherOrderHint(
+                            None,
+                            missing_flags.callable_name(),
+                            "higher-order"
+                            if ty.unitary_flags == UnitaryFlags.NoFlags
+                            else ty.unitary_flags.callable_name(),
+                        )
+                    )
             raise GuppyTypeError(err)
 
         # If we are under any modifier, we cannot allocate qubits
         if contain_qubit_ty(ty.output) and self.flags != UnitaryFlags.NoFlags:
-            err = UnitaryCallError(node, self.flags)
+            err = UnitaryCallError(node, self.flags, False)
             err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
             raise GuppyError(err)
 

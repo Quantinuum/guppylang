@@ -188,19 +188,31 @@ class FlagNotAllowedError(Error):
 class UnitaryCallError(Error):
     title: ClassVar[str] = "{capitalized_render_flags} constraint violation"
     span_label: ClassVar[str] = (
-        "This function cannot be called in a {flag_names} context"
+        "This function cannot be called in a {context_description} context"
+        "{continue_span_label}"
     )
     flags: "UnitaryFlags"
+    not_hint_label: bool
 
     @property
     def capitalized_render_flags(self) -> str:
+        from guppylang_internals.tys.ty import UnitaryFlags
+
         name = self.flags.name
-        assert name
+        assert self.flags != UnitaryFlags.NoFlags
+        assert name is not None
         return name.capitalize()
 
     @property
-    def flag_names(self) -> str:
-        return self.flags.flag_name()
+    def continue_span_label(self) -> str:
+        if self.not_hint_label:
+            return f" because it is not {self.context_description} itself"
+        else:
+            return ""
+
+    @property
+    def context_description(self) -> str:
+        return self.flags.context()
 
     @property
     def hint_rendering(self) -> str:
@@ -212,7 +224,7 @@ class UnitaryCallError(Error):
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
             "The function allocates qubits, which is not allowed in a"
-            " {flag_names} context"
+            " {context_description} context"
         )
 
     @dataclass(frozen=True)
@@ -222,3 +234,12 @@ class UnitaryCallError(Error):
             "Consider adding the flag `({hint_rendering})` to the decorator of "
             "the function `{func_name}`"
         )
+
+    @dataclass(frozen=True)
+    class HigherOrderHint(Help):
+        message: ClassVar[str] = (
+            "To be able to use a {function_description} function in a "
+            "{context_description} context, you have to declare it as {callable_name}"
+        )
+        callable_name: str
+        function_description: str

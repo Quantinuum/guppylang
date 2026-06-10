@@ -3,7 +3,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
 
 import hugr.std.float
 import hugr.std.int
@@ -419,8 +419,8 @@ class UnitaryFlags(Flag):
             result &= ~UnitaryFlags.Dagger
         return result
 
-    def flag_name(self) -> str:
-        """Returns the corresponding decorator keyword for this flag."""
+    def context(self) -> str:
+        """Returns a description of the contexts allowed by this flag."""
         match self:
             case UnitaryFlags.Dagger:
                 return "daggerable"
@@ -430,6 +430,27 @@ class UnitaryFlags(Flag):
                 return "unitary"
             case UnitaryFlags.NoFlags:
                 raise AssertionError("Expected a non-empty unitary flag")
+            case _:
+                assert_never(self)
+
+    def callable_name(
+        self,
+    ) -> Literal[
+        "Callable",
+        "Unitary",
+        "Daggerable",
+        "Controllable",
+    ]:
+        """Returns the name of the corresponding Callable variant for this flag."""
+        match self:
+            case UnitaryFlags.NoFlags:
+                return "Callable"
+            case UnitaryFlags.Unitary:
+                return "Unitary"
+            case UnitaryFlags.Dagger:
+                return "Daggerable"
+            case UnitaryFlags.Control:
+                return "Controllable"
             case _:
                 assert_never(self)
 
