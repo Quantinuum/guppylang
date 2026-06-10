@@ -6,8 +6,6 @@ from guppylang.std.iter import Range, SizedIter, range
 from guppylang.std.lang import (
     Controllable,
     Daggerable,
-    Powerable,
-    PowerControllable,
     Unitary,
     comptime,
     control,
@@ -185,8 +183,6 @@ __all__ = (  # noqa: RUF022
     "Unitary",
     "Controllable",
     "Daggerable",
-    "Powerable",
-    "PowerControllable",
     # TODO: Remove the following from prelude
     "ArrayIter",  # Deprecated reexport
     "barrier",  # Deprecated reexport

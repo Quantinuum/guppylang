@@ -82,19 +82,7 @@ class Daggerable(Generic[P, R]):
         def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
-class Powerable(Generic[P, R]):
-    if TYPE_CHECKING:
-
-        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
-
-
 class Controllable(Generic[P, R]):
-    if TYPE_CHECKING:
-
-        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
-
-
-class PowerControllable(Generic[P, R]):
     if TYPE_CHECKING:
 
         def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...

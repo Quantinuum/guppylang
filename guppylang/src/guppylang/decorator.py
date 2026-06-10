@@ -94,9 +94,8 @@ class GuppyKwargs(TypedDict, total=False):
     """
 
     unitary: bool
-    control: bool
-    dagger: bool
-    power: bool
+    controllable: bool
+    daggerable: bool
     max_qubits: int
     link_name: str
 
@@ -838,12 +837,10 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     flags = UnitaryFlags.NoFlags
     if kwargs.pop("unitary", False):
         flags |= UnitaryFlags.Unitary
-    if kwargs.pop("control", False):
+    if kwargs.pop("controllable", False):
         flags |= UnitaryFlags.Control
-    if kwargs.pop("dagger", False):
+    if kwargs.pop("daggerable", False):
         flags |= UnitaryFlags.Dagger
-    if kwargs.pop("power", False):
-        flags |= UnitaryFlags.Power
 
     metadata = FunctionMetadata()
     if "max_qubits" in kwargs:

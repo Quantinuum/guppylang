@@ -4,7 +4,7 @@ from guppylang.std.qsystem import measure
 from guppylang.std.quantum import qubit
 
 
-@guppy(dagger=True)
+@guppy(daggerable=True)
 def test(x: qubit @owned) -> None:
     measure(x)
 
