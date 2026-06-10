@@ -420,7 +420,7 @@ class UnitaryFlags(Flag):
         return result
 
     def flag_name(self) -> str:
-        """Returns the name of the corresponding to the flag in the decorator."""
+        """Returns the corresponding decorator keyword for this flag."""
         match self:
             case UnitaryFlags.Dagger:
                 return "daggerable"
