@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, no_type_check
+from typing import TYPE_CHECKING, Any, Self, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import NoopCompiler
@@ -54,12 +54,12 @@ class Range:
     _step: int
 
     @guppy
-    def __iter__(self: Range) -> Range:
+    def __iter__(self: Self) -> Self:
         return self
 
     @guppy
     @no_type_check
-    def __next__(self: Range) -> Option[tuple[int, Range]]:
+    def __next__(self: Self) -> Option[tuple[int, Self]]:
         end = (
             (self._next >= self._stop)
             if self._step >= 0
