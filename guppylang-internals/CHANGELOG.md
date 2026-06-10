@@ -3,6 +3,32 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0.0-a3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a2...guppylang-internals-v1.0.0-a3) (2026-06-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove `power` flags and rename flag `dagger` to `daggerable` and `control` to `controllable` ([#1838](https://github.com/Quantinuum/guppylang/issues/1838))
+* Remove vacuous pytket extra from distributions ([#1836](https://github.com/Quantinuum/guppylang/issues/1836))
+* Experimental features should only be enabled globally ([#1825](https://github.com/Quantinuum/guppylang/issues/1825))
+* Error handling for outside use of variables scoped to modifier blocks ([#1712](https://github.com/Quantinuum/guppylang/issues/1712))
+
+### Features
+
+* Error handling for outside use of variables scoped to modifier blocks ([#1712](https://github.com/Quantinuum/guppylang/issues/1712)) ([cab8077](https://github.com/Quantinuum/guppylang/commit/cab8077732493ce120a8656b970af182e708bfac))
+
+
+### Bug Fixes
+
+* Allow check on generic functions that do not require monomorphisation ([#1666](https://github.com/Quantinuum/guppylang/issues/1666)) ([126124b](https://github.com/Quantinuum/guppylang/commit/126124bfdc8a566cc84d7727c472dc336380ed19))
+
+
+### Code Refactoring
+
+* Experimental features should only be enabled globally ([#1825](https://github.com/Quantinuum/guppylang/issues/1825)) ([5f01c7d](https://github.com/Quantinuum/guppylang/commit/5f01c7d6d2303bf3812496f8e91d20696b60e088))
+* Remove `power` flags and rename flag `dagger` to `daggerable` and `control` to `controllable` ([#1838](https://github.com/Quantinuum/guppylang/issues/1838)) ([e903bdb](https://github.com/Quantinuum/guppylang/commit/e903bdbafbe252bde224ea1c483e10180e265bfb))
+* Remove vacuous pytket extra from distributions ([#1836](https://github.com/Quantinuum/guppylang/issues/1836)) ([1fcb41f](https://github.com/Quantinuum/guppylang/commit/1fcb41fae1c8532cc624e648890badf8631c2159))
+
 ## [1.0.0-a2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a1...guppylang-internals-v1.0.0-a2) (2026-06-08)
 
 
