@@ -95,7 +95,7 @@ def main() -> None:
     if not args.skip_compile:
         compile_examples(paths)
 
-    results = run_hugrs(paths, args.n_qubits)
+    results = run_hugrs(sorted(EXAMPLES_DIR.glob("*.hugr")), args.n_qubits)
     SUMMARY_PATH.write_text("\n-----\n".join(results) + "\n")
 
 

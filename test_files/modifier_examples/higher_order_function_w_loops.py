@@ -24,7 +24,7 @@ def apply_r(f: Unitary[[qubit, angle], None], q: array[qubit, 2], angle: angle) 
     f(q[1], angle)
 
 
-@guppy(control=True)
+@guppy(controllable=True)
 def apply_c(
     f: Controllable[[qubit], None], g: Unitary[[qubit, angle], None], q: qubit, b: bool
 ) -> None:

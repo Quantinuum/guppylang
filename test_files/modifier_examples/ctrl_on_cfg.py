@@ -17,12 +17,12 @@ from guppylang.experimental import enable_experimental_features
 enable_experimental_features()
 
 
-@guppy(control=True)
+@guppy(controllable=True)
 def funz(t: qubit, a: angle) -> None:
     rz(t, a)
 
 
-@guppy(control=True)
+@guppy(controllable=True)
 def branchy(q: qubit, flag: bool) -> None:
     if flag:
         x(q)

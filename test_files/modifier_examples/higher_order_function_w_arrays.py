@@ -22,7 +22,7 @@ def apply_2qubit_gate(f: Unitary[[qubit, qubit], None], q: array[qubit, 3]) -> N
     f(q[1], q[2])
 
 
-@guppy(dagger=True, control=True)
+@guppy(daggerable=True, controllable=True)
 def apply_dagger(f: Unitary[[qubit], None], q: array[qubit, 3]) -> None:
     f(q[1])
     apply_2qubit_gate(cx, q)
