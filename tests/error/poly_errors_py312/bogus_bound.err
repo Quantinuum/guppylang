@@ -1,0 +1,8 @@
+Error: Unrecognised Bound (at $FILE:4:18)
+  | 
+2 | 
+3 | @guppy
+4 | def foo[T: (Copy, Bogus, Drop)](t: T) -> T:
+  |                   ^^^^^ Unrecognised type `Bogus` as type bound.
+
+Guppy compilation failed due to 1 previous error

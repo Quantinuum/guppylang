@@ -33,6 +33,7 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
+      - uses: Quantinuum/hugrverse-env/install-hugrenv-action@main
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -72,6 +73,7 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
+      - uses: Quantinuum/hugrverse-env/install-hugrenv-action@main
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7

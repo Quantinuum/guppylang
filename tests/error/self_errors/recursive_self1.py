@@ -6,7 +6,7 @@ from guppylang.decorator import guppy
 T = guppy.type_var("T")
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class Foo(Generic[T]):
     @guppy
     def foo(self: "Foo[Self]") -> None:

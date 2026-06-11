@@ -62,8 +62,15 @@ class disable_experimental_features:
 @dataclass(frozen=True)
 class ExperimentalFeatureError(Error):
     title: ClassVar[str] = "Experimental feature"
-    span_label: ClassVar[str] = "{things} are an experimental feature"
+    span_label: ClassVar[str] = "{things} {rendered_label_verb} an experimental feature"
     things: str
+    singular_things: bool = False
+
+    @property
+    def rendered_label_verb(self) -> str:
+        if self.singular_things:
+            return "is"
+        return "are"
 
     @dataclass(frozen=True)
     class Suggestion(Help):
@@ -75,6 +82,11 @@ class ExperimentalFeatureError(Error):
 
     def __post_init__(self) -> None:
         self.add_sub_diagnostic(ExperimentalFeatureError.Suggestion(None))
+
+
+def check_partial_functions_enabled(node: expr | None = None) -> None:
+    if not EXPERIMENTAL_FEATURES_ENABLED:
+        raise GuppyError(ExperimentalFeatureError(node, "Partial functions"))
 
 
 def check_function_tensors_enabled(node: expr | None = None) -> None:
@@ -95,3 +107,8 @@ def check_capturing_closures_enabled(loc: AstNode | None = None) -> None:
 def check_modifiers_enabled(loc: AstNode | None = None) -> None:
     if not EXPERIMENTAL_FEATURES_ENABLED:
         raise GuppyError(ExperimentalFeatureError(loc, "Modifiers"))
+
+
+def check_unitary_callable_enabled(thing: str, loc: AstNode | None = None) -> None:
+    if not EXPERIMENTAL_FEATURES_ENABLED:
+        raise GuppyError(ExperimentalFeatureError(loc, thing, singular_things=True))

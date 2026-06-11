@@ -2,7 +2,7 @@ from guppylang.decorator import guppy
 from guppylang.std.quantum import qubit
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class MyStruct:
     x: int
     q: qubit

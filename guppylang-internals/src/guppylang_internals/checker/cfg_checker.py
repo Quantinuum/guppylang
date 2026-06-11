@@ -168,7 +168,7 @@ def check_cfg(
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
 
-    check_cfg_unitary(linearity_checked_cfg, cfg.unitary_flags)
+    check_cfg_unitary(linearity_checked_cfg, linearity_checked_cfg.unitary_flags)
 
     return linearity_checked_cfg
 

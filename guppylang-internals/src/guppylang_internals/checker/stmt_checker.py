@@ -41,6 +41,7 @@ from guppylang_internals.checker.errors.type_errors import (
     AttributeNotFoundError,
     MissingReturnValueError,
     StarredTupleUnpackError,
+    StructImmutableError,
     TypeInferenceError,
     TypeMismatchError,
     UnpackableError,
@@ -176,12 +177,8 @@ class StmtChecker(AstVisitor[BBStatement]):
             err = UnsupportedError(value, "Assigning to this expression", singular=True)
             err.add_sub_diagnostic(AssignNonPlaceHelp(None, field))
             raise GuppyError(err)
-        if field.ty.copyable:
-            raise GuppyError(
-                UnsupportedError(
-                    attr_span, "Mutation of classical fields", singular=True
-                )
-            )
+        if struct_ty.frozen:
+            raise GuppyTypeError(StructImmutableError(lhs, struct_ty))
         place = FieldAccess(value.place, struct_ty.field_dict[attr], lhs)
         place = check_place_assignable(place, self.ctx, lhs, "assignable")
         return with_loc(lhs, with_type(rhs_ty, PlaceNode(place=place)))

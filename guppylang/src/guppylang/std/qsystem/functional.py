@@ -5,6 +5,9 @@
     ``guppylang.std.qsystem.helios.functional``. Import from that module directly.
 """
 
+# Since the functional
+# mypy: disable-error-code="attr-defined"
+from guppylang import guppy
 from guppylang.std.qsystem.helios.functional import (
     lazy_measure_and_reset,
     lazy_measure_and_reset_array,
@@ -20,7 +23,10 @@ from guppylang.std.qsystem.helios.functional import (
     zz_phase,
 )
 
+N = guppy.nat_var("N")
+
 __all__ = [
+    "N",
     "lazy_measure_and_reset",
     "lazy_measure_and_reset_array",
     "measure",

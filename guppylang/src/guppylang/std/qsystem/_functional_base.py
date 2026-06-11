@@ -6,7 +6,7 @@ that are common to all platforms, avoiding duplication.
 """
 
 from types import ModuleType
-from typing import Any, no_type_check
+from typing import Any, TypedDict, no_type_check
 
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle
@@ -16,7 +16,20 @@ from guppylang.std.qsystem._common import Measurement
 from guppylang.std.quantum import qubit
 
 
-def _make_shared_functional(platform: ModuleType) -> dict[str, Any]:
+class SharedFunctionalVariants(TypedDict):
+    phased_x: Any
+    rz: Any
+    measure: Any
+    reset: Any
+    qfree: Any
+    measure_and_reset: Any
+    lazy_measure_and_reset: Any
+    measure_array: Any
+    measure_and_reset_array: Any
+    lazy_measure_and_reset_array: Any
+
+
+def _make_shared_functional(platform: ModuleType) -> SharedFunctionalVariants:
     """Return shared functional wrapper definitions for a qsystem platform module.
 
     ``platform`` should be either ``guppylang.std.qsystem.helios`` or

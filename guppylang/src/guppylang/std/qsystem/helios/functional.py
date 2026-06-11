@@ -13,9 +13,6 @@ from guppylang.std.builtins import owned
 from guppylang.std.qsystem._functional_base import _make_shared_functional
 from guppylang.std.quantum import qubit
 
-# Inject shared ops (phased_x, rz, measure, measure_and_reset, reset, qfree,
-# lazy_measure_and_reset, measure_array, measure_and_reset_array,
-# lazy_measure_and_reset_array) from the factory.
 globals().update(_make_shared_functional(helios))
 
 
