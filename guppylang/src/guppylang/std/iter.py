@@ -47,19 +47,20 @@ class SizedIter:
         """Dummy implementation making sized iterators iterable themselves."""
 
 
-@guppy.struct(frozen=True)
+@guppy.struct
 class Range:
     _next: int
     _stop: int
     _step: int
 
     @guppy
-    def __iter__(self: Self) -> Self:
+    @no_type_check
+    def __iter__(self: Self @ owned) -> Self:
         return self
 
     @guppy
     @no_type_check
-    def __next__(self: Self) -> Option[tuple[int, Self]]:
+    def __next__(self: Self @ owned) -> Option[tuple[int, Self]]:
         end = (
             (self._next >= self._stop)
             if self._step >= 0
@@ -67,9 +68,9 @@ class Range:
         )
         if end:
             return nothing()
-        return some(
-            (self._next, Range(self._next + self._step, self._stop, self._step))
-        )
+        actual_next = self._next
+        self._next += self._step
+        return some((actual_next, self))
 
 
 @guppy
