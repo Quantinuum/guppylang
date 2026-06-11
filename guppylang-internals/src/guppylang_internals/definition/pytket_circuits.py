@@ -275,7 +275,9 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 rotation = outer_func.add_op(from_halfturns_unchecked(), halfturns)
                 param_wires.append(rotation)
 
-        # Pass all arguments to call node.
+        # Pass all arguments to call node. Note that since we are using a
+        # FunctionBuilder, this will default to assuming that the target function
+        # is side-effecting, so may produce more order edges than necessary.
         call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
