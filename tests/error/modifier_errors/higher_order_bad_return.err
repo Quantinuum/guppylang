@@ -1,0 +1,9 @@
+Error: Unitary flag mismatch (at $FILE:14:11)
+   | 
+12 | def apply_control(f: Controllable[[qubit], None], q: qubit) -> Unitary[[qubit], None]:
+13 |     f(q)
+14 |     return dagger_only
+   |            ^^^^^^^^^^^ Expected function with unitary flags: `unitary=True`, got:
+   |                        `daggerable=True`
+
+Guppy compilation failed due to 1 previous error

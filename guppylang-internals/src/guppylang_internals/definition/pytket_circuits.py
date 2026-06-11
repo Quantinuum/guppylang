@@ -20,6 +20,7 @@ from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -215,7 +216,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                     scope_line=None,
                 )
             outer_func.metadata[HugrDebugInfo] = func_metadata
-
+        outer_func = FunctionBuilder(outer_func)
         # Number of qubit inputs in the outer function.
         offset = (
             len(self.input_circuit.q_registers)
@@ -274,7 +275,9 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 rotation = outer_func.add_op(from_halfturns_unchecked(), halfturns)
                 param_wires.append(rotation)
 
-        # Pass all arguments to call node.
+        # Pass all arguments to call node. Note that since we are using a
+        # FunctionBuilder, this will default to assuming that the target function
+        # is side-effecting, so may produce more order edges than necessary.
         call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
@@ -300,7 +303,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         # Convert hugr sum bools into the opaque bools that Guppy uses.
         wires = [
             outer_func.add_op(make_opaque(), wire)
-            if outer_func.hugr.port_type(wire.out_port()) == ht.Bool
+            if outer_func.get_wire_type(wire) == ht.Bool
             else wire
             for wire in wires
         ]
@@ -328,7 +331,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 wire_idx = wire_idx + q_reg.size
             wires = array_wires
 
-        outer_func.set_outputs(*wires)
+        outer_func = outer_func.set_outputs(*wires)
 
         return CompiledPytketDef(
             self.id,

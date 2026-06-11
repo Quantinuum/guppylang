@@ -1,6 +1,6 @@
 [project]
 name = "guppylang-internals"
-version = "1.0.0-a1"
+version = "1.0.0-a3"
 requires-python = ">=3.10,<4"
 description = "Compiler internals for `guppylang` package."
 license = { file = "LICENCE" }
@@ -37,9 +37,6 @@ dependencies = [
     "pytket>=1.34",
     "tket[pytket]>=0.13.0",
 ]
-
-[project.optional-dependencies]
-pytket = []
 
 [build-system]
 requires = ["hatchling"]

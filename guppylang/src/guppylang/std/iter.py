@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, no_type_check
 from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.tys.builtin import sized_iter_type_def
+from typing_extensions import Self
 
 from guppylang import guppy
 from guppylang.std.option import Option, nothing, some
@@ -49,21 +50,28 @@ class SizedIter:
 
 @guppy.struct
 class Range:
-    next: int
-    stop: int
-    step: int
+    _next: int
+    _stop: int
+    _step: int
 
     @guppy
-    def __iter__(self: Range) -> Range:
+    @no_type_check
+    def __iter__(self: Self @ owned) -> Self:
         return self
 
     @guppy
     @no_type_check
-    def __next__(self: Range) -> Option[tuple[int, Range]]:
-        end = (self.next >= self.stop) if self.step >= 0 else (self.next <= self.stop)
+    def __next__(self: Self @ owned) -> Option[tuple[int, Self]]:
+        end = (
+            (self._next >= self._stop)
+            if self._step >= 0
+            else (self._next <= self._stop)
+        )
         if end:
             return nothing()
-        return some((self.next, Range(self.next + self.step, self.stop, self.step)))
+        actual_next = self._next
+        self._next += self._step
+        return some((actual_next, self))
 
 
 @guppy

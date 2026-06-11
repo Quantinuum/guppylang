@@ -6,7 +6,7 @@ from guppylang.std.quantum import qubit
 def foo(x: qubit) -> None: ...
 
 
-@guppy(dagger=True)
+@guppy(daggerable=True)
 def test(x: qubit) -> None:
     foo(x)
 

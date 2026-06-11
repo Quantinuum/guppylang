@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:13:11)
+   | 
+11 | def foo(s: MyStruct @owned) -> int:
+12 |     t = s
+13 |     return s.x
+   |            ^^^ Field `s.x` cannot be returned ...
+
+Note:
+   | 
+11 | def foo(s: MyStruct @owned) -> int:
+12 |     t = s
+   |         - ... since variable `s` with non-copyable type `MyStruct` was
+   |           already moved here
+
+Guppy compilation failed due to 1 previous error
