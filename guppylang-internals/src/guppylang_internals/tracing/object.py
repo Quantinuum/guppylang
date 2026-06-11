@@ -15,6 +15,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnaryOperatorNotDefinedError,
 )
 from guppylang_internals.definition.common import CheckableGenericDef, DefId, Definition
+from guppylang_internals.definition.protocol import ProtocolDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -64,9 +65,7 @@ def unary_operation(f: UnaryDunderMethod) -> UnaryDunderMethod:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(
-            self, state.dfg.builder.raw_builder, state.node, state.ctx
-        )
+        self = guppy_object_from_py(self, state.dfg.builder, state.node, state.ctx)
 
         with suppress(Exception):
             return f(self)
@@ -93,12 +92,8 @@ def binary_operation(f: BinaryDunderMethod) -> BinaryDunderMethod:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(
-            self, state.dfg.builder.raw_builder, state.node, state.ctx
-        )
-        other = guppy_object_from_py(
-            other, state.dfg.builder.raw_builder, state.node, state.ctx
-        )
+        self = guppy_object_from_py(self, state.dfg.builder, state.node, state.ctx)
+        other = guppy_object_from_py(other, state.dfg.builder, state.node, state.ctx)
 
         # First try the method on `self`
         with suppress(Exception):
@@ -134,9 +129,7 @@ class DunderMixin:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(
-            self, state.dfg.builder.raw_builder, state.node, state.ctx
-        )
+        self = guppy_object_from_py(self, state.dfg.builder, state.node, state.ctx)
         return self.__getattr__(name)
 
     def __abs__(self) -> Any:
@@ -576,7 +569,7 @@ class TracingDefMixin(DunderMixin):
     def __getitem__(self, item: Any) -> Any:
         # If this is a type definition, then `__getitem__` might be called when
         # specifying generic arguments
-        if isinstance(self.wrapped, TypeDef):
+        if isinstance(self.wrapped, TypeDef | ProtocolDef):
             # It doesn't really matter what we return here since we don't support types
             # as comptime values yet, so just give back the definition
             return self

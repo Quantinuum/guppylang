@@ -16,7 +16,7 @@ jobs:
     name: Create release PR
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
             # Using a personal access token so releases created by this workflow can trigger the deployment workflow
             token: ${{ secrets.HUGRBOT_PAT }}

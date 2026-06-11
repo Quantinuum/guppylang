@@ -12,7 +12,7 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import py
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class angle:
     """Not an angle in the truest sense but a rotation by a number of half-turns
     (does not wrap or identify with itself modulo any number of complete turns).

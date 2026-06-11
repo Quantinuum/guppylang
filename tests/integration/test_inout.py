@@ -81,6 +81,29 @@ def test_struct(validate):
     validate(test2.compile_function())
 
 
+def test_struct_mutate_classical(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct:
+        x: int
+        y: float
+
+        @guppy
+        def add(self, z: int) -> None:
+            self.x += z
+            if z > 5:
+                self.y += 2 * z
+            else:
+                self.y = 0.0
+
+    @guppy
+    def main() -> float:
+        s = MyStruct(41, 1.5)
+        s.add(1)
+        return s.x + s.y
+
+    validate(main.compile_function())
+
+
 def test_control_flow(validate):
     @guppy.declare
     def foo(q: qubit) -> None: ...

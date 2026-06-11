@@ -4,11 +4,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import hugr.build.function as hf
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DISubprogram
 from hugr.hugr.node_port import ToNode
+from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -27,6 +27,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
     parse_function_with_docstring,
 )
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
@@ -117,6 +118,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
@@ -155,7 +157,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     """
 
     defined_at: ast.FunctionDef
-    ty: FunctionType
     docstring: str | None
     link_name: str
 
@@ -168,6 +169,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         """Generic parameters of this function."""
         return self.ty.params
 
+    @override
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
         cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
@@ -184,8 +186,9 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             metadata=self.metadata,
         )
 
+    @override
     def check_call(
-        self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
+        self, args: list[ast.expr], ty: Type, node: ast.Call, ctx: Context
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
@@ -194,6 +197,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         ENGINE.register_generic_use(self, inst)
         return node, subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Type]:
@@ -230,6 +234,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         # We should be monomorphized at this point
         assert not self.params
 
+    @override
     def compile_outer(
         self,
         module: DefinitionBuilder[OpVar],
@@ -265,7 +270,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.docstring,
             self.link_name,
             self.cfg,
-            func_def,
+            FunctionBuilder(func_def),
             metadata=self.metadata,
         )
 
@@ -285,20 +290,23 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
             other representations, regardless of whether the function is actually
             visible for linking)
         cfg: The type- and linearity-checked CFG for the function body.
-        func_def: The Hugr function definition.
+        _func_bldr: used to build the function body in `compile_inner`; clients
+                   should use `hugr_node`
     """
 
-    func_def: hf.Function
+    _func_bldr: FunctionBuilder
 
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
-        return self.func_def.parent_node
+        return self._func_bldr.to_node()
 
+    @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
-        return load(dfg, self.func_def)
+        return load(dfg, self.hugr_node)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],
@@ -307,11 +315,12 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, dfg, self.ty, self.func_def, node)
+        return compile_call(args, dfg, self.ty, self.hugr_node, node)
 
+    @override
     def compile_inner(self, globals: CompilerContext) -> None:
         """Compiles the body of the function."""
-        compile_global_func_def(self, self.func_def, globals)
+        compile_global_func_def(self, self._func_bldr, globals)
 
 
 def load(dfg: DFContainer, func: ToNode) -> Wire:

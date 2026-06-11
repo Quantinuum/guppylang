@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -41,7 +41,7 @@ jobs:
           enable-cache: true
 
       - name: Install Guppy
-        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
+        run: uv sync --locked --python ${{ env.PYTHON_VERSION }}
 
       - name: Type check with mypy
         run: uv run mypy guppylang guppylang-internals
@@ -69,7 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -80,13 +80,13 @@ jobs:
           enable-cache: true
 
       - name: Install Guppy
-        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
+        run: uv sync --locked --python ${{ env.PYTHON_VERSION }}
 
       - name: Run python tests with coverage instrumentation
         run: uv run pytest -n auto --cov=./ --cov-report=xml
 
       - name: Upload python coverage to codecov.io
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
           name: python

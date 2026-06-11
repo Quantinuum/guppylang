@@ -814,27 +814,35 @@ class Modifiers:
             result |= UnitaryFlags.Dagger
         if self.has_control():
             result |= UnitaryFlags.Control
-        if self.has_power():
-            result |= UnitaryFlags.Power
         return result
 
 
 class ModifiedBlock(ast.With):
-    """Node representing a unchecked `with` block
+    """Node representing an unchecked `with` block
 
     parameters:
     - `cfg`: the CFG of the body of the block
+    - `modifiers`: the modifiers of the block
     - `first_modifier_node`: the AST node of the first modifier, used in error reporting
+    - `accumulated_flags`: the UnitaryFlags accumulated from outer modified blocks
+    - `original_ast_body`: the original AST body of the block, used for checking that
+      the body does not contain any invalid statements. Is expected to beNone if the
+      block does not have the Dagger modifier since in that case it is not needed
     """
 
     cfg: "CFG"
+    modifiers: Modifiers
     first_modifier_node: ast.expr
+    accumulated_flags: UnitaryFlags
+    original_ast_body: list[ast.stmt] | None
 
     def __init__(
         self,
         cfg: "CFG",
         modifiers: "Modifiers",
         first_modifier_node: ast.expr,
+        accumulated_flags: UnitaryFlags,
+        original_ast_body: list[ast.stmt] | None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -842,6 +850,8 @@ class ModifiedBlock(ast.With):
         self.cfg = cfg
         self.modifiers = modifiers
         self.first_modifier_node = first_modifier_node
+        self.accumulated_flags = accumulated_flags
+        self.original_ast_body = original_ast_body
 
     @property
     def dagger(self) -> list[Dagger]:
@@ -874,16 +884,6 @@ class ModifiedBlock(ast.With):
             to_span(self.items[-1].context_expr).end,
         )
 
-    def flags(self) -> UnitaryFlags:
-        flags = UnitaryFlags.NoFlags
-        if self.has_dagger():
-            flags |= UnitaryFlags.Dagger
-        if self.has_control():
-            flags |= UnitaryFlags.Control
-        if self.has_power():
-            flags |= UnitaryFlags.Power
-        return flags
-
 
 class CheckedModifiedBlock(ast.With):
     def_id: "DefId"
@@ -893,6 +893,7 @@ class CheckedModifiedBlock(ast.With):
     ty: FunctionType
     #: Mapping from names to variables captured in the body.
     captured: Mapping[str, tuple["Variable", AstNode]]
+    modifiers: Modifiers
 
     def __init__(
         self,

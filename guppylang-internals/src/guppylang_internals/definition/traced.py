@@ -8,6 +8,7 @@ import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.metadata import HugrDebugInfo
+from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals
@@ -19,6 +20,7 @@ from guppylang_internals.checker.expr_checker import (
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -40,7 +42,7 @@ from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
+from guppylang_internals.tys.ty import Type, UnitaryFlags, type_to_row
 
 PyFunc = Callable[..., Any]
 
@@ -76,11 +78,11 @@ class RawTracedFunctionDef(ParsableDef):
 
 @dataclass(frozen=True)
 class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
-    ty: FunctionType
     defined_at: ast.FunctionDef
 
+    @override
     def check_call(
-        self, args: list[ast.expr], ty: Type, node: AstNode, ctx: Context
+        self, args: list[ast.expr], ty: Type, node: ast.Call, ctx: Context
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
@@ -88,6 +90,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, subst
 
+    @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: Context
     ) -> tuple[ast.expr, Type]:
@@ -97,6 +100,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, ty
 
+    @override
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
     ) -> "CompiledTracedFunctionDef":
@@ -142,13 +146,15 @@ class CompiledTracedFunctionDef(
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
 
+    @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
         type_args: Inst = ()  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
-        type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
-        return dfg.builder.load_function(self.func_def, func_ty, type_args)
+        hugr_type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
+        return dfg.builder.load_function(self.func_def, func_ty, hugr_type_args)
 
+    @override
     def compile_call(
         self,
         args: list[Wire],
@@ -159,17 +165,18 @@ class CompiledTracedFunctionDef(
         """Compiles a call to the function."""
         type_args: Inst = ()  # Comptime functions are not generic
         func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
-        type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
+        hugr_type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         num_returns = len(type_to_row(self.ty.output))
         with dfg.builder.set_ast_context(node):
             call = dfg.builder.call(
-                self.func_def, *args, instantiation=func_ty, type_args=type_args
+                self.func_def, *args, instantiation=func_ty, type_args=hugr_type_args
             )
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
             inout_returns=list(call[num_returns:]),
         )
 
+    @override
     def compile_inner(self, ctx: CompilerContext) -> None:
         """Compiles the body of the function by tracing it."""
         from guppylang_internals.tracing.function import trace_function
@@ -177,7 +184,7 @@ class CompiledTracedFunctionDef(
         trace_function(
             self.python_func,
             self.ty,
-            self.func_def,
+            FunctionBuilder(self.func_def),
             ctx,
             self.defined_at,
             self,

@@ -1,57 +1,76 @@
 import ast
 
-from guppylang_internals.ast_util import find_nodes, get_type, loop_in_ast
+from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
-from guppylang_internals.checker.core import Place, contains_subscript
-from guppylang_internals.checker.errors.generic import (
-    InvalidUnderDagger,
-    UnsupportedError,
-)
+from guppylang_internals.checker.core import Place
+from guppylang_internals.checker.errors.generic import InvalidUnderDagger
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import ENGINE
-from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
+from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
     AnyCall,
     BarrierExpr,
+    CheckedModifiedBlock,
     GlobalCall,
     LocalCall,
-    PlaceNode,
+    ModifiedBlock,
     StateResultExpr,
     TensorCall,
 )
+from guppylang_internals.span import ToSpan
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import FunctionType, UnitaryFlags
 
 
 def check_invalid_under_dagger(
-    fn_def: ast.FunctionDef, unitary_flags: UnitaryFlags
+    def_node: ast.FunctionDef | ModifiedBlock, unitary_flags: UnitaryFlags
 ) -> None:
-    """Check that there are no invalid constructs in a daggered CFG.
-    This checker checks the case the UnitaryFlags is given by
-    annotation (i.e., not inferred from `with dagger:`).
-    """
+    """Check that there are no invalid constructs in a daggered CFG."""
     if UnitaryFlags.Dagger not in unitary_flags:
         return
 
-    for stmt in fn_def.body:
+    if isinstance(def_node, ast.FunctionDef):
+        stmt_list = def_node.body
+    else:
+        # When analyzing a `ModifiedBlock` we need the original AST before
+        # the builder transforms it
+        stmt_list = def_node.original_ast_body
+        assert stmt_list is not None, (
+            "original_ast_body should not be None for a daggered block"
+        )
+
+    for stmt in stmt_list:
+        # we do not want to recursively check inside nested `with` blocks
+        if isinstance(stmt, ast.With):
+            continue
         loops = loop_in_ast(stmt)
         if len(loops) != 0:
             loop = next(iter(loops))
-            err = InvalidUnderDagger(loop, "Loop")
-            raise GuppyError(err)
-            # Note: sub-diagnostic for dagger context is not available here
+            _raise_invalid_under_dagger(loop, def_node, "Loop", unitary_flags)
+        branches = branching_in_ast(stmt)
+        if len(branches) != 0:
+            branch = next(iter(branches))
+            _raise_invalid_under_dagger(branch, def_node, "Branch", unitary_flags)
 
-        found = find_nodes(
-            lambda n: isinstance(n, ast.Assign | ast.AnnAssign | ast.AugAssign),
-            stmt,
-            {ast.FunctionDef},
+
+def _raise_invalid_under_dagger(
+    span: ToSpan,
+    node: ast.FunctionDef | ModifiedBlock,
+    things: str,
+    unitary_flags: UnitaryFlags,
+) -> None:
+    err = InvalidUnderDagger(span, things)
+    if isinstance(node, ModifiedBlock):
+        err.add_sub_diagnostic(InvalidUnderDagger.Dagger(node.span_ctxt_manager()))
+    elif isinstance(node, ast.FunctionDef):
+        err.add_sub_diagnostic(
+            InvalidUnderDagger.FunctionHelp(None, node.name, unitary_flags)
         )
-        if len(found) != 0:
-            assign = next(iter(found))
-            err = InvalidUnderDagger(assign, "Assignment")
-            raise GuppyError(err)
+    err.add_sub_diagnostic(InvalidUnderDagger.ControlFlowHelp(None))
+
+    raise GuppyError(err)
 
 
 class BBUnitaryChecker(ast.NodeVisitor):
@@ -86,20 +105,46 @@ class BBUnitaryChecker(ast.NodeVisitor):
         classic_args = self._check_classical_args(node.args)
         flag_ok = self.flags in ty.unitary_flags
         if not classic_args and not flag_ok:
-            err = UnitaryCallError(node, self.flags & (~ty.unitary_flags))
-            if func is not None:
-                from guppylang_internals.definition.custom import CustomFunctionDef
+            from guppylang_internals.definition.custom import CustomFunctionDef
 
-                if not isinstance(func, CustomFunctionDef):
-                    # We want the hint only for non-custom functions, since for custom
-                    # functions are usually quantum operations, such as gates or
-                    # measurement
+            # We want the hint only for non-custom functions, since custom
+            # functions are usually quantum operations (e.g. gates or measurement)
+            if isinstance(func, CustomFunctionDef):
+                err = UnitaryCallError(
+                    node,
+                    self.flags & (~ty.unitary_flags),
+                    missing_keyword_hint=True,
+                )
+            else:
+                if func is not None:
+                    err = UnitaryCallError(
+                        node,
+                        self.flags & (~ty.unitary_flags),
+                        missing_keyword_hint=False,
+                    )
                     err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
+                else:
+                    # If func is None, we are checking a higher-order call
+                    missing_flags = self.flags & (~ty.unitary_flags)
+                    err = UnitaryCallError(
+                        node,
+                        missing_flags,
+                        missing_keyword_hint=False,
+                    )
+                    err.add_sub_diagnostic(
+                        UnitaryCallError.HigherOrderHint(
+                            None,
+                            missing_flags.callable_name(),
+                            "higher-order"
+                            if ty.unitary_flags == UnitaryFlags.NoFlags
+                            else ty.unitary_flags.callable_name(),
+                        )
+                    )
             raise GuppyTypeError(err)
 
         # If we are under any modifier, we cannot allocate qubits
         if contain_qubit_ty(ty.output) and self.flags != UnitaryFlags.NoFlags:
-            err = UnitaryCallError(node, self.flags)
+            err = UnitaryCallError(node, self.flags, missing_keyword_hint=False)
             err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
             raise GuppyError(err)
 
@@ -124,9 +169,11 @@ class BBUnitaryChecker(ast.NodeVisitor):
         # StateResult is always allowed
         pass
 
+    def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
+        # Nested modified blocks are checked separately by the CFG checker
+        pass
+
     def _check_assign(self, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> None:
-        if UnitaryFlags.Dagger in self.flags:
-            raise InternalGuppyError("Dagger conditions should already be checked")
         if node.value is not None:
             self.visit(node.value)
 
@@ -138,12 +185,6 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         self._check_assign(node)
-
-    def visit_PlaceNode(self, node: PlaceNode) -> None:
-        if UnitaryFlags.Dagger in self.flags and contains_subscript(node.place):
-            raise GuppyError(
-                UnsupportedError(node, "index access", True, "dagger context")
-            )
 
 
 def check_cfg_unitary(
