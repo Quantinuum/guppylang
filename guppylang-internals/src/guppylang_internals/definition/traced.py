@@ -116,7 +116,6 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         add_metadata(
             func_def,
             self.metadata,
-            additional_metadata={"unitary": self.ty.unitary_flags.value},
         )
         if debug_mode_enabled():
             func_def.metadata[HugrDebugInfo] = make_subprogram_record(

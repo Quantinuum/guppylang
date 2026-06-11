@@ -8,6 +8,7 @@ from guppylang.std.quantum import discard, rx
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr.hugr.base import Hugr
 from hugr.ops import FuncDefn
+from tket.metadata import UnitaryFlags as TketUnitaryFlags
 
 _guppylang.enable_experimental_features()
 
@@ -22,7 +23,7 @@ def _check_block_metadata(hugr_module: Hugr, unitary_values: list[int]) -> list:
 
     assert len(blocks) == len(unitary_values)
     for block, unitary_value in zip(blocks, unitary_values, strict=True):
-        assert block["unitary"] == unitary_value
+        assert block[TketUnitaryFlags.KEY] == unitary_value
 
     return blocks
 

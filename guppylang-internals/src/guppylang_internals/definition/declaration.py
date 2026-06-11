@@ -209,7 +209,6 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
         add_metadata(
             node,
             self.metadata,
-            additional_metadata={"unitary": self.ty.unitary_flags.value},
         )
         if debug_mode_enabled():
             node.metadata[HugrDebugInfo] = make_subprogram_record(
