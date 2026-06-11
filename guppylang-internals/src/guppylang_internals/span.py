@@ -71,6 +71,14 @@ class Span:
             return None
         return Span(max(self.start, other.start), min(self.end, other.end))
 
+    def __or__(self, other: "Span") -> "Span | None":
+        """Returns the union with the given span, including any gaps, but `None`
+        if they are in different files."""
+        if self.file != other.file:
+            return None
+        r = Span(min(self.start, other.start), max(self.end, other.end))
+        return r
+
     def __len__(self) -> int:
         """Returns the length of a single-line span in columns.
 
@@ -79,6 +87,12 @@ class Span:
         if self.is_multiline:
             raise InternalGuppyError("Span: Tried to compute length of multi-line span")
         return self.end.column - self.start.column
+
+    def __bool__(self) -> bool:
+        """A span is considered false if it has zero length."""
+        # Avoid calling __len__: a multi-line span is considered True
+        # even though its length is not computable
+        return self.start != self.end
 
     @property
     def file(self) -> str:

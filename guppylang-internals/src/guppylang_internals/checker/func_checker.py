@@ -15,7 +15,13 @@ from guppylang_internals.ast_util import AstNode, return_nodes_in_ast, with_loc
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.builder import CFGBuilder
 from guppylang_internals.checker.cfg_checker import CheckedCFG, check_cfg
-from guppylang_internals.checker.core import Context, Globals, Place, Variable
+from guppylang_internals.checker.core import (
+    Context,
+    EffectLimitDecl,
+    Globals,
+    Place,
+    Variable,
+)
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
@@ -159,7 +165,16 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    return check_cfg(cfg, inputs, ty.output, generic_args, func_def.name, globals)
+    max_effects_from = EffectLimitDecl.for_def(ty, func_def)
+    return check_cfg(
+        cfg,
+        inputs,
+        ty.output,
+        generic_args,
+        func_def.name,
+        globals,
+        max_effects_from=max_effects_from,
+    )
 
 
 def check_nested_func_def(
@@ -168,7 +183,13 @@ def check_nested_func_def(
     ctx: Context,
 ) -> CheckedNestedFunctionDef:
     """Type checks a local (nested) function definition."""
-    func_ty = check_signature(func_def, ctx.globals)
+    # For now we assume the nested function has the same effects as that enclosing.
+    # We could do better by allowing a separate annotation (rather than a parameter
+    # to @guppy), but we will wait for callgraph analysis to compute precisely:
+    # nested functions are not part of any public API, so changes are not breaking.
+    func_ty = check_signature(func_def, ctx.globals).with_effects(
+        None if ctx.max_effects_from is None else ctx.max_effects_from.effects
+    )
     assert func_ty.input_names is not None
 
     if func_ty.parametrized:
@@ -247,7 +268,17 @@ def check_nested_func_def(
             # Otherwise, we treat it like a local name
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
-    checked_cfg = check_cfg(cfg, inputs, func_ty.output, {}, func_def.name, globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        # As comment above, assume nested func has same effects as enclosing
+        # (hence the decl giving the effects is that of the enclosing func too).
+        max_effects_from=ctx.max_effects_from,
+    )
     checked_def = CheckedNestedFunctionDef(
         def_id,
         checked_cfg,

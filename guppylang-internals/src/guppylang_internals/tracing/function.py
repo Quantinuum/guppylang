@@ -9,6 +9,7 @@ from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import (
     ComptimeVariable,
     Context,
+    EffectLimitDecl,
     Globals,
     Locals,
     Variable,
@@ -72,7 +73,10 @@ def trace_function(
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
-    state = TracingState(ctx, DFContainer(builder, ctx, {}), node, func_def)
+    max_effects = EffectLimitDecl.for_def(ty, func_def.defined_at)
+    state = TracingState(
+        ctx, DFContainer(builder, ctx, {}), node, func_def, max_effects=max_effects
+    )
     with set_tracing_state(state):
         inputs = [
             unpack_guppy_object(
@@ -179,7 +183,12 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         arg_exprs: list[ast.expr] = [
             with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
         ]
-        ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
+        ctx = Context(
+            Globals(DEF_STORE.frames[func.id]),
+            locals,
+            {},
+            max_effects_from=state.max_effects,
+        )
         call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
         # Here we check if unitary constraints are respected in the function body

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from guppylang_internals.ast_util import AstNode
+from guppylang_internals.checker.core import EffectLimitDecl
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.traced import CompiledTracedFunctionDef
 from guppylang_internals.error import InternalGuppyError
@@ -28,6 +29,9 @@ class TracingState:
 
     #: The function definition currently being traced.
     function_definition: CompiledTracedFunctionDef
+
+    #: The maximum effects that the currently traced function is allowed to perform
+    max_effects: EffectLimitDecl | None
 
     #: Set of all allocated undroppable GuppyObjects where the `used` flag is not set,
     #: indexed by their id. This is used to detect linearity violations.

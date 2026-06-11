@@ -1,6 +1,7 @@
 from functools import singledispatchmethod
 
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.param import ConstParam, TypeParam
@@ -95,6 +96,11 @@ class TypePrinter:
         if len(ty.inputs) != 1:
             inputs = f"({inputs})"
         output = self._visit(ty.output, True)
+        arrow = (
+            "->"
+            if ty.declared_effects is None
+            else f"-{Effect.format_list(ty.declared_effects)}->"
+        )
         if ty.parametrized:
             params = [
                 self._visit(param, False)
@@ -104,8 +110,10 @@ class TypePrinter:
             ]
             quantified = ", ".join(params)
             del self.bound_names[: -len(ty.params)]
-            return _wrap(f"forall {quantified}. {inputs} -> {output}", inside_row)
-        return _wrap(f"{inputs} -> {output}", inside_row)
+            desc = f"forall {quantified}. {inputs} {arrow} {output}"
+        else:
+            desc = f"{inputs} {arrow} {output}"
+        return _wrap(desc, inside_row)
 
     @_visit.register(OpaqueType)
     @_visit.register(StructType)
@@ -168,4 +176,5 @@ def signature_to_str(name: str, sig: FunctionType, has_var_args: bool = False) -
         for inp in sig.inputs
     )
     s += ", ..." if has_var_args else ""
+    # TODO Not clear how to display effects in a Python-like syntax? (skip for now)
     return s + ") -> " + str(sig.output)

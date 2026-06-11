@@ -11,6 +11,7 @@ from hugr import tys as ht
 from typing_extensions import assert_never
 
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
     ToHugr,
@@ -485,6 +486,17 @@ class FunctionType(ParametrizedTypeBase):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
 
+    """ Effects declared in source code, i.e. `Callable[...] @ effects(EFFECTS)`.
+    None means there was no declaration, which is equivalent to [Effect.ANY]
+    except for error reporting. Generally use `effects` instead."""
+    declared_effects: list[Effect] | None = field(default=None, init=True)
+
+    @property
+    def effects(self) -> list[Effect]:
+        return (
+            self.declared_effects if self.declared_effects is not None else [Effect.ANY]
+        )
+
     def __init__(
         self,
         inputs: Sequence[FuncInput],
@@ -492,6 +504,7 @@ class FunctionType(ParametrizedTypeBase):
         params: Sequence[Parameter] | None = None,
         comptime_args: Sequence[ConstArg] | None = None,
         unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        declared_effects: list[Effect] | None = None,
     ) -> None:
         # We need a custom __init__ to set the args
         args: list[Argument] = [TypeArg(inp.ty) for inp in inputs]
@@ -520,6 +533,7 @@ class FunctionType(ParametrizedTypeBase):
         object.__setattr__(self, "output", output)
         object.__setattr__(self, "params", params)
         object.__setattr__(self, "unitary_flags", unitary_flags)
+        object.__setattr__(self, "declared_effects", declared_effects)
 
     @property
     def parametrized(self) -> bool:
@@ -573,6 +587,8 @@ class FunctionType(ParametrizedTypeBase):
         The resulting `FunctionType` can then be embedded into a Hugr `Type` or a Hugr
         `PolyFuncType`.
         """
+        # At some point we may want to represent the effects as input and
+        # perhaps output "token" types in Hugr, but for now we will use Order edges.
         ins = [
             inp.ty.to_hugr(ctx)
             for inp in self.inputs
@@ -607,6 +623,7 @@ class FunctionType(ParametrizedTypeBase):
             self.params,
             comptime_args=self.comptime_args,
             unitary_flags=self.unitary_flags,
+            declared_effects=self.declared_effects,
         )
 
     def instantiate_partial(self, args: "PartialInst") -> "FunctionType":
@@ -636,6 +653,7 @@ class FunctionType(ParametrizedTypeBase):
                 cast("ConstArg", arg.transform(inst)) for arg in self.comptime_args
             ],
             unitary_flags=self.unitary_flags,
+            declared_effects=self.declared_effects,
         )
 
     def instantiate(self, args: "Inst") -> "FunctionType":
@@ -666,6 +684,24 @@ class FunctionType(ParametrizedTypeBase):
             self.params,
             self.comptime_args,
             flags,
+            declared_effects=self.declared_effects,
+        )
+
+    def with_effects(self, declared_effects: list[Effect] | None) -> "FunctionType":
+        """Returns a copy of this function type with the specified effects."""
+        # N.B. we can't use `dataclasses.replace` here since `FunctionType` has a custom
+        # constructor
+        if self.declared_effects is not None:
+            raise InternalGuppyError(
+                "Tried to set effects on a FunctionType that already has them"
+            )
+        return FunctionType(
+            self.inputs,
+            self.output,
+            self.params,
+            self.comptime_args,
+            self.unitary_flags,
+            declared_effects=declared_effects,
         )
 
 
@@ -943,6 +979,12 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return subst
         case FunctionType() as s, FunctionType() as t if s.params == t.params:
             if len(s.inputs) != len(t.inputs):
+                return None
+            if set(s.effects) != set(t.effects):
+                # There are no "effect variables" yet, and we enforce exact matching
+                # (invariance) as covariance will become difficult when we replace Order
+                # edges with explicit tokens. (Requiring runtime closures or codegen for
+                # a statically-predictable function being assigned.)
                 return None
             for a, b in zip(s.inputs, t.inputs, strict=True):
                 if a.ty.linear and b.ty.linear and a.flags != b.flags:

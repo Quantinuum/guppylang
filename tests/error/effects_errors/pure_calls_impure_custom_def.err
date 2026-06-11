@@ -1,0 +1,17 @@
+Error: Too many effects (at $FILE:12:10)
+   | 
+10 | @custom_pure
+11 | def main() -> int:
+12 |    return impure_func(5)
+   |           ^^^^^^^^^^^ Call to `impure_func` has effects `[ANY]` not allowed inside
+   |                       `main`
+
+Note:
+   | 
+ 9 | 
+10 | @custom_pure
+   |  -----------
+11 | def main() -> int:
+   | ----------------- Allowed effects `[]` declared here
+
+Guppy compilation failed due to 1 previous error

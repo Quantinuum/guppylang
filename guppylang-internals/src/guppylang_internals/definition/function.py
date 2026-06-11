@@ -54,6 +54,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
@@ -118,13 +119,15 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    effects: list[Effect] | None = field(default=None, kw_only=True)
+
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
-        )
+        ).with_effects(self.effects)
         link_name = self._user_set_link_name or default_func_link_name(self)
 
         return ParsedFunctionDef(
@@ -172,7 +175,12 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     @override
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
-        cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
+        cfg = check_global_func_def(
+            self.defined_at,
+            self.ty,
+            type_args,
+            globals,
+        )
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
         return CheckedFunctionDef(

@@ -171,7 +171,7 @@ class int:
     @hugr_op(int_op("iabs"))  # TODO: Maybe wrong? (signed vs unsigned!)
     def __abs__(self: int) -> int: ...
 
-    @hugr_op(int_op("iadd"))
+    @hugr_op(int_op("iadd"), effects=[])  # Annotation done early for use in tests
     def __add__(self: int, other: int) -> int: ...
 
     @hugr_op(int_op("iand"))

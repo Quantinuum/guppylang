@@ -6,7 +6,6 @@ from guppylang.std.quantum import discard_array
 
 from tests.integration.modules import struct_scope_defs
 
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 

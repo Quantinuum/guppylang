@@ -83,6 +83,7 @@ from guppylang_internals.checker.errors.type_errors import (
     NonLinearInstantiateError,
     NotCallableError,
     ParameterInferenceError,
+    TooManyEffectsError,
     TupleIndexOutOfBoundsError,
     TypeApplyNotGenericError,
     TypeInferenceError,
@@ -1327,6 +1328,32 @@ def check_comptime_arg(
     return subst
 
 
+def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
+    """Checks that a function call (AST provided) to a specified FunctionType
+    respects the effect constraints in the context."""
+    if (mf := ctx.max_effects_from) is None:
+        return
+    surplus_effects = [e for e in func_ty.effects if e not in mf.effects]
+    if surplus_effects:
+        loc_node = node.func if isinstance(node, ast.Call) else node
+        show_effects_allowed = mf.effects
+        if isinstance(mf.decl, ast.expr):
+            # We found the decorator that is the source of the effect constraint,
+            # which will contain the allowed effects as an explicit argument
+            show_effects_allowed = None
+        # Otherwise, the error message points at all decorators, which may or may not
+        # list the allowed effects, so list them explicitly
+
+        callee = loc_node.id if isinstance(loc_node, ast.Name) else func_ty
+        raise GuppyTypeError(
+            TooManyEffectsError(
+                loc_node, callee, surplus_effects, mf.decl_name
+            ).add_sub_diagnostic(
+                TooManyEffectsError.MaxFromDecl(mf.decl, show_effects_allowed)
+            )
+        )
+
+
 def synthesize_call(
     func_ty: FunctionType, args: list[ast.expr], node: AstNode, ctx: Context
 ) -> tuple[list[ast.expr], Type, Inst]:
@@ -1357,7 +1384,9 @@ def synthesize_call(
     inst = check_all_solved(subst, free_vars, func_ty, node)
 
     # Finally, check that the instantiation respects the linearity requirements
+    # and the effects allowed in the context.
     check_inst(func_ty, inst, node)
+    _check_effects(func_ty, ctx, node)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1443,7 +1472,9 @@ def check_call(
     subst = {v: t for v, t in subst.items() if v in ty.unsolved_vars}
 
     # Finally, check that the instantiation respects the linearity requirements
+    # and the effects allowed in the context.
     check_inst(func_ty, inst, node)
+    _check_effects(func_ty, ctx, node)
 
     return inputs, subst, inst
 
@@ -1565,7 +1596,12 @@ def check_generator(
     # The rest is checked in a new nested context to ensure that variables don't escape
     # their scope
     inner_locals: Locals[str, Variable] = Locals({}, parent_scope=ctx.locals)
-    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_param_inst)
+    inner_ctx = Context(
+        ctx.globals,
+        inner_locals,
+        ctx.generic_param_inst,
+        ctx.max_effects_from,
+    )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
     gen.iter = with_type(iter_ty, gen.iter)
