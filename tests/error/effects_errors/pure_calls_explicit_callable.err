@@ -3,7 +3,8 @@ Error: Too many effects (at $FILE:8:10)
 6 | @guppy(effects=[])
 7 | def main(impure_f: Callable[[int], int] @ effects(ANY)) -> int:
 8 |    return impure_f(5)
-  |           ^^^^^^^^ Callee of type `int -[ANY]-> int` not allowed inside `main`
+  |           ^^^^^^^^ Call to `impure_f` has effects `[ANY]` not allowed inside
+  |                    `main`
 
 Note:
   | 
