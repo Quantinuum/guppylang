@@ -4,6 +4,6 @@ Error: Unitary flag mismatch (at $FILE:14:11)
 13 |     f(q)
 14 |     return dagger_only
    |            ^^^^^^^^^^^ Expected function with unitary flags: `unitary=True`, got:
-   |                        `dagger=True`
+   |                        `daggerable=True`
 
 Guppy compilation failed due to 1 previous error

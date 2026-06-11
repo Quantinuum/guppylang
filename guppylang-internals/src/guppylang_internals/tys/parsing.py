@@ -281,6 +281,12 @@ def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
 
 
 def annotation_nodes(node: ast.expr) -> Iterator[ast.expr]:
+    """Iterates over all the Guppy type annotations (recursively) contained in the given
+    expression. Parses delayed annotations, and does not recurse into comptime
+    expressions."""
+    if is_comptime_expression(node):
+        return
+
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         node = _parse_delayed_annotation(node.value, node)
 

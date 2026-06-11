@@ -41,10 +41,8 @@ class CallableTypeDef(TypeDef, CompiledDef):
     name: Literal[
         "Callable",
         "Unitary",
-        "Powerable",
         "Daggerable",
         "Controllable",
-        "PowerControllable",
     ] = field(default="Callable", kw_only=True)
     flags: UnitaryFlags = UnitaryFlags.NoFlags
 
@@ -234,12 +232,6 @@ unitary_type_def = CallableTypeDef(
     None,
     flags=UnitaryFlags.Unitary,
 )
-powerable_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    flags=UnitaryFlags.Power,
-)
 daggerable_type_def = CallableTypeDef(
     DefId.fresh(),
     None,
@@ -251,12 +243,6 @@ controllable_type_def = CallableTypeDef(
     None,
     None,
     flags=UnitaryFlags.Control,
-)
-powerctrlable_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    flags=UnitaryFlags.Power | UnitaryFlags.Control,
 )
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)

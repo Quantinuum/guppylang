@@ -18,7 +18,7 @@ from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
     from guppylang_internals.ast_util import AstNode
-    from guppylang_internals.compiler.core import DFBuilder
+    from guppylang_internals.compiler.builder import DFBuilder
 
 
 # ------------------------------------------------------
@@ -247,7 +247,7 @@ P = TypeVar("P", bound=ops.DfParentOp)
 
 
 def unpack_array(
-    builder: DFBuilder[P], array: Wire, ast_node: AstNode | None = None
+    builder: DFBuilder, array: Wire, ast_node: AstNode | None = None
 ) -> list[Wire]:
     """Unpacks a wire of type array into separate wires for each element."""
     array_ty = builder.get_wire_type(array)

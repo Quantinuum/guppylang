@@ -386,9 +386,8 @@ class UnitaryFlags(Flag):
     NoFlags = 0
     Control = auto()
     Dagger = auto()
-    Power = auto()
 
-    Unitary = Control | Dagger | Power
+    Unitary = Control | Dagger
 
     def is_weaker_than(self, other: "UnitaryFlags") -> bool:
         """Whether this flag is weaker than `other`,
@@ -399,95 +398,18 @@ class UnitaryFlags(Flag):
         else:
             return self in other
 
-    def __str__(self) -> str:
-        match self:
-            case UnitaryFlags.Dagger:
-                return "dagger"
-            case UnitaryFlags.Control:
-                return "control"
-            case UnitaryFlags.Power:
-                return "power"
-            case UnitaryFlags.NoFlags:
-                raise AssertionError("Expected a non-empty unitary flag")
-            case _:  # If we have multiple flags, we represent them as unitary
-                return "unitary"
-
-    def render_flags(self, backtick: bool) -> str:
-        """Renders the flags as a string.
-        If there are two flags, we print them separated by 'and'."""
-
-        def fmt(s: str) -> str:
-            return f"`{s}`" if backtick else s
-
-        if self == UnitaryFlags.NoFlags:
-            return fmt("None")
-
-        # If all flags are set, we can just say "unitary"
-        if self == UnitaryFlags.Unitary:
-            return fmt("unitary")
-
-        # Otherwise, we list the individual flags that are set
-        individual_flags: list[UnitaryFlags] = [
-            UnitaryFlags.Dagger,
-            UnitaryFlags.Control,
-            UnitaryFlags.Power,
-        ]
-        sep = " and "
-        return sep.join(
-            fmt(flag.__str__())
-            for flag in individual_flags
-            if (self.value & flag.value) == flag.value
-        )
-
-    def hint_rendering(self, verbose: bool) -> str:
-        """We check which flag are we missing. If we miss more than one, we just say
-        `unitary=True`"""
-        from guppylang_internals.tys.ty import UnitaryFlags
-
-        # No flags is not expected
-        if self == UnitaryFlags.NoFlags:
-            return "None"
-
-        individual_flags: list[UnitaryFlags] = [
-            UnitaryFlags.Dagger,
-            UnitaryFlags.Control,
-            UnitaryFlags.Power,
-        ]
-        flags = [
-            flag for flag in individual_flags if (self.value & flag.value) == flag.value
-        ]
-        if len(flags) == 1:
-            return f"{flags[0].__str__()}=True"
-        elif len(flags) == 2 and verbose:
-            return " and ".join(f"{flag.__str__()}=True" for flag in flags)
-        else:
-            return "unitary=True"
-
-    def callable_name(
-        self,
-    ) -> Literal[
-        "Callable",
-        "Unitary",
-        "Powerable",
-        "Daggerable",
-        "Controllable",
-        "PowerControllable",
-    ]:
-        """Returns the name of the corresponding Callable variant for this flag."""
+    def hint_rendering(self) -> str:
+        """Return the corresponding decorator flag"""
         match self:
             case UnitaryFlags.NoFlags:
-                return "Callable"
+                return "None"
             case UnitaryFlags.Unitary:
-                return "Unitary"
-            case UnitaryFlags.Power:
-                return "Powerable"
+                return "unitary=True"
             case UnitaryFlags.Dagger:
-                return "Daggerable"
+                return "daggerable=True"
             case UnitaryFlags.Control:
-                return "Controllable"
+                return "controllable=True"
             case _:
-                if self == (UnitaryFlags.Power | UnitaryFlags.Control):
-                    return "PowerControllable"
                 assert_never(self)
 
     def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":
@@ -496,6 +418,41 @@ class UnitaryFlags(Flag):
         if self & UnitaryFlags.Dagger and other & UnitaryFlags.Dagger:
             result &= ~UnitaryFlags.Dagger
         return result
+
+    def context(self) -> str:
+        """Returns a description of the contexts allowed by this flag."""
+        match self:
+            case UnitaryFlags.Dagger:
+                return "daggerable"
+            case UnitaryFlags.Control:
+                return "controllable"
+            case UnitaryFlags.Unitary:
+                return "unitary"
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case _:
+                assert_never(self)
+
+    def callable_name(
+        self,
+    ) -> Literal[
+        "Callable",
+        "Unitary",
+        "Daggerable",
+        "Controllable",
+    ]:
+        """Returns the name of the corresponding Callable variant for this flag."""
+        match self:
+            case UnitaryFlags.NoFlags:
+                return "Callable"
+            case UnitaryFlags.Unitary:
+                return "Unitary"
+            case UnitaryFlags.Dagger:
+                return "Daggerable"
+            case UnitaryFlags.Control:
+                return "Controllable"
+            case _:
+                assert_never(self)
 
 
 @dataclass(frozen=True)
