@@ -1,6 +1,9 @@
+import pytest
+
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle
 from guppylang.std.builtins import owned, array
+from guppylang.std.qsystem.helios import set_platform_config, HELIOS_CONFIG_META_KEY
 from guppylang.std.qsystem.random import make_discrete_distribution, RNG
 
 from guppylang.std.qsystem import (
@@ -268,3 +271,68 @@ def test_lazy_measure_and_reset_array_functional(validate, run_int_fn):  # type:
 
     validate(test.compile_function())
     run_int_fn(test, 1, num_qubits=NUM_QUBITS)
+
+
+def test_set_platform_config_defaults(validate):  # type: ignore[no-untyped-def]
+    """set_platform_config sets the expected metadata with default values."""
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+    set_platform_config(package)
+
+    validate(package)
+
+    for module in package.modules:
+        config = module.module_root.metadata[HELIOS_CONFIG_META_KEY]
+        assert config == {
+            "squash_rxys": True,
+            "enable_replay": False,
+            "dd_threshold": None,
+        }
+
+
+def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
+    """set_platform_config sets the expected metadata with custom values."""
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+    set_platform_config(
+        package,
+        squash_rxys=False,
+        enable_replay=True,
+        dd_threshold=5,
+    )
+
+    validate(package)
+
+    for module in package.modules:
+        config = module.module_root.metadata[HELIOS_CONFIG_META_KEY]
+        assert config == {
+            "squash_rxys": False,
+            "enable_replay": True,
+            "dd_threshold": 5,
+        }
+
+
+def test_set_platform_config_rejects_bad_dd_threshold(validate):
+    """set_platform_config should reject a negative dd_threshold value."""
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+    validate(package)
+    with pytest.raises(ValueError, match="must be >= 0"):
+        set_platform_config(
+            package,
+            squash_rxys=False,
+            enable_replay=True,
+            dd_threshold=-1,
+        )
