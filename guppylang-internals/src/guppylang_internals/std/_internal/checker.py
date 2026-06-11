@@ -177,7 +177,7 @@ class ArrayCopyChecker(CustomCallChecker):
                     )
                     raise GuppyTypeError(err)
         [array_arg], _, inst = synthesize_call(
-            ("array.copy", self.func.ty), args, self.node, self.ctx
+            (self.func.name, self.func.ty), args, self.node, self.ctx
         )
         node = GlobalCall(def_id=self.func.id, args=[array_arg], type_args=inst)
         return with_loc(self.node, node), get_type(array_arg)
