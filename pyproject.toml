@@ -28,18 +28,11 @@ members = ["guppylang", "guppylang-internals", "miette-py"]
 guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
-<<<<<<< HEAD
-tket-exts = { git = "https://github.com/Quantinuum/tket2", branch = "main", subdirectory = "tket-exts" }
-# tket/selene-hugr-qis-compiler require conan + LLVM to build from source;
-# install pre-built wheels separately, or set TKET_C_API_PATH + LLVM_SYS_211_PREFIX:
-# tket = { git = "https://github.com/Quantinuum/tket2", branch = "ss/push-xxonxqrlptsq", subdirectory = "tket-py" }
-=======
 # Pinned: fix: Include helios and sol extensions in qis-compiler registry (#1646)
 tket = { git = "https://github.com/Quantinuum/tket2", branch = "88002572d2f5af63233c2c0179c25da477a5a4e4", subdirectory = "tket-py" }
 tket-exts = { git = "https://github.com/Quantinuum/tket2", rev = "88002572d2f5af63233c2c0179c25da477a5a4e4", subdirectory = "tket-exts" }
-selene-hugr-qis-compiler = { git = "https://github.com/Quantinuum/tket2", branch = "88002572d2f5af63233c2c0179c25da477a5a4e4", subdirectory = "qis-compiler" }
->>>>>>> ss/sol
-# selene-sim = { git = "https://github.com/Quantinuum/selene", branch = "0.3-series" }
+selene-hugr-qis-compiler = { git = "https://github.com/Quantinuum/tket2", tag = "qis-compiler-v0.3.0", subdirectory = "qis-compiler" }
+selene-sim = { git = "https://github.com/Quantinuum/selene", branch = "0.3-series" }
 # Uncomment these to test the latest dependency version during development
 #  hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
 

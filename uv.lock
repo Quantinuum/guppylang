@@ -1036,8 +1036,8 @@ requires-dist = [
     { name = "guppylang-internals", editable = "guppylang-internals" },
     { name = "numpy", specifier = "~=2.0" },
     { name = "pytket", specifier = ">=1.34" },
-    { name = "selene-hugr-qis-compiler", git = "https://github.com/Quantinuum/tket2?subdirectory=qis-compiler&branch=88002572d2f5af63233c2c0179c25da477a5a4e4" },
-    { name = "selene-sim", specifier = "~=0.2.7" },
+    { name = "selene-hugr-qis-compiler", git = "https://github.com/Quantinuum/tket2?subdirectory=qis-compiler&tag=qis-compiler-v0.3.0" },
+    { name = "selene-sim", git = "https://github.com/Quantinuum/selene?branch=0.3-series" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]
@@ -3576,8 +3576,8 @@ wheels = [
 
 [[package]]
 name = "selene-core"
-version = "0.2.10"
-source = { registry = "https://pypi.org/simple" }
+version = "0.3.0a0"
+source = { git = "https://github.com/Quantinuum/selene?subdirectory=selene-core&branch=0.3-series#0ee64a2d072d1ffd4b1e927170729ec1dc56ba1c" }
 dependencies = [
     { name = "hugr" },
     { name = "lief" },
@@ -3591,33 +3591,22 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "ziglang" },
 ]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/33/32906365f8359588d7d05301a2e645563321bf39a11f076ee16f7aa5178a/selene_core-0.2.10-py3-none-any.whl", hash = "sha256:c53857781c25ce95e170dcf83044ba152e68d799a3585f4874281b306a24899c", size = 33014, upload-time = "2026-05-22T10:07:21.106Z" },
-]
 
 [[package]]
 name = "selene-hugr-qis-compiler"
-version = "0.2.10"
-source = { git = "https://github.com/Quantinuum/tket2?subdirectory=qis-compiler&branch=88002572d2f5af63233c2c0179c25da477a5a4e4#88002572d2f5af63233c2c0179c25da477a5a4e4" }
+version = "0.3.0"
+source = { git = "https://github.com/Quantinuum/tket2?subdirectory=qis-compiler&tag=qis-compiler-v0.3.0#5a512a9d4efbcd894ba07f39be8dd71c14af4903" }
 
 [[package]]
 name = "selene-sim"
-version = "0.2.16"
-source = { registry = "https://pypi.org/simple" }
+version = "0.3.0a0"
+source = { git = "https://github.com/Quantinuum/selene?branch=0.3-series#0ee64a2d072d1ffd4b1e927170729ec1dc56ba1c" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pyyaml" },
     { name = "selene-core" },
-    { name = "selene-hugr-qis-compiler" },
     { name = "tqdm" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/6b/bf8f5775c0d0d56c712955ea591d61c467730a88c9de7694d011adf52dcd/selene_sim-0.2.16-py3-none-macosx_11_0_arm64.whl", hash = "sha256:6f2dd9b201641236381ddc0e2b6a630a994d154026bd9db7da6bec8fc2caf428", size = 4838048, upload-time = "2026-05-22T10:29:55.79Z" },
-    { url = "https://files.pythonhosted.org/packages/1d/0e/48a157a1c2f05e783be6725ae22c49b76b5b614e756a7b0016377f128172/selene_sim-0.2.16-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:abed123cb9b38f402b5d90b4163089fbbdb082edbd7a0411937648700986d569", size = 5043163, upload-time = "2026-05-22T10:29:58.46Z" },
-    { url = "https://files.pythonhosted.org/packages/6b/4e/ad52baec846567b0b106e1a0024eaff9fd625c4c7fa0695bd9f73b79d300/selene_sim-0.2.16-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:cfad4682d1dc9d468fb3d8d238ce1be28a3a65b0758a8bf21d40e15e9dc10e24", size = 4886685, upload-time = "2026-05-22T10:29:59.877Z" },
-    { url = "https://files.pythonhosted.org/packages/a9/fd/f63cb665ea020aebe09e750ae24302285e25bfdba9e354c36064c7064489/selene_sim-0.2.16-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:27afd571454c478b6cfe4b80c4f4092e1047d61cab393e88700b2b5346ea0d93", size = 5065403, upload-time = "2026-05-22T10:30:01.61Z" },
-    { url = "https://files.pythonhosted.org/packages/65/f0/b57d7191763ed941d9945d7c26457f7e0facf2791096965e1d5d80fce6b3/selene_sim-0.2.16-py3-none-win_amd64.whl", hash = "sha256:45c4bc668557e7d44e7cac10a4f852eec2471cd29c8dd8e9ad03f9cb7d1914d3", size = 10408993, upload-time = "2026-05-22T10:30:03.804Z" },
 ]
 
 [[package]]
