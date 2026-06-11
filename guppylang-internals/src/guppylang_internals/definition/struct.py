@@ -30,6 +30,7 @@ from guppylang_internals.definition.util import (
     DuplicateFieldError,
     NonGuppyMethodError,
     UncheckedField,
+    check_not_recursive,
     extract_generic_params,
     parse_py_class,
 )
@@ -62,6 +63,7 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
     """A raw struct type definition that has not been parsed yet."""
 
     python_class: type
+    frozen: bool
     params: None = field(default=None, init=False)  # Params not known yet
 
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedStructDef":
@@ -136,7 +138,7 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
         )
 
         return ParsedStructDef(
-            self.id, self.name, cls_def, params, fields, link_name_prefix
+            self.id, self.name, cls_def, params, fields, self.frozen, link_name_prefix
         )
 
     def check_instantiate(
@@ -152,6 +154,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[UncheckedField]
+    frozen: bool
     link_name_prefix: str
 
     def check(self, globals: Globals) -> "CheckedStructDef":
@@ -161,14 +164,13 @@ class ParsedStructDef(TypeDef, CheckableDef):
 
         # Before checking the fields, make sure that this definition is not recursive,
         # otherwise the code below would not terminate.
-        # TODO: This is not ideal (see todo in `check_instantiate`)
         check_not_recursive(self, ctx)
 
         fields = [
             CheckedField(f.name, type_from_ast(f.type_ast, ctx)) for f in self.fields
         ]
         return CheckedStructDef(
-            self.id, self.name, self.defined_at, self.params, fields
+            self.id, self.name, self.defined_at, self.params, fields, self.frozen
         )
 
     def check_instantiate(
@@ -195,6 +197,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
     fields: Sequence[CheckedField]
+    frozen: bool
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -239,23 +242,3 @@ class CheckedStructDef(TypeDef, CompiledDef):
             has_var_args=False,
         )
         return [constructor_def]
-
-
-# TODO: adapt the following to work also with enums, and move it to a common module
-def check_not_recursive(defn: ParsedStructDef, ctx: TypeParsingCtx) -> None:
-    """Throws a user error if the given struct definition is recursive."""
-    # TODO: The implementation below hijacks the type parsing logic to detect recursive
-    #  structs. This is not great since it repeats the work done during checking. We can
-    #  get rid of this after resolving the todo in `ParsedStructDef.check_instantiate()`
-
-    def dummy_check_instantiate(
-        args: Sequence[Argument],
-        loc: AstNode | None = None,
-    ) -> Type:
-        raise GuppyError(UnsupportedError(loc, "Recursive definitions"))
-
-    original = defn.check_instantiate
-    object.__setattr__(defn, "check_instantiate", dummy_check_instantiate)
-    for fld in defn.fields:
-        type_from_ast(fld.type_ast, ctx)
-    object.__setattr__(defn, "check_instantiate", original)

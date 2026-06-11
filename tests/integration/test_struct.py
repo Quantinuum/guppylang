@@ -1,6 +1,10 @@
 from typing import Generic, TYPE_CHECKING
 
+from guppylang import comptime, qubit, array
 from guppylang.decorator import guppy
+from guppylang.std.quantum import discard_array
+
+from tests.integration.modules import struct_scope_defs
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -39,11 +43,11 @@ def test_basic_defs(validate):
 
 
 def test_backward_ref(validate):
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructA:
         x: int
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructB:
         y: StructA
 
@@ -55,11 +59,11 @@ def test_backward_ref(validate):
 
 
 def test_forward_ref(validate):
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructA:
         x: "StructB"
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructB:
         y: int
 
@@ -70,21 +74,33 @@ def test_forward_ref(validate):
     validate(main.compile_function())
 
 
+def test_imported_struct_dependency_uses_defining_scope(validate):
+    @guppy.struct
+    class B:
+        a: struct_scope_defs.A
+
+    @guppy
+    def main() -> B:
+        return B(struct_scope_defs.A(struct_scope_defs.B(0)))
+
+    validate(main.compile_function())
+
+
 def test_generic(validate):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructA(Generic[T]):
         x: tuple[int, T]
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructC:
         a: StructA[int]
         b: StructA[list[bool]]
         c: "StructB[float, StructB[bool, int]]"
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class StructB(Generic[S, T]):
         x: S
         y: StructA[T]
@@ -191,3 +207,28 @@ def test_redefine(validate):
         return MyStruct()
 
     validate(foo.compile_function())
+
+
+def test_comptime_attribute_access(validate):
+    """Tests that comptime expressions struct definitions can access attributes of local
+    variables. Regression test for https://github.com/Quantinuum/guppylang/issues/1816.
+    """
+
+    class Config:
+        x: int
+
+        def __init__(self, x: int):
+            self.x = x
+
+    config = Config(x=5)
+
+    @guppy.struct
+    class Struct:
+        qs: array[qubit, comptime(config.x)]
+
+    @guppy
+    def main() -> None:
+        s = Struct(array(qubit() for _ in range(comptime(config.x))))
+        discard_array(s.qs)
+
+    validate(main.compile_function())

@@ -1,9 +1,11 @@
 from guppylang.decorator import guppy
+from guppylang.std.builtins import dagger
 
 
-@guppy(dagger=True)
-def test() -> None:
-    for _ in range(46):
-        pass
+@guppy
+def test(i: int) -> None:
+    with dagger:
+        while i < 46:
+            pass
 
 test.compile()

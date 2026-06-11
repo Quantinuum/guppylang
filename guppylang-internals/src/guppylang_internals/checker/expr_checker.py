@@ -89,6 +89,7 @@ from guppylang_internals.checker.errors.type_errors import (
     TypeInferenceError,
     TypeMismatchError,
     UnaryOperatorNotDefinedError,
+    UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
 from guppylang_internals.definition.common import Definition
@@ -1054,8 +1055,11 @@ def check_type_against(
         inst = tuple(subst[v].to_arg() for v in free_vars)
         subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
 
-        # Finally, check that the instantiation respects the linearity requirements
+        # Finally, check that the instantiation respects the linearity requirements and
+        # if the unitary flags match
         check_inst(act, inst, node)
+        assert isinstance(exp, FunctionType)
+        check_unitary_flags(exp, act, node)
 
         return node, subst, inst
 
@@ -1067,6 +1071,12 @@ def check_type_against(
         if coerced := try_coerce_to(act, exp, node, ctx):
             return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
+
+    # If we have a function type, we also check that unitary flags match
+    if isinstance(act, FunctionType):
+        assert isinstance(exp, FunctionType)
+        check_unitary_flags(exp, act, node)
+
     return node, subst, ()
 
 
@@ -1090,6 +1100,13 @@ def try_coerce_to(
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
     return None
+
+
+def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
+    if not exp.unitary_flags.is_weaker_than(act.unitary_flags):
+        raise GuppyTypeError(
+            UnitaryFlagMismatchError(node, exp.unitary_flags, act.unitary_flags)
+        )
 
 
 def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Inst:
@@ -1118,6 +1135,7 @@ def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Ins
         err.add_sub_diagnostic(WrongNumberOfArgsError.SignatureHint(None, ty))
         raise GuppyError(err)
 
+    # Other call, not interested
     inst = tuple(arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs)
     check_all_args(ty.params, inst, "", node, arg_exprs)
     return inst

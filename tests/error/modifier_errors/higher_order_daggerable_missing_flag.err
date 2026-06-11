@@ -1,0 +1,9 @@
+Error: Unitary flag mismatch (at $FILE:17:17)
+   | 
+15 | @guppy
+16 | def test(q: qubit) -> None:
+17 |     apply_dagger(no_flags, q)
+   |                  ^^^^^^^^ Expected function with unitary flags: `daggerable=True`,
+   |                           got: `None`
+
+Guppy compilation failed due to 1 previous error

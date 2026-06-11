@@ -2,13 +2,12 @@
 
 import ast
 
-from guppylang_internals.ast_util import loop_in_ast, with_loc
+from guppylang_internals.ast_util import with_loc
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.checker.cfg_checker import check_cfg
 from guppylang_internals.checker.core import Context, EffectLimitDecl, Variable
-from guppylang_internals.checker.errors.generic import InvalidUnderDagger
+from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.error import GuppyError
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
 from guppylang_internals.tys.ty import (
     FuncInput,
@@ -40,18 +39,8 @@ def check_modified_block(
         if x in ctx.locals
     }
 
-    # We do not allow any loop if it is daggered.
-    if modified_block.has_dagger():
-        for stmt in modified_block.body:
-            loops = loop_in_ast(stmt)
-            if len(loops) != 0:
-                loop = next(iter(loops))
-                err = InvalidUnderDagger(loop, "Loop")
-                err.add_sub_diagnostic(
-                    InvalidUnderDagger.Dagger(modified_block.span_ctxt_manager())
-                )
-                raise GuppyError(err)
-
+    # We do not allow any loop or branching if it is daggered.
+    check_invalid_under_dagger(modified_block, modified_block.accumulated_flags)
     # The other checks are done in unitary checking.
     # e.g. call to non-unitary function in a unitary modifier.
 

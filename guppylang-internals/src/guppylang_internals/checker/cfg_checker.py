@@ -24,7 +24,7 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.expr_checker import ExprSynthesizer, to_bool
 from guppylang_internals.checker.stmt_checker import StmtChecker
-from guppylang_internals.diagnostic import Error, Note
+from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import InputFlags, Type
@@ -93,6 +93,7 @@ def check_cfg(
     `first_modifier_node`: if None, the cfg is not a modifier block.
     Otherwise, it's the AST node of the first modifier, used in error reporting.
     """
+
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
@@ -182,7 +183,7 @@ def check_cfg(
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
 
-    check_cfg_unitary(linearity_checked_cfg, cfg.unitary_flags)
+    check_cfg_unitary(linearity_checked_cfg, linearity_checked_cfg.unitary_flags)
 
     return linearity_checked_cfg
 
@@ -225,6 +226,24 @@ class BranchTypeError(Error):
         ty: Type
 
 
+@dataclass(frozen=True)
+class AssignedInModifierError(Error):
+    title: ClassVar[str] = "Variable assigned in modifier block"
+    span_label: ClassVar[str] = "`{var}` cannot be used..."
+    var: str
+
+    @dataclass(frozen=True)
+    class AssignedHere(Note):
+        span_label: ClassVar[str] = "... since it was assigned in a modifier block"
+
+    @dataclass(frozen=True)
+    class Explanation(Help):
+        message: ClassVar[str] = (
+            "Variables assigned inside a modifier block are not available"
+            " outside the block"
+        )
+
+
 def check_bb(
     bb: BB,
     checked_cfg: CheckedCFG[Variable],
@@ -247,6 +266,14 @@ def check_bb(
                 and x not in generic_args
             ):
                 raise GuppyError(VarNotDefinedError(use, x))
+
+    # We check that the block does not use defined variables that have been redefined
+    # inside a modifier block
+    if bb.vars.badly_used_after_modifier_block:
+        x, (use, assignment) = next(
+            iter(bb.vars.badly_used_after_modifier_block.items())
+        )
+        raise GuppyError(_assigned_in_modifier_error(x, use, assignment))
 
     # Check the basic block
     ctx = Context(
@@ -285,6 +312,15 @@ def check_bb(
             elif x not in ctx.globals and x not in generic_args:
                 raise GuppyError(VarNotDefinedError(use_bb.vars.used[x], x))
 
+            # We also check that the variables assigned in a modifier block are not
+            # in successor blocks
+            if x in bb.vars.assigned_in_modifier_block:
+                raise GuppyError(
+                    _assigned_in_modifier_error(
+                        x, use_bb.vars.used[x], bb.vars.assigned_in_modifier_block[x]
+                    )
+                )
+
     # Finally, we need to compute the signature of the basic block
     outputs = [
         [ctx.locals[x] for x in cfg.live_before[succ] if x in ctx.locals]
@@ -306,6 +342,15 @@ def check_bb(
     checked_bb.successors = [None] * len(bb.successors)  # type: ignore[list-item]
     checked_bb.branch_pred = bb.branch_pred
     return checked_bb
+
+
+def _assigned_in_modifier_error(
+    var: str, use: ast.AST, assignment: ast.AST
+) -> AssignedInModifierError:
+    err = AssignedInModifierError(use, var)
+    err.add_sub_diagnostic(AssignedInModifierError.AssignedHere(assignment))
+    err.add_sub_diagnostic(AssignedInModifierError.Explanation(None))
+    return err
 
 
 def check_rows_match(row1: Row[Variable], row2: Row[Variable], bb: BB) -> None:

@@ -41,6 +41,7 @@ from guppylang_internals.checker.errors.type_errors import (
     AttributeNotFoundError,
     MissingReturnValueError,
     StarredTupleUnpackError,
+    StructImmutableError,
     TypeInferenceError,
     TypeMismatchError,
     UnpackableError,
@@ -176,12 +177,8 @@ class StmtChecker(AstVisitor[BBStatement]):
             err = UnsupportedError(value, "Assigning to this expression", singular=True)
             err.add_sub_diagnostic(AssignNonPlaceHelp(None, field))
             raise GuppyError(err)
-        if field.ty.copyable:
-            raise GuppyError(
-                UnsupportedError(
-                    attr_span, "Mutation of classical fields", singular=True
-                )
-            )
+        if struct_ty.frozen:
+            raise GuppyTypeError(StructImmutableError(lhs, struct_ty))
         place = FieldAccess(value.place, struct_ty.field_dict[attr], lhs)
         place = check_place_assignable(place, self.ctx, lhs, "assignable")
         return with_loc(lhs, with_type(rhs_ty, PlaceNode(place=place)))
@@ -420,12 +417,12 @@ class StmtChecker(AstVisitor[BBStatement]):
             raise InternalGuppyError("BB required to check with block!")
 
         # check the body of the modified block
-        modified_block = check_modified_block(
+        checked_modified_block = check_modified_block(
             node, self.bb, self.ctx, max_effects_from=self.ctx.max_effects_from
         )
 
         # check the arguments of the control and power.
-        for control in modified_block.control:
+        for control in checked_modified_block.control:
             ctrl = control.ctrl
             # This case is handled during CFG construction.
             assert len(ctrl) > 0
@@ -466,13 +463,13 @@ class StmtChecker(AstVisitor[BBStatement]):
                         )
                 control.qubit_num = len(ctrl)
 
-        for power in node.power:
+        for power in checked_modified_block.power:
             power.iter, subst = self._check_expr(
                 power.iter, NumericType(NumericType.Kind.Nat)
             )
             assert len(subst) == 0
 
-        return modified_block
+        return checked_modified_block
 
     def visit_If(self, node: ast.If) -> None:
         raise InternalGuppyError("Control-flow statement should not be present here.")
