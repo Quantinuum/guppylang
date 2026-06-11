@@ -66,6 +66,7 @@ def run_hugrs(paths: list[Path], n_qubits: int) -> list[str]:
         state = emulator.statevector_sim().run()
         result = state.partial_state_dicts()[0]["r"].as_single_state()
         all_results.append(f"{input_path.stem}:\n{format_statevector(result)}")
+        print("-" * 20)
     return all_results
 
 
