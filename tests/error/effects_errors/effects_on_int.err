@@ -3,6 +3,6 @@ Error: Invalid annotation (at $FILE:8:26)
 6 | # This says the return type (not the function) has effects
 7 | @guppy
 8 | def main(x: int) -> int @ effects():
-  |                           ^^^^^^^^^ Effects may be applied only to a Callable type
+  |                           ^^^^^^^^^ Effects may be applied only to a `Callable` type
 
 Guppy compilation failed due to 1 previous error
