@@ -30,8 +30,8 @@ guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
 # Uncomment these to test the latest dependency version during development
 #hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "f06c79de" }
-tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", rev = "db2e5306" }
-selene-hugr-qis-compiler = { git = "https://github.com/quantinuum/tket2", subdirectory = "qis-compiler", rev = "db2e5306" }
+#tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", rev = "db2e5306" }
+#selene-hugr-qis-compiler = { git = "https://github.com/quantinuum/tket2", subdirectory = "qis-compiler", rev = "db2e5306" }
 
 [build-system]
 requires = ["hatchling"]
