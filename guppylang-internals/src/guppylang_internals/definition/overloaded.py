@@ -154,7 +154,11 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         synth = ExprSynthesizer(ctx)
         arg_tys = [synth.synthesize(arg)[1] for arg in args]
         err = OverloadNoMatchError(
-            span, self.name, arg_tys, return_ty, ctx.max_effects_from
+            span,
+            self.name,
+            arg_tys,
+            return_ty,
+            ctx.current_caller.effect_limit if ctx.current_caller else None,
         )
         err.add_sub_diagnostic(AvailableOverloadsHint(None, self.name, available_sigs))
         raise GuppyError(err)

@@ -14,8 +14,8 @@ from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
+    CallGraphNode,
     Context,
-    EffectLimitDecl,
     Globals,
     Locals,
     Place,
@@ -77,7 +77,7 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
-    max_effects_from: EffectLimitDecl | None,
+    current_caller: "CallGraphNode | None" = None,
     first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
@@ -108,7 +108,7 @@ def check_cfg(
         return_ty,
         generic_args,
         globals,
-        max_effects_from=max_effects_from,
+        current_caller=current_caller,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -141,7 +141,7 @@ def check_cfg(
                 return_ty,
                 generic_args,
                 globals,
-                max_effects_from=max_effects_from,
+                current_caller=current_caller,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -251,7 +251,7 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
-    max_effects_from: EffectLimitDecl | None,
+    current_caller: "CallGraphNode | None" = None,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -277,7 +277,10 @@ def check_bb(
 
     # Check the basic block
     ctx = Context(
-        globals, Locals({v.name: v for v in inputs}), generic_args, max_effects_from
+        globals,
+        Locals({v.name: v for v in inputs}),
+        generic_args,
+        current_caller=current_caller,
     )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 

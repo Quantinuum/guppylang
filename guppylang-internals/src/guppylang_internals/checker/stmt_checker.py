@@ -418,7 +418,7 @@ class StmtChecker(AstVisitor[BBStatement]):
 
         # check the body of the modified block
         checked_modified_block = check_modified_block(
-            node, self.bb, self.ctx, max_effects_from=self.ctx.max_effects_from
+            node, self.bb, self.ctx, current_caller=self.ctx.current_caller
         )
 
         # check the arguments of the control and power.

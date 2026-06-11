@@ -18,6 +18,7 @@ from semver import Version
 from typing_extensions import assert_never, deprecated
 
 import guppylang_internals
+from guppylang_internals.checker.core import CallGraphNode
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -205,6 +206,10 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
+    #: Call graph mapping from caller to list of callees. Populated during type checking
+    # as calls are checked, to be then used for effects checking.
+    call_graph: dict[CallGraphNode, list[DefId]]
+
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
@@ -243,6 +248,7 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
+        self.call_graph = {}
 
     @pretty_errors
     @deprecated(

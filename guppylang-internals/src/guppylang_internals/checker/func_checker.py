@@ -16,6 +16,7 @@ from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.builder import CFGBuilder
 from guppylang_internals.checker.cfg_checker import CheckedCFG, check_cfg
 from guppylang_internals.checker.core import (
+    CallGraphNode,
     Context,
     EffectLimitDecl,
     Globals,
@@ -146,6 +147,7 @@ def check_global_func_def(
     generic_ty: FunctionType,
     type_args: Inst,
     globals: Globals,
+    def_id: DefId | None = None,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -166,6 +168,9 @@ def check_global_func_def(
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
     max_effects_from = EffectLimitDecl.for_def(ty, func_def)
+    current_caller = (
+        CallGraphNode(def_id=def_id, effect_limit=max_effects_from) if def_id else None
+    )
     return check_cfg(
         cfg,
         inputs,
@@ -173,7 +178,7 @@ def check_global_func_def(
         generic_args,
         func_def.name,
         globals,
-        max_effects_from=max_effects_from,
+        current_caller=current_caller,
     )
 
 
@@ -183,13 +188,7 @@ def check_nested_func_def(
     ctx: Context,
 ) -> CheckedNestedFunctionDef:
     """Type checks a local (nested) function definition."""
-    # For now we assume the nested function has the same effects as that enclosing.
-    # We could do better by allowing a separate annotation (rather than a parameter
-    # to @guppy), but we will wait for callgraph analysis to compute precisely:
-    # nested functions are not part of any public API, so changes are not breaking.
-    func_ty = check_signature(func_def, ctx.globals).with_effects(
-        None if ctx.max_effects_from is None else ctx.max_effects_from.effects
-    )
+    func_ty = check_signature(func_def, ctx.globals)
     assert func_ty.input_names is not None
 
     if func_ty.parametrized:
@@ -275,9 +274,13 @@ def check_nested_func_def(
         {},
         func_def.name,
         globals,
-        # As comment above, assume nested func has same effects as enclosing
-        # (hence the decl giving the effects is that of the enclosing func too).
-        max_effects_from=ctx.max_effects_from,
+        # TODO: Have empty effects limit here instead.
+        current_caller=CallGraphNode(
+            def_id=def_id,
+            effect_limit=ctx.current_caller.effect_limit
+            if ctx.current_caller
+            else None,
+        ),
     )
     checked_def = CheckedNestedFunctionDef(
         def_id,

@@ -7,6 +7,7 @@ from hugr import ops
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import (
+    CallGraphNode,
     ComptimeVariable,
     Context,
     EffectLimitDecl,
@@ -75,7 +76,11 @@ def trace_function(
     """
     max_effects = EffectLimitDecl.for_def(ty, func_def.defined_at)
     state = TracingState(
-        ctx, DFContainer(builder, ctx, {}), node, func_def, max_effects=max_effects
+        ctx,
+        DFContainer(builder, ctx, {}),
+        node,
+        func_def,
+        current_caller=CallGraphNode(func_def.id, max_effects),
     )
     with set_tracing_state(state):
         inputs = [
@@ -187,7 +192,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             Globals(DEF_STORE.frames[func.id]),
             locals,
             {},
-            max_effects_from=state.max_effects,
+            current_caller=state.current_caller,
         )
         call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 

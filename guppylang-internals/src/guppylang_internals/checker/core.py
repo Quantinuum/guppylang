@@ -445,6 +445,23 @@ class Locals(Generic[VId, V]):
 
 
 @dataclass(frozen=True)
+class CallGraphNode:
+    """Node in the call graph representing a function with its effect limit
+    declaration."""
+
+    def_id: DefId
+    effect_limit: "EffectLimitDecl | None"
+
+    def __hash__(self) -> int:
+        return hash(self.def_id)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CallGraphNode):
+            return NotImplemented
+        return self.def_id == other.def_id
+
+
+@dataclass(frozen=True)
 class EffectLimitDecl:
     """Records a declaration limiting the effects that may be used in a Context"""
 
@@ -501,9 +518,10 @@ class Context(NamedTuple):
     locals: Locals[str, Variable]
     generic_param_inst: dict[str, Argument]
 
-    """If not None, the effect constraints that function calls in this context must
-    respect, together with the AST node that gives rise to said constraint"""
-    max_effects_from: EffectLimitDecl | None = None
+    """If not None, the call graph node for the function being checked, which also
+    stores the effect constraints that function calls in this context must respect,
+    together with the AST node that gives rise to said constraint."""
+    current_caller: "CallGraphNode | None" = None
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

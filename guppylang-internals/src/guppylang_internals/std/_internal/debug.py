@@ -97,7 +97,9 @@ class StateResultChecker(CustomCallChecker):
                 + [FuncInput(qubit_ty, InputFlags.Inout)] * len(args[1:]),
                 NoneType(),
             )
-        args, ret_ty, inst = synthesize_call(func_ty, syn_args, self.node, self.ctx)
+        args, ret_ty, inst = synthesize_call(
+            func_ty, syn_args, self.node, self.ctx, self.func.id
+        )
         assert len(inst) == 0, "func_ty is not generic"
         node = StateResultExpr(
             tag_value=tag_value,
