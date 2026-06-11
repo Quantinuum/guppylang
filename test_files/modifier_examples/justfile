@@ -1,0 +1,19 @@
+# List the available commands
+help:
+    @just --list --justfile {{justfile()}}
+
+# Re-generate all hugr files
+r: recompile-hugrs
+
+# Re-generate all hugr files.
+recompile-hugrs:
+    #!/usr/bin/env sh
+    for example in $(find . -type f -name "*.py"); do
+        echo "Re-generating $example"
+        uv run python "$example"
+    done
+
+# Re-generate a single hugr file.
+rh example:
+    echo "Re-generating {{example}}"
+    uv run python "{{example}}"

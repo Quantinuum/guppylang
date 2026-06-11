@@ -1,0 +1,18 @@
+# List the available commands
+help:
+    @just --list --justfile {{justfile()}}
+
+# Re-generate and run all modifier examples.
+r: run-hugrs
+
+# Re-generate and run all modifier examples.
+run-hugrs:
+    uv run python run_examples.py
+
+# Re-generate and run a single modifier example.
+rh example:
+    uv run python run_examples.py "{{example}}"
+
+# Run existing hugr files without regenerating them first.
+run-existing:
+    uv run python run_examples.py --skip-compile
