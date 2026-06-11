@@ -53,10 +53,10 @@ class OptionTestCompiler(OptionCompiler):
         [opt] = args
         cond = self.builder.add_conditional(opt)
         for i in [0, 1]:
-            with cond.add_case(i) as case:
-                val = OPAQUE_TRUE if i == self.tag else OPAQUE_FALSE
-                opt = case.add_op(ops.Tag(i, self.option_ty), *case.inputs())
-                case.set_outputs(case.load(val), opt)
+            case = cond.add_case(i)
+            val = OPAQUE_TRUE if i == self.tag else OPAQUE_FALSE
+            opt = case.add_op(ops.Tag(i, self.option_ty), *case.inputs())
+            case.set_outputs(case.load(val), opt)
         [res, opt] = cond.outputs()
         return CallReturnWires(regular_returns=[res], inout_returns=[opt])
 
