@@ -256,14 +256,14 @@ class Measurement:
     """Represents the result of a lazy measurement which needs to be explicitly read
     before being used."""
 
-    @custom_function(compiler=ReadFutureBoolCompiler())
+    @custom_function(compiler=ReadFutureBoolCompiler(), effects=[])
     @no_type_check
     def read(self: "Measurement" @ owned) -> bool:
         """Read the measurement result, consuming it. Blocks until the result is
         available if the measurement hasn't been performed yet since being requested.
         """
 
-    @guppy
+    @guppy(effects=[])
     @no_type_check
     def __consume_as_bool__(self: "Measurement" @ owned) -> bool:
         return self.read()

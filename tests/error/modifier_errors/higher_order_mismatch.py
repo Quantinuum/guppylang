@@ -1,11 +1,12 @@
 from guppylang.decorator import guppy
 from guppylang.std.builtins import dagger
+from guppylang.std.effects import effects
 from guppylang.std.quantum import qubit, h, discard
 from collections.abc import Callable
 
 
 @guppy(daggerable=True)
-def test_ho(f: Callable[[qubit], None], q: qubit) -> None:
+def test_ho(f: Callable[[qubit], None] @ effects(), q: qubit) -> None:
     f(q)
 
 
