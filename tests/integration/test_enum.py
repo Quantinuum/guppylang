@@ -21,6 +21,7 @@ fn main() {
 """
 
 from guppylang import guppy
+from guppylang.std.effects import effects
 from tests.util import compile_guppy
 
 from typing import Generic
@@ -247,7 +248,7 @@ def test_higher_order(validate):
         VariantA = {"x": T}
 
     @guppy
-    def factory(mk_enum: Callable[[int], Enum[int]], x: int) -> Enum[int]:
+    def factory(mk_enum: Callable[[int], Enum[int]] @ effects(), x: int) -> Enum[int]:
         return mk_enum(x)
 
     @guppy
