@@ -26,6 +26,7 @@ from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.extern import RawExternDef
 from guppylang_internals.definition.function import (
     RawFunctionDef,
+    RawModifiedDefs,
 )
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
@@ -348,13 +349,19 @@ class _Guppy:
             class myUnitary
         """
 
-        if "__call__" in cls.__dict__:
-            val = cls.__dict__["__call__"]
-            if isinstance(val, GuppyDefinition):
-                guppy_def = val
-                raw_func = guppy_def.wrapped
-                if isinstance(raw_func, RawFunctionDef):
-                    return guppy_def
+        guppy_def = _get_unitary_call_def(cls)
+        if guppy_def is not None:
+            raw_func = cast("RawFunctionDef", guppy_def.wrapped)
+            object.__setattr__(
+                raw_func,
+                "modified_defs",
+                RawModifiedDefs(
+                    call_daggered=_get_unitary_method(cls, "call_daggered"),
+                    call_controlled=_get_unitary_method(cls, "call_controlled"),
+                    call_ctrl_daggered=_get_unitary_method(cls, "call_ctrl_daggered"),
+                ),
+            )
+            return guppy_def  # type: ignore[return-value]
 
         raise TypeError(
             f"The `@guppy.unitary` class `{cls.__name__}` requires a `@guppy` "
@@ -784,6 +791,29 @@ def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T
     if not hasattr(cls, "__firstlineno__"):
         cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
     return cls
+
+
+def _get_unitary_call_def(
+    cls: builtins.type[T],
+) -> GuppyDefinition | None:
+    """Returns the `@guppy`-annotated `__call__` method from a unitary class."""
+    val = cls.__dict__.get("__call__")
+    if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
+        return val
+    return None
+
+
+def _get_unitary_method(cls: builtins.type[T], name: str) -> RawFunctionDef | None:
+    """Returns an optional `@guppy`-annotated unitary modifier method."""
+    val = cls.__dict__.get(name)
+    if val is None:
+        return None
+    if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
+        return val.wrapped
+    raise TypeError(
+        f"The `@guppy.unitary` class `{cls.__name__}` has a `{name}` method that "
+        "is not a `@guppy` annotated function"
+    )
 
 
 def custom_guppy_decorator(f: F) -> F:

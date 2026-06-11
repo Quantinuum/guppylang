@@ -93,6 +93,70 @@ def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
 
 
 @dataclass(frozen=True)
+class RawModifiedDefs:
+    """Class defined to collect the optional modified implementations of the function
+    definition.
+    """
+
+    call_daggered: "RawFunctionDef | None" = None
+    call_controlled: "RawFunctionDef | None" = None
+    call_ctrl_daggered: "RawFunctionDef | None" = None
+
+    def parse(self) -> "ParsedModifiedDefs":
+        return ParsedModifiedDefs(
+            call_daggered=_parse_modified_def(self.call_daggered),
+            call_controlled=_parse_modified_def(self.call_controlled),
+            call_ctrl_daggered=_parse_modified_def(self.call_ctrl_daggered),
+        )
+
+
+@dataclass(frozen=True)
+class ParsedModifiedDefs:
+    """Parsed modified implementations attached to a function definition."""
+
+    call_daggered: "ParsedFunctionDef | None" = None
+    call_controlled: "ParsedFunctionDef | None" = None
+    call_ctrl_daggered: "ParsedFunctionDef | None" = None
+
+    def check(self, type_args: Inst) -> "CheckedModifiedDefs":
+        return CheckedModifiedDefs(
+            call_daggered=_check_modified_def(self.call_daggered, type_args),
+            call_controlled=_check_modified_def(self.call_controlled, type_args),
+            call_ctrl_daggered=_check_modified_def(self.call_ctrl_daggered, type_args),
+        )
+
+
+@dataclass(frozen=True)
+class CheckedModifiedDefs:
+    """Checked modified implementations attached to a function definition."""
+
+    call_daggered: "CheckedFunctionDef | None" = None
+    call_controlled: "CheckedFunctionDef | None" = None
+    call_ctrl_daggered: "CheckedFunctionDef | None" = None
+
+    def compile_outer(
+        self,
+        module: DefinitionBuilder[OpVar],
+        ctx: CompilerContext,
+    ) -> "CompiledModifiedDefs":
+        _ = module
+        return CompiledModifiedDefs(
+            call_daggered=_compile_modified_def(self.call_daggered, ctx),
+            call_controlled=_compile_modified_def(self.call_controlled, ctx),
+            call_ctrl_daggered=_compile_modified_def(self.call_ctrl_daggered, ctx),
+        )
+
+
+@dataclass(frozen=True)
+class CompiledModifiedDefs:
+    """Compiled modified implementations attached to a function definition."""
+
+    call_daggered: "CompiledFunctionDef | None" = None
+    call_controlled: "CompiledFunctionDef | None" = None
+    call_ctrl_daggered: "CompiledFunctionDef | None" = None
+
+
+@dataclass(frozen=True)
 class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     """A raw function definition provided by the user.
 
@@ -118,6 +182,13 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    modified_defs: RawModifiedDefs = field(
+        default=RawModifiedDefs(None, None, None),
+        kw_only=True,
+        compare=False,
+        repr=False,
+    )
+
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
@@ -126,6 +197,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
+        parsed_modified_defs = self.modified_defs.parse()
 
         return ParsedFunctionDef(
             self.id,
@@ -135,6 +207,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             docstring,
             link_name,
             metadata=self.metadata,
+            modified_defs=parsed_modified_defs,
         )
 
 
@@ -164,6 +237,10 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    modified_defs: ParsedModifiedDefs | None = field(
+        default=None, kw_only=True, compare=False, repr=False
+    )
+
     @property
     def params(self) -> "Sequence[Parameter]":
         """Generic parameters of this function."""
@@ -175,6 +252,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
+        checked_modified_defs = self.modified_defs.check(type_args)
         return CheckedFunctionDef(
             self.id,
             self.name,
@@ -184,6 +262,8 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_link_name,
             cfg,
             metadata=self.metadata,
+            modified_defs=checked_modified_defs,
+            mono_args=type_args,
         )
 
     @override
@@ -230,6 +310,12 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
 
     cfg: CheckedCFG[Place]
 
+    modified_defs: CheckedModifiedDefs | None = field(
+        default=None, kw_only=True, compare=False, repr=False
+    )
+
+    mono_args: Inst = field(default=(), kw_only=True, compare=False, repr=False)
+
     def __post_init__(self) -> None:
         # We should be monomorphized at this point
         assert not self.params
@@ -257,11 +343,25 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         if debug_mode_enabled():
             assert self.metadata is not None
             self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
+        compiled_modified_def = self.modified_defs.compile_outer(module, ctx)
+        modified_def_nodes = {
+            mod: defn.hugr_node.idx
+            for mod, defn in (
+                ("daggered", compiled_modified_def.call_daggered),
+                ("controlled", compiled_modified_def.call_controlled),
+                ("ctrl_daggered", compiled_modified_def.call_ctrl_daggered),
+            )
+            if defn is not None
+        }
         add_metadata(
             func_def,
             self.metadata,
-            additional_metadata={"unitary": self.ty.unitary_flags.value},
+            additional_metadata={
+                "unitary": self.ty.unitary_flags.value,
+                "modified_defs": modified_def_nodes,
+            },
         )
+
         return CompiledFunctionDef(
             self.id,
             self.name,
@@ -272,6 +372,8 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.cfg,
             FunctionBuilder(func_def),
             metadata=self.metadata,
+            # modified_defs=compiled_modified_defs,
+            # mono_args=self.mono_args,
         )
 
 
@@ -326,6 +428,40 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
 def load(dfg: DFContainer, func: ToNode) -> Wire:
     """Loads the function as a value into a local Hugr dataflow graph."""
     return dfg.builder.load_function(func)
+
+
+def _parse_modified_def(defn: RawFunctionDef | None) -> ParsedFunctionDef | None:
+    if defn is None:
+        return None
+
+    parsed = ENGINE.get_parsed(defn.id)
+    assert isinstance(parsed, ParsedFunctionDef)
+    return parsed
+
+
+def _check_modified_def(
+    defn: ParsedFunctionDef | None, type_args: Inst
+) -> CheckedFunctionDef | None:
+    if defn is None:
+        return None
+    mono_args = (
+        type_args
+        if len(type_args) == len(defn.params)
+        else tuple(param.to_bound() for param in defn.params)
+    )
+    checked = ENGINE.get_checked(defn.id, mono_args)
+    assert isinstance(checked, CheckedFunctionDef)
+    return checked
+
+
+def _compile_modified_def(
+    defn: CheckedFunctionDef | None, ctx: CompilerContext
+) -> CompiledFunctionDef | None:
+    if defn is None:
+        return None
+    compiled = ctx.build_compiled_def(defn.id, defn.mono_args)
+    assert isinstance(compiled, CompiledFunctionDef)
+    return compiled
 
 
 def compile_call(
