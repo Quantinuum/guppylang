@@ -92,7 +92,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
@@ -353,7 +353,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
-            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+            tgt_name = _identify_callee(node.func)
+            args, subst, inst = check_call(
+                (tgt_name, func_ty), node.args, ty, node, self.ctx
+            )
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
@@ -370,7 +373,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             tensor_ty = function_tensor_signature(function_elements)
 
             processed_args, subst, inst = check_call(
-                tensor_ty, node.args, ty, node, self.ctx
+                # Doing better here would require major refactor to provide
+                # names/ids for each tensor element and identify the offender
+                ("<function tensor>", tensor_ty),
+                node.args,
+                ty,
+                node,
+                self.ctx,
             )
             assert len(inst) == 0
             return with_loc(
@@ -916,7 +925,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Otherwise, it must be a function as a higher-order value, or a tensor
         if isinstance(ty, FunctionType):
-            args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
+            tgt_name = _identify_callee(node.func)
+            args, return_ty, inst = synthesize_call(
+                (tgt_name, ty), node.args, node, self.ctx
+            )
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
         elif isinstance(ty, TupleType) and (
@@ -930,7 +942,12 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
             tensor_ty = function_tensor_signature(function_elems)
             args, return_ty, inst = synthesize_call(
-                tensor_ty, node.args, node, self.ctx
+                # Doing better here would require major refactor to provide
+                # names/ids for each tensor element and identify the offender
+                ("<function tensor>", tensor_ty),
+                node.args,
+                node,
+                self.ctx,
             )
             assert len(inst) == 0
 
@@ -1328,14 +1345,32 @@ def check_comptime_arg(
     return subst
 
 
-def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
+def _identify_callee(node: ast.expr) -> str | None:
+    match node:
+        case PlaceNode(place=Variable(name=n)):
+            return n
+        case _:
+            return None
+
+
+def _check_effects(
+    target: tuple[str | DefId | None, FunctionType], ctx: Context, node: AstNode
+) -> None:
     """Checks that a function call (AST provided) to a specified FunctionType
     respects the effect constraints in the context."""
     if (mf := ctx.max_effects_from) is None:
         return
+    tgt_id, func_ty = target
     surplus_effects = [e for e in func_ty.effects if e not in mf.effects]
     if surplus_effects:
         loc_node = node.func if isinstance(node, ast.Call) else node
+        callee: str | FunctionType = (
+            func_ty
+            if tgt_id is None
+            else ctx.globals[tgt_id].name
+            if isinstance(tgt_id, DefId)
+            else tgt_id
+        )
         show_effects_allowed = mf.effects
         if isinstance(mf.decl, ast.expr):
             # We found the decorator that is the source of the effect constraint,
@@ -1344,7 +1379,6 @@ def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
         # Otherwise, the error message points at all decorators, which may or may not
         # list the allowed effects, so list them explicitly
 
-        callee = loc_node.id if isinstance(loc_node, ast.Name) else func_ty
         raise GuppyTypeError(
             TooManyEffectsError(
                 loc_node, callee, surplus_effects, mf.decl_name
@@ -1355,8 +1389,12 @@ def _check_effects(func_ty: FunctionType, ctx: Context, node: AstNode) -> None:
 
 
 def synthesize_call(
-    func_ty: FunctionType, args: list[ast.expr], node: AstNode, ctx: Context
+    target: tuple[str | DefId | None, FunctionType],
+    args: list[ast.expr],
+    node: AstNode,
+    ctx: Context,
 ) -> tuple[list[ast.expr], Type, Inst]:
+    _, func_ty = target
     """Synthesizes the return type of a function call.
 
     Returns an annotated argument list, the synthesized return type, and an
@@ -1386,13 +1424,13 @@ def synthesize_call(
     # Finally, check that the instantiation respects the linearity requirements
     # and the effects allowed in the context.
     check_inst(func_ty, inst, node)
-    _check_effects(func_ty, ctx, node)
+    _check_effects(target, ctx, node)
 
     return args, unquantified.output.substitute(subst), inst
 
 
 def check_call(
-    func_ty: FunctionType,
+    target: tuple[str | DefId | None, FunctionType],
     inputs: list[ast.expr],
     ty: Type,
     node: AstNode,
@@ -1404,6 +1442,7 @@ def check_call(
     Returns an annotated argument list, a substitution for the free variables in the
     expected type, and an instantiation for the quantifiers in the function type.
     """
+    _, func_ty = target
     assert not func_ty.unsolved_vars
     check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
 
@@ -1432,7 +1471,7 @@ def check_call(
     inputs_copy = copy.deepcopy(inputs)
 
     try:
-        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx)
+        inputs, synth, inst = synthesize_call(target, inputs, node, ctx)
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
@@ -1474,7 +1513,7 @@ def check_call(
     # Finally, check that the instantiation respects the linearity requirements
     # and the effects allowed in the context.
     check_inst(func_ty, inst, node)
-    _check_effects(func_ty, ctx, node)
+    _check_effects(target, ctx, node)
 
     return inputs, subst, inst
 
