@@ -38,7 +38,6 @@ dev = [
     { name = "pytest-snapshot", specifier = ">=0.9.0,<1" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = "~=0.15.16" },
-    { name = "scipy", specifier = ">=1.14,<2" },
 ]
 docs = [
     { name = "furo", specifier = ">=2024.8.6" },
@@ -47,7 +46,6 @@ docs = [
 examples = [
     { name = "matplotlib", specifier = ">=3.10.9" },
     { name = "networkx", specifier = ">=2.6,<4" },
-    { name = "scipy", specifier = ">=1.14,<2" },
 ]
 lint = [
     { name = "mypy", specifier = "~=2.1.0" },
@@ -1020,7 +1018,7 @@ wheels = [
 
 [[package]]
 name = "guppylang"
-version = "1.0.0a2"
+version = "1.0.0a3"
 source = { editable = "guppylang" }
 dependencies = [
     { name = "guppylang-internals" },
@@ -1046,7 +1044,7 @@ requires-dist = [
 
 [[package]]
 name = "guppylang-internals"
-version = "1.0.0a2"
+version = "1.0.0a3"
 source = { editable = "guppylang-internals" }
 dependencies = [
     { name = "hugr" },
