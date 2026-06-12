@@ -1,8 +1,8 @@
-r"""Guppy standard library for Quantinuum systems device operations.
+"""Guppy standard library for Quantinuum systems device operations.
 
 .. deprecated::
-    \`\`guppylang.std.qsystem\`\` is a deprecated alias for
-    \`\`guppylang.std.qsystem.helios\`\`. Import from that module directly.
+    ``guppylang.std.qsystem`` is a deprecated alias for
+    ``guppylang.std.qsystem.helios``. Import from that module directly.
 """
 
 from guppylang.std.qsystem.helios import (
