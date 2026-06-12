@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import pathlib
 from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
 
@@ -43,23 +42,11 @@ def wasm_module(
     wasm_platform: WasmPlatform = WasmPlatform.Helios,
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
     wasm_path = pathlib.Path(filename)
-
     # Absolute paths are used as-is; relative paths are resolved against the
     # caller's source file directory (not the current working directory).
     if not wasm_path.is_absolute():
-        # Walk up the call stack past guppylang-internal frames to find the
-        # user's source file.  We skip frames whose module name starts with
-        # "guppylang" so that the decorator works regardless of how deeply it
-        # is called from within the library.
-        caller_file = None
-        frame = inspect.currentframe()
-        while frame:
-            module = inspect.getmodule(frame)
-            if module is None or not module.__name__.startswith("guppylang"):
-                caller_file = frame.f_globals.get("__file__")
-                break
-            frame = frame.f_back
-        if caller_file is not None:
+        frame = get_calling_frame()
+        if (caller_file := frame.f_globals.get("__file__")) is not None:
             caller_dir = pathlib.Path(caller_file).resolve().parent
             wasm_path = caller_dir / filename
 
