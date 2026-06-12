@@ -51,7 +51,7 @@ def phased_x(q: qubit, angle1: angle, angle2: angle) -> None:
     .. math::
 
         \mathrm{PhasedX}(\theta_1, \theta_2)=
-          \mathrm{Rz(\theta_2)Rx(\theta_1)Rz(-\theta_2)}&=
+          \mathrm{Rz}(\theta_2)\mathrm{Rx}(\theta_1)\mathrm{Rz}(-\theta_2) =
           \begin{pmatrix}
           \cos(\frac{ \theta_1}{2}) &
             -i e^{-i \theta_2}\sin(\frac{\theta_1}{2})\\

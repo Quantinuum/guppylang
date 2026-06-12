@@ -52,7 +52,7 @@ def phased_x(q: qubit, angle1: angle, angle2: angle) -> None:
     .. math::
 
         \mathrm{PhasedX}(\theta_1, \theta_2)=
-          \mathrm{Rz(\theta_2)Rx(\theta_1)Rz(-\theta_2)}&=
+          \mathrm{Rz}(\theta_2)\mathrm{Rx}(\theta_1)\mathrm{Rz}(-\theta_2) =
           \begin{pmatrix}
           \cos(\frac{ \theta_1}{2}) &
             -i e^{-i \theta_2}\sin(\frac{\theta_1}{2})\\
@@ -73,7 +73,7 @@ def phased_xx(q1: qubit, q2: qubit, angle1: angle, angle2: angle) -> None:
     .. math::
 
         \mathrm{PhasedXX}(\theta_1, \theta_2) =
-        \exp\!\Bigl(
+        \exp\Bigl(
           {-\tfrac{i\theta_1}{2}}
           (\cos\theta_2\,X + \sin\theta_2\,Y)
           \otimes
@@ -83,7 +83,7 @@ def phased_xx(q1: qubit, q2: qubit, angle1: angle, angle2: angle) -> None:
     Equivalently, this is an :math:`XX`-rotation conjugated by
     :math:`\mathrm{Rz}(\theta_2)` on both qubits — "phased" refers to the
     :math:`\mathrm{Rz}(\theta_2)` conjugation, "xx" to the underlying
-    :math:`XX` rotation:
+    :math:`XX` rotation (operators in matrix-multiplication order):
 
     .. math::
 
@@ -104,7 +104,7 @@ def phased_xx_max(q1: qubit, q2: qubit, phase: angle) -> None:
 
     Equivalent to :math:`\mathrm{PhasedXX}(\frac{\pi}{2}, \theta_2)`: a
     maximally entangling :math:`XX` rotation conjugated by
-    :math:`\mathrm{Rz}(\theta_2)`:
+    :math:`\mathrm{Rz}(\theta_2)` (operators in matrix-multiplication order):
 
     .. math::
 
