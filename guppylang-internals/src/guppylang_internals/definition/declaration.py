@@ -155,6 +155,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
             docstring=self.docstring,
             link_name=mono_link_name,
             type_args=type_args,
+            metadata=self.metadata,
         )
 
     @override

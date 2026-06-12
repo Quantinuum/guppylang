@@ -7,7 +7,7 @@ from guppylang.std.builtins import control, dagger, power, qubit
 from guppylang.std.quantum import discard, rx
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr.hugr.base import Hugr
-from hugr.ops import FuncDefn
+from hugr.ops import FuncDecl, FuncDefn
 from tket.metadata import UnitaryFlags as TketUnitaryFlags
 
 _guppylang.enable_experimental_features()
@@ -192,3 +192,47 @@ def test_unitary_metadata_control_power_dagger():
             (UnitaryFlags.Dagger | UnitaryFlags.Control).value,
         ],
     )
+
+
+def test_unitary_metadata_function_definition():
+    @guppy(daggerable=True)
+    def dag() -> None:
+        pass
+
+    @guppy.comptime(controllable=True)
+    def ctrl() -> None:
+        pass
+
+    @guppy(controllable=True, daggerable=True)
+    def cd() -> None:
+        pass
+
+    @guppy.declare(unitary=True)
+    def uni() -> None: ...
+
+    @guppy
+    def main() -> None:
+        dag()
+        ctrl()
+        cd()
+        uni()
+
+    expected_names = {"__main__.dag", "ctrl", "__main__.cd", "__main__.uni"}
+    expected_unitary_flags = {
+        "__main__.dag": UnitaryFlags.Dagger.value,
+        "ctrl": UnitaryFlags.Control.value,
+        "__main__.cd": (UnitaryFlags.Control | UnitaryFlags.Dagger).value,
+        "__main__.uni": UnitaryFlags.Unitary.value,
+    }
+
+    hugr = main.compile().modules[0]
+    for _, data in hugr.nodes():
+        if (
+            isinstance(data.op, (FuncDefn, FuncDecl))
+            and data.op.f_name in expected_names
+        ):
+            assert data.op.f_name in expected_unitary_flags
+            assert (
+                data.metadata[TketUnitaryFlags.KEY]
+                == expected_unitary_flags[data.op.f_name]
+            )
