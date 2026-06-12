@@ -2,6 +2,7 @@ from hugr import Hugr
 from hugr.package import Package, PackagePointer
 
 from pathlib import Path
+import random
 import pytest
 from typing import Any, Literal
 from typing_extensions import assert_never
@@ -9,7 +10,13 @@ from typing_extensions import assert_never
 from selene_hugr_qis_compiler import check_hugr
 
 from guppylang.defs import GuppyDefinition
+from guppylang.emulator import Platform
 from guppylang.std.num import nat
+
+# Fixed seed component for the random_platform fixture. Combined with each
+# test's node id so different tests get different platforms while remaining
+# reproducible across runs.
+_PLATFORM_SEED = 42
 
 
 def pytest_generate_tests(metafunc):
@@ -71,11 +78,23 @@ def validate(request, export_test_cases_dir: Path):
     return validate_impl
 
 
+@pytest.fixture
+def random_platform(request) -> Platform:
+    """Deterministically choose a platform (helios or sol) for this test.
+
+    The choice is seeded by combining ``_PLATFORM_SEED`` with the test node id,
+    so each test gets a different but reproducible platform assignment across runs.
+    """
+    rng = random.Random(hash((_PLATFORM_SEED, request.node.nodeid)))  # noqa: S311
+    platform: Platform = rng.choice(["helios", "sol"])
+    return platform
+
+
 class LLVMException(Exception):
     pass
 
 
-def _emulate_fn(ty: Literal["int", "nat", "float"]):
+def _emulate_fn(ty: Literal["int", "nat", "float"], default_platform: Platform):
     """Use selene to emulate a Guppy function."""
     from guppylang.decorator import guppy
     from guppylang.std.builtins import result
@@ -85,7 +104,9 @@ def _emulate_fn(ty: Literal["int", "nat", "float"]):
         expected: Any,
         num_qubits: int | None = None,
         args: list[Any] | None = None,
+        platform: Platform | None = None,
     ):
+        resolved_platform = platform if platform is not None else default_platform
         args = args or []
 
         @guppy.comptime
@@ -114,13 +135,18 @@ def _emulate_fn(ty: Literal["int", "nat", "float"]):
                 assert_never(ty)
         if num_qubits:
             res = (
-                entry.emulator(n_qubits=num_qubits)
+                entry.emulator(n_qubits=num_qubits, platform=resolved_platform)
                 .statevector_sim()
                 .with_seed(42)
                 .run()
             )
         else:
-            res = entry.emulator(0).coinflip_sim().with_seed(42).run()
+            res = (
+                entry.emulator(0, platform=resolved_platform)
+                .coinflip_sim()
+                .with_seed(42)
+                .run()
+            )
         num = next(v for k, v in res[0] if k == "_test_output")
         if num != expected:
             raise LLVMException(
@@ -131,22 +157,22 @@ def _emulate_fn(ty: Literal["int", "nat", "float"]):
 
 
 @pytest.fixture
-def run_int_fn():
+def run_int_fn(random_platform: Platform):
     """Emulate an integer function using the Guppy emulator."""
-    return _emulate_fn(ty="int")
+    return _emulate_fn(ty="int", default_platform=random_platform)
 
 
 @pytest.fixture
-def run_nat_fn():
+def run_nat_fn(random_platform: Platform):
     """Emulate an unsigned integer function using the Guppy emulator."""
-    return _emulate_fn(ty="nat")
+    return _emulate_fn(ty="nat", default_platform=random_platform)
 
 
 @pytest.fixture
-def run_float_fn_approx():
+def run_float_fn_approx(random_platform: Platform):
     """Like run_int_fn, but takes optional additional parameters `rel`, `abs`
     and `nan_ok` as per `pytest.approx`."""
-    run_fn = _emulate_fn(ty="float")
+    run_fn = _emulate_fn(ty="float", default_platform=random_platform)
 
     def run_approx(
         f: GuppyDefinition,

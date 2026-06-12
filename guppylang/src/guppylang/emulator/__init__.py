@@ -144,7 +144,7 @@ Output is a uniform distribution over the two basis states of the qubit:
     TracedState(probability=0.5, state=array([0.+0.j, 1.+0.j]))]
 """
 
-from .builder import EmulatorBuilder
+from .builder import EmulatorBuilder, Platform
 from .exceptions import EmulatorError
 from .instance import EmulatorInstance
 from .result import EmulatorResult, QsysShot, TaggedResult
@@ -157,6 +157,7 @@ __all__ = [
     "EmulatorResult",
     "PartialState",
     "PartialVector",
+    "Platform",
     "QsysShot",
     "StateVector",
     "TaggedResult",

@@ -5,7 +5,7 @@ Compiling and building emulator instances for guppy programs.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import selene_sim
 from typing_extensions import Self
@@ -20,6 +20,12 @@ if TYPE_CHECKING:
     from selene_core import BuildPlanner, QuantumInterface, Utility
 
 
+#: The quantum platform to target when building an emulator instance.
+#: ``"helios"`` is the default and targets the Helios QIS.
+#: ``"sol"`` targets the Sol QIS.
+Platform = Literal["helios", "sol"]
+
+
 @dataclass(frozen=True)
 class EmulatorBuilder:
     """A builder class for creating EmulatorInstance objects.
@@ -31,6 +37,7 @@ class EmulatorBuilder:
     _name: str | None = None
     _build_dir: Path | None = None
     _verbose: bool = False
+    _platform: Platform = "helios"
 
     # selene_sim supported parameters, may be added in the future:
     _planner: BuildPlanner | None = None
@@ -58,6 +65,11 @@ class EmulatorBuilder:
         return self._verbose
 
     @property
+    def platform(self) -> Platform:
+        """The quantum platform to target. Defaults to ``"helios"``."""
+        return self._platform
+
+    @property
     def custom_args(self) -> dict[str, Any] | None:
         """Custom build arguments passed to selene_sim.build."""
         return dict(self._custom_args) if self._custom_args is not None else None
@@ -74,6 +86,14 @@ class EmulatorBuilder:
     def with_verbose(self, value: bool) -> Self:
         """Set whether to print verbose output during the build process."""
         return replace(self, _verbose=value)
+
+    def with_platform(self, value: Platform) -> Self:
+        """Set the quantum platform to target when building the emulator.
+
+        ``"helios"`` (the default) targets the Helios QIS.
+        ``"sol"`` targets the Sol QIS.
+        """
+        return replace(self, _platform=value)
 
     def with_build_arg(self, key: str, value: Any) -> Self:
         """Selene builds may support additional customisable arguments,
@@ -110,6 +130,7 @@ class EmulatorBuilder:
         Returns:
             An EmulatorInstance that can be used to run the compiled program.
         """
+        custom_args = self._custom_args or {}
 
         instance = selene_sim.build(  # type: ignore[attr-defined]
             package,
@@ -122,7 +143,8 @@ class EmulatorBuilder:
             progress_bar=self._progress_bar,
             strict=self._strict,
             save_planner=self._save_planner,
-            **self._custom_args or {},
+            platform=self._platform,
+            **custom_args,
         )
 
         return EmulatorInstance(_instance=instance, _n_qubits=n_qubits)
