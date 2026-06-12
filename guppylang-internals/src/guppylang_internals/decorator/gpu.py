@@ -88,9 +88,5 @@ def _gpu_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition
 
 # Override decorators with dummy versions if we're running a sphinx build
 if not TYPE_CHECKING and sphinx_running():
-    custom_function = _dummy_custom_decorator
-    hugr_op = _dummy_custom_decorator
-    extend_type = _dummy_custom_decorator
-    custom_type = _dummy_custom_decorator
     gpu_module = _dummy_custom_decorator
     gpu = _dummy_custom_decorator()
