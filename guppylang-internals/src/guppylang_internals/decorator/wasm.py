@@ -72,6 +72,7 @@ def wasm_module(
         assert config_filename is None
         return WasmModuleTypeDef(def_id, name, defined_at, filename, wasm_platform)
 
+    @pretty_errors
     def check_member(val: GuppyDefinition) -> None:
         wasm_def: RawWasmFunctionDef
         if isinstance(val, GuppyFunctionDefinition) and isinstance(

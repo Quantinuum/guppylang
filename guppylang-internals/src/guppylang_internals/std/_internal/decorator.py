@@ -14,7 +14,6 @@ from guppylang_internals.definition.custom import (
 )
 from guppylang_internals.definition.ty import OpaqueTypeDef
 from guppylang_internals.engine import DEF_STORE
-from guppylang_internals.error import pretty_errors
 from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.tys.ty import (
     FuncInput,
@@ -55,7 +54,6 @@ def ext_module_decorator(
     def fun(
         filename: str, config_filename: str | None
     ) -> Callable[[builtins.type[T]], GuppyDefinition]:
-        @pretty_errors
         def dec(cls: builtins.type[T]) -> GuppyDefinition:
             # N.B. Only one module per file and vice-versa
             ext_module = create_type_def(
