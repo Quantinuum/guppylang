@@ -51,7 +51,10 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
+from guppylang_internals.metadata.common import (
+    FunctionMetadata,
+    add_metadata,
+)
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.arg import ConstArg, TypeArg
@@ -136,15 +139,16 @@ class CheckedModifiedDefs:
 
     def compile_outer(
         self,
-        module: DefinitionBuilder[OpVar],
         ctx: CompilerContext,
-    ) -> "CompiledModifiedDefs":
-        _ = module
-        return CompiledModifiedDefs(
-            call_daggered=_compile_modified_def(self.call_daggered, ctx),
-            call_controlled=_compile_modified_def(self.call_controlled, ctx),
-            call_ctrl_daggered=_compile_modified_def(self.call_ctrl_daggered, ctx),
-        )
+    ) -> list[str | None]:
+        """Return the link names of the compiled modified definitions, in the order:
+        daggered, controlled, ctrl-daggered. If a modified definition is not provided,
+        we return None for its link name."""
+        return [
+            _compile_modified_def(self.call_daggered, ctx),
+            _compile_modified_def(self.call_controlled, ctx),
+            _compile_modified_def(self.call_ctrl_daggered, ctx),
+        ]
 
 
 @dataclass(frozen=True)
@@ -207,7 +211,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             docstring,
             link_name,
             metadata=self.metadata,
-            modified_defs=parsed_modified_defs,
+            parsed_modified_defs=parsed_modified_defs,
         )
 
 
@@ -237,8 +241,11 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    modified_defs: ParsedModifiedDefs | None = field(
-        default=None, kw_only=True, compare=False, repr=False
+    parsed_modified_defs: ParsedModifiedDefs = field(
+        default=ParsedModifiedDefs(None, None, None),
+        kw_only=True,
+        compare=False,
+        repr=False,
     )
 
     @property
@@ -252,7 +259,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
-        checked_modified_defs = self.modified_defs.check(type_args)
+        checked_modified_defs = self.parsed_modified_defs.check(type_args)
         return CheckedFunctionDef(
             self.id,
             self.name,
@@ -262,7 +269,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_link_name,
             cfg,
             metadata=self.metadata,
-            modified_defs=checked_modified_defs,
+            checked_modified_defs=checked_modified_defs,
             mono_args=type_args,
         )
 
@@ -310,8 +317,11 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
 
     cfg: CheckedCFG[Place]
 
-    modified_defs: CheckedModifiedDefs | None = field(
-        default=None, kw_only=True, compare=False, repr=False
+    checked_modified_defs: CheckedModifiedDefs = field(
+        default=CheckedModifiedDefs(None, None, None),
+        kw_only=True,
+        compare=False,
+        repr=False,
     )
 
     mono_args: Inst = field(default=(), kw_only=True, compare=False, repr=False)
@@ -340,25 +350,18 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             hugr_ty.params,
             visibility="Public" if self.id in ctx.exported_defs else "Private",
         )
+        compiled_modified_names = self.checked_modified_defs.compile_outer(ctx)
+
         if debug_mode_enabled():
             assert self.metadata is not None
             self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
-        compiled_modified_def = self.modified_defs.compile_outer(module, ctx)
-        modified_def_nodes = {
-            mod: defn.hugr_node.idx
-            for mod, defn in (
-                ("daggered", compiled_modified_def.call_daggered),
-                ("controlled", compiled_modified_def.call_controlled),
-                ("ctrl_daggered", compiled_modified_def.call_ctrl_daggered),
-            )
-            if defn is not None
-        }
+        if self.metadata is not None:
+            self.metadata.set_modified_defs(compiled_modified_names)
         add_metadata(
             func_def,
             self.metadata,
             additional_metadata={
                 "unitary": self.ty.unitary_flags.value,
-                "modified_defs": modified_def_nodes,
             },
         )
 
@@ -372,8 +375,6 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.cfg,
             FunctionBuilder(func_def),
             metadata=self.metadata,
-            # modified_defs=compiled_modified_defs,
-            # mono_args=self.mono_args,
         )
 
 
@@ -456,12 +457,12 @@ def _check_modified_def(
 
 def _compile_modified_def(
     defn: CheckedFunctionDef | None, ctx: CompilerContext
-) -> CompiledFunctionDef | None:
+) -> str | None:
     if defn is None:
         return None
     compiled = ctx.build_compiled_def(defn.id, defn.mono_args)
     assert isinstance(compiled, CompiledFunctionDef)
-    return compiled
+    return compiled.link_name
 
 
 def compile_call(

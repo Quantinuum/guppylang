@@ -88,6 +88,11 @@ AnyRawFunctionDef = (
 
 __all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
 
+# Names of the custom modified definition methods. Used in the @guppy.unitary decorator.
+CALL_DAGGERED_METHOD = "call_daggered"
+CALL_CONTROLLED_METHOD = "call_controlled"
+CALL_CTRL_DAGGERED_METHOD = "call_ctrl_daggered"
+
 
 class GuppyKwargs(TypedDict, total=False):
     """Typed dictionary specifying the optional keyword arguments for the `@guppy`
@@ -356,9 +361,12 @@ class _Guppy:
                 raw_func,
                 "modified_defs",
                 RawModifiedDefs(
-                    call_daggered=_get_unitary_method(cls, "call_daggered"),
-                    call_controlled=_get_unitary_method(cls, "call_controlled"),
-                    call_ctrl_daggered=_get_unitary_method(cls, "call_ctrl_daggered"),
+                    # define the name of the modified definitions as a macro
+                    call_daggered=_get_unitary_method(cls, CALL_DAGGERED_METHOD),
+                    call_controlled=_get_unitary_method(cls, CALL_CONTROLLED_METHOD),
+                    call_ctrl_daggered=_get_unitary_method(
+                        cls, CALL_CTRL_DAGGERED_METHOD
+                    ),
                 ),
             )
             return guppy_def  # type: ignore[return-value]
@@ -805,15 +813,11 @@ def _get_unitary_call_def(
 
 def _get_unitary_method(cls: builtins.type[T], name: str) -> RawFunctionDef | None:
     """Returns an optional `@guppy`-annotated unitary modifier method."""
-    val = cls.__dict__.get(name)
-    if val is None:
-        return None
-    if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
-        return val.wrapped
-    raise TypeError(
-        f"The `@guppy.unitary` class `{cls.__name__}` has a `{name}` method that "
-        "is not a `@guppy` annotated function"
-    )
+    if val := cls.__dict__.get(name):
+        if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
+            return val.wrapped
+        raise TypeError(f"`{name}` on class `{cls.__name__}` must be a guppy function")
+    return None
 
 
 def custom_guppy_decorator(f: F) -> F:
