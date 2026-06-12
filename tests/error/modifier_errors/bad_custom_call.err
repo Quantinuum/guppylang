@@ -4,6 +4,8 @@ Error: Dagger constraint violation (at $FILE:9:4)
 8 | def test(x: qubit @owned) -> None:
 9 |     measure(x)
   |     ^^^^^^^^^^ This function cannot be called in a daggerable context
-  |                because it is not daggerable itself
+
+Help: Consider adding the flag `(daggerable=True)` to the decorator of the
+function `measure`
 
 Guppy compilation failed due to 1 previous error
