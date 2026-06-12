@@ -109,7 +109,7 @@ class DiscreteDistribution(Generic[DISCRETE_N]):  # type: ignore[misc]
 
     # The `sums` array represents the cumulative probability distribution. That is,
     # sums[i] is the probability of drawing a value <= i from the distribution.
-    sums: array[float, DISCRETE_N]  # type: ignore[valid-type]
+    _sums: array[float, DISCRETE_N]  # type: ignore[valid-type]
 
     @guppy
     @no_type_check
@@ -123,7 +123,7 @@ class DiscreteDistribution(Generic[DISCRETE_N]):  # type: ignore[misc]
         i_max = DISCRETE_N - 1
         while i_min < i_max:
             i = (i_min + i_max) // 2
-            if self.sums[i] >= x:
+            if self._sums[i] >= x:
                 i_max = i
             else:
                 i_min = i + 1

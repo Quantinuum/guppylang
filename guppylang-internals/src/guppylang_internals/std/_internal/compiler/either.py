@@ -84,10 +84,10 @@ class EitherTestCompiler(EitherCompiler):
         [either] = args
         cond = self.builder.add_conditional(either)
         for i in [0, 1]:
-            with cond.add_case(i) as case:
-                val = hv.TRUE if i == self.tag else hv.FALSE
-                either = case.add_op(ops.Tag(i, self.either_ty), *case.inputs())
-                case.set_outputs(case.load(val), either)
+            case = cond.add_case(i)
+            val = hv.TRUE if i == self.tag else hv.FALSE
+            either = case.add_op(ops.Tag(i, self.either_ty), *case.inputs())
+            case.set_outputs(case.load(val), either)
         [res, either] = cond.outputs()
         return CallReturnWires(regular_returns=[res], inout_returns=[either])
 
@@ -103,14 +103,12 @@ class EitherToOptionCompiler(EitherCompiler, CustomCallCompiler):
         cond = self.builder.add_conditional(either)
         target_tys = self.left_tys if self.tag == 0 else self.right_tys
         for i in [0, 1]:
-            with cond.add_case(i) as case:
-                if i == self.tag:
-                    out = case.add_op(
-                        ops.Tag(1, ht.Option(*target_tys)), *case.inputs()
-                    )
-                else:
-                    out = case.add_op(ops.Tag(0, ht.Option(*target_tys)))
-                case.set_outputs(out)
+            case = cond.add_case(i)
+            if i == self.tag:
+                out = case.add_op(ops.Tag(1, ht.Option(*target_tys)), *case.inputs())
+            else:
+                out = case.add_op(ops.Tag(0, ht.Option(*target_tys)))
+            case.set_outputs(out)
         return list(cond.outputs())
 
 

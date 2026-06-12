@@ -4,7 +4,6 @@ from contextlib import AbstractContextManager, ExitStack, contextmanager
 from typing import Any, TypeGuard, TypeVar
 
 import hugr
-import hugr.std.collections.array
 import hugr.std.float
 import hugr.std.int
 import hugr.std.logic
@@ -12,18 +11,16 @@ import hugr.std.prelude
 from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
-from hugr.build.cond_loop import Conditional
-from hugr.build.dfg import DP, DfBase
 
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
+from guppylang_internals.compiler.builder import CondBuilder, DFBuilder
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
     CompilerBase,
     CompilerContext,
-    DFBuilder,
     DFContainer,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
@@ -126,13 +123,13 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return [self.compile(e, dfg) for e in expr_to_row(expr)]
 
     @property
-    def builder(self) -> DFBuilder[ops.DfParentOp]:
+    def builder(self) -> DFBuilder:
         """The current Hugr dataflow graph builder."""
         return self.dfg.builder
 
     @contextmanager
     def _new_dfcontainer(
-        self, inputs: list[PlaceNode], builder: DfBase[DP]
+        self, inputs: list[PlaceNode], builder: DFBuilder
     ) -> Iterator[None]:
         """Context manager to build a graph inside a new `DFContainer`.
 
@@ -183,14 +180,13 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         self,
         inputs: list[PlaceNode],
         outputs: list[PlaceNode],
-        conditional: Conditional,
+        conditional: CondBuilder,
         case_id: int,
     ) -> Iterator[None]:
         """Context manager to build a graph inside a new `Case` node.
 
         Automatically adds the `Output` node once the context manager exits.
         """
-        # TODO: `Case` is `_DfgBase`, but not `Dfg`?
         case = conditional.add_case(case_id)
         with self._new_dfcontainer(inputs, case):
             yield
@@ -713,7 +709,7 @@ def expr_to_row(expr: ast.expr) -> list[ast.expr]:
 def pack_returns(
     returns: Sequence[Wire],
     return_ty: Type,
-    builder: DFBuilder[ops.DfParentOp],
+    builder: DFBuilder,
     ctx: CompilerContext,
 ) -> Wire:
     """Groups function return values into a tuple"""
@@ -731,7 +727,7 @@ def pack_returns(
 def unpack_wire(
     wire: Wire,
     return_ty: Type,
-    builder: DFBuilder[ops.DfParentOp],
+    builder: DFBuilder,
     ctx: CompilerContext,
     ast_node: AstNode | None = None,
 ) -> list[Wire]:
