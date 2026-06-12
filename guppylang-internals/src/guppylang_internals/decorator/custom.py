@@ -14,15 +14,11 @@ from guppylang_internals.definition.custom import (
     OpCompiler,
     RawCustomFunctionDef,
 )
-from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
+from guppylang_internals.definition.ty import OpaqueTypeDef
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.frame_util import get_calling_frame
-from guppylang_internals.std.wasm import wasm, wasm_module
-from guppylang_internals.tys.ty import (
-    FunctionType,
-    UnitaryFlags,
-)
+from guppylang_internals.tys.ty import FunctionType, UnitaryFlags
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -36,16 +32,6 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 P = ParamSpec("P")
-
-
-__all__ = [
-    "custom_function",
-    "custom_type",
-    "extend_type",
-    "hugr_op",
-    "wasm",
-    "wasm_module",
-]
 
 
 def custom_function(
@@ -84,51 +70,6 @@ def custom_function(
         # Decorators in this file may be called inside the main language (e.g. stdlib)
         DEF_STORE.register_def(func, get_calling_frame(skip_main_lang=False))
         return GuppyFunctionDefinition(func)
-
-    return dec
-
-
-def hugr_op(
-    op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp],
-    checker: CustomCallChecker | None = None,
-    higher_order_value: bool = True,
-    name: str = "",
-    signature: FunctionType | None = None,
-    unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
-    """Decorator to annotate function declarations as HUGR ops.
-
-    Args:
-        op: A function that takes an instantiation of the type arguments as well as
-            the inferred input and output types and returns a concrete HUGR op.
-        checker: The custom call checker.
-        higher_order_value: Whether the function may be used as a higher-order
-            value.
-        name: The name of the function.
-    """
-    return custom_function(
-        OpCompiler(op),
-        checker,
-        higher_order_value,
-        name,
-        signature,
-        unitary_flags=unitary_flags,
-    )
-
-
-def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], type]:
-    """Decorator to add new instance functions to a type.
-
-    By default, returns a `GuppyDefinition` object referring to the type. Alternatively,
-    `return_class=True` can be set to return the decorated class unchanged.
-    """
-    from guppylang.defs import GuppyDefinition
-
-    def dec(c: type) -> type:
-        for val in c.__dict__.values():
-            if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
-        return c if return_class else GuppyDefinition(defn)  # type: ignore[return-value]
 
     return dec
 
@@ -180,9 +121,36 @@ def custom_type(
     return dec
 
 
+def hugr_op(
+    op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp],
+    checker: CustomCallChecker | None = None,
+    higher_order_value: bool = True,
+    name: str = "",
+    signature: FunctionType | None = None,
+    unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
+    """Decorator to annotate function declarations as HUGR ops.
+
+    Args:
+        op: A function that takes an instantiation of the type arguments as well as
+            the inferred input and output types and returns a concrete HUGR op.
+        checker: The custom call checker.
+        higher_order_value: Whether the function may be used as a higher-order
+            value.
+        name: The name of the function.
+    """
+    return custom_function(
+        OpCompiler(op),
+        checker,
+        higher_order_value,
+        name,
+        signature,
+        unitary_flags=unitary_flags,
+    )
+
+
 # Override decorators with dummy versions if we're running a sphinx build
 if not TYPE_CHECKING and sphinx_running():
     custom_function = _dummy_custom_decorator
-    hugr_op = _dummy_custom_decorator
-    extend_type = _dummy_custom_decorator
     custom_type = _dummy_custom_decorator
+    hugr_op = _dummy_custom_decorator

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from guppylang import guppy
-from guppylang_internals.std.wasm import wasm, wasm_module
+from guppylang_internals.decorator.wasm import wasm, wasm_module
 from guppylang_internals.error import GuppyError
 from guppylang.std.qsystem.wasm import spawn_wasm_contexts
 

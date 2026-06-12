@@ -19,18 +19,18 @@ from guppylang_internals.definition.wasm import RawWasmFunctionDef
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.frame_util import get_calling_frame
+from guppylang_internals.std._internal.wasm import (
+    ConcreteWasmModule,
+    WasmFunctionNotInFile,
+    WasmPlatform,
+    WasmSignatureError,
+)
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
     InputFlags,
     NoneType,
     NumericType,
-)
-from guppylang_internals.wasm_util import (
-    ConcreteWasmModule,
-    WasmFunctionNotInFile,
-    WasmPlatform,
-    WasmSignatureError,
 )
 
 T = TypeVar("T")

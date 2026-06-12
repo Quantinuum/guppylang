@@ -17,12 +17,12 @@ from guppylang_internals.std._internal.compiler.wasm import (
     WasmModuleInitCompiler,
 )
 from guppylang_internals.std._internal.decorator import ext_module_decorator
-from guppylang_internals.tys.builtin import WasmModuleTypeDef
-from guppylang_internals.wasm_util import (
+from guppylang_internals.std._internal.wasm import (
     WasmFileNotFound,
     WasmPlatform,
     decode_wasm_functions,
 )
+from guppylang_internals.tys.builtin import WasmModuleTypeDef
 
 if TYPE_CHECKING:
     import ast
@@ -96,12 +96,8 @@ def wasm_module(
 
 @overload
 def wasm(arg: Callable[P, T]) -> GuppyFunctionDefinition[P, T]: ...
-
-
 @overload
 def wasm(arg: int) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]: ...
-
-
 def wasm(
     arg: int | Callable[P, T],
 ) -> (
@@ -111,14 +107,14 @@ def wasm(
     if isinstance(arg, int):
 
         def wrapper(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
-            return wasm_helper(arg, f)
+            return _wasm_helper(arg, f)
 
         return wrapper
     else:
-        return wasm_helper(None, arg)
+        return _wasm_helper(None, arg)
 
 
-def wasm_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
+def _wasm_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
     from guppylang.defs import GuppyFunctionDefinition
 
     func = RawWasmFunctionDef(
