@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang_internals.decorator import wasm, wasm_module
+from guppylang_internals.std.wasm import wasm, wasm_module
 from guppylang.std.qsystem.wasm import spawn_wasm_contexts
 from guppylang_internals.wasm_util import WasmPlatform
 

@@ -4,7 +4,7 @@ The wasm file lives alongside this module, so a relative path should resolve
 correctly regardless of the working directory of the process that imports this.
 """
 
-from guppylang_internals.decorator import wasm, wasm_module
+from guppylang_internals.std.wasm import wasm, wasm_module
 
 
 @wasm_module("test.wasm")

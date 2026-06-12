@@ -1,21 +1,13 @@
 from __future__ import annotations
 
-import inspect
-import pathlib
-from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
-from guppylang.defs import GuppyDefinition, GuppyFunctionDefinition
 from hugr import ops
 from hugr import tys as ht
 
-from guppylang_internals.compiler.core import (
-    CompilerContext,
-    GlobalConstId,
-)
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
-    CustomFunctionDef,
     CustomInoutCallCompiler,
     DefaultCallChecker,
     NotImplementedCallCompiler,
@@ -23,42 +15,21 @@ from guppylang_internals.definition.custom import (
     RawCustomFunctionDef,
 )
 from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
-from guppylang_internals.definition.wasm import RawWasmFunctionDef
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
 from guppylang_internals.engine import DEF_STORE
-from guppylang_internals.error import GuppyError, pretty_errors
-from guppylang_internals.std._internal.checker import WasmCallChecker
-from guppylang_internals.std._internal.compiler.wasm import (
-    WasmModuleCallCompiler,
-    WasmModuleDiscardCompiler,
-    WasmModuleInitCompiler,
-)
-from guppylang_internals.tys.builtin import (
-    WasmModuleTypeDef,
-)
+from guppylang_internals.frame_util import get_calling_frame
+from guppylang_internals.std.wasm import wasm, wasm_module
 from guppylang_internals.tys.ty import (
-    FuncInput,
     FunctionType,
-    InputFlags,
-    NoneType,
-    NumericType,
     UnitaryFlags,
-)
-from guppylang_internals.wasm_util import (
-    ConcreteWasmModule,
-    WasmFileNotFound,
-    WasmFunctionNotInFile,
-    WasmPlatform,
-    WasmSignatureError,
-    decode_wasm_functions,
 )
 
 if TYPE_CHECKING:
-    import ast
-    import builtins
     from collections.abc import Callable, Sequence
-    from types import FrameType
 
+    from guppylang.defs import GuppyFunctionDefinition
+
+    from guppylang_internals.compiler.core import CompilerContext
     from guppylang_internals.tys.arg import Argument
     from guppylang_internals.tys.param import Parameter
     from guppylang_internals.tys.subst import Inst
@@ -67,17 +38,14 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 
-def get_calling_frame() -> FrameType:
-    """Finds the first frame that called this function outside the compiler modules."""
-    frame = inspect.currentframe()
-    while frame:
-        module = inspect.getmodule(frame)
-        if module is None:
-            return frame
-        if module.__file__ != __file__:
-            return frame
-        frame = frame.f_back
-    raise RuntimeError("Couldn't obtain stack frame for definition")
+__all__ = [
+    "custom_function",
+    "custom_type",
+    "extend_type",
+    "hugr_op",
+    "wasm",
+    "wasm_module",
+]
 
 
 def custom_function(
@@ -113,7 +81,8 @@ def custom_function(
             unitary_flags,
             has_var_args,
         )
-        DEF_STORE.register_def(func, get_calling_frame())
+        # Decorators in this file may be called inside the main language (e.g. stdlib)
+        DEF_STORE.register_def(func, get_calling_frame(skip_main_lang=False))
         return GuppyFunctionDefinition(func)
 
     return dec
@@ -199,7 +168,8 @@ def custom_type(
             mk_hugr_ty,  # type: ignore[arg-type]
             bound,
         )
-        DEF_STORE.register_def(defn, get_calling_frame())
+        # Decorators in this file may be called inside the main language (e.g. stdlib)
+        DEF_STORE.register_def(defn, get_calling_frame(skip_main_lang=False))
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
                 DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
@@ -210,236 +180,9 @@ def custom_type(
     return dec
 
 
-@pretty_errors
-def wasm_module(
-    filename: str,
-    wasm_platform: WasmPlatform = WasmPlatform.Helios,
-) -> Callable[[builtins.type[T]], GuppyDefinition]:
-    wasm_path = pathlib.Path(filename)
-
-    # Absolute paths are used as-is; relative paths are resolved against the
-    # caller's source file directory (not the current working directory).
-    if not wasm_path.is_absolute():
-        # Walk up the call stack past guppylang-internal frames to find the
-        # user's source file.  We skip frames whose module name starts with
-        # "guppylang" so that the decorator works regardless of how deeply it
-        # is called from within the library.
-        caller_file = None
-        frame = inspect.currentframe()
-        while frame:
-            module = inspect.getmodule(frame)
-            if module is None or not module.__name__.startswith("guppylang"):
-                caller_file = frame.f_globals.get("__file__")
-                break
-            frame = frame.f_back
-        if caller_file is not None:
-            caller_dir = pathlib.Path(caller_file).resolve().parent
-            wasm_path = caller_dir / filename
-
-    if wasm_path.is_file():
-        wasm_sigs = decode_wasm_functions(str(wasm_path), wasm_platform)
-    else:
-        raise GuppyError(WasmFileNotFound(None, filename))
-
-    def type_def_wrapper(
-        id: DefId,
-        name: str,
-        defined_at: ast.AST | None,
-        wasm_file: str,
-        wasm_plat: WasmPlatform,
-        config: str | None,
-    ) -> OpaqueTypeDef:
-        assert config is None
-        return WasmModuleTypeDef(id, name, defined_at, wasm_file, wasm_plat)
-
-    decorator = ext_module_decorator(
-        type_def_wrapper,
-        WasmModuleInitCompiler(),
-        WasmModuleDiscardCompiler(),
-        True,
-        wasm_sigs,
-    )
-
-    def inner_fun(ty: builtins.type[T]) -> GuppyDefinition:
-        decorator_inner = decorator(str(wasm_path), wasm_platform, None)
-        return decorator_inner(ty)
-
-    return inner_fun
-
-
-def ext_module_decorator(
-    type_def: Callable[
-        [DefId, str, ast.AST | None, str, WasmPlatform, str | None], OpaqueTypeDef
-    ],
-    init_compiler: CustomInoutCallCompiler,
-    discard_compiler: CustomInoutCallCompiler,
-    init_arg: bool,  # Whether the init function should take a nat argument
-    wasm_sigs: ConcreteWasmModule
-    | None = None,  # For @wasm_module, we must be passed a parsed wasm file
-) -> Callable[
-    [str, WasmPlatform, str | None], Callable[[builtins.type[T]], GuppyDefinition]
-]:
-    def fun(
-        filename: str, wasm_plat: WasmPlatform, module: str | None
-    ) -> Callable[[builtins.type[T]], GuppyDefinition]:
-        @pretty_errors
-        def dec(cls: builtins.type[T]) -> GuppyDefinition:
-            # N.B. Only one module per file and vice-versa
-            ext_module = type_def(
-                DefId.fresh(),
-                cls.__name__,
-                None,
-                filename,
-                wasm_plat,
-                module,
-            )
-
-            ext_module_ty = ext_module.check_instantiate([], None)
-
-            DEF_STORE.register_def(ext_module, get_calling_frame())
-            for val in cls.__dict__.values():
-                if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_type_member(
-                        ext_module.id, val.wrapped.name, val.id
-                    )
-                    wasm_def: RawWasmFunctionDef
-                    if isinstance(val, GuppyFunctionDefinition) and isinstance(
-                        val.wrapped, RawWasmFunctionDef
-                    ):
-                        wasm_def = val.wrapped
-                    else:
-                        continue
-                    # wasm_sigs should only have not been provided if we have
-                    # defined @wasm functions in a class which didn't use the
-                    # @wasm_module decorator.
-                    assert wasm_sigs is not None
-                    if wasm_def.wasm_index is not None:
-                        name = wasm_sigs.functions[wasm_def.wasm_index]
-                        assert name in wasm_sigs.function_sigs
-                        wasm_sig_or_err = wasm_sigs.function_sigs[name]
-                    else:
-                        if wasm_def.name in wasm_sigs.function_sigs:
-                            wasm_sig_or_err = wasm_sigs.function_sigs[wasm_def.name]
-                        else:
-                            raise GuppyError(
-                                WasmFunctionNotInFile(
-                                    wasm_def.defined_at,
-                                    wasm_def.name,
-                                ).add_sub_diagnostic(
-                                    WasmFunctionNotInFile.WasmFileNote(
-                                        None,
-                                        wasm_sigs.filename,
-                                    )
-                                )
-                            )
-                    if isinstance(wasm_sig_or_err, FunctionType):
-                        DEF_STORE.register_wasm_function(wasm_def.id, wasm_sig_or_err)
-                    elif isinstance(wasm_sig_or_err, str):
-                        raise GuppyError(
-                            WasmSignatureError(
-                                None, wasm_def.name, filename, wasm_plat.value
-                            ).add_sub_diagnostic(
-                                WasmSignatureError.Message(None, wasm_sig_or_err)
-                            )
-                        )
-
-            # Add a constructor to the class
-            if init_arg:
-                init_fn_ty = FunctionType(
-                    [
-                        FuncInput(
-                            NumericType(NumericType.Kind.Nat),
-                            flags=InputFlags.Owned,
-                        )
-                    ],
-                    ext_module_ty,
-                )
-            else:
-                init_fn_ty = FunctionType([], ext_module_ty)
-
-            call_method = CustomFunctionDef(
-                DefId.fresh(),
-                "__new__",
-                None,
-                init_fn_ty,
-                DefaultCallChecker(),
-                init_compiler,
-                True,
-                GlobalConstId.fresh(f"{cls.__name__}.__new__"),
-                has_signature=True,
-                has_var_args=False,
-            )
-            discard = CustomFunctionDef(
-                DefId.fresh(),
-                "discard",
-                None,
-                FunctionType([FuncInput(ext_module_ty, InputFlags.Owned)], NoneType()),
-                DefaultCallChecker(),
-                discard_compiler,
-                False,
-                GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
-                has_signature=True,
-                has_var_args=False,
-            )
-            DEF_STORE.register_def(call_method, get_calling_frame())
-            DEF_STORE.register_type_member(ext_module.id, "__new__", call_method.id)
-            DEF_STORE.register_def(discard, get_calling_frame())
-            DEF_STORE.register_type_member(ext_module.id, "discard", discard.id)
-
-            return GuppyDefinition(ext_module)
-
-        return dec
-
-    return fun
-
-
-@overload
-def wasm(arg: Callable[P, T]) -> GuppyFunctionDefinition[P, T]: ...
-
-
-@overload
-def wasm(arg: int) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]: ...
-
-
-def wasm(
-    arg: int | Callable[P, T],
-) -> (
-    GuppyFunctionDefinition[P, T]
-    | Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]
-):
-    if isinstance(arg, int):
-
-        def wrapper(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
-            return wasm_helper(arg, f)
-
-        return wrapper
-    else:
-        return wasm_helper(None, arg)
-
-
-def wasm_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
-    from guppylang.defs import GuppyFunctionDefinition
-
-    func = RawWasmFunctionDef(
-        DefId.fresh(),
-        f.__name__,
-        None,
-        f,
-        WasmCallChecker(),
-        WasmModuleCallCompiler(f.__name__, fn_id),
-        True,
-        signature=None,
-        wasm_index=fn_id,
-    )
-    DEF_STORE.register_def(func, get_calling_frame())
-    return GuppyFunctionDefinition(func)
-
-
 # Override decorators with dummy versions if we're running a sphinx build
 if not TYPE_CHECKING and sphinx_running():
     custom_function = _dummy_custom_decorator
     hugr_op = _dummy_custom_decorator
     extend_type = _dummy_custom_decorator
     custom_type = _dummy_custom_decorator
-    wasm_module = _dummy_custom_decorator
-    wasm = _dummy_custom_decorator()

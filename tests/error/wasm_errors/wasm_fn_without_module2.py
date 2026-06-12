@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang_internals.decorator import wasm
+from guppylang_internals.std.wasm import wasm
 
 @guppy.enum
 class Foo:
