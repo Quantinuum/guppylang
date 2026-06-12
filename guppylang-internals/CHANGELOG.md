@@ -3,6 +3,23 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0.0-a4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a3...guppylang-internals-v1.0.0-a4) (2026-06-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* Change the return type of measurement functions to a new `Measurement` type and remove opaque bools from the compiler ([#1707](https://github.com/Quantinuum/guppylang/issues/1707))
+* Replace track_hugr_side_effects monkeypatch with hierarchy of builder classes ([#1829](https://github.com/Quantinuum/guppylang/issues/1829))
+
+### Features
+
+* Change the return type of measurement functions to a new `Measurement` type and remove opaque bools from the compiler ([#1707](https://github.com/Quantinuum/guppylang/issues/1707)) ([9460e6b](https://github.com/Quantinuum/guppylang/commit/9460e6b672fe84d87f360b7d521b6b9d5b736da2))
+
+
+### Code Refactoring
+
+* Replace track_hugr_side_effects monkeypatch with hierarchy of builder classes ([#1829](https://github.com/Quantinuum/guppylang/issues/1829)) ([5b6e4a2](https://github.com/Quantinuum/guppylang/commit/5b6e4a2ac2642ff66fa8ea091273c8d978189f6c))
+
 ## [1.0.0-a3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a2...guppylang-internals-v1.0.0-a3) (2026-06-10)
 
 
