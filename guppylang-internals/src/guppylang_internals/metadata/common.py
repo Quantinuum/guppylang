@@ -3,13 +3,28 @@ from typing import Any, ClassVar
 
 from hugr.debug_info import DebugRecord
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import HugrDebugInfo, NodeMetadata
+from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
 from hugr.utils import JsonType
-from tket.metadata import UnitaryFlags as TketUnitaryFlags
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.max_qubits import MetadataMaxQubits
+
+
+class MetadataUnitaryFlags(Metadata[int]):
+    KEY = "tket.unitary"
+    ALIASES: ClassVar[list[str]] = ["unitary"]
+
+    @classmethod
+    def to_json(cls, value: int) -> JsonType:
+        return value
+
+    @classmethod
+    def from_json(cls, value: JsonType) -> int:
+        if not isinstance(value, int):
+            msg = f"Expected an integer for MetadataUnitaryFlags, but got {type(value)}"
+            raise TypeError(msg)
+        return value
 
 
 @dataclass(frozen=True)
@@ -37,7 +52,7 @@ class FunctionMetadata:
     _RESERVED_KEYS: ClassVar[set[str]] = {
         HugrDebugInfo.KEY,
         MetadataMaxQubits.KEY,
-        TketUnitaryFlags.KEY,
+        MetadataUnitaryFlags.KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -50,7 +65,7 @@ class FunctionMetadata:
         self._node_metadata[MetadataMaxQubits] = max_qubits
 
     def set_unitary_flags(self, value: int) -> None:
-        self._node_metadata[TketUnitaryFlags] = value
+        self._node_metadata[MetadataUnitaryFlags] = value
 
     def get_debug_info(self) -> DebugRecord | None:
         debug_record = self._node_metadata.get(HugrDebugInfo, None)
@@ -98,8 +113,8 @@ def add_unitary_metadata(
     node: ToNode,
     unitary_flag: int,
 ) -> None:
-    """Adds unitary flag to the metadata of a node, ensuring reserved keys isn't
+    """Adds unitary flag to the metadata of a node, ensuring reserved keys aren't
     overwritten."""
-    if TketUnitaryFlags.KEY in node.metadata:
-        raise GuppyError(MetadataAlreadySetError(None, TketUnitaryFlags.KEY))
-    node.metadata[TketUnitaryFlags.KEY] = unitary_flag
+    if MetadataUnitaryFlags.KEY in node.metadata:
+        raise GuppyError(MetadataAlreadySetError(None, MetadataUnitaryFlags.KEY))
+    node.metadata[MetadataUnitaryFlags.KEY] = unitary_flag
