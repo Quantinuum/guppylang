@@ -2,13 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
 
-from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.definition.custom import (
-    CustomFunctionDef,
-    CustomInoutCallCompiler,
-    DefaultCallChecker,
-)
+from guppylang_internals.definition.custom import DefaultCallChecker
 from guppylang_internals.definition.gpu import GpuModuleTypeDef, RawGpuFunctionDef
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
 from guppylang_internals.engine import DEF_STORE
@@ -18,13 +13,7 @@ from guppylang_internals.std._internal.compiler.gpu import (
     GpuModuleDiscardCompiler,
     GpuModuleInitCompiler,
 )
-from guppylang_internals.tys.ty import (
-    FuncInput,
-    FunctionType,
-    InputFlags,
-    NoneType,
-    NumericType,
-)
+from guppylang_internals.std._internal.decorator import ext_module_decorator
 
 if TYPE_CHECKING:
     import ast
@@ -43,97 +32,21 @@ def gpu_module(
     filename: str, config_filename: str | None
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
     def type_def_wrapper(
-        id: DefId,
+        def_id: DefId,
         name: str,
         defined_at: ast.AST | None,
-        gpu_file: str,
-        gpu_config: str | None,
+        filename: str,
+        config_filename: str | None,
     ) -> OpaqueTypeDef:
-        return GpuModuleTypeDef(id, name, defined_at, gpu_file, gpu_config)
+        return GpuModuleTypeDef(def_id, name, defined_at, filename, config_filename)
 
-    f = ext_module_decorator(
-        type_def_wrapper, GpuModuleInitCompiler(), GpuModuleDiscardCompiler(), False
+    create_decorator = ext_module_decorator(  # type: ignore[var-annotated]
+        type_def_wrapper,
+        GpuModuleInitCompiler(),
+        GpuModuleDiscardCompiler(),
+        init_arg=False,
     )
-    return f(filename, config_filename)
-
-
-def ext_module_decorator(
-    type_def: Callable[[DefId, str, ast.AST | None, str, str | None], OpaqueTypeDef],
-    init_compiler: CustomInoutCallCompiler,
-    discard_compiler: CustomInoutCallCompiler,
-    init_arg: bool,  # Whether the init function should take a nat argument
-) -> Callable[[str, str | None], Callable[[builtins.type[T]], GuppyDefinition]]:
-    from guppylang.defs import GuppyDefinition
-
-    def fun(
-        filename: str, module: str | None
-    ) -> Callable[[builtins.type[T]], GuppyDefinition]:
-        def dec(cls: builtins.type[T]) -> GuppyDefinition:
-            # N.B. Only one module per file and vice-versa
-            ext_module = type_def(
-                DefId.fresh(),
-                cls.__name__,
-                None,
-                filename,
-                module,
-            )
-
-            ext_module_ty = ext_module.check_instantiate([], None)
-
-            DEF_STORE.register_def(ext_module, get_calling_frame())
-            for val in cls.__dict__.values():
-                if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_type_member(
-                        ext_module.id, val.wrapped.name, val.id
-                    )
-            # Add a constructor to the class
-            if init_arg:
-                init_fn_ty = FunctionType(
-                    [
-                        FuncInput(
-                            NumericType(NumericType.Kind.Nat),
-                            flags=InputFlags.Owned,
-                        )
-                    ],
-                    ext_module_ty,
-                )
-            else:
-                init_fn_ty = FunctionType([], ext_module_ty)
-
-            call_method = CustomFunctionDef(
-                DefId.fresh(),
-                "__new__",
-                None,
-                init_fn_ty,
-                call_checker=DefaultCallChecker(),
-                call_compiler=init_compiler,
-                higher_order_value=True,
-                higher_order_func_id=GlobalConstId.fresh(f"{cls.__name__}.__new__"),
-                has_signature=True,
-                has_var_args=False,
-            )
-            discard = CustomFunctionDef(
-                DefId.fresh(),
-                "discard",
-                None,
-                FunctionType([FuncInput(ext_module_ty, InputFlags.Owned)], NoneType()),
-                call_checker=DefaultCallChecker(),
-                call_compiler=discard_compiler,
-                higher_order_value=False,
-                higher_order_func_id=GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
-                has_signature=True,
-                has_var_args=False,
-            )
-            DEF_STORE.register_def(call_method, get_calling_frame())
-            DEF_STORE.register_type_member(ext_module.id, "__new__", call_method.id)
-            DEF_STORE.register_def(discard, get_calling_frame())
-            DEF_STORE.register_type_member(ext_module.id, "discard", discard.id)
-
-            return GuppyDefinition(ext_module)
-
-        return dec
-
-    return fun
+    return create_decorator(filename, config_filename)
 
 
 @overload

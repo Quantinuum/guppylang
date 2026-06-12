@@ -4,6 +4,8 @@ import inspect
 import pathlib
 from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
 
+from guppylang.defs import GuppyFunctionDefinition
+
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.wasm import RawWasmFunctionDef
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
@@ -16,20 +18,25 @@ from guppylang_internals.std._internal.compiler.wasm import (
     WasmModuleDiscardCompiler,
     WasmModuleInitCompiler,
 )
-from guppylang_internals.std._internal.decorator import ext_module_decorator
+from guppylang_internals.std._internal.decorator import (
+    ext_module_decorator,
+)
 from guppylang_internals.std._internal.wasm import (
     WasmFileNotFound,
+    WasmFunctionNotInFile,
     WasmPlatform,
+    WasmSignatureError,
     decode_wasm_functions,
 )
 from guppylang_internals.tys.builtin import WasmModuleTypeDef
+from guppylang_internals.tys.ty import FunctionType
 
 if TYPE_CHECKING:
     import ast
     import builtins
     from collections.abc import Callable
 
-    from guppylang.defs import GuppyDefinition, GuppyFunctionDefinition
+    from guppylang.defs import GuppyDefinition
 
     from guppylang_internals.definition.ty import OpaqueTypeDef
 
@@ -69,29 +76,63 @@ def wasm_module(
         raise GuppyError(WasmFileNotFound(None, filename))
 
     def type_def_wrapper(
-        id: DefId,
+        def_id: DefId,
         name: str,
         defined_at: ast.AST | None,
-        wasm_file: str,
-        wasm_plat: WasmPlatform,
-        config: str | None,
+        filename: str,
+        config_filename: str | None,
     ) -> OpaqueTypeDef:
-        assert config is None
-        return WasmModuleTypeDef(id, name, defined_at, wasm_file, wasm_plat)
+        assert config_filename is None
+        return WasmModuleTypeDef(def_id, name, defined_at, filename, wasm_platform)
 
-    decorator = ext_module_decorator(
+    def check_member(val: GuppyDefinition) -> None:
+        wasm_def: RawWasmFunctionDef
+        if isinstance(val, GuppyFunctionDefinition) and isinstance(
+            val.wrapped, RawWasmFunctionDef
+        ):
+            wasm_def = val.wrapped
+        else:
+            return None
+        # wasm_sigs should only have not been provided if we have
+        # defined @wasm functions in a class which didn't use the
+        # @wasm_module decorator.
+        assert wasm_sigs is not None
+        if wasm_def.wasm_index is not None:
+            name = wasm_sigs.functions[wasm_def.wasm_index]
+            assert name in wasm_sigs.function_sigs
+            wasm_sig_or_err = wasm_sigs.function_sigs[name]
+        else:
+            if wasm_def.name in wasm_sigs.function_sigs:
+                wasm_sig_or_err = wasm_sigs.function_sigs[wasm_def.name]
+            else:
+                raise GuppyError(
+                    WasmFunctionNotInFile(
+                        wasm_def.defined_at,
+                        wasm_def.name,
+                    ).add_sub_diagnostic(
+                        WasmFunctionNotInFile.WasmFileNote(
+                            None,
+                            wasm_sigs.filename,
+                        )
+                    )
+                )
+        if isinstance(wasm_sig_or_err, FunctionType):
+            DEF_STORE.register_wasm_function(wasm_def.id, wasm_sig_or_err)
+        elif isinstance(wasm_sig_or_err, str):
+            raise GuppyError(
+                WasmSignatureError(
+                    None, wasm_def.name, filename, wasm_platform.value
+                ).add_sub_diagnostic(WasmSignatureError.Message(None, wasm_sig_or_err))
+            )
+
+    create_decorator = ext_module_decorator(  # type: ignore[var-annotated]
         type_def_wrapper,
         WasmModuleInitCompiler(),
         WasmModuleDiscardCompiler(),
-        True,
-        wasm_sigs,
+        init_arg=True,
+        foreach_member=check_member,
     )
-
-    def inner_fun(ty: builtins.type[T]) -> GuppyDefinition:
-        decorator_inner = decorator(str(wasm_path), wasm_platform, None)
-        return decorator_inner(ty)
-
-    return inner_fun
+    return create_decorator(str(wasm_path), config_filename=None)
 
 
 @overload
