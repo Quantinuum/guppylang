@@ -1,0 +1,11 @@
+Error: Dagger constraint violation (at $FILE:9:4)
+  | 
+7 | @guppy(daggerable=True)
+8 | def test_ho(f: Callable[[qubit], None], q: qubit) -> None:
+9 |     f(q)
+  |     ^^^^ This function cannot be called in a daggerable context
+
+Help: To be able to use a higher-order function in a daggerable context, you
+have to declare it as `Daggerable`
+
+Guppy compilation failed due to 1 previous error

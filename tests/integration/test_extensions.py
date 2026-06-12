@@ -8,7 +8,6 @@ from collections.abc import Callable
 
 from hugr import ext, tys, ops
 from guppylang.decorator import hugr_op
-import tket_exts
 
 
 def custom_ext_op(
@@ -39,13 +38,11 @@ def custom_ext_op(
 
 def test_custom_extension(validate):
 
-    opaque_bool_ty = tket_exts.bool.bool_t
-
     # Build an extension with a custom op
     op_def = ext.OpDef(
         name="CustomOp",
         description="outer op with lowering",
-        signature=ext.OpDefSig(tys.FunctionType.endo([opaque_bool_ty])),
+        signature=ext.OpDefSig(tys.FunctionType.endo([tys.Bool])),
     )
     extension = ext.Extension(
         version=ext.Version(0, 1, 0),
@@ -66,14 +63,12 @@ def test_custom_extension(validate):
 
     assert {ext.name for ext in ret.extensions} == {
         "outer",
-        "tket.bool",
     }
     assert ret.modules[0].used_extensions().used_extensions.ids() == {
         "prelude",
         "collections.array",
         "collections.borrow_arr",
         "outer",
-        "tket.bool",
     }
 
     validate(ret)

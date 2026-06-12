@@ -187,28 +187,44 @@ class FlagNotAllowedError(Error):
 @dataclass(frozen=True)
 class UnitaryCallError(Error):
     title: ClassVar[str] = "{capitalized_render_flags} constraint violation"
-    span_label: ClassVar[str] = "This function cannot be called in a {flags} context"
+    span_label: ClassVar[str] = (
+        "This function cannot be called in a {context_description} context"
+        "{continue_span_label}"
+    )
     flags: "UnitaryFlags"
-
-    @property
-    def rendered_flags(self) -> str:
-        return self.flags.render_flags(False)
+    missing_keyword_hint: bool
 
     @property
     def capitalized_render_flags(self) -> str:
-        return str(self.flags).capitalize()
+        from guppylang_internals.tys.ty import UnitaryFlags
+
+        name = self.flags.name
+        assert self.flags != UnitaryFlags.NoFlags
+        assert name is not None
+        return name.capitalize()
+
+    @property
+    def continue_span_label(self) -> str:
+        if self.missing_keyword_hint:
+            return f" because it is not {self.context_description} itself"
+        else:
+            return ""
+
+    @property
+    def context_description(self) -> str:
+        return self.flags.context()
 
     @property
     def hint_rendering(self) -> str:
         """We check which flag are we missing. If we miss more than one, we just say
         `unitary=True`"""
-        return self.flags.hint_rendering(False)
+        return self.flags.hint_rendering()
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
-            "The function allocates qubits, which is not allowed in a "
-            "{rendered_flags} context"
+            "The function allocates qubits, which is not allowed in a"
+            " {context_description} context"
         )
 
     @dataclass(frozen=True)
@@ -218,3 +234,12 @@ class UnitaryCallError(Error):
             "Consider adding the flag `({hint_rendering})` to the decorator of "
             "the function `{func_name}`"
         )
+
+    @dataclass(frozen=True)
+    class HigherOrderHint(Help):
+        message: ClassVar[str] = (
+            "To be able to use a {function_description} function in a "
+            "{context_description} context, you have to declare it as `{callable_name}`"
+        )
+        callable_name: str
+        function_description: str

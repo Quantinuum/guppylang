@@ -13,6 +13,6 @@ Notes:
    |     - Argument `a` defined here ...
 14 |     with dagger:
 15 |         with power(3):
-   |              -------- outside the modifier block
+   |              -------- ... outside the modifier block
 
 Guppy compilation failed due to 1 previous error

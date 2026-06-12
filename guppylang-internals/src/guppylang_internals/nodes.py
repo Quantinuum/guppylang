@@ -814,8 +814,6 @@ class Modifiers:
             result |= UnitaryFlags.Dagger
         if self.has_control():
             result |= UnitaryFlags.Control
-        if self.has_power():
-            result |= UnitaryFlags.Power
         return result
 
 

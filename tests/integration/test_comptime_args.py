@@ -7,6 +7,9 @@ def test_basic_nat(validate):
     def foo(n: nat @ comptime) -> nat:
         return nat(n + 1)
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> nat:
         return foo(42)
@@ -18,6 +21,9 @@ def test_basic_int(validate):
     @guppy
     def foo(n: int @ comptime) -> int:
         return n + 1
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
 
     @guppy
     def main() -> int:
@@ -31,6 +37,9 @@ def test_basic_float(validate):
     def foo(f: float @ comptime) -> float:
         return f + 1.5
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> float:
         return foo(42.0)
@@ -42,6 +51,9 @@ def test_basic_bool(validate):
     @guppy
     def foo(b: bool @ comptime) -> bool:
         return not b
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
 
     @guppy
     def main() -> bool:
@@ -56,6 +68,9 @@ def test_multiple(validate):
         a: nat @ comptime, b: nat, c: nat @ comptime, d: nat, e: nat, f: nat @ comptime
     ) -> nat:
         return nat(a + b + c + d + e + f)
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
 
     @guppy
     def main() -> nat:
@@ -79,6 +94,9 @@ def test_dependent(validate):
     @guppy
     def foo(n: nat @ comptime, xs: "array[int, n]") -> None:  # noqa: F821
         pass
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
 
     @guppy
     def main() -> None:
@@ -123,6 +141,9 @@ def test_type_apply(validate):
         g = foo[nat, m]
         g(42, m)
 
+    # We can't compile bar on its own, but we can check it
+    foo.check()
+
     @guppy
     def main() -> None:
         bar(0)
@@ -138,6 +159,9 @@ def test_generic1(validate):
     def foo(_x: T, y: T @ comptime) -> T:
         return y
 
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
     @guppy
     def main(x: nat, y: int, z: float) -> float:
         return foo(x, 42) + foo(y, -10) + foo(z, 1.5)
@@ -151,6 +175,9 @@ def test_generic2(validate):
     @guppy
     def foo(x: T @ comptime) -> T:
         return x
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
 
     @guppy
     def main() -> float:
@@ -166,6 +193,9 @@ def test_generic_tuple(validate):
     def foo(t: tuple[T, T] @ comptime) -> T:
         x, _ = t
         return x
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
 
     @guppy
     def main() -> bool:

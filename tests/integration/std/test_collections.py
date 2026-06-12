@@ -16,11 +16,11 @@ def test_stack(run_int_fn) -> None:
     def main() -> int:
         stack: Stack[int, 10] = empty_stack()
         for i in range(10):
-            stack = stack.push(i)
+            stack.push(i)
         s = 0
         i = 1
         while len(stack) > 0:
-            x, stack = stack.pop()
+            x = stack.pop()
             s += x * i
             i += 1
         stack.discard_empty()
@@ -38,7 +38,7 @@ def test_stack_iter(run_int_fn) -> None:
     def main() -> int:
         stack: Stack[int, 10] = empty_stack()
         for i in range(10):
-            stack = stack.push(i)
+            stack.push(i)
         s = 0
         i = 1
         for x in stack:
@@ -59,11 +59,11 @@ def test_priority_queue(run_int_fn) -> None:
         pq: PriorityQueue[int, 10] = empty_priority_queue()
         for i in range(10):
             # values are in order, priority is reversed
-            pq = pq.push(i, 9 - i)
+            pq.push(i, 9 - i)
         s = 0
         multiplier = 1
         while len(pq) > 0:
-            _priority, value, pq = pq.pop()
+            _priority, value = pq.pop()
             # use multiplier to ensure the correct order
             s += value * multiplier
             multiplier += 1
@@ -83,7 +83,7 @@ def test_priority_queue_iter(run_int_fn) -> None:
         pq: PriorityQueue[int, 10] = empty_priority_queue()
         for i in range(10):
             # values are in order, priority is reversed
-            pq = pq.push(i, 9 - i)
+            pq.push(i, 9 - i)
         s = 0
         multiplier = 1
         for priority, value in pq:
@@ -105,22 +105,22 @@ def test_priority_queue_repeated_push_pop(run_int_fn) -> None:
         pq: PriorityQueue[int, 5] = empty_priority_queue()
         # Fill to capacity using priorities equal to values.
         for i in range(5):
-            pq = pq.push(i, i)
+            pq.push(i, i)
         # Pop twice, then push a couple more values after freeing space.
-        _, _, pq = pq.pop()
-        _, _, pq = pq.pop()
+        _, _ = pq.pop()
+        _, _ = pq.pop()
         for i in range(5, 7):
-            pq = pq.push(i, i)
+            pq.push(i, i)
         # Pop twice again and then push more values to exercise repeated cycles.
-        _, _, pq = pq.pop()
-        _, _, pq = pq.pop()
+        _, _ = pq.pop()
+        _, _ = pq.pop()
         for i in range(7, 9):
-            pq = pq.push(i, i)
+            pq.push(i, i)
         # Drain remaining values in priority order and verify they are still ordered.
         total = 0
         multiplier = 1
         while len(pq) > 0:
-            _, value, pq = pq.pop()
+            _, value = pq.pop()
             total += value * multiplier
             multiplier += 1
         pq.discard_empty()
@@ -136,11 +136,11 @@ def test_queue(run_int_fn) -> None:
     def main() -> int:
         queue: Queue[int, 10] = empty_queue()
         for i in range(10):
-            queue = queue.push(i)
+            queue.push(i)
         s = 0
         i = 1
         while len(queue) > 0:
-            x, queue = queue.pop()
+            x = queue.pop()
             s += x * i
             i += 1
         queue.discard_empty()
@@ -160,7 +160,7 @@ def test_queue_iter(run_int_fn) -> None:
     def main() -> int:
         queue: Queue[int, 10] = empty_queue()
         for i in range(10):
-            queue = queue.push(i)
+            queue.push(i)
         s = 0
         i = 1
         for x in queue:
@@ -182,7 +182,7 @@ def test_queue_full(run_int_fn) -> None:
     def main() -> int:
         queue: Queue[int, 5] = empty_queue()
         for i in range(5):
-            queue = queue.push(i)
+            queue.push(i)
         return len(queue)
 
     run_int_fn(main, 5)
@@ -195,7 +195,7 @@ def test_queue_beyond_full() -> None:
     def main() -> None:
         queue: Queue[int, 1] = empty_queue()
         for i in range(2):
-            queue = queue.push(i)
+            queue.push(i)
 
         queue.discard_empty()
 
@@ -212,10 +212,10 @@ def test_queue_empty() -> None:
     def main() -> None:
         queue: Queue[int, 1] = empty_queue()
         for i in range(1):
-            queue = queue.push(i)
+            queue.push(i)
 
         for _ in range(2):
-            _, queue = queue.pop()
+            queue.pop()
 
         queue.discard_empty()
 
@@ -233,26 +233,26 @@ def test_queue_beyond_max_size(run_int_fn) -> None:
     def main() -> int:
         q: Queue[int, 5] = empty_queue()
         for i in range(4):
-            q = q.push(i)
+            q.push(i)
 
         for _ in range(2):
-            _, q = q.pop()
+            q.pop()
 
         for i in range(4, 6):
-            q = q.push(i)
-        _, q = q.pop()
-        q = q.push(6)
-        _, q = q.pop()
-        q = q.push(7)
-        _, q = q.pop()
-        q = q.push(8)
-        _, q = q.pop()
-        q = q.push(9)
+            q.push(i)
+        q.pop()
+        q.push(6)
+        q.pop()
+        q.push(7)
+        q.pop()
+        q.push(8)
+        q.pop()
+        q.push(9)
         total = 0
         multiplier = 1
 
         while len(q) > 0:
-            x, q = q.pop()
+            x = q.pop()
             total += x * multiplier
             multiplier += 1
         q.discard_empty()
@@ -269,11 +269,11 @@ def test_queue_wraparound_len(run_int_fn) -> None:
     def main() -> int:
         q: Queue[int, 5] = empty_queue()
         for i in range(3):
-            q = q.push(i)
+            q.push(i)
         for _ in range(2):
-            _, q = q.pop()
+            q.pop()
         for i in range(3, 5):
-            q = q.push(i)
+            q.push(i)
         return len(q)
 
     run_int_fn(main, 3)
@@ -287,11 +287,11 @@ def test_queue_wraparound_iter(run_int_fn) -> None:
     def main() -> int:
         q: Queue[int, 5] = empty_queue()
         for i in range(3):
-            q = q.push(i)
+            q.push(i)
         for _ in range(2):
-            _, q = q.pop()
+            q.pop()
         for i in range(3, 5):
-            q = q.push(i)
+            q.push(i)
         total = 0
         multiplier = 1
         for x in q:

@@ -4,7 +4,6 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import hugr.build.function as hf
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DISubprogram
@@ -28,6 +27,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
     parse_function_with_docstring,
 )
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
@@ -270,7 +270,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.docstring,
             self.link_name,
             self.cfg,
-            func_def,
+            FunctionBuilder(func_def),
             metadata=self.metadata,
         )
 
@@ -290,20 +290,21 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
             other representations, regardless of whether the function is actually
             visible for linking)
         cfg: The type- and linearity-checked CFG for the function body.
-        func_def: The Hugr function definition.
+        _func_bldr: used to build the function body in `compile_inner`; clients
+                   should use `hugr_node`
     """
 
-    func_def: hf.Function
+    _func_bldr: FunctionBuilder
 
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
-        return self.func_def.parent_node
+        return self._func_bldr.to_node()
 
     @override
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         """Loads the function as a value into a local Hugr dataflow graph."""
-        return load(dfg, self.func_def)
+        return load(dfg, self.hugr_node)
 
     @override
     def compile_call(
@@ -314,12 +315,12 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, dfg, self.ty, self.func_def, node)
+        return compile_call(args, dfg, self.ty, self.hugr_node, node)
 
     @override
     def compile_inner(self, globals: CompilerContext) -> None:
         """Compiles the body of the function."""
-        compile_global_func_def(self, self.func_def, globals)
+        compile_global_func_def(self, self._func_bldr, globals)
 
 
 def load(dfg: DFContainer, func: ToNode) -> Wire:

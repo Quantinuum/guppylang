@@ -2,7 +2,7 @@ from guppylang import guppy, qubit
 from guppylang.std.builtins import Controllable
 
 
-@guppy(dagger=True)
+@guppy(daggerable=True)
 def dagger_only(q: qubit) -> None:
     pass
 

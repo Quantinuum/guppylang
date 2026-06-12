@@ -4,7 +4,7 @@ from guppylang.std.builtins import dagger
 
 
 
-@guppy.declare(dagger=True)
+@guppy.declare(daggerable=True)
 def use(q: qubit) -> None: ...
 
 

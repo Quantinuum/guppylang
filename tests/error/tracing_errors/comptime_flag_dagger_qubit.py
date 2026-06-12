@@ -5,7 +5,7 @@ from guppylang import guppy, qubit
 def uni_discard(q: qubit) -> None: ...
 
 
-@guppy.comptime(dagger=True)
+@guppy.comptime(daggerable=True)
 def test() -> None:
     q = qubit()
     uni_discard(q)

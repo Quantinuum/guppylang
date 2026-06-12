@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING
 
 from hugr import Wire
 from hugr import tys as ht
-from hugr.build.function import Function
 
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.hugr_extension import PartialOp
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 def compile_global_func_def(
     func: "CheckedFunctionDef",
-    builder: Function,
+    builder: FunctionBuilder,
     ctx: CompilerContext,
 ) -> None:
     """Compiles a top-level function definition to Hugr."""
@@ -45,7 +45,7 @@ def compile_local_func_def(
     # Prepend captured variables to the function arguments
     func_ty = func.ty.to_hugr(ctx)
     closure_ty = ht.FunctionType([*captured_types, *func_ty.input], func_ty.output)
-    func_builder = dfg.builder.raw_builder.module_root_builder().define_function(
+    func_builder = dfg.builder.define_function(
         func.name, closure_ty.input, closure_ty.output
     )
 
@@ -55,8 +55,8 @@ def compile_local_func_def(
     # If we have captured variables and the body contains a recursive occurrence of
     # the function itself, then we provide the partially applied function as a local
     # variable
-    call_args: list[Wire] = list(func_builder.inputs())
     if len(captured) > 0 and recursive:
+        call_args: list[Wire] = list(func_builder.inputs())
         check_partial_functions_enabled()
         loaded = func_builder.load_function(func_builder, closure_ty)
         partial = func_builder.add_op(

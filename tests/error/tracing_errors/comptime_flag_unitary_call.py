@@ -1,7 +1,7 @@
 from guppylang import guppy, qubit
 
 
-@guppy.declare(power=True)
+@guppy.declare
 def foo(x: qubit) -> None: ...
 
 

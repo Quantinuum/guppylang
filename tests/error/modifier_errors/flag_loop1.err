@@ -1,14 +1,14 @@
 Error: Invalid expression in dagger (at $FILE:6:4)
   | 
-4 | @guppy(dagger=True)
+4 | @guppy(daggerable=True)
 5 | def test() -> None:
 6 |     for _ in range(10):
   |     ^^^^^^^^^^^^^^^^^^^
 7 |         pass
   | ^^^^^^^^^^^^ Loop found in a dagger context
 
-Help: The function `test` is declared with the unitary flag: `dagger=True`. Thus
-dagger constraints apply to its body.
+Help: The function `test` is declared with the unitary flag: `daggerable=True`.
+Thus dagger constraints apply to its body.
 
 Help: Control flow statements (e.g. loops and branches) are not allowed in
 daggered contexts.

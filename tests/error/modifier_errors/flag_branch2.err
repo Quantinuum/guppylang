@@ -1,12 +1,12 @@
 Error: Invalid expression in dagger (at $FILE:7:12)
   | 
-5 | @guppy(dagger=True, power=True)
+5 | @guppy(daggerable=True)
 6 | def test() -> None:
 7 |         x = 3 if 2 > 46 else 0
   |             ^^^^^^^^^^^^^^^^^^ Branch found in a dagger context
 
-Help: The function `test` is declared with the unitary flag: `dagger=True`. Thus
-dagger constraints apply to its body.
+Help: The function `test` is declared with the unitary flag: `daggerable=True`.
+Thus dagger constraints apply to its body.
 
 Help: Control flow statements (e.g. loops and branches) are not allowed in
 daggered contexts.

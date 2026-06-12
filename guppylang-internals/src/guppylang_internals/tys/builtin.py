@@ -13,7 +13,6 @@ from guppylang_internals.definition.common import CompiledDef, DefId
 from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import check_lists_enabled
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool
 from guppylang_internals.std._internal.compiler.tket_exts import WASM_EXTENSION
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import ToHugrContext
@@ -42,10 +41,8 @@ class CallableTypeDef(TypeDef, CompiledDef):
     name: Literal[
         "Callable",
         "Unitary",
-        "Powerable",
         "Daggerable",
         "Controllable",
-        "PowerControllable",
     ] = field(default="Callable", kw_only=True)
     flags: UnitaryFlags = UnitaryFlags.NoFlags
 
@@ -235,12 +232,6 @@ unitary_type_def = CallableTypeDef(
     None,
     flags=UnitaryFlags.Unitary,
 )
-powerable_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    flags=UnitaryFlags.Power,
-)
 daggerable_type_def = CallableTypeDef(
     DefId.fresh(),
     None,
@@ -253,12 +244,6 @@ controllable_type_def = CallableTypeDef(
     None,
     flags=UnitaryFlags.Control,
 )
-powerctrlable_type_def = CallableTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    flags=UnitaryFlags.Power | UnitaryFlags.Control,
-)
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)
 none_type_def = _NoneTypeDef(DefId.fresh(), None, [])
@@ -269,7 +254,7 @@ bool_type_def = OpaqueTypeDef(
     params=[],
     never_copyable=False,
     never_droppable=False,
-    to_hugr=lambda args, ctx: OpaqueBool,
+    to_hugr=lambda args, ctx: ht.Bool,
 )
 nat_type_def = _NumericTypeDef(
     DefId.fresh(), "nat", None, [], NumericType(NumericType.Kind.Nat)

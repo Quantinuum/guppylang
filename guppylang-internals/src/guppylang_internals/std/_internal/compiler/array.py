@@ -14,12 +14,11 @@ from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
 from guppylang_internals.std._internal.compiler.prelude import build_unwrap_right
-from guppylang_internals.std._internal.compiler.tket_bool import make_opaque
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
     from guppylang_internals.ast_util import AstNode
-    from guppylang_internals.compiler.core import DFBuilder
+    from guppylang_internals.compiler.builder import DFBuilder
 
 
 # ------------------------------------------------------
@@ -248,7 +247,7 @@ P = TypeVar("P", bound=ops.DfParentOp)
 
 
 def unpack_array(
-    builder: DFBuilder[P], array: Wire, ast_node: AstNode | None = None
+    builder: DFBuilder, array: Wire, ast_node: AstNode | None = None
 ) -> list[Wire]:
     """Unpacks a wire of type array into separate wires for each element."""
     array_ty = builder.get_wire_type(array)
@@ -435,7 +434,6 @@ class ArrayIsBorrowedCompiler(ArrayCompiler):
         array, b = self.builder.add_op(
             barray_is_borrowed(self.elem_ty, self.length), array, idx
         )
-        b = self.builder.add_op(make_opaque(), b)
         return CallReturnWires(regular_returns=[b], inout_returns=[array])
 
     def compile(self, args: list[Wire]) -> list[Wire]:

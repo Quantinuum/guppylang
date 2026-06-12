@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile_function()
   File "$FILE", line 15, in test
     p = init_qubits()
-guppylang_internals.error.GuppyComptimeError: Control constraint violation: This function cannot be called in a control context
+guppylang_internals.error.GuppyComptimeError: Control constraint violation: This function cannot be called in a controllable context

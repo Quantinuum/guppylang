@@ -4,7 +4,7 @@ from guppylang.std.quantum import qubit
 from tests.util import compile_guppy
 
 
-@guppy.comptime(control=True)
+@guppy.comptime(controllable=True)
 def foo(q: qubit) -> None:
     pass
 

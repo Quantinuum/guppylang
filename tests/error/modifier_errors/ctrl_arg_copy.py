@@ -7,7 +7,7 @@ from guppylang.std.quantum import qubit, owned
 def discard(q: qubit @ owned) -> None: ...
 
 
-@guppy.declare(control=True)
+@guppy.declare(controllable=True)
 def use(q: qubit) -> None: ...
 
 

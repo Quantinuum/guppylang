@@ -5,7 +5,7 @@ from guppylang import guppy, qubit
 def foo(x: qubit) -> None: ...
 
 
-@guppy.comptime(control=True)
+@guppy.comptime(controllable=True)
 def test(x: qubit) -> None:
     foo(x)
 

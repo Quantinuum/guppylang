@@ -113,7 +113,7 @@ class InvalidUnderDagger(Error):
             if self.unitary_flags == UnitaryFlags.Unitary:
                 return "unitary=True"
             assert UnitaryFlags.Dagger in cast("UnitaryFlags", self.unitary_flags)
-            return "dagger=True"
+            return "daggerable=True"
 
     @dataclass(frozen=True)
     class ControlFlowHelp(Help):

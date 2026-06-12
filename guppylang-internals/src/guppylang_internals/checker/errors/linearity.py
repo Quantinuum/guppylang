@@ -239,7 +239,7 @@ class NotOwnedError(Error):
 
     @dataclass(frozen=True)
     class ModifierBlock(Note):
-        span_label: ClassVar[str] = "outside the modifier block"
+        span_label: ClassVar[str] = "... outside the modifier block"
 
 
 @dataclass(frozen=True)

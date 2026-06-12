@@ -7,7 +7,7 @@ from hugr.package import Package
 def queue_push_benchmark() -> int:
     q: Queue[int, 10000] = empty_queue()
     for i in range(10000):
-        q = q.push(i)
+        q.push(i)
     # Return the length so the value is used and not optimized away.
     return len(q)
 
@@ -16,10 +16,10 @@ def queue_push_benchmark() -> int:
 def queue_push_pop_benchmark() -> int:
     q: Queue[int, 10000] = empty_queue()
     for i in range(10000):
-        q = q.push(i)
+        q.push(i)
     total = 0
     while len(q) > 0:
-        x, q = q.pop()
+        x = q.pop()
         total += x
     return total
 

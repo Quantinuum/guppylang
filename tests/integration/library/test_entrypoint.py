@@ -1,5 +1,7 @@
 import pytest
 
+from hugr._hugr.linking import HugrLinkingError
+
 from guppylang import guppy
 from guppylang.defs import GuppyDefinition
 from guppylang.emulator import EmulatorBuilder
@@ -71,5 +73,8 @@ def test_manual_link_multiple_entrypoints():
     lib1 = produce_entrypoint().compile()
     lib2 = produce_entrypoint().compile()
 
-    with pytest.raises(ValueError, match="Cannot link two executable modules together"):
+    with pytest.raises(
+        HugrLinkingError,
+        match="Cannot link two modules with non-root entrypoints together",
+    ):
         lib1.link(lib2)

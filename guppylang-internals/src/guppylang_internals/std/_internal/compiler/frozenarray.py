@@ -8,10 +8,8 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.static_array import EXTENSION, StaticArray
 
-from guppylang_internals.compiler.core import (
-    DFBuilder,
-    GlobalConstId,
-)
+from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.std._internal.compiler.arithmetic import (
@@ -50,15 +48,13 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
             body=ht.FunctionType([StaticArray(var), INT_T], [var]),
         )
         func, already_exists = self.ctx.declare_global_func(FROZENARRAY_GETITEM, sig)
-        func_builder = DFBuilder(func, self.node)
         if not already_exists:
+            func = FunctionBuilder(func, current_ast_node=self.node)
             [arr, idx] = func.inputs()
-            idx = func_builder.add_op(convert_itousize(), idx)
-            elem_opt = func_builder.add_op(static_array_get(var), arr, idx)
-            elem = build_unwrap(
-                func_builder, elem_opt, "Frozenarray index out of bounds"
-            )
-            func.set_outputs(elem)
+            idx = func.add_op(convert_itousize(), idx)
+            elem_opt = func.add_op(static_array_get(var), arr, idx)
+            elem = build_unwrap(func, elem_opt, "Frozenarray index out of bounds")
+            func = func.set_outputs(elem)
         return func
 
     def compile(self, args: list[Wire]) -> list[Wire]:

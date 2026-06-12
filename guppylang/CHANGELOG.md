@@ -14,6 +14,29 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a2...guppylang-v1.0.0-a3) (2026-06-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove `power` flags and rename flag `dagger` to `daggerable` and `control` to `controllable` ([#1838](https://github.com/Quantinuum/guppylang/issues/1838))
+* Use mutable state for PCG32 and encapsulate internals ([#1828](https://github.com/Quantinuum/guppylang/issues/1828))
+* Remove vacuous pytket extra from distributions ([#1836](https://github.com/Quantinuum/guppylang/issues/1836))
+* Use mutable structs for std collections and encapsulate internals ([#1796](https://github.com/Quantinuum/guppylang/issues/1796))
+* Experimental features should only be enabled globally ([#1825](https://github.com/Quantinuum/guppylang/issues/1825))
+
+### Features
+
+* Use mutable state for PCG32 and encapsulate internals ([#1828](https://github.com/Quantinuum/guppylang/issues/1828)) ([35fee12](https://github.com/Quantinuum/guppylang/commit/35fee12646277a9538e29dc35e4898848dc669c4))
+* Use mutable structs for std collections and encapsulate internals ([#1796](https://github.com/Quantinuum/guppylang/issues/1796)) ([07f6d17](https://github.com/Quantinuum/guppylang/commit/07f6d175365356a21fabda9ff94ebdb5a0c05e6e))
+
+
+### Code Refactoring
+
+* Experimental features should only be enabled globally ([#1825](https://github.com/Quantinuum/guppylang/issues/1825)) ([5f01c7d](https://github.com/Quantinuum/guppylang/commit/5f01c7d6d2303bf3812496f8e91d20696b60e088))
+* Remove `power` flags and rename flag `dagger` to `daggerable` and `control` to `controllable` ([#1838](https://github.com/Quantinuum/guppylang/issues/1838)) ([e903bdb](https://github.com/Quantinuum/guppylang/commit/e903bdbafbe252bde224ea1c483e10180e265bfb))
+* Remove vacuous pytket extra from distributions ([#1836](https://github.com/Quantinuum/guppylang/issues/1836)) ([1fcb41f](https://github.com/Quantinuum/guppylang/commit/1fcb41fae1c8532cc624e648890badf8631c2159))
+
 ## [1.0.0-a2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a1...guppylang-v1.0.0-a2) (2026-06-08)
 
 

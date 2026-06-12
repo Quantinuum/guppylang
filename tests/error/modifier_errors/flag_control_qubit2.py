@@ -7,7 +7,7 @@ def init_qubits() -> array[qubit, 2]: ...
 @guppy.declare(unitary=True)
 def uni_discard(q: array[qubit, 2] @owned) -> None: ...
 
-@guppy(control=True)
+@guppy(controllable=True)
 def test() -> None:
     p = init_qubits()
     uni_discard(p)

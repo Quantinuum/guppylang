@@ -3,7 +3,7 @@ from guppylang.std.builtins import dagger, power
 from guppylang.std.quantum import qubit
 
 
-@guppy(power=True)
+@guppy
 def foo(q: qubit) -> None:
     pass
 

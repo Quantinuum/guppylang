@@ -4,8 +4,7 @@ from tests.util import compile_guppy
 from guppylang.std.builtins import dagger, power
 
 
-
-@guppy.declare(dagger=True)
+@guppy.declare(daggerable=True)
 def discard(q: qubit @ owned) -> None: ...
 
 
@@ -13,7 +12,7 @@ def discard(q: qubit @ owned) -> None: ...
 def test() -> None:
     a = qubit()
     with dagger:
-        with power(2):
-            pass
-        discard(a)
+        with power(3):
+            discard(a)
+
 
