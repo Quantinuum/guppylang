@@ -1,7 +1,7 @@
 import ast
 import builtins
 from collections.abc import Callable
-from typing import ParamSpec, TypeVar
+from typing import TypeVar
 
 from guppylang.defs import GuppyDefinition, GuppyFunctionDefinition
 
@@ -34,7 +34,6 @@ from guppylang_internals.tys.ty import (
 )
 
 T = TypeVar("T")
-P = ParamSpec("P")
 
 
 def ext_module_decorator(
