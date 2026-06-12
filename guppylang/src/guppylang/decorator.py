@@ -197,15 +197,15 @@ class _Guppy:
 
         return _with_optional_kwargs(decorator, args, kwargs)
 
-    @deprecated("Use @guppylang_internal.decorator.extend_type instead.")
+    @deprecated("Use @guppylang_internal.decorator.ty.extend_type instead.")
     def extend_type(self, defn: TypeDef) -> Callable[[type], type]:
         # Set `return_class=True` to match the old behaviour until this deprecated
         # method is removed
-        import guppylang_internals.decorator
+        import guppylang_internals.decorator.ty
 
-        return guppylang_internals.decorator.extend_type(defn, return_class=True)
+        return guppylang_internals.decorator.ty.extend_type(defn, return_class=True)
 
-    @deprecated("Use @guppylang_internal.decorator.custom_type instead.")
+    @deprecated("Use @guppylang_internal.decorator.custom.custom_type instead.")
     def type(
         self,
         hugr_ty: ht.Type | Callable[[Sequence[Argument], CompilerContext], ht.Type],
@@ -406,7 +406,7 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
-    @deprecated("Use @guppylang_internal.decorator.custom_function instead.")
+    @deprecated("Use @guppylang_internal.decorator.custom.custom_function instead.")
     def custom(
         self,
         compiler: CustomInoutCallCompiler | None = None,
@@ -417,7 +417,7 @@ class _Guppy:
     ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
         return custom_function(compiler, checker, higher_order_value, name, signature)
 
-    @deprecated("Use @guppylang_internal.decorator.hugr_op instead.")
+    @deprecated("Use @guppylang_internal.decorator.custom.hugr_op instead.")
     def hugr_op(
         self,
         op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp],
