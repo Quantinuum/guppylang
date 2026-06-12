@@ -12,8 +12,12 @@ from guppylang_internals.metadata.max_qubits import MetadataMaxQubits
 
 
 class MetadataUnitaryFlags(Metadata[int]):
+    """stub implementation of `tket.metadata.UnitaryFlags` to ensure decoupling between
+    guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
     KEY = "tket.unitary"
-    ALIASES: ClassVar[list[str]] = ["unitary"]
 
 
 @dataclass(frozen=True)
