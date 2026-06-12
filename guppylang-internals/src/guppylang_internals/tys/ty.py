@@ -3,11 +3,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, assert_never, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
 
 import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
+from typing_extensions import assert_never
 
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
