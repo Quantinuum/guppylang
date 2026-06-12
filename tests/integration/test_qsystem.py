@@ -110,9 +110,15 @@ def test_random_advance(validate, run_int_fn):  # type: ignore[no-untyped-def]
 # TODO: run emulation when sol platform targeting is available, see issue #1797
 def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
     """Compile shared + Sol-specific operations from the qsystem.sol extension."""
+    NUM_QUBITS = 3
     from guppylang.std.qsystem.sol import (
+        lazy_measure_and_reset,
+        lazy_measure_and_reset_array,
         measure,
         measure_and_reset,
+        measure_and_reset_array,
+        measure_array,
+        lazy_measure_array,
         phased_x,
         phased_xx,
         phased_xx_max,
@@ -129,34 +135,87 @@ def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
         phased_xx_max(q1, q2, a1)
         xx_max(q1, q2)
         rz(q1, a1)
+        m1 = lazy_measure_and_reset(q1)
+        m1.read()
+        reset(q1)
         b = measure_and_reset(q1)
+        b.read()
         reset(q1)
         b = measure(q1)
         qfree(q2)
         return b
 
+    @guppy
+    def test_arrays(
+        qubits: array[qubit, comptime(NUM_QUBITS)] @ owned,
+    ) -> array[Measurement, comptime(NUM_QUBITS)]:
+        ms = measure_array(qubits)
+        qa = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        ms2 = lazy_measure_array(qa)
+        collect_measurements(ms2)
+        qb = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        ms3 = measure_and_reset_array(qb)
+        collect_measurements(ms3)
+        ms4 = lazy_measure_and_reset_array(qb)
+        collect_measurements(ms4)
+        collect_measurements(measure_array(qb))
+        return ms
+
     validate(test.compile_function())
+    validate(test_arrays.compile_function())
 
 
 # TODO: run emulation when sol platform targeting is available, see issue #1797
 def test_qsystem_sol_functional(validate):  # type: ignore[no-untyped-def]
     """Compile Sol-specific functional operations."""
+    NUM_QUBITS = 3
     from guppylang.std.qsystem.sol.functional import (
+        lazy_measure_and_reset,
+        lazy_measure_and_reset_array,
+        measure,
+        measure_and_reset,
+        measure_and_reset_array,
+        measure_array,
+        phased_x,
         phased_xx,
         phased_xx_max,
+        qfree,
+        reset,
+        rz,
         xx_max,
     )
 
     @guppy
     def test(q1: qubit @ owned, q2: qubit @ owned, a1: angle) -> Measurement:
+        q1 = phased_x(q1, a1, a1)
         q1, q2 = phased_xx(q1, q2, a1, a1)
         q1, q2 = phased_xx_max(q1, q2, a1)
         q1, q2 = xx_max(q1, q2)
-        m = sol_fn_mod.measure(q1)
-        sol_fn_mod.qfree(q2)
-        return m
+        q1 = rz(q1, a1)
+        q1 = reset(q1)
+        q1, m1 = measure_and_reset(q1)
+        m1.read()
+        q1, m2 = lazy_measure_and_reset(q1)
+        m2.read()
+        q1 = reset(q1)
+        qfree(q2)
+        return measure(q1)
+
+    @guppy
+    def test_arrays(
+        qubits: array[qubit, comptime(NUM_QUBITS)] @ owned,
+    ) -> array[Measurement, comptime(NUM_QUBITS)]:
+        ms = measure_array(qubits)
+        qa = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qb, ms2 = measure_and_reset_array(qa)
+        collect_measurements(ms2)
+        qc, ms3 = lazy_measure_and_reset_array(qb)
+        collect_measurements(ms3)
+        collect_measurements(measure_array(qc))
+        return ms
 
     validate(test.compile_function())
+    validate(test_arrays.compile_function())
 
 
 def test_measure_leaked(validate, qsys):  # type: ignore[no-untyped-def]
