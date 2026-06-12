@@ -6,7 +6,6 @@ from hugr import Wire, ops, tys
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.compiler.core import CompilerContext
-from guppylang_internals.compiler.expr_compiler import array_read_bool
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
@@ -16,13 +15,11 @@ from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.array import (
     array_clone,
-    array_map,
     array_to_std_array,
 )
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, read_bool
 from guppylang_internals.std._internal.compiler.tket_exts import RESULT_EXTENSION
 from guppylang_internals.tys.arg import Argument, ConstArg
-from guppylang_internals.tys.builtin import get_element_type, is_bool_type
+from guppylang_internals.tys.builtin import get_element_type
 from guppylang_internals.tys.const import BoundConstVar, ConstValue
 from guppylang_internals.tys.ty import NumericType
 
@@ -58,10 +55,6 @@ class ResultCompiler(CustomCallCompiler):
         args = [tag_to_hugr(self.type_args[0], self.ctx, self.node)]
         if self.with_int_width:
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
-        # Bool results need an extra conversion into regular hugr bools
-        if is_bool_type(ty):
-            value = self.builder.add_op(read_bool(), value)
-            hugr_ty = tys.Bool
         op = RESULT_EXTENSION.get_op(self.op_name)
         sig = tys.FunctionType(input=[hugr_ty], output=[])
         self.builder.add_op(op.instantiate(args, sig), value)
@@ -92,14 +85,6 @@ class ArrayResultCompiler(CustomInoutCallCompiler):
         hugr_elem_ty = elem_ty.to_hugr(self.ctx)
         hugr_size = size_arg.to_hugr(self.ctx)
         arr, out_arr = self.builder.add_op(array_clone(hugr_elem_ty, hugr_size), arr)
-        # For bool arrays, we furthermore need to coerce a read on all the array
-        # elements
-        if is_bool_type(elem_ty):
-            array_read = array_read_bool(self.ctx)
-            array_read = self.builder.load_function(array_read)
-            map_op = array_map(OpaqueBool, hugr_size, tys.Bool)
-            arr = self.builder.add_op(map_op, arr, array_read).out(0)
-            hugr_elem_ty = tys.Bool
         # Turn `borrow_array` into regular `array`
         arr = self.builder.add_op(array_to_std_array(hugr_elem_ty, hugr_size), arr).out(
             0
