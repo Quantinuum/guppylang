@@ -27,21 +27,6 @@ export-integration-tests directory="guppy-exports":
 test-exported-hugrs *PYTEST_FLAGS:
     uv run pytest -n auto -m test_exported_hugrs {{PYTEST_FLAGS}}
 
-# Regenerate and run all modifier examples.
-recompile-modifiers:
-    @echo "---- Recompiling modifier examples ----"
-    just test_files/run_modifier_examples/run-hugrs
-
-# Only run the modifier examples without recompiling them.
-run-modifiers:
-    @echo "---- Running modifier examples ----"
-    just test_files/run_modifier_examples/run-existing
-
-# Regenerate and run a single modifier example.
-recompile-modifier name:
-    @echo "---- Recompiling modifier example {{name}} ----"
-    just test_files/run_modifier_examples/rh "{{name}}"
-
 # Auto-fix all clippy warnings.
 fix:
     uv run ruff check --fix
@@ -114,3 +99,22 @@ bench-compare *BENCHER_FLAGS:
             --err \
             --quiet \
             {{BENCHER_FLAGS}}
+
+
+# ------------
+
+# Regenerate and run all modifier examples.
+recompile-modifiers:
+    @echo "---- Recompiling modifier examples ----"
+    just test_files/run_modifier_examples/run-hugrs
+    just clean-hugrs
+
+
+# Regenerate and run a single modifier example.
+recompile-modifier name:
+    @echo "---- Recompiling modifier example {{name}} ----"
+    just test_files/run_modifier_examples/rh "{{name}}"
+
+clean-hugrs:
+    @echo "---- Cleaning Hugrs from modifier examples ----"
+    rm -f test_files/modifier_examples/*.hugr test_files/run_modifier_examples/modified_hugrs/*.hugr

@@ -28,24 +28,3 @@ just recompile-modifiers
 just recompile-modifier assign_in_dagger
 ```
 
-From this directory:
-
-```sh
-just run-hugrs
-just rh assign_in_dagger
-just run-existing
-```
-
-`run-existing` skips the Python recompilation step and runs the existing `.hugr`
-files from `test_files/modifier_examples/`.
-
-The script can also be called directly:
-
-```sh
-uv run python run_examples.py
-uv run python run_examples.py assign_in_dagger
-uv run python run_examples.py --skip-compile
-uv run python run_examples.py --n-qubits 12
-```
-
-Example names may be passed with or without the `.py` suffix.

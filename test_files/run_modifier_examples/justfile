@@ -12,7 +12,3 @@ run-hugrs:
 # Re-generate and run a single modifier example.
 rh example:
     uv run python run_examples.py "{{example}}"
-
-# Run existing hugr files without regenerating them first.
-run-existing:
-    uv run python run_examples.py --skip-compile

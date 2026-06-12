@@ -80,11 +80,6 @@ def main() -> None:
         help="Optional example name, with or without the .py suffix.",
     )
     parser.add_argument(
-        "--skip-compile",
-        action="store_true",
-        help="Run existing .hugr files without regenerating them first.",
-    )
-    parser.add_argument(
         "--n-qubits",
         type=int,
         default=9,
@@ -93,9 +88,7 @@ def main() -> None:
     args = parser.parse_args()
 
     paths = iter_examples(args.example)
-    if not args.skip_compile:
-        compile_examples(paths)
-
+    compile_examples(paths)
     results = run_hugrs(sorted(EXAMPLES_DIR.glob("*.hugr")), args.n_qubits)
     SUMMARY_PATH.write_text("\n-----\n".join(results) + "\n")
 
