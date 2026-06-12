@@ -55,7 +55,7 @@ class Measurement:
     @hugr_op(quantum_op("Read", MEASUREMENT_EXTENSION))
     @no_type_check
     def read(self: "Measurement") -> bool:
-        """Read the measurement result, consuming it. Blocks until the result is
+        """Read the measurement result, obtaining a bool. Blocks until the result is
         available if the measurement hasn't been performed yet since being requested.
         """
 

@@ -1059,7 +1059,7 @@ dependencies = [
 requires-dist = [
     { name = "hugr", specifier = "~=0.17.1" },
     { name = "pytket", specifier = ">=1.34" },
-    { name = "tket", extras = ["pytket"], specifier = ">=0.14.0" },
+    { name = "tket", extras = ["pytket"], specifier = ">=0.14.1" },
     { name = "tket-exts", specifier = "~=0.13.0" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "wasmtime", specifier = ">=38.0,<45.1" },
@@ -3877,20 +3877,20 @@ wheels = [
 
 [[package]]
 name = "tket"
-version = "0.14.0"
+version = "0.14.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hugr" },
     { name = "tket-eccs" },
     { name = "tket-exts" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/33/77/bc222e740da6c5512ec14ff458210875145a00352df924e531aad2e74842/tket-0.14.0.tar.gz", hash = "sha256:16b6977b9ad1295f542ba837c36866520fcb4197605406b0a9a899e95634e630", size = 637295, upload-time = "2026-06-11T13:51:10.78Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/50/d8/35543dbef72eaf929e3a4c3ee4c8c2a0972d8ef40af0fd7f09ab72a72762/tket-0.14.1.tar.gz", hash = "sha256:38584d7c375aea22a16049205720db42d808de70b769018f175852b640c7ac6e", size = 636505, upload-time = "2026-06-12T09:37:54.47Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/12/ab8a518fc32e22aa744eadac28051826a2cfe8cccb6200a9d6e59f8d8c9a/tket-0.14.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:b44d6c124a2ba401c95f7a8de53a550713fb94b74ae1887aa611466466deba3c", size = 10579487, upload-time = "2026-06-11T13:50:57.891Z" },
-    { url = "https://files.pythonhosted.org/packages/bb/32/9497741815f497d7a918f274d3e52008a598c573a51326199d53eb2d5eca/tket-0.14.0-cp310-abi3-macosx_11_0_x86_64.whl", hash = "sha256:198b1b05fbded38535855bbfa4e2b65cdb911564bc9d2facee72a8bbc659d031", size = 11584437, upload-time = "2026-06-11T13:51:00.623Z" },
-    { url = "https://files.pythonhosted.org/packages/73/5c/459834d0adfd0068e959f3220673ffd61f53ae4f6906ef811dc22ebee930/tket-0.14.0-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:2faa486b9247273dc99f97168a8cc1a5ed755996955e48e3fa969b1cdd6ec7b7", size = 12719780, upload-time = "2026-06-11T13:51:03.334Z" },
-    { url = "https://files.pythonhosted.org/packages/f4/ab/3f69f22051935bf7382d94cd148c9f479735bd9669f227f97e8e14db80cf/tket-0.14.0-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:32fd791a3384023dbd14e4be4cee823630436dd1e983cbf5e5c700e443651d42", size = 13842047, upload-time = "2026-06-11T13:51:05.818Z" },
-    { url = "https://files.pythonhosted.org/packages/ab/68/90a868013b86d748205c7de4f784dff04f5cc5e4a828121ffc26337225b8/tket-0.14.0-cp310-abi3-win_amd64.whl", hash = "sha256:6252ac1de1aedab48c4715edc6ac3c014443c77d65b29a09cef8a5a84c6830d4", size = 10521990, upload-time = "2026-06-11T13:51:08.287Z" },
+    { url = "https://files.pythonhosted.org/packages/42/f9/92201ae51cb70e218af31cd375f3ffe972c2809cb4fde4583ceb0053ca6a/tket-0.14.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:368300380e4b43a56c9cdff576e726e9310f2911f9e5b4f592e46f30162afac6", size = 10590603, upload-time = "2026-06-12T09:37:43.842Z" },
+    { url = "https://files.pythonhosted.org/packages/da/d6/c3735a98873cd675c46d9fb67eee0ae544b4da8a9ec14b8b43d1edffa71e/tket-0.14.1-cp310-abi3-macosx_11_0_x86_64.whl", hash = "sha256:201858d79ab712f4e2d5a5939a1d5e245c661148e60ae27c36785100e5329ddf", size = 11574783, upload-time = "2026-06-12T09:37:45.991Z" },
+    { url = "https://files.pythonhosted.org/packages/30/a2/7f8400ac35db27eb88c552e379141876f2a6ed95a3a01ff2c837c3d881d8/tket-0.14.1-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:8563b881f898f844967fda1bcd0818eba2d26f97e44f0017506797bb1db5fcd6", size = 12698360, upload-time = "2026-06-12T09:37:48.396Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/3e/5182149dfb0e1bebf253d4060b027c5eacc52d3f8cec4c7d0f9194b61ceb/tket-0.14.1-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:c08d0729717d571c5e513a51402cbb966609564815c834c39252b0baedfd8717", size = 13854927, upload-time = "2026-06-12T09:37:50.542Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/60/0ed47a8fbab9b3a25f8b80479462b5a6aa3c07adfd753310d794ced7d090/tket-0.14.1-cp310-abi3-win_amd64.whl", hash = "sha256:d28ae52f50ae9f3a8c06f897b208d5ac21c9e2c38c44d0e151138933c60342e0", size = 10518469, upload-time = "2026-06-12T09:37:52.651Z" },
 ]
 
 [package.optional-dependencies]
