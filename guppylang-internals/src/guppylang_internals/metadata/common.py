@@ -15,17 +15,6 @@ class MetadataUnitaryFlags(Metadata[int]):
     KEY = "tket.unitary"
     ALIASES: ClassVar[list[str]] = ["unitary"]
 
-    @classmethod
-    def to_json(cls, value: int) -> JsonType:
-        return value
-
-    @classmethod
-    def from_json(cls, value: JsonType) -> int:
-        if not isinstance(value, int):
-            msg = f"Expected an integer for MetadataUnitaryFlags, but got {type(value)}"
-            raise TypeError(msg)
-        return value
-
 
 @dataclass(frozen=True)
 class MetadataAlreadySetError(Fatal):
