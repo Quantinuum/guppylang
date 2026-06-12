@@ -85,7 +85,7 @@ def random_platform(request) -> Platform:
     The choice is seeded by combining ``_PLATFORM_SEED`` with the test node id,
     so each test gets a different but reproducible platform assignment across runs.
     """
-    rng = random.Random(hash((_PLATFORM_SEED, request.node.nodeid)))  # noqa: S311
+    rng = random.Random(f"{_PLATFORM_SEED}:{request.node.nodeid}")  # noqa: S311
     platform: Platform = rng.choice(["helios", "sol"])
     return platform
 

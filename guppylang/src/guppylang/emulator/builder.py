@@ -37,7 +37,6 @@ class EmulatorBuilder:
     _name: str | None = None
     _build_dir: Path | None = None
     _verbose: bool = False
-    _platform: Platform = "helios"
 
     # selene_sim supported parameters, may be added in the future:
     _planner: BuildPlanner | None = None
@@ -47,6 +46,9 @@ class EmulatorBuilder:
     _strict: bool = False
     _save_planner: bool = False
     _custom_args: dict[str, Any] | None = None
+
+    # further interface parameter (appending to preserve backwards compatibility).
+    _platform: Platform = "helios"
 
     @property
     def name(self) -> str | None:
