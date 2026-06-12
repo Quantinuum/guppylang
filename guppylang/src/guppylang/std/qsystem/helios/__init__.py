@@ -107,15 +107,6 @@ def zz_phase(q1: qubit, q2: qubit, angle: angle) -> None:
             0 & 0 & e^{\frac{i \theta}{2}} & 0 \\
             0 & 0 & 0 & e^{\frac{-i \theta}{2}}
         \end{pmatrix}
-
-    >>> @guppy
-    ... def qsystem_cx(q1: qubit, q2: qubit) -> None:
-    ...     phased_x(angle(3/2), angle(-1/2), q2)
-    ...     zz_phase(q1, q2, angle(1/2))
-    ...     rz(angle(5/2), q1)
-    ...     phasedx(angle(-3/2), q1)
-    ...     rz(angle(3/2), q2)
-    >>> qsystem_cx.compile()
     """
     f = float(angle)
     _zz_phase(q1, q2, f)

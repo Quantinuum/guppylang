@@ -43,8 +43,6 @@ __all__ = [
     "xx_max",
 ]
 
-N = guppy.nat_var("N")
-
 
 @guppy
 @no_type_check
