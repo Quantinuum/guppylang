@@ -12,7 +12,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
 from guppylang_internals.std._internal.util import quantum_op
 
 from guppylang import guppy
-from guppylang.std.angles import angle
+from guppylang.std.angles import angle, pi
 from guppylang.std.array import array
 from guppylang.std.builtins import owned
 from guppylang.std.futures import Future
@@ -36,9 +36,11 @@ __all__ = [
     "measure_leaked",
     "phased_x",
     "phased_xx",
+    "phased_xx_max",
     "qfree",
     "reset",
     "rz",
+    "xx_max",
 ]
 
 N = guppy.nat_var("N")
@@ -73,13 +75,60 @@ def phased_xx(q1: qubit, q2: qubit, angle1: angle, angle2: angle) -> None:
     .. math::
 
         \mathrm{PhasedXX}(\theta_1, \theta_2) =
-        \exp\!\Bigl(-\tfrac{i\theta_1}{2}
-          \bigl(\cos\theta_2 \,(X{\otimes}X - Y{\otimes}Y) +
-                \sin\theta_2 \,(X{\otimes}Y + Y{\otimes}X)\bigr)\Bigr)
+        \exp\!\Bigl(
+          {-\tfrac{i\theta_1}{2}}
+          (\cos\theta_2\,X + \sin\theta_2\,Y)
+          \otimes
+          (\cos\theta_2\,X + \sin\theta_2\,Y)
+        \Bigr)
+
+    Equivalently, this is an :math:`XX`-rotation conjugated by
+    :math:`\mathrm{Rz}(\theta_2)` on both qubits — "phased" refers to the
+    :math:`\mathrm{Rz}(\theta_2)` conjugation, "xx" to the underlying
+    :math:`XX` rotation:
+
+    .. math::
+
+        \mathrm{PhasedXX}(\theta_1, \theta_2) =
+        (\mathrm{Rz}(\theta_2) \otimes \mathrm{Rz}(\theta_2))\;
+        e^{-\tfrac{i\theta_1}{2} X \otimes X}\;
+        (\mathrm{Rz}(-\theta_2) \otimes \mathrm{Rz}(-\theta_2))
     """
     f1 = float(angle1)
     f2 = float(angle2)
     _phased_xx(q1, q2, f1, f2)
+
+
+@guppy
+@no_type_check
+def phased_xx_max(q1: qubit, q2: qubit, phase: angle) -> None:
+    r"""phased_xx_max gate command. Maximally entangling PhasedXX gate at a given phase.
+
+    Equivalent to :math:`\mathrm{PhasedXX}(\frac{\pi}{2}, \theta_2)`: a
+    maximally entangling :math:`XX` rotation conjugated by
+    :math:`\mathrm{Rz}(\theta_2)`:
+
+    .. math::
+
+        \mathrm{phased\_xx\_max}(\theta_2) =
+        (\mathrm{Rz}(\theta_2) \otimes \mathrm{Rz}(\theta_2))\;
+        e^{-\tfrac{i\pi}{4} X \otimes X}\;
+        (\mathrm{Rz}(-\theta_2) \otimes \mathrm{Rz}(-\theta_2))
+
+    Use ``xx_max`` for the zero-phase special case.
+    """
+    phased_xx(q1, q2, pi / 2, phase)
+
+
+@guppy
+@no_type_check
+def xx_max(q1: qubit, q2: qubit) -> None:
+    r"""xx_max gate command. Maximally entangling XX gate.
+
+    Equivalent to :math:`e^{-i\frac{\pi}{4} X \otimes X}`, i.e.
+    ``phased_xx_max`` with zero phase. This is the XX analogue of ``zz_max``.
+    """
+    phased_xx_max(q1, q2, angle(0.0))
 
 
 @guppy

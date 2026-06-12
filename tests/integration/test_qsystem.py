@@ -107,6 +107,7 @@ def test_random_advance(validate, run_int_fn):  # type: ignore[no-untyped-def]
     run_int_fn(test, 1)
 
 
+# TODO: run emulation when sol platform targeting is available, see issue #1797
 def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
     """Compile shared + Sol-specific operations from the qsystem.sol extension."""
     from guppylang.std.qsystem.sol import (
@@ -114,6 +115,8 @@ def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
         measure_and_reset,
         phased_x,
         phased_xx,
+        phased_xx_max,
+        xx_max,
         qfree,
         reset,
         rz,
@@ -123,12 +126,35 @@ def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
     def test(q1: qubit @ owned, q2: qubit @ owned, a1: angle) -> Measurement:
         phased_x(q1, a1, a1)
         phased_xx(q1, q2, a1, a1)
+        phased_xx_max(q1, q2, a1)
+        xx_max(q1, q2)
         rz(q1, a1)
         b = measure_and_reset(q1)
         reset(q1)
         b = measure(q1)
         qfree(q2)
         return b
+
+    validate(test.compile_function())
+
+
+# TODO: run emulation when sol platform targeting is available, see issue #1797
+def test_qsystem_sol_functional(validate):  # type: ignore[no-untyped-def]
+    """Compile Sol-specific functional operations."""
+    from guppylang.std.qsystem.sol.functional import (
+        phased_xx,
+        phased_xx_max,
+        xx_max,
+    )
+
+    @guppy
+    def test(q1: qubit @ owned, q2: qubit @ owned, a1: angle) -> Measurement:
+        q1, q2 = phased_xx(q1, q2, a1, a1)
+        q1, q2 = phased_xx_max(q1, q2, a1)
+        q1, q2 = xx_max(q1, q2)
+        m = sol_fn_mod.measure(q1)
+        sol_fn_mod.qfree(q2)
+        return m
 
     validate(test.compile_function())
 

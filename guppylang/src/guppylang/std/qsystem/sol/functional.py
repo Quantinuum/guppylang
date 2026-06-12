@@ -36,6 +36,27 @@ def phased_xx(
 
 @guppy
 @no_type_check
+def phased_xx_max(
+    q1: qubit @ owned, q2: qubit @ owned, phase: angle
+) -> tuple[qubit, qubit]:
+    """Functional phased_xx_max gate command.
+
+    Maximally entangling PhasedXX gate at a given phase.
+    """
+    sol.phased_xx_max(q1, q2, phase)
+    return q1, q2
+
+
+@guppy
+@no_type_check
+def xx_max(q1: qubit @ owned, q2: qubit @ owned) -> tuple[qubit, qubit]:
+    """Functional xx_max gate command. Maximally entangling XX gate."""
+    sol.xx_max(q1, q2)
+    return q1, q2
+
+
+@guppy
+@no_type_check
 def rz(q: qubit @ owned, angle: angle) -> qubit:
     """Functional Rz gate command."""
     sol.rz(q, angle)
