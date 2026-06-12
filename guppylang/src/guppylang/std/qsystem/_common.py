@@ -1,7 +1,7 @@
 """Shared types and helpers for qsystem platforms.
 
-These definitions are platform-agnostic and are re-exported by both
-``guppylang.std.qsystem.helios`` and ``guppylang.std.qsystem.sol``.
+These definitions are platform-agnostic and should be reexported by all
+platforms (e.g. ``guppylang.std.qsystem.helios`` and ``guppylang.std.qsystem.sol``).
 """
 
 from typing import no_type_check

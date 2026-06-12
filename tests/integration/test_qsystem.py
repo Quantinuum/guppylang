@@ -8,20 +8,9 @@ from guppylang.decorator import guppy
 from guppylang.std.angles import angle
 from guppylang.std.builtins import array, owned
 from guppylang.std.lang import comptime
-from guppylang.std.qsystem._common import MaybeLeaked, Measurement, collect_measurements
-from guppylang.std.qsystem.helios.functional import (
-    measure_and_reset,
-    measure,
-    phased_x,
-    qfree,
-    reset,
-    rz,
-    zz_max,
-    zz_phase,
-)
 from guppylang.std.qsystem.random import RNG, make_discrete_distribution
 from guppylang.std.qsystem.utils import get_current_shot
-from guppylang.std.quantum import measure_array, qubit, x
+from guppylang.std.quantum import Measurement, measure_array, qubit, x
 
 
 @pytest.fixture(
@@ -30,7 +19,7 @@ from guppylang.std.quantum import measure_array, qubit, x
         pytest.param(sol_mod, id="sol"),
     ]
 )
-def qsys(request):  # type: ignore[no-untyped-def]
+def qsys_mod(request):  # type: ignore[no-untyped-def]
     """Fixture providing either the helios or sol qsystem module."""
     return request.param
 
@@ -41,13 +30,23 @@ def qsys(request):  # type: ignore[no-untyped-def]
         pytest.param((sol_mod, sol_fn_mod), id="sol"),
     ]
 )
-def qsys_fn(request):  # type: ignore[no-untyped-def]
+def qsys_mod_fn(request):  # type: ignore[no-untyped-def]
     """Fixture providing (inout_module, functional_module) for helios or sol."""
     return request.param
 
 
-def test_qsystem(validate):  # type: ignore[no-untyped-def]
-    """Compile various operations from the qsystem extension."""
+def test_qsystem_helios(validate):  # type: ignore[no-untyped-def]
+    """Compile various operations from the qsystem.helios extension."""
+    from guppylang.std.qsystem.helios.functional import (
+        measure,
+        measure_and_reset,
+        phased_x,
+        qfree,
+        reset,
+        rz,
+        zz_max,
+        zz_phase,
+    )
 
     @guppy
     def test(q1: qubit @ owned, q2: qubit @ owned, a1: angle) -> Measurement:
@@ -68,6 +67,7 @@ def test_qsystem(validate):  # type: ignore[no-untyped-def]
 
 def test_qsystem_random(validate):  # type: ignore[no-untyped-def]
     """Compile various operations from the qsystem random extension."""
+    from guppylang.std.qsystem.helios import collect_measurements
 
     @guppy
     def test() -> tuple[int, float, int, int, angle, angle]:
@@ -107,11 +107,13 @@ def test_random_advance(validate, run_int_fn):  # type: ignore[no-untyped-def]
     run_int_fn(test, 1)
 
 
-# TODO: run emulation when sol platform targeting is available, see issue #1797
+# TODO: run emulation when sol platform targeting is available, see
+# https://github.com/Quantinuum/guppylang/issues/1797
 def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
     """Compile shared + Sol-specific operations from the qsystem.sol extension."""
     NUM_QUBITS = 3
     from guppylang.std.qsystem.sol import (
+        collect_measurements,
         lazy_measure_and_reset,
         lazy_measure_and_reset_array,
         measure,
@@ -165,10 +167,12 @@ def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
     validate(test_arrays.compile_function())
 
 
-# TODO: run emulation when sol platform targeting is available, see issue #1797
+# TODO: run emulation when sol platform targeting is available, see
+# https://github.com/Quantinuum/guppylang/issues/1797
 def test_qsystem_sol_functional(validate):  # type: ignore[no-untyped-def]
     """Compile Sol-specific functional operations."""
     NUM_QUBITS = 3
+    from guppylang.std.qsystem.sol import collect_measurements
     from guppylang.std.qsystem.sol.functional import (
         lazy_measure_and_reset,
         lazy_measure_and_reset_array,
@@ -218,9 +222,10 @@ def test_qsystem_sol_functional(validate):  # type: ignore[no-untyped-def]
     validate(test_arrays.compile_function())
 
 
-def test_measure_leaked(validate, qsys):  # type: ignore[no-untyped-def]
+def test_measure_leaked(validate, qsys_mod):  # type: ignore[no-untyped-def]
     """Compile the measure_leaked operation."""
-    measure_leaked = qsys.measure_leaked
+    measure_leaked = qsys_mod.measure_leaked
+    MaybeLeaked = qsys_mod.MaybeLeaked
 
     @guppy
     def test(q: qubit @ owned) -> bool:
@@ -234,8 +239,8 @@ def test_measure_leaked(validate, qsys):  # type: ignore[no-untyped-def]
     validate(test.compile_function())
 
 
-def test_lazy_measure(validate, qsys):  # type: ignore[no-untyped-def]
-    lazy_measure = qsys.lazy_measure
+def test_lazy_measure(validate, qsys_mod):  # type: ignore[no-untyped-def]
+    lazy_measure = qsys_mod.lazy_measure
 
     @guppy
     def test(q: qubit @ owned) -> bool:
@@ -245,8 +250,8 @@ def test_lazy_measure(validate, qsys):  # type: ignore[no-untyped-def]
     validate(test.compile_function())
 
 
-def test_lazy_measure_conditional(validate, run_int_fn, qsys):  # type: ignore[no-untyped-def]
-    lazy_measure = qsys.lazy_measure
+def test_lazy_measure_conditional(validate, run_int_fn, qsys_mod):  # type: ignore[no-untyped-def]
+    lazy_measure = qsys_mod.lazy_measure
 
     @guppy
     def test() -> int:
@@ -260,9 +265,10 @@ def test_lazy_measure_conditional(validate, run_int_fn, qsys):  # type: ignore[n
     run_int_fn(test, 1, num_qubits=1)
 
 
-def test_lazy_measure_array(validate, run_int_fn, qsys):  # type: ignore[no-untyped-def]
+def test_lazy_measure_array(validate, run_int_fn, qsys_mod):  # type: ignore[no-untyped-def]
     NUM_QUBITS = 5
-    lazy_measure_array = qsys.lazy_measure_array
+    lazy_measure_array = qsys_mod.lazy_measure_array
+    collect_measurements = qsys_mod.collect_measurements
 
     @guppy
     def test() -> int:
@@ -280,9 +286,9 @@ def test_lazy_measure_array(validate, run_int_fn, qsys):  # type: ignore[no-unty
     run_int_fn(test, NUM_QUBITS, num_qubits=NUM_QUBITS)
 
 
-def test_lazy_measure_and_reset(validate, run_int_fn, qsys):  # type: ignore[no-untyped-def]
-    lazy_measure_and_reset = qsys.lazy_measure_and_reset
-    _measure = qsys.measure
+def test_lazy_measure_and_reset(validate, run_int_fn, qsys_mod):  # type: ignore[no-untyped-def]
+    lazy_measure_and_reset = qsys_mod.lazy_measure_and_reset
+    _measure = qsys_mod.measure
 
     @guppy
     def test() -> int:
@@ -298,10 +304,10 @@ def test_lazy_measure_and_reset(validate, run_int_fn, qsys):  # type: ignore[no-
     run_int_fn(test, 1, num_qubits=1)
 
 
-def test_lazy_measure_and_reset_functional(validate, run_int_fn, qsys_fn):  # type: ignore[no-untyped-def]
-    _, fn = qsys_fn
-    lazy_measure_and_reset_fn = fn.lazy_measure_and_reset
-    _measure = fn.measure
+def test_lazy_measure_and_reset_functional(validate, run_int_fn, qsys_mod_fn):  # type: ignore[no-untyped-def]
+    _, fn_mod = qsys_mod_fn
+    lazy_measure_and_reset_fn = fn_mod.lazy_measure_and_reset
+    _measure = fn_mod.measure
 
     @guppy
     def test() -> int:
@@ -317,10 +323,11 @@ def test_lazy_measure_and_reset_functional(validate, run_int_fn, qsys_fn):  # ty
     run_int_fn(test, 1, num_qubits=1)
 
 
-def test_measure_and_reset_array(validate, run_int_fn, qsys):  # type: ignore[no-untyped-def]
+def test_measure_and_reset_array(validate, run_int_fn, qsys_mod):  # type: ignore[no-untyped-def]
     NUM_QUBITS = 5
-    measure_and_reset_array = qsys.measure_and_reset_array
-    qsystem_measure_array = qsys.measure_array
+    measure_and_reset_array = qsys_mod.measure_and_reset_array
+    qsystem_measure_array = qsys_mod.measure_array
+    collect_measurements = qsys_mod.collect_measurements
 
     @guppy
     def test() -> int:
@@ -342,10 +349,11 @@ def test_measure_and_reset_array(validate, run_int_fn, qsys):  # type: ignore[no
     run_int_fn(test, 1, num_qubits=NUM_QUBITS)
 
 
-def test_measure_array_functional(validate, run_int_fn, qsys_fn):  # type: ignore[no-untyped-def]
+def test_measure_array_functional(validate, run_int_fn, qsys_mod_fn):  # type: ignore[no-untyped-def]
     NUM_QUBITS = 5
-    _, fn = qsys_fn
-    measure_array_fn = fn.measure_array
+    qsys, fn_mod = qsys_mod_fn
+    measure_array_fn = fn_mod.measure_array
+    collect_measurements = qsys.collect_measurements
 
     @guppy
     def test() -> int:
@@ -366,10 +374,11 @@ def test_measure_array_functional(validate, run_int_fn, qsys_fn):  # type: ignor
     run_int_fn(test, 1, num_qubits=NUM_QUBITS)
 
 
-def test_measure_and_reset_array_functional(validate, run_int_fn, qsys_fn):  # type: ignore[no-untyped-def]
+def test_measure_and_reset_array_functional(validate, run_int_fn, qsys_mod_fn):  # type: ignore[no-untyped-def]
     NUM_QUBITS = 5
-    _, fn = qsys_fn
-    measure_and_reset_array_fn = fn.measure_and_reset_array
+    qsys, fn_mod = qsys_mod_fn
+    measure_and_reset_array_fn = fn_mod.measure_and_reset_array
+    collect_measurements = qsys.collect_measurements
 
     @guppy
     def test() -> int:
@@ -392,11 +401,12 @@ def test_measure_and_reset_array_functional(validate, run_int_fn, qsys_fn):  # t
     run_int_fn(test, 1, num_qubits=NUM_QUBITS)
 
 
-def test_lazy_measure_and_reset_array_functional(validate, run_int_fn, qsys_fn):  # type: ignore[no-untyped-def]
+def test_lazy_measure_and_reset_array_functional(validate, run_int_fn, qsys_mod_fn):  # type: ignore[no-untyped-def]
     NUM_QUBITS = 5
-    qsys, fn = qsys_fn
-    lazy_measure_and_reset_array_fn = fn.lazy_measure_and_reset_array
+    qsys, fn_mod = qsys_mod_fn
+    lazy_measure_and_reset_array_fn = fn_mod.lazy_measure_and_reset_array
     qsystem_measure_array = qsys.measure_array
+    collect_measurements = qsys.collect_measurements
 
     @guppy
     def test() -> int:

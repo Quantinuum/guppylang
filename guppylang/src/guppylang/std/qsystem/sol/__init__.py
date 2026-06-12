@@ -171,13 +171,6 @@ def reset(q: qubit) -> None:
     """Reset a qubit to the :math:`|0\\rangle` state."""
 
 
-# TODO
-# @hugr_op(quantum_op("TryQAlloc", ext=QSYSTEM_SOL_EXTENSION))
-# @no_type_check
-# def _try_qalloc() -> Option[qubit]:
-#     ..
-
-
 @hugr_op(quantum_op("QFree", ext=QSYSTEM_SOL_EXTENSION))
 @no_type_check
 def qfree(q: qubit @ owned) -> None: ...
@@ -217,8 +210,9 @@ def lazy_measure_and_reset(q: qubit) -> Measurement:
     return _future_to_measurement(result)
 
 
-# Measurement functions directly mapping onto `tket.qsystem` ops without the conversion
-# to measurement (which ensures compatibility with `std.quantum` functions).
+# Measurement functions directly mapping onto
+#  `tket.qsystem.sol` ops without the conversion to measurement
+# (which ensures compatibility with `std.quantum` functions).
 @hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_SOL_EXTENSION))
 @no_type_check
 def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...

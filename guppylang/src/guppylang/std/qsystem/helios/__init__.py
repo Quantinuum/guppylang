@@ -154,13 +154,6 @@ def reset(q: qubit) -> None:
     """Reset a qubit to the :math:`|0\\rangle` state."""
 
 
-# TODO
-# @hugr_op(quantum_op("TryQAlloc", ext=QSYSTEM_HELIOS_EXTENSION))
-# @no_type_check
-# def _try_qalloc() -> Option[qubit]:
-#     ..
-
-
 @hugr_op(quantum_op("QFree", ext=QSYSTEM_HELIOS_EXTENSION))
 @no_type_check
 def qfree(q: qubit @ owned) -> None: ...
@@ -200,8 +193,9 @@ def lazy_measure_and_reset(q: qubit) -> Measurement:
     return _future_to_measurement(result)
 
 
-# Measurement functions directly mapping onto `tket.qsystem` ops without the conversion
-# to measurement (which ensures compatibility with `std.quantum` functions).
+# Measurement functions directly mapping onto `tket.qsystem.helios`
+# ops without the conversion to measurement (which ensures compatibility
+# with `std.quantum` functions).
 @hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_HELIOS_EXTENSION))
 @no_type_check
 def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...
@@ -274,7 +268,7 @@ def lazy_measure_and_reset_array(
 def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
     """PhasedX operation from the qsystem extension.
 
-    See ``guppylang.std.qsystem.phased_x`` for a public definition that
+    See ``guppylang.std.qsystem.helios.phased_x`` for a public definition that
     accepts angle parameters.
     """
 
@@ -284,7 +278,7 @@ def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
 def _zz_phase(q1: qubit, q2: qubit, angle: float) -> None:
     """ZZPhase operation from the qsystem extension.
 
-    See ``guppylang.std.qsystem.zz_phase`` for a public definition that
+    See ``guppylang.std.qsystem.helios.zz_phase`` for a public definition that
     accepts angle parameters.
     """
 
@@ -294,6 +288,6 @@ def _zz_phase(q1: qubit, q2: qubit, angle: float) -> None:
 def _rz(q: qubit, angle: float) -> None:
     """Rz operation from the qsystem extension.
 
-    See ``guppylang.std.qsystem.rz`` for a public definition that
+    See ``guppylang.std.qsystem.helios.rz`` for a public definition that
     accepts angle parameters.
     """
