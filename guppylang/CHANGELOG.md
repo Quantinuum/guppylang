@@ -14,6 +14,23 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a4](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a3...guppylang-v1.0.0-a4) (2026-06-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* Change the return type of measurement functions to a new `Measurement` type and remove opaque bools from the compiler ([#1707](https://github.com/Quantinuum/guppylang/issues/1707))
+* Make stdlib types state mutable with private fields ([#1840](https://github.com/Quantinuum/guppylang/issues/1840))
+
+### Features
+
+* Change the return type of measurement functions to a new `Measurement` type and remove opaque bools from the compiler ([#1707](https://github.com/Quantinuum/guppylang/issues/1707)) ([9460e6b](https://github.com/Quantinuum/guppylang/commit/9460e6b672fe84d87f360b7d521b6b9d5b736da2))
+
+
+### Code Refactoring
+
+* Make stdlib types state mutable with private fields ([#1840](https://github.com/Quantinuum/guppylang/issues/1840)) ([97c6962](https://github.com/Quantinuum/guppylang/commit/97c69624a1181804e8b2c1685941a394bae84d19))
+
 ## [1.0.0-a3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a2...guppylang-v1.0.0-a3) (2026-06-10)
 
 
