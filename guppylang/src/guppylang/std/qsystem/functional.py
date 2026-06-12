@@ -6,6 +6,7 @@
 """
 
 from guppylang.std.qsystem.helios.functional import (  # noqa: F401
+    N,
     lazy_measure_and_reset,
     lazy_measure_and_reset_array,
     measure,

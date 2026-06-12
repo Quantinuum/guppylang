@@ -7,6 +7,7 @@
 
 from guppylang.std.qsystem.helios import (
     MaybeLeaked,
+    N,
     collect_measurements,
     lazy_measure,
     lazy_measure_and_reset,
