@@ -14,6 +14,18 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a4...guppylang-v1.0.0-a5) (2026-06-15)
+
+
+### Features
+
+* **stdlib:** split qsystem into sol and helios modules ([#1848](https://github.com/Quantinuum/guppylang/issues/1848)) ([1c86e43](https://github.com/Quantinuum/guppylang/commit/1c86e43b71e703ec73f3560f0fdfec172704cc2e))
+
+
+### Bug Fixes
+
+* Unitary metadata setting ([#1844](https://github.com/Quantinuum/guppylang/issues/1844)) ([4638bc1](https://github.com/Quantinuum/guppylang/commit/4638bc113b634dea1a04e30c08df162700b07bca))
+
 ## [1.0.0-a4](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a3...guppylang-v1.0.0-a4) (2026-06-12)
 
 
