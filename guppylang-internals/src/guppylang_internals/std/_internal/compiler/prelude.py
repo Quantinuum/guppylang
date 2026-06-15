@@ -12,11 +12,8 @@ from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 
-from guppylang_internals.compiler.core import (
-    CompilerContext,
-    DFBuilder,
-    GlobalConstId,
-)
+from guppylang_internals.compiler.builder import DFBuilder, FunctionBuilder
+from guppylang_internals.compiler.core import CompilerContext, GlobalConstId
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
@@ -27,9 +24,6 @@ from guppylang_internals.nodes import AbortKind
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    from hugr.build import function as hf
-    from hugr.build.dfg import DfBase
 
     from guppylang_internals.tys.common import ToHugrContext
     from guppylang_internals.tys.subst import Inst
@@ -91,7 +85,7 @@ P = TypeVar("P", bound=ops.DfParentOp)
 
 
 def build_panic(
-    builder: DFBuilder[P],
+    builder: DFBuilder,
     in_tys: ht.TypeRow,
     out_tys: ht.TypeRow,
     err: Wire,
@@ -102,14 +96,14 @@ def build_panic(
     return builder.add_op(op, err, *args)
 
 
-def build_static_error(builder: DfBase[P], signal: int, msg: str) -> Wire:
+def build_static_error(builder: DFBuilder, signal: int, msg: str) -> Wire:
     """Constructs and loads a static error value."""
     val = ErrorVal(signal, msg)
     return builder.load(builder.add_const(val))
 
 
 def build_unwrap_either(
-    builder: DFBuilder[P],
+    builder: DFBuilder,
     either: Wire,
     left: bool,
     error_msg: str,
@@ -125,13 +119,16 @@ def build_unwrap_either(
     [in_tys, out_tys] = [right_tys, left_tys] if left else [left_tys, right_tys]
     ok_case_num = 0 if left else 1
     panic_case_num = 1 - ok_case_num
-    with conditional.add_case(ok_case_num) as case:
-        case.set_outputs(*case.inputs())
-    with conditional.add_case(panic_case_num) as case:
-        error = build_static_error(case, error_signal, error_msg)
+
+    case = conditional.add_case(ok_case_num)
+    case.set_outputs(*case.inputs())
+
+    case = conditional.add_case(panic_case_num)
+    error = build_static_error(case, error_signal, error_msg)
+    with case.set_ast_context(builder.current_ast_node):
         case.set_outputs(
             *build_panic(
-                DFBuilder(case, builder.current_ast_node),
+                case,
                 in_tys,
                 out_tys,
                 error,
@@ -142,7 +139,7 @@ def build_unwrap_either(
 
 
 def build_unwrap_left(
-    builder: DFBuilder[P], either: Wire, error_msg: str, error_signal: int = 1
+    builder: DFBuilder, either: Wire, error_msg: str, error_signal: int = 1
 ) -> Node:
     """Unwraps the left value from a `hugr.tys.Either` value, panicking with the given
     message if the result is right.
@@ -157,7 +154,7 @@ def build_unwrap_left(
 
 
 def build_unwrap_right(
-    builder: DFBuilder[P],
+    builder: DFBuilder,
     either: Wire,
     error_msg: str,
     error_signal: int = 1,
@@ -175,7 +172,7 @@ def build_unwrap_right(
 
 
 def build_unwrap(
-    builder: DFBuilder[P],
+    builder: DFBuilder,
     option: Wire,
     error_msg: str,
     error_signal: int = 1,
@@ -192,7 +189,7 @@ def build_unwrap(
 
 
 def build_expect_none(
-    builder: DFBuilder[P],
+    builder: DFBuilder,
     option: Wire,
     error_msg: str,
     error_signal: int = 1,
@@ -222,30 +219,30 @@ class MemSwapCompiler(CustomCallCompiler):
 UNWRAP_RESULT: Final[GlobalConstId] = GlobalConstId.fresh("unwrap_result")
 
 
-def _build_unwrap_result(func: hf.Function, result_type_var: ht.Variable) -> None:
+def _build_unwrap_result(func: DFBuilder, result_type_var: ht.Variable) -> None:
     either = func.inputs()[0]
     conditional = func.add_conditional(either)
-    with conditional.add_case(0) as case:
-        [error] = list(case.inputs())
-        case.set_outputs(
-            *build_panic(
-                # We don't want misleading debug info in global functions until
-                # https://github.com/Quantinuum/guppylang/issues/1609 is implemented,
-                # so `current_ast_node`is None here by default
-                DFBuilder(case),
-                [error_type()],
-                [result_type_var],
-                error,
-                *case.inputs(),
-            )
+    case = conditional.add_case(0)
+    [error] = list(case.inputs())
+    case.set_outputs(
+        *build_panic(
+            # We don't want misleading debug info in global functions until
+            # https://github.com/Quantinuum/guppylang/issues/1609 is implemented,
+            # so `current_ast_node`is None here by default
+            case,
+            [error_type()],
+            [result_type_var],
+            error,
+            *case.inputs(),
         )
-    with conditional.add_case(1) as case:
-        case.set_outputs(*case.inputs())
+    )
+    case = conditional.add_case(1)
+    case.set_outputs(*case.inputs())
     func.set_outputs(*conditional.outputs())
 
 
 def unwrap_result(
-    builder: DFBuilder[P],
+    builder: DFBuilder,
     ctx: CompilerContext,
     either: Wire,
 ) -> Wire:
@@ -266,14 +263,14 @@ def unwrap_result(
     # Build global unwrap result function if it doesn't already exist.
     func, already_exists = ctx.declare_global_func(UNWRAP_RESULT, func_ty)
     if not already_exists:
-        _build_unwrap_result(func, ht.Variable(0, ht.TypeBound.Linear))
+        _build_unwrap_result(FunctionBuilder(func), ht.Variable(0, ht.TypeBound.Linear))
     # Call the global function.
     concrete_ty = ht.FunctionType(
         input=[ht.Either(error_tys, result_tys)], output=result_tys
     )
     type_args = [ht.TypeTypeArg(*result_tys)]
     func_call = builder.call(
-        func.parent_node,
+        func,
         either,
         instantiation=concrete_ty,
         type_args=type_args,

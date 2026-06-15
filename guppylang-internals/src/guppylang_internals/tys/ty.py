@@ -3,11 +3,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
 
 import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
+from typing_extensions import assert_never
 
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
@@ -385,9 +386,31 @@ class UnitaryFlags(Flag):
     NoFlags = 0
     Control = auto()
     Dagger = auto()
-    Power = auto()
 
-    Unitary = Control | Dagger | Power
+    Unitary = Control | Dagger
+
+    def is_weaker_than(self, other: "UnitaryFlags") -> bool:
+        """Whether this flag is weaker than `other`,
+        i.e. whether this flag allows more contexts than `other`."""
+
+        if self == UnitaryFlags.NoFlags:
+            return True
+        else:
+            return self in other
+
+    def hint_rendering(self) -> str:
+        """Return the corresponding decorator flag"""
+        match self:
+            case UnitaryFlags.NoFlags:
+                return "None"
+            case UnitaryFlags.Unitary:
+                return "unitary=True"
+            case UnitaryFlags.Dagger:
+                return "daggerable=True"
+            case UnitaryFlags.Control:
+                return "controllable=True"
+            case _:
+                assert_never(self)
 
     def accumulate(self, other: "UnitaryFlags") -> "UnitaryFlags":
         """Accumulates another set of unitary flags into this one."""
@@ -395,6 +418,41 @@ class UnitaryFlags(Flag):
         if self & UnitaryFlags.Dagger and other & UnitaryFlags.Dagger:
             result &= ~UnitaryFlags.Dagger
         return result
+
+    def context(self) -> str:
+        """Returns a description of the contexts allowed by this flag."""
+        match self:
+            case UnitaryFlags.Dagger:
+                return "daggerable"
+            case UnitaryFlags.Control:
+                return "controllable"
+            case UnitaryFlags.Unitary:
+                return "unitary"
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case _:
+                assert_never(self)
+
+    def callable_name(
+        self,
+    ) -> Literal[
+        "Callable",
+        "Unitary",
+        "Daggerable",
+        "Controllable",
+    ]:
+        """Returns the name of the corresponding Callable variant for this flag."""
+        match self:
+            case UnitaryFlags.NoFlags:
+                return "Callable"
+            case UnitaryFlags.Unitary:
+                return "Unitary"
+            case UnitaryFlags.Dagger:
+                return "Daggerable"
+            case UnitaryFlags.Control:
+                return "Controllable"
+            case _:
+                assert_never(self)
 
 
 @dataclass(frozen=True)
@@ -712,13 +770,18 @@ class StructType(ParametrizedTypeBase):
 
     @cached_property
     def intrinsically_copyable(self) -> bool:
-        """Whether objects of this type can be  implicitly copied."""
-        return all(f.ty.copyable for f in self.fields)
+        """Whether objects of this type can be implicitly copied."""
+        return self.frozen and all(f.ty.copyable for f in self.fields)
 
     @cached_property
     def intrinsically_droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
         return all(f.ty.droppable for f in self.fields)
+
+    @property
+    def frozen(self) -> bool:
+        """Whether objects of this type are immutable."""
+        return self.defn.frozen
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""

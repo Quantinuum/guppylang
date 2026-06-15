@@ -10,7 +10,7 @@ class FooInt:
     @guppy.require
     def foo[T](self: "FooInt", x: int) -> int: ...
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class Bar:
     @guppy
     def foo(self, x: int) -> int:

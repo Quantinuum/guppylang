@@ -43,7 +43,7 @@ def test_basic(validate):
         @guppy.require
         def foo(self: "MyProto", x: int) -> str: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyType:
         @guppy
         def foo(self: "MyType", x: int) -> str:
@@ -75,7 +75,7 @@ def test_basic_parameterised_concrete(validate):
         @guppy.require
         def foo[T, S](self: "MyProto[T, S]", x: T @ owned) -> S: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyType:
         @guppy
         def foo(self: "MyType", x: int) -> str:
@@ -99,7 +99,7 @@ def test_basic_parameterised_generic(validate):
         @guppy.require
         def foo[T, S](self: "MyProto[T, S]", x: T) -> S: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyType:
         @guppy
         def foo(self: "MyType", x: int) -> str:
@@ -128,7 +128,7 @@ def test_basic_parameterised_more_generic(validate):
 
     # TODO: Note generic struct functions require a different syntax, this might be
     # confusing for users?
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyType[T]:
         @guppy.declare
         def foo[T](self: "MyType[T]", x: T) -> T: ...
@@ -159,7 +159,7 @@ def test_assumption(validate):
     def baz[P: MyProto](x: P) -> str:
         return bar(x)
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct:
         @guppy
         def foo(self, x: int) -> str:
@@ -179,7 +179,7 @@ def test_self_inst(validate):
         @guppy.require
         def foo(sef: Self, t: T) -> S: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct:
         @guppy
         def foo(self: Self, t: int) -> str:
@@ -213,7 +213,7 @@ def test_multi(validate):
     def baz[T: (Foo[nat], Bar[nat])](t: T) -> nat:
         return t.bar(t.foo(42))
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct[T: (Copy, Drop)]:
         @guppy
         def foo(self, t: T) -> T:
@@ -245,7 +245,7 @@ def test_nested(validate):
         @guppy.require
         def id[T](self: "AnyId[T]", t: T) -> T: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class Foo:
         @guppy
         def foo(self, x: nat) -> nat:
@@ -284,7 +284,7 @@ def test_specialise(validate):
         @guppy.require
         def foo(self: "FooStr", s: str) -> None: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class Foo[T]:
         @guppy
         def foo(self, t: T) -> None:
@@ -344,13 +344,13 @@ def test_run_int(validate, run_int_fn):
         @guppy.require
         def fav_num(self: "Animal") -> nat: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class Dog:
         @guppy
         def fav_num(self: Self) -> nat:
             return 4
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class Duck:
         @guppy
         def fav_num(self: Self) -> nat:

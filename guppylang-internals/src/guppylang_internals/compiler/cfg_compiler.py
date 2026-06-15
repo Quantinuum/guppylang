@@ -1,11 +1,9 @@
 import functools
 from collections.abc import Sequence
-from typing import cast
 
 from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.build import cfg as hc
-from hugr.build.dfg import DP, DfBase
 from hugr.hugr.node_port import ToNode
 
 from guppylang_internals.checker.cfg_checker import (
@@ -15,6 +13,7 @@ from guppylang_internals.checker.cfg_checker import (
     Signature,
 )
 from guppylang_internals.checker.core import Place, Variable
+from guppylang_internals.compiler.builder import BlockBuilder, DFBuilder
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
@@ -23,13 +22,12 @@ from guppylang_internals.compiler.core import (
 )
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.compiler.stmt_compiler import StmtCompiler
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, read_bool
 from guppylang_internals.tys.ty import type_to_row
 
 
 def compile_cfg(
     cfg: CheckedCFG[Place],
-    container: DfBase[DP],
+    container: DFBuilder,
     inputs: Sequence[Wire],
     ctx: CompilerContext,
 ) -> hc.Cfg:
@@ -46,7 +44,7 @@ def compile_cfg(
     ):
         insert_return_vars(cfg)
 
-    builder = container.add_cfg(*inputs)
+    builder: hc.Cfg = container.add_cfg(*inputs)
 
     # Explicitly annotate the output types since Hugr can't infer them if the exit is
     # unreachable
@@ -61,7 +59,7 @@ def compile_cfg(
 
     blocks: dict[CheckedBB[Place], ToNode] = {}
     for bb in cfg.bbs:
-        blocks[bb] = compile_bb(bb, builder, bb == cfg.entry_bb, ctx)
+        blocks[bb] = compile_bb(bb, builder, container, bb == cfg.entry_bb, ctx)
     for bb in cfg.bbs:
         for i, succ in enumerate(bb.successors):
             builder.branch(blocks[bb][i], blocks[succ])
@@ -72,6 +70,7 @@ def compile_cfg(
 def compile_bb(
     bb: CheckedBB[Place],
     builder: hc.Cfg,
+    outer: DFBuilder,
     is_entry: bool,
     ctx: CompilerContext,
 ) -> ToNode:
@@ -88,15 +87,15 @@ def compile_bb(
     assert bb.reachable
 
     # Otherwise, we use a regular `Block` node
-    block: hc.Block
+    hugr_block: hc.Block
     inputs: Sequence[Place]
     if is_entry:
         inputs = bb.sig.input_row
-        block = builder.add_entry()
+        hugr_block = builder.add_entry()
     else:
         inputs = sort_vars(bb.sig.input_row)
-        block = builder.add_block(*(v.ty.to_hugr(ctx) for v in inputs))
-
+        hugr_block = builder.add_block(*(v.ty.to_hugr(ctx) for v in inputs))
+    block = BlockBuilder(hugr_block, builder, outer)
     # Add input node and compile the statements
     dfg = DFContainer(block, ctx)
     for v, wire in zip(inputs, block.input_node, strict=True):
@@ -107,11 +106,6 @@ def compile_bb(
     if len(bb.successors) > 1:
         assert bb.branch_pred is not None
         branch_port = ExprCompiler(ctx).compile(bb.branch_pred, dfg)
-        # Convert the bool predicate into a sum for branching.
-        pred_ty = builder.hugr.port_type(branch_port.out_port())
-        assert pred_ty == OpaqueBool
-        branch_port = dfg.builder.add_op(read_bool(), branch_port, set_debug_info=False)
-        branch_port = cast("Wire", branch_port)
     else:
         # Even if we don't branch, we still have to add a `Sum(())` predicates
         branch_port = dfg.builder.add_op(
@@ -210,11 +204,10 @@ def choose_vars_for_tuple_sum(
 
     with dfg.builder.add_conditional(unit_sum, *all_vars_wires) as conditional:
         for i, var_row in enumerate(output_vars):
-            with conditional.add_case(i) as case:
-                case_inputs = case.inputs()
-                outputs = [case_inputs[all_vars_idxs[v.id]] for v in var_row]
-                tag = case.add_op(ops.Tag(i, sum_type), *outputs)
-                case.set_outputs(tag)
+            case = conditional.add_case(i)
+            outputs = [case.inputs()[all_vars_idxs[v.id]] for v in var_row]
+            tag = case.add_op(ops.Tag(i, sum_type), *outputs)
+            case.set_outputs(tag)
         return conditional
 
 

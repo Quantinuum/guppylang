@@ -10,7 +10,7 @@ class Foo[T]:
 def bar(f: Foo[nat]) -> None:
     return f.foo(42)
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class Goo:
     @guppy
     def foo(n: nat) -> None:

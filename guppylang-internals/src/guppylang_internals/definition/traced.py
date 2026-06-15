@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -12,7 +12,6 @@ from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals
-from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.expr_checker import (
     check_call,
     synthesize_call,
@@ -20,9 +19,11 @@ from guppylang_internals.checker.expr_checker import (
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
+    CheckableGenericDef,
     CompilableDef,
     ParsableDef,
 )
@@ -36,10 +37,11 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
-from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys.arg import Argument
+from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import Type, UnitaryFlags, type_to_row
 
@@ -62,8 +64,6 @@ class RawTracedFunctionDef(ParsableDef):
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
-        if ty.parametrized:
-            raise GuppyError(UnsupportedError(func_ast, "Generic comptime functions"))
         return TracedFunctionDef(
             self.id,
             self.name,
@@ -76,8 +76,34 @@ class RawTracedFunctionDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
+class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     defined_at: ast.FunctionDef
+
+    @property
+    def params(self) -> Sequence[Parameter]:
+        """Generic parameters of this function."""
+        return self.ty.params
+
+    def check(self, type_args: Inst, globals: Globals) -> "TracedMonoFunctionDef":
+        """Monomorphizes the function for the given type arg instantiation.
+
+        The actual checking happens during tracing while constructing the HUGR.
+        """
+        mono_ty = self.ty.instantiate_partial(type_args)
+        generic_args = {
+            param.name: arg
+            for param, arg in zip(self.ty.params, type_args, strict=True)
+        }
+        return TracedMonoFunctionDef(
+            self.id,
+            self.name,
+            self.defined_at,
+            mono_ty,
+            self.python_func,
+            generic_args,
+            unitary_flags=self.unitary_flags,
+            metadata=self.metadata,
+        )
 
     @override
     def check_call(
@@ -99,6 +125,11 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, ty
 
+
+@dataclass(frozen=True)
+class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
+    generic_args: Mapping[str, Argument]
+
     @override
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
@@ -116,7 +147,6 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
         add_metadata(
             func_def,
             self.metadata,
-            additional_metadata={"unitary": self.ty.unitary_flags.value},
         )
         if debug_mode_enabled():
             func_def.metadata[HugrDebugInfo] = make_subprogram_record(
@@ -128,6 +158,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.python_func,
+            self.generic_args,
             func_def,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
@@ -136,7 +167,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CompilableDef):
 
 @dataclass(frozen=True)
 class CompiledTracedFunctionDef(
-    TracedFunctionDef, CompiledCallableDef, CompiledHugrNodeDef
+    TracedMonoFunctionDef, CompiledCallableDef, CompiledHugrNodeDef
 ):
     func_def: hf.Function
 
@@ -162,14 +193,9 @@ class CompiledTracedFunctionDef(
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        type_args: Inst = ()  # Comptime functions are not generic
-        func_ty: ht.FunctionType = self.ty.instantiate(type_args).to_hugr(ctx)
-        hugr_type_args: list[ht.TypeArg] = [arg.to_hugr(ctx) for arg in type_args]
         num_returns = len(type_to_row(self.ty.output))
         with dfg.builder.set_ast_context(node):
-            call = dfg.builder.call(
-                self.func_def, *args, instantiation=func_ty, type_args=hugr_type_args
-            )
+            call = dfg.builder.call(self.func_def, *args)
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
             inout_returns=list(call[num_returns:]),
@@ -183,8 +209,9 @@ class CompiledTracedFunctionDef(
         trace_function(
             self.python_func,
             self.ty,
-            self.func_def,
+            FunctionBuilder(self.func_def),
             ctx,
+            self.generic_args,
             self.defined_at,
             self,
         )
