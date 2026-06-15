@@ -659,12 +659,14 @@ def test_custom_modifier(validate):
     #         )
 
 
+# NICOLA: TODO investigate why this cannot be inside test_use_other_functions
+@guppy
+def ext_helper(q: qubit) -> None:
+    x(q)
+
+
 def test_use_other_functions(validate):
     # NICOLA: TODO make the custom metod generic on control size
-
-    @guppy
-    def ext_helper(q: qubit) -> None:
-        x(q)
 
     @guppy.unitary
     class foo:
