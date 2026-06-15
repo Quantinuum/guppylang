@@ -21,6 +21,8 @@ test = [
 ]
 
 [tool.uv]
+prerelease = "if-necessary-or-explicit"
+
 [tool.uv.workspace]
 members = ["guppylang", "guppylang-internals", "miette-py"]
 
@@ -56,7 +58,10 @@ exclude_also = [
 
 [tool.pytest.ini_options]
 addopts = "--benchmark-disable -m 'not test_exported_hugrs'"  # benchmarks run explicitly with `just bench`
-markers = "test_exported_hugrs"
+markers = [
+  "test_exported_hugrs",
+  "execution: auto-applied to integration tests that run compiled programs through emulator fixtures",
+]
 filterwarnings = [
   "ignore::DeprecationWarning",  # TODO remove after removing guppy.compile()
   "ignore::SyntaxWarning",  # Python 3.14 complains about guppy tuple callables
