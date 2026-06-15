@@ -228,8 +228,9 @@ class ArrayIndexChecker(CustomCallChecker):
 
         return None
 
-    # After: PRLINK this function is currently unused. Consider whether to remove it or
-    # improve it when solving https://github.com/Quantinuum/guppylang/issues/1858
+    # After: https://github.com/Quantinuum/guppylang/pull/1859 this function is
+    # currently unused. Consider whether to remove it or improve it when solving
+    # https://github.com/Quantinuum/guppylang/issues/1858
     def _check_constant_index_bounds(
         self, index_expr: ast.expr, length_arg: TypeArg | ConstArg
     ) -> None:
