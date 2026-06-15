@@ -40,3 +40,10 @@ def pytest_addoption(parser):
         default=False,
         help="Validate hugrs exported via --export-test-cases",
     )
+
+    parser.addoption(
+        "--target-platform",
+        choices=("helios", "sol"),
+        default="helios",
+        help="Target qsystem platform for integration emulation tests",
+    )
