@@ -2,9 +2,8 @@ from hugr import Hugr
 from hugr.package import Package, PackagePointer
 
 from pathlib import Path
-import random
 import pytest
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from typing_extensions import assert_never
 
 from selene_hugr_qis_compiler import check_hugr
@@ -12,11 +11,6 @@ from selene_hugr_qis_compiler import check_hugr
 from guppylang.defs import GuppyDefinition
 from guppylang.emulator import Platform
 from guppylang.std.num import nat
-
-# Fixed seed component for the random_platform fixture. Combined with each
-# test's node id so different tests get different platforms while remaining
-# reproducible across runs.
-_PLATFORM_SEED = 42
 
 
 def pytest_generate_tests(metafunc):
@@ -79,15 +73,9 @@ def validate(request, export_test_cases_dir: Path):
 
 
 @pytest.fixture
-def random_platform(request) -> Platform:
-    """Deterministically choose a platform (helios or sol) for this test.
-
-    The choice is seeded by combining ``_PLATFORM_SEED`` with the test node id,
-    so each test gets a different but reproducible platform assignment across runs.
-    """
-    rng = random.Random(f"{_PLATFORM_SEED}:{request.node.nodeid}")  # noqa: S311
-    platform: Platform = rng.choice(["helios", "sol"])
-    return platform
+def target_platform(request: pytest.FixtureRequest) -> Platform:
+    """Platform to use for integration emulation tests."""
+    return cast("Platform", request.config.getoption("--target-platform"))
 
 
 class LLVMException(Exception):
@@ -157,22 +145,22 @@ def _emulate_fn(ty: Literal["int", "nat", "float"], default_platform: Platform):
 
 
 @pytest.fixture
-def run_int_fn(random_platform: Platform):
+def run_int_fn(target_platform: Platform):
     """Emulate an integer function using the Guppy emulator."""
-    return _emulate_fn(ty="int", default_platform=random_platform)
+    return _emulate_fn(ty="int", default_platform=target_platform)
 
 
 @pytest.fixture
-def run_nat_fn(random_platform: Platform):
+def run_nat_fn(target_platform: Platform):
     """Emulate an unsigned integer function using the Guppy emulator."""
-    return _emulate_fn(ty="nat", default_platform=random_platform)
+    return _emulate_fn(ty="nat", default_platform=target_platform)
 
 
 @pytest.fixture
-def run_float_fn_approx(random_platform: Platform):
+def run_float_fn_approx(target_platform: Platform):
     """Like run_int_fn, but takes optional additional parameters `rel`, `abs`
     and `nan_ok` as per `pytest.approx`."""
-    run_fn = _emulate_fn(ty="float", default_platform=random_platform)
+    run_fn = _emulate_fn(ty="float", default_platform=target_platform)
 
     def run_approx(
         f: GuppyDefinition,

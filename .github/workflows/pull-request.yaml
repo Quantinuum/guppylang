@@ -57,6 +57,9 @@ jobs:
       - name: Run tests and export hugr test cases
         run: uv run pytest -n auto --export-test-cases=guppy-exports
 
+      - name: Run integration tests on Sol platform
+        run: uv run pytest -n auto tests/integration --target-platform=sol
+
       - name: Validate exported hugr test cases
         run: uv run pytest -n auto -m test_exported_hugrs
 
