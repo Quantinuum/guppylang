@@ -9,7 +9,7 @@ from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.compiler.core import (
     CompilerContext,
 )
-from guppylang_internals.decorator import (
+from guppylang_internals.decorator.custom import (
     custom_function,
     custom_type,
     hugr_op,
