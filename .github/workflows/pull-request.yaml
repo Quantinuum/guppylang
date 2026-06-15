@@ -58,6 +58,7 @@ jobs:
         run: uv run pytest -n auto --export-test-cases=guppy-exports
 
       - name: Run integration tests on Sol platform
+        if: matrix.python-version == '3.12'
         run: uv run pytest -n auto tests/integration --target-platform=sol
 
       - name: Validate exported hugr test cases
