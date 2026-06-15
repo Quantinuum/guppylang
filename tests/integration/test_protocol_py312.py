@@ -73,7 +73,7 @@ def test_basic_parameterised_concrete(validate):
     @guppy.protocol
     class MyProto[T, S]:
         @guppy.require
-        def foo[T, S](self: "MyProto[T, S]", x: T @ owned) -> S: ...
+        def foo(self: "MyProto[T, S]", x: T @ owned) -> S: ...
 
     @guppy.struct(frozen=True)
     class MyType:
@@ -97,7 +97,7 @@ def test_basic_parameterised_generic(validate):
     @guppy.protocol
     class MyProto[T, S]:
         @guppy.require
-        def foo[T, S](self: "MyProto[T, S]", x: T) -> S: ...
+        def foo(self: "MyProto[T, S]", x: T) -> S: ...
 
     @guppy.struct(frozen=True)
     class MyType:
@@ -126,8 +126,6 @@ def test_basic_parameterised_more_generic(validate):
         @guppy.require
         def foo(self: "MyProto", x: int) -> int: ...
 
-    # TODO: Note generic struct functions require a different syntax, this might be
-    # confusing for users?
     @guppy.struct(frozen=True)
     class MyType[T]:
         @guppy.declare
@@ -177,7 +175,7 @@ def test_self_inst(validate):
     @guppy.protocol
     class MyProto[T, S]:
         @guppy.require
-        def foo(sef: Self, t: T) -> S: ...
+        def foo(self: Self, t: T) -> S: ...
 
     @guppy.struct(frozen=True)
     class MyStruct:
@@ -202,12 +200,12 @@ def test_multi(validate):
     @guppy.protocol
     class Foo[T]:
         @guppy.require
-        def foo[T](self: "Foo[T]", t: T @ owned) -> T: ...
+        def foo(self: "Foo[T]", t: T @ owned) -> T: ...
 
     @guppy.protocol
     class Bar[T]:
         @guppy.require
-        def bar[T](self: "Bar[T]", t: T @ owned) -> T: ...
+        def bar(self: "Bar[T]", t: T @ owned) -> T: ...
 
     @guppy
     def baz[T: (Foo[nat], Bar[nat])](t: T) -> nat:
@@ -243,7 +241,7 @@ def test_nested(validate):
     @guppy.protocol
     class AnyId[T]:
         @guppy.require
-        def id[T](self: "AnyId[T]", t: T) -> T: ...
+        def id(self: "AnyId[T]", t: T) -> T: ...
 
     @guppy.struct(frozen=True)
     class Foo:

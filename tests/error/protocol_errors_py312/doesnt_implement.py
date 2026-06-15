@@ -3,12 +3,12 @@ from guppylang import guppy
 @guppy.protocol
 class Foo[T]:
     @guppy.require
-    def foo[T](self: "Foo[T]", x: T) -> T: ...
+    def foo(self: "Foo[T]", x: T) -> T: ...
 
 @guppy.protocol
 class FooInt:
     @guppy.require
-    def foo[T](self: "FooInt", x: int) -> int: ...
+    def foo(self: "FooInt", x: int) -> int: ...
 
 @guppy.struct(frozen=True)
 class Bar:

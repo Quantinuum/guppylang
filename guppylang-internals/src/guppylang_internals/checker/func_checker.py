@@ -340,6 +340,8 @@ def check_signature(
                     ENGINE.get_checked(self_def_id, mono_args=()),
                 )
                 assert isinstance(self_defn, CheckedProtocolDef)
+                for p in self_defn.params:
+                    ctx.param_var_mapping[p.name] = p
                 input = parse_self_arg_proto(inp, self_defn, ctx, func_def)
             else:
                 self_defn = cast(
