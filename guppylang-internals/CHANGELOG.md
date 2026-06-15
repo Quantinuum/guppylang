@@ -3,6 +3,23 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a4...guppylang-internals-v1.0.0-a5) (2026-06-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* Support generic comptime functions ([#1630](https://github.com/Quantinuum/guppylang/issues/1630))
+
+### Features
+
+* **stdlib:** split qsystem into sol and helios modules ([#1848](https://github.com/Quantinuum/guppylang/issues/1848)) ([1c86e43](https://github.com/Quantinuum/guppylang/commit/1c86e43b71e703ec73f3560f0fdfec172704cc2e))
+* Support generic comptime functions ([#1630](https://github.com/Quantinuum/guppylang/issues/1630)) ([36a708c](https://github.com/Quantinuum/guppylang/commit/36a708cf7cf015ff72543bd009933b82797163a2))
+
+
+### Bug Fixes
+
+* Unitary metadata setting ([#1844](https://github.com/Quantinuum/guppylang/issues/1844)) ([4638bc1](https://github.com/Quantinuum/guppylang/commit/4638bc113b634dea1a04e30c08df162700b07bca))
+
 ## [1.0.0-a4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a3...guppylang-internals-v1.0.0-a4) (2026-06-12)
 
 
