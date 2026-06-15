@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, no_type_check
 
+from typing_extensions import Self
+
 from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.option import Option, nothing, some
@@ -30,87 +32,84 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
     #: Underlying circular buffer holding the queue elements.
     #:
-    #: Elements are stored contiguously from `self.start` up to and
-    #: including `self.end`, wrapping around modulo MAX_SIZE.
+    #: Elements are stored contiguously from `self._start` up to and
+    #: including `self._end`, wrapping around modulo MAX_SIZE.
     #:
-    #: The `self.size` field tracks the number of elements currently
+    #: The `self._size` field tracks the number of elements currently
     #: in the queue, so we can distinguish between full and empty states.
     #: Without this, then the queue would be limited to MAX_SIZE - 1 since
     #: we cannot distinguish completely full and completely empty states
-    #: with just using `self.start` and `self.end`.
-    buf: array[Option[T], MAX_SIZE]  # type: ignore[valid-type, type-arg]
+    #: with just using `self._start` and `self._end`.
+    _buf: array[Option[T], MAX_SIZE]  # type: ignore[valid-type, type-arg]
     #: Index of the current front of the queue (first element to be popped).
-    start: int
-    #: Index of the next free slot in `self.buf`.
-    end: int
+    _start: int
+    #: Index of the next free slot in `self._buf`.
+    _end: int
     #: Number of elements currently stored in the queue.
-    size: int
+    _size: int
 
     @guppy
     @no_type_check
-    def __len__(self: Queue[T, MAX_SIZE]) -> int:
+    def __len__(self) -> int:
         """Returns the number of elements currently stored in the queue."""
-        return self.size
+        return self._size
 
     @guppy
     @no_type_check
-    def __iter__(self: Queue[T, MAX_SIZE] @ owned) -> Queue[T, MAX_SIZE]:
+    def __iter__(self: Self @ owned) -> Self:
         """Returns an iterator over the elements in the queue from bottom to top."""
         return self
 
     @guppy
     @no_type_check
-    def __next__(
-        self: Queue[T, MAX_SIZE] @ owned,
-    ) -> Option[tuple[T, Queue[T, MAX_SIZE]]]:
+    def __next__(self: Self @ owned) -> Option[tuple[T, Self]]:
         if len(self) == 0:
             self.discard_empty()
             return nothing()
-        val, new_queue = self.pop()
-        return some((val, new_queue))
+        val = self.pop()
+        return some((val, self))
 
     @guppy
     @no_type_check
-    def push(self: Queue[T, MAX_SIZE] @ owned, elem: T @ owned) -> Queue[T, MAX_SIZE]:
+    def push(self, elem: T @ owned) -> None:
         """Adds an element to the end of the queue.
 
         Panics if the queue has already reached its maximum size.
         """
-        if self.size >= MAX_SIZE:
+        if self._size >= MAX_SIZE:
             panic("Queue.push: max size reached")
-        self.buf[self.end].swap(some(elem)).unwrap_nothing()
-        new_end = (self.end + 1) % MAX_SIZE
-        return Queue(self.buf, self.start, new_end, self.size + 1)
+        self._buf[self._end].swap(some(elem)).unwrap_nothing()
+        self._end = (self._end + 1) % MAX_SIZE
+        self._size += 1
 
     @guppy
     @no_type_check
-    def pop(self: Queue[T, MAX_SIZE] @ owned) -> tuple[T, Queue[T, MAX_SIZE]]:
+    def pop(self) -> T:
         """
         Removes the next element from the queue and returns it.
 
         Panics if the queue is empty.
         """
-        if self.size == 0:
+        if self._size == 0:
             panic("Queue.pop: queue is empty")
-        elem = self.buf[self.start].take().unwrap()
-        new_start = (self.start + 1) % MAX_SIZE
-        return elem, Queue(self.buf, new_start, self.end, self.size - 1)
+        elem = self._buf[self._start].take().unwrap()
+        self._start = (self._start + 1) % MAX_SIZE
+        self._size -= 1
+        return elem
 
     @guppy
     @no_type_check
-    def peek(
-        self: Queue[TCopyable, MAX_SIZE] @ owned,
-    ) -> tuple[TCopyable, Queue[TCopyable, MAX_SIZE]]:
+    def peek(self: Queue[TCopyable, MAX_SIZE] @ owned) -> TCopyable:
         """Returns a copy of the top element of the queue without removing it.
 
         Panics if the queue is empty.
 
         Note that this operation is only allowed if the queue elements are copyable.
         """
-        if self.size == 0:
+        if self._size == 0:
             panic("Queue.peek: queue is empty")
-        elem = self.buf[self.start].unwrap()
-        return elem, Queue(self.buf, self.start, self.end, self.size)
+        elem = self._buf[self._start].unwrap()
+        return elem
 
     @guppy
     @no_type_check
@@ -120,9 +119,9 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
         Panics if the queue is not empty.
         """
-        if self.size != 0:
+        if self._size != 0:
             panic("Queue.discard_empty: queue is not empty")
-        for elem in self.buf:
+        for elem in self._buf:
             elem.unwrap_nothing()
 
 

@@ -30,6 +30,7 @@ from semver import Version
 
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
+from guppylang.emulator.builder import Platform
 from guppylang.emulator.exceptions import EmulatorBuildError
 
 if TYPE_CHECKING:
@@ -133,6 +134,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         n_qubits: int | None = None,
         builder: EmulatorBuilder | None = None,
         libs: list[Package] | None = None,
+        platform: Platform = "helios",
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
@@ -151,6 +153,9 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             libs: An optional list of additional HUGR packages to link with the compiled
             function. This can be used to provide additional library functions that the
             function being compiled depends on.
+            platform: The quantum platform to target. Defaults to ``"helios"``. Set to
+            ``"sol"`` to target the Sol QIS. Ignored if an explicit ``builder`` is
+            provided (use ``builder.with_platform()`` in that case).
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
@@ -160,7 +165,8 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         if libs is not None:
             mod = mod.link(*libs)
 
-        builder = builder or EmulatorBuilder()
+        if builder is None:
+            builder = EmulatorBuilder().with_platform(platform)
         qubits = n_qubits
         if (
             isinstance(self.wrapped, RawFunctionDef)

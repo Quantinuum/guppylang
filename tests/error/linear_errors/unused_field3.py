@@ -17,7 +17,7 @@ class MyStruct2:
 
 @guppy
 def foo(s: MyStruct1 @owned) -> int:
-    measure(s.x.q1)
+    measure(s.x.q1).read()
     return s.y
 
 

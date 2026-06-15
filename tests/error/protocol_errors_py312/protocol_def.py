@@ -5,7 +5,7 @@ class Foo:
     @guppy
     def foo(self: "Foo") -> None: ...
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class Foo2:
     @guppy
     def foo(self) -> None:

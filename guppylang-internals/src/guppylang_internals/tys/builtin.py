@@ -13,13 +13,13 @@ from guppylang_internals.definition.common import CompiledDef, DefId
 from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import check_lists_enabled
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool
 from guppylang_internals.std._internal.compiler.tket_exts import WASM_EXTENSION
+from guppylang_internals.std._internal.wasm import WasmPlatform
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.errors import WrongNumberOfTypeArgsError
-from guppylang_internals.tys.param import ConstParam, TypeParam
+from guppylang_internals.tys.param import ConstParam, Parameter, TypeParam
 from guppylang_internals.tys.ty import (
     FunctionType,
     NoneType,
@@ -27,8 +27,8 @@ from guppylang_internals.tys.ty import (
     OpaqueType,
     TupleType,
     Type,
+    UnitaryFlags,
 )
-from guppylang_internals.wasm_util import WasmPlatform
 
 
 @dataclass(frozen=True)
@@ -38,7 +38,24 @@ class CallableTypeDef(TypeDef, CompiledDef):
     Any impls on functions can be registered with this definition.
     """
 
-    name: Literal["Callable"] = field(default="Callable", init=False)
+    name: Literal[
+        "Callable",
+        "Unitary",
+        "Daggerable",
+        "Controllable",
+    ] = field(default="Callable", kw_only=True)
+    flags: UnitaryFlags = UnitaryFlags.NoFlags
+
+    def __init__(
+        self,
+        id: DefId,
+        defined_at: ast.AST | None,
+        params: Sequence[Parameter] | None,
+        *,
+        flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    ) -> None:
+        super().__init__(id, flags.callable_name(), defined_at, params)
+        object.__setattr__(self, "flags", flags)
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -209,6 +226,24 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 
 callable_type_def = CallableTypeDef(DefId.fresh(), None, None)
+unitary_type_def = CallableTypeDef(
+    DefId.fresh(),
+    None,
+    None,
+    flags=UnitaryFlags.Unitary,
+)
+daggerable_type_def = CallableTypeDef(
+    DefId.fresh(),
+    None,
+    None,
+    flags=UnitaryFlags.Dagger,
+)
+controllable_type_def = CallableTypeDef(
+    DefId.fresh(),
+    None,
+    None,
+    flags=UnitaryFlags.Control,
+)
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)
 none_type_def = _NoneTypeDef(DefId.fresh(), None, [])
@@ -219,7 +254,7 @@ bool_type_def = OpaqueTypeDef(
     params=[],
     never_copyable=False,
     never_droppable=False,
-    to_hugr=lambda args, ctx: OpaqueBool,
+    to_hugr=lambda args, ctx: ht.Bool,
 )
 nat_type_def = _NumericTypeDef(
     DefId.fresh(), "nat", None, [], NumericType(NumericType.Kind.Nat)

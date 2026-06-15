@@ -88,6 +88,7 @@ from guppylang_internals.checker.errors.type_errors import (
     TypeInferenceError,
     TypeMismatchError,
     UnaryOperatorNotDefinedError,
+    UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
 from guppylang_internals.definition.common import Definition
@@ -121,6 +122,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     PartialApply,
     PlaceNode,
+    ProtocolCall,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
@@ -337,7 +339,16 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(func_ty, FunctionType)
-                raise RequiresMonomorphizationError
+                args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+                return with_loc(
+                    node,
+                    ProtocolCall(
+                        member=node.func.id,
+                        proto_id=node.func.def_id,
+                        args=args,
+                        type_args=inst,
+                    ),
+                ), subst
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -627,14 +638,14 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             for proto in ty.implements:
                 proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
                 assert isinstance(proto_def, CheckedProtocolDef)
-                for member_name in proto_def.member_defs:
+                for member_name, member_id in proto_def.member_defs.items():
                     member_ty = proto_def.member_sig(member_name)
                     if node.attr == member_name:
                         name_node = with_type(
                             member_ty,
                             with_loc(
                                 node,
-                                GlobalName(id=member_name, def_id=proto.def_id),
+                                GlobalName(id=member_name, def_id=member_id),
                             ),
                         )
                         ty_without_self = FunctionType(
@@ -920,7 +931,16 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(ty, FunctionType)
-                raise RequiresMonomorphizationError
+                args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
+                return with_loc(
+                    node,
+                    ProtocolCall(
+                        member=node.func.id,
+                        proto_id=node.func.def_id,
+                        args=args,
+                        type_args=inst,
+                    ),
+                ), return_ty
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1069,8 +1089,11 @@ def check_type_against(
         inst = tuple(subst[v].to_arg() for v in free_vars)
         subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
 
-        # Finally, check that the instantiation respects the linearity requirements
+        # Finally, check that the instantiation respects the linearity requirements and
+        # if the unitary flags match
         check_inst(act, inst, node)
+        assert isinstance(exp, FunctionType)
+        check_unitary_flags(exp, act, node)
 
         return node, subst, inst
 
@@ -1082,6 +1105,12 @@ def check_type_against(
         if coerced := try_coerce_to(act, exp, node, ctx):
             return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
+
+    # If we have a function type, we also check that unitary flags match
+    if isinstance(act, FunctionType):
+        assert isinstance(exp, FunctionType)
+        check_unitary_flags(exp, act, node)
+
     return node, subst, ()
 
 
@@ -1105,6 +1134,13 @@ def try_coerce_to(
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
     return None
+
+
+def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
+    if not exp.unitary_flags.is_weaker_than(act.unitary_flags):
+        raise GuppyTypeError(
+            UnitaryFlagMismatchError(node, exp.unitary_flags, act.unitary_flags)
+        )
 
 
 def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Inst:
@@ -1133,6 +1169,7 @@ def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Ins
         err.add_sub_diagnostic(WrongNumberOfArgsError.SignatureHint(None, ty))
         raise GuppyError(err)
 
+    # Other call, not interested
     inst = tuple(arg_from_ast(node, ctx.parsing_ctx) for node in arg_exprs)
     check_all_args(ty.params, inst, "", node, arg_exprs)
     return inst

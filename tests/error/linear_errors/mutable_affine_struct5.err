@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:17:15)
+   | 
+15 | def foo(s: MyStruct @owned, b: bool) -> MyStruct:
+16 |     if b or (t := s):
+17 |         return s
+   |                ^ Variable `s` cannot be returned ...
+
+Note:
+   | 
+15 | def foo(s: MyStruct @owned, b: bool) -> MyStruct:
+16 |     if b or (t := s):
+   |                   - ... since variable `s` with non-copyable type `MyStruct` was
+   |                     already moved here
+
+Guppy compilation failed due to 1 previous error

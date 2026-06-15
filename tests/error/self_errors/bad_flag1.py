@@ -4,7 +4,7 @@ from guppylang.decorator import guppy
 from guppylang.std.lang import owned
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class Foo:
     @guppy
     def foo(self: Self @owned) -> None:

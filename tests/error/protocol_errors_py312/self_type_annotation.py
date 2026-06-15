@@ -6,7 +6,7 @@ class Foo:
     @guppy.require
     def foo(self: Self) -> None: ...
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class Goo:
     @guppy
     def foo(self) -> None:

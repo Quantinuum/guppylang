@@ -1,5 +1,5 @@
 import pytest
-from typing import no_type_check, Self
+from typing import Self
 from guppylang.decorator import guppy
 from guppylang.std.builtins import nat
 from guppylang.std.lang import Copy, Drop
@@ -37,55 +37,13 @@ def test_def_parameterised():
     MyProto.check()
 
 
-## TODO: See if this can work in light of the monomorphisation changes assuming
-## check and compile are called on entrypoints
-@pytest.mark.skip
-def test_use_def_as_type():
-    @guppy.protocol
-    class MyProto:
-        @guppy.require
-        def foo(self: "MyProto") -> "MyProto": ...
-
-    @guppy.declare
-    def bar(a: MyProto) -> MyProto: ...
-
-    @guppy.declare
-    def baz[M: MyProto](a: M) -> M: ...
-
-    bar.check()
-    baz.check()
-
-
-## TODO: See if this can work in light of the monomorphisation changes assuming
-## check and compile are called on entrypoints
-@pytest.mark.skip
-def test_use_def_as_type_parameterised():
-    @guppy.protocol
-    class MyProto[T, S]:
-        @guppy.require
-        def foo(self: "MyProto[T, S]") -> "MyProto[T, S]": ...
-
-    T = guppy.type_var("T")
-    S = guppy.type_var("S")
-
-    @guppy.declare
-    @no_type_check
-    def baz1(a: MyProto[T, S]) -> MyProto[T, S]: ...
-
-    @guppy.declare
-    def baz2(a: MyProto[bool, bool]) -> MyProto[int, int]: ...
-
-    baz1.check()
-    baz2.check()
-
-
 def test_basic(validate):
     @guppy.protocol
     class MyProto:
         @guppy.require
         def foo(self: "MyProto", x: int) -> str: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyType:
         @guppy
         def foo(self: "MyType", x: int) -> str:
@@ -117,7 +75,7 @@ def test_basic_parameterised_concrete(validate):
         @guppy.require
         def foo(self: "MyProto[T, S]", x: T @ owned) -> S: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyType:
         @guppy
         def foo(self: "MyType", x: int) -> str:
@@ -141,7 +99,7 @@ def test_basic_parameterised_generic(validate):
         @guppy.require
         def foo(self: "MyProto[T, S]", x: T) -> S: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyType:
         @guppy
         def foo(self: "MyType", x: int) -> str:
@@ -168,7 +126,7 @@ def test_basic_parameterised_more_generic(validate):
         @guppy.require
         def foo(self: "MyProto", x: int) -> int: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyType[T]:
         @guppy.declare
         def foo[T](self: "MyType[T]", x: T) -> T: ...
@@ -199,7 +157,7 @@ def test_assumption(validate):
     def baz[P: MyProto](x: P) -> str:
         return bar(x)
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct:
         @guppy
         def foo(self, x: int) -> str:
@@ -219,7 +177,7 @@ def test_self_inst(validate):
         @guppy.require
         def foo(self: Self, t: T) -> S: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct:
         @guppy
         def foo(self: Self, t: int) -> str:
@@ -253,7 +211,7 @@ def test_multi(validate):
     def baz[T: (Foo[nat], Bar[nat])](t: T) -> nat:
         return t.bar(t.foo(42))
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class MyStruct[T: (Copy, Drop)]:
         @guppy
         def foo(self, t: T) -> T:
@@ -285,7 +243,7 @@ def test_nested(validate):
         @guppy.require
         def id(self: "AnyId[T]", t: T) -> T: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class Foo:
         @guppy
         def foo(self, x: nat) -> nat:
@@ -324,7 +282,7 @@ def test_specialise(validate):
         @guppy.require
         def foo(self: "FooStr", s: str) -> None: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class Foo[T]:
         @guppy
         def foo(self, t: T) -> None:
@@ -384,13 +342,13 @@ def test_run_int(validate, run_int_fn):
         @guppy.require
         def fav_num(self: "Animal") -> nat: ...
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class Dog:
         @guppy
         def fav_num(self: Self) -> nat:
             return 4
 
-    @guppy.struct
+    @guppy.struct(frozen=True)
     class Duck:
         @guppy
         def fav_num(self: Self) -> nat:

@@ -14,6 +14,93 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a4](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a3...guppylang-v1.0.0-a4) (2026-06-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* Change the return type of measurement functions to a new `Measurement` type and remove opaque bools from the compiler ([#1707](https://github.com/Quantinuum/guppylang/issues/1707))
+* Make stdlib types state mutable with private fields ([#1840](https://github.com/Quantinuum/guppylang/issues/1840))
+
+### Features
+
+* Change the return type of measurement functions to a new `Measurement` type and remove opaque bools from the compiler ([#1707](https://github.com/Quantinuum/guppylang/issues/1707)) ([9460e6b](https://github.com/Quantinuum/guppylang/commit/9460e6b672fe84d87f360b7d521b6b9d5b736da2))
+
+
+### Code Refactoring
+
+* Make stdlib types state mutable with private fields ([#1840](https://github.com/Quantinuum/guppylang/issues/1840)) ([97c6962](https://github.com/Quantinuum/guppylang/commit/97c69624a1181804e8b2c1685941a394bae84d19))
+
+## [1.0.0-a3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a2...guppylang-v1.0.0-a3) (2026-06-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove `power` flags and rename flag `dagger` to `daggerable` and `control` to `controllable` ([#1838](https://github.com/Quantinuum/guppylang/issues/1838))
+* Use mutable state for PCG32 and encapsulate internals ([#1828](https://github.com/Quantinuum/guppylang/issues/1828))
+* Remove vacuous pytket extra from distributions ([#1836](https://github.com/Quantinuum/guppylang/issues/1836))
+* Use mutable structs for std collections and encapsulate internals ([#1796](https://github.com/Quantinuum/guppylang/issues/1796))
+* Experimental features should only be enabled globally ([#1825](https://github.com/Quantinuum/guppylang/issues/1825))
+
+### Features
+
+* Use mutable state for PCG32 and encapsulate internals ([#1828](https://github.com/Quantinuum/guppylang/issues/1828)) ([35fee12](https://github.com/Quantinuum/guppylang/commit/35fee12646277a9538e29dc35e4898848dc669c4))
+* Use mutable structs for std collections and encapsulate internals ([#1796](https://github.com/Quantinuum/guppylang/issues/1796)) ([07f6d17](https://github.com/Quantinuum/guppylang/commit/07f6d175365356a21fabda9ff94ebdb5a0c05e6e))
+
+
+### Code Refactoring
+
+* Experimental features should only be enabled globally ([#1825](https://github.com/Quantinuum/guppylang/issues/1825)) ([5f01c7d](https://github.com/Quantinuum/guppylang/commit/5f01c7d6d2303bf3812496f8e91d20696b60e088))
+* Remove `power` flags and rename flag `dagger` to `daggerable` and `control` to `controllable` ([#1838](https://github.com/Quantinuum/guppylang/issues/1838)) ([e903bdb](https://github.com/Quantinuum/guppylang/commit/e903bdbafbe252bde224ea1c483e10180e265bfb))
+* Remove vacuous pytket extra from distributions ([#1836](https://github.com/Quantinuum/guppylang/issues/1836)) ([1fcb41f](https://github.com/Quantinuum/guppylang/commit/1fcb41fae1c8532cc624e648890badf8631c2159))
+
+## [1.0.0-a2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a1...guppylang-v1.0.0-a2) (2026-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Make structs mutable by default ([#1795](https://github.com/Quantinuum/guppylang/issues/1795))
+
+### Features
+
+* Higher order functions with unitary modifiers ([#1768](https://github.com/Quantinuum/guppylang/issues/1768)) ([fb6c58f](https://github.com/Quantinuum/guppylang/commit/fb6c58f1c5191c1b3fd722034f63edbc7c8143df))
+* Make structs mutable by default ([#1795](https://github.com/Quantinuum/guppylang/issues/1795)) ([6b20646](https://github.com/Quantinuum/guppylang/commit/6b206466cb1c1bb62d47943c64f05822ec739a34))
+* Support mutable structs ([#1793](https://github.com/Quantinuum/guppylang/issues/1793)) ([06a551d](https://github.com/Quantinuum/guppylang/commit/06a551d4f8ab902f68e610e91ef0ea380996ae51))
+
+## [1.0.0-a1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a0...guppylang-v1.0.0-a1) (2026-06-04)
+
+
+### Features
+
+* Add native PCG32 random number generator to std lib ([#1808](https://github.com/Quantinuum/guppylang/issues/1808)) ([a789648](https://github.com/Quantinuum/guppylang/commit/a7896489cfc969652e114af8d85336299baee389))
+
+
+### Documentation
+
+* Correct docstring formatting for std.quantum.reset ([#1810](https://github.com/Quantinuum/guppylang/issues/1810)) ([fb5ae49](https://github.com/Quantinuum/guppylang/commit/fb5ae499379e10ed92b2e410ff63249e8251927a))
+
+## [1.0.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.12...guppylang-v1.0.0-a0) (2026-05-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Protocol parsing ([#1754](https://github.com/Quantinuum/guppylang/issues/1754))
+
+### Features
+
+* Add array helpers for qubit measurements for qsystem measurement variants ([#1667](https://github.com/Quantinuum/guppylang/issues/1667)) ([fa6f85a](https://github.com/Quantinuum/guppylang/commit/fa6f85abbeeeb4746a726d9e810fb82dd43ed3de))
+* Protocol parsing ([#1754](https://github.com/Quantinuum/guppylang/issues/1754)) ([17282cd](https://github.com/Quantinuum/guppylang/commit/17282cdf71b9a238c737d2ddb19ad71e7e7d24d4))
+
+
+### Documentation
+
+* add parameters in error model snippet ([#1751](https://github.com/Quantinuum/guppylang/issues/1751)) ([ab9c8ca](https://github.com/Quantinuum/guppylang/commit/ab9c8ca0de91fa7da1a326bad0a9ba21e3c88439))
+
+
+### Miscellaneous Chores
+
+* release guppylang-internals 1.0.0-a0 ([#1782](https://github.com/Quantinuum/guppylang/issues/1782)) ([28e30e2](https://github.com/Quantinuum/guppylang/commit/28e30e207f56140c3196c51fb1ab9b9f0fbd5dae))
+
 ## [0.21.12](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.11...guppylang-v0.21.12) (2026-04-16)
 
 

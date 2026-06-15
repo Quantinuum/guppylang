@@ -135,6 +135,29 @@ class GlobalCall(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
+class ProtocolCall(ast.expr):
+    member: str
+    proto_id: "DefId"
+    args: list[ast.expr]
+    type_args: Inst
+
+    _fields = (
+        "member",
+        "proto_id",
+        "args",
+        "type_args",
+    )
+
+    def __init__(
+        self, member: str, proto_id: "DefId", args: list[ast.expr], type_args: Inst
+    ):
+        super().__init__()
+        self.member = member
+        self.proto_id = proto_id
+        self.args = args
+        self.type_args = type_args
+
+
 class TensorCall(ast.expr):
     """A call to a tuple of functions. Behaves like a local call, but more
     unpacking of tuples is required at compilation"""
@@ -540,7 +563,9 @@ class StateResultExpr(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-AnyCall = LocalCall | GlobalCall | TensorCall | BarrierExpr | StateResultExpr
+AnyCall = (
+    LocalCall | GlobalCall | TensorCall | BarrierExpr | StateResultExpr | ProtocolCall
+)
 
 
 class InoutReturnSentinel(ast.expr):
@@ -814,23 +839,27 @@ class Modifiers:
             result |= UnitaryFlags.Dagger
         if self.has_control():
             result |= UnitaryFlags.Control
-        if self.has_power():
-            result |= UnitaryFlags.Power
         return result
 
 
 class ModifiedBlock(ast.With):
-    """Node representing a unchecked `with` block
+    """Node representing an unchecked `with` block
 
     parameters:
     - `cfg`: the CFG of the body of the block
+    - `modifiers`: the modifiers of the block
     - `first_modifier_node`: the AST node of the first modifier, used in error reporting
     - `accumulated_flags`: the UnitaryFlags accumulated from outer modified blocks
+    - `original_ast_body`: the original AST body of the block, used for checking that
+      the body does not contain any invalid statements. Is expected to beNone if the
+      block does not have the Dagger modifier since in that case it is not needed
     """
 
     cfg: "CFG"
+    modifiers: Modifiers
     first_modifier_node: ast.expr
     accumulated_flags: UnitaryFlags
+    original_ast_body: list[ast.stmt] | None
 
     def __init__(
         self,
@@ -838,6 +867,7 @@ class ModifiedBlock(ast.With):
         modifiers: "Modifiers",
         first_modifier_node: ast.expr,
         accumulated_flags: UnitaryFlags,
+        original_ast_body: list[ast.stmt] | None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -846,6 +876,7 @@ class ModifiedBlock(ast.With):
         self.modifiers = modifiers
         self.first_modifier_node = first_modifier_node
         self.accumulated_flags = accumulated_flags
+        self.original_ast_body = original_ast_body
 
     @property
     def dagger(self) -> list[Dagger]:
@@ -887,6 +918,7 @@ class CheckedModifiedBlock(ast.With):
     ty: FunctionType
     #: Mapping from names to variables captured in the body.
     captured: Mapping[str, tuple["Variable", AstNode]]
+    modifiers: Modifiers
 
     def __init__(
         self,

@@ -13,7 +13,7 @@ def bar(f: MyProto) -> None:
 def baz(f: MyProto) -> None:
     return f.foo()
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class MyStruct:
     @guppy
     def foo(self) -> None:

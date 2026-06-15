@@ -41,7 +41,6 @@ from guppylang_internals.tys.ty import (
     FunctionType,
     InputFlags,
     NoneType,
-    Type,
     UnitaryFlags,
     unify,
 )
@@ -102,7 +101,7 @@ class InvalidSelfError(Error):
     title: ClassVar[str] = "Invalid self annotation"
     span_label: ClassVar[str] = "`{self_arg}` must be of type `{self_ty}`"
     self_arg: str
-    self_ty: Type
+    self_ty: str
 
 
 @dataclass(frozen=True)
@@ -386,7 +385,7 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
         [param.to_existential()[0] for param in self_defn.params]
     )
     self_ty_placeholder = ExistentialTypeVar.fresh(
-        "Self", copyable=True, droppable=True
+        "Self", copyable=self_ty_head.copyable, droppable=self_ty_head.droppable
     )
     assert ctx.self_ty is None
     ctx = replace(ctx, self_ty=self_ty_placeholder)
@@ -405,7 +404,7 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
     # the expected self type where all params are instantiated with unification vars
     subst = unify(user_ty, self_ty_head, {})
     if subst is None:
-        raise GuppyError(InvalidSelfError(arg.annotation, arg.arg, self_ty_head))
+        raise GuppyError(InvalidSelfError(arg.annotation, arg.arg, str(self_ty_head)))
 
     return check_function_arg(user_ty, user_flags, arg, arg.arg, ctx)
 
@@ -461,7 +460,9 @@ def parse_self_arg_proto(
         # vars
         _impl_proof, subst = check_protocol(user_ty, self_ty_head, arg)
         if subst is None:
-            raise GuppyError(InvalidSelfError(arg.annotation, arg.arg, self_ty_head))
+            raise GuppyError(
+                InvalidSelfError(arg.annotation, arg.arg, str(self_ty_head))
+            )
         return check_function_arg(user_ty, user_flags, arg, arg.arg, ctx)
     else:
         # I'm pretty sure the first arg is *not* a protocol
@@ -471,7 +472,7 @@ def parse_self_arg_proto(
             InvalidSelfError(
                 arg.annotation,
                 arg.arg,
-                BoundTypeVar("self", 0, True, True, (self_ty_head,)),
+                str(self_ty_head),
             )
         )
 
@@ -482,8 +483,14 @@ def handle_implicit_proto_self_arg(
     ctx: TypeParsingCtx,
     flags: InputFlags = InputFlags.NoFlags,
 ) -> FuncInput:
+    """Handle the case of a protocol method that leaves the protocol type implicit.
+    Add a type parameter to the function which implements the protocol, and the self
+    type is a BoundTypeVar referring to that parameter.
+    """
+
     # The generic params inherited from the parent type should appear first in the
-    # parameter list, so we have to shift the existing ones
+    # parameter list, so we have to shift the existing ones, then shift one more place
+    # to account for the "self" parameter.
     for name, param in ctx.param_var_mapping.items():
         ctx.param_var_mapping[name] = param.with_idx(
             param.idx + len(self_defn.params) + 1

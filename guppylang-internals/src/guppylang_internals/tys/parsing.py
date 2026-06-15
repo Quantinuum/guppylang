@@ -1,6 +1,6 @@
 import ast
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
 from typing import TYPE_CHECKING, ClassVar
@@ -19,8 +19,13 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
+from guppylang_internals.experimental import check_unitary_callable_enabled
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.builtin import CallableTypeDef, SelfTypeDef, bool_type
+from guppylang_internals.tys.builtin import (
+    CallableTypeDef,
+    SelfTypeDef,
+    bool_type,
+)
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.errors import (
     CallableComptimeError,
@@ -50,6 +55,7 @@ from guppylang_internals.tys.ty import (
     NumericType,
     TupleType,
     Type,
+    UnitaryFlags,
 )
 
 if TYPE_CHECKING:
@@ -90,7 +96,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
 
     # A single (possibly qualified) identifier
-    if defn := _try_parse_defn(node, ctx.globals):
+    if defn := try_parse_defn(node, ctx.globals):
         return _arg_from_instantiated_defn(defn, [], node, ctx)
 
     # An identifier referring to a quantified variable
@@ -103,7 +109,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
 
     # A parametrised type, e.g. `list[??]`
     if isinstance(node, ast.Subscript) and (
-        defn := _try_parse_defn(node.value, ctx.globals)
+        defn := try_parse_defn(node.value, ctx.globals)
     ):
         arg_nodes = (
             node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
@@ -158,7 +164,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     raise GuppyError(InvalidTypeArgError(node))
 
 
-def _try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
+def try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
     """Tries to parse a (possibly qualified) name into a global definition."""
     from guppylang.defs import GuppyDefinition
 
@@ -197,10 +203,11 @@ def _arg_from_instantiated_defn(
     from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     match defn:
-        # Special case for the `Callable` type
-        case CallableTypeDef():
-            return TypeArg(_parse_callable_type(arg_nodes, node, ctx))
-            # Special case for the `Callable` type
+        # Special cases for the `Callable` type
+        case CallableTypeDef(flags=flags):
+            if flags != UnitaryFlags.NoFlags:
+                check_unitary_callable_enabled(flags.callable_name(), node)
+            return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flags=flags))
         case SelfTypeDef():
             self_ty = _parse_self_type(arg_nodes, node, ctx)
             return TypeArg(self_ty)
@@ -274,8 +281,27 @@ def _parse_delayed_annotation(ast_str: str, node: ast.Constant) -> ast.expr:
         return stmt.value
 
 
+def annotation_nodes(node: ast.expr) -> Iterator[ast.expr]:
+    """Iterates over all the Guppy type annotations (recursively) contained in the given
+    expression. Parses delayed annotations, and does not recurse into comptime
+    expressions."""
+    if is_comptime_expression(node):
+        return
+
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        node = _parse_delayed_annotation(node.value, node)
+
+    yield node
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, ast.expr):
+            yield from annotation_nodes(child)
+
+
 def _parse_callable_type(
-    args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx
+    args: list[ast.expr],
+    loc: AstNode,
+    ctx: TypeParsingCtx,
+    flags: UnitaryFlags = UnitaryFlags.NoFlags,
 ) -> FunctionType:
     """Helper function to parse a `Callable[[<arguments>], <return type>]` type."""
     err = InvalidCallableTypeError(loc)
@@ -286,7 +312,8 @@ def _parse_callable_type(
         raise GuppyError(err)
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
     output = type_from_ast(output, ctx)
-    return FunctionType(inputs, output)
+
+    return FunctionType(inputs, output, unitary_flags=flags)
 
 
 def _parse_self_type(args: list[ast.expr], loc: AstNode, ctx: TypeParsingCtx) -> Type:
@@ -438,7 +465,7 @@ if sys.version_info >= (3, 12):
         proto_defn = None
         proto_args = []
         if isinstance(bound, ast.Subscript):
-            proto_defn = _try_parse_defn(bound.value, ctx.globals)
+            proto_defn = try_parse_defn(bound.value, ctx.globals)
             arg_nodes = (
                 bound.slice.elts
                 if isinstance(bound.slice, ast.Tuple)
@@ -446,7 +473,7 @@ if sys.version_info >= (3, 12):
             )
             proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
         else:
-            proto_defn = _try_parse_defn(bound, ctx.globals)
+            proto_defn = try_parse_defn(bound, ctx.globals)
 
         if isinstance(proto_defn, ParsedProtocolDef):
             inst = proto_defn.check_instantiate(proto_args, bound)

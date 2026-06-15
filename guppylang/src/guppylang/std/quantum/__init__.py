@@ -9,6 +9,7 @@ from guppylang_internals.std._internal.compiler.quantum import (
     InoutMeasureCompiler,
     RotationCompiler,
 )
+from guppylang_internals.std._internal.compiler.tket_exts import MEASUREMENT_EXTENSION
 from guppylang_internals.std._internal.util import quantum_op
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr import tys as ht
@@ -28,7 +29,7 @@ class qubit:
 
     @guppy
     @no_type_check
-    def measure(self: "qubit" @ owned) -> bool:
+    def measure(self: "qubit" @ owned) -> "Measurement":
         return measure(self)
 
     @guppy
@@ -40,6 +41,28 @@ class qubit:
     @no_type_check
     def discard(self: "qubit" @ owned) -> None:
         discard(self)
+
+
+@custom_type(
+    ht.ExtType(MEASUREMENT_EXTENSION.get_type("Measurement")),
+    copyable=True,
+    droppable=True,
+)
+class Measurement:
+    """Represents the result of a lazy measurement which needs to be explicitly read
+    before being used."""
+
+    @hugr_op(quantum_op("Read", MEASUREMENT_EXTENSION))
+    @no_type_check
+    def read(self: "Measurement") -> bool:
+        """Read the measurement result, obtaining a bool. Blocks until the result is
+        available if the measurement hasn't been performed yet since being requested.
+        """
+
+    @guppy
+    @no_type_check
+    def __bool__(self: "Measurement") -> bool:
+        return self.read()
 
 
 @hugr_op(quantum_op("TryQAlloc"))
@@ -362,14 +385,16 @@ def discard(q: qubit @ owned) -> None:
 
 @hugr_op(quantum_op("MeasureFree"))
 @no_type_check
-def measure(q: qubit @ owned) -> bool:
-    """Measure a single qubit destructively."""
+def measure(q: qubit @ owned) -> Measurement:
+    """Request a destructive lazy measurement of a qubit, returning a `Measurement`
+    value. Call `.read()` on the value to block until the result is available.
+    """
 
 
 @hugr_op(quantum_op("Reset"))
 @no_type_check
 def reset(q: qubit) -> None:
-    """Reset a single qubit to the :math:`|0\rangle` state."""
+    """Reset a single qubit to the :math:`|0\\rangle` state."""
 
 
 N = guppy.nat_var("N")
@@ -377,8 +402,11 @@ N = guppy.nat_var("N")
 
 @guppy
 @no_type_check
-def measure_array(qubits: array[qubit, N] @ owned) -> array[bool, N]:
-    """Measure an array of qubits, returning an array of bools."""
+def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
+    """Request a destructive lazy measurement of an array of qubits, returning an array
+    of `Measurement` values. Call `.read()` on each value or `collect_measurements(...)`
+    on the whole array to block until results are available.
+    """
     return array(measure(q) for q in qubits)
 
 
@@ -390,6 +418,17 @@ def discard_array(qubits: array[qubit, N] @ owned) -> None:
         if not qubits.is_borrowed(i):
             discard(qubits.take(i))
     qubits.discard_all_taken()
+
+
+@guppy
+@no_type_check
+def collect_measurements(
+    measurements: array[Measurement, N] @ owned,
+) -> array[bool, N]:
+    """Block on each measurement until it is available and collect results into an
+    array of bools.
+    """
+    return array(m.read() for m in measurements)
 
 
 # -------NON-PRIMITIVE-------

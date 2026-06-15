@@ -57,6 +57,10 @@ jobs:
       - name: Run tests and export hugr test cases
         run: uv run pytest -n auto --export-test-cases=guppy-exports
 
+      - name: Run integration tests on Sol platform
+        if: matrix.python-version == '3.12'
+        run: uv run pytest -n auto tests/integration --target-platform=sol -m "execution and not test_exported_hugrs"
+
       - name: Validate exported hugr test cases
         run: uv run pytest -n auto -m test_exported_hugrs
 
@@ -86,7 +90,7 @@ jobs:
         run: uv run pytest -n auto --cov=./ --cov-report=xml
 
       - name: Upload python coverage to codecov.io
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
           name: python
