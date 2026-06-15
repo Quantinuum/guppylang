@@ -59,7 +59,7 @@ jobs:
 
       - name: Run integration tests on Sol platform
         if: matrix.python-version == '3.12'
-        run: uv run pytest -n auto tests/integration --target-platform=sol
+        run: uv run pytest -n auto tests/integration --target-platform=sol -m "execution and not test_exported_hugrs"
 
       - name: Validate exported hugr test cases
         run: uv run pytest -n auto -m test_exported_hugrs

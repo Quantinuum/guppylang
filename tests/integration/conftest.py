@@ -12,6 +12,12 @@ from guppylang.defs import GuppyDefinition
 from guppylang.emulator import Platform
 from guppylang.std.num import nat
 
+# Keep this in sync with the execution fixtures below. The PR workflow uses the
+# auto-applied ``execution`` marker to rerun only emulator-backed integration
+# tests against non-default platforms, without also rerunning validation-only
+# integration tests.
+_EXECUTION_FIXTURES = frozenset({"run_int_fn", "run_nat_fn", "run_float_fn_approx"})
+
 
 def pytest_generate_tests(metafunc):
     if "exported_hugr" in metafunc.fixturenames:
@@ -25,6 +31,15 @@ def pytest_generate_tests(metafunc):
             exported_hugrs,
             ids=lambda p: f"{p.suffixes[-2]}" if len(p.suffixes) >= 2 else f"{p.name}",
         )
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    # Mark by fixture dependency so newly added execution tests are picked up
+    # automatically by the Sol CI rerun.
+    for item in items:
+        fixture_names = getattr(item, "fixturenames", ())
+        if _EXECUTION_FIXTURES.intersection(fixture_names):
+            item.add_marker("execution")
 
 
 @pytest.fixture(scope="session")
