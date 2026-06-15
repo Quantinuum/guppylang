@@ -476,6 +476,8 @@ class FunctionType(ParametrizedTypeBase):
     params: Sequence[Parameter]
     comptime_args: Sequence[ConstArg]
 
+    # Contains a list of TypeArgs (corresponding to the function inputs and output) and
+    # ConstArgs (corresponding to the comptime arguments)
     args: Sequence[Argument] = field(init=False)
     copyable: bool = field(default=True, init=True)
     droppable: bool = field(default=True, init=True)

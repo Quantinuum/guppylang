@@ -60,7 +60,13 @@ from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
+from guppylang_internals.tys.ty import (
+    FunctionType,
+    Type,
+    UnitaryFlags,
+    type_to_row,
+    unify,
+)
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.declaration import RawFunctionDecl
@@ -105,12 +111,17 @@ class RawModifiedDefs:
     call_controlled: "RawFunctionDef | None" = None
     call_ctrl_daggered: "RawFunctionDef | None" = None
 
-    def parse(self) -> "ParsedModifiedDefs":
-        return ParsedModifiedDefs(
-            call_daggered=_parse_modified_def(self.call_daggered),
-            call_controlled=_parse_modified_def(self.call_controlled),
-            call_ctrl_daggered=_parse_modified_def(self.call_ctrl_daggered),
+    def parse(self, parent_ty: FunctionType) -> "ParsedModifiedDefs":
+        parsed_call_daggered = _parse_modified_def(self.call_daggered)
+        parsed_call_controlled = _parse_modified_def(self.call_controlled)
+        parsed_call_ctrl_daggered = _parse_modified_def(self.call_ctrl_daggered)
+        parsed_definitions = ParsedModifiedDefs(
+            parsed_call_daggered,
+            parsed_call_controlled,
+            parsed_call_ctrl_daggered,
         )
+        check_modified_def_signature(parsed_definitions, parent_ty)
+        return parsed_definitions
 
 
 @dataclass(frozen=True)
@@ -201,7 +212,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
-        parsed_modified_defs = self.modified_defs.parse()
+        parsed_modified_defs = self.modified_defs.parse(ty)
 
         return ParsedFunctionDef(
             self.id,
@@ -513,3 +524,54 @@ def make_subprogram_record(
             line_no=to_span(node).start.line,
             scope_line=to_span(node.body[0]).start.line,
         )
+
+
+def check_modified_def_signature(
+    parsed_modified_defs: ParsedModifiedDefs, parent_ty: FunctionType
+) -> None:
+    if parsed_modified_defs.call_daggered:
+        daggered_ty = parsed_modified_defs.call_daggered.ty
+        if unify(parent_ty, daggered_ty, {}) is None:
+            # NICOLA: TODO the error message is garbage
+            raise GuppyError(
+                ExpectedError(
+                    parsed_modified_defs.call_daggered.defined_at,
+                    f"signature compatible with {parent_ty}",
+                )
+            )
+
+    if parsed_modified_defs.call_controlled:
+        _check_controlled_def_signature(
+            parsed_modified_defs.call_controlled.ty,
+            parent_ty,
+            parsed_modified_defs.call_controlled.defined_at,
+        )
+    if parsed_modified_defs.call_ctrl_daggered:
+        _check_controlled_def_signature(
+            parsed_modified_defs.call_ctrl_daggered.ty,
+            parent_ty,
+            parsed_modified_defs.call_ctrl_daggered.defined_at,
+        )
+
+
+def _check_controlled_def_signature(
+    modified_ty: FunctionType, parent_ty: FunctionType, defined_at: ast.FunctionDef
+) -> None:
+    expected_ty = FunctionType(
+        # last input must be the array of control qubits
+        modified_ty.inputs[:-1],
+        modified_ty.output,
+        # last param must be parameter for the number of control qubits
+        modified_ty.params[:-1],
+        modified_ty.comptime_args,
+        modified_ty.unitary_flags,
+    )
+    if unify(expected_ty, parent_ty, {}) is None:
+        raise GuppyError(
+            # NICOLA: TODO the error message is garbage
+            ExpectedError(
+                defined_at,
+                f"signature compatible with {parent_ty}",
+            )
+        )
+    # Nicola: TODO add a specif check for the last input being an array of qubits
