@@ -1,0 +1,10 @@
+Error: Expected signature compatible with qubit -> None (at $FILE:12:4)
+   | 
+10 | 
+11 |     @guppy
+12 |     def call_daggered(q: qubit, extra: qubit) -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+13 |         pass
+   | ^^^^^^^^^^^^ Expected signature compatible with qubit -> None
+
+Guppy compilation failed due to 1 previous error
