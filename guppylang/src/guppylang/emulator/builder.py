@@ -117,11 +117,6 @@ class EmulatorBuilder:
         which saves LLVM IR into the build directory rather than
         saving bitcode.
         """
-        if key == "platform":
-            raise ValueError(
-                "Use with_platform() to set the target platform instead of "
-                "with_build_arg('platform', ...)."
-            )
         if self._custom_args is None:
             return replace(self, _custom_args={key: value})
         else:
