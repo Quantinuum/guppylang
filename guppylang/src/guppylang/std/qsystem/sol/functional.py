@@ -57,6 +57,14 @@ def xx_max(q1: qubit @ owned, q2: qubit @ owned) -> tuple[qubit, qubit]:
 
 @guppy
 @no_type_check
+def yy_max(q1: qubit @ owned, q2: qubit @ owned) -> tuple[qubit, qubit]:
+    """Functional yy_max gate command. Maximally entangling YY gate."""
+    sol.yy_max(q1, q2)
+    return q1, q2
+
+
+@guppy
+@no_type_check
 def rz(q: qubit @ owned, angle: angle) -> qubit:
     """Functional Rz gate command."""
     sol.rz(q, angle)

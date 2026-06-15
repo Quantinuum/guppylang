@@ -139,6 +139,7 @@ def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
         phased_xx,
         phased_xx_max,
         xx_max,
+        yy_max,
         qfree,
         reset,
         rz,
@@ -150,6 +151,7 @@ def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
         phased_xx(q1, q2, a1, a1)
         phased_xx_max(q1, q2, a1)
         xx_max(q1, q2)
+        yy_max(q1, q2)
         rz(q1, a1)
         m1 = lazy_measure_and_reset(q1)
         m1.read()
@@ -201,6 +203,7 @@ def test_qsystem_sol_functional(validate):  # type: ignore[no-untyped-def]
         reset,
         rz,
         xx_max,
+        yy_max,
     )
 
     @guppy
@@ -209,6 +212,7 @@ def test_qsystem_sol_functional(validate):  # type: ignore[no-untyped-def]
         q1, q2 = phased_xx(q1, q2, a1, a1)
         q1, q2 = phased_xx_max(q1, q2, a1)
         q1, q2 = xx_max(q1, q2)
+        q1, q2 = yy_max(q1, q2)
         q1 = rz(q1, a1)
         q1 = reset(q1)
         q1, m1 = measure_and_reset(q1)
