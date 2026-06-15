@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 
 class StateResultChecker(CustomCallChecker):
-    """Call checker for the `state_result` function."""
+    """Call checker for the `state_output` function."""
 
     @dataclass(frozen=True)
     class MissingQubitsError(Error):

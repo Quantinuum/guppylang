@@ -71,18 +71,22 @@ def _result_float_array(tag: str @ comptime, value: array[float, n]) -> None: ..
     _result_bool_array,
     _result_float_array,
 )
-def result(tag: str, value):
-    """Report a result with the given tag and value.
+def output(tag: str, value):
+    """Report an output with the given tag and value.
 
-    This is the primary way to report results from the program back to the user.
+    This is the primary way to report outputs from the program back to the user.
     On Quantinuum systems a single shot execution will return a list of pairs of
     (tag, value).
 
     Args:
-        tag: The tag of the result. Must be a string literal
-        value: The value of the result. Currently supported value types are `int`,
+        tag: The tag of the output. Must be a string literal.
+        value: The value of the output. Currently supported value types are `int`,
         `nat`, `float`, and `bool`.
     """
+
+
+# Deprecated alias for `output`.
+result = output
 
 
 @custom_function(

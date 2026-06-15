@@ -23,22 +23,22 @@ from guppylang_internals.tys.builtin import get_element_type
 from guppylang_internals.tys.const import BoundConstVar, ConstValue
 from guppylang_internals.tys.ty import NumericType
 
-#: Maximum length of a tag in the `result` function.
+#: Maximum length of a tag in the `output` function.
 TAG_MAX_LEN = 200
 
 
 @dataclass(frozen=True)
 class TooLongError(Error):
     title: ClassVar[str] = "Tag too long"
-    span_label: ClassVar[str] = "Result tag is too long"
+    span_label: ClassVar[str] = "Output tag is too long"
 
     @dataclass(frozen=True)
     class Hint(Note):
-        message: ClassVar[str] = f"Result tags are limited to {TAG_MAX_LEN} bytes"
+        message: ClassVar[str] = f"Output tags are limited to {TAG_MAX_LEN} bytes"
 
 
 class ResultCompiler(CustomCallCompiler):
-    """Custom compiler for overloads of the `result` function.
+    """Custom compiler for overloads of the `output` function.
 
     See `ArrayResultCompiler` for the compiler that handles results involving arrays.
     """
@@ -62,7 +62,7 @@ class ResultCompiler(CustomCallCompiler):
 
 
 class ArrayResultCompiler(CustomInoutCallCompiler):
-    """Custom compiler for overloads of the `result` function accepting arrays.
+    """Custom compiler for overloads of the `output` function accepting arrays.
 
     See `ResultCompiler` for the compiler that handles basic results.
     """

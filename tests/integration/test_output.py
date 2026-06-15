@@ -1,12 +1,12 @@
 from guppylang import guppy
-from guppylang.std.builtins import result, nat, array, comptime
+from guppylang.std.builtins import array, comptime, nat, output, result
 from tests.util import compile_guppy
 
 
 def test_basic(validate):
     @compile_guppy
     def main(x: int) -> None:
-        result("foo", x)
+        output("foo", x)
 
     validate(main)
 
@@ -14,10 +14,10 @@ def test_basic(validate):
 def test_multi(validate):
     @compile_guppy
     def main(w: nat, x: int, y: float, z: bool) -> None:
-        result("a", w)
-        result("b", x)
-        result("c", y)
-        result("d", z)
+        output("a", w)
+        output("b", x)
+        output("c", y)
+        output("d", z)
 
     validate(main)
 
@@ -27,10 +27,10 @@ def test_array(validate):
     def main(
         w: array[nat, 42], x: array[int, 5], y: array[float, 1], z: array[bool, 0]
     ) -> None:
-        result("a", w)
-        result("b", x)
-        result("c", y)
-        result("d", z)
+        output("a", w)
+        output("b", x)
+        output("c", y)
+        output("d", z)
 
     validate(main)
 
@@ -40,8 +40,8 @@ def test_array(validate):
 def test_array_consts(run_int_fn):
     @guppy
     def main() -> int:
-        result("x", array(True, False))
-        result("y", array(False, True, False, False, True))
+        output("x", array(True, False))
+        output("y", array(False, True, False, False, True))
         return 3
 
     run_int_fn(main, 3)
@@ -54,10 +54,10 @@ def test_array_generic(validate):
     def foo(
         w: array[nat, n], x: array[int, n], y: array[float, n], z: array[bool, n]
     ) -> None:
-        result("a", w)
-        result("b", x)
-        result("c", y)
-        result("d", z)
+        output("a", w)
+        output("b", x)
+        output("c", y)
+        output("d", z)
 
     @guppy
     def main(
@@ -68,10 +68,10 @@ def test_array_generic(validate):
     validate(main.compile_function())
 
 
-def test_array_drop_after_result(validate):
+def test_array_drop_after_output(validate):
     @compile_guppy
     def main() -> None:
-        result("a", array(1, 2, 3))
+        output("a", array(1, 2, 3))
 
     validate(main)
 
@@ -79,9 +79,9 @@ def test_array_drop_after_result(validate):
 def test_same_tag(validate):
     @compile_guppy
     def main(x: int, y: float, z: bool) -> None:
-        result("foo", x)
-        result("foo", y)
-        result("foo", z)
+        output("foo", x)
+        output("foo", y)
+        output("foo", z)
 
     validate(main)
 
@@ -89,7 +89,7 @@ def test_same_tag(validate):
 def test_comptime_tag_inside(validate):
     @compile_guppy
     def main(x: int) -> None:
-        result(comptime("a" + "b"), x)
+        output(comptime("a" + "b"), x)
 
     validate(main)
 
@@ -103,7 +103,7 @@ def test_comptime_tag_outside1(validate):
     @guppy.comptime
     def main() -> None:
         for key, value in EXAMPLE_RESULTS:
-            result(key, value)
+            output(key, value)
 
     validate(main.compile_function())
 
@@ -113,6 +113,14 @@ def test_comptime_tag_outside2(validate):
 
     @guppy.comptime
     def main() -> None:
-        result(EXAMPLE_RESULT[0], EXAMPLE_RESULT[1])
+        output(EXAMPLE_RESULT[0], EXAMPLE_RESULT[1])
 
     validate(main.compile_function())
+
+
+def test_deprecated_result_alias_still_compiles(validate):
+    @compile_guppy
+    def main(x: int) -> None:
+        result("foo", x)
+
+    validate(main)

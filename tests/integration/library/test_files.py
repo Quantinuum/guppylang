@@ -1,7 +1,7 @@
 from hugr.package import Package
 
 from guppylang import guppy
-from guppylang.std.platform import result
+from guppylang.std.platform import output
 
 
 def lib_hugr() -> Package:
@@ -19,7 +19,7 @@ def test_import_headers():
 
     @guppy
     def main() -> None:
-        result("result", super_adder(5))
+        output("result", super_adder(5))
 
     results = main.emulator(n_qubits=1, libs=[lib_hugr()]).run().results[0].entries
     assert results == [("result", 10)]

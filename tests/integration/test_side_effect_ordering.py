@@ -10,7 +10,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     RESULT_EXTENSION,
     QUANTUM_EXTENSION,
 )
-from guppylang.std.builtins import result, array, owned, panic
+from guppylang.std.builtins import output, array, owned, panic
 from guppylang.std.quantum import qubit, discard, measure
 
 
@@ -60,7 +60,7 @@ def test_input_result_output(validate):
         q = f(q)
         b = measure(q).read()
 
-        result("b", b)
+        output("b", b)
 
     @guppy
     def f(q: qubit @ owned) -> qubit:
@@ -78,11 +78,11 @@ def test_input_result_output(validate):
 def test_result_panic(validate):
     @guppy
     def test() -> None:
-        result("a", True)
-        result("b", 10)
+        output("a", True)
+        output("b", 10)
         panic("Boo!")
         exit("Foo!", 1)
-        result("c", 10.5)
+        output("c", 10.5)
 
     compiled = test.compile_function()
     validate(compiled)

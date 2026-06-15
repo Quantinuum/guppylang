@@ -29,7 +29,7 @@ from guppylang.std.num import (
     round,
 )
 from guppylang.std.option import Option, nothing, some
-from guppylang.std.platform import barrier, exit, panic, result
+from guppylang.std.platform import barrier, exit, output, panic, result
 from guppylang.std.quantum import qubit
 from guppylang.std.reflection import callable
 from guppylang.std.string import str
@@ -154,6 +154,7 @@ __all__ = (  # noqa: RUF022
     "open",
     "Option",
     "ord",
+    "output",
     "owned",
     "panic",
     "pow",

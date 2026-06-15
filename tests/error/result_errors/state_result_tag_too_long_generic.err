@@ -2,9 +2,9 @@ Error: Tag too long (at $FILE:11:17)
    | 
  9 | def foo(tag: str @ comptime) -> None:
 10 |     q1 = qubit()
-11 |     state_result(tag, q1)
-   |                  ^^^ Result tag is too long
+11 |     state_output(tag, q1)
+   |                  ^^^ Output tag is too long
 
-Note: Result tags are limited to 200 bytes
+Note: Output tags are limited to 200 bytes
 
 Guppy compilation failed due to 1 previous error
