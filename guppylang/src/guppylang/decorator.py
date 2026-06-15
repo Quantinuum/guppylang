@@ -813,10 +813,16 @@ def _get_unitary_call_def(
 
 def _get_unitary_method(cls: builtins.type[T], name: str) -> RawFunctionDef | None:
     """Returns an optional `@guppy`-annotated unitary modifier method."""
-    if val := cls.__dict__.get(name):
+    val = cls.__dict__.get(name)
+    if val is not None:
         if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
             return val.wrapped
-        raise TypeError(f"`{name}` on class `{cls.__name__}` must be a guppy function")
+
+        raise TypeError(
+            f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a guppy "
+            f"function"
+        )
+
     return None
 
 
