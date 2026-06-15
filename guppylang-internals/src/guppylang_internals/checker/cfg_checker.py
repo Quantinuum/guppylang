@@ -8,13 +8,12 @@ import ast
 import collections
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
-    CallGraphNode,
     Context,
     Globals,
     Locals,
@@ -28,6 +27,9 @@ from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import InputFlags, Type
+
+if TYPE_CHECKING:
+    from guppylang_internals.checker.effects_checker import CallGraphNode
 
 Row = Sequence[V]
 

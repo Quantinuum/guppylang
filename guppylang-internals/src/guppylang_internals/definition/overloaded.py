@@ -8,7 +8,8 @@ from hugr import Wire
 from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.core import Context, EffectLimitDecl
+from guppylang_internals.checker.core import Context
+from guppylang_internals.checker.effects_checker import EffectLimitDecl
 from guppylang_internals.checker.expr_checker import ExprSynthesizer
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (

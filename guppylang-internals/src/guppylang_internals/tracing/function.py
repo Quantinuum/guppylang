@@ -7,14 +7,13 @@ from hugr import ops
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import (
-    CallGraphNode,
     ComptimeVariable,
     Context,
-    EffectLimitDecl,
     Globals,
     Locals,
     Variable,
 )
+from guppylang_internals.checker.effects_checker import CallGraphNode, EffectLimitDecl
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.compiler.builder import FunctionBuilder

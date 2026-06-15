@@ -16,13 +16,12 @@ from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.builder import CFGBuilder
 from guppylang_internals.checker.cfg_checker import CheckedCFG, check_cfg
 from guppylang_internals.checker.core import (
-    CallGraphNode,
     Context,
-    EffectLimitDecl,
     Globals,
     Place,
     Variable,
 )
+from guppylang_internals.checker.effects_checker import CallGraphNode, EffectLimitDecl
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
@@ -274,7 +273,7 @@ def check_nested_func_def(
         {},
         func_def.name,
         globals,
-        # TODO: Have empty effects limit here instead.
+        # TODO(callgraph): Have empty effects limit here instead.
         current_caller=CallGraphNode(
             def_id=def_id,
             effect_limit=ctx.current_caller.effect_limit

@@ -6,10 +6,10 @@ from guppylang_internals.ast_util import with_loc
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.checker.cfg_checker import check_cfg
 from guppylang_internals.checker.core import (
-    CallGraphNode,
     Context,
     Variable,
 )
+from guppylang_internals.checker.effects_checker import CallGraphNode
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock

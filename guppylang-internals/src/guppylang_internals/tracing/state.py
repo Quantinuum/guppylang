@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.core import CallGraphNode
+from guppylang_internals.checker.effects_checker import CallGraphNode
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.traced import CompiledTracedFunctionDef
 from guppylang_internals.error import InternalGuppyError

@@ -18,7 +18,7 @@ from semver import Version
 from typing_extensions import assert_never, deprecated
 
 import guppylang_internals
-from guppylang_internals.checker.core import CallGraphNode
+from guppylang_internals.checker.effects_checker import CallGraphNode
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
