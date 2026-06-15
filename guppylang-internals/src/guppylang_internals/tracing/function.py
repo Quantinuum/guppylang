@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from hugr import ops
-from hugr.build.dfg import DfBase
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -17,6 +16,7 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
@@ -37,7 +37,6 @@ from guppylang_internals.tracing.state import (
     set_tracing_state,
 )
 from guppylang_internals.tracing.unpacking import (
-    P,
     guppy_object_from_py,
     unpack_guppy_object,
     update_packed_value,
@@ -71,7 +70,7 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
-    builder: DfBase[P],
+    builder: FunctionBuilder,
     ctx: CompilerContext,
     generic_args: Mapping[str, Argument],
     node: AstNode,
@@ -190,9 +189,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     with capture_guppy_errors():
         # Try to turn args into `GuppyObjects`
         args_objs = [
-            guppy_object_from_py(
-                arg, state.dfg.builder.raw_builder, state.node, state.ctx
-            )
+            guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
             for arg in args
         ]
 
@@ -233,7 +230,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                 ty = var.ty
                 inout_wire = state.dfg[var]
                 success = update_packed_value(
-                    arg, GuppyObject(ty, inout_wire), state.dfg.builder.raw_builder
+                    arg, GuppyObject(ty, inout_wire), state.dfg.builder
                 )
                 if not success:
                     # This means the user has passed an object that we cannot update,
@@ -244,7 +241,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                     )
 
     ret_obj = GuppyObject(ret_ty, ret_wire)
-    return unpack_guppy_object(ret_obj, state.dfg.builder.raw_builder)
+    return unpack_guppy_object(ret_obj, state.dfg.builder)
 
 
 def const_argument_to_python_value(arg: ConstArg) -> Any:

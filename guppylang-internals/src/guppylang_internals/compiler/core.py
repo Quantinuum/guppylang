@@ -1,24 +1,18 @@
 import itertools
 from abc import ABC
-from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Generic, cast
+from typing import TYPE_CHECKING
 
 import tket_exts
-from hugr import Hugr, Node, Wire, ops, val
+from hugr import Hugr, Wire, ops
 from hugr import tys as ht
-from hugr.build import Conditional, TailLoop
 from hugr.build import function as hf
-from hugr.build.dfg import DP, DefinitionBuilder, DfBase
+from hugr.build.dfg import DefinitionBuilder
 from hugr.hugr.base import OpVarCov
-from hugr.hugr.node_port import ToNode
-from hugr.metadata import HugrDebugInfo, NodeMetadata
 from hugr.std import PRELUDE
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
-from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import (
     FieldAccess,
     Place,
@@ -37,11 +31,7 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.metadata.debug_info_util import (
-    StringTable,
-    debug_conditions_fulfilled,
-    make_location_record,
-)
+from guppylang_internals.metadata.debug_info_util import StringTable
 from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.subst import Inst
@@ -50,6 +40,9 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
 )
+
+if TYPE_CHECKING:
+    from guppylang_internals.compiler.builder import DFBuilder
 
 CompiledLocals = dict[PlaceId, Wire]
 
@@ -135,8 +128,7 @@ class CompilerContext(ToHugrContext):
         while self.worklist:
             next_id, next_mono_args = self.worklist.popitem()[0]
             next_def = self.compiled[next_id, next_mono_args]
-            with track_hugr_side_effects():
-                next_def.compile_inner(self)
+            next_def.compile_inner(self)
 
         # Insert explicit drops for affine types
         # TODO: This is a quick workaround until we can properly insert these drops
@@ -197,22 +189,9 @@ class DFContainer:
     current compilation state.
     """
 
-    builder: "DFBuilder[ops.DfParentOp]"
+    builder: "DFBuilder"
     ctx: CompilerContext
     locals: CompiledLocals = field(default_factory=dict)
-
-    def __init__(
-        self,
-        builder: DfBase[DP],
-        ctx: CompilerContext,
-        locals: CompiledLocals | None = None,
-    ) -> None:
-        generic_builder = cast("DfBase[ops.DfParentOp]", builder)
-        if locals is None:
-            locals = {}
-        self.builder = DFBuilder(generic_builder)
-        self.ctx = ctx
-        self.locals = locals
 
     def __getitem__(self, place: Place) -> Wire:
         """Constructs a wire for a local place in this DFG.
@@ -275,104 +254,7 @@ class DFContainer:
     def __copy__(self) -> "DFContainer":
         # Make a copy of the var map so that mutating the copy doesn't
         # mutate our variable mapping
-        return DFContainer(self.builder.raw_builder, self.ctx, self.locals.copy())
-
-
-@dataclass
-class DFBuilder(Generic[DP]):
-    """A wrapper around a dataflow graph builder which ensures compiler-specific
-    additional actions can be performed every time an operation is added to the graph.
-
-    Manages attaching debug information, which requires keeping track of the most
-    relevant AST node for each operation being compiled with `current_ast_node`.
-
-    The underlying builder can still be accessed through `raw_builder`.
-    """
-
-    raw_builder: DfBase[DP]
-    current_ast_node: AstNode | None = None
-
-    @contextmanager
-    def set_ast_context(self, ast_node: AstNode) -> Iterator[None]:
-        """Context manager to set the current AST node context for debug information
-        attachment - within the context of this manager the given `ast_node` will be
-        considered the most relevant AST node for any operation added, temporarily
-        overriding the previous `current_ast_node`.
-        """
-        prev_node = self.current_ast_node
-        self.current_ast_node = ast_node
-        try:
-            yield
-        finally:
-            self.current_ast_node = prev_node
-
-    def add_op(
-        self,
-        op: ops.DataflowOp,
-        /,
-        *args: Wire,
-        set_debug_info: bool = True,
-    ) -> Node:
-        """Adds an op to the dataflow graph builder. Set `set_debug_info=False` to
-        avoid automatic debug information attachment.
-        """
-        op_node = self.raw_builder.add_op(op, *args)
-        if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
-            assert self.current_ast_node is not None  # for type-checker
-            op_node.metadata[HugrDebugInfo] = make_location_record(
-                self.current_ast_node
-            )
-        return op_node
-
-    def call(
-        self,
-        func: ToNode,
-        *args: Wire,
-        instantiation: ht.FunctionType | None = None,
-        type_args: Sequence[ht.TypeArg] | None = None,
-        set_debug_info: bool = True,
-    ) -> Node:
-        """Calls a static function in the graph. Set `set_debug_info=False` to
-        avoid automatic debug information attachment.
-        """
-        call = self.raw_builder.call(
-            func, *args, instantiation=instantiation, type_args=type_args
-        )
-        if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
-            assert self.current_ast_node is not None  # for type-checker
-            call.metadata[HugrDebugInfo] = make_location_record(self.current_ast_node)
-        return call
-
-    # Other frequently used operations for which we want to avoid having to use
-    # `raw_builder` every time for convenience, even though we aren't setting any debug
-    # information in them (yet).
-
-    def get_wire_type(self, wire: Wire) -> ht.Type | None:
-        return self.raw_builder.hugr.port_type(wire.out_port())
-
-    def add_conditional(self, cond_wire: Wire, *args: Wire) -> Conditional:
-        return self.raw_builder.add_conditional(cond_wire, *args)
-
-    def add_tail_loop(
-        self, just_inputs: Sequence[Wire], rest: Sequence[Wire]
-    ) -> TailLoop:
-        return self.raw_builder.add_tail_loop(just_inputs, rest)
-
-    def load(
-        self, const: ToNode | val.Value, const_parent: ToNode | None = None
-    ) -> Node:
-        return self.raw_builder.load(const, const_parent)
-
-    def load_function(
-        self,
-        func: ToNode,
-        instantiation: ht.FunctionType | None = None,
-        type_args: Sequence[ht.TypeArg] | None = None,
-    ) -> Node:
-        return self.raw_builder.load_function(func, instantiation, type_args)
-
-    def add_const(self, value: val.Value, parent: ToNode | None = None) -> Node:
-        return self.raw_builder.add_const(value, parent)
+        return DFContainer(self.builder, self.ctx, self.locals.copy())
 
 
 class CompilerBase(ABC):
@@ -449,75 +331,6 @@ def may_have_side_effect(op: ops.Op) -> bool:
             # TailLoops are only generated for array comprehensions which must have
             # statically-guaranteed (finite) size. TODO revisit this for lists.
             return False
-
-
-@contextmanager
-def track_hugr_side_effects() -> Iterator[None]:
-    """Initialises the tracking of nodes with side-effects during Hugr building.
-
-    Ensures that state-order edges are implicitly inserted between side-effectful nodes
-    to ensure they are executed in the order they are added.
-    """
-    # Remember original `Hugr.add_node` method that is monkey-patched below.
-    hugr_add_node = Hugr.add_node
-    # Last node with potential side effects for each dataflow parent
-    prev_node_with_side_effect: dict[Node, tuple[Node, Hugr[Any]]] = {}
-
-    def hugr_add_node_with_order(
-        self: Hugr[OpVarCov],
-        op: ops.Op,
-        parent: ToNode | None = None,
-        num_outs: int | None = None,
-        metadata: dict[str, Any] | NodeMetadata | None = None,
-    ) -> Node:
-        """Monkey-patched version of `Hugr.add_node` that takes care of implicitly
-        inserting state order edges between operations that could have side-effects.
-        """
-        new_node = hugr_add_node(self, op, parent, num_outs, metadata)
-        if may_have_side_effect(op):
-            handle_side_effect(new_node, self)
-        return new_node
-
-    def handle_side_effect(node: Node, hugr: Hugr[OpVarCov]) -> None:
-        """Performs the actual order-edge insertion, assuming that `node` has a side-
-        effect."""
-        parent = hugr[node].parent
-        assert parent is not None
-
-        if prev := prev_node_with_side_effect.get(parent):
-            prev_node = prev[0]
-        else:
-            # This is the first side-effectful op in this DFG. Recurse on the parent
-            # since the parent is also considered side-effectful now. We shouldn't walk
-            # up through function definitions (only the Module is above)
-            if not isinstance(hugr[parent].op, ops.FuncDefn):
-                handle_side_effect(parent, hugr)
-                # For DataflowBlocks and Cases, recurse to mark their containing CFG
-                # or Conditional as side-effectful as well, but there is nothing to do
-                # locally: we cannot add order edges, but Conditional/CFG semantics
-                # ensure execution if appropriate.
-                if isinstance(hugr[parent].op, ops.Conditional | ops.CFG):
-                    return
-            prev_node = hugr.children(parent)[0]
-            assert isinstance(hugr[prev_node].op, ops.Input)
-
-        # Add edge, but avoid self-loops for containers when recursing up the hierarchy.
-        if prev_node != node:
-            hugr.add_order_link(prev_node, node)
-            prev_node_with_side_effect[parent] = (node, hugr)
-
-    # Monkey-patch the `add_node` method
-    Hugr.add_node = hugr_add_node_with_order  # type: ignore[method-assign]
-    try:
-        yield
-        for parent, (last, hugr) in prev_node_with_side_effect.items():
-            # Connect the last side-effecting node to Output
-            outp = hugr.children(parent)[1]
-            assert isinstance(hugr[outp].op, ops.Output)
-            assert last != outp
-            hugr.add_order_link(last, outp)
-    finally:
-        Hugr.add_node = hugr_add_node  # type: ignore[method-assign]
 
 
 #: List of linear extension types that correspond to affine Guppy types and thus require

@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:26:8)
+   | 
+24 | def test(s: MyStruct1 @owned) -> None:
+25 |     use(s.x)
+26 |     foo(s.x)
+   |         ^^^ Field `s.x` cannot be borrowed ...
+
+Note:
+   | 
+24 | def test(s: MyStruct1 @owned) -> None:
+25 |     use(s.x)
+   |         --- ... since field `s.x` with non-copyable type `MyStruct2` was
+   |             already consumed here
+
+Guppy compilation failed due to 1 previous error

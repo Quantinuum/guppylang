@@ -19,6 +19,7 @@ from guppylang_internals.checker.expr_checker import (
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
+from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -209,7 +210,7 @@ class CompiledTracedFunctionDef(
         trace_function(
             self.python_func,
             self.ty,
-            self.func_def,
+            FunctionBuilder(self.func_def),
             ctx,
             self.generic_args,
             self.defined_at,

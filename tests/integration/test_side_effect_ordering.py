@@ -58,7 +58,7 @@ def test_input_result_output(validate):
     def main() -> None:
         q = qubit()
         q = f(q)
-        b = measure(q)
+        b = measure(q).read()
 
         result("b", b)
 
@@ -148,7 +148,7 @@ def test_nested(validate):
     @guppy
     def test() -> None:
         qs1 = array(qubit() for _ in range(10))
-        array(measure(q) for q in qs1)
+        array(measure(q).read() for q in qs1)
         qs2 = array(qubit() for _ in range(10))
         array(discard(q) for q in qs2)
 

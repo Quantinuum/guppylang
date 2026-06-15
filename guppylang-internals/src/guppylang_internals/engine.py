@@ -51,6 +51,8 @@ from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
     callable_type_def,
+    controllable_type_def,
+    daggerable_type_def,
     float_type_def,
     frozenarray_type_def,
     int_type_def,
@@ -62,6 +64,7 @@ from guppylang_internals.tys.builtin import (
     sized_iter_type_def,
     string_type_def,
     tuple_type_def,
+    unitary_type_def,
 )
 from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.param import Parameter
@@ -82,6 +85,9 @@ from guppylang_internals.tys.ty import (
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     callable_type_def,
+    unitary_type_def,
+    daggerable_type_def,
+    controllable_type_def,
     self_type_def,
     tuple_type_def,
     none_type_def,
@@ -395,12 +401,29 @@ class CompilationEngine:
         if reset:
             self.reset()
 
+        # We allow generic functions as checking entrypoints as long as we don't run
+        # into a check that requires monomorphization. For this, we check a version
+        # where all parameters are instantiated to opaque `BoundVariable`s.
         for def_id in def_ids:
             entry_defn = self.get_parsed(def_id)
-            check_entry_point_non_generic(entry_defn)
-            entry_mono_args: Inst = ()
-            self.to_check_worklist[def_id, entry_mono_args] = entry_defn
+            entry_params = (
+                entry_defn.params if isinstance(entry_defn, CheckableGenericDef) else []
+            )
+            entry_mono_args = tuple(param.to_bound() for param in entry_params)
+            try:
+                self.checked[def_id, entry_mono_args] = self.get_checked(
+                    def_id, entry_mono_args
+                )
+            except RequiresMonomorphizationError as e:
+                # `RequiresMonomorphizationError` is raised whenever we cannot proceed
+                # checking without having the monomorphization available. In that case,
+                # we give up and prompt the user to specify the generic arguments.
+                assert isinstance(entry_defn, CheckableGenericDef)
+                err = EntryCheckMonomorphizeError(entry_defn.defined_at, entry_defn)
+                raise GuppyError(err) from e
 
+        # Checking the entrypoint will have populated the worklist, so now we need to
+        # process it
         while (
             self.types_to_check_worklist
             or self.generic_to_check_worklist
@@ -564,6 +587,32 @@ class EntryMonomorphizeError(Error):
     @property
     def params_str(self) -> str:
         return ", ".join(f"`{p.name}`" for p in self.params)
+
+
+@dataclass(frozen=True)
+class EntryCheckMonomorphizeError(Error):
+    title: ClassVar[str] = "Invalid check point"
+    span_label: ClassVar[str] = (
+        "{thing} can only be checked if the value{plural_s} of its generic "
+        "parameter{plural_s} {params_str} {is_are} known"
+    )
+    defn: CheckableGenericDef
+
+    @property
+    def thing(self) -> str:
+        return f"{self.defn.description.capitalize()} `{self.defn.name}`"
+
+    @property
+    def plural_s(self) -> str:
+        return "s" if len(self.defn.params) > 1 else ""
+
+    @property
+    def is_are(self) -> str:
+        return "are" if len(self.defn.params) > 1 else "is"
+
+    @property
+    def params_str(self) -> str:
+        return ", ".join(f"`{p.name}`" for p in self.defn.params)
 
 
 def check_entry_point_non_generic(defn: ParsedDef) -> None:

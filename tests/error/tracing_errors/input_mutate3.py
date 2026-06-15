@@ -1,7 +1,7 @@
 from guppylang.decorator import guppy
 
 
-@guppy.struct
+@guppy.struct(frozen=True)
 class S:
     x: int
 
