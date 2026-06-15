@@ -23,7 +23,7 @@ from guppylang.std.quantum import (
     collect_measurements,
 )
 from guppylang.std.angles import angle, pi
-from guppylang.std.qsystem import zz_max, zz_phase, phased_x, rz as qsystem_rz
+from guppylang.std.qsystem.helios import zz_max, zz_phase, phased_x, rz as qsystem_rz
 from guppylang.std.qsystem.utils import get_current_shot
 from guppylang.emulator import EmulatorResult, EmulatorError
 from guppylang.emulator.state import StateVector
@@ -266,7 +266,7 @@ def test_qsystem():
 
 
 def test_alloc_free():
-    from guppylang.std.qsystem import measure, measure_and_reset, qfree, reset
+    from guppylang.std.qsystem.helios import measure, measure_and_reset, qfree, reset
 
     @guppy
     def main() -> None:

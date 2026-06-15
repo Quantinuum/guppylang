@@ -9,7 +9,9 @@ from tket_exts import (
     measurement,
     modifier,
     qsystem,
+    qsystem_helios,
     qsystem_random,
+    qsystem_sol,
     qsystem_utils,
     quantum,
     result,
@@ -24,6 +26,8 @@ GUPPY_EXTENSION = guppy()
 MEASUREMENT_EXTENSION = measurement()
 MODIFIER_EXTENSION = modifier()
 QSYSTEM_EXTENSION = qsystem()
+QSYSTEM_HELIOS_EXTENSION = qsystem_helios()
+QSYSTEM_SOL_EXTENSION = qsystem_sol()
 QSYSTEM_RANDOM_EXTENSION = qsystem_random()
 QSYSTEM_UTILS_EXTENSION = qsystem_utils()
 QUANTUM_EXTENSION = quantum()
@@ -39,6 +43,8 @@ TKET_EXTENSIONS = [
     MEASUREMENT_EXTENSION,
     MODIFIER_EXTENSION,
     QSYSTEM_EXTENSION,
+    QSYSTEM_HELIOS_EXTENSION,
+    QSYSTEM_SOL_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
     QSYSTEM_UTILS_EXTENSION,
     QUANTUM_EXTENSION,

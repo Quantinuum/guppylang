@@ -1,0 +1,8 @@
+Error: Missing protocol implementation (at $FILE:7:12)
+  | 
+5 | class Proto[T]:
+6 |     @guppy.require
+7 |     def foo(t: T) -> T: ...
+  |             ^^^^ Type `T` does not implement protocol `Proto[?T]`
+
+Guppy compilation failed due to 1 previous error
