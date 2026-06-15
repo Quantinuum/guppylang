@@ -11,7 +11,7 @@ from guppylang.decorator import guppy
 from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang.std.builtins import array
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import discard, h, qubit
 
 
 def test_id(validate):
@@ -52,6 +52,51 @@ def test_use_twice(validate):
         foo(y)
 
     validate(main.compile_function())
+
+
+def test_generic_functions_in_unitary_class(validate):
+    @guppy.unitary
+    class foo:
+        T = guppy.type_var("T")
+
+        @guppy
+        def identity(x: T) -> T:
+            return x
+
+        @guppy
+        def helper(q: qubit, n: int) -> int:
+            h(q)
+            return identity(n)  # noqa: F821
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            n = identity(1)  # noqa: F821
+            helper(q, n)  # noqa: F821
+
+        @guppy
+        def call_daggered(q: qubit) -> None:
+            n = identity(2)  # noqa: F821
+            helper(q, n)  # noqa: F821
+
+        @guppy
+        def call_controlled(q: qubit, _controls: array[qubit, 1]) -> None:
+            n = identity(3)  # noqa: F821
+            helper(q, n)  # noqa: F821
+            helper(_controls[0], identity(n))  # noqa: F821
+
+        @guppy
+        def call_ctrl_daggered(q: qubit, _controls: array[qubit, 1]) -> None:
+            n = identity(4)  # noqa: F821
+            helper(q, n)  # noqa: F821
+            helper(_controls[0], identity(n))  # noqa: F821
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        foo(q)
+        discard(q)
+
+    validate(main.compile())
 
 
 def test_define_twice(validate):

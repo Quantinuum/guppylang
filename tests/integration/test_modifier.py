@@ -22,13 +22,8 @@ from guppylang.std.quantum import (
     qubit,
     rx,
     discard_array,
+    x,
 )
-from guppylang_internals.metadata.common import (
-    CONTROLLED_KEY,
-    CTRL_DAGGERED_KEY,
-    DAGGERED_KEY,
-)
-from hugr.ops import FuncDefn
 
 
 def test_dagger_simple(validate):
@@ -660,5 +655,49 @@ def test_custom_modifier(validate):
     #         assert data.metadata[DAGGERED_KEY] == "__main__.foo.call_daggered$1"
     #         assert data.metadata[CONTROLLED_KEY] == "__main__.foo.call_controlled$1"
     #         assert (
-    #             data.metadata[CTRL_DAGGERED_KEY] == "__main__.foo.call_ctrl_daggered$1"
+    #             data.metadata[CTRL_DAGGERED_KEY] == "__main__.foo.call_ctrl_daggered$1"  # noqa: E501
     #         )
+
+
+def test_use_other_functions(validate):
+    # NICOLA: TODO make the custom metod generic on control size
+
+    @guppy
+    def ext_helper(q: qubit) -> None:
+        x(q)
+
+    @guppy.unitary
+    class foo:
+        @guppy
+        def helper(q: qubit) -> None:
+            h(q)
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            helper(q)  # noqa: F821
+            ext_helper(q)
+
+        @guppy
+        def call_daggered(q: qubit) -> None:
+            helper(q)  # noqa: F821
+            ext_helper(q)
+
+        @guppy
+        def call_controlled(q: qubit, _controls: array[qubit, 1]) -> None:
+            helper(q)  # noqa: F821
+            helper(_controls[0])  # noqa: F821
+            ext_helper(q)
+
+        @guppy
+        def call_ctrl_daggered(q: qubit, _controls: array[qubit, 1]) -> None:
+            helper(q)  # noqa: F821
+            helper(_controls[0])  # noqa: F821
+            ext_helper(q)
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        foo(q)
+        discard(q)
+
+    validate(main.compile())
