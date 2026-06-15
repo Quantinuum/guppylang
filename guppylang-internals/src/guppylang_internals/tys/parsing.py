@@ -22,20 +22,20 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_unitary_callable_enabled
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
-    CallableTypeDef,
+    FunctionTypeDef,
     SelfTypeDef,
     bool_type,
 )
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.errors import (
-    CallableComptimeError,
     ComptimeArgShadowError,
     FlagNotAllowedError,
     FreeTypeVarError,
+    FunctionTypeComptimeError,
     HigherKindedTypeVarError,
     IllegalComptimeTypeArgError,
-    InvalidCallableTypeError,
     InvalidFlagError,
+    InvalidFunctionTypeError,
     InvalidTypeArgError,
     InvalidTypeError,
     LinearComptimeError,
@@ -203,11 +203,11 @@ def _arg_from_instantiated_defn(
     from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     match defn:
-        # Special cases for the `Callable` type
-        case CallableTypeDef(flags=flags):
+        # Special cases for the `Fn` type
+        case FunctionTypeDef(flags=flags):
             if flags != UnitaryFlags.NoFlags:
                 check_unitary_callable_enabled(flags.callable_name(), node)
-            return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flags=flags))
+            return TypeArg(_parse_function_type(arg_nodes, node, ctx, flags=flags))
         case SelfTypeDef():
             self_ty = _parse_self_type(arg_nodes, node, ctx)
             return TypeArg(self_ty)
@@ -297,14 +297,14 @@ def annotation_nodes(node: ast.expr) -> Iterator[ast.expr]:
             yield from annotation_nodes(child)
 
 
-def _parse_callable_type(
+def _parse_function_type(
     args: list[ast.expr],
     loc: AstNode,
     ctx: TypeParsingCtx,
     flags: UnitaryFlags = UnitaryFlags.NoFlags,
 ) -> FunctionType:
-    """Helper function to parse a `Callable[[<arguments>], <return type>]` type."""
-    err = InvalidCallableTypeError(loc)
+    """Helper function to parse a `Fn[[<arguments>], <return type>]` type."""
+    err = InvalidFunctionTypeError(loc)
     if len(args) != 2:
         raise GuppyError(err)
     [inputs, output] = args
@@ -351,7 +351,7 @@ def check_function_arg(
         flags |= InputFlags.Inout
     if InputFlags.Comptime in flags:
         if name is None:
-            raise GuppyError(CallableComptimeError(loc))
+            raise GuppyError(FunctionTypeComptimeError(loc))
 
         # Make sure we're not shadowing a type variable with the same name that was
         # already used on the left. E.g

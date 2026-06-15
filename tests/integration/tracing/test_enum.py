@@ -1,7 +1,7 @@
-from collections.abc import Callable
 from typing import Generic
 
 from guppylang.decorator import guppy
+from guppylang.std.builtins import Fn
 
 
 def test_create(validate):
@@ -107,7 +107,7 @@ def test_load_constructor(validate):
         VariantA = {"x": int}
 
     @guppy.comptime
-    def test() -> Callable[[int], MyEnum]:
+    def test() -> Fn[[int], MyEnum]:
         return MyEnum.VariantA
 
     validate(test.compile_function())

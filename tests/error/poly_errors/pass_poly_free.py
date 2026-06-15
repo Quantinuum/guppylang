@@ -1,12 +1,11 @@
-from typing import Callable
-
 from guppylang.decorator import guppy
+from guppylang.std.builtins import Fn
 
 T = guppy.type_var("T")
 
 
 @guppy.declare
-def foo(f: Callable[[T], T]) -> None:
+def foo(f: Fn[[T], T]) -> None:
     ...
 
 

@@ -1,17 +1,16 @@
 # ^ Stop ruff complaining about not knowing what "tensor" is
 
-from collections.abc import Callable
-
 from guppylang.decorator import guppy
+from guppylang.std.builtins import Fn
 
 
 def test_check_callable(validate):
     @guppy
-    def bar(f: Callable[[int], bool]) -> Callable[[int], bool]:
+    def bar(f: Fn[[int], bool]) -> Fn[[int], bool]:
         return f
 
     @guppy
-    def foo(f: Callable[[int], bool]) -> tuple[Callable[[int], bool]]:
+    def foo(f: Fn[[int], bool]) -> tuple[Fn[[int], bool]]:
         return (f,)
 
     @guppy
@@ -23,7 +22,7 @@ def test_check_callable(validate):
         return foo(is_42)(x)
 
     @guppy
-    def baz1() -> tuple[Callable[[int], bool]]:
+    def baz1() -> tuple[Fn[[int], bool]]:
         return foo(is_42)
 
     @guppy
@@ -45,11 +44,11 @@ def test_call(validate):
         return True
 
     @guppy
-    def baz_ho() -> tuple[Callable[[], int], Callable[[], bool]]:
+    def baz_ho() -> tuple[Fn[[], int], Fn[[], bool]]:
         return (foo, bar)
 
     @guppy
-    def baz_ho_id() -> tuple[Callable[[], int], Callable[[], bool]]:
+    def baz_ho_id() -> tuple[Fn[[], int], Fn[[], bool]]:
         return baz_ho()
 
     @guppy
@@ -73,7 +72,7 @@ def test_call(validate):
 
 def test_call_inplace(validate):
     @guppy
-    def local(f: Callable[[int], bool], g: Callable[[bool], int]) -> tuple[bool, int]:
+    def local(f: Fn[[int], bool], g: Fn[[bool], int]) -> tuple[bool, int]:
         return (f, g)(42, True)
 
     validate(local.compile_function())
@@ -137,7 +136,7 @@ def test_higher_order(validate):
             return 1
 
     @guppy
-    def baz() -> tuple[Callable[[int], bool], Callable[[float], int]]:
+    def baz() -> tuple[Fn[[int], bool], Fn[[float], int]]:
         return foo, bar
 
     # For the future:

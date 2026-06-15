@@ -1,7 +1,5 @@
-from collections.abc import Callable
-
 from guppylang.decorator import guppy
-from guppylang.std.builtins import owned
+from guppylang.std.builtins import owned, Fn
 from guppylang.std.quantum import qubit
 
 
@@ -10,7 +8,7 @@ def foo(x: qubit) -> qubit: ...
 
 
 @guppy
-def test() -> Callable[[qubit @owned], qubit]:
+def test() -> Fn[[qubit @owned], qubit]:
     return foo
 
 

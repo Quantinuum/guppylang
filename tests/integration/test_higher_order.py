@@ -1,6 +1,5 @@
-from collections.abc import Callable
-
 from guppylang.decorator import guppy
+from guppylang.std.builtins import Fn
 from tests.util import compile_guppy
 
 
@@ -10,7 +9,7 @@ def test_basic(validate):
         return x > 0
 
     @guppy
-    def foo() -> Callable[[int], bool]:
+    def foo() -> Fn[[int], bool]:
         return bar
 
     validate(foo.compile_function())
@@ -22,7 +21,7 @@ def test_call_1(validate):
         return False
 
     @guppy
-    def foo() -> Callable[[], bool]:
+    def foo() -> Fn[[], bool]:
         return bar
 
     @guppy
@@ -34,11 +33,11 @@ def test_call_1(validate):
 
 def test_call_2(validate):
     @guppy
-    def bar(x: int) -> Callable[[int], None]:
+    def bar(x: int) -> Fn[[int], None]:
         return bar(x - 1)
 
     @guppy
-    def foo() -> Callable[[int], Callable[[int], None]]:
+    def foo() -> Fn[[int], Fn[[int], None]]:
         return bar
 
     @guppy
@@ -68,7 +67,7 @@ def test_conditional(validate):
 
 def test_method(validate):
     @guppy
-    def foo(x: int) -> tuple[int, Callable[[int], int]]:
+    def foo(x: int) -> tuple[int, Fn[[int], int]]:
         f = x.__add__
         return f(1), f
 
@@ -77,7 +76,7 @@ def test_method(validate):
 
 def test_nested(validate):
     @compile_guppy
-    def foo(x: int) -> Callable[[int], bool]:
+    def foo(x: int) -> Fn[[int], bool]:
         def bar(y: int) -> bool:
             return x > y
 
@@ -92,7 +91,7 @@ def test_nested_capture_struct(validate):
         x: int
 
     @guppy
-    def foo(s: MyStruct) -> Callable[[int], bool]:
+    def foo(s: MyStruct) -> Fn[[int], bool]:
         def bar(y: int) -> bool:
             return s.x > y
 
@@ -111,7 +110,7 @@ def test_nested_capture_enum(validate):
             return 42
 
     @guppy
-    def foo(e: MyEnum) -> Callable[[int], bool]:
+    def foo(e: MyEnum) -> Fn[[int], bool]:
         def bar(y: int) -> bool:
             return e.tag() > y
 
@@ -122,8 +121,8 @@ def test_nested_capture_enum(validate):
 
 def test_curry(validate):
     @guppy
-    def curry(f: Callable[[int, int], bool]) -> Callable[[int], Callable[[int], bool]]:
-        def g(x: int) -> Callable[[int], bool]:
+    def curry(f: Fn[[int, int], bool]) -> Fn[[int], Fn[[int], bool]]:
+        def g(x: int) -> Fn[[int], bool]:
             def h(y: int) -> bool:
                 return f(x, y)
 
@@ -133,8 +132,8 @@ def test_curry(validate):
 
     @guppy
     def uncurry(
-        f: Callable[[int], Callable[[int], bool]],
-    ) -> Callable[[int, int], bool]:
+        f: Fn[[int], Fn[[int], bool]],
+    ) -> Fn[[int, int], bool]:
         def g(x: int, y: int) -> bool:
             return f(x)(y)
 
@@ -157,13 +156,13 @@ def test_curry(validate):
 
 def test_y_combinator(validate):
     @guppy
-    def fac_(f: Callable[[int], int], n: int) -> int:
+    def fac_(f: Fn[[int], int], n: int) -> int:
         if n == 0:
             return 1
         return n * f(n - 1)
 
     @guppy
-    def Y(f: Callable[[Callable[[int], int], int], int]) -> Callable[[int], int]:
+    def Y(f: Fn[[Fn[[int], int], int], int]) -> Fn[[int], int]:
         def y(x: int) -> int:
             return f(Y(f), x)
 
