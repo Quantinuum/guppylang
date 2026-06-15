@@ -11,8 +11,8 @@ from hugr.std.float import FLOAT_T
 
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, make_opaque
 from guppylang_internals.std._internal.compiler.tket_exts import (
+    FUTURES_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
     QUANTUM_EXTENSION,
     ROTATION_EXTENSION,
@@ -43,48 +43,44 @@ def from_halfturns_unchecked() -> ops.ExtOp:
 
 
 class InoutMeasureCompiler(CustomInoutCallCompiler):
-    """Compiler for the measure functions with an inout qubit
-    such as the `project_z` function - requiring conversion to tket.bool."""
+    """Compiler for the measure functions with an inout qubit."""
 
     opname: str
     ext: he.Extension
+    return_future: bool
 
-    def __init__(self, opname: str | None = None, ext: he.Extension | None = None):
+    def __init__(
+        self,
+        opname: str | None = None,
+        ext: he.Extension | None = None,
+        *,
+        return_future: bool = False,
+    ):
+        """
+        Args:
+            opname: Name of operation to compile. Defaults to ``"Measure"``.
+            ext: Extension that provides ``opname``. Defaults to ``QUANTUM_EXTENSION``.
+            return_future: Whether `opname` returns a future instead of a bool as the
+                measurement result.
+        """
         self.opname = opname or "Measure"
         self.ext = ext or QUANTUM_EXTENSION
+        self.return_future = return_future
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         from guppylang_internals.std._internal.util import quantum_op
 
-        [q] = args
-        [q, bit] = self.builder.add_op(
-            quantum_op(self.opname, ext=self.ext)(
-                ht.FunctionType([ht.Qubit], [ht.Qubit, ht.Bool]), (), self.ctx
-            ),
-            q,
+        return_ty = (
+            ht.Bool
+            if not self.return_future
+            else FUTURES_EXTENSION.get_type("Future").instantiate(
+                [ht.TypeTypeArg(ht.Bool)]
+            )
         )
-        bit = self.builder.add_op(make_opaque(), bit)
-        return CallReturnWires(regular_returns=[bit], inout_returns=[q])
-
-
-class InoutMeasureResetCompiler(CustomInoutCallCompiler):
-    """Compiler for the measure functions with an inout qubit
-    such as the `project_z` function."""
-
-    opname: str
-    ext: he.Extension
-
-    def __init__(self, opname: str | None = None, ext: he.Extension | None = None):
-        self.opname = opname or "Measure"
-        self.ext = ext or QUANTUM_EXTENSION
-
-    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
-        from guppylang_internals.std._internal.util import quantum_op
-
         [q] = args
         [q, bit] = self.builder.add_op(
             quantum_op(self.opname, ext=self.ext)(
-                ht.FunctionType([ht.Qubit], [ht.Qubit, OpaqueBool]), (), self.ctx
+                ht.FunctionType([ht.Qubit], [ht.Qubit, return_ty]), (), self.ctx
             ),
             q,
         )

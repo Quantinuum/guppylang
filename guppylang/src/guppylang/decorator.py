@@ -834,6 +834,8 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     """Parses the kwargs dict specified in the `@guppy` decorator into `UnitaryFlags`
     and other metadata that will be passed onto the compiled function as is.
     """
+    metadata = FunctionMetadata()
+
     flags = UnitaryFlags.NoFlags
     if kwargs.pop("unitary", False):
         flags |= UnitaryFlags.Unitary
@@ -842,7 +844,8 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     if kwargs.pop("daggerable", False):
         flags |= UnitaryFlags.Dagger
 
-    metadata = FunctionMetadata()
+    metadata.set_unitary_flags(flags.value)
+
     if "max_qubits" in kwargs:
         metadata.set_max_qubits(kwargs.pop("max_qubits"))
 
