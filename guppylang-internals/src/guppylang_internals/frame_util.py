@@ -8,7 +8,7 @@ def get_calling_frame(*, skip_main_lang: bool = True) -> FrameType:
 
     :param skip_main_lang: Whether to skip frames that belong to modules in the main
         guppylang language package. Set to False if you want to resolve calling frames
-        in e.g. the sta lib.
+        in e.g. the std lib.
     """
     frame = inspect.currentframe()
     while frame:
