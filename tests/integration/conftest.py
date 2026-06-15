@@ -106,7 +106,7 @@ def _emulate_fn(ty: Literal["int", "nat", "float"], default_platform: Platform):
         args: list[Any] | None = None,
         platform: Platform | None = None,
     ):
-        resolved_platform = platform if platform is not None else default_platform
+        resolved_platform = platform or default_platform
         args = args or []
 
         @guppy.comptime

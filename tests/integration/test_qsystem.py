@@ -34,7 +34,7 @@ class QsysModFn(NamedTuple):
     ]
 )
 def qsys_mod(request: pytest.FixtureRequest) -> QsysMod:
-    """Fixture providing the helios or sol qsystem module with its platform name."""
+    """Fixture providing the helios or sol qsystem module, with its platform name."""
     return request.param
 
 
