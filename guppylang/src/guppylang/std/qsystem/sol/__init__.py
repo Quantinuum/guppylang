@@ -41,6 +41,7 @@ __all__ = [
     "reset",
     "rz",
     "xx_max",
+    "yy_max",
 ]
 
 
@@ -127,6 +128,19 @@ def xx_max(q1: qubit, q2: qubit) -> None:
     ``phased_xx_max`` with zero phase. This is the XX analogue of ``zz_max``.
     """
     phased_xx_max(q1, q2, angle(0.0))
+
+
+@guppy
+@no_type_check
+def yy_max(q1: qubit, q2: qubit) -> None:
+    r"""yy_max gate command. Maximally entangling YY gate.
+
+    Equivalent to :math:`e^{-i\frac{\pi}{4} Y \otimes Y}`, i.e.
+    ``phased_xx_max`` with phase :math:`\frac{\pi}{2}`.
+    """
+    # phased_xx_max(phase) is PhasedXX(pi / 2, phase). At phase pi / 2, the
+    # rotation axis is cos(pi / 2) X + sin(pi / 2) Y = Y.
+    phased_xx_max(q1, q2, pi / 2)
 
 
 @guppy
