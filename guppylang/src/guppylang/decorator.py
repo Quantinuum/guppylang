@@ -1,11 +1,14 @@
 import ast
 import builtins
-import dis
 import inspect
 import linecache
+import sys
 from collections.abc import Callable, Sequence
 from types import FrameType
-from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
+
+if TYPE_CHECKING and sys.version_info >= (3, 12):
+    from typing import TypeAliasType
 
 from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.definition.alias import RawTypeAliasDef
@@ -368,8 +371,16 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
+    @overload
+    def type_alias(self, name: str, ty: str, params: list[Any] | None = ...) -> Any: ...
+
+    if sys.version_info >= (3, 12):
+
+        @overload
+        def type_alias(self, name: "TypeAliasType") -> Any: ...
+
     def type_alias(
-        self, ty: str, name: str | None = None, params: list[Any] | None = None
+        self, name: str | Any, ty: str | None = None, params: list[Any] | None = None
     ) -> Any:
         """Creates a new type alias.
 
@@ -377,14 +388,11 @@ class _Guppy:
 
             from guppylang import guppy, array
 
-            Row = guppy.type_alias("array[int, 4]")
+            Row = guppy.type_alias("Row", "array[int, 4]")
 
             @guppy
             def sum_row(row: Row) -> int:
                 return row[0] + row[1] + row[2] + row[3]
-
-        The alias name is inferred from the assignment target when possible. Pass
-        ``name=`` explicitly if inference is not possible (e.g. in non-module scope).
 
         Generic aliases are supported by passing a list of type variables as ``params``.
         The order determines how the alias is instantiated (e.g. ``Alias[int, bool]``
@@ -394,13 +402,40 @@ class _Guppy:
 
             T = guppy.type_var("T")
             U = guppy.type_var("U")
-            Pair = guppy.type_alias("tuple[T, U]", params=[T, U])
+            Pair = guppy.type_alias("Pair", "tuple[T, U]", params=[T, U])
 
         When ``params`` is omitted, free type variables are collected from the body
         in order of first appearance.
+
+        On Python 3.12+, the PEP 695 ``type`` statement syntax is also supported.
+        The type alias value must be a quoted string and type parameters are inferred
+        from the ``[...]`` parameter list on the statement:
+
+        .. code-block:: python
+
+            # Python 3.12+ only
+            type Pair[T, U] = "tuple[T, U]"
+            Pair = guppy.type_alias(Pair)
         """
         frame = get_calling_frame()
 
+        # Python 3.12+ path: accept a TypeAliasType from the `type X[T] = "..."` stmt
+        if sys.version_info >= (3, 12):
+            from typing import TypeAliasType
+
+            if isinstance(name, TypeAliasType):
+                return self._type_alias_from_type_stmt(name, frame)
+
+        if not isinstance(name, str):
+            raise TypeError(
+                f"guppy.type_alias() expects a name string as the first argument, "
+                f"got {name!r}"
+            )
+        if ty is None:
+            raise TypeError(
+                "guppy.type_alias() requires a type string as the second argument: "
+                f"guppy.type_alias({name!r}, 'MyType')"
+            )
         if not isinstance(ty, str):
             raise TypeError(
                 f"guppy.type_alias() expects a string type expression, got {ty!r}"
@@ -409,23 +444,49 @@ class _Guppy:
         type_ast = _parse_expr_string(
             ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
         )
-        resolved_name = name or _infer_assignment_name(frame)
-        if resolved_name is None:
-            raise SyntaxError(
-                "Cannot infer the alias name from the assignment target. "
-                "Please pass the name explicitly: "
-                f"guppy.type_alias({ty!r}, name='MyAlias')"
-            )
-        explicit_params: Sequence[Any] | None = (
+        explicit_params: Sequence[Parameter] | None = (
             _params_from_list(params) if params is not None else None
         )
         defn = RawTypeAliasDef(
             DefId.fresh(),
-            resolved_name,
+            name,
             type_ast,
             type_ast,
             explicit_params,
         )
+        DEF_STORE.register_def(defn, frame)
+        return GuppyDefinition(defn)
+
+    def _type_alias_from_type_stmt(self, ta: Any, frame: FrameType | None) -> Any:
+        """Register a type alias created from a Python 3.12 ``type`` statement.
+
+        The alias value must be a quoted string, e.g.:
+
+        .. code-block:: python
+
+            type Pair[T, U] = "tuple[T, U]"
+            Pair = guppy.type_alias(Pair)
+        """
+        type_str = ta.__value__
+        if not isinstance(type_str, str):
+            raise TypeError(
+                f"The value of a Guppy type alias must be a quoted string, "
+                f"got {type_str!r}.\n"
+                "Hint: write the type as a string, e.g. "
+                f'`type {ta.__name__}[...] = "MyType[T]"`'
+            )
+        type_ast = _parse_expr_string(
+            type_str, f"Not a valid Guppy type: `{type_str}`", DEF_STORE.sources
+        )
+        explicit_params = _params_from_type_alias_params(ta.__type_params__)
+        defn = RawTypeAliasDef(
+            DefId.fresh(),
+            ta.__name__,
+            type_ast,
+            type_ast,
+            explicit_params,
+        )
+        assert frame is not None, "Could not determine calling frame for type alias"
         DEF_STORE.register_def(defn, frame)
         return GuppyDefinition(defn)
 
@@ -869,38 +930,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
 
 
-def _infer_assignment_name(frame: FrameType) -> str | None:
-    """Try to infer the variable name from the assignment target of `type_alias`.
-
-    Inspects the bytecode of the calling frame to find the STORE instruction that
-    immediately follows the call instruction.
-    """
-    lasti = frame.f_lasti
-    found = False
-    for instr in dis.get_instructions(frame.f_code):
-        if not found:
-            if instr.offset >= lasti:
-                found = True
-            else:
-                continue
-        # All CALL variants and bookkeeping instructions between the call and store
-        if instr.opname.startswith("CALL") or instr.opname in (
-            "RESUME",
-            "CACHE",
-            "NOP",
-            "COPY",
-            "PRECALL",
-            "PUSH_NULL",
-        ):
-            continue
-        if instr.opname in ("STORE_NAME", "STORE_FAST", "STORE_GLOBAL", "STORE_DEREF"):
-            name: str = instr.argval
-            return name
-        break
-    return None
-
-
-def _params_from_list(params: list[Any]) -> list[Any]:
+def _params_from_list(params: list[Any]) -> list[Parameter]:
     """Extract :class:`~guppylang_internals.tys.param.Parameter` objects from a list of
     Guppy type-variable definitions (e.g. results of :func:`guppy.type_var`).
 
@@ -925,4 +955,89 @@ def _params_from_list(params: list[Any]) -> list[Any]:
                 "guppy.type_var() or guppy.nat_var()"
             )
         result.append(defn.to_param(i))
+    return result
+
+
+def _params_from_type_alias_params(type_params: tuple[Any, ...]) -> list[Parameter]:
+    """Convert Python 3.12+ ``type`` statement type params to guppy Parameters.
+
+    Handles ``TypeVar`` with optional ``Copy``/``Drop`` bounds. Raises
+    ``TypeError`` for unsupported parameter kinds (``TypeVarTuple``,
+    ``ParamSpec``) and for bounds that require ``globals`` to resolve (e.g.
+    ``nat``-const params — use ``params=[N]`` for those).
+    """
+    import typing
+
+    from guppylang_internals.tys.param import TypeParam
+
+    from guppylang.std.lang import Copy, Drop
+
+    # TypeVarTuple was added in Python 3.11; ParamSpec in 3.10.
+    _TypeVarTuple: type | None = getattr(typing, "TypeVarTuple", None)
+
+    result: list[Parameter] = []
+    for i, tp in enumerate(type_params):
+        if (_TypeVarTuple is not None and isinstance(tp, _TypeVarTuple)) or isinstance(
+            tp, typing.ParamSpec
+        ):
+            raise TypeError(
+                "Variadic and ParamSpec type parameters are not supported "
+                "in Guppy type aliases."
+            )
+        if not isinstance(tp, typing.TypeVar):
+            raise TypeError(
+                f"Unsupported type parameter {tp!r} in Guppy type alias. "
+                "Only TypeVar is supported."
+            )
+        # Python 3.14+ uses __constraints__ for `T: (A, B)` style;
+        # Python 3.12/3.13 may use __bound__ for `T: A`.
+        constraints: tuple[Any, ...] = getattr(tp, "__constraints__", ())
+        bound = tp.__bound__
+        if constraints:
+            # `T: (Copy, Drop)` or similar tuple of constraints
+            must_copy = any(b is Copy for b in constraints)
+            must_drop = any(b is Drop for b in constraints)
+            unknown = [b for b in constraints if b is not Copy and b is not Drop]
+            if unknown:
+                raise TypeError(
+                    f"Type parameter constraints {unknown!r} are not supported "
+                    "in the ``type`` statement syntax for Guppy type aliases. "
+                    "For const parameters (e.g. `nat`), use the explicit "
+                    "``params=[N]`` argument instead."
+                )
+            param: Parameter = TypeParam(
+                i,
+                tp.__name__,
+                must_be_copyable=must_copy,
+                must_be_droppable=must_drop,
+            )
+        elif bound is None:
+            param = TypeParam(
+                i, tp.__name__, must_be_copyable=False, must_be_droppable=False
+            )
+        elif bound is Copy:
+            param = TypeParam(
+                i, tp.__name__, must_be_copyable=True, must_be_droppable=False
+            )
+        elif bound is Drop:
+            param = TypeParam(
+                i, tp.__name__, must_be_copyable=False, must_be_droppable=True
+            )
+        elif isinstance(bound, tuple):
+            must_copy = any(b is Copy for b in bound)
+            must_drop = any(b is Drop for b in bound)
+            param = TypeParam(
+                i,
+                tp.__name__,
+                must_be_copyable=must_copy,
+                must_be_droppable=must_drop,
+            )
+        else:
+            raise TypeError(
+                f"Type parameter bound `{bound!r}` is not supported in the "
+                "``type`` statement syntax for Guppy type aliases. "
+                "For const parameters (e.g. `nat`), use the explicit "
+                "``params=[N]`` argument instead."
+            )
+        result.append(param)
     return result
