@@ -470,7 +470,6 @@ def test_set_platform_config_defaults(validate):  # type: ignore[no-untyped-def]
         assert config == {
             "squash_rxys": True,
             "enable_replay": False,
-            "dd_threshold": None,
         }
 
 
@@ -490,7 +489,6 @@ def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
         package,
         squash_rxys=False,
         enable_replay=True,
-        dd_threshold=5,
     )
 
     validate(package)
@@ -500,24 +498,4 @@ def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
         assert config == {
             "squash_rxys": False,
             "enable_replay": True,
-            "dd_threshold": 5,
         }
-
-
-def test_set_platform_config_rejects_bad_dd_threshold(validate):
-    """set_platform_config should reject a negative dd_threshold value."""
-    from guppylang.std.qsystem.helios.config import set_platform_config
-
-    @guppy
-    def test() -> bool:
-        return True
-
-    package = test.compile_function()
-    validate(package)
-    with pytest.raises(ValueError, match="must be >= 0"):
-        set_platform_config(
-            package,
-            squash_rxys=False,
-            enable_replay=True,
-            dd_threshold=-1,
-        )

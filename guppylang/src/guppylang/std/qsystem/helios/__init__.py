@@ -20,9 +20,14 @@ from guppylang.std.qsystem._common import (
     MaybeLeaked,
     collect_measurements,
 )
+from guppylang.std.qsystem.helios.config import (
+    HELIOS_CONFIG_META_KEY,
+    set_platform_config,
+)
 from guppylang.std.quantum import Measurement, qubit
 
 __all__ = [
+    "HELIOS_CONFIG_META_KEY",
     "MaybeLeaked",
     "collect_measurements",
     "lazy_measure",
@@ -38,6 +43,7 @@ __all__ = [
     "qfree",
     "reset",
     "rz",
+    "set_platform_config",
     "zz_max",
     "zz_phase",
 ]
