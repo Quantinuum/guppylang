@@ -15,7 +15,7 @@ from guppylang_internals.nodes import (
     GlobalCall,
     LocalCall,
     ModifiedBlock,
-    StateResultExpr,
+    StateOutputExpr,
     TensorCall,
 )
 from guppylang_internals.span import ToSpan
@@ -165,8 +165,8 @@ class BBUnitaryChecker(ast.NodeVisitor):
         # Barrier is always allowed
         pass
 
-    def visit_StateResultExpr(self, node: StateResultExpr) -> None:
-        # StateResult is always allowed
+    def visit_StateOutputExpr(self, node: StateOutputExpr) -> None:
+        # StateOutput is always allowed
         pass
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:

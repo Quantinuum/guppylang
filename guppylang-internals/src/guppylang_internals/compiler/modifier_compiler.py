@@ -9,7 +9,7 @@ from guppylang_internals.checker.modifier_checker import non_copyable_front_othe
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
-from guppylang_internals.metadata.common import add_metadata
+from guppylang_internals.metadata.common import add_unitary_metadata
 from guppylang_internals.nodes import CheckedModifiedBlock, PlaceNode
 from guppylang_internals.std._internal.compiler.array import (
     array_new,
@@ -58,10 +58,8 @@ def compile_modified_block(
     func_builder = dfg.builder.define_function(
         str(modified_block), hugr_ty.input, hugr_ty.output
     )
-    add_metadata(
-        func_builder,
-        additional_metadata={"unitary": modified_block.ty.unitary_flags.value},
-    )
+    add_unitary_metadata(func_builder, modified_block.ty.unitary_flags.value)
+
     # compile body
     cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
     func_builder.set_outputs(*cfg)

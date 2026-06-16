@@ -16,7 +16,7 @@ from guppylang_internals.checker.expr_checker import (
 from guppylang_internals.definition.custom import CustomCallChecker
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyTypeError
-from guppylang_internals.nodes import DummyGenericParamValue, PlaceNode, StateResultExpr
+from guppylang_internals.nodes import DummyGenericParamValue, PlaceNode, StateOutputExpr
 from guppylang_internals.tys.builtin import (
     get_array_length,
     get_element_type,
@@ -36,8 +36,8 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.ty import TypeDef
 
 
-class StateResultChecker(CustomCallChecker):
-    """Call checker for the `state_result` function."""
+class StateOutputChecker(CustomCallChecker):
+    """Call checker for the `state_output` function."""
 
     @dataclass(frozen=True)
     class MissingQubitsError(Error):
@@ -101,7 +101,7 @@ class StateResultChecker(CustomCallChecker):
             func_ty, syn_args, self.node, self.ctx, self.func.id
         )
         assert len(inst) == 0, "func_ty is not generic"
-        node = StateResultExpr(
+        node = StateOutputExpr(
             tag_value=tag_value,
             tag_expr=tag,
             args=args,

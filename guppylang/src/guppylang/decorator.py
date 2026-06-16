@@ -17,7 +17,7 @@ from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.compiler.core import (
     CompilerContext,
 )
-from guppylang_internals.decorator import (
+from guppylang_internals.decorator.custom import (
     custom_function,
     custom_type,
     hugr_op,
@@ -215,15 +215,15 @@ class _Guppy:
 
         return _with_optional_kwargs(decorator, args, kwargs)
 
-    @deprecated("Use @guppylang_internal.decorator.extend_type instead.")
+    @deprecated("Use @guppylang_internal.decorator.ty.extend_type instead.")
     def extend_type(self, defn: TypeDef) -> Callable[[type], type]:
         # Set `return_class=True` to match the old behaviour until this deprecated
         # method is removed
-        import guppylang_internals.decorator
+        import guppylang_internals.decorator.ty
 
-        return guppylang_internals.decorator.extend_type(defn, return_class=True)
+        return guppylang_internals.decorator.ty.extend_type(defn, return_class=True)
 
-    @deprecated("Use @guppylang_internal.decorator.custom_type instead.")
+    @deprecated("Use @guppylang_internal.decorator.custom.custom_type instead.")
     def type(
         self,
         hugr_ty: ht.Type | Callable[[Sequence[Argument], CompilerContext], ht.Type],
@@ -424,7 +424,7 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
-    @deprecated("Use @guppylang_internal.decorator.custom_function instead.")
+    @deprecated("Use @guppylang_internal.decorator.custom.custom_function instead.")
     def custom(
         self,
         compiler: CustomInoutCallCompiler | None = None,
@@ -435,7 +435,7 @@ class _Guppy:
     ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
         return custom_function(compiler, checker, higher_order_value, name, signature)
 
-    @deprecated("Use @guppylang_internal.decorator.hugr_op instead.")
+    @deprecated("Use @guppylang_internal.decorator.custom.hugr_op instead.")
     def hugr_op(
         self,
         op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp],
@@ -856,6 +856,8 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     """Parses the kwargs dict specified in the `@guppy` decorator into `UnitaryFlags`
     and other metadata that will be passed onto the compiled function as is.
     """
+    metadata = FunctionMetadata()
+
     flags = UnitaryFlags.NoFlags
     if kwargs.pop("unitary", False):
         flags |= UnitaryFlags.Unitary
@@ -864,7 +866,8 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     if kwargs.pop("daggerable", False):
         flags |= UnitaryFlags.Dagger
 
-    metadata = FunctionMetadata()
+    metadata.set_unitary_flags(flags.value)
+
     if "max_qubits" in kwargs:
         metadata.set_max_qubits(kwargs.pop("max_qubits"))
 

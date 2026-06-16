@@ -365,6 +365,9 @@ def test_int_to_nat(run_int_fn) -> None:
 
 
 # TODO this should be a compile-time error
+# Fails with "pyo3_runtime.PanicException: Cannot convert negative integer -2 to
+# unsigned."
+@pytest.mark.xfail(reason="Rust PanicException cannot be caught from Python")
 def test_int_to_nat_negative(run_int_fn) -> None:
     @guppy
     def main() -> nat:
