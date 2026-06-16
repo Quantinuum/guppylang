@@ -2,11 +2,11 @@ import ast
 import functools
 from collections.abc import Sequence
 
-from hugr import Wire, ops
+from hugr import Wire
 
 from guppylang_internals.ast_util import AstVisitor, get_type
 from guppylang_internals.checker.core import Variable, contains_subscript
-from guppylang_internals.compiler.builder import DFBuilder
+from guppylang_internals.compiler.builder import DFBuilder, UnpackTuple
 from guppylang_internals.compiler.core import (
     CompilerBase,
     CompilerContext,
@@ -103,7 +103,7 @@ class StmtCompiler(CompilerBase, AstVisitor[None]):
         # Unpack the RHS tuple
         left, starred, right = lhs.pattern.left, lhs.pattern.starred, lhs.pattern.right
         types = [ty.to_hugr(self.ctx) for ty in type_to_row(get_type(lhs))]
-        unpack = self.builder.add_op(ops.UnpackTuple(types), port)
+        unpack = self.builder.add_op(UnpackTuple(types), port)
         ports = list(unpack)
 
         # Assign left and right
@@ -206,7 +206,7 @@ class StmtCompiler(CompilerBase, AstVisitor[None]):
             row: list[tuple[Wire, Type]]
             if isinstance(return_ty, TupleType):
                 types = [e.to_hugr(self.ctx) for e in return_ty.element_types]
-                unpack = self.builder.add_op(ops.UnpackTuple(types), port)
+                unpack = self.builder.add_op(UnpackTuple(types), port)
                 row = list(zip(unpack, return_ty.element_types, strict=True))
             else:
                 row = [(port, return_ty)]

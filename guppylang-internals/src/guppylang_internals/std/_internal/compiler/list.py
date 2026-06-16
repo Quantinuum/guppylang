@@ -11,6 +11,7 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.list import List, ListVal
 
+from guppylang_internals.compiler.builder import Tag
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -128,7 +129,7 @@ class ListGetitemCompiler(CustomCallCompiler):
         # implementation of the list type ensures that linear element types are turned
         # into optionals.
         elem_opt_ty = ht.Option(elem_ty)
-        none = self.builder.add_op(ops.Tag(0, elem_opt_ty))
+        none = self.builder.add_op(Tag(0, elem_opt_ty))
         idx = self.builder.add_op(convert_itousize(), idx)
         list_wire, result = self.builder.add_op(
             list_set(elem_opt_ty), list_wire, idx, none

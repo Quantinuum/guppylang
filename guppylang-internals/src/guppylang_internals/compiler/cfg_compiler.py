@@ -1,7 +1,7 @@
 import functools
 from collections.abc import Sequence
 
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
 from hugr.build import cfg as hc
 from hugr.hugr.node_port import ToNode
@@ -13,7 +13,7 @@ from guppylang_internals.checker.cfg_checker import (
     Signature,
 )
 from guppylang_internals.checker.core import Place, Variable
-from guppylang_internals.compiler.builder import BlockBuilder, DFBuilder
+from guppylang_internals.compiler.builder import BlockBuilder, DFBuilder, Tag
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
@@ -108,9 +108,7 @@ def compile_bb(
         branch_port = ExprCompiler(ctx).compile(bb.branch_pred, dfg)
     else:
         # Even if we don't branch, we still have to add a `Sum(())` predicates
-        branch_port = dfg.builder.add_op(
-            ops.Tag(0, ht.UnitSum(1)), set_debug_info=False
-        )
+        branch_port = dfg.builder.add_op(Tag(0, ht.UnitSum(1)), set_debug_info=False)
 
     # Finally, we have to add the block output.
     outputs: Sequence[Place]
@@ -206,7 +204,7 @@ def choose_vars_for_tuple_sum(
         for i, var_row in enumerate(output_vars):
             case = conditional.add_case(i)
             outputs = [case.inputs()[all_vars_idxs[v.id]] for v in var_row]
-            tag = case.add_op(ops.Tag(i, sum_type), *outputs)
+            tag = case.add_op(Tag(i, sum_type), *outputs)
             case.set_outputs(tag)
         return conditional
 

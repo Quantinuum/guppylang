@@ -1,9 +1,10 @@
 from abc import ABC
 
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
 from hugr import val as hv
 
+from guppylang_internals.compiler.builder import Tag
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -37,7 +38,7 @@ class OptionConstructor(OptionCompiler, CustomCallCompiler):
         self.tag = tag
 
     def compile(self, args: list[Wire]) -> list[Wire]:
-        return [self.builder.add_op(ops.Tag(self.tag, self.option_ty), *args)]
+        return [self.builder.add_op(Tag(self.tag, self.option_ty), *args)]
 
 
 class OptionTestCompiler(OptionCompiler):
@@ -52,7 +53,7 @@ class OptionTestCompiler(OptionCompiler):
         for i in [0, 1]:
             case = cond.add_case(i)
             val = hv.TRUE if i == self.tag else hv.FALSE
-            opt = case.add_op(ops.Tag(i, self.option_ty), *case.inputs())
+            opt = case.add_op(Tag(i, self.option_ty), *case.inputs())
             case.set_outputs(case.load(val), opt)
         [res, opt] = cond.outputs()
         return CallReturnWires(regular_returns=[res], inout_returns=[opt])

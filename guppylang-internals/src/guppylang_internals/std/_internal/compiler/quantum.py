@@ -9,6 +9,7 @@ from hugr import ext as he
 from hugr import tys as ht
 from hugr.std.float import FLOAT_T
 
+from guppylang_internals.compiler.builder import UnpackTuple
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.std._internal.compiler.tket_exts import (
@@ -97,7 +98,7 @@ class RotationCompiler(CustomInoutCallCompiler):
         from guppylang_internals.std._internal.util import quantum_op
 
         [*qs, angle] = args
-        [halfturns] = self.builder.add_op(ops.UnpackTuple([FLOAT_T]), angle)
+        [halfturns] = self.builder.add_op(UnpackTuple([FLOAT_T]), angle)
         [rotation] = self.builder.add_op(from_halfturns_unchecked(), halfturns)
 
         qs = self.builder.add_op(

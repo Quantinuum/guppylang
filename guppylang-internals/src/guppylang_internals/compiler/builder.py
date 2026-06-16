@@ -11,6 +11,7 @@ from hugr.build import Block, Case, Cfg, Conditional, TailLoop
 from hugr.build import function as hf
 from hugr.hugr.node_port import ToNode
 from hugr.metadata import HugrDebugInfo
+from hugr.tys import TypeRow
 from typing_extensions import Self, override
 
 from guppylang_internals.ast_util import AstNode
@@ -288,3 +289,15 @@ class BlockBuilder(_DFBuilderRaw[Block]):
         self._handle_side_effects(
             self._raw.output_node, list(self._last_side_effect.keys())
         )
+
+
+def MakeTuple(tys: TypeRow | None = None) -> OpWithEffects:
+    return pure(ops.MakeTuple(tys))
+
+
+def UnpackTuple(tys: TypeRow | None = None) -> OpWithEffects:
+    return pure(ops.UnpackTuple(tys))
+
+
+def Tag(tag: int, rows: ht.Sum) -> OpWithEffects:
+    return pure(ops.Tag(tag, rows))
