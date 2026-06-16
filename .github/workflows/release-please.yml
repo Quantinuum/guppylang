@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - mr/chore/merge-release-workflows
 
 permissions:
   contents: write
@@ -20,4 +21,5 @@ jobs:
         with:
             # Using a personal access token so releases created by this workflow can trigger the deployment workflow
             token: ${{ secrets.HUGRBOT_PAT }}
+            target-branch: 'mr/chore/merge-release-workflows'
             config-file: release-please-config.json
