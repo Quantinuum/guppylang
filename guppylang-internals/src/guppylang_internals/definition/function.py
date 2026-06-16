@@ -208,6 +208,10 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
+        # NICOLAL: TODO set the unitary flags according to the custom implementations
+        # provided by the user.
+        # To infer from the body, use the BBUnitaryChecker, but with different settings:
+        # -> no raising errors but inferring the flags
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
