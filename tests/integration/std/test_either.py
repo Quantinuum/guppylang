@@ -1,7 +1,7 @@
 from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.either import Either, left, right
-from guppylang.std.platform import panic, result
+from guppylang.std.platform import panic, output
 
 from typing import TYPE_CHECKING
 
@@ -59,12 +59,12 @@ def test_rows():
         a: Either[int, tuple[int, int]] = right((1, 2))
         assertion(not a.is_left() and a.is_right())
         a0, a1 = a.unwrap_right()
-        result("a", a0 + a1)
+        output("a", a0 + a1)
 
         b: Either[tuple[int,], int] = left((1,))
         assertion(b.is_left() and not b.is_right())
         (b0,) = b.unwrap_left()
-        result("b", b0)
+        output("b", b0)
 
         c: Either[(), int] = left(())
         assertion(c.is_left() and not c.is_right())

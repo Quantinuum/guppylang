@@ -532,14 +532,14 @@ class BarrierExpr(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class StateResultExpr(ast.expr):
-    """A `state_result(tag, *args)` expression."""
+class StateOutputExpr(ast.expr):
+    """A `state_output(tag, *args)` expression."""
 
     tag_value: Const
     tag_expr: ast.expr
     args: list[ast.expr]
     func_ty: FunctionType
-    #: Array length in case this is an array result, otherwise `None`
+    #: Array length in case this is an array output, otherwise `None`
     array_len: Const | None
     _fields = ("tag_value", "tag_expr", "args", "func_ty", "has_array_input")
 
@@ -564,7 +564,7 @@ class StateResultExpr(ast.expr):
 
 
 AnyCall = (
-    LocalCall | GlobalCall | TensorCall | BarrierExpr | StateResultExpr | ProtocolCall
+    LocalCall | GlobalCall | TensorCall | BarrierExpr | StateOutputExpr | ProtocolCall
 )
 
 
