@@ -14,6 +14,17 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a6](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a5...guppylang-v1.0.0-a6) (2026-06-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename result and state_result to output and state_output ([#1871](https://github.com/Quantinuum/guppylang/issues/1871))
+
+### Code Refactoring
+
+* rename result and state_result to output and state_output ([#1871](https://github.com/Quantinuum/guppylang/issues/1871)) ([a6a6ff6](https://github.com/Quantinuum/guppylang/commit/a6a6ff6ce3220fec258b22cb412cb8314d661302))
+
 ## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a4...guppylang-v1.0.0-a5) (2026-06-15)
 
 

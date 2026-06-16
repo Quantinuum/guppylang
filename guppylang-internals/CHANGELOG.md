@@ -3,6 +3,28 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0.0-a6](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a5...guppylang-internals-v1.0.0-a6) (2026-06-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* Allow implicit self args in protocols ([#1770](https://github.com/Quantinuum/guppylang/issues/1770))
+* rename result and state_result to output and state_output ([#1871](https://github.com/Quantinuum/guppylang/issues/1871))
+
+### Features
+
+* Allow implicit self args in protocols ([#1770](https://github.com/Quantinuum/guppylang/issues/1770)) ([cecc955](https://github.com/Quantinuum/guppylang/commit/cecc955a50c00fc8fc3c770e7ccbfb932d845b5b))
+
+
+### Bug Fixes
+
+* Disable imprecise array indexing check ([#1859](https://github.com/Quantinuum/guppylang/issues/1859)) ([9f2afe0](https://github.com/Quantinuum/guppylang/commit/9f2afe045e886869bfa6789f2e7ed0a064e12e10))
+
+
+### Code Refactoring
+
+* rename result and state_result to output and state_output ([#1871](https://github.com/Quantinuum/guppylang/issues/1871)) ([a6a6ff6](https://github.com/Quantinuum/guppylang/commit/a6a6ff6ce3220fec258b22cb412cb8314d661302))
+
 ## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a4...guppylang-internals-v1.0.0-a5) (2026-06-15)
 
 
