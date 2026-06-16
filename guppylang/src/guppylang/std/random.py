@@ -23,6 +23,14 @@ def _mask32(value: nat) -> nat:
 
 @guppy
 @no_type_check
+def _mask64(value: nat) -> nat:
+    # 2**64 - 1: PCG32 keeps its state in a 64-bit word (see pcg32_random_r).
+    uint64_mask: nat = 18446744073709551615
+    return value & uint64_mask
+
+
+@guppy
+@no_type_check
 def _uint32_to_signed(value: nat) -> int:
     """Convert a 32-bit unsigned value stored in a nat to a signed 32-bit int."""
     # 2**31: high bit of a 32-bit word; values at or above this map to negative ints.
@@ -45,11 +53,30 @@ class PCG32:
 
         rng = seeded_pcg32(1)
         value = rng.next_int()
+        roll = rng.next_int_bounded(6)
         another = rng.next_int()
     """
 
     _state: nat
     _inc: nat
+
+    @guppy
+    @no_type_check
+    def _next_uint32(self: PCG32) -> nat:
+        """Advance the generator and return the next 32-bit output word."""
+        # LCG multiplier N from the PCG paper / pcg32_random_r (64-bit state, 32-bit
+        # output).
+        pcg32_mult: nat = 6364136223846793005
+        old_state = self._state
+        self._state = _mask64(nat(old_state * pcg32_mult + self._inc))
+        # XSH-RR output permutation: xor-shift then random rotate (see pcg32_random_r).
+        xorshifted = _mask32(
+            ((_mask64(old_state) >> nat(18)) ^ _mask64(old_state)) >> nat(27)
+        )
+        # oldstate >> 59 is at most 31 for 64-bit state; mask for safe hugr shifts.
+        rot = _mask32(_mask64(old_state) >> nat(59)) & nat(31)
+        rot_inv = _mask32(nat(32) - rot) & nat(31)
+        return _mask32((xorshifted >> rot) | (xorshifted << rot_inv))
 
     @guppy
     @no_type_check
@@ -59,17 +86,30 @@ class PCG32:
         Returns a signed 32-bit integer, matching the shape of
         :py:meth:`guppylang.std.qsystem.random.RNG.random_int`.
         """
-        # LCG multiplier N from the PCG paper / pcg32_random_r (64-bit state, 32-bit
-        # output).
-        pcg32_mult: nat = 6364136223846793005
-        old_state = self._state
-        self._state = nat(old_state * pcg32_mult + self._inc)
-        # XSH-RR output permutation: xor-shift then random rotate (see pcg32_random_r).
-        xorshifted = _mask32(((old_state >> nat(18)) ^ old_state) >> nat(27))
-        rot = _mask32(old_state >> nat(59))
-        rot_inv = _mask32((~rot + nat(1)) & nat(31))
-        output = _mask32((xorshifted >> rot) | (xorshifted << rot_inv))
-        return _uint32_to_signed(output)
+        return _uint32_to_signed(self._next_uint32())
+
+    @guppy
+    @no_type_check
+    def next_int_bounded(self: PCG32, bound: int) -> int:
+        """Generate a uniformly random integer in ``[0, bound)``.
+
+        Uses rejection sampling (``pcg32_boundedrand_r`` from the PCG reference) to
+        avoid the bias introduced by ``next_int() % bound``.
+
+        Args:
+            bound: Upper bound (exclusive); must be positive and less than ``2**31``.
+
+        Returns:
+            A value in ``[0, bound)``, matching the shape of
+            :py:meth:`guppylang.std.qsystem.random.RNG.random_int_bounded`.
+        """
+        # uint32_t threshold = -bound % bound in pcg32_boundedrand_r.
+        two_to_32: nat = 4294967296
+        threshold = _mask32(two_to_32 - _mask32(nat(bound))) % nat(bound)
+        while True:
+            r = self._next_uint32()
+            if r >= threshold:
+                return int(r % nat(bound))
 
 
 @guppy
@@ -92,6 +132,6 @@ def seeded_pcg32(seed: int) -> PCG32:
     # pcg32_srandom_r: advance twice after mixing initstate into state.
     rng = PCG32(nat(0), inc)
     rng.next_int()
-    rng._state += initstate
+    rng._state = _mask64(rng._state + initstate)
     rng.next_int()
     return rng

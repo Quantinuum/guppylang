@@ -146,3 +146,47 @@ def test_pcg32_no_interference_with_quantum() -> None:
     assert entries["rng0_1"] == -444364974
     if "rng1_0" in entries:
         assert entries["rng1_0"] == -8000311
+
+
+def test_pcg32_bounded_compile(validate) -> None:
+    @guppy
+    def main() -> int:
+        rng = seeded_pcg32(1)
+        return rng.next_int_bounded(6)
+
+    validate(main.compile_function())
+
+
+def test_pcg32_bounded_sequence_seed_1(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        rng = seeded_pcg32(1)
+        coin = rng.next_int_bounded(2)
+        die = rng.next_int_bounded(6)
+        hundred = rng.next_int_bounded(100)
+        return coin + die + hundred
+
+    run_int_fn(main, 1 + 4 + 4)
+
+
+def test_pcg32_bounded_sequence_seed_2(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        rng = seeded_pcg32(2)
+        return rng.next_int_bounded(100)
+
+    run_int_fn(main, 85)
+
+
+def test_pcg32_bounded_deterministic_sequence(run_int_fn) -> None:
+    """Bounded draws for initseq=54 match pcg32_boundedrand_r reference."""
+
+    @guppy
+    def main() -> int:
+        rng = seeded_pcg32(54)
+        total = rng.next_int_bounded(2)
+        total += rng.next_int_bounded(6)
+        total += rng.next_int_bounded(100)
+        return total
+
+    run_int_fn(main, 1 + 3 + 24)
