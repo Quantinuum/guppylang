@@ -5,7 +5,16 @@ import linecache
 import sys
 from collections.abc import Callable, Sequence
 from types import FrameType
-from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    NamedTuple,
+    ParamSpec,
+    TypedDict,
+    TypeVar,
+    cast,
+    overload,
+)
 
 if TYPE_CHECKING and sys.version_info >= (3, 12):
     from typing import TypeAliasType
