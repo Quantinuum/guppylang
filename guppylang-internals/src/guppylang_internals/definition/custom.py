@@ -20,7 +20,7 @@ from guppylang_internals.ast_util import (
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
-from guppylang_internals.compiler.builder import DFBuilder, FunctionBuilder
+from guppylang_internals.compiler.builder import DFBuilder, FunctionBuilder, OpWithEffects
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
@@ -582,6 +582,8 @@ class CopyInoutCompiler(CustomInoutCallCompiler):
                         type_args,
                         ht.FunctionType(self.ty.input, self.ty.output),
                     )
+                    # ALAN assume panics if any borrowed?
+                    clone_op = OpWithEffects(clone_op, effects=[Effect.ANY])
                     return list(self.builder.add_op(clone_op, arg))
             case _:
                 pass
