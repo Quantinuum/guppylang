@@ -368,7 +368,9 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
-    def type_alias(self, ty: str, name: str | None = None) -> Any:
+    def type_alias(
+        self, ty: str, name: str | None = None, params: list[Any] | None = None
+    ) -> Any:
         """Creates a new type alias.
 
         .. code-block:: python
@@ -383,6 +385,19 @@ class _Guppy:
 
         The alias name is inferred from the assignment target when possible. Pass
         ``name=`` explicitly if inference is not possible (e.g. in non-module scope).
+
+        Generic aliases are supported by passing a list of type variables as ``params``.
+        The order determines how the alias is instantiated (e.g. ``Alias[int, bool]``
+        binds the first param to ``int`` and the second to ``bool``):
+
+        .. code-block:: python
+
+            T = guppy.type_var("T")
+            U = guppy.type_var("U")
+            Pair = guppy.type_alias("tuple[T, U]", params=[T, U])
+
+        When ``params`` is omitted, free type variables are collected from the body
+        in order of first appearance.
         """
         frame = get_calling_frame()
 
@@ -401,11 +416,15 @@ class _Guppy:
                 "Please pass the name explicitly: "
                 f"guppy.type_alias({ty!r}, name='MyAlias')"
             )
+        explicit_params: Sequence[Any] | None = (
+            _params_from_list(params) if params is not None else None
+        )
         defn = RawTypeAliasDef(
             DefId.fresh(),
             resolved_name,
             type_ast,
             type_ast,
+            explicit_params,
         )
         DEF_STORE.register_def(defn, frame)
         return GuppyDefinition(defn)
@@ -881,3 +900,29 @@ def _infer_assignment_name(frame: FrameType) -> str | None:
     return None
 
 
+def _params_from_list(params: list[Any]) -> list[Any]:
+    """Extract :class:`~guppylang_internals.tys.param.Parameter` objects from a list of
+    Guppy type-variable definitions (e.g. results of :func:`guppy.type_var`).
+
+    The index of each parameter is set to its position in the list so that
+    ``Alias[int, bool]`` binds the first param to ``int`` and the second to ``bool``.
+    """
+    from guppylang_internals.definition.parameter import ParamDef, RawConstVarDef
+
+    from guppylang.defs import GuppyDefinition
+
+    result = []
+    for i, p in enumerate(params):
+        if not isinstance(p, GuppyDefinition):
+            raise TypeError(
+                "type_alias params must be type variables created with "
+                f"guppy.type_var() or guppy.nat_var(), got {p!r}"
+            )
+        defn = p.wrapped
+        if not isinstance(defn, ParamDef) or isinstance(defn, RawConstVarDef):
+            raise TypeError(
+                "type_alias params must be type variables created with "
+                "guppy.type_var() or guppy.nat_var()"
+            )
+        result.append(defn.to_param(i))
+    return result

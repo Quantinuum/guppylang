@@ -64,6 +64,7 @@ class RawTypeAliasDef(TypeDef, ParsableDef):
     """A raw type alias definition that has not been parsed yet."""
 
     type_ast: ast.expr
+    explicit_params: Sequence[Parameter] | None = None
     params: None = field(default=None, init=False)
     description: str = field(default="type alias", init=False)
 
@@ -72,7 +73,7 @@ class RawTypeAliasDef(TypeDef, ParsableDef):
             self.id,
             self.name,
             self.defined_at,
-            None,
+            self.explicit_params,
             self.type_ast,
         )
 
@@ -91,12 +92,23 @@ class ParsedTypeAliasDef(TypeDef, CheckableDef):
     description: str = field(default="type alias", init=False)
 
     def check(self, globals: Globals) -> "CheckedTypeAliasDef":
-        recursion_ctx = TypeParsingCtx(globals, allow_free_vars=True)
-        check_not_recursive(self, recursion_ctx)
-
-        ctx = TypeParsingCtx(globals, allow_free_vars=True)
-        ty = type_from_ast(self.type_ast, ctx)
-        params = tuple(ctx.param_var_mapping.values())
+        if self.params is not None:
+            # Explicit params: re-index them and pre-load into the context so that
+            # type vars in the body are resolved to these parameters in order.
+            reindexed = [p.with_idx(i) for i, p in enumerate(self.params)]
+            param_var_mapping = {p.name: p for p in reindexed}
+            check_not_recursive(
+                self, TypeParsingCtx(globals, param_var_mapping=dict(param_var_mapping))
+            )
+            ctx = TypeParsingCtx(globals, param_var_mapping=param_var_mapping)
+            ty = type_from_ast(self.type_ast, ctx)
+            params = tuple(reindexed)
+        else:
+            # Implicit: collect free type vars from the body in order of appearance.
+            check_not_recursive(self, TypeParsingCtx(globals, allow_free_vars=True))
+            ctx = TypeParsingCtx(globals, allow_free_vars=True)
+            ty = type_from_ast(self.type_ast, ctx)
+            params = tuple(ctx.param_var_mapping.values())
         return CheckedTypeAliasDef(
             self.id,
             self.name,
