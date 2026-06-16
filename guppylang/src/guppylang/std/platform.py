@@ -81,7 +81,7 @@ def output(tag: str, value):
     Args:
         tag: The tag of the output. Must be a string literal.
         value: The value of the output. Currently supported value types are `int`,
-        `nat`, `float`, and `bool`.
+        `nat`, `float`, `bool`, and arrays of those types.
     """
 
 
