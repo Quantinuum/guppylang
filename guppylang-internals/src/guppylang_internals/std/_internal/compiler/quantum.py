@@ -9,7 +9,7 @@ from hugr import ext as he
 from hugr import tys as ht
 from hugr.std.float import FLOAT_T
 
-from guppylang_internals.compiler.builder import UnpackTuple
+from guppylang_internals.compiler.builder import OpWithEffects, UnpackTuple, pure
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.std._internal.compiler.tket_exts import (
@@ -18,6 +18,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QUANTUM_EXTENSION,
     ROTATION_EXTENSION,
 )
+from guppylang_internals.tys import Effect
 
 # ----------------------------------------------
 # --------- tket.* extensions -----------------
@@ -31,10 +32,15 @@ ROTATION_T_DEF = ROTATION_EXTENSION.get_type("rotation")
 ROTATION_T = ht.ExtType(ROTATION_T_DEF)
 
 
-def from_halfturns_unchecked() -> ops.ExtOp:
-    return ops.ExtOp(
-        ROTATION_EXTENSION.get_op("from_halfturns_unchecked"),
-        ht.FunctionType([FLOAT_T], [ROTATION_T]),
+def from_halfturns_unchecked() -> OpWithEffects:
+    """Return an operation that converts a float to a rotation,
+    panicking if the angle is not finite."""
+    return OpWithEffects(
+        ops.ExtOp(
+            ROTATION_EXTENSION.get_op("from_halfturns_unchecked"),
+            ht.FunctionType([FLOAT_T], [ROTATION_T]),
+        ),
+        [Effect.ANY],
     )
 
 
@@ -80,8 +86,10 @@ class InoutMeasureCompiler(CustomInoutCallCompiler):
         )
         [q] = args
         [q, bit] = self.builder.add_op(
-            quantum_op(self.opname, ext=self.ext)(
-                ht.FunctionType([ht.Qubit], [ht.Qubit, return_ty]), (), self.ctx
+            pure(
+                quantum_op(self.opname, ext=self.ext)(
+                    ht.FunctionType([ht.Qubit], [ht.Qubit, return_ty]), (), self.ctx
+                )
             ),
             q,
         )
@@ -102,12 +110,14 @@ class RotationCompiler(CustomInoutCallCompiler):
         [rotation] = self.builder.add_op(from_halfturns_unchecked(), halfturns)
 
         qs = self.builder.add_op(
-            quantum_op(self.opname)(
-                ht.FunctionType(
-                    [ht.Qubit for _ in qs] + [ROTATION_T], [ht.Qubit for _ in qs]
-                ),
-                (),
-                self.ctx,
+            pure(
+                quantum_op(self.opname)(
+                    ht.FunctionType(
+                        [ht.Qubit for _ in qs] + [ROTATION_T], [ht.Qubit for _ in qs]
+                    ),
+                    (),
+                    self.ctx,
+                )
             ),
             *qs,
             rotation,
