@@ -85,7 +85,7 @@ def output(tag: str, value):
     """
 
 
-# Deprecated alias for `output`.
+# Deprecated alias for `output`, deprecated since guppylang v1.0.
 result = output
 
 

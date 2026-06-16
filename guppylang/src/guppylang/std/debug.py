@@ -20,5 +20,5 @@ def state_output(tag, *args) -> None:
     """
 
 
-# Deprecated alias for `state_output`.
+# Deprecated alias for `state_output`, deprecated since guppylang v1.0.
 state_result = state_output
