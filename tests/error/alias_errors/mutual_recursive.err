@@ -6,12 +6,10 @@ Error: Recursive type alias (at $FILE:5:0)
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type alias cycle detected:
   |                                               `Alias1` -> `Alias2` -> `Alias1`
 
-Notes:
+Note:
   | 
 3 | 
 4 | Alias1 = guppy.type_alias("Alias1", "Alias2")
-  | --------------------------------------------- Alias `Alias1` is part of this cycle
-5 | Alias2 = guppy.type_alias("Alias2", "Alias1")
-  | --------------------------------------------- Alias `Alias2` is part of this cycle
+  | --------------------------------------------- `Alias1` defined here
 
 Guppy compilation failed due to 1 previous error

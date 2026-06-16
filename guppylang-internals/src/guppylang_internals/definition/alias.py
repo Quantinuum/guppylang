@@ -46,7 +46,7 @@ class RecursiveTypeAliasError(Error):
     class AliasNote(Note):
         alias_name: str
         defn_id: DefId
-        span_label: ClassVar[str] = "Alias `{alias_name}` is part of this cycle"
+        span_label: ClassVar[str] = "`{alias_name}` defined here"
 
 
 @dataclass(frozen=True)
@@ -220,7 +220,10 @@ def _add_alias_notes_for_cycle(
         for child in err.children
         if isinstance(child, RecursiveTypeAliasError.AliasNote)
     }
-    for defn in unique_defs:
+    # The last element of unique_defs is the alias whose definition the error span
+    # already underlines — skip it to avoid a redundant note on the same line.
+    defs_to_annotate = unique_defs[:-1]
+    for defn in defs_to_annotate:
         if defn.id not in seen_ids and defn.defined_at is not None:
             # Skip if the AST node lacks file annotation or is from a different file
             note_file = get_file(defn.defined_at)
