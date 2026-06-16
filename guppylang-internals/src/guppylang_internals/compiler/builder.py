@@ -301,3 +301,7 @@ def UnpackTuple(tys: TypeRow | None = None) -> OpWithEffects:
 
 def Tag(tag: int, rows: ht.Sum) -> OpWithEffects:
     return pure(ops.Tag(tag, rows))
+
+
+def Some(ty: ht.Type) -> OpWithEffects:
+    return pure(ops.Some(ty))
