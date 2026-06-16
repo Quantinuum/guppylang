@@ -345,7 +345,7 @@ def compile_call(
     """Compiles a call to the function."""
     num_returns = len(type_to_row(ty.output))
     with dfg.builder.set_ast_context(call_ast):
-        call = dfg.builder.call(func, *args)
+        call = dfg.builder.call(func, *args, effects=ty.effects)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),
