@@ -12,7 +12,12 @@ from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 
-from guppylang_internals.compiler.builder import DFBuilder, FunctionBuilder
+from guppylang_internals.compiler.builder import (
+    DFBuilder,
+    FunctionBuilder,
+    OpWithEffects,
+    pure,
+)
 from guppylang_internals.compiler.core import CompilerContext, GlobalConstId
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -21,6 +26,7 @@ from guppylang_internals.definition.custom import (
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.nodes import AbortKind
+from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -57,7 +63,7 @@ class ErrorVal(hv.ExtensionValue):
 
 def panic(
     inputs: list[ht.Type], outputs: list[ht.Type], kind: AbortKind = AbortKind.Panic
-) -> ops.ExtOp:
+) -> OpWithEffects:
     """Returns an operation that panics."""
     name = "panic" if kind == AbortKind.Panic else "exit"
     op_def = hugr.std.PRELUDE.get_op(name)
@@ -66,7 +72,7 @@ def panic(
         ht.ListArg([ht.TypeTypeArg(ty) for ty in outputs]),
     ]
     sig = ht.FunctionType([error_type(), *inputs], outputs)
-    return ops.ExtOp(op_def, sig, args)
+    return OpWithEffects(ops.ExtOp(op_def, sig, args), [Effect.ANY])
 
 
 def make_error() -> ops.ExtOp:
@@ -272,6 +278,7 @@ def unwrap_result(
     func_call = builder.call(
         func,
         either,
+        effects=[Effect.ANY],  # panics
         instantiation=concrete_ty,
         type_args=type_args,
     )
@@ -314,8 +321,10 @@ class BarrierCompiler(CustomCallCompiler):
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         tys = [t for arg in args if (t := self.builder.get_wire_type(arg))]
 
-        op = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
-            [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
+        op = pure(
+            hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
+                [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
+            )
         )
 
         barrier_n = self.builder.add_op(op, *args)
