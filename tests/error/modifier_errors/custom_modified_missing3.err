@@ -1,0 +1,12 @@
+Error: Unitary constraint violation (at $FILE:20:4)
+   | 
+18 | @guppy(unitary=True)
+19 | def main(q: qubit) -> None:
+20 |     foo(q)
+   |     ^^^^^^ This function cannot be called in a unitary context
+
+Help: The `@guppy.unitary` function `foo` is missing a custom implementation.
+Consider implementing the custom methods `call_ctrl_daggered` and
+`call_daggered`
+
+Guppy compilation failed due to 1 previous error

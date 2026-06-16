@@ -1,0 +1,11 @@
+Error: Control constraint violation (at $FILE:22:4)
+   | 
+20 | @guppy(controllable=True)
+21 | def main(q: qubit) -> None:
+22 |     foo(q)
+   |     ^^^^^^ This function cannot be called in a controllable context
+
+Help: The `@guppy.unitary` function `foo` is missing a custom implementation.
+Consider implementing the custom method `call_controlled`
+
+Guppy compilation failed due to 1 previous error

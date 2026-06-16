@@ -1,0 +1,11 @@
+Error: Dagger constraint violation (at $FILE:24:8)
+   | 
+22 | def main(q: qubit) -> None:
+23 |     with dagger:
+24 |         foo(q)
+   |         ^^^^^^ This function cannot be called in a daggerable context
+
+Help: The `@guppy.unitary` function `foo` is missing a custom implementation.
+Consider implementing the custom method `call_daggered`
+
+Guppy compilation failed due to 1 previous error

@@ -226,7 +226,7 @@ class UnitaryCallError(Error):
         names = self.flags.custom_implementation_names()
         if len(names) == 1:
             return f"method `{names[0]}`"
-        return "methods " + ", ".join(f"`{name}`" for name in names)
+        return "methods " + " and ".join(f"`{name}`" for name in names)
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
