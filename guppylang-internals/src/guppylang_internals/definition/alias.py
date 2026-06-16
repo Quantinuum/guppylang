@@ -10,6 +10,7 @@ from guppylang_internals.checker.core import Globals
 from guppylang_internals.definition.common import (
     CheckableDef,
     CompiledDef,
+    DefId,
     ParsableDef,
 )
 from guppylang_internals.definition.ty import TypeDef
@@ -44,13 +45,14 @@ class RecursiveTypeAliasError(Error):
     @dataclass(frozen=True)
     class AliasNote(Note):
         alias_name: str
+        defn_id: DefId
         span_label: ClassVar[str] = "Alias `{alias_name}` is part of this cycle"
 
     @dataclass(frozen=True)
     class Fix(Help):
         message: ClassVar[str] = (
-            "Type aliases must eventually resolve to a non-alias type. Break the "
-            "cycle by inlining one alias or introducing a struct or enum wrapper."
+            "Type aliases cannot be recursive. "
+            "Replace the cyclic aliases with a concrete type."
         )
 
     def __post_init__(self) -> None:
@@ -147,6 +149,10 @@ def check_not_recursive(defn: ParsedTypeAliasDef, ctx: TypeParsingCtx) -> None:
     temporarily swapping out this alias's `check_instantiate` method while parsing its
     target type. If parsing the alias body reaches this same alias again, the patched
     method fires and turns that recursive re-entry into a user-facing cycle diagnostic.
+
+    All cycle notes are attached at once inside `dummy_check_instantiate` so that only
+    aliases that are actually part of the cycle receive notes (not outer aliases that
+    merely lead to a cycle).
     """
     token = _active_alias_checks.set((*_active_alias_checks.get(), defn))
 
@@ -159,46 +165,66 @@ def check_not_recursive(defn: ParsedTypeAliasDef, ctx: TypeParsingCtx) -> None:
             i for i, active_defn in enumerate(active) if active_defn.id == defn.id
         )
         cycle_defs = (*active[start:], defn)
-        cycle = tuple(
-            _alias_name(active_defn, ctx.globals) for active_defn in cycle_defs
-        )
+        cycle = tuple(d.name for d in cycle_defs)
         err = RecursiveTypeAliasError(loc, cycle)
-        _add_alias_note(err, defn, ctx.globals)
+        _add_alias_notes_for_cycle(err, cycle_defs)
         raise GuppyError(err)
 
     try:
         with _patched_check_instantiate(defn, dummy_check_instantiate):
             type_from_ast(defn.type_ast, ctx)
-    except GuppyError as err:
-        if isinstance(err.error, RecursiveTypeAliasError):
-            _add_alias_note(err.error, defn, ctx.globals)
-        raise
     finally:
         _active_alias_checks.reset(token)
 
 
-def _add_alias_note(
-    err: RecursiveTypeAliasError, defn: ParsedTypeAliasDef, globals: Globals
+def _add_alias_notes_for_cycle(
+    err: RecursiveTypeAliasError,
+    cycle_defs: tuple["ParsedTypeAliasDef", ...],
 ) -> None:
-    alias_name = _alias_name(defn, globals)
-    # The same recursive error is re-raised while unwinding through each alias in the
-    # cycle, so avoid attaching the same note more than once.
-    if any(
-        isinstance(child, RecursiveTypeAliasError.AliasNote)
-        and child.alias_name == alias_name
-        for child in err.children
-    ):
+    """Attach notes for every alias in the cycle in a single pass.
+
+    `cycle_defs` is `(A, B, ..., A)` where the first and last element are identical.
+    We skip self-cycles (only one unique member) since the span label on the error
+    already says the alias "expands to itself".
+
+    Notes are only emitted when the alias definition has a valid, same-file span — i.e.
+    when the AST node was annotated with file information by `_parse_expr_string`.
+    Cross-file or un-annotated spans are silently skipped; the cycle chain in the main
+    error's span label is still fully informative on its own.
+    """
+    import ast as _ast
+
+    from guppylang_internals.ast_util import get_file
+    from guppylang_internals.span import Span
+
+    def _span_file(node: _ast.AST | Span | None) -> str | None:
+        """Return the filename for either a Span or an annotated AST node."""
+        if node is None:
+            return None
+        if isinstance(node, Span):
+            return node.file
+        return get_file(node)
+
+    unique_defs = cycle_defs[:-1]  # drop the repeated last element
+    if len(unique_defs) <= 1:
         return
-    err.add_sub_diagnostic(
-        RecursiveTypeAliasError.AliasNote(defn.defined_at, alias_name)
-    )
 
+    # Determine the file that the main error is anchored to (may be None if unset)
+    err_file: str | None = _span_file(err.span)
 
-def _alias_name(defn: ParsedTypeAliasDef, globals: Globals) -> str:
-    from guppylang.defs import GuppyDefinition
-
-    for namespace in (globals.f_locals, globals.f_globals):
-        for name, value in namespace.items():
-            if isinstance(value, GuppyDefinition) and value.id == defn.id:
-                return name
-    return defn.name
+    # Use DefId for deduplication so that aliases with identical names don't collide.
+    seen_ids: set[DefId] = {
+        child.defn_id
+        for child in err.children
+        if isinstance(child, RecursiveTypeAliasError.AliasNote)
+    }
+    for defn in unique_defs:
+        if defn.id not in seen_ids and defn.defined_at is not None:
+            # Skip if the AST node lacks file annotation or is from a different file
+            note_file = get_file(defn.defined_at)
+            if note_file is None or note_file != err_file:
+                continue
+            seen_ids.add(defn.id)
+            err.add_sub_diagnostic(
+                RecursiveTypeAliasError.AliasNote(defn.defined_at, defn.name, defn.id)
+            )
