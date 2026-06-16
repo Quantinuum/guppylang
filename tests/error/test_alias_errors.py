@@ -23,4 +23,4 @@ def test_alias_errors(file, capsys, snapshot):
 
 def test_type_alias_bad_type_syntax():
     with pytest.raises(SyntaxError, match="Not a valid Guppy type: `foo bar`"):
-        guppy.type_alias("foo bar")
+        guppy.type_alias("MyAlias", "foo bar")

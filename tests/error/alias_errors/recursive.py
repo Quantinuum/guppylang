@@ -1,7 +1,7 @@
 from guppylang import guppy
 
 
-MyAlias = guppy.type_alias("MyAlias")
+MyAlias = guppy.type_alias("MyAlias", "MyAlias")
 
 
 @guppy

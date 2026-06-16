@@ -7,8 +7,8 @@ from guppylang.std.quantum import discard, measure, x
 
 def test_alias_chain(run_int_fn):
     """Type aliases can chain through other aliases for scalar types."""
-    MyInt = guppy.type_alias("int")
-    MyOtherInt = guppy.type_alias("MyInt")
+    MyInt = guppy.type_alias("MyInt", "int")
+    MyOtherInt = guppy.type_alias("MyOtherInt", "MyInt")
 
     @guppy
     def main(x: MyOtherInt) -> MyInt:
@@ -19,8 +19,8 @@ def test_alias_chain(run_int_fn):
 
 def test_array_alias(validate):
     """Type aliases can name nested concrete array types."""
-    Row = guppy.type_alias("array[int, 2]")
-    Matrix = guppy.type_alias("array[Row, 2]")
+    Row = guppy.type_alias("Row", "array[int, 2]")
+    Matrix = guppy.type_alias("Matrix", "array[Row, 2]")
 
     @guppy
     def main(xs: Matrix) -> int:
@@ -31,7 +31,7 @@ def test_array_alias(validate):
 
 def test_qubit_array_alias(run_int_fn):
     """Type aliases preserve owned linear array semantics for qubits."""
-    QubitArray = guppy.type_alias("array[qubit, 2]")
+    QubitArray = guppy.type_alias("QubitArray", "array[qubit, 2]")
 
     @guppy
     def use_qubits(qs: QubitArray @ owned) -> int:
@@ -56,7 +56,7 @@ def test_generic_struct_alias(run_int_fn):
     class Box(Generic[T]):
         value: T
 
-    IntBox = guppy.type_alias("Box[int]")
+    IntBox = guppy.type_alias("IntBox", "Box[int]")
 
     @guppy
     def increment(box: IntBox) -> IntBox:
@@ -78,7 +78,7 @@ def test_explicit_generic_alias_single_param(run_int_fn):
     class Wrapper(Generic[T]):
         item: T
 
-    MyWrapper = guppy.type_alias("Wrapper[T]", params=[T])
+    MyWrapper = guppy.type_alias("MyWrapper", "Wrapper[T]", params=[T])
 
     @guppy
     def make_int_wrapper(v: int) -> MyWrapper[int]:
@@ -103,7 +103,7 @@ def test_explicit_generic_alias_two_params(run_int_fn):
         second: B
 
     # Explicitly reverse the param order: Swap[X, Y] = Pair[Y, X]
-    Swap = guppy.type_alias("Pair[B, A]", params=[A, B])
+    Swap = guppy.type_alias("Swap", "Pair[B, A]", params=[A, B])
 
     @guppy
     def main() -> int:
@@ -123,7 +123,7 @@ def test_implicit_generic_alias(run_int_fn):
         value: T
 
     # No params= → T is a free var, collected automatically
-    BoxAlias = guppy.type_alias("Box[T]")
+    BoxAlias = guppy.type_alias("BoxAlias", "Box[T]")
 
     @guppy
     def get_value(b: BoxAlias[int]) -> int:
@@ -138,7 +138,7 @@ def test_implicit_generic_alias(run_int_fn):
 
 def test_explicit_name_kwarg(run_int_fn):
     """The name= kwarg overrides inferred name and makes the alias usable."""
-    MyFloat = guppy.type_alias("float", name="MyFloat")
+    MyFloat = guppy.type_alias("MyFloat", "float")
 
     @guppy
     def main(x: MyFloat) -> MyFloat:
@@ -154,7 +154,7 @@ def test_explicit_name_kwarg(run_int_fn):
 
 def test_alias_in_struct_field(run_int_fn):
     """A struct field can be typed with a concrete alias."""
-    IntAlias = guppy.type_alias("int")
+    IntAlias = guppy.type_alias("IntAlias", "int")
 
     @guppy.struct
     class Point:
@@ -177,7 +177,7 @@ def test_alias_of_struct(run_int_fn):
         x: int
         y: int
 
-    VecAlias = guppy.type_alias("Vec2")
+    VecAlias = guppy.type_alias("VecAlias", "Vec2")
 
     @guppy
     def dot(a: VecAlias, b: VecAlias) -> int:
@@ -198,7 +198,7 @@ def test_generic_alias_in_struct_field(run_int_fn):
     class Box(Generic[T]):
         value: T
 
-    Boxed = guppy.type_alias("Box[T]", params=[T])
+    Boxed = guppy.type_alias("Boxed", "Box[T]", params=[T])
 
     @guppy.struct
     class Outer:
@@ -225,7 +225,7 @@ def test_alias_of_enum(validate):
         def tag(self: "Color") -> int:
             return 0
 
-    ColorAlias = guppy.type_alias("Color")
+    ColorAlias = guppy.type_alias("ColorAlias", "Color")
 
     @guppy
     def use_color(c: ColorAlias) -> int:
@@ -240,7 +240,7 @@ def test_alias_of_enum(validate):
 
 def test_alias_in_enum_variant_field(validate):
     """An enum variant field can be typed with an alias."""
-    IntAlias = guppy.type_alias("int")
+    IntAlias = guppy.type_alias("IntAlias", "int")
 
     @guppy.enum
     class Msg:

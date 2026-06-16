@@ -1,8 +1,8 @@
 from guppylang import guppy
 
 
-Alias1 = guppy.type_alias("Alias2")
-Alias2 = guppy.type_alias("Alias1")
+Alias1 = guppy.type_alias("Alias1", "Alias2")
+Alias2 = guppy.type_alias("Alias2", "Alias1")
 
 
 @guppy

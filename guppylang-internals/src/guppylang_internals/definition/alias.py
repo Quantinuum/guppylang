@@ -14,7 +14,7 @@ from guppylang_internals.definition.common import (
     ParsableDef,
 )
 from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
@@ -47,16 +47,6 @@ class RecursiveTypeAliasError(Error):
         alias_name: str
         defn_id: DefId
         span_label: ClassVar[str] = "Alias `{alias_name}` is part of this cycle"
-
-    @dataclass(frozen=True)
-    class Fix(Help):
-        message: ClassVar[str] = (
-            "Type aliases cannot be recursive. "
-            "Replace the cyclic aliases with a concrete type."
-        )
-
-    def __post_init__(self) -> None:
-        self.add_sub_diagnostic(RecursiveTypeAliasError.Fix(None))
 
 
 @dataclass(frozen=True)

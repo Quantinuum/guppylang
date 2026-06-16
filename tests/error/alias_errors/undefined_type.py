@@ -2,7 +2,7 @@ from guppylang import guppy
 
 
 # Reference to a type that doesn't exist
-BadAlias = guppy.type_alias("NonExistentType")
+BadAlias = guppy.type_alias("BadAlias", "NonExistentType")
 
 
 @guppy
