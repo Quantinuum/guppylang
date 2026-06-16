@@ -1,6 +1,5 @@
 from guppylang import guppy
-from guppylang_internals.decorator import wasm, wasm_module
-from guppylang.module import GuppyModule
+from guppylang_internals.decorator.wasm import wasm, wasm_module
 
 from tests.util import get_wasm_file
 

@@ -2,7 +2,7 @@ Error: Type mismatch (at $FILE:8:17)
   | 
 6 | def main() -> None:
 7 |     q1 = qubit()
-8 |     state_result(q1)
+8 |     state_output(q1)
   |                  ^^ Expected expression of type `str`, got `qubit`
 
 Guppy compilation failed due to 1 previous error

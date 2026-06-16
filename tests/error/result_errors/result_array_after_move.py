@@ -1,6 +1,6 @@
 from typing import no_type_check
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, result
+from guppylang.std.builtins import array, output
 
 
 @guppy
@@ -8,7 +8,7 @@ from guppylang.std.builtins import array, result
 def main() -> None:
    xs = array(1, 2, 3)
    ys = xs
-   result("foo", xs)
+   output("foo", xs)
 
 
 main.compile()

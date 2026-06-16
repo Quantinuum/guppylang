@@ -1,9 +1,9 @@
-from guppylang.std.debug import state_result
+from guppylang.std.debug import state_output
 from guppylang.std.quantum import discard, qubit
 from tests.util import compile_guppy
 
 @compile_guppy
 def main() -> None:
     q1 = qubit()
-    state_result("tag", q1, 123)
+    state_output("tag", q1, 123)
     discard(q1)

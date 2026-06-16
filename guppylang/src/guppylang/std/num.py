@@ -482,6 +482,6 @@ def pow(x, y): ...
 def round(x): ...
 
 
-# Delayed import to avoid cyclic import since `platform.result` overloads depend on
+# Delayed import to avoid cyclic import since `platform.output` overloads depend on
 # types in `num`.
 from guppylang.std.platform import panic  # noqa: E402

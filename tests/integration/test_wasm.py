@@ -1,7 +1,7 @@
 from guppylang import guppy
-from guppylang_internals.decorator import wasm, wasm_module
+from guppylang_internals.decorator.wasm import wasm, wasm_module
 from guppylang.std.qsystem.wasm import spawn_wasm_contexts
-from guppylang_internals.wasm_util import WasmPlatform
+from guppylang_internals.std._internal.wasm import WasmPlatform
 
 
 def test_wasm_functions(validate, wasm_file):

@@ -23,13 +23,10 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyComptimeError, GuppyError, GuppyTypeError
+from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.ipython_inspect import normalize_ipython_dummy_files
 from guppylang_internals.tracing.state import get_tracing_state, tracing_active
-from guppylang_internals.tracing.util import (
-    capture_guppy_errors,
-    get_calling_frame,
-    hide_trace,
-)
+from guppylang_internals.tracing.util import capture_guppy_errors, hide_trace
 from guppylang_internals.tys.ty import EnumType, FunctionType, StructType, Type
 
 # Mapping from unary dunder method to display name of the operation

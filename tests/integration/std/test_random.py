@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang.std.builtins import owned, result
+from guppylang.std.builtins import owned, output
 from guppylang.std.quantum import h, measure, qubit, x
 from guppylang.std.random import seeded_pcg32
 
@@ -81,8 +81,8 @@ def test_pcg32_motivating_example() -> None:
         _ = uses_inner_rng()
 
         second = outer.next_int()
-        result("first", first)
-        result("second", second)
+        output("first", first)
+        output("second", second)
 
     results = dict(
         main.emulator(0).coinflip_sim().with_seed(42).run().results[0].entries
@@ -120,7 +120,7 @@ def test_pcg32_no_interference_with_quantum() -> None:
         if measure(q):
             rng_inner = seeded_pcg32(2)
             value = rng_inner.next_int()
-            result("rng1_0", value)
+            output("rng1_0", value)
             x(p)
         return p
 
@@ -128,17 +128,17 @@ def test_pcg32_no_interference_with_quantum() -> None:
     def main() -> None:
         rng_outer = seeded_pcg32(1)
         value = rng_outer.next_int()
-        result("rng0_0", value)
+        output("rng0_0", value)
 
         q = qubit()
         h(q)
         p = some_outside_function(q)
         if measure(p):
             value = rng_outer.next_int()
-            result("rng0_1", value)
+            output("rng0_1", value)
         else:
             value = rng_outer.next_int()
-            result("rng0_1", value)
+            output("rng0_1", value)
 
     results = main.emulator(2).coinflip_sim().with_seed(42).run().results[0].entries
     entries = dict(results)

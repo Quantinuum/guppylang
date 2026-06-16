@@ -1,0 +1,8 @@
+Error: Missing protocol implementation (at $FILE:6:12)
+  | 
+4 | class AdderProto[T]:
+5 |     @guppy.require
+6 |     def add(x: T, y: T) -> T: ...
+  |             ^^^^ Type `T` does not implement protocol `AdderProto[?T]`
+
+Guppy compilation failed due to 1 previous error
