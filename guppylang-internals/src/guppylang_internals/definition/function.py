@@ -58,7 +58,14 @@ from guppylang_internals.metadata.common import (
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.arg import ConstArg, TypeArg
-from guppylang_internals.tys.const import ConstValue
+from guppylang_internals.tys.builtin import (
+    get_array_length,
+    get_element_type,
+    is_array_type,
+)
+from guppylang_internals.tys.const import BoundConstVar, ConstValue
+from guppylang_internals.tys.param import ConstParam
+from guppylang_internals.tys.qubit import is_qubit_ty
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     FunctionType,
@@ -585,4 +592,27 @@ def _check_controlled_def_signature(
                 f"signature compatible with {parent_ty}",
             )
         )
-    # Nicola: TODO add a specif check for the last input being an array of qubits
+
+    if not modified_ty.inputs or not modified_ty.params:
+        raise GuppyError(
+            ExpectedError(
+                defined_at,
+                "signature with final input of type `array[qubit, n]`",
+            )
+        )
+
+    last_input_ty = modified_ty.inputs[-1].ty
+    last_param = modified_ty.params[-1]
+    if (
+        not is_array_type(last_input_ty)
+        or not is_qubit_ty(get_element_type(last_input_ty))
+        or not isinstance(last_param, ConstParam)
+        or get_array_length(last_input_ty)
+        != BoundConstVar(last_param.ty, last_param.name, last_param.idx)
+    ):
+        raise GuppyError(
+            ExpectedError(
+                defined_at,
+                "signature with final input of type `array[qubit, n]`",
+            )
+        )

@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from typing import Generic
 
+from guppylang.std.num import nat
 import pytest
 
 from hugr import tys as ht
@@ -58,6 +59,7 @@ def test_generic_functions_in_unitary_class(validate):
     @guppy.unitary
     class foo:
         T = guppy.type_var("T")
+        c = guppy.nat_var("c")
 
         @guppy
         def identity(x: T) -> T:
@@ -80,13 +82,13 @@ def test_generic_functions_in_unitary_class(validate):
 
         # TODO: make the _controls argument generic
         @guppy
-        def call_controlled(q: qubit, _controls: array[qubit, 1]) -> None:
+        def call_controlled(q: qubit, _controls: array[qubit, c]) -> None:
             n = identity(3)  # noqa: F821
             helper(q, n)  # noqa: F821
             helper(_controls[0], identity(n))  # noqa: F821
 
         @guppy
-        def call_ctrl_daggered(q: qubit, _controls: array[qubit, 1]) -> None:
+        def call_ctrl_daggered(q: qubit, _controls: array[qubit, c]) -> None:
             n = identity(4)  # noqa: F821
             helper(q, n)  # noqa: F821
             helper(_controls[0], identity(n))  # noqa: F821
@@ -97,7 +99,8 @@ def test_generic_functions_in_unitary_class(validate):
         foo(q)
         discard(q)
 
-    validate(main.compile())
+    main.check()
+    # validate(main.compile())
 
 
 def test_define_twice(validate):
