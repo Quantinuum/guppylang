@@ -319,30 +319,6 @@ EXTENSION_OPS_WITH_SIDE_EFFECTS: list[str] = [
 ]
 
 
-def may_have_side_effect(op: ops.Op) -> bool:
-    """Checks whether an operation could have a side-effect.
-
-    We need to insert implicit state order edges between these kinds of nodes to ensure
-    they are executed in the correct order, even if there is no data dependency.
-    """
-    match op:
-        case ops.ExtOp() as ext_op:
-            return ext_op.op_def().qualified_name() in EXTENSION_OPS_WITH_SIDE_EFFECTS
-        case ops.Custom(op_name=op_name, extension=extension):
-            qualified_name = f"{extension}.{op_name}" if extension else op_name
-            return qualified_name in EXTENSION_OPS_WITH_SIDE_EFFECTS
-        case ops.Call() | ops.CallIndirect():
-            # Conservative choice is to assume that all calls could have side effects.
-            # In the future we could inspect the call graph to figure out a more
-            # precise answer
-            return True
-        case _:
-            # There is no need to handle TailLoop (in case of non-termination) since
-            # TailLoops are only generated for array comprehensions which must have
-            # statically-guaranteed (finite) size. TODO revisit this for lists.
-            return False
-
-
 #: List of linear extension types that correspond to affine Guppy types and thus require
 #: insertion of an explicit drop operation.
 AFFINE_EXTENSION_TYS: list[str] = [
