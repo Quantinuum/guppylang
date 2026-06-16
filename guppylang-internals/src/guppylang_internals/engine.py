@@ -458,6 +458,11 @@ class CompilationEngine:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
                 self.checked[id, mono_args] = self.get_checked(id, mono_args)
 
+        from guppylang_internals.checker.effects_checker import compute_effects
+
+        # Run effects checking based on call graph analysis.
+        compute_effects()
+
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
         """Top-level function to begin compilation of a definition into a Hugr module.

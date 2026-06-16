@@ -83,6 +83,7 @@ from guppylang_internals.checker.errors.type_errors import (
     NonLinearInstantiateError,
     NotCallableError,
     ParameterInferenceError,
+    TooManyEffectsError,
     TupleIndexOutOfBoundsError,
     TypeApplyNotGenericError,
     TypeInferenceError,
@@ -1334,12 +1335,50 @@ def check_comptime_arg(
 def _register_callee(ctx: Context, callee_id: DefId | None) -> None:
     """Registers a function call in the call graph."""
     if ctx.current_caller is None or callee_id is None:
+        # TODO(callgraph): In which cases could this lead to silent failures?
         return
 
     # Register the call in the callgraph
     if ctx.current_caller not in ENGINE.call_graph:
         ENGINE.call_graph[ctx.current_caller] = []
     ENGINE.call_graph[ctx.current_caller].append(callee_id)
+
+
+def _check_effects(
+    node: AstNode,
+    func_ty: FunctionType,
+    ctx: Context,
+) -> None:
+    """Checks that a function call (AST provided) to a specified FunctionType
+    respects the effect constraints in the context.
+
+    Calls to unannotated global Guppy functions are checked later after a call graph
+    has been constructed during checking.
+    """
+    if ctx.current_caller is None or (mf := ctx.current_caller.effect_limit) is None:
+        # Effects on unannotated functions are computed after a call graph has been
+        # constructed, so we don't check them here.
+        return
+
+    surplus_effects = [e for e in func_ty.effects if e not in mf.effects]
+    if surplus_effects:
+        loc_node = node.func if isinstance(node, ast.Call) else node
+        show_effects_allowed = mf.effects
+        if isinstance(mf.decl, ast.expr):
+            # We found the decorator that is the source of the effect constraint,
+            # which will contain the allowed effects as an explicit argument
+            show_effects_allowed = None
+        # Otherwise, the error message points at all decorators, which may or may not
+        # list the allowed effects, so list them explicitly
+
+        callee = loc_node.id if isinstance(loc_node, ast.Name) else func_ty
+        raise GuppyTypeError(
+            TooManyEffectsError(
+                loc_node, callee, surplus_effects, mf.decl_name
+            ).add_sub_diagnostic(
+                TooManyEffectsError.MaxFromDecl(mf.decl, show_effects_allowed)
+            )
+        )
 
 
 def synthesize_call(
@@ -1380,6 +1419,9 @@ def synthesize_call(
 
     # Register this call in the callgraph.
     _register_callee(ctx, func_id)
+    # Enforce effect limits early when possible.
+    # TODO(callgraph) Is checking early useful or are we duplicating work?
+    _check_effects(node, func_ty, ctx)
 
     return args, unquantified.output.substitute(subst), inst
 
