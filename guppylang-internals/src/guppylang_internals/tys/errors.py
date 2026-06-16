@@ -226,7 +226,12 @@ class UnitaryCallError(Error):
         names = self.flags.custom_implementation_names()
         if len(names) == 1:
             return f"method `{names[0]}`"
-        return "methods " + " and ".join(f"`{name}`" for name in names)
+        elif len(names) == 2:
+            return "methods " + " and ".join(f"`{name}`" for name in names)
+        else:
+            raise AssertionError(
+                f"Unexpected number of custom implementation names: {len(names)}"
+            )
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
