@@ -14,7 +14,7 @@ on:
 
 env:
   # Pinned version for the uv package manager
-  UV_VERSION: "0.9.5"
+  UV_VERSION: "0.11.21"
 
 jobs:
   check-release-guppylang-internals:
