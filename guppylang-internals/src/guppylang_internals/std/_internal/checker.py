@@ -205,7 +205,7 @@ class ArrayIndexChecker(CustomCallChecker):
         Args:
             expr_index: Position of the expression index argument (0 based)
         """
-        self.expr_index: int = expr_index
+        self.expr_index = expr_index
 
     def _extract_constant_index(self, index_expr: ast.expr) -> int | None:
         """Extract a constant integer value from an index expression if possible.
