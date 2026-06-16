@@ -1,12 +1,17 @@
 import pytest
 
+import guppylang.std.qsystem.helios as helios_mod
+import guppylang.std.qsystem.helios.functional as helios_fn_mod
+import guppylang.std.qsystem.sol as sol_mod
+import guppylang.std.qsystem.sol.functional as sol_fn_mod
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle
+from guppylang.std.builtins import array, owned
+from guppylang.std.lang import comptime
 from typing import NamedTuple
 from types import ModuleType
 
 from guppylang.std.qsystem.random import RNG, make_discrete_distribution
-from guppylang.std.qsystem.helios import get_platform_config, HELIOS_CONFIG_KEY
 from guppylang.std.qsystem.utils import get_current_shot
 from guppylang.std.quantum import Measurement, measure_array, qubit, x
 
@@ -446,6 +451,10 @@ def test_lazy_measure_and_reset_array_functional(
 
 def test_set_platform_config_defaults(validate):  # type: ignore[no-untyped-def]
     """set_platform_config sets the expected metadata with default values."""
+    from guppylang.std.qsystem.helios.config import (
+        set_platform_config,
+        HELIOS_CONFIG_META_KEY,
+    )
 
     @guppy
     def test() -> bool:
@@ -467,6 +476,10 @@ def test_set_platform_config_defaults(validate):  # type: ignore[no-untyped-def]
 
 def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
     """set_platform_config sets the expected metadata with custom values."""
+    from guppylang.std.qsystem.helios.config import (
+        set_platform_config,
+        HELIOS_CONFIG_META_KEY,
+    )
 
     @guppy
     def test() -> bool:
@@ -493,6 +506,7 @@ def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
 
 def test_set_platform_config_rejects_bad_dd_threshold(validate):
     """set_platform_config should reject a negative dd_threshold value."""
+    from guppylang.std.qsystem.helios.config import set_platform_config
 
     @guppy
     def test() -> bool:

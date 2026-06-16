@@ -1,4 +1,4 @@
-"""Guppy library for Quantinuum Helios-specific operations."""
+"""Platform configuration interface for HUGRs targeting Helios."""
 
 from typing import Any
 
@@ -25,8 +25,8 @@ def set_platform_config(
 
     Args:
         hugr: A compiled HUGR package or module to configure.
-        squash_rxys: Whether to squash single-qubit gates at runtime (independent of any
-            compile-time squashing). Defaults to True.
+                squash_rxys: Whether to combine single-qubit gates at runtime
+                        (independent of any compile-time squashing). Defaults to True.
         enable_replay: Whether to enable replay logging. Defaults to False.
         dd_threshold: Dynamical decoupling threshold in nanoseconds. Set to zero to
             enable DD with auto threshold, or to a nonzero value to manually specify a
