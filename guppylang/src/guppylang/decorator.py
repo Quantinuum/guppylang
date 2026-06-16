@@ -1,7 +1,9 @@
 import ast
 import builtins
+import dis
 import inspect
-from collections.abc import Callable
+import linecache
+from collections.abc import Callable, Sequence
 from types import FrameType
 from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
 
@@ -366,18 +368,46 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
-    def type_alias(self, ty: str) -> Any:
-        """Creates a new type alias."""
+    def type_alias(self, ty: str, name: str | None = None) -> Any:
+        """Creates a new type alias.
+
+        .. code-block:: python
+
+            from guppylang import guppy, array
+
+            Row = guppy.type_alias("array[int, 4]")
+
+            @guppy
+            def sum_row(row: Row) -> int:
+                return row[0] + row[1] + row[2] + row[3]
+
+        The alias name is inferred from the assignment target when possible. Pass
+        ``name=`` explicitly if inference is not possible (e.g. in non-module scope).
+        """
+        frame = get_calling_frame()
+
+        if not isinstance(ty, str):
+            raise TypeError(
+                f"guppy.type_alias() expects a string type expression, got {ty!r}"
+            )
+
         type_ast = _parse_expr_string(
             ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
         )
+        resolved_name = name or _infer_assignment_name(frame)
+        if resolved_name is None:
+            raise SyntaxError(
+                "Cannot infer the alias name from the assignment target. "
+                "Please pass the name explicitly: "
+                f"guppy.type_alias({ty!r}, name='MyAlias')"
+            )
         defn = RawTypeAliasDef(
             DefId.fresh(),
-            ty,
+            resolved_name,
             type_ast,
             type_ast,
         )
-        DEF_STORE.register_def(defn, get_calling_frame())
+        DEF_STORE.register_def(defn, frame)
         return GuppyDefinition(defn)
 
     @overload
@@ -649,14 +679,28 @@ def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.e
         raise SyntaxError(parse_err) from None
 
     # Try to annotate the type AST with source information. This requires us to
-    # inspect the stack frame of the caller
+    # inspect the stack frame of the caller.
     if caller_frame := get_calling_frame():
         info = inspect.getframeinfo(caller_frame)
+        filename = info.filename
+        # Prefer getsourcelines (works for real files and importable modules), but
+        # fall back to linecache for interactive contexts like `python -c` or REPLs
+        # where the module may not be importable via inspect.getmodule().
+        source_lines: list[str] | None = None
         if caller_module := inspect.getmodule(caller_frame):
-            sources.add_file(info.filename)
-            source_lines, _ = inspect.getsourcelines(caller_module)
+            try:
+                raw_lines, _ = inspect.getsourcelines(caller_module)
+                source_lines = raw_lines
+            except OSError:
+                pass
+        if source_lines is None:
+            source_lines = linecache.getlines(filename) or None
+        if source_lines is not None:
             source = "".join(source_lines)
-            annotate_location(expr_ast, source, info.filename, 1)
+            # Use explicit source content so the diagnostic renderer can always find
+            # the file's lines even when linecache hasn't loaded this file yet.
+            sources.add_file(filename, source)
+            annotate_location(expr_ast, source, filename, 1)
             # Modify the AST so that all sub-nodes span the entire line. We
             # can't give a better location since we don't know the column
             # offset of the `ty` argument
@@ -804,3 +848,36 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 
 
 guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
+
+
+def _infer_assignment_name(frame: FrameType) -> str | None:
+    """Try to infer the variable name from the assignment target of `type_alias`.
+
+    Inspects the bytecode of the calling frame to find the STORE instruction that
+    immediately follows the call instruction.
+    """
+    lasti = frame.f_lasti
+    found = False
+    for instr in dis.get_instructions(frame.f_code):
+        if not found:
+            if instr.offset >= lasti:
+                found = True
+            else:
+                continue
+        # All CALL variants and bookkeeping instructions between the call and store
+        if instr.opname.startswith("CALL") or instr.opname in (
+            "RESUME",
+            "CACHE",
+            "NOP",
+            "COPY",
+            "PRECALL",
+            "PUSH_NULL",
+        ):
+            continue
+        if instr.opname in ("STORE_NAME", "STORE_FAST", "STORE_GLOBAL", "STORE_DEREF"):
+            name: str = instr.argval
+            return name
+        break
+    return None
+
+
