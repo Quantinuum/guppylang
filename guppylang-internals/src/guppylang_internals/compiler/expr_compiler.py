@@ -20,8 +20,10 @@ from guppylang_internals.compiler.builder import (
     CondBuilder,
     DFBuilder,
     MakeTuple,
+    OpWithEffects,
     Tag,
     UnpackTuple,
+    pure,
 )
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
@@ -77,10 +79,12 @@ from guppylang_internals.std._internal.compiler.list import (
     list_new,
 )
 from guppylang_internals.std._internal.compiler.prelude import (
+    barrier_op,
     build_panic,
     make_error,
     panic,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import (
     bool_type,
     get_element_type,
@@ -340,7 +344,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         args = self._compile_call_args(node.args, func_ty)
         call = self.builder.add_op(
-            ops.CallIndirect(func_ty.to_hugr(self.ctx)),
+            OpWithEffects(
+                ops.CallIndirect(func_ty.to_hugr(self.ctx)), effects=func_ty.effects
+            ),
             func,
             *args,
         )
@@ -399,7 +405,9 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             consumed_args, other_args = args[0:input_len], args[input_len:]
             consumed_wires = self._compile_call_args(consumed_args, func_ty)
             call = self.builder.add_op(
-                ops.CallIndirect(func_ty.to_hugr(self.ctx)),
+                OpWithEffects(
+                    ops.CallIndirect(func_ty.to_hugr(self.ctx)), effects=func_ty.effects
+                ),
                 func,
                 *consumed_wires,
             )
@@ -470,7 +478,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # since it is not implemented via a dunder method
         if isinstance(node.op, ast.Not):
             arg = self.visit(node.operand)
-            return self.builder.add_op(hugr.std.logic.Not, arg)
+            return self.builder.add_op(pure(hugr.std.logic.Not), arg)
 
         raise InternalGuppyError("Node should have been removed during type checking.")
 
@@ -533,12 +541,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_BarrierExpr(self, node: BarrierExpr) -> Wire:
         hugr_tys = [get_type(e).to_hugr(self.ctx) for e in node.args]
-        op = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
-            [ht.ListArg([ht.TypeTypeArg(ty) for ty in hugr_tys])],
-            ht.FunctionType.endo(hugr_tys),
-        )
 
-        barrier_n = self.builder.add_op(op, *(self.visit(e) for e in node.args))
+        barrier_n = self.builder.add_op(
+            barrier_op(hugr_tys), *(self.visit(e) for e in node.args)
+        )
 
         self._update_inout_ports(node.args, iter(barrier_n), node.func_ty)
         return self._pack_returns([], NoneType())
@@ -556,7 +562,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             [standard_array_type(ht.Qubit, num_qubits_arg)],
         )
 
-        op = ops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args)
+        op = OpWithEffects(
+            ops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args),
+            effects=[Effect.ANY],
+        )
 
         qubit_arr_in: Wire
         if not node.array_len:

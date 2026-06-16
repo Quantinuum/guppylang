@@ -75,12 +75,13 @@ def panic(
     return OpWithEffects(ops.ExtOp(op_def, sig, args), [Effect.ANY])
 
 
-def make_error() -> ops.ExtOp:
-    """Returns an operation that makes an error."""
+def make_error() -> OpWithEffects:
+    """Returns an operation that makes an error (and returns the error as a value,
+    does nothing to raise it)."""
     op_def = hugr.std.PRELUDE.get_op("MakeError")
     args: list[ht.TypeArg] = []
     sig = ht.FunctionType([ht.USize(), hugr.std.prelude.STRING_T], [error_type()])
-    return ops.ExtOp(op_def, sig, args)
+    return pure(ops.ExtOp(op_def, sig, args))
 
 
 # ------------------------------------------------------
@@ -315,19 +316,20 @@ class UnwrapOpCompiler(CustomInoutCallCompiler):
         return CallReturnWires(regular_returns=[result], inout_returns=[])
 
 
+def barrier_op(tys: ht.TypeRow) -> OpWithEffects:
+    """Returns an operation that represents a barrier on the given types."""
+    op_def = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier")
+    args = [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
+    return pure(op_def.instantiate(args, ht.FunctionType.endo(tys)))
+
+
 class BarrierCompiler(CustomCallCompiler):
     """Compiler for the `barrier` function."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         tys = [t for arg in args if (t := self.builder.get_wire_type(arg))]
 
-        op = pure(
-            hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
-                [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
-            )
-        )
-
-        barrier_n = self.builder.add_op(op, *args)
+        barrier_n = self.builder.add_op(barrier_op(tys), *args)
 
         return CallReturnWires(
             regular_returns=[], inout_returns=[barrier_n[i] for i in range(len(tys))]

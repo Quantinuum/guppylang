@@ -9,6 +9,8 @@ import hugr.ext as he
 import hugr.tys as ht
 from hugr import ops
 
+from guppylang_internals.compiler.builder import OpWithEffects, pure
+
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
@@ -77,7 +79,7 @@ class PartialOp(ops.AsExtOp):
     @classmethod
     def from_closure(
         cls, closure_ty: ht.FunctionType, captured_tys: Sequence[ht.Type]
-    ) -> PartialOp:
+    ) -> OpWithEffects:
         """An operation that partially evaluates a function.
 
         args:
@@ -93,10 +95,12 @@ class PartialOp(ops.AsExtOp):
         assert captured_tys == closure_ty.input[: len(captured_tys)]
 
         other_inputs = closure_ty.input[len(captured_tys) :]
-        return cls(
-            captured_inputs=list(captured_tys),
-            other_inputs=list(other_inputs),
-            outputs=list(closure_ty.output),
+        return pure(
+            cls(
+                captured_inputs=list(captured_tys),
+                other_inputs=list(other_inputs),
+                outputs=list(closure_ty.output),
+            )
         )
 
     def op_def(self) -> he.OpDef:
