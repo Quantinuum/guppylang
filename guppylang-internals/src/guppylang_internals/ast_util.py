@@ -31,7 +31,7 @@ class AstVisitor(Generic[T]):
     Note: This class is based on the implementation of `ast.NodeVisitor` but
     allows extra arguments to be passed to the `visit` functions.
 
-    Original documentation:
+    Original documentation woah:
 
     A node visitor base class that walks the abstract syntax tree and calls a
     visitor function for every node found.  This function may return a value
