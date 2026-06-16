@@ -78,6 +78,7 @@ def test_generic_functions_in_unitary_class(validate):
             n = identity(2)  # noqa: F821
             helper(q, n)  # noqa: F821
 
+        # TODO: make the _controls argument generic
         @guppy
         def call_controlled(q: qubit, _controls: array[qubit, 1]) -> None:
             n = identity(3)  # noqa: F821

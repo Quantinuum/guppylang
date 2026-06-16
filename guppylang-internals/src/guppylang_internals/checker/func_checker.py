@@ -46,6 +46,7 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.function import ParsedFunctionDef
     from guppylang_internals.definition.protocol import CheckedProtocolDef
 
 if sys.version_info >= (3, 12):
@@ -134,19 +135,24 @@ class SelfParamsShadowedError(Error):
 
 
 def check_global_func_def(
-    func_def: ast.FunctionDef,
-    generic_ty: FunctionType,
+    parsed_func_def: "ParsedFunctionDef",
     type_args: Inst,
     globals: Globals,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
-    ty = generic_ty.instantiate(type_args)
-    func_def = copy.deepcopy(func_def)
+    ty = parsed_func_def.ty.instantiate(type_args)
+    func_def = copy.deepcopy(parsed_func_def.defined_at)
     args = func_def.args.args
     returns_none = isinstance(ty.output, NoneType)
+    has_custom_modifier = parsed_func_def.parsed_modified_defs is not None
+
     assert all(inp.name is not None for inp in ty.inputs)
 
-    check_invalid_under_dagger(func_def, ty.unitary_flags)
+    if not has_custom_modifier:
+        # if the function has custom modifiers, we don't check for invalid under dagger
+        # since we don't need the default dagger implementation
+        check_invalid_under_dagger(parsed_func_def.defined_at, ty.unitary_flags)
+
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
     inputs = [
         Variable(cast("str", inp.name), inp.ty, loc, inp.flags, is_func_input=True)
@@ -155,9 +161,19 @@ def check_global_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     generic_args = {
-        param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
+        param.name: arg
+        for param, arg in zip(parsed_func_def.ty.params, type_args, strict=True)
     }
-    return check_cfg(cfg, inputs, ty.output, generic_args, func_def.name, globals)
+
+    return check_cfg(
+        cfg,
+        inputs,
+        ty.output,
+        generic_args,
+        func_def.name,
+        globals,
+        has_custom_modifier=has_custom_modifier,
+    )
 
 
 def check_nested_func_def(

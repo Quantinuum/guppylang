@@ -18,7 +18,7 @@ from guppylang.std.quantum import (
     cx,
     discard,
     h,
-    measure_array,
+    measure,
     qubit,
     rx,
     discard_array,
@@ -615,6 +615,12 @@ def test_comptime_unitary_mixed(validate):
     validate(foo.compile_function())
 
 
+# NICOLA: TODO investigate why this cannot be inside test_use_other_functions
+@guppy
+def ext_helper(q: qubit) -> None:
+    x(q)
+
+
 def test_custom_modifier(validate):
 
     @guppy.unitary
@@ -623,12 +629,24 @@ def test_custom_modifier(validate):
         c = guppy.nat_var("c")
 
         @guppy
+        def helper(q: qubit) -> None:
+            h(q)
+
+        @guppy
         def __call__(q1: array[qubit, n]) -> None:
-            h(q1[0])
+            # since we have custom implementations of the modifiers, there are no
+            # restrictions on the body of the function
+            q = qubit()
+            helper(q1[0])  # noqa: F821
+            i = 10
+            while i > 0:
+                i -= 1
+                h(q1[0])
+            measure(q)
 
         @guppy
         def call_daggered(q1: array[qubit, n]) -> None:
-            h(q1[0])
+            ext_helper(q1[0])
 
         @guppy
         def call_controlled(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
@@ -640,9 +658,16 @@ def test_custom_modifier(validate):
 
     @guppy
     def main() -> None:
-        q1 = array(qubit())
-        foo(q1)
-        measure_array(q1)
+        qs = array(qubit(), qubit())
+        c = qubit()
+        with control(c):
+            foo(qs)
+        with dagger:
+            foo(qs)
+        with control(c), dagger:
+            foo(qs)
+        discard_array(qs)
+        measure(c)
 
     package = main.check()
     # NICOLA: TODO after Mark
@@ -657,49 +682,4 @@ def test_custom_modifier(validate):
     #         assert (
     #             data.metadata[CTRL_DAGGERED_KEY] == "__main__.foo.call_ctrl_daggered$1"  # noqa: E501
     #         )
-
-
-# NICOLA: TODO investigate why this cannot be inside test_use_other_functions
-@guppy
-def ext_helper(q: qubit) -> None:
-    x(q)
-
-
-def test_use_other_functions(validate):
-    # NICOLA: TODO make the custom metod generic on control size
-
-    @guppy.unitary
-    class foo:
-        @guppy
-        def helper(q: qubit) -> None:
-            h(q)
-
-        @guppy
-        def __call__(q: qubit) -> None:
-            helper(q)  # noqa: F821
-            ext_helper(q)
-
-        @guppy
-        def call_daggered(q: qubit) -> None:
-            helper(q)  # noqa: F821
-            ext_helper(q)
-
-        @guppy
-        def call_controlled(q: qubit, _controls: array[qubit, 1]) -> None:
-            helper(q)  # noqa: F821
-            helper(_controls[0])  # noqa: F821
-            ext_helper(q)
-
-        @guppy
-        def call_ctrl_daggered(q: qubit, _controls: array[qubit, 1]) -> None:
-            helper(q)  # noqa: F821
-            helper(_controls[0])  # noqa: F821
-            ext_helper(q)
-
-    @guppy
-    def main() -> None:
-        q = qubit()
-        foo(q)
-        discard(q)
-
-    validate(main.compile())
+    # validate(package)

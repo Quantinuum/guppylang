@@ -197,26 +197,32 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    modified_defs: RawModifiedDefs = field(
-        default=RawModifiedDefs(None, None, None),
-        kw_only=True,
-        compare=False,
-        repr=False,
+    modified_defs: RawModifiedDefs | None = field(
+        default=None, kw_only=True, compare=False, repr=False
     )
 
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
-        # NICOLAL: TODO set the unitary flags according to the custom implementations
-        # provided by the user.
+        # NICOLAL: TODO unitary are set according to the presence of custom
+        # implementations (see decorator.py), but we also see if default implementations
+        # are possible
         # To infer from the body, use the BBUnitaryChecker, but with different settings:
         # -> no raising errors but inferring the flags
+        # IDEA 1: We cannot use the BBUnitaryChecker here, thus when we are checking
+        # the function call in BBUnitaryChecker.visit_GlobalCall if we found a @unitary
+        # definition we try to infer the flags from the body of the function (we should
+        # use some cache to avoid re-checking the body of the function all the time)
+        # We may have to do the same in expr_checker.py::check_unitary_flags
+
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
-        parsed_modified_defs = self.modified_defs.parse(ty)
+        parsed_modified_defs = (
+            self.modified_defs.parse(ty) if self.modified_defs is not None else None
+        )
 
         return ParsedFunctionDef(
             self.id,
@@ -256,11 +262,8 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    parsed_modified_defs: ParsedModifiedDefs = field(
-        default=ParsedModifiedDefs(None, None, None),
-        kw_only=True,
-        compare=False,
-        repr=False,
+    parsed_modified_defs: ParsedModifiedDefs | None = field(
+        default=None, kw_only=True, compare=False, repr=False
     )
 
     @property
@@ -271,10 +274,14 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     @override
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
-        cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
+        cfg = check_global_func_def(self, type_args, globals)
         mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
-        checked_modified_defs = self.parsed_modified_defs.check(type_args)
+        checked_modified_defs = (
+            self.parsed_modified_defs.check(type_args)
+            if self.parsed_modified_defs is not None
+            else None
+        )
         return CheckedFunctionDef(
             self.id,
             self.name,
@@ -332,11 +339,8 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
 
     cfg: CheckedCFG[Place]
 
-    checked_modified_defs: CheckedModifiedDefs = field(
-        default=CheckedModifiedDefs(None, None, None),
-        kw_only=True,
-        compare=False,
-        repr=False,
+    checked_modified_defs: CheckedModifiedDefs | None = field(
+        default=None, kw_only=True, compare=False, repr=False
     )
 
     mono_args: Inst = field(default=(), kw_only=True, compare=False, repr=False)
@@ -365,13 +369,16 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             hugr_ty.params,
             visibility="Public" if self.id in ctx.exported_defs else "Private",
         )
-        compiled_modified_names = self.checked_modified_defs.compile_outer(ctx)
 
         if debug_mode_enabled():
             assert self.metadata is not None
             self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
-        if self.metadata is not None:
-            self.metadata.set_modified_defs(compiled_modified_names)
+
+        if self.checked_modified_defs is not None:
+            compiled_modified_names = self.checked_modified_defs.compile_outer(ctx)
+            if self.metadata is not None:
+                self.metadata.set_modified_defs(compiled_modified_names)
+
         add_metadata(
             func_def,
             self.metadata,

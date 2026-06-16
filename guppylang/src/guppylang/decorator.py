@@ -357,18 +357,30 @@ class _Guppy:
         guppy_def = _get_unitary_call_def(cls)
         if guppy_def is not None:
             raw_func = cast("RawFunctionDef", guppy_def.wrapped)
+            call_daggered = _get_unitary_method(cls, CALL_DAGGERED_METHOD)
+            call_controlled = _get_unitary_method(cls, CALL_CONTROLLED_METHOD)
+            call_ctrl_daggered = _get_unitary_method(cls, CALL_CTRL_DAGGERED_METHOD)
             object.__setattr__(
                 raw_func,
                 "modified_defs",
-                RawModifiedDefs(
-                    # define the name of the modified definitions as a macro
-                    call_daggered=_get_unitary_method(cls, CALL_DAGGERED_METHOD),
-                    call_controlled=_get_unitary_method(cls, CALL_CONTROLLED_METHOD),
-                    call_ctrl_daggered=_get_unitary_method(
-                        cls, CALL_CTRL_DAGGERED_METHOD
-                    ),
-                ),
+                RawModifiedDefs(call_daggered, call_controlled, call_ctrl_daggered),
             )
+            object.__setattr__(raw_func, "name", cls.__name__)
+            if call_daggered is not None or call_ctrl_daggered is not None:
+                object.__setattr__(
+                    raw_func,
+                    "unitary_flags",
+                    raw_func.unitary_flags | UnitaryFlags.Dagger,
+                )
+            if call_controlled is not None:
+                object.__setattr__(
+                    raw_func,
+                    "unitary_flags",
+                    raw_func.unitary_flags | UnitaryFlags.Control,
+                )
+            assert raw_func.metadata is not None
+            raw_func.metadata.set_unitary_flags(raw_func.unitary_flags.value)
+
             return guppy_def  # type: ignore[return-value]
 
         raise TypeError(

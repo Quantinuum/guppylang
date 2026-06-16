@@ -77,6 +77,7 @@ def check_cfg(
     func_name: str,
     globals: Globals,
     first_modifier_node: ast.expr | None = None,
+    has_custom_modifier: bool = False,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
     checks it.
@@ -169,7 +170,10 @@ def check_cfg(
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
 
-    check_cfg_unitary(linearity_checked_cfg, linearity_checked_cfg.unitary_flags)
+    if not has_custom_modifier:
+        # If the function has custom modifiers, we do not need to generate default
+        # modified version of the functions, thus no constraints are required
+        check_cfg_unitary(linearity_checked_cfg, linearity_checked_cfg.unitary_flags)
 
     return linearity_checked_cfg
 
