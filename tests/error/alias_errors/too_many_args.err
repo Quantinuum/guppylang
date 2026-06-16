@@ -1,0 +1,9 @@
+Error: Too many type arguments (at $FILE:19:12)
+   | 
+17 | 
+18 | @guppy
+19 | def main(b: BoxAlias[int, bool]) -> int:
+   |             ^^^^^^^^^^^^^^^^^^^ Unexpected type argument for type `BoxAlias` (expected 1,
+   |                                 got 2)
+
+Guppy compilation failed due to 1 previous error

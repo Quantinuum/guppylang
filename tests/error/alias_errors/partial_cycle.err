@@ -1,0 +1,20 @@
+Error: Recursive type alias (at $FILE:6:0)
+  | 
+4 | Alias1 = guppy.type_alias("Alias2")
+5 | Alias2 = guppy.type_alias("Alias3")
+6 | Alias3 = guppy.type_alias("Alias2")
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type alias cycle detected:
+  |                                     `Alias2` -> `Alias3` -> `Alias2`
+
+Notes:
+  | 
+4 | Alias1 = guppy.type_alias("Alias2")
+5 | Alias2 = guppy.type_alias("Alias3")
+  | ----------------------------------- Alias `Alias2` is part of this cycle
+6 | Alias3 = guppy.type_alias("Alias2")
+  | ----------------------------------- Alias `Alias3` is part of this cycle
+
+Help: Type aliases cannot be recursive. Replace the cyclic aliases with a
+concrete type.
+
+Guppy compilation failed due to 1 previous error
