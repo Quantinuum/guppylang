@@ -84,31 +84,60 @@ def test_pcg32_motivating_example() -> None:
         output("first", first)
         output("second", second)
 
+        # Repeat with no inner RNG: outer stream must match exactly.
+        outer = seeded_pcg32(1)
+        other_first = outer.next_int()
+        other_second = outer.next_int()
+        output("other_first", other_first)
+        output("other_second", other_second)
+
     results = dict(
         main.emulator(0).coinflip_sim().with_seed(42).run().results[0].entries
     )
-    assert results == {"first": 1307692281, "second": -444364974}
+    assert results["first"] == results["other_first"]
+    assert results["second"] == results["other_second"]
+    assert results == {
+        "first": 1307692281,
+        "second": -444364974,
+        "other_first": 1307692281,
+        "other_second": -444364974,
+    }
 
 
-def test_pcg32_independent_streams(validate, run_int_fn) -> None:
-    """Inner and outer RNG streams do not interfere with each other."""
+def test_pcg32_matches_qsystem_random() -> None:
+    """PCG32 and qsystem RNG produce the same values for the same seed."""
+
+    from guppylang.std.qsystem.random import RNG
 
     @guppy
-    def uses_inner_rng() -> int:
-        inner = seeded_pcg32(2)
-        value = inner.next_int()
-        return value
+    def main() -> None:
+        seed = 55555
+        pcg = seeded_pcg32(seed)
+        output("pcg_int", pcg.next_int())
+        output("pcg_bnd2", pcg.next_int_bounded(2))
+        output("pcg_bnd6", pcg.next_int_bounded(6))
+        output("pcg_bnd100", pcg.next_int_bounded(100))
 
-    @guppy
-    def main() -> int:
-        outer = seeded_pcg32(1)
-        first = outer.next_int()
-        _ = uses_inner_rng()
-        second = outer.next_int()
-        return first + second
+        qsys = RNG(seed)
+        output("qsys_int", qsys.random_int())
+        output("qsys_bnd2", qsys.random_int_bounded(2))
+        output("qsys_bnd6", qsys.random_int_bounded(6))
+        output("qsys_bnd100", qsys.random_int_bounded(100))
+        qsys.discard()
 
-    validate(main.compile_function())
-    run_int_fn(main, 1307692281 + -444364974)
+    results = dict(
+        main.emulator(0).coinflip_sim().with_seed(42).run().results[0].entries
+    )
+    assert results["pcg_int"] == results["qsys_int"]
+    assert results["pcg_bnd2"] == results["qsys_bnd2"]
+    assert results["pcg_bnd6"] == results["qsys_bnd6"]
+    assert results["pcg_bnd100"] == results["qsys_bnd100"]
+    assert (
+        results["pcg_int"],
+        results["pcg_bnd2"],
+        results["pcg_bnd6"],
+        results["pcg_bnd100"],
+    ) == (636174845, 1, 0, 27)
 
 
 def test_pcg32_no_interference_with_quantum() -> None:
