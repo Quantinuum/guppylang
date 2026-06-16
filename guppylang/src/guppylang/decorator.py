@@ -380,10 +380,12 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
-    @overload
-    def type_alias(self, name: str, ty: str, params: list[Any] | None = ...) -> Any: ...
-
     if sys.version_info >= (3, 12):
+
+        @overload
+        def type_alias(
+            self, name: str, ty: str, params: list[Any] | None = ...
+        ) -> Any: ...
 
         @overload
         def type_alias(self, name: "TypeAliasType") -> Any: ...
