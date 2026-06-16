@@ -136,12 +136,13 @@ def _patched_check_instantiate(
     replacement: Callable[[Sequence[Argument], AstNode | None], Type],
 ) -> Iterator[None]:
     """Temporarily override `check_instantiate` for recursive-alias detection."""
-    original = defn.check_instantiate
     object.__setattr__(defn, "check_instantiate", replacement)
     try:
         yield
     finally:
-        object.__setattr__(defn, "check_instantiate", original)
+        # Remove the instance attribute so method resolution falls back to the
+        # class descriptor, restoring the original behaviour cleanly.
+        object.__delattr__(defn, "check_instantiate")
 
 
 def check_not_recursive(defn: ParsedTypeAliasDef, ctx: TypeParsingCtx) -> None:

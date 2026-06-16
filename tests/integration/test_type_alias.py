@@ -136,15 +136,15 @@ def test_implicit_generic_alias(run_int_fn):
     run_int_fn(main, expected=99)
 
 
-def test_explicit_name_kwarg(run_int_fn):
-    """The name= kwarg overrides inferred name and makes the alias usable."""
+def test_float_alias(run_float_fn_approx):
+    """A concrete alias over a built-in float type is usable in functions."""
     MyFloat = guppy.type_alias("MyFloat", "float")
 
     @guppy
     def main(x: MyFloat) -> MyFloat:
         return x + 1.0
 
-    run_int_fn(main, expected=2.0, args=[1.0])
+    run_float_fn_approx(main, expected=2.0, args=[1.0])
 
 
 # ---------------------------------------------------------------------------
