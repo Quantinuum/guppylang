@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod, abstractproperty
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Generic, TypeVar
+from typing import Generic, NamedTuple, TypeVar
 
 from hugr import Node, Wire, ops, val
 from hugr import tys as ht
@@ -14,11 +14,23 @@ from hugr.metadata import HugrDebugInfo
 from typing_extensions import Self, override
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.compiler.core import may_have_side_effect
 from guppylang_internals.metadata.debug_info_util import (
     debug_conditions_fulfilled,
     make_location_record,
 )
+from guppylang_internals.tys import Effect
+
+
+class OpWithEffects(NamedTuple):
+    """A wrapper around an op specifying what Effects it has"""
+
+    op: ops.DataflowOp
+    effects: Sequence[Effect]
+
+
+def pure(op: ops.DataflowOp) -> OpWithEffects:
+    """Wraps an op as having no side effects"""
+    return OpWithEffects(op, ())
 
 
 @dataclass
@@ -33,7 +45,7 @@ class DFBuilder(ABC, ToNode):
     """
 
     current_ast_node: AstNode | None = field(default=None, kw_only=True)
-    _last_side_effect: Node | None = field(default=None, init=False)
+    _last_side_effect: dict[Effect, Node] = field(default_factory=dict, init=False)
 
     @abstractproperty
     def _raw(self) -> hf.Function | Case | TailLoop | Block:
@@ -76,13 +88,14 @@ class DFBuilder(ABC, ToNode):
 
     def set_outputs(self, *outputs: Wire) -> hf.Function | Case | TailLoop | Block:
         self._raw.set_outputs(*outputs)
-        if self._last_side_effect is not None:
-            self._handle_side_effects(self._raw.output_node)
+        self._handle_side_effects(
+            self._raw.output_node, list(self._last_side_effect.keys())
+        )
         return self._raw
 
     def add_op(
         self,
-        op: ops.DataflowOp,
+        op: OpWithEffects,
         /,
         *args: Wire,
         set_debug_info: bool = True,
@@ -90,9 +103,9 @@ class DFBuilder(ABC, ToNode):
         """Adds an op to the dataflow graph builder. Set `set_debug_info=False` to
         avoid automatic debug information attachment.
         """
+        op, effects = op
         op_node = self._raw.add_op(op, *args)
-        if may_have_side_effect(op):
-            self._handle_side_effects(op_node)
+        self._handle_side_effects(op_node, effects)
 
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
@@ -101,19 +114,31 @@ class DFBuilder(ABC, ToNode):
             )
         return op_node
 
-    def _handle_side_effects(self, op_node: ToNode) -> None:
-        if self._last_side_effect is None:
-            self._propagate_side_effects()
-            self._last_side_effect = self.input_node
-        else:
-            assert not isinstance(self._raw.hugr[self._last_side_effect].op, ops.Output)
+    def _handle_side_effects(self, op_node: ToNode, effects: Iterable[Effect]) -> None:
+        """Updates Hugr to reflect `op_node` having effects `effects`.
+        Does nothing if effects is empty (or the node already has those effects)."""
         node = op_node.to_node()
-        if self._last_side_effect != node:  # avoid self-loops when propagating
-            self._raw.add_state_order(self._last_side_effect, node)
-            self._last_side_effect = node
+        # Effects newly added to our container
+        to_propagate = set()
+
+        def get_last_node(e: Effect) -> Node:
+            if (last := self._last_side_effect.get(e)) is None:
+                to_propagate.add(e)
+                return self.input_node
+            assert not isinstance(self._raw.hugr[last].op, ops.Output)
+            self._last_side_effect[e] = node
+            return last
+
+        for last in frozenset(get_last_node(e) for e in effects):
+            if (node != last) and (
+                node not in self._raw.hugr.outgoing_order_links(last)
+            ):
+                self._raw.add_state_order(last, node)
+        if to_propagate:
+            self._propagate_side_effects(to_propagate)
 
     @abstractmethod
-    def _propagate_side_effects(self) -> None:
+    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
         """Subclasses must implement to mark the container node
         as side-effecting within any parent/ancestor builder"""
 
@@ -121,6 +146,7 @@ class DFBuilder(ABC, ToNode):
         self,
         func: ToNode,
         *args: Wire,
+        effects: Sequence[Effect],
         instantiation: ht.FunctionType | None = None,
         type_args: Sequence[ht.TypeArg] | None = None,
         set_debug_info: bool = True,
@@ -131,7 +157,7 @@ class DFBuilder(ABC, ToNode):
         call = self._raw.call(
             func, *args, instantiation=instantiation, type_args=type_args
         )
-        self._handle_side_effects(call)
+        self._handle_side_effects(call, effects)
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
             call.metadata[HugrDebugInfo] = make_location_record(self.current_ast_node)
@@ -190,16 +216,17 @@ class TailLoopBuilder(_DFBuilderRaw[TailLoop]):
 
     def set_loop_outputs(self, predicate: Wire, *outputs: Wire) -> None:
         self._raw.set_loop_outputs(predicate, *outputs)
-        if self._last_side_effect is not None:
-            self._handle_side_effects(self._raw.output_node)
+        self._handle_side_effects(
+            self._raw.output_node, list(self._last_side_effect.keys())
+        )
 
-    def _propagate_side_effects(self) -> None:
-        self.parent._handle_side_effects(self._raw)
+    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
+        self.parent._handle_side_effects(self._raw, effects)
 
 
 @dataclass
 class FunctionBuilder(_DFBuilderRaw[hf.Function]):
-    def _propagate_side_effects(self) -> None:
+    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
         pass  # No parent
 
     @override
@@ -213,10 +240,10 @@ class CaseBuilder(_DFBuilderRaw[Case]):
     parent: Conditional
     grandparent: DFBuilder
 
-    def _propagate_side_effects(self) -> None:
+    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
         # No need to do anything in the Conditional,
         # but the Conditional itself needs to be ordered inside its parent
-        self.grandparent._handle_side_effects(self.parent)
+        self.grandparent._handle_side_effects(self.parent, effects)
 
 
 @dataclass
@@ -251,12 +278,13 @@ class BlockBuilder(_DFBuilderRaw[Block]):
     parent: Cfg
     grandparent: DFBuilder
 
-    def _propagate_side_effects(self) -> None:
+    def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
         # No need to do anything in the CFG, but the CFG itself
         # needs to be ordered inside its parent,
-        self.grandparent._handle_side_effects(self.parent)
+        self.grandparent._handle_side_effects(self.parent, effects)
 
     def set_block_outputs(self, branching: Wire, *other_outputs: Wire) -> None:
         self._raw.set_outputs(branching, *other_outputs)
-        if self._last_side_effect is not None:
-            self._handle_side_effects(self._raw.output_node)
+        self._handle_side_effects(
+            self._raw.output_node, list(self._last_side_effect.keys())
+        )
