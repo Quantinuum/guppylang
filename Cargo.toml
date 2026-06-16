@@ -19,4 +19,4 @@ missing_docs = "warn"
 debug_assert_with_mut_call = "warn"
 
 [workspace.dependencies]
-pyo3 = "0.26"
+pyo3 = "0.29"

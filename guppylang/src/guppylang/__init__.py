@@ -22,4 +22,4 @@ __all__ = (
 
 # This is updated by our release-please workflow, triggered by this
 # annotation: x-release-please-version
-__version__ = "1.0.0-a3"
+__version__ = "1.0.0-a5"

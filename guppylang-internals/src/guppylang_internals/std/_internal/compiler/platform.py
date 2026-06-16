@@ -6,7 +6,6 @@ from hugr import Wire, ops, tys
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.compiler.core import CompilerContext
-from guppylang_internals.compiler.expr_compiler import array_read_bool
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomInoutCallCompiler,
@@ -16,34 +15,32 @@ from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.array import (
     array_clone,
-    array_map,
     array_to_std_array,
 )
-from guppylang_internals.std._internal.compiler.tket_bool import OpaqueBool, read_bool
 from guppylang_internals.std._internal.compiler.tket_exts import RESULT_EXTENSION
 from guppylang_internals.tys.arg import Argument, ConstArg
-from guppylang_internals.tys.builtin import get_element_type, is_bool_type
+from guppylang_internals.tys.builtin import get_element_type
 from guppylang_internals.tys.const import BoundConstVar, ConstValue
 from guppylang_internals.tys.ty import NumericType
 
-#: Maximum length of a tag in the `result` function.
+#: Maximum length of a tag in the `output` function.
 TAG_MAX_LEN = 200
 
 
 @dataclass(frozen=True)
-class TooLongError(Error):
+class OutputTagTooLongError(Error):
     title: ClassVar[str] = "Tag too long"
-    span_label: ClassVar[str] = "Result tag is too long"
+    span_label: ClassVar[str] = "Output tag is too long"
 
     @dataclass(frozen=True)
     class Hint(Note):
-        message: ClassVar[str] = f"Result tags are limited to {TAG_MAX_LEN} bytes"
+        message: ClassVar[str] = f"Output tags are limited to {TAG_MAX_LEN} bytes"
 
 
-class ResultCompiler(CustomCallCompiler):
-    """Custom compiler for overloads of the `result` function.
+class OutputCompiler(CustomCallCompiler):
+    """Custom compiler for overloads of the `output` function.
 
-    See `ArrayResultCompiler` for the compiler that handles results involving arrays.
+    See `ArrayOutputCompiler` for the compiler that handles outputs involving arrays.
     """
 
     def __init__(self, op_name: str, with_int_width: bool = False):
@@ -58,20 +55,16 @@ class ResultCompiler(CustomCallCompiler):
         args = [tag_to_hugr(self.type_args[0], self.ctx, self.node)]
         if self.with_int_width:
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
-        # Bool results need an extra conversion into regular hugr bools
-        if is_bool_type(ty):
-            value = self.builder.add_op(read_bool(), value)
-            hugr_ty = tys.Bool
         op = RESULT_EXTENSION.get_op(self.op_name)
         sig = tys.FunctionType(input=[hugr_ty], output=[])
         self.builder.add_op(op.instantiate(args, sig), value)
         return []
 
 
-class ArrayResultCompiler(CustomInoutCallCompiler):
-    """Custom compiler for overloads of the `result` function accepting arrays.
+class ArrayOutputCompiler(CustomInoutCallCompiler):
+    """Custom compiler for overloads of the `output` function accepting arrays.
 
-    See `ResultCompiler` for the compiler that handles basic results.
+    See `OutputCompiler` for the compiler that handles basic outputs.
     """
 
     def __init__(self, op_name: str, with_int_width: bool = False):
@@ -87,19 +80,11 @@ class ArrayResultCompiler(CustomInoutCallCompiler):
 
         # As `borrow_array`s used by Guppy are linear, we need to clone it (knowing
         # that all elements in it are copyable) to avoid linearity violations when
-        # both passing it to the result operation and returning it (as an inout
+        # both passing it to the output operation and returning it (as an inout
         # argument).
         hugr_elem_ty = elem_ty.to_hugr(self.ctx)
         hugr_size = size_arg.to_hugr(self.ctx)
         arr, out_arr = self.builder.add_op(array_clone(hugr_elem_ty, hugr_size), arr)
-        # For bool arrays, we furthermore need to coerce a read on all the array
-        # elements
-        if is_bool_type(elem_ty):
-            array_read = array_read_bool(self.ctx)
-            array_read = self.builder.load_function(array_read)
-            map_op = array_map(OpaqueBool, hugr_size, tys.Bool)
-            arr = self.builder.add_op(map_op, arr, array_read).out(0)
-            hugr_elem_ty = tys.Bool
         # Turn `borrow_array` into regular `array`
         arr = self.builder.add_op(array_to_std_array(hugr_elem_ty, hugr_size), arr).out(
             0
@@ -130,7 +115,7 @@ def tag_to_hugr(tag_arg: Argument, ctx: CompilerContext, loc: AstNode) -> tys.Ty
             raise InternalGuppyError("Invalid tag argument")
 
     if len(tag.encode("utf-8")) > TAG_MAX_LEN:
-        err = TooLongError(loc)
-        err.add_sub_diagnostic(TooLongError.Hint(None))
+        err = OutputTagTooLongError(loc)
+        err.add_sub_diagnostic(OutputTagTooLongError.Hint(None))
         raise GuppyError(err)
     return tys.StringArg(tag)

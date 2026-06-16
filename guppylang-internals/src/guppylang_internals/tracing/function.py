@@ -1,4 +1,5 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -22,7 +23,12 @@ from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import DEF_STORE
-from guppylang_internals.error import GuppyComptimeError, GuppyError, exception_hook
+from guppylang_internals.error import (
+    GuppyComptimeError,
+    GuppyError,
+    InternalGuppyError,
+    exception_hook,
+)
 from guppylang_internals.nodes import PlaceNode
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
@@ -37,6 +43,8 @@ from guppylang_internals.tracing.unpacking import (
     update_packed_value,
 )
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
+from guppylang_internals.tys.arg import Argument, ConstArg
+from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.ty import (
     FunctionType,
     InputFlags,
@@ -65,6 +73,7 @@ def trace_function(
     ty: FunctionType,
     builder: FunctionBuilder,
     ctx: CompilerContext,
+    generic_args: Mapping[str, Argument],
     node: AstNode,
     func_def: "CompiledTracedFunctionDef",
 ) -> None:
@@ -78,19 +87,37 @@ def trace_function(
         ctx, DFContainer(builder, ctx, {}), node, func_def, max_effects=max_effects
     )
     with set_tracing_state(state):
-        inputs = [
-            unpack_guppy_object(
-                GuppyObject(inp.ty, wire),
-                builder,
+        generic_values = {
+            x: const_argument_to_python_value(arg)
+            for x, arg in generic_args.items()
+            # TODO: We don't have a comptime representation of types yet, so we can only
+            #  translate const arguments into Python values for now. In the future, drop
+            #  this restriction and support all kinds of arguments.
+            if isinstance(arg, ConstArg)
+        }
+
+        input_wires = iter(builder.inputs())
+        inputs = []
+        for inp in ty.inputs:
+            if InputFlags.Comptime in inp.flags:
+                assert inp.name is not None
+                val = generic_values.pop(inp.name)
+            else:
                 # Function inputs are only allowed to be mutable if they are borrowed.
                 # For owned arguments, mutation wouldn't be observable by the caller,
                 # thus breaking the semantics expected from Python.
-                frozen=InputFlags.Inout not in inp.flags,
-            )
-            for wire, inp in zip(builder.inputs(), ty.inputs, strict=True)
-        ]
+                frozen = InputFlags.Inout not in inp.flags
+                val = unpack_guppy_object(
+                    GuppyObject(inp.ty, next(input_wires)), builder, frozen
+                )
+            inputs.append(val)
+        assert next(input_wires, None) is None, "All wires should be consumed"
 
-        with exception_hook(tracing_except_hook), mock_builtins(python_func):
+        with (
+            exception_hook(tracing_except_hook),
+            mock_builtins(python_func),
+            add_generic_to_function_globals(python_func, generic_values),
+        ):
             py_out = python_func(*inputs)
 
         try:
@@ -224,3 +251,49 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
     ret_obj = GuppyObject(ret_ty, ret_wire)
     return unpack_guppy_object(ret_obj, state.dfg.builder)
+
+
+def const_argument_to_python_value(arg: ConstArg) -> Any:
+    """Extracts a Python value from the given generic argument."""
+    match arg.const:
+        case ConstValue(value=v):
+            return v
+        case BoundConstVar() | ExistentialConstVar():
+            # By this point, everything should be monomorphized!
+            raise InternalGuppyError("Unexpected const variable")
+
+
+@contextmanager
+def add_generic_to_function_globals(
+    f: Callable[..., Any], generic_values: dict[str, Any]
+) -> Iterator[None]:
+    """Context manager that updates the given function to allow access to the
+    instantiation of generic parameters."""
+    # There are two ways a function can refer to a type variable. Variables defined on
+    # module level via `guppy.type_var`, will be looked up in the functions'
+    # `__globals__` table. Variables defined in a non-module parent scope are looked up
+    # via the function's `__closure__` table. The latter is also the one that applies to
+    # variables defined via the Python 3.12+ syntax since they desugar into annotation
+    # scopes
+    # (see https://docs.python.org/3/reference/compound_stmts.html#generic-functions).
+
+    # First, we check if the variable is bound via the `__closure__` table. Those are
+    # the ones that are mentioned in the `co_freevars` of the functions `__code__`.
+    if f.__closure__ is not None:
+        for i, x in enumerate(f.__code__.co_freevars):
+            if x in generic_values:
+                f.__closure__[i].cell_contents = generic_values.pop(x)
+
+    # The remaining ones can be set via the `__globals__` table of the function. Note
+    # that mutating `f.__globals__` also mutates the globals of other functions defined
+    # in the same frame. Thus, we need to cache the old values so we can restore them
+    # afterwards.
+    old = {x: f.__globals__[x] for x in generic_values if x in f.__globals__}
+    f.__globals__.update(generic_values)
+    try:
+        yield
+    finally:
+        for x in generic_values:
+            if x not in old:
+                del f.__globals__[x]
+        f.__globals__.update(old)

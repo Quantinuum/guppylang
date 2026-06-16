@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:5:4)
+  | 
+3 | @guppy.protocol
+4 | class MyProto:
+5 |     id: int
+  |     ^^^^^^^ Fields are not supported in a protocol definition
+
+Guppy compilation failed due to 1 previous error

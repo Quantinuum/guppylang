@@ -135,6 +135,29 @@ class GlobalCall(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
+class ProtocolCall(ast.expr):
+    member: str
+    proto_id: "DefId"
+    args: list[ast.expr]
+    type_args: Inst
+
+    _fields = (
+        "member",
+        "proto_id",
+        "args",
+        "type_args",
+    )
+
+    def __init__(
+        self, member: str, proto_id: "DefId", args: list[ast.expr], type_args: Inst
+    ):
+        super().__init__()
+        self.member = member
+        self.proto_id = proto_id
+        self.args = args
+        self.type_args = type_args
+
+
 class TensorCall(ast.expr):
     """A call to a tuple of functions. Behaves like a local call, but more
     unpacking of tuples is required at compilation"""
@@ -509,14 +532,14 @@ class BarrierExpr(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-class StateResultExpr(ast.expr):
-    """A `state_result(tag, *args)` expression."""
+class StateOutputExpr(ast.expr):
+    """A `state_output(tag, *args)` expression."""
 
     tag_value: Const
     tag_expr: ast.expr
     args: list[ast.expr]
     func_ty: FunctionType
-    #: Array length in case this is an array result, otherwise `None`
+    #: Array length in case this is an array output, otherwise `None`
     array_len: Const | None
     _fields = ("tag_value", "tag_expr", "args", "func_ty", "has_array_input")
 
@@ -540,7 +563,9 @@ class StateResultExpr(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-AnyCall = LocalCall | GlobalCall | TensorCall | BarrierExpr | StateResultExpr
+AnyCall = (
+    LocalCall | GlobalCall | TensorCall | BarrierExpr | StateOutputExpr | ProtocolCall
+)
 
 
 class InoutReturnSentinel(ast.expr):

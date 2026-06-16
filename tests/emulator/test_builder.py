@@ -27,6 +27,7 @@ def test_emulator_builder_default_initialization():
     assert builder._strict is False
     assert builder._save_planner is False
     assert builder._custom_args is None
+    assert builder._platform == "helios"
 
 
 @patch("guppylang.emulator.builder.selene_sim")
@@ -57,6 +58,7 @@ def test_emulator_builder_build(mock_emulator_instance, mock_selene_sim):
         progress_bar=False,
         strict=False,
         save_planner=False,
+        platform="helios",
     )
 
     # Check that EmulatorInstance was created correctly
@@ -106,6 +108,7 @@ def test_emulator_builder_build_with_custom_parameters(
         progress_bar=False,
         strict=False,
         save_planner=False,
+        platform="helios",
         build_method="via-llvm-ir",
     )
 
@@ -115,6 +118,35 @@ def test_emulator_builder_build_with_custom_parameters(
     )
 
     assert result == mock_emulator_result
+
+
+@patch("guppylang.emulator.builder.selene_sim")
+@patch("guppylang.emulator.builder.EmulatorInstance")
+def test_emulator_builder_with_platform(mock_emulator_instance, mock_selene_sim):
+    """Test that with_platform sets the platform passed to selene_sim.build."""
+    mock_package = Mock()
+    mock_selene_sim.build.return_value = Mock()
+    mock_emulator_instance.return_value = Mock()
+
+    builder = EmulatorBuilder().with_platform("sol")
+    assert builder.platform == "sol"
+
+    builder.build(mock_package, 2)
+
+    mock_selene_sim.build.assert_called_once()
+    assert mock_selene_sim.build.call_args.kwargs["platform"] == "sol"
+
+
+def test_emulator_builder_platform_default():
+    """Test that platform defaults to 'helios'
+    and with_platform returns a new instance."""
+    builder = EmulatorBuilder()
+    assert builder.platform == "helios"
+
+    sol_builder = builder.with_platform("sol")
+    assert sol_builder.platform == "sol"
+    assert builder.platform == "helios"  # original unchanged
+    assert sol_builder is not builder
 
 
 def test_emulator_builder_chaining_methods():

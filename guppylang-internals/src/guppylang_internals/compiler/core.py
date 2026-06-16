@@ -3,7 +3,6 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import tket_exts
 from hugr import Hugr, Wire, ops
 from hugr import tys as ht
 from hugr.build import function as hf
@@ -32,7 +31,18 @@ from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.metadata.debug_info_util import StringTable
-from guppylang_internals.std._internal.compiler.tket_exts import GUPPY_EXTENSION
+from guppylang_internals.std._internal.compiler.tket_exts import (
+    DEBUG_EXTENSION as TKET_DEBUG_EXTENSION,
+)
+from guppylang_internals.std._internal.compiler.tket_exts import (
+    GUPPY_EXTENSION,
+)
+from guppylang_internals.std._internal.compiler.tket_exts import (
+    QUANTUM_EXTENSION as TKET_QUANTUM_EXTENSION,
+)
+from guppylang_internals.std._internal.compiler.tket_exts import (
+    RESULT_EXTENSION as TKET_RESULT_EXTENSION,
+)
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
@@ -290,13 +300,13 @@ def get_parent_type(defn: Definition) -> "RawDef | None":
         return None
 
 
-QUANTUM_EXTENSION = tket_exts.quantum()
-RESULT_EXTENSION = tket_exts.result()
-DEBUG_EXTENSION = tket_exts.debug()
+QUANTUM_EXTENSION = TKET_QUANTUM_EXTENSION
+RESULT_EXTENSION = TKET_RESULT_EXTENSION
+DEBUG_EXTENSION = TKET_DEBUG_EXTENSION
 
 #: List of extension ops that have side-effects, identified by their qualified name
 EXTENSION_OPS_WITH_SIDE_EFFECTS: list[str] = [
-    # Results should be order w.r.t. each other but also w.r.t. panics
+    # Outputs should be ordered w.r.t. each other but also w.r.t. panics
     *(op_def.qualified_name() for op_def in RESULT_EXTENSION.operations.values()),
     PRELUDE.get_op("panic").qualified_name(),
     PRELUDE.get_op("exit").qualified_name(),
