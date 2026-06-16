@@ -1,6 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "separate-pull-requests": true,
+  "separate-pull-requests": false,
+  "draft-pull-request": true,
   "pull-request-title-pattern": "chore: release${component} ${version}",
   "include-component-in-tag": true,
   "include-v-in-tag": true,
@@ -14,12 +15,11 @@
       "prerelease": true,
       "prerelease-type": "a",
       "versioning": "prerelease",
-      "draft-pull-request": true,
       "extra-files": [
         {
           "type": "toml",
           "path": "uv.lock",
-          "jsonpath": "$.package[?(@.name.value=='guppylang')].version"
+          "jsonpath": "$.package[?(@.name=='guppylang')].version"
         }
       ]
     },
@@ -36,7 +36,7 @@
         {
           "type": "toml",
           "path": "uv.lock",
-          "jsonpath": "$.package[?(@.name.value=='guppylang-internals')].version"
+          "jsonpath": "$.package[?(@.name=='guppylang-internals')].version"
         }
       ]
     }
