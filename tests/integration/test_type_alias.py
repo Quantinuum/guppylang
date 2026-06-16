@@ -68,3 +68,187 @@ def test_generic_struct_alias(run_int_fn):
         return box.value
 
     run_int_fn(main, expected=42)
+
+
+def test_explicit_generic_alias_single_param(run_int_fn):
+    """Generic alias with a single explicit type param can be instantiated."""
+    T = guppy.type_var("T")
+
+    @guppy.struct
+    class Wrapper(Generic[T]):
+        item: T
+
+    MyWrapper = guppy.type_alias("Wrapper[T]", params=[T])
+
+    @guppy
+    def make_int_wrapper(v: int) -> MyWrapper[int]:
+        return Wrapper(v)
+
+    @guppy
+    def main() -> int:
+        w = make_int_wrapper(7)
+        return w.item
+
+    run_int_fn(main, expected=7)
+
+
+def test_explicit_generic_alias_two_params(run_int_fn):
+    """Generic alias with two explicit params respects given param order."""
+    A = guppy.type_var("A")
+    B = guppy.type_var("B")
+
+    @guppy.struct
+    class Pair(Generic[A, B]):
+        first: A
+        second: B
+
+    # Explicitly reverse the param order: Swap[X, Y] = Pair[Y, X]
+    Swap = guppy.type_alias("Pair[B, A]", params=[A, B])
+
+    @guppy
+    def main() -> int:
+        # Swap[int, bool] → Pair[bool, int] so first is bool, second is int
+        s: Swap[int, bool] = Pair(True, 42)
+        return s.second
+
+    run_int_fn(main, expected=42)
+
+
+def test_implicit_generic_alias(run_int_fn):
+    """When params is omitted, free vars are collected from body in appearance order."""
+    T = guppy.type_var("T")
+
+    @guppy.struct
+    class Box(Generic[T]):
+        value: T
+
+    # No params= → T is a free var, collected automatically
+    BoxAlias = guppy.type_alias("Box[T]")
+
+    @guppy
+    def get_value(b: BoxAlias[int]) -> int:
+        return b.value
+
+    @guppy
+    def main() -> int:
+        return get_value(Box(99))
+
+    run_int_fn(main, expected=99)
+
+
+def test_explicit_name_kwarg(run_int_fn):
+    """The name= kwarg overrides inferred name and makes the alias usable."""
+    MyFloat = guppy.type_alias("float", name="MyFloat")
+
+    @guppy
+    def main(x: MyFloat) -> MyFloat:
+        return x + 1.0
+
+    run_int_fn(main, expected=2.0, args=[1.0])
+
+
+# ---------------------------------------------------------------------------
+# Struct / enum interaction tests
+# ---------------------------------------------------------------------------
+
+
+def test_alias_in_struct_field(run_int_fn):
+    """A struct field can be typed with a concrete alias."""
+    IntAlias = guppy.type_alias("int")
+
+    @guppy.struct
+    class Point:
+        x: IntAlias
+        y: IntAlias
+
+    @guppy
+    def main() -> int:
+        p = Point(3, 4)
+        return p.x + p.y
+
+    run_int_fn(main, expected=7)
+
+
+def test_alias_of_struct(run_int_fn):
+    """An alias can name a concrete struct type and be used transparently."""
+
+    @guppy.struct
+    class Vec2:
+        x: int
+        y: int
+
+    VecAlias = guppy.type_alias("Vec2")
+
+    @guppy
+    def dot(a: VecAlias, b: VecAlias) -> int:
+        return a.x * b.x + a.y * b.y
+
+    @guppy
+    def main() -> int:
+        return dot(Vec2(3, 4), Vec2(1, 2))
+
+    run_int_fn(main, expected=11)
+
+
+def test_generic_alias_in_struct_field(run_int_fn):
+    """A generic alias used in a struct field is correctly expanded."""
+    T = guppy.type_var("T")
+
+    @guppy.struct
+    class Box(Generic[T]):
+        value: T
+
+    Boxed = guppy.type_alias("Box[T]", params=[T])
+
+    @guppy.struct
+    class Outer:
+        inner: Boxed[int]
+
+    @guppy
+    def main() -> int:
+        o = Outer(Box(42))
+        return o.inner.value
+
+    run_int_fn(main, expected=42)
+
+
+def test_alias_of_enum(validate):
+    """An alias can name an enum type and be used in function signatures."""
+
+    @guppy.enum
+    class Color:
+        Red = {}
+        Green = {}
+        Blue = {}
+
+        @guppy
+        def tag(self: "Color") -> int:
+            return 0
+
+    ColorAlias = guppy.type_alias("Color")
+
+    @guppy
+    def use_color(c: ColorAlias) -> int:
+        return c.tag()
+
+    @guppy
+    def main() -> int:
+        return use_color(Color.Red())
+
+    validate(main.compile_function())
+
+
+def test_alias_in_enum_variant_field(validate):
+    """An enum variant field can be typed with an alias."""
+    IntAlias = guppy.type_alias("int")
+
+    @guppy.enum
+    class Msg:
+        Value = {"n": IntAlias}
+        Empty = {}
+
+    @guppy
+    def make_value(n: int) -> Msg:
+        return Msg.Value(n)
+
+    validate(make_value.compile_function())
