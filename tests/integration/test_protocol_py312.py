@@ -366,3 +366,26 @@ def test_run_int(validate, run_int_fn):
 
     validate(main.compile())
     run_int_fn(main, 13)
+
+
+def test_params(validate):
+    @guppy.protocol
+    class Foo[A, B]:
+        @guppy.require
+        def foo[C, D](self, a: A, c: C, d: D) -> B: ...
+
+    @guppy.struct(frozen=True)
+    class Goo:
+        @guppy
+        def foo[X, Y](self, n: nat, x: X, y: Y) -> float:
+            return n * 2.5
+
+    @guppy
+    def hoo[F: Foo[nat, float]](f: F, n: nat, s: str, i: int) -> float:
+        return f.foo(n, s, i)
+
+    @guppy
+    def main() -> float:
+        return hoo(Goo(), 42, "", -1)
+
+    validate(main.compile())

@@ -480,11 +480,12 @@ def handle_implicit_self_arg_proto(
     Add a type parameter to the function which implements the protocol, and the self
     type is a BoundTypeVar referring to that parameter.
     """
-
-    # The generic params inherited from the parent type should appear first in the
-    # parameter list, so we have to shift the existing ones, then shift one more place
-    # to account for the "self" parameter.
+    # The generic params inherited from the parent type (those in `self_defn.params`)
+    # should appear first in the parameter list. The other ones have to be shifted one
+    # place to account for the `self` parameter we'll insert.
     for name, param in ctx.param_var_mapping.items():
+        if param in self_defn.params:
+            continue
         ctx.param_var_mapping[name] = param.with_idx(
             param.idx + len(self_defn.params) + 1
         )
@@ -494,7 +495,7 @@ def handle_implicit_self_arg_proto(
     proto_inst = self_defn.check_instantiate(self_args, loc=arg)
     self_arg = BoundTypeVar("self", len(self_args), True, True, (proto_inst,))
     ctx.param_var_mapping["self"] = TypeParam(
-        idx=0,
+        idx=len(self_defn.params),
         name="self",
         must_be_copyable=True,
         must_be_droppable=True,
