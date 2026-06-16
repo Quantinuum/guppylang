@@ -30,7 +30,7 @@ def test_basic_type(run_int_fn):
 
 
 def test_tuples(run_int_fn):
-    # tuples cannot be `result` reported directly, so extract a value
+    # tuples cannot be `output` reported directly, so extract a value
     tup = (1, -1, 0, 1.2, -1.2, 0.0, True, False)
 
     @guppy

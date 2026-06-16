@@ -3,10 +3,10 @@
 # mypy: disable-error-code="empty-body, no-untyped-def"
 
 from guppylang_internals.decorator import custom_function
-from guppylang_internals.std._internal.debug import StateResultChecker
+from guppylang_internals.std._internal.debug import StateOutputChecker
 
 
-@custom_function(checker=StateResultChecker(), higher_order_value=False)
+@custom_function(checker=StateOutputChecker(), higher_order_value=False)
 def state_output(tag, *args) -> None:
     """Report the quantum state of the specified qubits.
 

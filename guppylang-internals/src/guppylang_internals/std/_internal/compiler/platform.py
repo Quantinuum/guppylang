@@ -28,7 +28,7 @@ TAG_MAX_LEN = 200
 
 
 @dataclass(frozen=True)
-class TooLongError(Error):
+class OutputTagTooLongError(Error):
     title: ClassVar[str] = "Tag too long"
     span_label: ClassVar[str] = "Output tag is too long"
 
@@ -37,10 +37,10 @@ class TooLongError(Error):
         message: ClassVar[str] = f"Output tags are limited to {TAG_MAX_LEN} bytes"
 
 
-class ResultCompiler(CustomCallCompiler):
+class OutputCompiler(CustomCallCompiler):
     """Custom compiler for overloads of the `output` function.
 
-    See `ArrayResultCompiler` for the compiler that handles results involving arrays.
+    See `ArrayOutputCompiler` for the compiler that handles outputs involving arrays.
     """
 
     def __init__(self, op_name: str, with_int_width: bool = False):
@@ -61,10 +61,10 @@ class ResultCompiler(CustomCallCompiler):
         return []
 
 
-class ArrayResultCompiler(CustomInoutCallCompiler):
+class ArrayOutputCompiler(CustomInoutCallCompiler):
     """Custom compiler for overloads of the `output` function accepting arrays.
 
-    See `ResultCompiler` for the compiler that handles basic results.
+    See `OutputCompiler` for the compiler that handles basic outputs.
     """
 
     def __init__(self, op_name: str, with_int_width: bool = False):
@@ -80,7 +80,7 @@ class ArrayResultCompiler(CustomInoutCallCompiler):
 
         # As `borrow_array`s used by Guppy are linear, we need to clone it (knowing
         # that all elements in it are copyable) to avoid linearity violations when
-        # both passing it to the result operation and returning it (as an inout
+        # both passing it to the output operation and returning it (as an inout
         # argument).
         hugr_elem_ty = elem_ty.to_hugr(self.ctx)
         hugr_size = size_arg.to_hugr(self.ctx)
@@ -115,7 +115,7 @@ def tag_to_hugr(tag_arg: Argument, ctx: CompilerContext, loc: AstNode) -> tys.Ty
             raise InternalGuppyError("Invalid tag argument")
 
     if len(tag.encode("utf-8")) > TAG_MAX_LEN:
-        err = TooLongError(loc)
-        err.add_sub_diagnostic(TooLongError.Hint(None))
+        err = OutputTagTooLongError(loc)
+        err.add_sub_diagnostic(OutputTagTooLongError.Hint(None))
         raise GuppyError(err)
     return tys.StringArg(tag)

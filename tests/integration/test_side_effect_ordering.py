@@ -7,8 +7,8 @@ from hugr.std import PRELUDE
 
 from guppylang import guppy
 from guppylang_internals.std._internal.compiler.tket_exts import (
-    RESULT_EXTENSION,
     QUANTUM_EXTENSION,
+    RESULT_EXTENSION,
 )
 from guppylang.std.builtins import output, array, owned, panic
 from guppylang.std.quantum import qubit, discard, measure
@@ -53,7 +53,7 @@ def check_order(hugr: Hugr, nodes: list[Node]) -> None:
     assert len(nodes) == 0
 
 
-def test_input_result_output(validate):
+def test_input_output(validate):
     @guppy
     def main() -> None:
         q = qubit()
@@ -75,7 +75,7 @@ def test_input_result_output(validate):
     check_order(hugr, [inp, r, out])
 
 
-def test_result_panic(validate):
+def test_output_panic(validate):
     @guppy
     def test() -> None:
         output("a", True)
@@ -87,7 +87,7 @@ def test_result_panic(validate):
     compiled = test.compile_function()
     validate(compiled)
 
-    # Check that we have the expected order edges between the results
+    # Check that we have the expected order edges between the outputs
     hugr = compiled.modules[0]
     [a] = find_ext_nodes(hugr, RESULT_EXTENSION.get_op("result_bool").qualified_name())
     [b] = find_ext_nodes(hugr, RESULT_EXTENSION.get_op("result_int").qualified_name())
