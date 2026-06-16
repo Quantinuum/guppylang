@@ -3,13 +3,20 @@ from hugr.package import Package, PackagePointer
 
 from pathlib import Path
 import pytest
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from typing_extensions import assert_never
 
 from selene_hugr_qis_compiler import check_hugr
 
 from guppylang.defs import GuppyDefinition
+from guppylang.emulator import Platform
 from guppylang.std.num import nat
+
+# Keep this in sync with the execution fixtures below. The PR workflow uses the
+# auto-applied ``execution`` marker to rerun only emulator-backed integration
+# tests against non-default platforms, without also rerunning validation-only
+# integration tests.
+_EXECUTION_FIXTURES = frozenset({"run_int_fn", "run_nat_fn", "run_float_fn_approx"})
 
 
 def pytest_generate_tests(metafunc):
@@ -24,6 +31,15 @@ def pytest_generate_tests(metafunc):
             exported_hugrs,
             ids=lambda p: f"{p.suffixes[-2]}" if len(p.suffixes) >= 2 else f"{p.name}",
         )
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    # Mark by fixture dependency so newly added execution tests are picked up
+    # automatically by the Sol CI rerun.
+    for item in items:
+        fixture_names = getattr(item, "fixturenames", ())
+        if _EXECUTION_FIXTURES.intersection(fixture_names):
+            item.add_marker("execution")
 
 
 @pytest.fixture(scope="session")
@@ -71,11 +87,17 @@ def validate(request, export_test_cases_dir: Path):
     return validate_impl
 
 
+@pytest.fixture
+def target_platform(request: pytest.FixtureRequest) -> Platform:
+    """Platform to use for integration emulation tests."""
+    return cast("Platform", request.config.getoption("--target-platform"))
+
+
 class LLVMException(Exception):
     pass
 
 
-def _emulate_fn(ty: Literal["int", "nat", "float"]):
+def _emulate_fn(ty: Literal["int", "nat", "float"], default_platform: Platform):
     """Use selene to emulate a Guppy function."""
     from guppylang.decorator import guppy
     from guppylang.std.builtins import result
@@ -85,7 +107,9 @@ def _emulate_fn(ty: Literal["int", "nat", "float"]):
         expected: Any,
         num_qubits: int | None = None,
         args: list[Any] | None = None,
+        platform: Platform | None = None,
     ):
+        resolved_platform = platform or default_platform
         args = args or []
 
         @guppy.comptime
@@ -114,13 +138,18 @@ def _emulate_fn(ty: Literal["int", "nat", "float"]):
                 assert_never(ty)
         if num_qubits:
             res = (
-                entry.emulator(n_qubits=num_qubits)
+                entry.emulator(n_qubits=num_qubits, platform=resolved_platform)
                 .statevector_sim()
                 .with_seed(42)
                 .run()
             )
         else:
-            res = entry.emulator(0).coinflip_sim().with_seed(42).run()
+            res = (
+                entry.emulator(0, platform=resolved_platform)
+                .coinflip_sim()
+                .with_seed(42)
+                .run()
+            )
         num = next(v for k, v in res[0] if k == "_test_output")
         if num != expected:
             raise LLVMException(
@@ -131,22 +160,22 @@ def _emulate_fn(ty: Literal["int", "nat", "float"]):
 
 
 @pytest.fixture
-def run_int_fn():
+def run_int_fn(target_platform: Platform):
     """Emulate an integer function using the Guppy emulator."""
-    return _emulate_fn(ty="int")
+    return _emulate_fn(ty="int", default_platform=target_platform)
 
 
 @pytest.fixture
-def run_nat_fn():
+def run_nat_fn(target_platform: Platform):
     """Emulate an unsigned integer function using the Guppy emulator."""
-    return _emulate_fn(ty="nat")
+    return _emulate_fn(ty="nat", default_platform=target_platform)
 
 
 @pytest.fixture
-def run_float_fn_approx():
+def run_float_fn_approx(target_platform: Platform):
     """Like run_int_fn, but takes optional additional parameters `rel`, `abs`
     and `nan_ok` as per `pytest.approx`."""
-    run_fn = _emulate_fn(ty="float")
+    run_fn = _emulate_fn(ty="float", default_platform=target_platform)
 
     def run_approx(
         f: GuppyDefinition,
