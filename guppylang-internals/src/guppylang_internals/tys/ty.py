@@ -454,6 +454,20 @@ class UnitaryFlags(Flag):
             case _:
                 assert_never(self)
 
+    def custom_implementation_names(self) -> list[str]:
+        """Returns the name of the corresponding custom implementation for this flag."""
+        match self:
+            case UnitaryFlags.Unitary:
+                return ["call_ctrl_daggered", "call_daggered"]
+            case UnitaryFlags.Dagger:
+                return ["call_daggered"]
+            case UnitaryFlags.Control:
+                return ["call_controlled"]
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case _:
+                assert_never(self)
+
 
 @dataclass(frozen=True)
 class FuncInput:

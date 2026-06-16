@@ -1,7 +1,6 @@
 from collections.abc import Callable
 from typing import Generic
 
-from guppylang.std.num import nat
 import pytest
 
 from hugr import tys as ht

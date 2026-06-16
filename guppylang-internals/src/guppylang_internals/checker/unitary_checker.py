@@ -106,6 +106,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
         flag_ok = self.flags in ty.unitary_flags
         if not classic_args and not flag_ok:
             from guppylang_internals.definition.custom import CustomFunctionDef
+            from guppylang_internals.definition.function import ParsedFunctionDef
 
             # We want the hint only for non-custom functions, since custom
             # functions are usually quantum operations (e.g. gates or measurement)
@@ -115,31 +116,42 @@ class BBUnitaryChecker(ast.NodeVisitor):
                     self.flags & (~ty.unitary_flags),
                     missing_keyword_hint=True,
                 )
-            else:
-                if func is not None:
-                    err = UnitaryCallError(
-                        node,
-                        self.flags & (~ty.unitary_flags),
-                        missing_keyword_hint=False,
-                    )
-                    err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
-                else:
-                    # If func is None, we are checking a higher-order call
-                    missing_flags = self.flags & (~ty.unitary_flags)
-                    err = UnitaryCallError(
-                        node,
-                        missing_flags,
-                        missing_keyword_hint=False,
-                    )
+            elif func is not None:
+                err = UnitaryCallError(
+                    node,
+                    self.flags & (~ty.unitary_flags),
+                    missing_keyword_hint=False,
+                )
+                if (
+                    isinstance(func, ParsedFunctionDef)
+                    and func.parsed_modified_defs is not None
+                ):
+                    # NICOLA TODO: this error must be improved
                     err.add_sub_diagnostic(
-                        UnitaryCallError.HigherOrderHint(
-                            None,
-                            missing_flags.callable_name(),
-                            "higher-order"
-                            if ty.unitary_flags == UnitaryFlags.NoFlags
-                            else ty.unitary_flags.callable_name(),
-                        )
+                        UnitaryCallError.CustomModifiedHint(None, func.name)
                     )
+                else:
+                    err.add_sub_diagnostic(
+                        UnitaryCallError.MissingFlagHint(None, func.name)
+                    )
+            else:
+                # If func is None, we are checking a higher-order call
+                missing_flags = self.flags & (~ty.unitary_flags)
+                err = UnitaryCallError(
+                    node,
+                    missing_flags,
+                    missing_keyword_hint=False,
+                )
+                err.add_sub_diagnostic(
+                    UnitaryCallError.HigherOrderHint(
+                        None,
+                        missing_flags.callable_name(),
+                        "higher-order"
+                        if ty.unitary_flags == UnitaryFlags.NoFlags
+                        else ty.unitary_flags.callable_name(),
+                    )
+                )
+
             raise GuppyTypeError(err)
 
         # If we are under any modifier, we cannot allocate qubits

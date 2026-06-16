@@ -220,6 +220,14 @@ class UnitaryCallError(Error):
         `unitary=True`"""
         return self.flags.hint_rendering()
 
+    @property
+    def custom_hint_rendering(self) -> str:
+        """We check which custom implementation name are we missing."""
+        names = self.flags.custom_implementation_names()
+        if len(names) == 1:
+            return f"method `{names[0]}`"
+        return "methods " + ", ".join(f"`{name}`" for name in names)
+
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
@@ -228,11 +236,19 @@ class UnitaryCallError(Error):
         )
 
     @dataclass(frozen=True)
-    class Hint(Help):
+    class MissingFlagHint(Help):
         func_name: str
         message: ClassVar[str] = (
             "Consider adding the flag `({hint_rendering})` to the decorator of "
             "the function `{func_name}`"
+        )
+
+    @dataclass(frozen=True)
+    class CustomModifiedHint(Help):
+        func_name: str
+        message: ClassVar[str] = (
+            "The `@guppy.unitary` function `{func_name}` is missing a custom "
+            "implementation. Consider implementing the custom {custom_hint_rendering}"
         )
 
     @dataclass(frozen=True)
