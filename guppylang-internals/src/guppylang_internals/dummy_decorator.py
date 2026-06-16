@@ -72,8 +72,22 @@ def _dummy_custom_decorator(*args: Any, **kwargs: Any) -> Any:
     return lambda f: f
 
 
+def _notebook_kernel_running() -> bool:
+    """Checks if code is running inside a Jupyter kernel."""
+    try:
+        from IPython import get_ipython
+    except ImportError:
+        return False
+
+    shell = get_ipython()
+    return shell is not None and shell.__class__.__name__ == "ZMQInteractiveShell"
+
+
 def sphinx_running() -> bool:
-    """Checks if guppylang was imported during a sphinx build."""
+    """Checks if guppylang was imported during a Sphinx build."""
+    if _notebook_kernel_running():
+        return False
+
     # This is the most general solution available at the moment.
     # See: https://github.com/sphinx-doc/sphinx/issues/9805
     try:
