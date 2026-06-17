@@ -25,6 +25,7 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
+from guppylang_internals.span import function_header_span
 from guppylang_internals.tys.param import Parameter, TypeParam
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
@@ -306,8 +307,7 @@ def check_signature(
             UnsupportedError(func_def.args.defaults[0], "Default arguments")
         )
     if func_def.returns is None:
-        err = MissingReturnAnnotationError(func_def)
-        # TODO: Error location is incorrect
+        err = MissingReturnAnnotationError(function_header_span(func_def))
         if all(r.value is None for r in return_nodes_in_ast(func_def)):
             err.add_sub_diagnostic(
                 MissingReturnAnnotationError.ReturnNone(None, func_def.name)

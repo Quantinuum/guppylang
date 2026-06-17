@@ -5,7 +5,7 @@ import linecache
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from guppylang_internals.ast_util import get_file, get_line_offset
+from guppylang_internals.ast_util import get_file, get_line_offset, get_source
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.ipython_inspect import normalize_ipython_dummy_files
 
@@ -124,6 +124,34 @@ def to_span(x: ToSpan) -> Span:
         x.end_col_offset or x.col_offset,  # type: ignore[attr-defined]
     )
     return Span(start, end)
+
+
+def function_header_span(func_def: ast.FunctionDef) -> Span:
+    """Returns a span covering only the function header up to and including `:`."""
+    start = to_span(func_def).start
+    source = get_source(func_def)
+    file = get_file(func_def)
+    line_offset = get_line_offset(func_def)
+    if source is None or file is None or line_offset is None:
+        if func_def.body:
+            return Span(start, to_span(func_def.body[0]).start)
+        return Span(start, to_span(func_def).end)
+
+    lines = source.splitlines()
+    line_idx = func_def.lineno - 1
+    paren_depth = 0
+    for i in range(line_idx, len(lines)):
+        col_begin = func_def.col_offset if i == line_idx else 0
+        for col in range(col_begin, len(lines[i])):
+            char = lines[i][col]
+            if char == "(":
+                paren_depth += 1
+            elif char == ")":
+                paren_depth -= 1
+            elif char == ":" and paren_depth == 0:
+                return Span(start, Loc(file, i + line_offset, col + 1))
+
+    raise InternalGuppyError("function_header_span: Could not find header colon")
 
 
 #: List of source lines in a file
