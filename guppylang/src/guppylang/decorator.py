@@ -16,7 +16,6 @@ from guppylang_internals.definition.function import (
     RawFunctionDef,
     RawModifiedDefs,
 )
-from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
