@@ -1,7 +1,11 @@
 from guppylang import guppy
+from guppylang.emulator.exceptions import EmulatorError
 from guppylang.std.builtins import owned, output
 from guppylang.std.quantum import h, measure, qubit, x
 from guppylang.std.random import seeded_pcg32
+
+import pytest
+from selene_sim.backends.bundled_simulators import ClassicalReplay
 
 
 def test_pcg32_compile(validate) -> None:
@@ -91,17 +95,9 @@ def test_pcg32_motivating_example() -> None:
         output("other_first", other_first)
         output("other_second", other_second)
 
-    results = dict(
-        main.emulator(0).coinflip_sim().with_seed(42).run().results[0].entries
-    )
-    assert results["first"] == results["other_first"]
-    assert results["second"] == results["other_second"]
-    assert results == {
-        "first": 1307692281,
-        "second": -444364974,
-        "other_first": 1307692281,
-        "other_second": -444364974,
-    }
+    results = main.emulator(0).coinflip_sim().with_seed(42).run().collated_shots()[0]
+    assert results["first"] == results["other_first"] == [1307692281]
+    assert results["second"] == results["other_second"] == [-444364974]
 
 
 def test_pcg32_matches_qsystem_random() -> None:
@@ -111,33 +107,24 @@ def test_pcg32_matches_qsystem_random() -> None:
 
     @guppy
     def main() -> None:
-        seed = 55555
-        pcg = seeded_pcg32(seed)
+        pcg = seeded_pcg32(55555)
         output("pcg_int", pcg.next_int())
         output("pcg_bnd2", pcg.next_int_bounded(2))
         output("pcg_bnd6", pcg.next_int_bounded(6))
         output("pcg_bnd100", pcg.next_int_bounded(100))
 
-        qsys = RNG(seed)
+        qsys = RNG(55555)
         output("qsys_int", qsys.random_int())
         output("qsys_bnd2", qsys.random_int_bounded(2))
         output("qsys_bnd6", qsys.random_int_bounded(6))
         output("qsys_bnd100", qsys.random_int_bounded(100))
         qsys.discard()
 
-    results = dict(
-        main.emulator(0).coinflip_sim().with_seed(42).run().results[0].entries
-    )
-    assert results["pcg_int"] == results["qsys_int"]
-    assert results["pcg_bnd2"] == results["qsys_bnd2"]
-    assert results["pcg_bnd6"] == results["qsys_bnd6"]
-    assert results["pcg_bnd100"] == results["qsys_bnd100"]
-    assert (
-        results["pcg_int"],
-        results["pcg_bnd2"],
-        results["pcg_bnd6"],
-        results["pcg_bnd100"],
-    ) == (636174845, 1, 0, 27)
+    results = main.emulator(0).coinflip_sim().with_seed(42).run().collated_shots()[0]
+    assert results["pcg_int"] == results["qsys_int"] == [636174845]
+    assert results["pcg_bnd2"] == results["qsys_bnd2"] == [1]
+    assert results["pcg_bnd6"] == results["qsys_bnd6"] == [0]
+    assert results["pcg_bnd100"] == results["qsys_bnd100"] == [27]
 
 
 def test_pcg32_no_interference_with_quantum() -> None:
@@ -169,12 +156,26 @@ def test_pcg32_no_interference_with_quantum() -> None:
             value = rng_outer.next_int()
             output("rng0_1", value)
 
-    results = main.emulator(2).coinflip_sim().with_seed(42).run().results[0].entries
-    entries = dict(results)
-    assert entries["rng0_0"] == 1307692281
-    assert entries["rng0_1"] == -444364974
-    if "rng1_0" in entries:
-        assert entries["rng1_0"] == -8000311
+    measurements = [
+        [False, False],
+        [True, True],
+        [True, False],
+        [False, True],
+    ]
+    shots = (
+        main.emulator(2)
+        .with_simulator(ClassicalReplay(measurements=measurements))
+        .with_shots(len(measurements))
+        .run()
+        .collated_shots()
+    )
+    for shot in shots:
+        assert shot["rng0_0"] == [1307692281]
+        assert shot["rng0_1"] == [-444364974]
+    assert "rng1_0" not in shots[0]
+    assert shots[1]["rng1_0"] == [-8000311]
+    assert shots[2]["rng1_0"] == [-8000311]
+    assert "rng1_0" not in shots[3]
 
 
 def test_pcg32_bounded_compile(validate) -> None:
@@ -219,3 +220,13 @@ def test_pcg32_bounded_deterministic_sequence(run_int_fn) -> None:
         return total
 
     run_int_fn(main, 1 + 3 + 24)
+
+
+def test_pcg32_bounded_bound_zero_panics() -> None:
+    @guppy
+    def main() -> int:
+        rng = seeded_pcg32(1)
+        return rng.next_int_bounded(0)
+
+    with pytest.raises(EmulatorError, match="bound must be positive"):
+        main.emulator(0).coinflip_sim().run()

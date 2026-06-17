@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import no_type_check
 
 from guppylang import guppy
+from guppylang.std.builtins import panic
 from guppylang.std.num import nat
 
 
@@ -25,8 +26,10 @@ def _mask32(value: nat) -> nat:
 @no_type_check
 def _mask64(value: nat) -> nat:
     # 2**64 - 1: PCG32 keeps its state in a 64-bit word (see pcg32_random_r).
-    uint64_mask: nat = 18446744073709551615
-    return value & uint64_mask
+    # Combine two 32-bit masks; hugr cannot const-fold ``(1 << 64) - 1``.
+    low = _mask32(value)
+    high = _mask32(value >> nat(32))
+    return low | (high << nat(32))
 
 
 @guppy
@@ -90,7 +93,7 @@ class PCG32:
 
     @guppy
     @no_type_check
-    def next_int_bounded(self: PCG32, bound: int) -> int:
+    def next_int_bounded(self: PCG32, bound: nat) -> int:
         """Generate a uniformly random integer in ``[0, bound)``.
 
         Uses rejection sampling (``pcg32_boundedrand_r`` from the PCG reference) to
@@ -103,18 +106,20 @@ class PCG32:
             A value in ``[0, bound)``, matching the shape of
             :py:meth:`guppylang.std.qsystem.random.RNG.random_int_bounded`.
         """
+        if bound == nat(0):
+            panic("PCG32.next_int_bounded: bound must be positive")
         # uint32_t threshold = -bound % bound in pcg32_boundedrand_r.
-        two_to_32: nat = 4294967296
-        threshold = _mask32(two_to_32 - _mask32(nat(bound))) % nat(bound)
+        two_to_32: nat = nat(1) << nat(32)
+        threshold = _mask32(two_to_32 - _mask32(bound)) % bound
         while True:
             r = self._next_uint32()
             if r >= threshold:
-                return int(r % nat(bound))
+                return int(r % bound)
 
 
 @guppy
 @no_type_check
-def seeded_pcg32(seed: int) -> PCG32:
+def seeded_pcg32(seed: nat) -> PCG32:
     """Create a new :py:class:`PCG32` generator from a seed value.
 
     The seed selects one of ``2**63`` possible PCG32 sequences. The same seed always
@@ -126,7 +131,7 @@ def seeded_pcg32(seed: int) -> PCG32:
     """
     # Default initstate from PCG reference examples (e.g. Rosetta Code PCG32 task).
     initstate = nat(42)
-    initseq = nat(seed)
+    initseq = seed
     # PCG requires an odd increment; initseq is the stream/sequence selector.
     inc = nat((initseq << nat(1)) | nat(1))
     # pcg32_srandom_r: advance twice after mixing initstate into state.
