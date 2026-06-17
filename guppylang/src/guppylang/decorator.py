@@ -1,7 +1,7 @@
 import ast
 import builtins
 import inspect
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from types import FrameType
 from typing import (
     Any,
@@ -14,27 +14,13 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import annotate_location
-from guppylang_internals.compiler.core import (
-    CompilerContext,
-)
-from guppylang_internals.decorator.custom import (
-    custom_function,
-    custom_type,
-    hugr_op,
-)
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.const import RawConstDef
-from guppylang_internals.definition.custom import (
-    CustomCallChecker,
-    CustomInoutCallCompiler,
-    RawCustomFunctionDef,
-)
+from guppylang_internals.definition.custom import RawCustomFunctionDef
 from guppylang_internals.definition.declaration import RawFunctionDecl
 from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.extern import RawExternDef
-from guppylang_internals.definition.function import (
-    RawFunctionDef,
-)
+from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
@@ -48,27 +34,20 @@ from guppylang_internals.definition.pytket_circuits import (
 )
 from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
-from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys import Effect  # Re-exported
-from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.param import Parameter
-from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FunctionType,
     NoneType,
     NumericType,
     UnitaryFlags,
 )
-from hugr import ops
-from hugr import tys as ht
 from hugr import val as hv
-from hugr.package import ModulePointer
-from typing_extensions import Unpack, dataclass_transform, deprecated
+from typing_extensions import Unpack, dataclass_transform
 
 from guppylang.defs import (
     GuppyDefinition,
@@ -214,26 +193,6 @@ class _Guppy:
             return GuppyFunctionDefinition(defn)
 
         return _with_optional_kwargs(decorator, args, kwargs)
-
-    @deprecated("Use @guppylang_internal.decorator.ty.extend_type instead.")
-    def extend_type(self, defn: TypeDef) -> Callable[[type], type]:
-        # Set `return_class=True` to match the old behaviour until this deprecated
-        # method is removed
-        import guppylang_internals.decorator.ty
-
-        return guppylang_internals.decorator.ty.extend_type(defn, return_class=True)
-
-    @deprecated("Use @guppylang_internal.decorator.custom.custom_type instead.")
-    def type(
-        self,
-        hugr_ty: ht.Type | Callable[[Sequence[Argument], CompilerContext], ht.Type],
-        name: str = "",
-        copyable: bool = True,
-        droppable: bool = True,
-        bound: ht.TypeBound | None = None,
-        params: Sequence[Parameter] | None = None,
-    ) -> Callable[[type[T]], type[T]]:
-        return custom_type(hugr_ty, name, copyable, droppable, bound, params)
 
     @dataclass_transform()
     def struct(
@@ -424,28 +383,6 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
-    @deprecated("Use @guppylang_internal.decorator.custom.custom_function instead.")
-    def custom(
-        self,
-        compiler: CustomInoutCallCompiler | None = None,
-        checker: CustomCallChecker | None = None,
-        higher_order_value: bool = True,
-        name: str = "",
-        signature: FunctionType | None = None,
-    ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
-        return custom_function(compiler, checker, higher_order_value, name, signature)
-
-    @deprecated("Use @guppylang_internal.decorator.custom.hugr_op instead.")
-    def hugr_op(
-        self,
-        op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp],
-        checker: CustomCallChecker | None = None,
-        higher_order_value: bool = True,
-        name: str = "",
-        signature: FunctionType | None = None,
-    ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
-        return hugr_op(op, checker, higher_order_value, name, signature)
-
     @overload
     def declare(
         self, /, **kwargs: Unpack[GuppyKwargs]
@@ -578,17 +515,6 @@ class _Guppy:
         # We're pretending to return a free type variable, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
-
-    @deprecated(
-        "guppy.compile(foo) is deprecated and will be removed in a future version:"
-        " use foo.compile() instead."
-    )
-    def compile(self, obj: Any) -> ModulePointer:
-        """Compiles a Guppy definition to Hugr."""
-
-        if not isinstance(obj, GuppyDefinition):
-            raise TypeError(f"Object is not a Guppy definition: {obj}")
-        return ModulePointer(obj.compile(), 0)
 
     def library(self, *members: GuppyDefinition) -> GuppyLibrary:
         """Defines a Guppy library, which is a collection of Guppy definitions that can
