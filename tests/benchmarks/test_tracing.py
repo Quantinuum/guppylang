@@ -25,23 +25,21 @@ def random_layered_circuit(n_qubits: int, depth: int, seed: int) -> Circuit:
     return circuit
 
 
-n = guppy.nat_var("n")
-
-
-@guppy
-@no_type_check
-def apply_pauli_frame(qs: array[qubit, n], frame_ints: array[int, n]) -> None:
-    for idx in range(n):
-        if frame_ints[idx] == 1:
-            x(qs[idx])
-        elif frame_ints[idx] == 2:
-            y(qs[idx])
-        elif frame_ints[idx] == 3:
-            z(qs[idx])
-
-
 def build_guppy_circuit_comptime(circ: Circuit, seed: int) -> GuppyFunctionDefinition:
     gate_map: dict[OpType, GuppyFunctionDefinition] = {OpType.Rz: rz}
+
+    n = guppy.nat_var("n")
+
+    @guppy
+    @no_type_check
+    def apply_pauli_frame(qs: array[qubit, n], frame_ints: array[int, n]) -> None:
+        for idx in range(n):
+            if frame_ints[idx] == 1:
+                x(qs[idx])
+            elif frame_ints[idx] == 2:
+                y(qs[idx])
+            elif frame_ints[idx] == 3:
+                z(qs[idx])
 
     @guppy.comptime
     @no_type_check
@@ -82,7 +80,7 @@ def test_circuit_comptime_check(benchmark, circuit_seed):
     def circuit_comptime_check():
         build_guppy_circuit_comptime(*circuit_seed).check()
 
-    benchmark.pedantic(circuit_comptime_check, rounds=25)
+    benchmark(circuit_comptime_check)
 
 
 def test_circuit_comptime_compile(benchmark, circuit_seed):
