@@ -87,4 +87,4 @@ def test_circuit_comptime_compile(benchmark, circuit_seed):
     def circuit_comptime_compile():
         build_guppy_circuit_comptime(*circuit_seed).compile()
 
-    benchmark.pedantic(circuit_comptime_compile, rounds=25)
+    benchmark(circuit_comptime_compile)
