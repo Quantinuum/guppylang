@@ -229,7 +229,7 @@ class DFContainer:
             raise InternalGuppyError(f"Couldn't obtain a port for `{place}`")
         child_types = [child.ty.to_hugr(self.ctx) for child in children]
         child_wires = [self[child] for child in children]
-        wire = self.builder.add_op(ops.MakeTuple(child_types), *child_wires)[0]
+        wire = self.builder.add_op(ops.make_tuple(child_types), *child_wires)[0]
         for child in children:
             if child.ty.linear:
                 self.locals.pop(child.id)
@@ -242,7 +242,7 @@ class DFContainer:
         is_return = isinstance(place, Variable) and is_return_var(place.name)
         if isinstance(place.ty, StructType) and not is_return:
             hugr_fields_ty = [t.ty.to_hugr(self.ctx) for t in place.ty.fields]
-            unpack = self.builder.add_op(ops.UnpackTuple(hugr_fields_ty), port)
+            unpack = self.builder.add_op(ops.unpack_tuple(hugr_fields_ty), port)
             for field, field_port in zip(place.ty.fields, unpack, strict=True):
                 self[FieldAccess(place, field, None)] = field_port
             # If we had a previous wire assigned to this place, we need forget about it.
@@ -251,7 +251,7 @@ class DFContainer:
         # Same for tuples.
         elif isinstance(place.ty, TupleType) and not is_return:
             hugr_elem_tys = [ty.to_hugr(self.ctx) for ty in place.ty.element_types]
-            unpack = self.builder.add_op(ops.UnpackTuple(hugr_elem_tys), port)
+            unpack = self.builder.add_op(ops.unpack_tuple(hugr_elem_tys), port)
             for idx, (elem, elem_port) in enumerate(
                 zip(place.ty.element_types, unpack, strict=True)
             ):

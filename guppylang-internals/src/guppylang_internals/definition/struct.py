@@ -12,7 +12,7 @@ from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
-from guppylang_internals.compiler.builder.ops import MakeTuple
+from guppylang_internals.compiler.builder.ops import make_tuple
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -216,7 +216,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             """Compiler for the `__new__` constructor method of a struct."""
 
             def compile(self, args: list[Wire]) -> list[Wire]:
-                return list(self.builder.add_op(MakeTuple(), *args))
+                return list(self.builder.add_op(make_tuple(), *args))
 
         constructor_sig = FunctionType(
             inputs=[

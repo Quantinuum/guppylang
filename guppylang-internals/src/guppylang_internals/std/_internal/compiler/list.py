@@ -134,7 +134,7 @@ class ListGetitemCompiler(CustomCallCompiler):
         # implementation of the list type ensures that linear element types are turned
         # into optionals.
         elem_opt_ty = ht.Option(elem_ty)
-        none = self.builder.add_op(ops.Tag(0, elem_opt_ty))
+        none = self.builder.add_op(ops.tag(0, elem_opt_ty))
         idx = self.builder.add_op(convert_itousize(), idx)
         list_wire, result = self.builder.add_op(
             list_set(elem_opt_ty), list_wire, idx, none
@@ -189,7 +189,7 @@ class ListSetitemCompiler(CustomCallCompiler):
         """Lowers a call to `array.__setitem__` for linear arrays."""
         # Embed the element into an optional
         elem_opt_ty = ht.Option(elem_ty)
-        elem = self.builder.add_op(ops.Some(elem_ty), elem)
+        elem = self.builder.add_op(ops.some(elem_ty), elem)
         idx = self.builder.add_op(convert_itousize(), idx)
         list_wire, result = self.builder.add_op(
             list_set(elem_opt_ty), list_wire, idx, elem
@@ -282,7 +282,7 @@ class ListPushCompiler(CustomCallCompiler):
         """Lowers a call to `list.push` for linear lists."""
         # Wrap element into an optional
         elem_opt_ty = ht.Option(elem_ty)
-        elem_opt = self.builder.add_op(ops.Some(elem_ty), elem)
+        elem_opt = self.builder.add_op(ops.some(elem_ty), elem)
         list_wire = self.builder.add_op(list_push(elem_opt_ty), list_wire, elem_opt)
         return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
 
@@ -348,6 +348,6 @@ def _list_new_linear(builder: DFBuilder, elem_type: ht.Type, args: list[Wire]) -
     lst = builder.load(ListVal([], elem_ty=elem_opt_ty))
     push_op = list_push(elem_opt_ty)
     for elem in args:
-        elem_opt = builder.add_op(ops.Some(elem_type), elem)
+        elem_opt = builder.add_op(ops.some(elem_type), elem)
         lst = builder.add_op(push_op, lst, elem_opt)
     return lst

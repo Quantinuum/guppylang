@@ -295,12 +295,12 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
     def _unpack_tuple(self, wire: Wire, types: Sequence[Type]) -> Sequence[Wire]:
         """Add a tuple unpack operation to the graph"""
         types = [t.to_hugr(self.ctx) for t in types]
-        return list(self.builder.add_op(ops.UnpackTuple(types), wire))
+        return list(self.builder.add_op(ops.unpack_tuple(types), wire))
 
     def _pack_tuple(self, wires: Sequence[Wire], types: Sequence[Type]) -> Wire:
         """Add a tuple pack operation to the graph"""
         types = [t.to_hugr(self.ctx) for t in types]
-        return self.builder.add_op(ops.MakeTuple(types), *wires)
+        return self.builder.add_op(ops.make_tuple(types), *wires)
 
     def _pack_returns(self, returns: Sequence[Wire], return_ty: Type) -> Wire:
         """Groups function return values into a tuple"""
@@ -691,17 +691,17 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 break_pred_hugr_ty = ht.Either([iter_ty.to_hugr(self.ctx)], [])
                 with stop_case:
                     self.dfg[break_pred.place] = self.builder.add_op(
-                        ops.Tag(1, break_pred_hugr_ty)
+                        ops.tag(1, break_pred_hugr_ty)
                     )
                 # Otherwise, we continue, set the break predicate to false, and insert
                 # the iterator for the next loop iteration
                 stack.enter_context(hasnext_case)
                 next_wire = self.dfg[next_var.place]
-                elt, it = self.builder.add_op(ops.UnpackTuple(), next_wire)
+                elt, it = self.builder.add_op(ops.unpack_tuple(), next_wire)
                 compiler.dfg = self.dfg
                 compiler._assign(gen.target, elt)
                 self.dfg[break_pred.place] = self.builder.add_op(
-                    ops.Tag(0, break_pred_hugr_ty), it
+                    ops.tag(0, break_pred_hugr_ty), it
                 )
                 # Enter nested conditionals for each if guard on the generator
                 for if_expr in gen.ifs:
@@ -732,7 +732,7 @@ def pack_returns(
         types = type_to_row(return_ty)
         assert len(returns) == len(types)
         hugr_tys = [t.to_hugr(ctx) for t in types]
-        return builder.add_op(ops.MakeTuple(hugr_tys), *returns)
+        return builder.add_op(ops.make_tuple(hugr_tys), *returns)
     assert len(returns) == 1, (
         f"Expected a single return value. Got {returns}. return type {return_ty}"
     )
@@ -750,7 +750,7 @@ def unpack_wire(
     if isinstance(return_ty, TupleType | NoneType):
         types = type_to_row(return_ty)
         hugr_tys = [t.to_hugr(ctx) for t in types]
-        return list(builder.add_op(ops.UnpackTuple(hugr_tys), wire).outputs())
+        return list(builder.add_op(ops.unpack_tuple(hugr_tys), wire).outputs())
     return [wire]
 
 

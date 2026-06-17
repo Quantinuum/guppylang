@@ -12,7 +12,7 @@ from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
-from guppylang_internals.compiler.builder.ops import Tag
+from guppylang_internals.compiler.builder.ops import tag
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -286,7 +286,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
                     self.builder.add_op(
-                        Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
+                        tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
                         *wires,
                     )
                 )

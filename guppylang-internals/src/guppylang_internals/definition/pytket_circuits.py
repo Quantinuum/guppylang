@@ -21,7 +21,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.builder import FunctionBuilder
-from guppylang_internals.compiler.builder.ops import UnpackTuple
+from guppylang_internals.compiler.builder.ops import unpack_tuple
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -271,7 +271,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             angle_wires = [name_to_param[name] for name in param_order]
             # Need to convert all angles to rotations.
             for angle in angle_wires:
-                [halfturns] = outer_func.add_op(UnpackTuple([FLOAT_T]), angle)
+                [halfturns] = outer_func.add_op(unpack_tuple([FLOAT_T]), angle)
                 rotation = outer_func.add_op(from_halfturns_unchecked(), halfturns)
                 param_wires.append(rotation)
 
