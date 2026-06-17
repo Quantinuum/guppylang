@@ -184,7 +184,8 @@ class TypeParam(ParameterBase):
         from guppylang_internals.tys.subst import Instantiator
 
         impls = tuple(
-            impl.transform(Instantiator(inst)) for impl in self.must_implement
+            impl.transform(Instantiator(inst, allow_partial=True))
+            for impl in self.must_implement
         )
 
         return replace(self, must_implement=impls)
