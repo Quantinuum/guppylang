@@ -1,9 +1,10 @@
 from guppylang.decorator import guppy
+from guppylang.std.builtins import power
 
 
 @guppy
 def main() -> None:
-    with dagger:
+    with power(2):
         pass
 
 
