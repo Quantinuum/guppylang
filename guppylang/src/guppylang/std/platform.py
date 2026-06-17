@@ -13,8 +13,8 @@ from guppylang_internals.std._internal.checker import (
     BarrierChecker,
 )
 from guppylang_internals.std._internal.compiler.platform import (
-    ArrayResultCompiler,
-    ResultCompiler,
+    ArrayOutputCompiler,
+    OutputCompiler,
 )
 from guppylang_internals.tys.builtin import int_type, string_type
 from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags, NoneType
@@ -29,60 +29,64 @@ if TYPE_CHECKING:
 n = guppy.nat_var("n")
 
 
-@custom_function(ResultCompiler("result_int", with_int_width=True))
-def _result_int(tag: str @ comptime, value: int) -> None: ...
+@custom_function(OutputCompiler("result_int", with_int_width=True))
+def _output_int(tag: str @ comptime, value: int) -> None: ...
 
 
-@custom_function(ResultCompiler("result_uint", with_int_width=True))
-def _result_nat(tag: str @ comptime, value: nat) -> None: ...
+@custom_function(OutputCompiler("result_uint", with_int_width=True))
+def _output_nat(tag: str @ comptime, value: nat) -> None: ...
 
 
-@custom_function(ResultCompiler("result_bool"))
-def _result_bool(tag: str @ comptime, value: bool) -> None: ...
+@custom_function(OutputCompiler("result_bool"))
+def _output_bool(tag: str @ comptime, value: bool) -> None: ...
 
 
-@custom_function(ResultCompiler("result_f64"))
-def _result_float(tag: str @ comptime, value: float) -> None: ...
+@custom_function(OutputCompiler("result_f64"))
+def _output_float(tag: str @ comptime, value: float) -> None: ...
 
 
-@custom_function(ArrayResultCompiler("result_array_int", with_int_width=True))
-def _result_int_array(tag: str @ comptime, value: array[int, n]) -> None: ...
+@custom_function(ArrayOutputCompiler("result_array_int", with_int_width=True))
+def _output_int_array(tag: str @ comptime, value: array[int, n]) -> None: ...
 
 
-@custom_function(ArrayResultCompiler("result_array_uint", with_int_width=True))
-def _result_nat_array(tag: str @ comptime, value: array[nat, n]) -> None: ...
+@custom_function(ArrayOutputCompiler("result_array_uint", with_int_width=True))
+def _output_nat_array(tag: str @ comptime, value: array[nat, n]) -> None: ...
 
 
-@custom_function(ArrayResultCompiler("result_array_bool"))
-def _result_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
+@custom_function(ArrayOutputCompiler("result_array_bool"))
+def _output_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
 
 
-@custom_function(ArrayResultCompiler("result_array_f64"))
-def _result_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
+@custom_function(ArrayOutputCompiler("result_array_f64"))
+def _output_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
 
 
 @guppy.overload(
-    _result_int,
-    _result_nat,
-    _result_bool,
-    _result_float,
-    _result_int_array,
-    _result_nat_array,
-    _result_bool_array,
-    _result_float_array,
+    _output_int,
+    _output_nat,
+    _output_bool,
+    _output_float,
+    _output_int_array,
+    _output_nat_array,
+    _output_bool_array,
+    _output_float_array,
 )
-def result(tag: str, value):
-    """Report a result with the given tag and value.
+def output(tag: str, value):
+    """Report an output with the given tag and value.
 
-    This is the primary way to report results from the program back to the user.
+    This is the primary way to report outputs from the program back to the user.
     On Quantinuum systems a single shot execution will return a list of pairs of
     (tag, value).
 
     Args:
-        tag: The tag of the result. Must be a string literal
-        value: The value of the result. Currently supported value types are `int`,
-        `nat`, `float`, and `bool`.
+        tag: The tag of the output. Must be a string literal.
+        value: The value of the output. Currently supported value types are `int`,
+        `nat`, `float`, `bool`, and arrays of those types.
     """
+
+
+# Deprecated alias for `output`, deprecated since guppylang v1.0.
+result = output
 
 
 @custom_function(

@@ -17,6 +17,29 @@ env:
   UV_VERSION: "0.9.5"
 
 jobs:
+  check-lockfiles:
+    name: Check lock files
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: 3.10
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mozilla-actions/sccache-action@v0.0.10
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Ensure uv lockfile is up to date
+        run: uv lock --check
+
+      - name: Ensure cargo lockfile is up to date
+        run: cargo update -w --locked
+
   check:
     name: Check Python (${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -41,7 +64,7 @@ jobs:
           enable-cache: true
 
       - name: Install Guppy
-        run: uv sync --locked --python ${{ env.PYTHON_VERSION }}
+        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
 
       - name: Type check with mypy
         run: uv run mypy guppylang guppylang-internals
@@ -84,7 +107,7 @@ jobs:
           enable-cache: true
 
       - name: Install Guppy
-        run: uv sync --locked --python ${{ env.PYTHON_VERSION }}
+        run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
 
       - name: Run python tests with coverage instrumentation
         run: uv run pytest -n auto --cov=./ --cov-report=xml

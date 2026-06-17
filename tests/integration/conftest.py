@@ -100,7 +100,7 @@ class LLVMException(Exception):
 def _emulate_fn(ty: Literal["int", "nat", "float"], default_platform: Platform):
     """Use selene to emulate a Guppy function."""
     from guppylang.decorator import guppy
-    from guppylang.std.builtins import result
+    from guppylang.std.builtins import output
 
     def f(
         f: GuppyDefinition,
@@ -115,17 +115,17 @@ def _emulate_fn(ty: Literal["int", "nat", "float"], default_platform: Platform):
         @guppy.comptime
         def int_entry() -> None:
             o: int = f(*args)
-            result("_test_output", o)
+            output("_test_output", o)
 
         @guppy.comptime
         def nat_entry() -> None:
             o: nat = f(*(nat(arg) for arg in args))
-            result("_test_output", o)
+            output("_test_output", o)
 
         @guppy.comptime
         def flt_entry() -> None:
             o: float = f(*args)
-            result("_test_output", o)
+            output("_test_output", o)
 
         match ty:
             case "int":
