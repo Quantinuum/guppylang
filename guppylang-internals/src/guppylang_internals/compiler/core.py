@@ -355,13 +355,6 @@ def requires_drop(ty: ht.Type) -> bool:
             return False
 
 
-def drop_op(ty: ht.Type) -> ops.ExtOp:
-    """Returns the operation to drop affine values."""
-    return GUPPY_EXTENSION.get_op("drop").instantiate(
-        [ht.TypeTypeArg(ty)], ht.FunctionType([ty], [])
-    )
-
-
 def insert_drops(hugr: Hugr[OpVarCov]) -> None:
     """Inserts explicit drop ops for unconnected ports into the Hugr.
     TODO: This is a quick workaround until we can properly insert these drops during
@@ -380,5 +373,8 @@ def insert_drops(hugr: Hugr[OpVarCov]) -> None:
                 and isinstance(kind, ht.ValueKind)
                 and requires_drop(kind.ty)
             ):
-                drop = hugr.add_node(drop_op(kind.ty), parent=data.parent)
+                drop_op = GUPPY_EXTENSION.get_op("drop").instantiate(
+                    [ht.TypeTypeArg(kind.ty)], ht.FunctionType([kind.ty], [])
+                )
+                drop = hugr.add_node(drop_op, parent=data.parent)
                 hugr.add_link(port, drop.inp(0))
