@@ -7,11 +7,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeVar
 
 import hugr.std.collections.list
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
+from hugr.ops import DfParentOp, ExtOp
 from hugr.std.collections.list import List, ListVal
 
-from guppylang_internals.compiler.builder import OpWithEffects, Some, Tag, pure
+from guppylang_internals.compiler.builder import OpWithEffects, ops, pure
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -40,7 +41,7 @@ def _instantiate_list_op(
 ) -> OpWithEffects:
     op_def = hugr.std.collections.list.EXTENSION.get_op(name)
     return pure(
-        ops.ExtOp(
+        ExtOp(
             op_def,
             ht.FunctionType(inp, out),
             [ht.TypeTypeArg(elem_type)],
@@ -133,7 +134,7 @@ class ListGetitemCompiler(CustomCallCompiler):
         # implementation of the list type ensures that linear element types are turned
         # into optionals.
         elem_opt_ty = ht.Option(elem_ty)
-        none = self.builder.add_op(Tag(0, elem_opt_ty))
+        none = self.builder.add_op(ops.Tag(0, elem_opt_ty))
         idx = self.builder.add_op(convert_itousize(), idx)
         list_wire, result = self.builder.add_op(
             list_set(elem_opt_ty), list_wire, idx, none
@@ -188,7 +189,7 @@ class ListSetitemCompiler(CustomCallCompiler):
         """Lowers a call to `array.__setitem__` for linear arrays."""
         # Embed the element into an optional
         elem_opt_ty = ht.Option(elem_ty)
-        elem = self.builder.add_op(Some(elem_ty), elem)
+        elem = self.builder.add_op(ops.Some(elem_ty), elem)
         idx = self.builder.add_op(convert_itousize(), idx)
         list_wire, result = self.builder.add_op(
             list_set(elem_opt_ty), list_wire, idx, elem
@@ -281,7 +282,7 @@ class ListPushCompiler(CustomCallCompiler):
         """Lowers a call to `list.push` for linear lists."""
         # Wrap element into an optional
         elem_opt_ty = ht.Option(elem_ty)
-        elem_opt = self.builder.add_op(Some(elem_ty), elem)
+        elem_opt = self.builder.add_op(ops.Some(elem_ty), elem)
         list_wire = self.builder.add_op(list_push(elem_opt_ty), list_wire, elem_opt)
         return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
 
@@ -320,7 +321,7 @@ class ListLengthCompiler(CustomCallCompiler):
         raise InternalGuppyError("Call compile_with_inouts instead")
 
 
-P = TypeVar("P", bound=ops.DfParentOp)
+P = TypeVar("P", bound=DfParentOp)
 
 
 def list_new(builder: DFBuilder, elem_type: ht.Type, args: list[Wire]) -> Wire:
@@ -347,6 +348,6 @@ def _list_new_linear(builder: DFBuilder, elem_type: ht.Type, args: list[Wire]) -
     lst = builder.load(ListVal([], elem_ty=elem_opt_ty))
     push_op = list_push(elem_opt_ty)
     for elem in args:
-        elem_opt = builder.add_op(Some(elem_type), elem)
+        elem_opt = builder.add_op(ops.Some(elem_type), elem)
         lst = builder.add_op(push_op, lst, elem_opt)
     return lst

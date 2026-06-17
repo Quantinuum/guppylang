@@ -12,7 +12,7 @@ from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
-from guppylang_internals.compiler.builder import Tag
+from guppylang_internals.compiler.builder.ops import Tag
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,

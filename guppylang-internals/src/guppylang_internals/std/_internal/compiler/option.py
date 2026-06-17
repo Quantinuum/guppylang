@@ -4,7 +4,7 @@ from hugr import Wire
 from hugr import tys as ht
 from hugr import val as hv
 
-from guppylang_internals.compiler.builder import Tag
+from guppylang_internals.compiler.builder.ops import Tag
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,

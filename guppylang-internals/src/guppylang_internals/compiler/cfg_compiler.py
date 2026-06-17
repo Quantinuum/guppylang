@@ -13,7 +13,8 @@ from guppylang_internals.checker.cfg_checker import (
     Signature,
 )
 from guppylang_internals.checker.core import Place, Variable
-from guppylang_internals.compiler.builder import BlockBuilder, DFBuilder, Tag
+from guppylang_internals.compiler.builder import BlockBuilder, DFBuilder
+from guppylang_internals.compiler.builder.ops import Tag
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,

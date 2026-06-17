@@ -9,7 +9,8 @@ from hugr import ext as he
 from hugr import tys as ht
 from hugr.std.float import FLOAT_T
 
-from guppylang_internals.compiler.builder import OpWithEffects, UnpackTuple, pure
+from guppylang_internals.compiler.builder import OpWithEffects, pure
+from guppylang_internals.compiler.builder.ops import UnpackTuple
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.std._internal.compiler.tket_exts import (

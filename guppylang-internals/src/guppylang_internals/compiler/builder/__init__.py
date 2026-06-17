@@ -5,13 +5,13 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Generic, NamedTuple, TypeVar
 
-from hugr import Node, Wire, ops, val
+from hugr import Node, Wire, val
 from hugr import tys as ht
 from hugr.build import Block, Case, Cfg, Conditional, TailLoop
 from hugr.build import function as hf
 from hugr.hugr.node_port import ToNode
 from hugr.metadata import HugrDebugInfo
-from hugr.tys import TypeRow
+from hugr.ops import DataflowOp, Output
 from typing_extensions import Self, override
 
 from guppylang_internals.ast_util import AstNode
@@ -25,11 +25,11 @@ from guppylang_internals.tys import Effect
 class OpWithEffects(NamedTuple):
     """A wrapper around an op specifying what Effects it has"""
 
-    op: ops.DataflowOp
+    op: DataflowOp
     effects: Sequence[Effect]
 
 
-def pure(op: ops.DataflowOp) -> OpWithEffects:
+def pure(op: DataflowOp) -> OpWithEffects:
     """Wraps an op as having no side effects"""
     return OpWithEffects(op, ())
 
@@ -127,7 +127,7 @@ class DFBuilder(ABC, ToNode):
                 to_propagate.add(e)
                 last = self.input_node
             else:
-                assert not isinstance(self._raw.hugr[last].op, ops.Output)
+                assert not isinstance(self._raw.hugr[last].op, Output)
             self._last_side_effect[e] = node
             return last
 
@@ -290,19 +290,3 @@ class BlockBuilder(_DFBuilderRaw[Block]):
         self._handle_side_effects(
             self._raw.output_node, list(self._last_side_effect.keys())
         )
-
-
-def MakeTuple(tys: TypeRow | None = None) -> OpWithEffects:
-    return pure(ops.MakeTuple(tys))
-
-
-def UnpackTuple(tys: TypeRow | None = None) -> OpWithEffects:
-    return pure(ops.UnpackTuple(tys))
-
-
-def Tag(tag: int, rows: ht.Sum) -> OpWithEffects:
-    return pure(ops.Tag(tag, rows))
-
-
-def Some(ty: ht.Type) -> OpWithEffects:
-    return pure(ops.Some(ty))
