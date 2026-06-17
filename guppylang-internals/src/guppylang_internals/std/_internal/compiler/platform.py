@@ -60,7 +60,7 @@ class OutputCompiler(CustomCallCompiler):
         op = RESULT_EXTENSION.get_op(self.op_name)
         sig = tys.FunctionType(input=[hugr_ty], output=[])
         self.builder.add_op(
-            OpWithEffects(op.instantiate(args, sig), effects=[Effect.ANY]), value
+            OpWithEffects(op.instantiate(args, sig), [Effect.ANY]), value
         )
         return []
 
@@ -100,7 +100,7 @@ class ArrayOutputCompiler(CustomInoutCallCompiler):
         if self.with_int_width:
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         op = ops.ExtOp(RESULT_EXTENSION.get_op(self.op_name), signature=sig, args=args)
-        self.builder.add_op(OpWithEffects(op, effects=[Effect.ANY]), arr)
+        self.builder.add_op(OpWithEffects(op, [Effect.ANY]), arr)
         return CallReturnWires([], [out_arr])
 
 

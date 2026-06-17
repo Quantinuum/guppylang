@@ -13,7 +13,7 @@ class WithOwnedCompiler(CustomInoutCallCompiler):
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [val, func] = args
         [out, val] = self.builder.add_op(
-            OpWithEffects(ops.CallIndirect(), effects=self.func.effects), func, val
+            OpWithEffects(ops.CallIndirect(), self.func.effects), func, val
         )
         outs = unpack_wire(out, get_type(self.node), self.builder, self.ctx)
         return CallReturnWires(regular_returns=outs, inout_returns=[val])

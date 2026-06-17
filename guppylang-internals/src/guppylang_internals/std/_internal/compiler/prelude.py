@@ -311,9 +311,7 @@ class UnwrapOpCompiler(CustomInoutCallCompiler):
             output=[ht.Either([error_type()], self.ty.output)],
         )
         op = self.op(opt_func_type, self.type_args, self.ctx)
-        either = self.builder.add_op(
-            OpWithEffects(op, effects=self.func.effects), *args
-        )
+        either = self.builder.add_op(OpWithEffects(op, self.func.effects), *args)
         result = unwrap_result(self.builder, self.ctx, either)
         return CallReturnWires(regular_returns=[result], inout_returns=[])
 

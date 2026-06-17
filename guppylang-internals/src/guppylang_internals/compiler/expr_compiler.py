@@ -344,7 +344,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         args = self._compile_call_args(node.args, func_ty)
         call = self.builder.add_op(
             OpWithEffects(
-                hops.CallIndirect(func_ty.to_hugr(self.ctx)), effects=func_ty.effects
+                hops.CallIndirect(func_ty.to_hugr(self.ctx)), func_ty.effects
             ),
             func,
             *args,
@@ -406,7 +406,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             call = self.builder.add_op(
                 OpWithEffects(
                     hops.CallIndirect(func_ty.to_hugr(self.ctx)),
-                    effects=func_ty.effects,
+                    func_ty.effects,
                 ),
                 func,
                 *consumed_wires,
@@ -564,7 +564,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         op = OpWithEffects(
             hops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args),
-            effects=[Effect.ANY],
+            [Effect.ANY],
         )
 
         qubit_arr_in: Wire

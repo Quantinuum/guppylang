@@ -45,7 +45,7 @@ def _instantiate_array_op(
         EXTENSION.get_op(name).instantiate(
             [length, ht.TypeTypeArg(elem_ty)], ht.FunctionType(inp, out)
         ),
-        effects=effects,
+        effects,
     )
 
 
@@ -150,7 +150,7 @@ def array_scan(
     outs = [array_type(new_elem_ty, length), *accumulators]
     return OpWithEffects(
         EXTENSION.get_op("scan").instantiate(ty_args, ht.FunctionType(ins, outs)),
-        effects=[Effect.ANY],  # can panic if any element is borrowed
+        [Effect.ANY],  # can panic if any element is borrowed
     )
 
 
