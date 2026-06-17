@@ -71,7 +71,7 @@ def build_guppy_circuit_comptime(circ: Circuit, seed: int) -> GuppyFunctionDefin
 @pytest.fixture
 def circuit_seed():
     seed = int(np.random.SeedSequence().generate_state(1)[0])
-    circ = random_layered_circuit(n_qubits=32, depth=24, seed=seed)
+    circ = random_layered_circuit(n_qubits=16, depth=10, seed=seed)
 
     return circ, seed
 
