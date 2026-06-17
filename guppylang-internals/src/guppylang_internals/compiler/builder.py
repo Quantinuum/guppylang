@@ -125,8 +125,9 @@ class DFBuilder(ABC, ToNode):
         def get_last_node(e: Effect) -> Node:
             if (last := self._last_side_effect.get(e)) is None:
                 to_propagate.add(e)
-                return self.input_node
-            assert not isinstance(self._raw.hugr[last].op, ops.Output)
+                last = self.input_node
+            else:
+                assert not isinstance(self._raw.hugr[last].op, ops.Output)
             self._last_side_effect[e] = node
             return last
 
