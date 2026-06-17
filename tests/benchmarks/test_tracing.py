@@ -78,10 +78,15 @@ def circuit_seed():
     return circ, seed
 
 
+def test_circuit_comptime_check(benchmark, circuit_seed):
+    def circuit_comptime_check():
+        build_guppy_circuit_comptime(*circuit_seed).check()
+
+    benchmark.pedantic(circuit_comptime_check(), rounds=25)
+
+
 def test_circuit_comptime_compile(benchmark, circuit_seed):
     def circuit_comptime_compile():
-        circ, seed = circuit_seed
-        guppy_func = build_guppy_circuit_comptime(circ, seed)
-        guppy_func.compile()
+        build_guppy_circuit_comptime(*circuit_seed).compile()
 
     benchmark.pedantic(circuit_comptime_compile, rounds=25)
