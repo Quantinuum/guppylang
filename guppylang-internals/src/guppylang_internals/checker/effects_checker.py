@@ -8,6 +8,7 @@ from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys import Effect
+from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import FunctionType
 
 
@@ -79,28 +80,52 @@ def _find_guppy_decorator(decorators: list[ast.expr]) -> ast.expr | None:
     return None
 
 
-def _get_func_ty(def_id: DefId) -> FunctionType | None:
-    # TODO(callgraph): How to get the correct Inst here?
+CallableDefns = list[tuple[Inst, CallableDef]]
+
+
+def _precompute_callables() -> dict[DefId, CallableDefns]:
+    """In order to retrieve all definitions corresponding to a DefId after
+    monomorphisation, we iterate over all checked definitions once at the start.
+
+    # TODO(callgraph): Is this a valid assumption?
+    All instantiations of the same DefId should have the same effects.
+    """
     from guppylang_internals.engine import ENGINE
-    defn = ENGINE.get_checked(def_id, ())
-    if isinstance(defn, CallableDef):
-        return defn.ty
+
+    result: dict[DefId, list[tuple[Inst, CallableDef]]] = {}
+    for (def_id, inst), defn in ENGINE.checked.items():
+        if isinstance(defn, CallableDef):
+            if def_id not in result:
+                result[def_id] = []
+            result[def_id].append((inst, defn))
+    return result
+
+
+def _get_effects(
+    def_id: DefId, callables: dict[DefId, CallableDefns]
+) -> list[Effect] | None:
+    entries = callables.get(def_id)
+    if entries:
+        # All instantiations of the same DefId should have the same effects so we can
+        # just return the first one.
+        return entries[0][1].ty.declared_effects
+
     return None
 
 
-def _check_effects(call_info: dict[CallGraphNode, list[DefId]]) -> None:
-
-    def callee_effects(def_id: DefId) -> list[Effect]:
-        ty = _get_func_ty(def_id)
-        return ty.effects if ty is not None else [Effect.ANY]
-
+def _check_effects(
+    call_info: dict[CallGraphNode, list[DefId]], callables: dict[DefId, CallableDefns]
+) -> None:
     for caller, callees in call_info.items():
         mf = caller.effect_limit
         if mf is None:
             continue
 
         for callee in callees:
-            surplus_effects = [e for e in callee_effects(callee) if e not in mf.effects]
+            callee_effects = _get_effects(callee, callables)
+            if callee_effects is None:
+                continue
+            surplus_effects = [e for e in callee_effects if e not in mf.effects]
             if not surplus_effects:
                 continue
 
@@ -112,6 +137,11 @@ def compute_effects() -> None:
     respect the declared effect limits. This should be called after a call graph
     has been constructed during checking."""
     from guppylang_internals.engine import ENGINE
+
+    # Pre-compute mapping from DefId to all callable definitions to deal with
+    # monomorphisation.
+    callables = _precompute_callables()
+
     # First construct a networkx DiGraph based on the call graph info for analysis.
     call_info = ENGINE.call_graph
     call_graph = nx.DiGraph(
@@ -132,13 +162,11 @@ def compute_effects() -> None:
         members = condensed.nodes[component]["members"]
         effects: set[Effect] = set()
 
-        # Add explicit annotations, we know these must be valid as we check annotations
-        # during checking.
+        # Add explicit annotations.
         for def_id in members:
-            ty = _get_func_ty(def_id)
-
-            if ty is not None and ty.declared_effects is not None:
-                effects.update(ty.declared_effects)
+            defn_effects = _get_effects(def_id, callables)
+            if defn_effects is not None:
+                effects.update(defn_effects)
 
         # Calls outside of the component contribute their already-inferred effects.
         for succ in condensed.successors(component):
@@ -151,19 +179,18 @@ def compute_effects() -> None:
         members = condensed.nodes[component]["members"]
         inferred = list(component_effects[component])
         for def_id in members:
-            ty = _get_func_ty(def_id)
-            defn = ENGINE.get_checked(def_id, ())
-            # TODO(callgraph): Clean up these checks.
-            if ty is None or defn is None:
+            existing_effects = _get_effects(def_id, callables)
+            if existing_effects is not None:
+                # Already has an explicit annotation.
                 continue
-            if ty.declared_effects is not None or not isinstance(defn, CallableDef):
-                # Already has an explicit annotation, so we should not update it.
-                continue
-            # TODO(callgraph): How to get correct MonoDefId here?
-            ENGINE.checked[(def_id, ())] = replace(
-                defn, ty=ty.with_effects(inferred)
-            )
+            # Update all MonoDefIds for this DefId in ENGINE.checked.
+            if def_id in callables:
+                for inst, defn in callables[def_id]:
+                    # TODO(callgraph): defn seems to be `CompilableDef`?
+                    ENGINE.checked[(def_id, inst)] = replace(
+                        defn, ty=defn.ty.with_effects(inferred)
+                    )
 
-    # Check effects again, doing essentially the same as expr_checker._check_effects but
-    # on the call graph with inferred effects rather than on individual calls.
-    _check_effects(call_info)
+    # Traverse the call graph to check that both explicit and inferred effects respect
+    # the declared effect limits.
+    _check_effects(call_info, callables)

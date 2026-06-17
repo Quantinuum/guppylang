@@ -14,9 +14,6 @@ resolution-markers = [
     "(python_full_version < '3.11' and platform_machine != 'x86_64') or (python_full_version < '3.11' and sys_platform != 'darwin')",
 ]
 
-[options]
-prerelease-mode = "allow"
-
 [manifest]
 members = [
     "guppylang",
