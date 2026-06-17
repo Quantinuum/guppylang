@@ -27,6 +27,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
     parse_function_with_docstring,
 )
+from guppylang_internals.checker.unitary_checker import check_modified_def_signature
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import (
     CompilerContext,
@@ -58,21 +59,13 @@ from guppylang_internals.metadata.common import (
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.arg import ConstArg, TypeArg
-from guppylang_internals.tys.builtin import (
-    get_array_length,
-    get_element_type,
-    is_array_type,
-)
-from guppylang_internals.tys.const import BoundConstVar, ConstValue
-from guppylang_internals.tys.param import ConstParam
-from guppylang_internals.tys.qubit import is_qubit_ty
+from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     FunctionType,
     Type,
     UnitaryFlags,
     type_to_row,
-    unify,
 )
 
 if TYPE_CHECKING:
@@ -541,78 +534,4 @@ def make_subprogram_record(
             file=file_idx,
             line_no=to_span(node).start.line,
             scope_line=to_span(node.body[0]).start.line,
-        )
-
-
-def check_modified_def_signature(
-    parsed_modified_defs: ParsedModifiedDefs, parent_ty: FunctionType
-) -> None:
-    if parsed_modified_defs.call_daggered:
-        daggered_ty = parsed_modified_defs.call_daggered.ty
-        if unify(parent_ty, daggered_ty, {}) is None:
-            # NICOLA: TODO the error message is garbage
-            raise GuppyError(
-                ExpectedError(
-                    parsed_modified_defs.call_daggered.defined_at,
-                    f"signature compatible with {parent_ty}",
-                )
-            )
-
-    if parsed_modified_defs.call_controlled:
-        _check_controlled_def_signature(
-            parsed_modified_defs.call_controlled.ty,
-            parent_ty,
-            parsed_modified_defs.call_controlled.defined_at,
-        )
-    if parsed_modified_defs.call_ctrl_daggered:
-        _check_controlled_def_signature(
-            parsed_modified_defs.call_ctrl_daggered.ty,
-            parent_ty,
-            parsed_modified_defs.call_ctrl_daggered.defined_at,
-        )
-
-
-def _check_controlled_def_signature(
-    modified_ty: FunctionType, parent_ty: FunctionType, defined_at: ast.FunctionDef
-) -> None:
-    expected_ty = FunctionType(
-        # last input must be the array of control qubits
-        modified_ty.inputs[:-1],
-        modified_ty.output,
-        # last param must be parameter for the number of control qubits
-        modified_ty.params[:-1],
-        modified_ty.comptime_args,
-        modified_ty.unitary_flags,
-    )
-    if unify(expected_ty, parent_ty, {}) is None:
-        raise GuppyError(
-            # NICOLA: TODO the error message is garbage
-            ExpectedError(
-                defined_at,
-                f"signature compatible with {parent_ty}",
-            )
-        )
-
-    if not modified_ty.inputs or not modified_ty.params:
-        raise GuppyError(
-            ExpectedError(
-                defined_at,
-                "signature with final input of type `array[qubit, n]`",
-            )
-        )
-
-    last_input_ty = modified_ty.inputs[-1].ty
-    last_param = modified_ty.params[-1]
-    if (
-        not is_array_type(last_input_ty)
-        or not is_qubit_ty(get_element_type(last_input_ty))
-        or not isinstance(last_param, ConstParam)
-        or get_array_length(last_input_ty)
-        != BoundConstVar(last_param.ty, last_param.name, last_param.idx)
-    ):
-        raise GuppyError(
-            ExpectedError(
-                defined_at,
-                "signature with final input of type `array[qubit, n]`",
-            )
         )
