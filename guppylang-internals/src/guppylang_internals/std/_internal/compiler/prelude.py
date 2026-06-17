@@ -16,7 +16,7 @@ from guppylang_internals.compiler.builder import (
     DFBuilder,
     FunctionBuilder,
     OpWithEffects,
-    pure,
+    Pure,
 )
 from guppylang_internals.compiler.core import CompilerContext, GlobalConstId
 from guppylang_internals.definition.custom import (
@@ -72,7 +72,7 @@ def panic(
         ht.ListArg([ht.TypeTypeArg(ty) for ty in outputs]),
     ]
     sig = ht.FunctionType([error_type(), *inputs], outputs)
-    return OpWithEffects(ops.ExtOp(op_def, sig, args), [Effect.ANY])
+    return (ops.ExtOp(op_def, sig, args), [Effect.ANY])
 
 
 def make_error() -> OpWithEffects:
@@ -81,7 +81,7 @@ def make_error() -> OpWithEffects:
     op_def = hugr.std.PRELUDE.get_op("MakeError")
     args: list[ht.TypeArg] = []
     sig = ht.FunctionType([ht.USize(), hugr.std.prelude.STRING_T], [error_type()])
-    return pure(ops.ExtOp(op_def, sig, args))
+    return Pure(ops.ExtOp(op_def, sig, args))
 
 
 # ------------------------------------------------------
@@ -311,7 +311,7 @@ class UnwrapOpCompiler(CustomInoutCallCompiler):
             output=[ht.Either([error_type()], self.ty.output)],
         )
         op = self.op(opt_func_type, self.type_args, self.ctx)
-        either = self.builder.add_op(OpWithEffects(op, self.func.effects), *args)
+        either = self.builder.add_op((op, self.func.effects), *args)
         result = unwrap_result(self.builder, self.ctx, either)
         return CallReturnWires(regular_returns=[result], inout_returns=[])
 
@@ -320,7 +320,7 @@ def barrier_op(tys: ht.TypeRow) -> OpWithEffects:
     """Returns an operation that represents a barrier on the given types."""
     op_def = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier")
     args = [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
-    return pure(op_def.instantiate(args, ht.FunctionType.endo(tys)))
+    return Pure(op_def.instantiate(args, ht.FunctionType.endo(tys)))
 
 
 class BarrierCompiler(CustomCallCompiler):

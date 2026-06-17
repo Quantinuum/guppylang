@@ -1,7 +1,7 @@
 from hugr import Wire, ops
 from hugr import tys as ht
 
-from guppylang_internals.compiler.builder import pure
+from guppylang_internals.compiler.builder import Pure
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -37,7 +37,7 @@ class WasmModuleInitCompiler(CustomInoutCallCompiler):
             WASM_EXTENSION.get_op("get_context"),
             ht.FunctionType([ht.USize()], [ht.Option(ctx_ty)]),
         )
-        node = self.builder.add_op(pure(get_ctx_op), ctx_wire)
+        node = self.builder.add_op(Pure(get_ctx_op), ctx_wire)
         opt_w: Wire = node[0]
         err = "Failed to spawn WASM context"
         out_node = build_unwrap(self.builder, opt_w, err)
@@ -51,7 +51,7 @@ class WasmModuleDiscardCompiler(CustomInoutCallCompiler):
         assert len(args) == 1
         ctx = args[0]
         op = WASM_EXTENSION.get_op("dispose_context").instantiate([])
-        self.builder.add_op(pure(op), ctx)
+        self.builder.add_op(Pure(op), ctx)
         return CallReturnWires(regular_returns=[], inout_returns=[])
 
 
@@ -123,7 +123,7 @@ class WasmModuleCallCompiler(CustomInoutCallCompiler):
                 ht.FunctionType([module_ty], [func_ty]),
             )
 
-        wasm_func = self.builder.add_op(pure(wasm_opdef), wasm_module)
+        wasm_func = self.builder.add_op(Pure(wasm_opdef), wasm_module)
 
         # Call the function
         call_op = WASM_EXTENSION.get_op("call").instantiate(
@@ -131,13 +131,13 @@ class WasmModuleCallCompiler(CustomInoutCallCompiler):
             ht.FunctionType([ctx_ty, func_ty, *wasm_sig.input], [result_ty]),
         )
 
-        result = self.builder.add_op(pure(call_op), args[0], wasm_func, *args[1:])
+        result = self.builder.add_op(Pure(call_op), args[0], wasm_func, *args[1:])
 
         read_opdef = WASM_EXTENSION.get_op("read_result").instantiate(
             [output_row_arg],
             ht.FunctionType([result_ty], [ctx_ty, *wasm_sig.output]),
         )
-        data = self.builder.add_op(pure(read_opdef), result)
+        data = self.builder.add_op(Pure(read_opdef), result)
         match list(data[:]):
             case [ctx]:
                 return CallReturnWires(regular_returns=[], inout_returns=[ctx])

@@ -9,7 +9,7 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
-from guppylang_internals.compiler.builder import OpWithEffects, pure
+from guppylang_internals.compiler.builder import OpWithEffects, Pure
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -41,7 +41,7 @@ def _instantiate_array_op(
     # Usual warning about mutable default arguments applies, but Sequence is read-only.
     effects: Sequence[Effect] = [Effect.ANY],
 ) -> OpWithEffects:
-    return OpWithEffects(
+    return (
         EXTENSION.get_op(name).instantiate(
             [length, ht.TypeTypeArg(elem_ty)], ht.FunctionType(inp, out)
         ),
@@ -122,7 +122,7 @@ def array_pop(elem_ty: ht.Type, length: int, from_left: bool) -> OpWithEffects:
 def array_discard_empty(elem_ty: ht.Type) -> OpWithEffects:
     """Returns an operation that discards an array of length zero."""
     arr_ty = array_type(elem_ty, ht.BoundedNatArg(0))
-    return pure(
+    return Pure(
         EXTENSION.get_op("discard_empty").instantiate(
             [ht.TypeTypeArg(elem_ty)], ht.FunctionType([arr_ty], [])
         )
@@ -148,7 +148,7 @@ def array_scan(
         *accumulators,
     ]
     outs = [array_type(new_elem_ty, length), *accumulators]
-    return OpWithEffects(
+    return (
         EXTENSION.get_op("scan").instantiate(ty_args, ht.FunctionType(ins, outs)),
         [Effect.ANY],  # can panic if any element is borrowed
     )

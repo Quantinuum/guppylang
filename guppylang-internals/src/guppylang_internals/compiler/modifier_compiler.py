@@ -6,7 +6,7 @@ from hugr import tys as ht
 from guppylang_internals.ast_util import get_type
 from guppylang_internals.checker.core import SubscriptAccess, contains_subscript
 from guppylang_internals.checker.modifier_checker import non_copyable_front_others_back
-from guppylang_internals.compiler.builder import OpWithEffects, pure
+from guppylang_internals.compiler.builder import Pure
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
@@ -76,7 +76,7 @@ def compile_modified_block(
     if modified_block.has_dagger():
         dagger_ty = ht.FunctionType([hugr_ty], [hugr_ty])
         call = dfg.builder.add_op(
-            pure(
+            Pure(
                 ops.ExtOp(
                     dagger_op_def,
                     dagger_ty,
@@ -90,7 +90,7 @@ def compile_modified_block(
         for power in modified_block.power:
             num = expr_compiler.compile(power.iter, dfg)
             call = dfg.builder.add_op(
-                pure(
+                Pure(
                     ops.ExtOp(
                         power_op_def,
                         power_ty,
@@ -117,7 +117,7 @@ def compile_modified_block(
             output_fn_ty = ht.FunctionType(
                 [std_array, *hugr_ty.input], [std_array, *hugr_ty.output]
             )
-            op = pure(
+            op = Pure(
                 ops.ExtOp(
                     control_op_def,
                     ht.FunctionType([input_fn_ty], [output_fn_ty]),
@@ -153,7 +153,7 @@ def compile_modified_block(
 
     # Call the modified block.
     call = dfg.builder.add_op(
-        OpWithEffects(ops.CallIndirect(), body_ty.effects),
+        (ops.CallIndirect(), body_ty.effects),
         call,
         *ctrl_args,
         *args,

@@ -5,7 +5,6 @@ import hugr
 from hugr import Wire, ops, tys
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.compiler.builder import OpWithEffects
 from guppylang_internals.compiler.core import CompilerContext
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -59,9 +58,7 @@ class OutputCompiler(CustomCallCompiler):
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         op = RESULT_EXTENSION.get_op(self.op_name)
         sig = tys.FunctionType(input=[hugr_ty], output=[])
-        self.builder.add_op(
-            OpWithEffects(op.instantiate(args, sig), [Effect.ANY]), value
-        )
+        self.builder.add_op((op.instantiate(args, sig), [Effect.ANY]), value)
         return []
 
 
@@ -100,7 +97,7 @@ class ArrayOutputCompiler(CustomInoutCallCompiler):
         if self.with_int_width:
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         op = ops.ExtOp(RESULT_EXTENSION.get_op(self.op_name), signature=sig, args=args)
-        self.builder.add_op(OpWithEffects(op, [Effect.ANY]), arr)
+        self.builder.add_op((op, [Effect.ANY]), arr)
         return CallReturnWires([], [out_arr])
 
 

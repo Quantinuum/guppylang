@@ -9,7 +9,7 @@ import hugr.ext as he
 import hugr.tys as ht
 from hugr import ops
 
-from guppylang_internals.compiler.builder import OpWithEffects, pure
+from guppylang_internals.compiler.builder import OpWithEffects, Pure
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -95,7 +95,7 @@ class PartialOp(ops.AsExtOp):
         assert captured_tys == closure_ty.input[: len(captured_tys)]
 
         other_inputs = closure_ty.input[len(captured_tys) :]
-        return pure(
+        return Pure(
             cls(
                 captured_inputs=list(captured_tys),
                 other_inputs=list(other_inputs),

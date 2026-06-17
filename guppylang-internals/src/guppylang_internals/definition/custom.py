@@ -23,7 +23,6 @@ from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.builder import (
     DFBuilder,
     FunctionBuilder,
-    OpWithEffects,
 )
 from guppylang_internals.compiler.core import (
     CompilerContext,
@@ -544,7 +543,7 @@ class OpCompiler(CustomInoutCallCompiler):
     @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         op = self.op(self.ty, self.type_args, self.ctx)
-        node = self.builder.add_op(OpWithEffects(op, self.func.effects), *args)
+        node = self.builder.add_op((op, self.func.effects), *args)
         num_returns = (
             len(type_to_row(self.func.ty.output)) if self.func else len(self.ty.output)
         )
@@ -595,7 +594,7 @@ class CopyInoutCompiler(CustomInoutCallCompiler):
                         ht.FunctionType(self.ty.input, self.ty.output),
                     )
                     # ALAN assume panics if any borrowed?
-                    clone_op = OpWithEffects(clone_op, [Effect.ANY])
+                    clone_op = (clone_op, [Effect.ANY])
                     return list(self.builder.add_op(clone_op, arg))
             case _:
                 pass

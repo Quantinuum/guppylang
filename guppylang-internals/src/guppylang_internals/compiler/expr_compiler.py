@@ -20,9 +20,8 @@ from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.builder import (
     CondBuilder,
     DFBuilder,
-    OpWithEffects,
+    Pure,
     ops,
-    pure,
 )
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
@@ -343,9 +342,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         args = self._compile_call_args(node.args, func_ty)
         call = self.builder.add_op(
-            OpWithEffects(
-                hops.CallIndirect(func_ty.to_hugr(self.ctx)), func_ty.effects
-            ),
+            (hops.CallIndirect(func_ty.to_hugr(self.ctx)), func_ty.effects),
             func,
             *args,
         )
@@ -404,7 +401,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             consumed_args, other_args = args[0:input_len], args[input_len:]
             consumed_wires = self._compile_call_args(consumed_args, func_ty)
             call = self.builder.add_op(
-                OpWithEffects(
+                (
                     hops.CallIndirect(func_ty.to_hugr(self.ctx)),
                     func_ty.effects,
                 ),
@@ -478,7 +475,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # since it is not implemented via a dunder method
         if isinstance(node.op, ast.Not):
             arg = self.visit(node.operand)
-            return self.builder.add_op(pure(hugr.std.logic.Not), arg)
+            return self.builder.add_op(Pure(hugr.std.logic.Not), arg)
 
         raise InternalGuppyError("Node should have been removed during type checking.")
 
@@ -562,7 +559,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             [standard_array_type(ht.Qubit, num_qubits_arg)],
         )
 
-        op = OpWithEffects(
+        op = (
             hops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args),
             [Effect.ANY],
         )

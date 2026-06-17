@@ -3,7 +3,7 @@ from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Generic, NamedTuple, TypeVar
+from typing import Generic, NamedTuple, TypeAlias, TypeVar
 
 from hugr import Node, Wire, val
 from hugr import tys as ht
@@ -22,16 +22,12 @@ from guppylang_internals.metadata.debug_info_util import (
 from guppylang_internals.tys import Effect
 
 
-class OpWithEffects(NamedTuple):
-    """A wrapper around an op specifying what Effects it has"""
-
+@dataclass(frozen=True)
+class Pure:
     op: DataflowOp
-    effects: Sequence[Effect]
 
 
-def pure(op: DataflowOp) -> OpWithEffects:
-    """Wraps an op as having no side effects"""
-    return OpWithEffects(op, ())
+OpWithEffects: TypeAlias = Pure | tuple[DataflowOp, Sequence[Effect]]
 
 
 @dataclass
@@ -104,7 +100,7 @@ class DFBuilder(ABC, ToNode):
         """Adds an op to the dataflow graph builder. Set `set_debug_info=False` to
         avoid automatic debug information attachment.
         """
-        op, effects = op
+        op, effects = (op.op, []) if isinstance(op, Pure) else op
         op_node = self._raw.add_op(op, *args)
         self._handle_side_effects(op_node, effects)
 
