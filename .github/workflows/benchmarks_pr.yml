@@ -11,6 +11,12 @@ permissions:
   contents: read
   id-token: write # required for OIDC auth with Codspeed
 
+# Limits the number of concurrent runs of this workflow for branches to one. Runs caused by newly pushed commits thus
+# cancel any in-progress runs for the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmark_pr_branch:
     name: Benchmark PR
