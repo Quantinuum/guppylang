@@ -3,7 +3,7 @@
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle, pi
 from guppylang.std.quantum import qubit, discard_array, discard, measure
-from guppylang.std.builtins import array, result
+from guppylang.std.builtins import array, output
 from pytket import Circuit, OpType
 from pytket.passes import AutoRebase
 from sympy import Symbol, sympify
@@ -363,8 +363,8 @@ def test_qsystem_exec():
 
         guppy_circ(a, b)
 
-        result("a", measure(a).read())
-        result("b", measure(b).read())
+        output("a", measure(a).read())
+        output("b", measure(b).read())
 
     # deterministic - should always be 0
     res = main.emulator(n_qubits=2).run()

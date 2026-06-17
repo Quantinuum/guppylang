@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang.std.platform import result
+from guppylang.std.platform import output
 
 
 def test_struct_defn():
@@ -19,7 +19,7 @@ def test_struct_defn():
     @guppy
     def main() -> None:
         m = MyStructInterface()
-        result("result", m.super_func())
+        output("result", m.super_func())
 
     results = main.emulator(n_qubits=1, libs=[lib]).run().results[0].entries
     assert results == [("result", 5)]
@@ -46,7 +46,7 @@ def test_structural_subtyping():
     @guppy
     def main() -> None:
         f = Foo(4)
-        result("result", do_foo(f))
+        output("result", do_foo(f))
 
     results = main.emulator(n_qubits=1, libs=[lib]).run().results[0].entries
     assert results == [("result", 4)]

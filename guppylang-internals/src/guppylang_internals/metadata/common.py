@@ -3,12 +3,21 @@ from typing import Any, ClassVar
 
 from hugr.debug_info import DebugRecord
 from hugr.hugr.node_port import ToNode
-from hugr.metadata import HugrDebugInfo, NodeMetadata
+from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
 from hugr.utils import JsonType
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.max_qubits import MetadataMaxQubits
+
+
+class MetadataUnitaryFlags(Metadata[int]):
+    """stub implementation of `tket.metadata.UnitaryFlags` to ensure decoupling between
+    guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.unitary"
 
 
 @dataclass(frozen=True)
@@ -36,6 +45,7 @@ class FunctionMetadata:
     _RESERVED_KEYS: ClassVar[set[str]] = {
         HugrDebugInfo.KEY,
         MetadataMaxQubits.KEY,
+        MetadataUnitaryFlags.KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -46,6 +56,9 @@ class FunctionMetadata:
 
     def set_max_qubits(self, max_qubits: int) -> None:
         self._node_metadata[MetadataMaxQubits] = max_qubits
+
+    def set_unitary_flags(self, value: int) -> None:
+        self._node_metadata[MetadataUnitaryFlags] = value
 
     def get_debug_info(self) -> DebugRecord | None:
         debug_record = self._node_metadata.get(HugrDebugInfo, None)
@@ -87,3 +100,14 @@ def add_metadata(
             if key in node.metadata:
                 raise GuppyError(MetadataAlreadySetError(None, key))
             node.metadata[key] = value
+
+
+def add_unitary_metadata(
+    node: ToNode,
+    unitary_flag: int,
+) -> None:
+    """Adds unitary flag to the metadata of a node, ensuring reserved keys aren't
+    overwritten."""
+    if MetadataUnitaryFlags.KEY in node.metadata:
+        raise GuppyError(MetadataAlreadySetError(None, MetadataUnitaryFlags.KEY))
+    node.metadata[MetadataUnitaryFlags.KEY] = unitary_flag

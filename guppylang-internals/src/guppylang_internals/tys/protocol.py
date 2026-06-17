@@ -25,3 +25,13 @@ class ProtocolInst:
     @property
     def linear(self) -> bool:
         return False
+
+    def __str__(self) -> str:
+        from guppylang_internals.engine import ENGINE
+
+        defn = ENGINE.get_parsed(self.def_id)
+        if self.type_args:
+            args = ", ".join(str(arg) for arg in self.type_args)
+            return f"{defn.name}[{args}]"
+        else:
+            return str(defn.name)

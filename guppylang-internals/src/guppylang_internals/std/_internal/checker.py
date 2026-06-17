@@ -189,6 +189,8 @@ class ArrayIndexChecker(CustomCallChecker):
     at compile time if it's not.
     """
 
+    expr_index: int
+
     @dataclass(frozen=True)
     class IndexOutOfBoundsError(Error):
         title: ClassVar[str] = "Index out of bounds"
@@ -203,7 +205,7 @@ class ArrayIndexChecker(CustomCallChecker):
         Args:
             expr_index: Position of the expression index argument (0 based)
         """
-        self.expr_index: int = expr_index
+        self.expr_index = expr_index
 
     def _extract_constant_index(self, index_expr: ast.expr) -> int | None:
         """Extract a constant integer value from an index expression if possible.
@@ -226,6 +228,9 @@ class ArrayIndexChecker(CustomCallChecker):
 
         return None
 
+    # After: https://github.com/Quantinuum/guppylang/pull/1859 this function is
+    # currently unused. Consider whether to remove it or improve it when solving
+    # https://github.com/Quantinuum/guppylang/issues/1858
     def _check_constant_index_bounds(
         self, index_expr: ast.expr, length_arg: TypeArg | ConstArg
     ) -> None:
@@ -262,7 +267,8 @@ class ArrayIndexChecker(CustomCallChecker):
         args, subs, type_args = check_call(self.func.ty, args, ty, self.node, self.ctx)
 
         # Check the index bounds (first:index expression, second: length_arg)
-        self._check_constant_index_bounds(args[self.expr_index], type_args[1])
+        # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
+        # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
 
         # Return the synthesized node and type
         node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
@@ -275,7 +281,8 @@ class ArrayIndexChecker(CustomCallChecker):
         args, ty, type_args = synthesize_call(self.func.ty, args, self.node, self.ctx)
 
         # Check the index bounds (first:index expression, second: length_arg)
-        self._check_constant_index_bounds(args[self.expr_index], type_args[1])
+        # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
+        # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
 
         # Return the synthesized node and type
         node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)

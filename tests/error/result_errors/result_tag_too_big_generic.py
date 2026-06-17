@@ -1,10 +1,10 @@
 from guppylang import guppy, comptime
-from guppylang.std.builtins import result
+from guppylang.std.builtins import output
 
 
 @guppy
 def foo(tag: str @ comptime, y: bool) -> None:
-    result(tag, y)
+    output(tag, y)
 
 
 @guppy

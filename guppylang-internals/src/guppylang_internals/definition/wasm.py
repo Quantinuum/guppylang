@@ -6,13 +6,11 @@ from guppylang_internals.checker.errors.wasm import (
     FirstArgNotModule,
     UnWasmableType,
 )
-from guppylang_internals.definition.custom import (
-    CustomFunctionDef,
-    RawCustomFunctionDef,
-)
+from guppylang_internals.definition.custom import RawCustomFunctionDef
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.span import SourceMap
+from guppylang_internals.std._internal.wasm import WasmSigMismatchError
 from guppylang_internals.tys.builtin import wasm_module_name
 from guppylang_internals.tys.ty import (
     FuncInput,
@@ -23,10 +21,10 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
 )
-from guppylang_internals.wasm_util import WasmSigMismatchError
 
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Globals
+    from guppylang_internals.definition.custom import CustomFunctionDef
 
 
 @dataclass(frozen=True)

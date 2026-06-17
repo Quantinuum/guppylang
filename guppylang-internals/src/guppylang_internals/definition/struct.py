@@ -8,6 +8,7 @@ from hugr import Wire, ops
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
+    ExpectedError,
     UnexpectedError,
     UnsupportedError,
 )
@@ -24,6 +25,7 @@ from guppylang_internals.definition.custom import (
     CustomFunctionDef,
     DefaultCallChecker,
 )
+from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
     CheckedField,
@@ -34,7 +36,7 @@ from guppylang_internals.definition.util import (
     extract_generic_params,
     parse_py_class,
 )
-from guppylang_internals.diagnostic import Help
+from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
@@ -242,3 +244,43 @@ class CheckedStructDef(TypeDef, CompiledDef):
             has_var_args=False,
         )
         return [constructor_def]
+
+
+def try_parse_generic_base(node: ast.expr, base_name: str) -> list[ast.expr] | None:
+    """Checks if an AST node corresponds to a `base_name[T1, ..., Tn]` base class.
+
+    Returns the generic parameters or `None` if the AST has a different shape
+    """
+    match node:
+        case ast.Subscript(value=ast.Name(id=name), slice=elem) if base_name == name:
+            return elem.elts if isinstance(elem, ast.Tuple) else [elem]
+        case _:
+            return None
+
+
+@dataclass(frozen=True)
+class RepeatedTypeParamError(Error):
+    title: ClassVar[str] = "Duplicate type parameter"
+    span_label: ClassVar[str] = "Type parameter `{name}` cannot be used multiple times"
+    name: str
+
+
+def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Parameter]:
+    """Parses a list of AST nodes into unique type parameters.
+
+    Raises user errors if the AST nodes don't correspond to parameters or parameters
+    occur multiple times.
+    """
+    params: list[Parameter] = []
+    params_set: set[DefId] = set()
+    for node in nodes:
+        if isinstance(node, ast.Name) and node.id in globals:
+            defn = globals[node.id]
+            if isinstance(defn, ParamDef):
+                if defn.id in params_set:
+                    raise GuppyError(RepeatedTypeParamError(node, node.id))
+                params.append(defn.to_param(len(params)))
+                params_set.add(defn.id)
+                continue
+        raise GuppyError(ExpectedError(node, "a type parameter"))
+    return params

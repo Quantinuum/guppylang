@@ -1,6 +1,6 @@
 from guppylang import qubit
 from guppylang.decorator import guppy
-from guppylang.std.qsystem import measure
+from guppylang.std.qsystem.helios import measure
 
 
 @guppy.comptime

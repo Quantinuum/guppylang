@@ -6,7 +6,7 @@ into an emulator instance, and a configurable builder for setting
 instance options and executing.
 
 Emulation returns :py:class:`EmulatorResult` objects, which contain the result output
-by the emulation. Results are recorded by calling ``result("tag", value)`` in the
+by the emulation. Results are recorded by calling ``output("tag", value)`` in the
 Guppy program, and can include both quantum measurement outcomes and classical
 outputs.
 
@@ -26,13 +26,13 @@ Calling ``.run()`` on the instance runs the emulation, returning an
 .. code-block:: python
 
     from guppylang import guppy
-    from guppylang.std.builtins import result
+    from guppylang.std.builtins import output
     from guppylang.std.quantum import qubit, measure
 
     @guppy
     def foo() -> None:
         q = qubit()
-        result("q", measure(q))
+        output("q", measure(q))
 
     foo.emulator(n_qubits=1).run()
 
@@ -101,7 +101,7 @@ on the emulator instance.
 State results
 -----------------
 
-Calling ``state_result("tag", q1, q2)`` in the Guppy program will record the
+Calling ``state_output("tag", q1, q2)`` in the Guppy program will record the
 state of the qubits `q1` and `q2` in the outputs.
 The particular representation of the state depends on the simulation backend,
 the default statevector simulator returns a :py:class:`StateVector` object
@@ -118,7 +118,7 @@ from the emulator output as :py:class:`PartialVector` objects.
 .. code-block:: ipython
 
     from guppylang import guppy
-    from guppylang.std.debug import state_result
+    from guppylang.std.debug import state_output
     from guppylang.std.quantum import qubit, measure, cx, h
 
     @guppy
@@ -128,7 +128,7 @@ from the emulator output as :py:class:`PartialVector` objects.
         h(q0)
         q1 = qubit()
         cx(q0, q1)
-        state_result("q0", q0)
+        state_output("q0", q0)
         measure(q0)
         measure(q1)
 
@@ -144,7 +144,7 @@ Output is a uniform distribution over the two basis states of the qubit:
     TracedState(probability=0.5, state=array([0.+0.j, 1.+0.j]))]
 """
 
-from .builder import EmulatorBuilder
+from .builder import EmulatorBuilder, Platform
 from .exceptions import EmulatorError
 from .instance import EmulatorInstance
 from .result import EmulatorResult, QsysShot, TaggedResult
@@ -157,6 +157,7 @@ __all__ = [
     "EmulatorResult",
     "PartialState",
     "PartialVector",
+    "Platform",
     "QsysShot",
     "StateVector",
     "TaggedResult",

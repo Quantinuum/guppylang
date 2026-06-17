@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 
 from guppylang import guppy
 from guppylang.std import array
-from guppylang.std.debug import state_result
+from guppylang.std.debug import state_output
 from guppylang.std.lang import comptime
-from guppylang.std.platform import result
+from guppylang.std.platform import output
 from guppylang.std.quantum import discard, discard_array, qubit
 from guppylang_internals.debug_mode import turn_off_debug_mode, turn_on_debug_mode
 from hugr.debug_info import DICompileUnit, DILocation, DISubprogram
@@ -157,7 +157,7 @@ def test_ext_op_location():
         MyStruct(1)  # Defined through `custom_function` (`MakeTuple` node)
         q = qubit()  # Defined through `hugr_op`
         arr = array(q)  # Forces the use of various array extension ops
-        state_result("tag", arr)  # Defined through `custom_function` (custom node)
+        state_output("tag", arr)  # Defined through `custom_function` (custom node)
         discard_array(arr)  # Defined through `hugr_op`
         numbers = comptime([1, 2, 3])  # Checks frozenarray usage
         x = numbers[0]  # Checks frozenarray usage
@@ -168,7 +168,7 @@ def test_ext_op_location():
             count -= 1
             for _ in range(2):
                 if bools[0]:
-                    result("tag", bools)  # Check result usage
+                    output("tag", bools)  # Check output usage
 
     hugr = foo.compile().modules[0]
 
@@ -198,7 +198,7 @@ def test_turn_off_debug_mode():
     @guppy
     def foo() -> None:
         q = qubit()
-        state_result("tag", q)
+        state_output("tag", q)
         discard(q)
 
     hugr = foo.compile().modules[0]

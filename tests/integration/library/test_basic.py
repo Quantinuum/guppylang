@@ -3,7 +3,7 @@ import pytest
 from guppylang import guppy
 from guppylang.defs import GuppyLibrary
 from guppylang.emulator import EmulatorBuilder
-from guppylang.std.platform import result
+from guppylang.std.platform import output
 from guppylang.std.lang import comptime
 
 from hugr._hugr.linking import HugrLinkingError
@@ -23,7 +23,7 @@ def test_missing_impl():
 
     @guppy
     def main() -> None:
-        result("result", decl(5))
+        output("result", decl(5))
 
     with pytest.raises(
         RuntimeError,
@@ -44,7 +44,7 @@ def test_missing_impl_existing_lib():
 
     @guppy
     def main() -> None:
-        result("result", decl(5))
+        output("result", decl(5))
 
     with pytest.raises(
         RuntimeError,
@@ -63,7 +63,7 @@ def test_impl_provided():
 
     @guppy
     def main() -> None:
-        result("result", decl(5))
+        output("result", decl(5))
 
     emulator = main.emulator(n_qubits=1, libs=[adder_lib])
     results = emulator.run().results[0].entries
@@ -83,7 +83,7 @@ def test_impl_provided_second_lib():
 
     @guppy
     def main() -> None:
-        result("result", decl(5))
+        output("result", decl(5))
 
     results = main.emulator(n_qubits=1, libs=[adder_lib]).run().results[0].entries
     assert results == [("result", 10)]
@@ -108,7 +108,7 @@ def test_unused_func_missing_impl():
 
     @guppy
     def main() -> None:
-        result("result", decl_1(5))
+        output("result", decl_1(5))
 
     results = main.emulator(n_qubits=1, libs=[lib]).run().results[0].entries
     assert results == [("result", 6)]
@@ -124,7 +124,7 @@ def test_duplicate_defn():
 
     @guppy
     def main() -> None:
-        result("result", decl(5))
+        output("result", decl(5))
 
     with pytest.raises(
         HugrLinkingError,
@@ -146,7 +146,7 @@ def test_unused_func_duplicate_defn():
     @guppy
     def main() -> None:
         # Never use the decl
-        result("result", 1)
+        output("result", 1)
 
     with pytest.raises(
         HugrLinkingError,
@@ -163,7 +163,7 @@ def test_pre_compile():
 
     @guppy
     def main() -> None:
-        result("result", decl(5))
+        output("result", decl(5))
 
     main_pkg = main.compile()
 
@@ -193,7 +193,7 @@ def test_dependency_public():
 
     @guppy
     def main() -> None:
-        result("result", depender_func_decl(5))
+        output("result", depender_func_decl(5))
 
     main_pkg = main.compile()
 

@@ -98,11 +98,11 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
             qs = array(qubit() for _ in range(10))
             h(qs[3])
-            result("a", qs.is_borrowed(3))  # False
+            output("a", qs.is_borrowed(3))  # False
             q = qs.take(3).unwrap()
-            result("a", qs.is_borrowed(3))  # True
+            output("a", qs.is_borrowed(3))  # True
             qs.put(qubit(), 3).unwrap()
-            result("a", qs.is_borrowed(3))  # False
+            output("a", qs.is_borrowed(3))  # False
         """
 
     @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())

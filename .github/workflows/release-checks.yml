@@ -54,8 +54,8 @@ jobs:
         env:
           RES: ${{ matrix.target.resolution }}
         run: |
-          UV_RESOLUTION="$RES" uv lock -U
-          UV_RESOLUTION="$RES" uv sync
+          UV_RESOLUTION="$RES" uv lock --prerelease=allow -U 
+          UV_RESOLUTION="$RES" uv sync --prerelease=allow
           echo "\nDone! Installed dependencies:"
           uv pip list
       - name: Type check with mypy
@@ -100,8 +100,8 @@ jobs:
         env:
           RES: ${{ matrix.target.resolution }}
         run: |
-          UV_RESOLUTION="$RES" uv lock --no-sources -U
-          UV_RESOLUTION="$RES" uv sync --no-sources --no-install-workspace
+          UV_RESOLUTION="$RES" uv lock --prerelease=allow --no-sources -U
+          UV_RESOLUTION="$RES" uv sync --prerelease=allow --no-sources --no-install-workspace
           # Install the latest published release of guppylang-internals.
           uv pip install --no-sources --prerelease allow guppylang-internals
           # Install the local version of guppylang.

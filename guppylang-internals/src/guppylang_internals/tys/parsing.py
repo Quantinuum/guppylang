@@ -208,8 +208,10 @@ def _arg_from_instantiated_defn(
             if flags != UnitaryFlags.NoFlags:
                 check_unitary_callable_enabled(flags.callable_name(), node)
             return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flags=flags))
+        # Special case for the `Self` type
         case SelfTypeDef():
-            return TypeArg(_parse_self_type(arg_nodes, node, ctx))
+            self_ty = _parse_self_type(arg_nodes, node, ctx)
+            return TypeArg(self_ty)
         # Either a defined type (e.g. `int`, `bool`, ...)
         case TypeDef() as defn:
             args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]

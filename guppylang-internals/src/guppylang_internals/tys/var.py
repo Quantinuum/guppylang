@@ -37,12 +37,10 @@ class BoundVar(Var, ABC):
 
 @dataclass(frozen=True)
 class ExistentialVar(Var, ABC):
-    """Existential variable, referencing a parameter of kind `Const`.
-
-    Identified by a globally unique id.
+    """Existential variable, identified by a globally unique id.
 
     During type checking we try to solve all existential variables and substitute
-    them with concrete consts.
+    them with concrete values of the appropriate kind.
     """
 
     id: UniqueId

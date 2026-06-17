@@ -14,6 +14,7 @@ from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import check_lists_enabled
 from guppylang_internals.std._internal.compiler.tket_exts import WASM_EXTENSION
+from guppylang_internals.std._internal.wasm import WasmPlatform
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import Const, ConstValue
@@ -28,7 +29,6 @@ from guppylang_internals.tys.ty import (
     Type,
     UnitaryFlags,
 )
-from guppylang_internals.wasm_util import WasmPlatform
 
 
 @dataclass(frozen=True)

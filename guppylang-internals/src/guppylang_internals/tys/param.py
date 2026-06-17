@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING, TypeAlias
 from typing_extensions import Self
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.errors.generic import ExpectedError, UnsupportedError
-from guppylang_internals.checker.errors.type_errors import TypeMismatchError
+from guppylang_internals.checker.errors.generic import ExpectedError
+from guppylang_internals.checker.errors.type_errors import (
+    TypeMismatchError,
+)
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ExistentialConstVar
@@ -133,9 +135,13 @@ class TypeParam(ParameterBase):
                     )
                     raise GuppyTypeError(err)
                 if self.must_implement:
-                    raise GuppyError(
-                        UnsupportedError(loc, "Protocol checking", singular=True)
+                    from guppylang_internals.checker.protocol_checker import (
+                        check_protocol,
                     )
+
+                    for proto in self.must_implement:
+                        _, proto_subst = check_protocol(ty, proto, loc)
+                        subst |= proto_subst
                 return arg, subst
 
     def to_existential(self) -> tuple[Argument, ExistentialVar]:
@@ -178,7 +184,8 @@ class TypeParam(ParameterBase):
         from guppylang_internals.tys.subst import Instantiator
 
         impls = tuple(
-            impl.transform(Instantiator(inst)) for impl in self.must_implement
+            impl.transform(Instantiator(inst, allow_partial=True))
+            for impl in self.must_implement
         )
 
         return replace(self, must_implement=impls)

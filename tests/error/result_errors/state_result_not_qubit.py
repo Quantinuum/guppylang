@@ -1,6 +1,6 @@
-from guppylang.std.debug import state_result
+from guppylang.std.debug import state_output
 from tests.util import compile_guppy
 
 @compile_guppy
 def main(x: int) -> None:
-    state_result("tag", x)
+    state_output("tag", x)

@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang_internals.decorator import wasm, wasm_module
+from guppylang_internals.decorator.wasm import wasm, wasm_module
 from guppylang.std.quantum import qubit
 
 from tests.util import get_wasm_file

@@ -2,7 +2,7 @@ from typing import no_type_check
 
 from guppylang import guppy
 from guppylang.std.builtins import array, owned
-from guppylang.std.debug import state_result
+from guppylang.std.debug import state_output, state_result
 from guppylang.std.quantum import qubit, discard, discard_array, x, h, cx
 from tests.util import compile_guppy
 
@@ -12,7 +12,7 @@ def test_basic(validate):
     def main() -> None:
         q1 = qubit()
         q2 = qubit()
-        state_result("tag", q1, q2)
+        state_output("tag", q1, q2)
         discard(q1)
         discard(q2)
 
@@ -24,9 +24,9 @@ def test_multi(validate):
     def main() -> None:
         q1 = qubit()
         q2 = qubit()
-        state_result("tag1", q1, q2)
+        state_output("tag1", q1, q2)
         x(q1)
-        state_result("tag2", q1)
+        state_output("tag2", q1)
         discard(q1)
         discard(q2)
 
@@ -39,12 +39,12 @@ def test_array_access(validate):
         qs = array(qubit() for _ in range(4))
         h(qs[0])
         h(qs[1])
-        state_result("a", qs[0], qs[1], qs[2])
-        state_result("b", qs[0])
+        state_output("a", qs[0], qs[1], qs[2])
+        state_output("b", qs[0])
         h(qs[2])
 
         cx(qs[0], qs[1])
-        state_result("c", qs[1], qs[2])
+        state_output("c", qs[1], qs[2])
         cx(qs[2], qs[3])
         discard_array(qs)
 
@@ -64,12 +64,12 @@ def test_struct_access(validate):
     def test(qs: S @ owned) -> None:
         h(qs.q1)
         h(qs.q2)
-        state_result("1", qs.q1, qs.q2, qs.q3)
-        state_result("2", qs.q1)
+        state_output("1", qs.q1, qs.q2, qs.q3)
+        state_output("2", qs.q1)
         h(qs.q3)
 
         cx(qs.q1, qs.q2)
-        state_result("3", qs.q2, qs.q3)
+        state_output("3", qs.q2, qs.q3)
         cx(qs.q3, qs.q4)
 
         discard(qs.q1)
@@ -87,7 +87,7 @@ def test_array(validate):
         h(qs[1])
         h(qs[2])
         cx(qs[0], qs[3])
-        state_result("tag", qs)
+        state_output("tag", qs)
         discard_array(qs)
 
     validate(main)
@@ -99,7 +99,7 @@ def test_generic_array(validate):
     @guppy
     def foo(qs: array[qubit, n]) -> None:
         cx(qs[0], qs[1])
-        state_result("tag", qs)
+        state_output("tag", qs)
 
     @guppy
     def main(qs1: array[qubit, 3], qs2: array[qubit, 2]) -> None:
@@ -107,3 +107,15 @@ def test_generic_array(validate):
         foo(qs2)
 
     validate(main.compile_function())
+
+
+def test_deprecated_state_result_alias_still_compiles(validate):
+    @compile_guppy
+    def main() -> None:
+        q1 = qubit()
+        q2 = qubit()
+        state_result("tag", q1, q2)
+        discard(q1)
+        discard(q2)
+
+    validate(main)

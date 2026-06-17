@@ -7,7 +7,7 @@ from guppylang.emulator import EmulatorError
 from guppylang.std.builtins import array, owned
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
-from guppylang.std.platform import result
+from guppylang.std.platform import output
 from guppylang_internals.std._internal.compiler.arithmetic import UnsignedIntVal
 from tests.util import compile_guppy
 
@@ -696,11 +696,11 @@ def test_take_put(validate):
     @guppy
     def main() -> int:
         qs = array(qubit() for _ in range(10))
-        result("init", qs.is_borrowed(3))  # False
+        output("init", qs.is_borrowed(3))  # False
 
         # Arguments are borrowed left to right
-        foo(qs[3], result("while_borrowed", qs.is_borrowed(3)))  # True
-        result("after_borrowed", qs.is_borrowed(3))  # False
+        foo(qs[3], output("while_borrowed", qs.is_borrowed(3)))  # True
+        output("after_borrowed", qs.is_borrowed(3))  # False
 
         # We can't put stuff when it's not borrowed
         q = qubit()
@@ -709,13 +709,13 @@ def test_take_put(validate):
 
         # We can't take out stuff that's already borrowed
         q = qs.take(3)
-        result("after_take", qs.is_borrowed(3))  # True
+        output("after_take", qs.is_borrowed(3))  # True
         qs.try_take(3).unwrap_nothing()
         measure(q)
 
         # But we can put something back
         qs.put(qubit(), 3)
-        result("after_put", qs.is_borrowed(3))  # False
+        output("after_put", qs.is_borrowed(3))  # False
         h(qs[3])
 
         discard_array(qs)
@@ -737,9 +737,9 @@ def test_discard_borrowed(validate):
     @guppy
     def main() -> None:
         qubits = array(qubit(), qubit())
-        result("before_take", qubits.is_borrowed(0))
+        output("before_take", qubits.is_borrowed(0))
         q = qubits.take(0)
-        result("after_take", qubits.is_borrowed(0))
+        output("after_take", qubits.is_borrowed(0))
         q.discard()
         discard_array(qubits)  # Here, not all qubits in the array are taken out yet
 
@@ -757,7 +757,7 @@ def test_discard_all_taken(validate):
         qubits.take(0).discard()
         qubits.take(1).discard()
         qubits.discard_all_taken()
-        result("after_discard", True)
+        output("after_discard", True)
 
     res = main.emulator(2).coinflip_sim().run().results[0].entries
     assert res == [("after_discard", 1)]
@@ -783,10 +783,10 @@ def test_try_discard_all_taken(validate):
         qubits = array(qubit(), qubit())
         qubits.take(0).discard()
         after_op = qubits.try_discard_all_taken().unwrap_err()
-        result("after_try", True)
+        output("after_try", True)
         after_op.take(1).discard()
         after_op.try_discard_all_taken().unwrap()
-        result("after_try_again", True)
+        output("after_try_again", True)
 
     res = main.emulator(2).coinflip_sim().run().results[0].entries
     assert res == [

@@ -1,7 +1,7 @@
 from guppylang import guppy
 from guppylang.std.angles import pi, angle
 from guppylang.std.quantum import qubit, cx, h, s, t, rz
-from guppylang.std.qsystem import phased_x
+from guppylang.std.qsystem.helios import phased_x
 from guppylang.std.builtins import array
 
 from pytket.passes import RemoveRedundancies, CliffordSimp, SquashRzPhasedX

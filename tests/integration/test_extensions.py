@@ -1,4 +1,5 @@
 from guppylang.std.array import array
+from guppylang_internals.decorator import hugr_op
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.subst import Inst
 
@@ -7,7 +8,6 @@ from typing import no_type_check
 from collections.abc import Callable
 
 from hugr import ext, tys, ops
-from guppylang.decorator import hugr_op
 
 
 def custom_ext_op(

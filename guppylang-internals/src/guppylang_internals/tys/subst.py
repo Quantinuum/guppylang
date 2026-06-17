@@ -1,5 +1,6 @@
 import functools
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any
 
 from guppylang_internals.error import InternalGuppyError
@@ -11,6 +12,7 @@ from guppylang_internals.tys.const import (
     ConstBase,
     ExistentialConstVar,
 )
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
     ExistentialTypeVar,
@@ -37,9 +39,17 @@ class Substituter(Transformer):
 
     @transform.register
     def _transform_ExistentialTypeVar(self, ty: ExistentialTypeVar) -> Type | None:
-        s = self.subst.get(ty, None)
-        assert not isinstance(s, ConstBase)
-        return s
+        if s := self.subst.get(ty, None):
+            assert not isinstance(s, ConstBase)
+            return s
+        if ty.implements:
+            return replace(
+                ty,
+                implements=tuple(
+                    impl.transform(self) or impl for impl in ty.implements
+                ),
+            )
+        return None
 
     @transform.register
     def _transform_ExistentialConstVar(self, c: ExistentialConstVar) -> Const | None:
@@ -58,6 +68,12 @@ class Instantiator(Transformer):
     @functools.singledispatchmethod
     def transform(self, ty: Any) -> Any | None:
         return None
+
+    @transform.register
+    def _transform_ExistentialTypeVar(self, ty: ExistentialTypeVar) -> Type | None:
+        return replace(
+            ty, implements=tuple(self.transform(impl) or impl for impl in ty.implements)
+        )
 
     @transform.register
     def _transform_BoundTypeVar(self, ty: BoundTypeVar) -> Type | None:
@@ -98,6 +114,10 @@ class Instantiator(Transformer):
         if ty.parametrized:
             raise InternalGuppyError("Tried to instantiate under binder")
         return None
+
+    @transform.register
+    def _transform_ProtocolInst(self, inst: ProtocolInst) -> ProtocolInst | None:
+        return inst.transform(self)
 
 
 class BoundVarFinder(Visitor):

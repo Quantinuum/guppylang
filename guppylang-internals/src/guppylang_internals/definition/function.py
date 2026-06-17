@@ -260,7 +260,6 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         add_metadata(
             func_def,
             self.metadata,
-            additional_metadata={"unitary": self.ty.unitary_flags.value},
         )
         return CompiledFunctionDef(
             self.id,

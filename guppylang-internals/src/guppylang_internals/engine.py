@@ -15,7 +15,7 @@ from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
-from typing_extensions import assert_never, deprecated
+from typing_extensions import assert_never
 
 import guppylang_internals
 from guppylang_internals.debug_mode import debug_mode_enabled
@@ -41,11 +41,11 @@ from guppylang_internals.error import (
     RequiresMonomorphizationError,
     pretty_errors,
 )
+from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.metadata.debug_info_util import (
     StringTable,
 )
 from guppylang_internals.span import SourceMap
-from guppylang_internals.tracing.util import get_calling_frame
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
@@ -243,15 +243,6 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
-
-    @pretty_errors
-    @deprecated(
-        "Extensions are included automatically when used. "
-        "Manual registration is no longer necessary."
-    )
-    def register_extension(self, extension: Extension) -> None:
-        if extension not in self.additional_extensions:
-            self.additional_extensions.append(extension)
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
@@ -495,7 +486,6 @@ class CompilationEngine:
         # Set up string tables for metadata serialization. We know that the first entry
         # in the table is always the file containing the Hugr entrypoint.
         frame = get_calling_frame()
-        assert frame is not None
         filename = frame.f_code.co_filename
 
         ctx = CompilerContext(graph, set(def_ids), StringTable())

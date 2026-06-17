@@ -1,0 +1,8 @@
+Error: Invalid self annotation (at $FILE:7:15)
+  | 
+5 | class Foo:
+6 |     @guppy.require
+7 |     def foo(n: nat) -> None: ...
+  |                ^^^ `n` must be of type `Foo`
+
+Guppy compilation failed due to 1 previous error
