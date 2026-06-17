@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import no_type_check
 
 from guppylang import guppy
-from guppylang.std.builtins import panic
+from guppylang.std.builtins import exit
 from guppylang.std.num import nat
 
 
@@ -107,7 +107,7 @@ class PCG32:
             :py:meth:`guppylang.std.qsystem.random.RNG.random_int_bounded`.
         """
         if bound == nat(0):
-            panic("PCG32.next_int_bounded: bound must be positive")
+            exit("PCG32.next_int_bounded: bound must be positive")
         # uint32_t threshold = -bound % bound in pcg32_boundedrand_r.
         two_to_32: nat = nat(1) << nat(32)
         threshold = _mask32(two_to_32 - _mask32(bound)) % bound

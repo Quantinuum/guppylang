@@ -1,10 +1,9 @@
 from guppylang import guppy
-from guppylang.emulator.exceptions import EmulatorError
 from guppylang.std.builtins import owned, output
 from guppylang.std.quantum import h, measure, qubit, x
+from guppylang.std.qsystem.utils import get_current_shot
 from guppylang.std.random import seeded_pcg32
 
-import pytest
 from selene_sim.backends.bundled_simulators import ClassicalReplay
 
 
@@ -222,11 +221,20 @@ def test_pcg32_bounded_deterministic_sequence(run_int_fn) -> None:
     run_int_fn(main, 1 + 3 + 24)
 
 
-def test_pcg32_bounded_bound_zero_panics() -> None:
-    @guppy
-    def main() -> int:
-        rng = seeded_pcg32(1)
-        return rng.next_int_bounded(0)
+def test_pcg32_bounded_bound_zero_exits() -> None:
+    """Invalid bound exits the current shot; subsequent shots still run."""
 
-    with pytest.raises(EmulatorError, match="bound must be positive"):
-        main.emulator(0).coinflip_sim().run()
+    @guppy
+    def main() -> None:
+        if get_current_shot() == 0:
+            rng = seeded_pcg32(1)
+            _ = rng.next_int_bounded(0)
+        else:
+            rng = seeded_pcg32(1)
+            output("ok", rng.next_int_bounded(6))
+
+    res = main.emulator(0).coinflip_sim().with_shots(2).run()
+    assert res.results[0].entries == [
+        ("exit: PCG32.next_int_bounded: bound must be positive", 1)
+    ]
+    assert res.results[1].entries == [("ok", 3)]
