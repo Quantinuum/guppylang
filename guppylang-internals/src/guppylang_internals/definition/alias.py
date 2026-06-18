@@ -103,17 +103,16 @@ class ParsedTypeAliasDef(TypeDef, CheckableDef):
             resolved = [
                 _resolve_param(p, i, globals) for i, p in enumerate(self.param_defs)
             ]
-            param_var_mapping = {p.name: p for p in resolved}
-            check_not_recursive(
-                self, TypeParsingCtx(globals, param_var_mapping=dict(param_var_mapping))
+            ctx = TypeParsingCtx(
+                globals, param_var_mapping={p.name: p for p in resolved}
             )
-            ctx = TypeParsingCtx(globals, param_var_mapping=param_var_mapping)
+            check_not_recursive(self, ctx)
             ty = type_from_ast(self.type_ast, ctx)
             params = tuple(resolved)
         else:
             # Implicit: collect free type vars from the body in order of appearance.
-            check_not_recursive(self, TypeParsingCtx(globals, allow_free_vars=True))
             ctx = TypeParsingCtx(globals, allow_free_vars=True)
+            check_not_recursive(self, ctx)
             ty = type_from_ast(self.type_ast, ctx)
             params = tuple(ctx.param_var_mapping.values())
         return CheckedTypeAliasDef(
