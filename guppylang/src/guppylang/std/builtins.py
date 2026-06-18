@@ -1,10 +1,13 @@
 """Reexports core types and functions that are available without an explicit import."""
 
-from guppylang_internals.std._internal.moved import produce_moved_function
+from guppylang_internals.std._internal.moved import (
+    produce_moved_class,
+    produce_moved_function,
+)
 
-from guppylang.std.array import ArrayIter, FrozenarrayIter, array, frozenarray
+from guppylang.std.array import array, frozenarray
 from guppylang.std.bool import bool
-from guppylang.std.iter import Range, SizedIter, range
+from guppylang.std.iter import range
 from guppylang.std.lang import (
     Controllable,
     Daggerable,
@@ -100,6 +103,12 @@ bytecast_nat_to_float = produce_moved_function(  # type: ignore[var-annotated]
     __name__, "bytecast_nat_to_float", "guppylang.std.num"
 )
 barrier = produce_moved_function(__name__, "barrier", "guppylang.std.platform")  # type: ignore[var-annotated]
+Range = produce_moved_class(__name__, "Range", "guppylang.std.iter")
+SizedIter = produce_moved_class(__name__, "SizedIter", "guppylang.std.iter")
+ArrayIter = produce_moved_class(__name__, "ArrayIter", "guppylang.std.array")
+FrozenarrayIter = produce_moved_class(
+    __name__, "FrozenarrayIter", "guppylang.std.array"
+)
 
 __all__ = (  # noqa: RUF022
     "__import__",
@@ -191,7 +200,8 @@ __all__ = (  # noqa: RUF022
     "Unitary",
     "Controllable",
     "Daggerable",
-    # TODO: Remove the following from prelude
+    # TODO: Remove the following from prelude once
+    # https://github.com/Quantinuum/guppylang/issues/1019 has been resolved for a while
     "ArrayIter",  # Deprecated reexport
     "SizedIter",  # Deprecated reexport
     "barrier",  # Deprecated reexport

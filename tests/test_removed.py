@@ -47,3 +47,43 @@ def test_removed_barrier():
         match=r"The function `barrier` has been moved to `guppylang.std.platform`, and can no longer be imported from `guppylang.std.builtins`.",  # noqa: E501
     ):
         barrier()
+
+
+def test_removed_Range():
+    from guppylang.std.builtins import Range
+
+    with pytest.raises(
+        ImportError,
+        match=r"The class `Range` has been moved to `guppylang.std.iter`, and can no longer be imported from `guppylang.std.builtins`.",  # noqa: E501
+    ):
+        Range()
+
+
+def test_removed_SizedIter():
+    from guppylang.std.builtins import SizedIter
+
+    with pytest.raises(
+        ImportError,
+        match=r"The class `SizedIter` has been moved to `guppylang.std.iter`, and can no longer be imported from `guppylang.std.builtins`.",  # noqa: E501
+    ):
+        SizedIter()
+
+
+def test_removed_ArrayIter():
+    from guppylang.std.builtins import ArrayIter
+
+    with pytest.raises(
+        ImportError,
+        match=r"The class `ArrayIter` has been moved to `guppylang.std.array`, and can no longer be imported from `guppylang.std.builtins`.",  # noqa: E501
+    ):
+        ArrayIter()
+
+
+def test_removed_FrozenArrayIter():
+    from guppylang.std.builtins import FrozenarrayIter
+
+    with pytest.raises(
+        ImportError,
+        match=r"The class `FrozenarrayIter` has been moved to `guppylang.std.array`, and can no longer be imported from `guppylang.std.builtins`.",  # noqa: E501
+    ):
+        FrozenarrayIter()
