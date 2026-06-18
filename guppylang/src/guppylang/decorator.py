@@ -2,11 +2,9 @@ import ast
 import builtins
 import inspect
 import linecache
-import sys
 from collections.abc import Callable, Sequence
 from types import FrameType
 from typing import (
-    TYPE_CHECKING,
     Any,
     NamedTuple,
     ParamSpec,
@@ -15,9 +13,6 @@ from typing import (
     cast,
     overload,
 )
-
-if TYPE_CHECKING and sys.version_info >= (3, 12):
-    from typing import TypeAliasType
 
 from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.definition.alias import RawTypeAliasDef
@@ -46,6 +41,7 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
+from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.ty import (
     FunctionType,
     NoneType,
@@ -380,19 +376,7 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
-    if sys.version_info >= (3, 12):
-
-        @overload
-        def type_alias(
-            self, name: str, ty: str, params: list[Any] | None = ...
-        ) -> Any: ...
-
-        @overload
-        def type_alias(self, name: "TypeAliasType") -> Any: ...
-
-    def type_alias(
-        self, name: str | Any, ty: str | None = None, params: list[Any] | None = None
-    ) -> Any:
+    def type_alias(self, name: str, ty: str, params: list[Any] | None = None) -> Any:
         """Creates a new type alias.
 
         .. code-block:: python
@@ -417,35 +401,13 @@ class _Guppy:
 
         When ``params`` is omitted, free type variables are collected from the body
         in order of first appearance.
-
-        On Python 3.12+, the PEP 695 ``type`` statement syntax is also supported.
-        The type alias value must be a quoted string and type parameters are inferred
-        from the ``[...]`` parameter list on the statement:
-
-        .. code-block:: python
-
-            # Python 3.12+ only
-            type Pair[T, U] = "tuple[T, U]"
-            Pair = guppy.type_alias(Pair)
         """
         frame = get_calling_frame()
-
-        # Python 3.12+ path: accept a TypeAliasType from the `type X[T] = "..."` stmt
-        if sys.version_info >= (3, 12):
-            from typing import TypeAliasType
-
-            if isinstance(name, TypeAliasType):
-                return self._type_alias_from_type_stmt(name, frame)
 
         if not isinstance(name, str):
             raise TypeError(
                 f"guppy.type_alias() expects a name string as the first argument, "
                 f"got {name!r}"
-            )
-        if ty is None:
-            raise TypeError(
-                "guppy.type_alias() requires a type string as the second argument: "
-                f"guppy.type_alias({name!r}, 'MyType')"
             )
         if not isinstance(ty, str):
             raise TypeError(
@@ -465,39 +427,6 @@ class _Guppy:
             type_ast,
             explicit_params,
         )
-        DEF_STORE.register_def(defn, frame)
-        return GuppyDefinition(defn)
-
-    def _type_alias_from_type_stmt(self, ta: Any, frame: FrameType | None) -> Any:
-        """Register a type alias created from a Python 3.12 ``type`` statement.
-
-        The alias value must be a quoted string, e.g.:
-
-        .. code-block:: python
-
-            type Pair[T, U] = "tuple[T, U]"
-            Pair = guppy.type_alias(Pair)
-        """
-        type_str = ta.__value__
-        if not isinstance(type_str, str):
-            raise TypeError(
-                f"The value of a Guppy type alias must be a quoted string, "
-                f"got {type_str!r}.\n"
-                "Hint: write the type as a string, e.g. "
-                f'`type {ta.__name__}[...] = "MyType[T]"`'
-            )
-        type_ast = _parse_expr_string(
-            type_str, f"Not a valid Guppy type: `{type_str}`", DEF_STORE.sources
-        )
-        explicit_params = _params_from_type_alias_params(ta.__type_params__)
-        defn = RawTypeAliasDef(
-            DefId.fresh(),
-            ta.__name__,
-            type_ast,
-            type_ast,
-            explicit_params,
-        )
-        assert frame is not None, "Could not determine calling frame for type alias"
         DEF_STORE.register_def(defn, frame)
         return GuppyDefinition(defn)
 
@@ -966,89 +895,4 @@ def _params_from_list(params: list[Any]) -> list[Parameter]:
                 "guppy.type_var() or guppy.nat_var()"
             )
         result.append(defn.to_param(i))
-    return result
-
-
-def _params_from_type_alias_params(type_params: tuple[Any, ...]) -> list[Parameter]:
-    """Convert Python 3.12+ ``type`` statement type params to guppy Parameters.
-
-    Handles ``TypeVar`` with optional ``Copy``/``Drop`` bounds. Raises
-    ``TypeError`` for unsupported parameter kinds (``TypeVarTuple``,
-    ``ParamSpec``) and for bounds that require ``globals`` to resolve (e.g.
-    ``nat``-const params — use ``params=[N]`` for those).
-    """
-    import typing
-
-    from guppylang_internals.tys.param import TypeParam
-
-    from guppylang.std.lang import Copy, Drop
-
-    # TypeVarTuple was added in Python 3.11; ParamSpec in 3.10.
-    _TypeVarTuple: type | None = getattr(typing, "TypeVarTuple", None)
-
-    result: list[Parameter] = []
-    for i, tp in enumerate(type_params):
-        if (_TypeVarTuple is not None and isinstance(tp, _TypeVarTuple)) or isinstance(
-            tp, typing.ParamSpec
-        ):
-            raise TypeError(
-                "Variadic and ParamSpec type parameters are not supported "
-                "in Guppy type aliases."
-            )
-        if not isinstance(tp, typing.TypeVar):
-            raise TypeError(
-                f"Unsupported type parameter {tp!r} in Guppy type alias. "
-                "Only TypeVar is supported."
-            )
-        # Python 3.14+ uses __constraints__ for `T: (A, B)` style;
-        # Python 3.12/3.13 may use __bound__ for `T: A`.
-        constraints: tuple[Any, ...] = getattr(tp, "__constraints__", ())
-        bound = tp.__bound__
-        if constraints:
-            # `T: (Copy, Drop)` or similar tuple of constraints
-            must_copy = any(b is Copy for b in constraints)
-            must_drop = any(b is Drop for b in constraints)
-            unknown = [b for b in constraints if b is not Copy and b is not Drop]
-            if unknown:
-                raise TypeError(
-                    f"Type parameter constraints {unknown!r} are not supported "
-                    "in the ``type`` statement syntax for Guppy type aliases. "
-                    "For const parameters (e.g. `nat`), use the explicit "
-                    "``params=[N]`` argument instead."
-                )
-            param: Parameter = TypeParam(
-                i,
-                tp.__name__,
-                must_be_copyable=must_copy,
-                must_be_droppable=must_drop,
-            )
-        elif bound is None:
-            param = TypeParam(
-                i, tp.__name__, must_be_copyable=False, must_be_droppable=False
-            )
-        elif bound is Copy:
-            param = TypeParam(
-                i, tp.__name__, must_be_copyable=True, must_be_droppable=False
-            )
-        elif bound is Drop:
-            param = TypeParam(
-                i, tp.__name__, must_be_copyable=False, must_be_droppable=True
-            )
-        elif isinstance(bound, tuple):
-            must_copy = any(b is Copy for b in bound)
-            must_drop = any(b is Drop for b in bound)
-            param = TypeParam(
-                i,
-                tp.__name__,
-                must_be_copyable=must_copy,
-                must_be_droppable=must_drop,
-            )
-        else:
-            raise TypeError(
-                f"Type parameter bound `{bound!r}` is not supported in the "
-                "``type`` statement syntax for Guppy type aliases. "
-                "For const parameters (e.g. `nat`), use the explicit "
-                "``params=[N]`` argument instead."
-            )
-        result.append(param)
     return result
