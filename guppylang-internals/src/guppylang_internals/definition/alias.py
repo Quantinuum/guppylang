@@ -5,7 +5,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from guppylang_internals.ast_util import AstNode
+from guppylang_internals.ast_util import AstNode, get_file
 from guppylang_internals.checker.core import Globals
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -18,7 +18,7 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -211,42 +211,26 @@ def _add_alias_notes_for_cycle(
     Cross-file or un-annotated spans are silently skipped; the cycle chain in the main
     error's span label is still fully informative on its own.
     """
-    import ast as _ast
-
-    from guppylang_internals.ast_util import get_file
-    from guppylang_internals.span import Span
-
-    def _span_file(node: _ast.AST | Span | None) -> str | None:
-        """Return the filename for either a Span or an annotated AST node."""
-        if node is None:
-            return None
-        if isinstance(node, Span):
-            return node.file
-        return get_file(node)
-
     unique_defs = cycle_defs[:-1]  # drop the repeated last element
     if len(unique_defs) <= 1:
         return
 
-    # Determine the file that the main error is anchored to (may be None if unset)
-    err_file: str | None = _span_file(err.span)
+    # File the main error is anchored to. `add_sub_diagnostic` requires every note to
+    # share this file, and `to_span` requires the span to carry a file, so definitions
+    # without a matching file annotation are skipped below.
+    err_file = to_span(err.span).file if err.span is not None else None
 
-    # Use DefId for deduplication so that aliases with identical names don't collide.
-    seen_ids: set[DefId] = {
-        child.defn_id
-        for child in err.children
-        if isinstance(child, RecursiveTypeAliasError.AliasNote)
-    }
-    # The last element of unique_defs is the alias whose definition the error span
-    # already underlines — skip it to avoid a redundant note on the same line.
-    defs_to_annotate = unique_defs[:-1]
-    for defn in defs_to_annotate:
-        if defn.id not in seen_ids and defn.defined_at is not None:
-            # Skip if the AST node lacks file annotation or is from a different file
-            note_file = get_file(defn.defined_at)
-            if note_file is None or note_file != err_file:
-                continue
-            seen_ids.add(defn.id)
-            err.add_sub_diagnostic(
-                RecursiveTypeAliasError.AliasNote(defn.defined_at, defn.name, defn.id)
-            )
+    # The last element of `unique_defs` is the alias whose definition the error span
+    # already underlines — skip it to avoid a redundant note on the same line. Use
+    # DefId for deduplication so that aliases with identical names don't collide.
+    seen_ids: set[DefId] = set()
+    for defn in unique_defs[:-1]:
+        if defn.id in seen_ids or defn.defined_at is None:
+            continue
+        note_file = get_file(defn.defined_at)
+        if note_file is None or note_file != err_file:
+            continue
+        seen_ids.add(defn.id)
+        err.add_sub_diagnostic(
+            RecursiveTypeAliasError.AliasNote(defn.defined_at, defn.name, defn.id)
+        )
