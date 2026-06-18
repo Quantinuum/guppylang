@@ -19,8 +19,7 @@ def _header_text(func_def: ast.FunctionDef) -> str:
     if span.is_multiline:
         parts = [lines[span.start.line - 1][span.start.column :]]
         parts.extend(
-            lines[line_no - 1]
-            for line_no in range(span.start.line + 1, span.end.line)
+            lines[line_no - 1] for line_no in range(span.start.line + 1, span.end.line)
         )
         parts.append(lines[span.end.line - 1][: span.end.column])
         return "\n".join(parts)
