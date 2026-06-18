@@ -1,7 +1,6 @@
 import ast
 import builtins
 import inspect
-import linecache
 from collections.abc import Callable, Sequence
 from types import FrameType
 from typing import (
@@ -699,28 +698,14 @@ def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.e
         raise SyntaxError(parse_err) from None
 
     # Try to annotate the type AST with source information. This requires us to
-    # inspect the stack frame of the caller.
+    # inspect the stack frame of the caller
     if caller_frame := get_calling_frame():
         info = inspect.getframeinfo(caller_frame)
-        filename = info.filename
-        # Prefer getsourcelines (works for real files and importable modules), but
-        # fall back to linecache for interactive contexts like `python -c` or REPLs
-        # where the module may not be importable via inspect.getmodule().
-        source_lines: list[str] | None = None
         if caller_module := inspect.getmodule(caller_frame):
-            try:
-                raw_lines, _ = inspect.getsourcelines(caller_module)
-                source_lines = raw_lines
-            except OSError:
-                pass
-        if source_lines is None:
-            source_lines = linecache.getlines(filename) or None
-        if source_lines is not None:
+            sources.add_file(info.filename)
+            source_lines, _ = inspect.getsourcelines(caller_module)
             source = "".join(source_lines)
-            # Use explicit source content so the diagnostic renderer can always find
-            # the file's lines even when linecache hasn't loaded this file yet.
-            sources.add_file(filename, source)
-            annotate_location(expr_ast, source, filename, 1)
+            annotate_location(expr_ast, source, info.filename, 1)
             # Modify the AST so that all sub-nodes span the entire line. We
             # can't give a better location since we don't know the column
             # offset of the `ty` argument
