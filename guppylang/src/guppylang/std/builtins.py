@@ -1,5 +1,7 @@
 """Reexports core types and functions that are available without an explicit import."""
 
+from guppylang_internals.std._internal.moved import produce_moved_function
+
 from guppylang.std.array import ArrayIter, FrozenarrayIter, array, frozenarray
 from guppylang.std.bool import bool
 from guppylang.std.iter import Range, SizedIter, range
@@ -15,11 +17,8 @@ from guppylang.std.lang import (
     py,
 )
 from guppylang.std.list import list
-from guppylang.std.mem import mem_swap
 from guppylang.std.num import (
     abs,
-    bytecast_float_to_nat,
-    bytecast_nat_to_float,
     divmod,
     float,
     int,
@@ -29,7 +28,7 @@ from guppylang.std.num import (
     round,
 )
 from guppylang.std.option import Option, nothing, some
-from guppylang.std.platform import barrier, exit, output, panic, result
+from guppylang.std.platform import exit, output, panic, result
 from guppylang.std.quantum import qubit
 from guppylang.std.reflection import callable
 from guppylang.std.string import str
@@ -92,6 +91,15 @@ from guppylang.std.unsupported import (
     vars,
     zip,
 )
+
+mem_swap = produce_moved_function(__name__, "mem_swap", "guppylang.std.mem")  # type: ignore[var-annotated]
+bytecast_float_to_nat = produce_moved_function(  # type: ignore[var-annotated]
+    __name__, "bytecast_float_to_nat", "guppylang.std.num"
+)
+bytecast_nat_to_float = produce_moved_function(  # type: ignore[var-annotated]
+    __name__, "bytecast_nat_to_float", "guppylang.std.num"
+)
+barrier = produce_moved_function(__name__, "barrier", "guppylang.std.platform")  # type: ignore[var-annotated]
 
 __all__ = (  # noqa: RUF022
     "__import__",
@@ -170,7 +178,6 @@ __all__ = (  # noqa: RUF022
     "round",
     "set",
     "setattr",
-    "SizedIter",
     "slice",
     "some",
     "sorted",
@@ -186,6 +193,7 @@ __all__ = (  # noqa: RUF022
     "Daggerable",
     # TODO: Remove the following from prelude
     "ArrayIter",  # Deprecated reexport
+    "SizedIter",  # Deprecated reexport
     "barrier",  # Deprecated reexport
     "bytecast_float_to_nat",  # Deprecated reexport
     "bytecast_nat_to_float",  # Deprecated reexport
