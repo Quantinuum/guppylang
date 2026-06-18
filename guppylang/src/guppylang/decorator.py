@@ -26,6 +26,7 @@ from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
+    ParamDef,
     RawConstVarDef,
     TypeVarDef,
 )
@@ -41,7 +42,6 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
-from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.ty import (
     FunctionType,
     NoneType,
@@ -417,7 +417,7 @@ class _Guppy:
         type_ast = _parse_expr_string(
             ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
         )
-        explicit_params: Sequence[Parameter] | None = (
+        explicit_params: Sequence[ParamDef] | None = (
             _params_from_list(params) if params is not None else None
         )
         defn = RawTypeAliasDef(
@@ -870,29 +870,23 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
 
 
-def _params_from_list(params: list[Any]) -> list[Parameter]:
-    """Extract :class:`~guppylang_internals.tys.param.Parameter` objects from a list of
-    Guppy type-variable definitions (e.g. results of :func:`guppy.type_var`).
+def _params_from_list(params: list[Any]) -> list[ParamDef]:
+    """Validate a list of Guppy type-variable definitions for use as alias params.
 
-    The index of each parameter is set to its position in the list so that
-    ``Alias[int, bool]`` binds the first param to ``int`` and the second to ``bool``.
+    Each entry must be a type variable created with :func:`guppy.type_var`,
+    :func:`guppy.nat_var`, or :func:`guppy.const_var`. The underlying
+    :class:`~guppylang_internals.definition.parameter.ParamDef`\\ s are returned in
+    order; they are converted to :class:`~guppylang_internals.tys.param.Parameter`\\ s
+    later (in :meth:`ParsedTypeAliasDef.check`) where the globals needed to resolve
+    ``const_var`` types are available.
     """
-    from guppylang_internals.definition.parameter import ParamDef, RawConstVarDef
-
-    from guppylang.defs import GuppyDefinition
-
-    result = []
-    for i, p in enumerate(params):
-        if not isinstance(p, GuppyDefinition):
+    result: list[ParamDef] = []
+    for p in params:
+        defn = p.wrapped if isinstance(p, GuppyDefinition) else None
+        if not isinstance(defn, ParamDef):
             raise TypeError(
                 "type_alias params must be type variables created with "
-                f"guppy.type_var() or guppy.nat_var(), got {p!r}"
+                f"guppy.type_var(), guppy.nat_var(), or guppy.const_var(), got {p!r}"
             )
-        defn = p.wrapped
-        if not isinstance(defn, ParamDef) or isinstance(defn, RawConstVarDef):
-            raise TypeError(
-                "type_alias params must be type variables created with "
-                "guppy.type_var() or guppy.nat_var()"
-            )
-        result.append(defn.to_param(i))
+        result.append(defn)
     return result

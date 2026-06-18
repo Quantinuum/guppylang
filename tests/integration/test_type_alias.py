@@ -136,6 +136,28 @@ def test_implicit_generic_alias(run_int_fn):
     run_int_fn(main, expected=99)
 
 
+def test_const_var_alias(run_int_fn):
+    """Generic aliases can be parameterised by const variables."""
+    B = guppy.const_var("B", "bool")
+
+    @guppy.struct
+    class Flagged(Generic[B]):
+        value: int
+
+    # Alias parameterised by a const var; resolved lazily when the alias is checked.
+    MyFlagged = guppy.type_alias("MyFlagged", "Flagged[B]", params=[B])
+
+    @guppy
+    def get_value(f: MyFlagged[True]) -> int:
+        return f.value
+
+    @guppy
+    def main() -> int:
+        return get_value(Flagged(7))
+
+    run_int_fn(main, expected=7)
+
+
 # ---------------------------------------------------------------------------
 # Struct / enum interaction tests
 # ---------------------------------------------------------------------------

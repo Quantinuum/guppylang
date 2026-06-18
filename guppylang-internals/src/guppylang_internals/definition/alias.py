@@ -13,6 +13,7 @@ from guppylang_internals.definition.common import (
     DefId,
     ParsableDef,
 )
+from guppylang_internals.definition.parameter import ParamDef, RawConstVarDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE
@@ -54,7 +55,7 @@ class RawTypeAliasDef(TypeDef, ParsableDef):
     """A raw type alias definition that has not been parsed yet."""
 
     type_ast: ast.expr
-    explicit_params: Sequence[Parameter] | None = None
+    explicit_params: Sequence[ParamDef] | None = None
     params: None = field(default=None, init=False)
     description: str = field(default="type alias", init=False)
 
@@ -73,26 +74,42 @@ class RawTypeAliasDef(TypeDef, ParsableDef):
         raise InternalGuppyError("Tried to instantiate raw type alias definition")
 
 
+def _resolve_param(defn: ParamDef, idx: int, globals: Globals) -> Parameter:
+    """Convert a parameter definition to a positional :class:`Parameter`.
+
+    ``const_var`` definitions arrive unparsed (their type is still a raw AST), so we
+    parse them here, where the ``globals`` needed to resolve the type are available.
+    """
+    if isinstance(defn, RawConstVarDef):
+        defn = defn.parse(globals, DEF_STORE.sources)
+    return defn.to_param(idx)
+
+
 @dataclass(frozen=True)
 class ParsedTypeAliasDef(TypeDef, CheckableDef):
     """A type alias definition whose target type has not been checked yet."""
 
-    params: Sequence[Parameter] | None
+    param_defs: Sequence[ParamDef] | None
     type_ast: ast.expr
+    params: None = field(default=None, init=False)
     description: str = field(default="type alias", init=False)
 
     def check(self, globals: Globals) -> "CheckedTypeAliasDef":
-        if self.params is not None:
-            # Explicit params: re-index them and pre-load into the context so that
-            # type vars in the body are resolved to these parameters in order.
-            reindexed = [p.with_idx(i) for i, p in enumerate(self.params)]
-            param_var_mapping = {p.name: p for p in reindexed}
+        if self.param_defs is not None:
+            # Explicit params: resolve each definition to a parameter (parsing
+            # `const_var` types now that globals are available) and pre-load them
+            # into the context so that variables in the body bind to these params
+            # in order.
+            resolved = [
+                _resolve_param(p, i, globals) for i, p in enumerate(self.param_defs)
+            ]
+            param_var_mapping = {p.name: p for p in resolved}
             check_not_recursive(
                 self, TypeParsingCtx(globals, param_var_mapping=dict(param_var_mapping))
             )
             ctx = TypeParsingCtx(globals, param_var_mapping=param_var_mapping)
             ty = type_from_ast(self.type_ast, ctx)
-            params = tuple(reindexed)
+            params = tuple(resolved)
         else:
             # Implicit: collect free type vars from the body in order of appearance.
             check_not_recursive(self, TypeParsingCtx(globals, allow_free_vars=True))
