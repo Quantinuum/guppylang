@@ -132,18 +132,18 @@ def function_header_span(func_def: ast.FunctionDef) -> Span:
     source = get_source(func_def)
     file = get_file(func_def)
     line_offset = get_line_offset(func_def)
-    if source is None or file is None or line_offset is None:
-        if func_def.body:
-            return Span(start, to_span(func_def.body[0]).start)
-        return Span(start, to_span(func_def).end)
+    # `check_signature` is only called on AST nodes that have been processed by
+    # `annotate_location`, so source metadata is always available.
+    assert source is not None
+    assert file is not None
+    assert line_offset is not None
 
     lines = source.splitlines()
     line_idx = func_def.lineno - 1
     paren_depth = 0
-    for i in range(line_idx, len(lines)):
+    for i, line in enumerate(lines[line_idx:], start=line_idx):
         col_begin = func_def.col_offset if i == line_idx else 0
-        for col in range(col_begin, len(lines[i])):
-            char = lines[i][col]
+        for col, char in enumerate(line[col_begin:], start=col_begin):
             if char == "(":
                 paren_depth += 1
             elif char == ")":
