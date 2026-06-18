@@ -122,6 +122,7 @@ class DefinitionStore:
     See `DEF_STORE` for the singleton instance of this class.
     """
 
+    # nico TODO add a new mapping from function to custom definition
     raw_defs: dict[DefId, RawDef]
     type_members: defaultdict[DefId, dict[str, DefId]]
     type_member_parents: dict[DefId, DefId]
