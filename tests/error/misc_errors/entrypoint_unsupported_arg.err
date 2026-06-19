@@ -1,0 +1,10 @@
+Error: Unsupported entrypoint argument type (at $FILE:6:8)
+  | 
+4 | 
+5 | @guppy
+6 | def foo(x: nat) -> None:
+  |         ^^^^^^ Unsigned `nat` arguments are not supported as entrypoint
+  |                arguments. Use a signed `int` argument and convert in your
+  |                program if needed.
+
+Guppy compilation failed due to 1 previous error

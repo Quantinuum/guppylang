@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import datetime
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock, patch
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+import pytest
+from guppylang.emulator._args import EntrypointArgSpec, EntrypointArgValueError
 from guppylang.emulator.instance import EmulatorInstance
 from guppylang.emulator.result import EmulatorResult
+from guppylang_internals.tys.ty import NumericType
 from selene_depolarizing_error_model_plugin import DepolarizingPlugin
 from selene_sim import IdealErrorModel, NoEventHook, Quest, SimpleRuntime, Stim
 from selene_sim.backends.bundled_simulators import Coinflip
@@ -435,3 +442,74 @@ def test_emulator_instance_full_configuration_workflow():
         assert isinstance(call_kwargs["simulator"], Quest)
 
         mock_result.assert_called_once_with(mock_result_stream)
+
+
+def _arg_instance(
+    run_shots_side_effect: Callable[..., Any] | None = None,
+) -> tuple[EmulatorInstance, Mock]:
+    """An EmulatorInstance with a float arg `theta` and a mocked selene instance."""
+    mock_selene_instance = Mock()
+    if run_shots_side_effect is not None:
+        mock_selene_instance.run_shots.side_effect = run_shots_side_effect
+    else:
+        mock_selene_instance.run_shots.return_value = iter([])
+    specs = (EntrypointArgSpec("theta", NumericType(NumericType.Kind.Float)),)
+    instance = EmulatorInstance(
+        _instance=mock_selene_instance, _n_qubits=1, _arg_specs=specs
+    )
+    return instance, mock_selene_instance
+
+
+def test_run_rejects_kwargs_when_no_args() -> None:
+    instance = EmulatorInstance(_instance=Mock(), _n_qubits=1)
+    with pytest.raises(EntrypointArgValueError, match="no runtime arguments"):
+        instance.run(theta=1.0)
+
+
+def test_run_requires_args_when_expected() -> None:
+    instance, _ = _arg_instance()
+    with pytest.raises(EntrypointArgValueError, match=r"Missing.*`theta`"):
+        instance.run()
+
+
+def test_run_per_shot_runs_len_shots() -> None:
+    instance, mock_selene = _arg_instance()
+    instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}, {"theta": 3.0}])
+    # n_shots should be overridden to the number of per-shot records
+    assert mock_selene.run_shots.call_args.kwargs["n_shots"] == 3
+
+
+def test_run_per_shot_rejects_shot_offset() -> None:
+    instance, _ = _arg_instance()
+    instance = instance.with_shot_offset(5)
+    with pytest.raises(EntrypointArgValueError, match="shot offset"):
+        instance.run_per_shot([{"theta": 1.0}])
+
+
+def test_run_per_shot_rejects_conflicting_with_shots() -> None:
+    instance, _ = _arg_instance()
+    instance = instance.with_shots(5)
+    with pytest.raises(EntrypointArgValueError, match="with_shots"):
+        instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
+
+
+def test_run_per_shot_rejects_explicit_with_shots_one() -> None:
+    # An explicit `with_shots(1)` is distinguishable from the unset default and
+    # still conflicts with a multi-record call.
+    instance, _ = _arg_instance()
+    instance = instance.with_shots(1)
+    with pytest.raises(EntrypointArgValueError, match="with_shots"):
+        instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
+
+
+def test_run_per_shot_allows_matching_with_shots() -> None:
+    instance, mock_selene = _arg_instance()
+    instance = instance.with_shots(2)
+    instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
+    assert mock_selene.run_shots.call_args.kwargs["n_shots"] == 2
+
+
+def test_run_per_shot_rejects_when_no_args() -> None:
+    instance = EmulatorInstance(_instance=Mock(), _n_qubits=1)
+    with pytest.raises(EntrypointArgValueError, match="no runtime arguments"):
+        instance.run_per_shot([{"theta": 1.0}])

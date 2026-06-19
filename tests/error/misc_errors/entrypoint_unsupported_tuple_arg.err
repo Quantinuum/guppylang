@@ -1,0 +1,10 @@
+Error: Unsupported entrypoint argument type (at $FILE:5:8)
+  | 
+3 | 
+4 | @guppy
+5 | def foo(x: tuple[int, float]) -> None:
+  |         ^^^^^^^^^^^^^^^^^^^^ Type `(int, float)` is not supported as an entrypoint
+  |                              argument. Supported types are `bool`, `int`, `float`, and
+  |                              arrays of those.
+
+Guppy compilation failed due to 1 previous error
