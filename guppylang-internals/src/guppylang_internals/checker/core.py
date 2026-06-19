@@ -24,7 +24,7 @@ from guppylang_internals.definition.common import (
     Definition,
     ParsedDef,
 )
-from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
+from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
@@ -451,7 +451,7 @@ class Context(NamedTuple):
     """If not None, the call graph node for the function being checked, which also
     stores the effect constraints that function calls in this context must respect,
     together with the AST node that gives rise to said constraint."""
-    current_caller: DefId | None = None
+    current_caller: MonoDefId | None = None
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

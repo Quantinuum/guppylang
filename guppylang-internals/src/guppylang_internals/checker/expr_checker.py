@@ -55,7 +55,6 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import CalleeId
 from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprEvalError,
     ComptimeExprIncoherentListError,
@@ -1398,20 +1397,21 @@ def _identify_callee(node: ast.expr) -> str | None:
 
 
 def _register_callee(
-    ctx: Context, callee_id: CalleeId, ty: FunctionType, node: AstNode
+    ctx: Context,
+    callee_id: DefId | str | None,
+    inst: Inst,
+    func_ty: FunctionType,
+    node: AstNode,
 ) -> None:
     """Registers a function call in the call graph."""
     assert (
         ctx.current_caller is not None
     )  # Not set for e.g. comptime but should be here
     data = ENGINE.call_graph[ctx.current_caller]
-    if callee_id is None:
-        # TODO(callgraph) ALAN: Need to store alternative information to DefId here.
-        return
     if isinstance(callee_id, DefId):
-        data.callee_defs.append((callee_id, node))
+        data.callee_defs.append(((callee_id, inst), node))
     else:
-        data.other_callees.append((callee_id, ty, node))
+        data.other_callees.append((callee_id, func_ty, node))
 
 
 def synthesize_call(
@@ -1419,7 +1419,7 @@ def synthesize_call(
     args: list[ast.expr],
     node: AstNode,
     ctx: Context,
-    callee: CalleeId | None,
+    callee: DefId | str | None,
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1451,7 +1451,8 @@ def synthesize_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, callee, func_ty, node)
+
+    _register_callee(ctx, callee, inst, func_ty, node)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1462,7 +1463,8 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
-    callee: CalleeId | None,
+    callee: DefId | str | None,
+    *,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
     """Checks the return type of a function call against a given type.
@@ -1551,7 +1553,7 @@ def check_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, callee, func_ty, node)
+    _register_callee(ctx, callee, inst, func_ty, node)
 
     return inputs, subst, inst
 

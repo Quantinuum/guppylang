@@ -165,10 +165,10 @@ def check_global_func_def(
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
     if def_id is not None:
-        ENGINE.call_graph[def_id] = CallGraphData(
-            def_id, EffectLimitDecl.for_def(ty, func_def)
+        ENGINE.call_graph[(def_id, type_args)] = CallGraphData(
+            EffectLimitDecl.for_def(ty, func_def)
         )
-        current_caller = def_id
+        current_caller = (def_id, type_args)
     else:
         # TODO(callgraph) ALAN
         raise ValueError("No def_id ?!")
@@ -238,7 +238,7 @@ def check_nested_func_def(
     ]
     def_id = DefId.fresh()
     # There is no way to declare max effects for nested func
-    ENGINE.call_graph[def_id] = CallGraphData(def_id, None)
+    ENGINE.call_graph[(def_id, ())] = CallGraphData(None)
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,
@@ -272,7 +272,13 @@ def check_nested_func_def(
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
     checked_cfg = check_cfg(
-        cfg, inputs, func_ty.output, {}, func_def.name, globals, current_caller=def_id
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        current_caller=(def_id, ()),
     )
     checked_def = CheckedNestedFunctionDef(
         def_id,

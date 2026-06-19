@@ -208,7 +208,7 @@ class CompilationEngine:
 
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
-    call_graph: dict[DefId, CallGraphData]
+    call_graph: dict[MonoDefId, CallGraphData]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None

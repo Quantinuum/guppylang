@@ -82,11 +82,13 @@ def trace_function(
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
-    ENGINE.call_graph[func_def.id] = CallGraphData(
-        func_def.id, EffectLimitDecl.for_def(ty, func_def.defined_at)
+    # ALAN need an Inst here?
+    mono_id = (func_def.id, ())
+    ENGINE.call_graph[mono_id] = CallGraphData(
+        EffectLimitDecl.for_def(ty, func_def.defined_at)
     )
     state = TracingState(
-        ctx, DFContainer(builder, ctx, {}), node, func_def, current_caller=func_def.id
+        ctx, DFContainer(builder, ctx, {}), node, func_def, current_caller=mono_id
     )
     with set_tracing_state(state):
         generic_values = {

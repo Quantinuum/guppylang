@@ -23,8 +23,8 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.expr_checker import ExprSynthesizer, to_bool
 from guppylang_internals.checker.stmt_checker import StmtChecker
-from guppylang_internals.definition.common import DefId
 from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import InputFlags, Type
@@ -77,7 +77,7 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
-    current_caller: DefId,
+    current_caller: MonoDefId,
     first_modifier_node: ast.expr | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
@@ -251,7 +251,7 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
-    current_caller: DefId,
+    current_caller: MonoDefId,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 

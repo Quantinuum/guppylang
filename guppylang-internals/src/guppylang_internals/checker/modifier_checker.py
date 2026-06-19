@@ -11,6 +11,7 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
+from guppylang_internals.engine import MonoDefId
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
 from guppylang_internals.tys.ty import (
     FuncInput,
@@ -25,7 +26,7 @@ def check_modified_block(
     modified_block: ModifiedBlock,
     bb: BB,
     ctx: Context,
-    current_caller: DefId,
+    current_caller: MonoDefId,
 ) -> CheckedModifiedBlock:
     """Type checks a modifier definition."""
     cfg = modified_block.cfg
