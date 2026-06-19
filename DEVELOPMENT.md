@@ -2,7 +2,8 @@
 
 This guide is intended to help you get started with developing guppylang.
 
-If you find any errors or omissions in this document, please [open an issue](https://github.com/quantinuum/guppylang/issues/new)!
+If you find any errors or omissions in this document,
+please [open an issue](https://github.com/quantinuum/guppylang/issues/new)!
 
 ## #️⃣ Setting up the development environment
 
@@ -30,8 +31,8 @@ To setup the environment manually you will need:
 
 - Just: [just.systems](https://just.systems/)
 - uv `>=0.6`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
-  - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
-    or by following the instructions in your package manager.
+    - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
+      or by following the instructions in your package manager.
 - bencher_cli: [bencer.dev](https://bencher.dev/docs/tutorial/quick-start/?adapter=json)
 
 Once you have these installed, you can install the required python dependencies and setup pre-commit hooks with:
@@ -67,7 +68,8 @@ or uploaded.
 
 ### codspeed benchmarks
 
-We use [codspeed](https://codspeed.io/docs) for doing one-shot CPU benchmarking of the compilation, checking and emulation of guppy programs in CI. Benchmarks are run for every PR and the results are available in the
+We use [codspeed](https://codspeed.io/docs) for doing one-shot CPU benchmarking of the compilation, checking and
+emulation of guppy programs in CI. Benchmarks are run for every PR and the results are available in the
 [codspeed dashboard](https://codspeed.io/Quantinuum/guppylang).
 
 ### bencher.dev benchmarks
@@ -117,9 +119,11 @@ and open it with your favourite coverage viewer. In VSCode, you can use
 
 ## 🌐 Contributing to Guppy
 
-We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new) or [pull request](https://github.com/quantinuum/guppylang/compare) if you have any questions or suggestions.
+We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new)
+or [pull request](https://github.com/quantinuum/guppylang/compare) if you have any questions or suggestions.
 
-PRs should be made against the `main` branch, and should pass all CI checks before being merged. This includes using the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format for the PR title.
+PRs should be made against the `main` branch, and should pass all CI checks before being merged. This includes using
+the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format for the PR title.
 
 The general format of a contribution title should be:
 
@@ -127,7 +131,8 @@ The general format of a contribution title should be:
 <type>(<scope>)!: <description>
 ```
 
-Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major version bump.
+Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major
+version bump.
 
 We accept the following contribution types:
 
@@ -145,8 +150,8 @@ We accept the following contribution types:
 ## :shipit: Releasing new versions
 
 Releases are managed by a custom set of workflows under `.github/workflows`
-(`release-pr.yml`, `release-pr-preview.yml`, `release-major-guard.yml`, and
-`release-publish.yml`), driven by [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/).
+(`release-pr.yml`, `release-pr-changelog-preview.yml`, `release-major-guard.yml`,
+and `release-publish.yml`), driven by [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 The two distributions are versioned differently:
 
@@ -162,24 +167,57 @@ On every push to `main`, `release-pr.yml` opens or updates a single release PR o
 the `release-pr--<base>` branch (e.g. `release-pr--main` for releases off `main`).
 It:
 
-1. computes the next `guppylang` version from conventional commits (by default it
-   just increments the alpha counter),
+1. computes the next `guppylang` version (see [Choosing the version
+   bump](#choosing-the-version-bump) below),
 2. bumps the `guppylang-internals` build number,
 3. pins `guppylang-internals==<version>` in `guppylang/pyproject.toml`,
 4. runs `uv lock`, and
 5. seeds a draft changelog for each package with `git-cliff`.
 
-Each step lands as its own commit. You can also trigger the workflow manually via
-*workflow_dispatch* to force a PR open (`force_open`) and to choose the bump
-(`auto`, `alpha`, `rc`, `patch`, `minor`, `major`, or `stable`) — this is how you
-promote out of the alpha series (e.g. to an `rc` or a `stable` release).
+Each step lands as its own commit, and the PR is opened in **draft**. You can also
+trigger the workflow manually via *workflow_dispatch* to force a PR open
+(`force_open`) and to override the bump (see below).
+
+### Choosing the version bump
+
+The version math lives in `scripts/release/compute_versions.py`. By default the
+workflow uses the `auto` mode; you can override it through the `bump` input of the
+`release-pr.yml` *workflow_dispatch*.
+
+`guppylang` follows semantic versioning with an optional pre-release suffix
+(`-a<N>` alpha, `-b<N>` beta, `-rc<N>`). The available bump modes are:
+
+| mode          | example                  | notes                                          |
+|---------------|--------------------------|------------------------------------------------|
+| `auto`        | `1.0.0-a5` → `1.0.0-a6`  | default; see below                             |
+| `alpha`       | `1.0.0-a5` → `1.0.0-a6`  | increment the alpha counter                    |
+| `alpha-patch` | `1.2.3` → `1.2.4-a0`     | start a new alpha series for a patch           |
+| `alpha-minor` | `1.2.3` → `1.3.0-a0`     | start a new alpha series for a minor           |
+| `alpha-major` | `1.2.3` → `2.0.0-a0`     | start a new alpha series for a major           |
+| `beta`        | `1.0.0-a5` → `1.0.0-b0`  | promote alpha → beta (`b1` → `b2`)             |
+| `rc`          | `1.0.0-b2` → `1.0.0-rc0` | promote to a release candidate (`rc1` → `rc2`) |
+| `stable`      | `1.0.0-rc1` → `1.0.0`    | drop the pre-release suffix                    |
+| `patch`       | `1.0.1` → `1.0.2`        | stable patch bump                              |
+| `minor`       | `1.2.1` → `1.3.0`        | stable minor bump                              |
+| `major`       | `1.3.0` → `2.0.0`        | stable major bump                              |
+
+In `auto` mode the script asks `git-cliff` what the conventional commits imply and
+expresses that in the current pre-release scheme: a `fix`/`feat`/breaking change
+that would bump the release core maps to `alpha-patch`/`alpha-minor`/`alpha-major`,
+while an unchanged core — the usual case while iterating on a pre-release — simply
+increments the alpha counter. Use an explicit mode to promote out of the alpha
+series (e.g. `beta`, `rc`, or `stable`).
+
+`guppylang-internals` follows `<guppylang-major>-<build-number>`, and is always derived
+from the new `guppylang` version: its build number increments on every release and
+resets to `0` whenever the `guppylang` major version changes.
 
 ### Curating the changelog
 
 `git-cliff` only seeds a *draft*; the committed `CHANGELOG.md` files are the
 single source of truth. The release PR body shows a verbatim preview of the
-release notes (refreshed on every push by `release-pr-preview.yml`), which is
-exactly what gets published.
+release notes (refreshed on every push by `release-pr-changelog-preview.yml`),
+which is exactly what gets published.
 
 While the `X-regen-changelog` label is set (added by default), the draft is
 regenerated on every push to `main`. **Remove the label** to take manual control:
@@ -193,10 +231,11 @@ to allow it.
 ### Publishing
 
 Once the release PR is merged, `release-publish.yml` tags both packages
-(`guppylang-v<version>` and `guppylang-internals-v<version>`) and creates a GitHub
-release for each, with notes sliced verbatim from the committed changelogs.
-Creating the releases triggers `python-wheels.yml`, which publishes the wheels to
-PyPI.
+(`guppylang-v<version>` and `guppylang-internals-v<version>`) and creates a
+**draft** GitHub release for each, with notes sliced verbatim from the committed
+changelogs. Review each draft release and **publish** it when ready: publishing
+triggers `python-wheels.yml`, which uploads the wheels to PyPI. Wheels are only
+published once you publish the draft release, not when the merge first creates it.
 
 ### Patch releases
 
