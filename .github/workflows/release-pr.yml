@@ -17,7 +17,7 @@
 # changelogs untouched. The published release notes are sliced verbatim from the
 # committed CHANGELOG.md files, so the PR preview is exactly what ships.
 
-name: Release PR 🐍
+name: 🚚 Release PR
 
 on:
   push:

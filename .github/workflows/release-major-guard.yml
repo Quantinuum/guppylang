@@ -1,7 +1,7 @@
 # Guards against an accidental major version bump of `guppylang` in a release PR.
 # Add the `X-allow-major-bump` label to the release PR opt-out of this guard.
 
-name: Release major-bump guard 🛑
+name: 🚚 Release major-bump guard
 
 on:
   pull_request:

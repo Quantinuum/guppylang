@@ -5,7 +5,7 @@
 #
 # It only edits the PR description (no commits), so it cannot loop.
 
-name: Release PR changelog preview 🔎
+name: 🚚 Release PR changelog preview
 
 on:
   pull_request:

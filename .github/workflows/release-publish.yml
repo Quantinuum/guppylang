@@ -6,7 +6,7 @@
 # the committed CHANGELOG.md files. Creating the release triggers
 # `python-wheels.yml`, which publishes the wheels to PyPI.
 
-name: Release publish 🚀
+name: 🚚 Release publish
 
 on:
   push:
