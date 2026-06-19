@@ -87,3 +87,23 @@ def test_removed_FrozenArrayIter():
         match=r"The class `FrozenarrayIter` has been moved to `guppylang.std.array`, and can no longer be imported from `guppylang.std.builtins`.",  # noqa: E501
     ):
         FrozenarrayIter()
+
+
+def test_removed_PriorityQueue():
+    from guppylang.std.collections.stack import PriorityQueue
+
+    with pytest.raises(
+        ImportError,
+        match=r"The class `PriorityQueue` has been moved to `guppylang.std.collections.priority_queue`, and can no longer be imported from `guppylang.std.collections.stack`.",  # noqa: E501
+    ):
+        PriorityQueue()
+
+
+def test_removed_empty_priority_queue():
+    from guppylang.std.collections.stack import empty_priority_queue
+
+    with pytest.raises(
+        ImportError,
+        match=r"The function `empty_priority_queue` has been moved to `guppylang.std.collections.priority_queue`, and can no longer be imported from `guppylang.std.collections.stack`.",  # noqa: E501
+    ):
+        empty_priority_queue()

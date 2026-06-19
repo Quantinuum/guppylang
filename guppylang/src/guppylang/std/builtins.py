@@ -95,6 +95,8 @@ from guppylang.std.unsupported import (
     zip,
 )
 
+# TODO remove once https://github.com/Quantinuum/guppylang/issues/1019 has been resolved
+#  for a while
 mem_swap = produce_moved_function(__name__, "mem_swap", "guppylang.std.mem")  # type: ignore[var-annotated]
 bytecast_float_to_nat = produce_moved_function(  # type: ignore[var-annotated]
     __name__, "bytecast_float_to_nat", "guppylang.std.num"
