@@ -15,7 +15,7 @@ from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
-from typing_extensions import assert_never, deprecated
+from typing_extensions import assert_never
 
 import guppylang_internals
 from guppylang_internals.checker.effects_checker import CallGraphNode
@@ -249,15 +249,6 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_graph = {}
-
-    @pretty_errors
-    @deprecated(
-        "Extensions are included automatically when used. "
-        "Manual registration is no longer necessary."
-    )
-    def register_extension(self, extension: Extension) -> None:
-        if extension not in self.additional_extensions:
-            self.additional_extensions.append(extension)
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:

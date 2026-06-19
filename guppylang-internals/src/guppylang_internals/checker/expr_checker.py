@@ -55,6 +55,7 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
+from guppylang_internals.checker.effects_checker import CalleeId
 from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprEvalError,
     ComptimeExprIncoherentListError,
@@ -83,7 +84,6 @@ from guppylang_internals.checker.errors.type_errors import (
     NonLinearInstantiateError,
     NotCallableError,
     ParameterInferenceError,
-    TooManyEffectsError,
     TupleIndexOutOfBoundsError,
     TypeApplyNotGenericError,
     TypeInferenceError,
@@ -92,7 +92,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import DefId, Definition
+from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
@@ -340,9 +340,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(func_ty, FunctionType)
-                # TODO(callgraph): What to pass instead of None to make protocols work?
                 args, subst, inst = check_call(
-                    func_ty, node.args, ty, node, self.ctx, func_id=None
+                    func_ty,
+                    node.args,
+                    ty,
+                    node,
+                    self.ctx,
+                    (node.func.def_id, node.func.id),
                 )
                 return with_loc(
                     node,
@@ -363,8 +367,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
+            tgt_name = _identify_callee(node.func)
             args, subst, inst = check_call(
-                func_ty, node.args, ty, node, self.ctx, func_id=None
+                func_ty, node.args, ty, node, self.ctx, tgt_name
             )
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
@@ -382,7 +387,14 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             tensor_ty = function_tensor_signature(function_elements)
 
             processed_args, subst, inst = check_call(
-                tensor_ty, node.args, ty, node, self.ctx, func_id=None
+                # Doing better here would require major refactor to provide
+                # names/ids for each tensor element and identify the offender
+                tensor_ty,
+                node.args,
+                ty,
+                node,
+                self.ctx,
+                "<function tensor>",
             )
             assert len(inst) == 0
             return with_loc(
@@ -938,7 +950,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(ty, FunctionType)
                 args, return_ty, inst = synthesize_call(
-                    ty, node.args, node, self.ctx, func_id=None
+                    ty, node.args, node, self.ctx, (node.func.def_id, node.func.id)
                 )
                 return with_loc(
                     node,
@@ -958,8 +970,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Otherwise, it must be a function as a higher-order value, or a tensor
         if isinstance(ty, FunctionType):
+            tgt_name = _identify_callee(node.func)
             args, return_ty, inst = synthesize_call(
-                ty, node.args, node, self.ctx, func_id=None
+                ty, node.args, node, self.ctx, tgt_name
             )
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
@@ -974,7 +987,13 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
             tensor_ty = function_tensor_signature(function_elems)
             args, return_ty, inst = synthesize_call(
-                tensor_ty, node.args, node, self.ctx, func_id=None
+                # Doing better here would require major refactor to provide
+                # names/ids for each tensor element and identify the offender
+                tensor_ty,
+                node.args,
+                node,
+                self.ctx,
+                "<function tensor>",
             )
             assert len(inst) == 0
 
@@ -1371,7 +1390,15 @@ def check_comptime_arg(
     return subst
 
 
-def _register_callee(ctx: Context, callee_id: DefId | None) -> None:
+def _identify_callee(node: ast.expr) -> str | None:
+    match node:
+        case PlaceNode(place=Variable(name=n)):
+            return n
+        case _:
+            return None
+
+
+def _register_callee(ctx: Context, callee_id: CalleeId) -> None:
     """Registers a function call in the call graph."""
     if callee_id is None:
         # TODO(callgraph): Need to store alternative information to DefId here.
@@ -1389,7 +1416,7 @@ def synthesize_call(
     args: list[ast.expr],
     node: AstNode,
     ctx: Context,
-    func_id: DefId | None,
+    callee: CalleeId | None,
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1421,7 +1448,7 @@ def synthesize_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, func_id)
+    _register_callee(ctx, callee)  # func_ty, callee, ctx, node
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1432,7 +1459,7 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
-    func_id: DefId | None,
+    callee: CalleeId | None,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
     """Checks the return type of a function call against a given type.
@@ -1468,7 +1495,7 @@ def check_call(
     inputs_copy = copy.deepcopy(inputs)
 
     try:
-        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx, func_id)
+        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx, callee)
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
@@ -1521,7 +1548,7 @@ def check_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, func_id)
+    _register_callee(ctx, callee)  # func_ty, callee, ctx, node
 
     return inputs, subst, inst
 

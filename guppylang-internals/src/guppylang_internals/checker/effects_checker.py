@@ -1,15 +1,24 @@
 import ast
 from dataclasses import dataclass, replace
 from functools import reduce
+from typing import TypeAlias
 
 import networkx as nx
 
+from guppylang_internals.ast_util import AstNode
+from guppylang_internals.checker.core import Context
+from guppylang_internals.checker.errors.type_errors import TooManyEffectsError
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.value import CallableDef
+from guppylang_internals.error import GuppyTypeError
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import FunctionType
+
+# A function definition; a protocol definition and the name of the function within it;
+# or a string for error messages if there is no definition
+CalleeId: TypeAlias = DefId | tuple[DefId, str] | str
 
 
 @dataclass(frozen=True)
@@ -114,6 +123,49 @@ def _get_effects(
 
 
 def _check_effects(
+    ctx: Context,
+    target: FunctionType,
+    callee_id: CalleeId | None,
+    current_caller: CallGraphNode,
+    node: AstNode,
+) -> None:
+    """Checks that a function call (AST provided) to a specified FunctionType
+    respects the effect constraints in the context."""
+
+    if (mf := current_caller.effect_limit) is None:
+        return  # ALAN definitely wrong here
+    surplus_effects = [e for e in target.effects if e not in mf.effects]
+    if surplus_effects:
+        loc_node = node.func if isinstance(node, ast.Call) else node
+        callee: str | FunctionType = (
+            target
+            if callee_id is None
+            else ctx.globals[callee_id].name
+            if isinstance(callee_id, DefId)
+            else f"Function {callee_id[1]} in protocol {ctx.globals[callee_id[0]].name}"
+            if isinstance(callee_id, tuple)
+            else callee_id
+        )
+        show_effects_allowed = (
+            # We found the decorator that is the source of the effect constraint,
+            # which will contain the allowed effects as an explicit argument
+            None
+            if isinstance(mf.decl, ast.expr)
+            # Otherwise, the error message points at all decorators, which
+            # may or may not list the allowed effects, so list them explicitly
+            else mf.effects
+        )
+
+        raise GuppyTypeError(
+            TooManyEffectsError(
+                loc_node, callee, surplus_effects, mf.decl_name
+            ).add_sub_diagnostic(
+                TooManyEffectsError.MaxFromDecl(mf.decl, show_effects_allowed)
+            )
+        )
+
+
+def _check_effects_callgraph(
     call_info: dict[CallGraphNode, list[DefId]], callables: dict[DefId, CallableDefns]
 ) -> None:
     for caller, callees in call_info.items():
@@ -193,4 +245,4 @@ def compute_effects() -> None:
 
     # Traverse the call graph to check that both explicit and inferred effects respect
     # the declared effect limits.
-    _check_effects(call_info, callables)
+    _check_effects_callgraph(call_info, callables)

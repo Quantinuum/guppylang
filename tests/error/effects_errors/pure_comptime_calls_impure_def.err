@@ -3,4 +3,4 @@ Traceback (most recent call last):
     main.compile()
   File "$FILE", line 9, in main
     return impure_func(5)
-guppylang_internals.error.GuppyComptimeError: Too many effects: Callee of type `int -> int` has effects `[ANY]` not allowed inside `main`
+guppylang_internals.error.GuppyComptimeError: Too many effects: Call to `impure_func` has effects `[ANY]` not allowed inside `main`
