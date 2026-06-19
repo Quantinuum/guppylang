@@ -55,7 +55,6 @@ env:
   RELEASE_LABEL: X-release
   REGEN_LABEL: X-regen-changelog
   UV_VERSION: "0.11.22"
-  GH_TOKEN: ${{ secrets.HUGRBOT_PAT }}
   GITHUB_TOKEN: ${{ secrets.HUGRBOT_PAT }}
 
 jobs:

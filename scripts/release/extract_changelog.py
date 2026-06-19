@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
 """Extract a single version's section from a ``CHANGELOG.md`` file.
 
-This is the *only* code path that turns a changelog into release notes.  Both the
-release-PR preview and the published GitHub release read their text from here, so
-what you see in the PR preview is exactly what gets published.  The committed
-``CHANGELOG.md`` is the single source of truth: this script never regenerates or
-reformats anything, it only slices out the requested section verbatim.
-
 A section starts at a ``## [<version>] ...`` heading and ends just before the next
-``## `` heading (or the end of the file).  By default the ``## [...]`` heading
-line itself is omitted, since the GitHub release already shows the version.
+``## `` heading (or the end of the file). The ``## [...]`` heading line itself is
+omitted from the output of this script.
 """
 
 from __future__ import annotations
@@ -20,9 +14,7 @@ import sys
 from pathlib import Path
 
 
-def extract_section(
-    changelog: str, version: str, *, include_header: bool = False
-) -> str:
+def extract_section(changelog: str, version: str) -> str:
     """Return the changelog body for ``version`` (raises ``KeyError`` if absent)."""
     header_re = re.compile(r"^## (?!\[?" + re.escape(version) + r"\b)")
     target_re = re.compile(r"^## \[?" + re.escape(version) + r"\b")
@@ -43,7 +35,7 @@ def extract_section(
             end = index
             break
 
-    body_start = start if include_header else start + 1
+    body_start = start + 1  # Omit the header line containing the version.
     section = "\n".join(lines[body_start:end]).strip()
     return section
 
@@ -52,18 +44,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("changelog", help="Path to the CHANGELOG.md file.")
     parser.add_argument("version", help="The version section to extract.")
-    parser.add_argument(
-        "--include-header",
-        action="store_true",
-        help="Include the '## [version]' heading line in the output.",
-    )
     args = parser.parse_args(argv)
 
     text = Path(args.changelog).read_text(encoding="utf-8")
     try:
-        section = extract_section(
-            text, args.version, include_header=args.include_header
-        )
+        section = extract_section(text, args.version)
     except KeyError as err:
         print(f"error: {err}", file=sys.stderr)
         return 1

@@ -1,9 +1,5 @@
 # Keeps the release-notes preview in the release PR body in sync with the
-# committed changelogs. Runs on *every* push to the `release-pr` branch, so it
-# refreshes both when the release bot updates the changelog and when a maintainer
-# hand-edits CHANGELOG.md after removing the `X-regen-changelog` label.
-#
-# It only edits the PR description (no commits), so it cannot loop.
+# committed changelogs. Does not commit, so it cannot loop.
 
 name: 🚚 Release PR changelog preview
 
@@ -22,6 +18,9 @@ concurrency:
   group: release-pr-preview
   cancel-in-progress: true
 
+env:
+  UV_VERSION: "0.11.22"
+
 jobs:
   preview:
     name: Refresh release-notes preview
@@ -38,6 +37,12 @@ jobs:
           internals=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang-internals/pyproject.toml | head -n1)
           echo "guppylang=$guppy" >> "$GITHUB_OUTPUT"
           echo "internals=$internals" >> "$GITHUB_OUTPUT"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
 
       - name: Refresh release-notes preview
         uses: ./.github/actions/update-release-preview
