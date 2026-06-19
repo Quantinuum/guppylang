@@ -31,13 +31,13 @@ runs:
       run: |
         set -euo pipefail
         # Extract verbatim sections (empty file if the section is missing).
-        uv run scripts/release/extract_changelog.py \
+        uv run --no-project scripts/release/extract_changelog.py \
           guppylang/CHANGELOG.md "$GUPPY_VERSION" > /tmp/guppy_section.md || true
-        uv run scripts/release/extract_changelog.py \
+        uv run --no-project scripts/release/extract_changelog.py \
           guppylang-internals/CHANGELOG.md "$INTERNALS_VERSION" > /tmp/internals_section.md || true
 
         gh pr view "$NUMBER" --json body --jq .body > /tmp/pr_body.md
-        uv run scripts/release/render_pr_body.py \
+        uv run --no-project scripts/release/render_pr_body.py \
           --body /tmp/pr_body.md \
           --package guppylang "$GUPPY_VERSION" /tmp/guppy_section.md \
           --package guppylang-internals "$INTERNALS_VERSION" /tmp/internals_section.md \
