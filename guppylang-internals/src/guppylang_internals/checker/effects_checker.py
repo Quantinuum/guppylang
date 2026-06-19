@@ -16,9 +16,8 @@ from guppylang_internals.tys import Effect
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import FunctionType
 
-# A function definition; a protocol definition and the name of the function within it;
-# or a string for error messages if there is no definition
-CalleeId: TypeAlias = DefId | tuple[DefId, str] | str
+# A function definition, or a string (for error messages) if there is no definition
+CalleeId: TypeAlias = DefId | str
 
 
 @dataclass(frozen=True)
