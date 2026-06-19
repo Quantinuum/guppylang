@@ -200,14 +200,4 @@ __all__ = (  # noqa: RUF022
     "Unitary",
     "Controllable",
     "Daggerable",
-    # TODO: Remove the following from prelude once
-    # https://github.com/Quantinuum/guppylang/issues/1019 has been resolved for a while
-    "ArrayIter",  # Deprecated reexport
-    "SizedIter",  # Deprecated reexport
-    "barrier",  # Deprecated reexport
-    "bytecast_float_to_nat",  # Deprecated reexport
-    "bytecast_nat_to_float",  # Deprecated reexport
-    "FrozenarrayIter",  # Deprecated reexport
-    "mem_swap",  # Deprecated reexport
-    "Range",  # Deprecated reexport
 )
