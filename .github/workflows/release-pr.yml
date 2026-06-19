@@ -147,7 +147,7 @@ jobs:
             echo "Nothing to do; skipping release PR."
           fi
 
-      - name: Inspect existing release PR
+      - name: Inspect existing release PR for changelog regen
         id: pr
         if: steps.gate.outputs.proceed == 'true'
         run: |
