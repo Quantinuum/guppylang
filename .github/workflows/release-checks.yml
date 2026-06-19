@@ -115,9 +115,7 @@ jobs:
   check-guppy-docs-build:
     name: Check the guppy-docs build for `guppylang` release 
     runs-on: ubuntu-latest
-    if: |
-     github.event_name == 'workflow_dispatch' ||
-     github.head_ref == 'release-pr'
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'release-pr'
     steps:
       - uses: actions/checkout@v6
         with:
