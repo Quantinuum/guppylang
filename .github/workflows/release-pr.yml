@@ -110,7 +110,7 @@ jobs:
         id: plan
         run: |
           set -euo pipefail
-          uv run scripts/release/compute_versions.py compute \
+          uv run --no-project scripts/release/compute_versions.py compute \
             --bump "${{ github.event.inputs.bump || 'auto' }}" \
             --github-output "$GITHUB_OUTPUT"
 
