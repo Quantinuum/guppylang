@@ -159,7 +159,9 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             self.name,
             arg_tys,
             return_ty,
-            ctx.current_caller.effect_limit if ctx.current_caller else None,
+            # TODO(callgraph): we can no longer overload on effects now that we only
+            # check effects after call graph construction. Do as we go along as well??
+            None,
         )
         err.add_sub_diagnostic(AvailableOverloadsHint(None, self.name, available_sigs))
         raise GuppyError(err)

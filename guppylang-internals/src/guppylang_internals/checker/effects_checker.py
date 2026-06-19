@@ -1,41 +1,38 @@
 import ast
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from functools import reduce
 from typing import TypeAlias
 
 import networkx as nx
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.core import Context
 from guppylang_internals.checker.errors.type_errors import TooManyEffectsError
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.definition.value import CallableDef
+from guppylang_internals.definition.function import CheckedFunctionDef
 from guppylang_internals.error import GuppyTypeError
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import FunctionType
 
-# A function definition, or a string (for error messages) if there is no definition
-CalleeId: TypeAlias = DefId | str
+# String for error messages if there is no definition
+NonDefCallee: TypeAlias = str | None
+CalleeId: TypeAlias = DefId | NonDefCallee
 
-
-@dataclass(frozen=True)
-class CallGraphNode:
+@dataclass
+class CallGraphData:
     """Node in the call graph representing a function with its effect limit
     declaration."""
 
     def_id: DefId
     effect_limit: "EffectLimitDecl | None"
-
-    def __hash__(self) -> int:
-        return hash(self.def_id)
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, CallGraphNode):
-            return self.def_id == other.def_id
-        # Allow look ups by DefId for convenience.
-        return self.def_id == other
+    # calls to definitions, each with AST of the call
+    callee_defs: list[tuple[DefId, AstNode]] = field(
+        default_factory=list
+    )  # ALAN need (DefId, Inst)
+    other_callees: list[tuple[NonDefCallee, FunctionType, AstNode]] = field(
+        default_factory=list
+    )
 
 
 @dataclass(frozen=True)
@@ -88,7 +85,7 @@ def _find_guppy_decorator(decorators: list[ast.expr]) -> ast.expr | None:
     return None
 
 
-CallableDefns = list[tuple[Inst, CallableDef]]
+CallableDefns = list[tuple[Inst, CheckedFunctionDef]]
 
 
 def _precompute_callables() -> dict[DefId, CallableDefns]:
@@ -100,9 +97,9 @@ def _precompute_callables() -> dict[DefId, CallableDefns]:
     """
     from guppylang_internals.engine import ENGINE
 
-    result: dict[DefId, list[tuple[Inst, CallableDef]]] = {}
+    result: dict[DefId, list[tuple[Inst, CheckedFunctionDef]]] = {}
     for (def_id, inst), defn in ENGINE.checked.items():
-        if isinstance(defn, CallableDef):
+        if isinstance(defn, CheckedFunctionDef):
             if def_id not in result:
                 result[def_id] = []
             result[def_id].append((inst, defn))
@@ -112,39 +109,27 @@ def _precompute_callables() -> dict[DefId, CallableDefns]:
 def _get_effects(
     def_id: DefId, callables: dict[DefId, CallableDefns]
 ) -> list[Effect] | None:
-    entries = callables.get(def_id)
-    if entries:
-        # All instantiations of the same DefId should have the same effects so we can
-        # just return the first one.
-        return entries[0][1].ty.declared_effects
+    if (entries := callables.get(def_id)) is None:
+        return None
+    ty, *tys = [inst_def[1].ty.declared_effects for inst_def in entries]
+    # This is designed to break when we have effect variables:
+    assert all(ty == t for t in tys), "Inconsistent effects for same DefId"
 
-    return None
+    return ty
 
 
 def _check_effects(
-    ctx: Context,
+    mf: EffectLimitDecl,
     target: FunctionType,
-    callee_id: CalleeId | None,
-    current_caller: CallGraphNode,
+    callee: str | None,
     node: AstNode,
 ) -> None:
     """Checks that a function call (AST provided) to a specified FunctionType
     respects the effect constraints in the context."""
 
-    if (mf := current_caller.effect_limit) is None:
-        return  # ALAN definitely wrong here
     surplus_effects = [e for e in target.effects if e not in mf.effects]
     if surplus_effects:
         loc_node = node.func if isinstance(node, ast.Call) else node
-        callee: str | FunctionType = (
-            target
-            if callee_id is None
-            else ctx.globals[callee_id].name
-            if isinstance(callee_id, DefId)
-            else f"Function {callee_id[1]} in protocol {ctx.globals[callee_id[0]].name}"
-            if isinstance(callee_id, tuple)
-            else callee_id
-        )
         show_effects_allowed = (
             # We found the decorator that is the source of the effect constraint,
             # which will contain the allowed effects as an explicit argument
@@ -155,50 +140,32 @@ def _check_effects(
             else mf.effects
         )
 
+        callee_str = f"Callee of type {target}" if callee is None else callee
+
         raise GuppyTypeError(
             TooManyEffectsError(
-                loc_node, callee, surplus_effects, mf.decl_name
+                loc_node, callee_str, surplus_effects, mf.decl_name
             ).add_sub_diagnostic(
                 TooManyEffectsError.MaxFromDecl(mf.decl, show_effects_allowed)
             )
         )
 
 
-def _check_effects_callgraph(
-    call_info: dict[CallGraphNode, list[DefId]], callables: dict[DefId, CallableDefns]
-) -> None:
-    for caller, callees in call_info.items():
-        mf = caller.effect_limit
-        if mf is None:
-            continue
-
-        for callee in callees:
-            callee_effects = _get_effects(callee, callables)
-            if callee_effects is None:
-                continue
-            surplus_effects = [e for e in callee_effects if e not in mf.effects]
-            if not surplus_effects:
-                continue
-
-            # TODO(callgraph): How to best raise error here without AstNode?
-
-
-def compute_effects() -> None:
+def check_compute_effects() -> None:
     """Computes the effects of functions in the program, checking that they
     respect the declared effect limits. This should be called after a call graph
     has been constructed during checking."""
     from guppylang_internals.engine import ENGINE
 
-    # Pre-compute mapping from DefId to all callable definitions to deal with
-    # monomorphisation.
+    # Combine effect annotations for different monomorphisations (TODO)
     callables = _precompute_callables()
 
     # First construct a networkx DiGraph based on the call graph info for analysis.
     call_info = ENGINE.call_graph
     call_graph = nx.DiGraph(
-        (caller.def_id, callee)
-        for caller, callees in call_info.items()
-        for callee in callees
+        (caller_id, callee)
+        for caller_id, info in call_info.items()
+        for callee, _ in info.callee_defs
     )
 
     # Then compute strongly components to find cycles in the call graph. Every node
@@ -206,42 +173,66 @@ def compute_effects() -> None:
     components = list(nx.strongly_connected_components(call_graph))
     condensed = nx.condensation(call_graph, scc=components)
 
-    component_effects: dict[int, set[Effect]] = {}
+    component_effects: dict[int, frozenset[Effect]] = {}
     # Start in the leaves of the condensed graph and work up to the roots, so that we
     # can compute the effects of a component based on the effects of its callees.
     for component in reversed(list(nx.topological_sort(condensed))):
         members = condensed.nodes[component]["members"]
-        effects: set[Effect] = set()
-
-        # Add explicit annotations.
+        # Check for annotations
+        annots: dict[frozenset[Effect], list[ast.expr | Span]] = {}
         for def_id in members:
-            defn_effects = _get_effects(def_id, callables)
-            if defn_effects is not None:
-                effects.update(defn_effects)
+            if (es := _get_effects(def_id, callables)) is not None:
+                annots.setdefault(frozenset(es), []).append(def_id)
+        annot: tuple[frozenset[Effect], ast.expr | Span] | None
+        if len(annots) == 0:
+            annot = None  # No function in cycle had an annotation
+        else:
+            try:
+                ((anno, decls),) = annots.items()
+                annot = (anno, decls[0])
+            except:
+                # TODO(callgraph): raise error for conflicting annotations
+                pass
 
-        # Calls outside of the component contribute their already-inferred effects.
-        for succ in condensed.successors(component):
-            effects.update(component_effects[succ])
+        if annot is not None:
+            # Fix declared max effects for all elements of cycle
+            effects, some_decl = annot
+            for def_id in members:
+                info: CallGraphData = call_info[def_id]
+                if info.effect_limit is None:
+                    limit_decl = EffectLimitDecl(
+                        list(effects),
+                        some_decl,
+                        ENGINE.parsed[def_id].name + " (cycle)",
+                    )
+                    info.effect_limit = limit_decl
+                else:
+                    limit_decl = info.effect_limit
+                # Now check calls:
+                for tgt_id, ast_node in info.callee_defs:
+                    tgt = ENGINE.parsed[tgt_id]  # Ooops, no type here yet
+                    _check_effects(limit_decl, tgt.ty, tgt.name, ast_node)
+                for callee, func_ty, ast_node in info.other_callees:
+                    _check_effects(limit_decl, func_ty, callee, ast_node)
+        else:
+            # No annotation, so compute effects based on callees
+            effects = frozenset.union(
+                *(component_effects[succ] for succ in condensed.successors(component))
+            ).union(
+                *(
+                    func_ty.effects
+                    for def_id in members
+                    for _, func_ty, _ in call_info[def_id].other_callees
+                )
+            )
 
         component_effects[component] = effects
 
-    # Apply inferred effects to all members of each component.
-    for component in condensed.nodes:
-        members = condensed.nodes[component]["members"]
-        inferred = list(component_effects[component])
+        # Apply inferred effects to all members of each component.
         for def_id in members:
-            existing_effects = _get_effects(def_id, callables)
-            if existing_effects is not None:
-                # Already has an explicit annotation.
-                continue
             # Update all MonoDefIds for this DefId in ENGINE.checked.
-            if def_id in callables:
-                for inst, defn in callables[def_id]:
-                    # TODO(callgraph): defn seems to be `CompilableDef`?
-                    ENGINE.checked[(def_id, inst)] = replace(
-                        defn, ty=defn.ty.with_effects(inferred)
-                    )
-
-    # Traverse the call graph to check that both explicit and inferred effects respect
-    # the declared effect limits.
-    _check_effects_callgraph(call_info, callables)
+            # if def_id in callables:
+            for inst, defn in callables[def_id]:
+                ENGINE.checked[(def_id, inst)] = replace(
+                    defn, ty=defn.ty.with_effects(list(effects))
+                )

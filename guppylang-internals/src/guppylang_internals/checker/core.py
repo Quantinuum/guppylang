@@ -35,7 +35,6 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
-    from guppylang_internals.checker.effects_checker import CallGraphNode
     from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.parsing import TypeParsingCtx
 
@@ -452,7 +451,7 @@ class Context(NamedTuple):
     """If not None, the call graph node for the function being checked, which also
     stores the effect constraints that function calls in this context must respect,
     together with the AST node that gives rise to said constraint."""
-    current_caller: "CallGraphNode | None" = None
+    current_caller: DefId | None = None
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

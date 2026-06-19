@@ -14,7 +14,7 @@ from guppylang_internals.checker.core import (
     Locals,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import CallGraphNode, EffectLimitDecl
+from guppylang_internals.checker.effects_checker import CallGraphData, EffectLimitDecl
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.compiler.builder import FunctionBuilder
@@ -22,7 +22,7 @@ from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import DEF_STORE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -82,13 +82,11 @@ def trace_function(
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
-    max_effects = EffectLimitDecl.for_def(ty, func_def.defined_at)
+    ENGINE.call_graph[func_def.id] = CallGraphData(
+        func_def.id, EffectLimitDecl.for_def(ty, func_def.defined_at)
+    )
     state = TracingState(
-        ctx,
-        DFContainer(builder, ctx, {}),
-        node,
-        func_def,
-        current_caller=CallGraphNode(func_def.id, max_effects),
+        ctx, DFContainer(builder, ctx, {}), node, func_def, current_caller=func_def.id
     )
     with set_tracing_state(state):
         generic_values = {

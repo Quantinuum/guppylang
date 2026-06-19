@@ -21,7 +21,7 @@ from guppylang_internals.checker.core import (
     Place,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import CallGraphNode, EffectLimitDecl
+from guppylang_internals.checker.effects_checker import CallGraphData, EffectLimitDecl
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
@@ -164,10 +164,15 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    max_effects_from = EffectLimitDecl.for_def(ty, func_def)
-    current_caller = (
-        CallGraphNode(def_id=def_id, effect_limit=max_effects_from) if def_id else None
-    )
+    if def_id is not None:
+        ENGINE.call_graph[def_id] = CallGraphData(
+            def_id, EffectLimitDecl.for_def(ty, func_def)
+        )
+        current_caller = def_id
+    else:
+        # TODO(callgraph) ALAN
+        raise ValueError("No def_id ?!")
+
     return check_cfg(
         cfg,
         inputs,
@@ -232,6 +237,8 @@ def check_nested_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     def_id = DefId.fresh()
+    # There is no way to declare max effects for nested func
+    ENGINE.call_graph[def_id] = CallGraphData(def_id, None)
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,
@@ -265,19 +272,7 @@ def check_nested_func_def(
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
     checked_cfg = check_cfg(
-        cfg,
-        inputs,
-        func_ty.output,
-        {},
-        func_def.name,
-        globals,
-        # TODO(callgraph): Have empty effects limit here instead.
-        current_caller=CallGraphNode(
-            def_id=def_id,
-            effect_limit=ctx.current_caller.effect_limit
-            if ctx.current_caller
-            else None,
-        ),
+        cfg, inputs, func_ty.output, {}, func_def.name, globals, current_caller=def_id
     )
     checked_def = CheckedNestedFunctionDef(
         def_id,

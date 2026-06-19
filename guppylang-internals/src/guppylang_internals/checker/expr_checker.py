@@ -92,7 +92,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
@@ -1397,17 +1397,21 @@ def _identify_callee(node: ast.expr) -> str | None:
             return None
 
 
-def _register_callee(ctx: Context, callee_id: CalleeId) -> None:
+def _register_callee(
+    ctx: Context, callee_id: CalleeId, ty: FunctionType, node: AstNode
+) -> None:
     """Registers a function call in the call graph."""
+    assert (
+        ctx.current_caller is not None
+    )  # Not set for e.g. comptime but should be here
+    data = ENGINE.call_graph[ctx.current_caller]
     if callee_id is None:
-        # TODO(callgraph): Need to store alternative information to DefId here.
+        # TODO(callgraph) ALAN: Need to store alternative information to DefId here.
         return
-
-    # Register the call in the callgraph.
-    # TODO(callgraph): Store AstNode for the call here for error reporting later.
-    if ctx.current_caller not in ENGINE.call_graph:
-        ENGINE.call_graph[ctx.current_caller] = []
-    ENGINE.call_graph[ctx.current_caller].append(callee_id)
+    if isinstance(callee_id, DefId):
+        data.callee_defs.append((callee_id, node))
+    else:
+        data.other_callees.append((callee_id, ty, node))
 
 
 def synthesize_call(
@@ -1447,7 +1451,7 @@ def synthesize_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, callee)  # func_ty, callee, ctx, node
+    _register_callee(ctx, callee, func_ty, node)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1547,7 +1551,7 @@ def check_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, callee)  # func_ty, callee, ctx, node
+    _register_callee(ctx, callee, func_ty, node)
 
     return inputs, subst, inst
 

@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.effects_checker import CallGraphNode
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.traced import CompiledTracedFunctionDef
 from guppylang_internals.error import InternalGuppyError
 
@@ -32,7 +32,7 @@ class TracingState:
 
     #: A call graph node representing the currently traced function, including the
     # maximum effects that the function is allowed to perform
-    current_caller: CallGraphNode | None
+    current_caller: DefId | None
 
     #: Set of all allocated undroppable GuppyObjects where the `used` flag is not set,
     #: indexed by their id. This is used to detect linearity violations.

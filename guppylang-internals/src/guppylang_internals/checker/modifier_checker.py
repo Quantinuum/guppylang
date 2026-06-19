@@ -9,7 +9,6 @@ from guppylang_internals.checker.core import (
     Context,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import CallGraphNode
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
@@ -26,7 +25,7 @@ def check_modified_block(
     modified_block: ModifiedBlock,
     bb: BB,
     ctx: Context,
-    current_caller: CallGraphNode | None,
+    current_caller: DefId,
 ) -> CheckedModifiedBlock:
     """Type checks a modifier definition."""
     cfg = modified_block.cfg
