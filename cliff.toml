@@ -55,8 +55,6 @@ filter_commits = true
 topo_order = false
 sort_commits = "newest"
 
-# Only these conventional types appear in the changelog (matching the previous
-# release-please behaviour: chore/ci/test/style/build are intentionally omitted).
 commit_parsers = [
     { message = "^feat", group = "Features" },
     { message = "^fix", group = "Bug Fixes" },
@@ -64,7 +62,11 @@ commit_parsers = [
     { message = "^refactor", group = "Code Refactoring" },
     { message = "^docs", group = "Documentation" },
     { message = "^revert", group = "Reverts" },
-    { message = ".*", skip = true },
+    # Not included in changelog
+    { message = "^chore", skip = true },
+    { message = "^ci", skip = true },
+    { message = "^test", skip = true },
+    { message = "^style", skip = true },
 ]
 
 [remote.github]
