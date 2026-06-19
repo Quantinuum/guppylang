@@ -3,31 +3,46 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
-## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a4...guppylang-internals-v1.0.0-a5) (2026-06-15)
+## [1.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a5...guppylang-internals-v1.0) (2026-06-19)
 
 
 ### ⚠ BREAKING CHANGES
 
-* Split internal decorators into modules and unify calling frame detection ([#1853](https://github.com/Quantinuum/guppylang/issues/1853))
-* Protocol checking ([#1765](https://github.com/Quantinuum/guppylang/issues/1765))
-* Support generic comptime functions ([#1630](https://github.com/Quantinuum/guppylang/issues/1630))
+* Remove deprecated reexports and leave custom import errors (#1886) ([#1886](https://github.com/Quantinuum/guppylang/issues/1886))
 
-### Features
+* Remove deprecated decorators, functions, and sync dummy interface (#1855) ([#1855](https://github.com/Quantinuum/guppylang/issues/1855))
 
-* Allow protocol type args to be referenced in methods ([#1769](https://github.com/Quantinuum/guppylang/issues/1769)) ([cb9bc3e](https://github.com/Quantinuum/guppylang/commit/cb9bc3e32c1c3f9995d235ff3470a2580b03be24))
-* Protocol checking ([#1765](https://github.com/Quantinuum/guppylang/issues/1765)) ([6c67f07](https://github.com/Quantinuum/guppylang/commit/6c67f071e336cc81d295cb03db7b8e52e1b7cd01))
-* Split qsystem into helios and sol modules ([#1848](https://github.com/Quantinuum/guppylang/issues/1848)) ([1c86e43](https://github.com/Quantinuum/guppylang/commit/1c86e43b71e703ec73f3560f0fdfec172704cc2e))
-* Support generic comptime functions ([#1630](https://github.com/Quantinuum/guppylang/issues/1630)) ([36a708c](https://github.com/Quantinuum/guppylang/commit/36a708cf7cf015ff72543bd009933b82797163a2))
+* Allow implicit self args in protocols (#1770) ([#1770](https://github.com/Quantinuum/guppylang/issues/1770))
+
+* Rename result and state_result to output and state_output (#1871) ([#1871](https://github.com/Quantinuum/guppylang/issues/1871))
+
 
 
 ### Bug Fixes
 
-* Use correct key for unitary flag metadata ([#1844](https://github.com/Quantinuum/guppylang/issues/1844)) ([4638bc1](https://github.com/Quantinuum/guppylang/commit/4638bc113b634dea1a04e30c08df162700b07bca))
+* Disable imprecise array indexing check (#1859) ([#1859](https://github.com/Quantinuum/guppylang/issues/1859)) ([9f2afe0](https://github.com/Quantinuum/guppylang/commit/9f2afe045e886869bfa6789f2e7ed0a064e12e10))
+
 
 
 ### Code Refactoring
 
-* Split internal decorators into modules and unify calling frame detection ([#1853](https://github.com/Quantinuum/guppylang/issues/1853)) ([5e1187e](https://github.com/Quantinuum/guppylang/commit/5e1187eccf02000d23e2cb8abecdd6f6f7edb5ac))
+* Remove deprecated reexports and leave custom import errors (#1886) ([#1886](https://github.com/Quantinuum/guppylang/issues/1886)) ([3c19192](https://github.com/Quantinuum/guppylang/commit/3c1919266b82e039017394f23bccf9381fda5a6b))
+
+* Remove deprecated decorators, functions, and sync dummy interface (#1855) ([#1855](https://github.com/Quantinuum/guppylang/issues/1855)) ([68b217c](https://github.com/Quantinuum/guppylang/commit/68b217c92350b3e3ebe40779b7d97e0955f945f9))
+
+* Rename result and state_result to output and state_output (#1871) ([#1871](https://github.com/Quantinuum/guppylang/issues/1871)) ([a6a6ff6](https://github.com/Quantinuum/guppylang/commit/a6a6ff6ce3220fec258b22cb412cb8314d661302))
+
+
+
+### Features
+
+* Allow implicit self args in protocols (#1770) ([#1770](https://github.com/Quantinuum/guppylang/issues/1770)) ([cecc955](https://github.com/Quantinuum/guppylang/commit/cecc955a50c00fc8fc3c770e7ccbfb932d845b5b))
+
+
+
+### Performance Improvements
+
+* More efficient calling frame detection (#1884) ([#1884](https://github.com/Quantinuum/guppylang/issues/1884)) ([487a8ac](https://github.com/Quantinuum/guppylang/commit/487a8ac51068cec688d3794fcd59848896157a34))
 
 ## [1.0.0-a4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a3...guppylang-internals-v1.0.0-a4) (2026-06-12)
 

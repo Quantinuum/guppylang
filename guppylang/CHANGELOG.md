@@ -10,6 +10,33 @@ The Guppy language is distributed via the [guppylang](https://pypi.org/project/g
 
 This changelog documents user-facing changes to the Guppy language excluding changes to the compiler internals. The Guppy compiler is versioned with the [guppylang-internals](https://pypi.org/project/guppylang-internals/) package.
 
+## [1.0.0-a6](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a5...guppylang-v1.0.0-a6) (2026-06-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove deprecated reexports and leave custom import errors (#1886) ([#1886](https://github.com/Quantinuum/guppylang/issues/1886))
+
+* Remove deprecated decorators, functions, and sync dummy interface (#1855) ([#1855](https://github.com/Quantinuum/guppylang/issues/1855))
+
+* Rename result and state_result to output and state_output (#1871) ([#1871](https://github.com/Quantinuum/guppylang/issues/1871))
+
+
+
+### Code Refactoring
+
+* Remove deprecated reexports and leave custom import errors (#1886) ([#1886](https://github.com/Quantinuum/guppylang/issues/1886)) ([3c19192](https://github.com/Quantinuum/guppylang/commit/3c1919266b82e039017394f23bccf9381fda5a6b))
+
+* Remove deprecated decorators, functions, and sync dummy interface (#1855) ([#1855](https://github.com/Quantinuum/guppylang/issues/1855)) ([68b217c](https://github.com/Quantinuum/guppylang/commit/68b217c92350b3e3ebe40779b7d97e0955f945f9))
+
+* Rename result and state_result to output and state_output (#1871) ([#1871](https://github.com/Quantinuum/guppylang/issues/1871)) ([a6a6ff6](https://github.com/Quantinuum/guppylang/commit/a6a6ff6ce3220fec258b22cb412cb8314d661302))
+
+
+
+### Features
+
+* Add bounded random int to PCG32 (#1877) ([#1877](https://github.com/Quantinuum/guppylang/issues/1877)) ([01004a8](https://github.com/Quantinuum/guppylang/commit/01004a84714564549595954b045b927bb4bfb7b9))
+
 ## Versioning Policy
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
