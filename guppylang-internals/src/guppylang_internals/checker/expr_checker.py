@@ -28,7 +28,7 @@ from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn, TypeAlias
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -340,10 +340,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(func_ty, FunctionType)
-                # ALAN just passing the name of the proto func here
-                # - should pass the protocol defn id too
                 args, subst, inst = check_call(
-                    func_ty, node.args, ty, node, self.ctx, node.func.id
+                    func_ty,
+                    node.args,
+                    ty,
+                    node,
+                    self.ctx,
+                    (node.func.def_id, node.func.id),
                 )
                 return with_loc(
                     node,
@@ -946,10 +949,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(ty, FunctionType)
-                # ALAN just passing the name of the proto func here
-                # - should pass the protocol defn id too
                 args, return_ty, inst = synthesize_call(
-                    ty, node.args, node, self.ctx, node.func.id
+                    ty, node.args, node, self.ctx, (node.func.def_id, node.func.id)
                 )
                 return with_loc(
                     node,
@@ -1397,9 +1398,14 @@ def _identify_callee(node: ast.expr) -> str | None:
             return None
 
 
+# A function definition; a protocol definition and the name of the function within it;
+# or a string for error messages if there is no definition
+CalleeId: TypeAlias = DefId | tuple[DefId, str] | str
+
+
 def _check_effects(
     target: FunctionType,
-    callee_id: str | DefId | None,
+    callee_id: CalleeId | None,
     ctx: Context,
     node: AstNode,
 ) -> None:
@@ -1415,6 +1421,8 @@ def _check_effects(
             if callee_id is None
             else ctx.globals[callee_id].name
             if isinstance(callee_id, DefId)
+            else f"Function {callee_id[1]} in protocol {ctx.globals[callee_id[0]].name}"
+            if isinstance(callee_id, tuple)
             else callee_id
         )
         show_effects_allowed = mf.effects
@@ -1439,7 +1447,7 @@ def synthesize_call(
     args: list[ast.expr],
     node: AstNode,
     ctx: Context,
-    callee: str | DefId | None,
+    callee: CalleeId | None,
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1481,7 +1489,7 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
-    callee: str | DefId | None,
+    callee: CalleeId | None,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
     """Checks the return type of a function call against a given type.
