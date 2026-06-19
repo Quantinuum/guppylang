@@ -216,8 +216,7 @@ def _add_alias_notes_for_cycle(
         return
 
     # File the main error is anchored to. `add_sub_diagnostic` requires every note to
-    # share this file, and `to_span` requires the span to carry a file, so definitions
-    # without a matching file annotation are skipped below.
+    # share this file, so definitions from a different file are skipped below.
     err_file = to_span(err.span).file if err.span is not None else None
 
     # The last element of `unique_defs` is the alias whose definition the error span
@@ -228,7 +227,10 @@ def _add_alias_notes_for_cycle(
         if defn.id in seen_ids or defn.defined_at is None:
             continue
         note_file = get_file(defn.defined_at)
-        if note_file is None or note_file != err_file:
+        assert note_file is not None, (
+            f"defined_at node for alias `{defn.name}` has no file annotation"
+        )
+        if note_file != err_file:
             continue
         seen_ids.add(defn.id)
         err.add_sub_diagnostic(
