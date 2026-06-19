@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - mr/chore/new-release-workflow
     types:
       - opened
       - synchronize
