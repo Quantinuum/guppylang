@@ -1,49 +1,5 @@
-"""Deprecated: Use `guppylang.std.quantum.functional` instead."""
-
-from guppylang.std.quantum.functional import (
-    ch,
-    crz,
-    cx,
-    cy,
-    cz,
-    h,
-    project_z,
-    reset,
-    rx,
-    ry,
-    rz,
-    s,
-    sdg,
-    t,
-    tdg,
-    toffoli,
-    v,
-    vdg,
-    x,
-    y,
-    z,
-)
-
-__all__ = (
-    "ch",
-    "crz",
-    "cx",
-    "cy",
-    "cz",
-    "h",
-    "project_z",
-    "reset",
-    "rx",
-    "ry",
-    "rz",
-    "s",
-    "sdg",
-    "t",
-    "tdg",
-    "toffoli",
-    "v",
-    "vdg",
-    "x",
-    "y",
-    "z",
+# TODO remove once https://github.com/Quantinuum/guppylang/issues/1019 has been resolved
+#  for a while
+raise ImportError(
+    "`guppylang.std.quantum_functional` has been removed. Import from `guppylang.std.quantum_functional` instead."  # noqa: E501
 )

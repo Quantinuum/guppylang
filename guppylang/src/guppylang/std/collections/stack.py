@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, no_type_check
 
+from guppylang_internals.std._internal.moved import (
+    produce_moved_class,
+    produce_moved_function,
+)
 from typing_extensions import Self
 
 from guppylang.decorator import guppy
@@ -119,8 +123,15 @@ def empty_stack() -> Stack[T, MAX_SIZE]:
     return Stack(buf, 0)
 
 
-# Deprecated reexport
-from guppylang.std.collections.priority_queue import (  # noqa: F401 E402
-    PriorityQueue,
-    empty_priority_queue,
+# TODO remove once https://github.com/Quantinuum/guppylang/issues/1019 has been resolved
+#  for a while
+PriorityQueue = produce_moved_class(
+    "guppylang.std.collections.stack",
+    "PriorityQueue",
+    "guppylang.std.collections.priority_queue",
+)
+empty_priority_queue = produce_moved_function(  # type: ignore[var-annotated]
+    "guppylang.std.collections.stack",
+    "empty_priority_queue",
+    "guppylang.std.collections.priority_queue",
 )
