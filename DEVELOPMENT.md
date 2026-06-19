@@ -159,7 +159,8 @@ The two distributions are versioned differently:
 ### The release PR
 
 On every push to `main`, `release-pr.yml` opens or updates a single release PR on
-the `release-pr` branch. It:
+the `release-pr--<base>` branch (e.g. `release-pr--main` for releases off `main`).
+It:
 
 1. computes the next `guppylang` version from conventional commits (by default it
    just increments the alpha counter),
@@ -183,7 +184,7 @@ exactly what gets published.
 While the `X-regen-changelog` label is set (added by default), the draft is
 regenerated on every push to `main`. **Remove the label** to take manual control:
 subsequent pushes then leave the committed changelogs untouched, and your edits
-to the `release-pr` branch stick.
+to the `release-pr--<base>` branch stick.
 
 A breaking change that would bump the `guppylang` major version is blocked by
 `release-major-guard.yml`. Add the `X-allow-major-bump` label to the release PR

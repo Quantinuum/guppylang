@@ -3,7 +3,7 @@
 # Runs on every push to `main` (and can be dispatched manually). It computes the
 # next versions from conventional commits, applies the version bumps, refreshes
 # the lock file, seeds a draft changelog for each package, and opens/updates a PR
-# on the `release-pr` branch. The actual GitHub releases are cut by
+# on the `release-pr--<base>` branch. The actual GitHub releases are cut by
 # `release-publish.yml` once this PR is merged.
 #
 # Versioning:
@@ -52,11 +52,12 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: release-pr
+  group: release-pr--${{ github.ref_name }}
   cancel-in-progress: false
 
 env:
-  BRANCH: release-pr
+  BASE: ${{ github.ref_name }}
+  BRANCH: release-pr--${{ github.ref_name }}
   RELEASE_LABEL: X-release
   REGEN_LABEL: X-regen-changelog
   UV_VERSION: "0.11.22"
@@ -241,7 +242,7 @@ jobs:
               echo "<!-- BEGIN RELEASE NOTES PREVIEW -->"
               echo "<!-- END RELEASE NOTES PREVIEW -->"
             } > /tmp/pr_body.md
-            gh pr create --base ${{ github.ref }} --head "$BRANCH" --title "$title" \
+            gh pr create --base "$BASE" --head "$BRANCH" --title "$title" \
               --body-file /tmp/pr_body.md --draft \
               --label "$RELEASE_LABEL" --label "$REGEN_LABEL"
             NUMBER=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')

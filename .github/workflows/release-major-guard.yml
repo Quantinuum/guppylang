@@ -25,7 +25,7 @@ jobs:
   guard:
     name: Disallow unapproved major bump
     runs-on: ubuntu-latest
-    if: github.head_ref == 'release-pr'
+    if: startsWith(github.head_ref, 'release-pr--')
     steps:
       - uses: actions/checkout@v6
         with:
