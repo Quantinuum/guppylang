@@ -22,12 +22,10 @@ jobs:
   check-release-guppylang-internals:
     name: Check `guppylang-internals` release compatibility with ${{ matrix.target.resolution }} dependencies
     runs-on: ubuntu-latest
-    # Check if we are running on a release PR, targeting some branch (sits in the middle of the release branch name)
-    #
-    # release-please always uses this branch name.
+    # Only run on the automated release PR.
     if: |
      github.event_name == 'workflow_dispatch' ||
-     (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang-internals'))
+     github.head_ref == 'release-pr'
     strategy:
       fail-fast: false
       matrix:
@@ -68,12 +66,10 @@ jobs:
   check-release-guppylang:
     name: Check `guppylang` release compatibility with ${{ matrix.target.resolution }} dependencies
     runs-on: ubuntu-latest
-    # Check if we are running on a release PR, targeting some branch (sits in the middle of the release branch name)
-    #
-    # release-please always uses this branch name.
+    # Only run on the automated release PR.
     if: |
      github.event_name == 'workflow_dispatch' ||
-     (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang'))
+     github.head_ref == 'release-pr'
     strategy:
       fail-fast: false
       matrix:
@@ -121,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
      github.event_name == 'workflow_dispatch' ||
-     (startsWith(github.head_ref, 'release-please--') && endsWith(github.head_ref, '--components--guppylang'))
+     github.head_ref == 'release-pr'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -140,30 +136,31 @@ jobs:
         run: |
           cd guppy-docs
           uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang" || uv sync --group docs
-      - name: Checkout guppylang release-please manifest
+      - name: Checkout guppylang pyproject.toml
         uses: actions/checkout@v6
         with:
           repository: Quantinuum/guppylang
           ref: ${{ github.event.pull_request.head.sha }}
           path: guppylang
           sparse-checkout: |
-            .release-please-manifest.json
+            guppylang/pyproject.toml
           sparse-checkout-cone-mode: false
       - name: Verify guppylang version
         run: |
           cd guppy-docs
           uv run python <<'PY'
-          import json
+          import re
           from pathlib import Path
           import guppylang
 
           GUPPYLANG_PACKAGE_VERSION = guppylang.__version__
 
-          with Path.open(Path("../guppylang/.release-please-manifest.json")) as json_data:
-              release_please_data = json.load(json_data)
-              MANIFEST_GUPPYLANG_VERSION = release_please_data["guppylang"]
+          pyproject = Path("../guppylang/guppylang/pyproject.toml").read_text()
+          match = re.search(r'^version = "([^"]+)"', pyproject, re.MULTILINE)
+          assert match is not None, "Could not find the guppylang project version"
+          PYPROJECT_GUPPYLANG_VERSION = match.group(1)
 
-          assert GUPPYLANG_PACKAGE_VERSION == MANIFEST_GUPPYLANG_VERSION
+          assert GUPPYLANG_PACKAGE_VERSION == PYPROJECT_GUPPYLANG_VERSION
           print(f"Verification complete! Verified Guppy version is {GUPPYLANG_PACKAGE_VERSION}")
           PY
       - name: Run docs build

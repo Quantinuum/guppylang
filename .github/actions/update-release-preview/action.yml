@@ -1,0 +1,47 @@
+name: Update release-notes preview
+description: >-
+  Refresh the verbatim release-notes preview block in a release PR's body, using
+  the committed changelog sections (the exact text that will be published).
+
+inputs:
+  pr-number:
+    description: The release PR number to update.
+    required: true
+  guppylang-version:
+    description: The guppylang version being released.
+    required: true
+  internals-version:
+    description: The guppylang-internals version being released.
+    required: true
+  token:
+    description: Token with pull-requests write permission.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GUPPY: ${{ inputs.guppylang-version }}
+        INTERNALS: ${{ inputs.internals-version }}
+        NUMBER: ${{ inputs.pr-number }}
+      run: |
+        set -euo pipefail
+        # Extract verbatim sections (empty file if the section is missing).
+        python3 scripts/release/extract_changelog.py \
+          guppylang/CHANGELOG.md "$GUPPY" > /tmp/guppy_section.md || true
+        python3 scripts/release/extract_changelog.py \
+          guppylang-internals/CHANGELOG.md "$INTERNALS" > /tmp/internals_section.md || true
+
+        gh pr view "$NUMBER" --json body --jq .body > /tmp/pr_body.md
+        python3 scripts/release/render_pr_body.py --body /tmp/pr_body.md \
+          --package guppylang "$GUPPY" /tmp/guppy_section.md \
+          --package guppylang-internals "$INTERNALS" /tmp/internals_section.md \
+          > /tmp/pr_body_new.md
+
+        if ! cmp -s /tmp/pr_body.md /tmp/pr_body_new.md; then
+          gh pr edit "$NUMBER" --body-file /tmp/pr_body_new.md
+        else
+          echo "Preview already up to date."
+        fi

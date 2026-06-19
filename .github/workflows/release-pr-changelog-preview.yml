@@ -1,0 +1,48 @@
+# Keeps the release-notes preview in the release PR body in sync with the
+# committed changelogs. Runs on *every* push to the `release-pr` branch, so it
+# refreshes both when the release bot updates the changelog and when a maintainer
+# hand-edits CHANGELOG.md after removing the `X-regen-changelog` label.
+#
+# It only edits the PR description (no commits), so it cannot loop.
+
+name: Release PR changelog preview 🔎
+
+on:
+  pull_request:
+    types:
+      - synchronize
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: release-pr-preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Refresh release-notes preview
+    runs-on: ubuntu-latest
+    if: github.head_ref == 'release-pr'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read released versions
+        id: versions
+        run: |
+          set -euo pipefail
+          guppy=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang/pyproject.toml | head -n1)
+          internals=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang-internals/pyproject.toml | head -n1)
+          echo "guppylang=$guppy" >> "$GITHUB_OUTPUT"
+          echo "internals=$internals" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh release-notes preview
+        uses: ./.github/actions/update-release-preview
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          guppylang-version: ${{ steps.versions.outputs.guppylang }}
+          internals-version: ${{ steps.versions.outputs.internals }}
+          token: ${{ secrets.HUGRBOT_PAT }}
