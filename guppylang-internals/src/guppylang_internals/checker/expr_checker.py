@@ -343,7 +343,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 # ALAN just passing the name of the proto func here
                 # - should pass the protocol defn id too
                 args, subst, inst = check_call(
-                    (node.func.id, func_ty), node.args, ty, node, self.ctx
+                    func_ty, node.args, ty, node, self.ctx, node.func.id
                 )
                 return with_loc(
                     node,
@@ -366,7 +366,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if isinstance(func_ty, FunctionType):
             tgt_name = _identify_callee(node.func)
             args, subst, inst = check_call(
-                (tgt_name, func_ty), node.args, ty, node, self.ctx
+                func_ty, node.args, ty, node, self.ctx, tgt_name
             )
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
@@ -386,11 +386,12 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             processed_args, subst, inst = check_call(
                 # Doing better here would require major refactor to provide
                 # names/ids for each tensor element and identify the offender
-                ("<function tensor>", tensor_ty),
+                tensor_ty,
                 node.args,
                 ty,
                 node,
                 self.ctx,
+                "<function tensor>",
             )
             assert len(inst) == 0
             return with_loc(
@@ -948,7 +949,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # ALAN just passing the name of the proto func here
                 # - should pass the protocol defn id too
                 args, return_ty, inst = synthesize_call(
-                    (node.func.id, ty), node.args, node, self.ctx
+                    ty, node.args, node, self.ctx, node.func.id
                 )
                 return with_loc(
                     node,
@@ -970,7 +971,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if isinstance(ty, FunctionType):
             tgt_name = _identify_callee(node.func)
             args, return_ty, inst = synthesize_call(
-                (tgt_name, ty), node.args, node, self.ctx
+                ty, node.args, node, self.ctx, tgt_name
             )
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
@@ -987,10 +988,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             args, return_ty, inst = synthesize_call(
                 # Doing better here would require major refactor to provide
                 # names/ids for each tensor element and identify the offender
-                ("<function tensor>", tensor_ty),
+                tensor_ty,
                 node.args,
                 node,
                 self.ctx,
+                "<function tensor>",
             )
             assert len(inst) == 0
 
@@ -1396,22 +1398,24 @@ def _identify_callee(node: ast.expr) -> str | None:
 
 
 def _check_effects(
-    target: tuple[str | DefId | None, FunctionType], ctx: Context, node: AstNode
+    target: FunctionType,
+    callee_id: str | DefId | None,
+    ctx: Context,
+    node: AstNode,
 ) -> None:
     """Checks that a function call (AST provided) to a specified FunctionType
     respects the effect constraints in the context."""
     if (mf := ctx.max_effects_from) is None:
         return
-    tgt_id, func_ty = target
-    surplus_effects = [e for e in func_ty.effects if e not in mf.effects]
+    surplus_effects = [e for e in target.effects if e not in mf.effects]
     if surplus_effects:
         loc_node = node.func if isinstance(node, ast.Call) else node
         callee: str | FunctionType = (
-            func_ty
-            if tgt_id is None
-            else ctx.globals[tgt_id].name
-            if isinstance(tgt_id, DefId)
-            else tgt_id
+            target
+            if callee_id is None
+            else ctx.globals[callee_id].name
+            if isinstance(callee_id, DefId)
+            else callee_id
         )
         show_effects_allowed = mf.effects
         if isinstance(mf.decl, ast.expr):
@@ -1431,26 +1435,26 @@ def _check_effects(
 
 
 def synthesize_call(
-    target: tuple[str | DefId | None, FunctionType],
+    target: FunctionType,
     args: list[ast.expr],
     node: AstNode,
     ctx: Context,
+    callee: str | DefId | None,
 ) -> tuple[list[ast.expr], Type, Inst]:
-    _, func_ty = target
     """Synthesizes the return type of a function call.
 
     Returns an annotated argument list, the synthesized return type, and an
     instantiation for the quantifiers in the function type.
     """
-    assert not func_ty.unsolved_vars
-    check_num_args(len(func_ty.inputs), len(args), node, func_ty)
+    assert not target.unsolved_vars
+    check_num_args(len(target.inputs), len(args), node, target)
 
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
-    unquantified, free_vars = func_ty.unquantified()
+    unquantified, free_vars = target.unquantified()
     var_mapping = {}
     inst_tele: list[Argument | None] = [None for _ in free_vars]
-    for ix, (var, param) in enumerate(zip(free_vars, func_ty.params, strict=True)):
+    for ix, (var, param) in enumerate(zip(free_vars, target.params, strict=True)):
         var_mapping[var] = param.instantiate_bounds(inst_tele)
         if isinstance(var, ExistentialTypeVar):
             inst_tele[ix] = TypeArg(var)
@@ -1461,22 +1465,23 @@ def synthesize_call(
 
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
-    inst = check_all_solved(subst, free_vars, func_ty, node)
+    inst = check_all_solved(subst, free_vars, target, node)
 
     # Finally, check that the instantiation respects the linearity requirements
     # and the effects allowed in the context.
-    check_inst(func_ty, inst, node)
-    _check_effects(target, ctx, node)
+    check_inst(target, inst, node)
+    _check_effects(target, callee, ctx, node)
 
     return args, unquantified.output.substitute(subst), inst
 
 
 def check_call(
-    target: tuple[str | DefId | None, FunctionType],
+    target: FunctionType,
     inputs: list[ast.expr],
     ty: Type,
     node: AstNode,
     ctx: Context,
+    callee: str | DefId | None,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
     """Checks the return type of a function call against a given type.
@@ -1484,9 +1489,8 @@ def check_call(
     Returns an annotated argument list, a substitution for the free variables in the
     expected type, and an instantiation for the quantifiers in the function type.
     """
-    _, func_ty = target
-    assert not func_ty.unsolved_vars
-    check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
+    assert not target.unsolved_vars
+    check_num_args(len(target.inputs), len(inputs), node, target)
 
     # When checking, we can use the information from the expected return type to infer
     # some type arguments. However, this pushes errors inwards. For example, given a
@@ -1513,7 +1517,7 @@ def check_call(
     inputs_copy = copy.deepcopy(inputs)
 
     try:
-        inputs, synth, inst = synthesize_call(target, inputs, node, ctx)
+        inputs, synth, inst = synthesize_call(target, inputs, node, ctx, callee)
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
@@ -1529,7 +1533,7 @@ def check_call(
 
     # If synthesis fails, we try again, this time also using information from the
     # expected return type
-    unquantified, free_vars = func_ty.unquantified()
+    unquantified, free_vars = target.unquantified()
     subst = unify(ty, unquantified.output, {})
     if subst is None:
         raise GuppyTypeError(TypeMismatchError(node, ty, unquantified.output, kind))
@@ -1538,7 +1542,7 @@ def check_call(
     # instantiation by checking the arguments
     var_mapping = {}
     inst_tele: list[Argument | None] = [None for _ in free_vars]
-    for ix, (var, param) in enumerate(zip(free_vars, func_ty.params, strict=True)):
+    for ix, (var, param) in enumerate(zip(free_vars, target.params, strict=True)):
         var_mapping[var] = param.instantiate_bounds(inst_tele)
         if isinstance(var, ExistentialTypeVar):
             inst_tele[ix] = TypeArg(var)
@@ -1551,7 +1555,7 @@ def check_call(
     # checking against
     if not set.issubset(ty.unsolved_vars, subst.keys()):
         unsolved = (subst.keys() - ty.unsolved_vars).pop()
-        err = TypeMismatchError(node, ty, func_ty.output.substitute(subst))
+        err = TypeMismatchError(node, ty, target.output.substitute(subst))
         err.add_sub_diagnostic(
             TypeMismatchError.CantInferParam(None, unsolved.display_name)
         )
@@ -1559,13 +1563,13 @@ def check_call(
 
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
-    inst = check_all_solved(subst, free_vars, func_ty, node)
+    inst = check_all_solved(subst, free_vars, target, node)
     subst = {v: t for v, t in subst.items() if v in ty.unsolved_vars}
 
     # Finally, check that the instantiation respects the linearity requirements
     # and the effects allowed in the context.
-    check_inst(func_ty, inst, node)
-    _check_effects(target, ctx, node)
+    check_inst(target, inst, node)
+    _check_effects(target, callee, ctx, node)
 
     return inputs, subst, inst
 
