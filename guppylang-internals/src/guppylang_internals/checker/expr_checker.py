@@ -340,13 +340,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(func_ty, FunctionType)
+                # Name here is not monomorphized, as we'll not come here when the caller
+                # is monomorphized.
+                func_name = f"Function {node.func.id} in protocol {node.func.def_id}"
                 args, subst, inst = check_call(
-                    func_ty,
-                    node.args,
-                    ty,
-                    node,
-                    self.ctx,
-                    (node.func.def_id, node.func.id),
+                    func_ty, node.args, ty, node, self.ctx, func_name
                 )
                 return with_loc(
                     node,
@@ -949,8 +947,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(ty, FunctionType)
+                func_name = f"Function {node.func.id} in protocol {node.func.def_id}"
                 args, return_ty, inst = synthesize_call(
-                    ty, node.args, node, self.ctx, (node.func.def_id, node.func.id)
+                    ty, node.args, node, self.ctx, func_name
                 )
                 return with_loc(
                     node,
@@ -1398,9 +1397,8 @@ def _identify_callee(node: ast.expr) -> str | None:
             return None
 
 
-# A function definition; a protocol definition and the name of the function within it;
-# or a string for error messages if there is no definition
-CalleeId: TypeAlias = DefId | tuple[DefId, str] | str
+# A function definition, or a string (for error messages) if there is no such
+CalleeId: TypeAlias = DefId | str
 
 
 def _check_effects(
