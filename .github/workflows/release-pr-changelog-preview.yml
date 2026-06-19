@@ -9,6 +9,7 @@ on:
       - synchronize
     branches:
       - main
+      - mr/chore/new-release-workflow
 
 permissions:
   contents: read
