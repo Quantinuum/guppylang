@@ -1445,7 +1445,7 @@ def _check_effects(
 
 
 def synthesize_call(
-    target: FunctionType,
+    func_ty: FunctionType,
     args: list[ast.expr],
     node: AstNode,
     ctx: Context,
@@ -1456,15 +1456,15 @@ def synthesize_call(
     Returns an annotated argument list, the synthesized return type, and an
     instantiation for the quantifiers in the function type.
     """
-    assert not target.unsolved_vars
-    check_num_args(len(target.inputs), len(args), node, target)
+    assert not func_ty.unsolved_vars
+    check_num_args(len(func_ty.inputs), len(args), node, func_ty)
 
     # Replace quantified variables with free unification variables and try to infer an
     # instantiation by checking the arguments
-    unquantified, free_vars = target.unquantified()
+    unquantified, free_vars = func_ty.unquantified()
     var_mapping = {}
     inst_tele: list[Argument | None] = [None for _ in free_vars]
-    for ix, (var, param) in enumerate(zip(free_vars, target.params, strict=True)):
+    for ix, (var, param) in enumerate(zip(free_vars, func_ty.params, strict=True)):
         var_mapping[var] = param.instantiate_bounds(inst_tele)
         if isinstance(var, ExistentialTypeVar):
             inst_tele[ix] = TypeArg(var)
@@ -1475,18 +1475,18 @@ def synthesize_call(
 
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
-    inst = check_all_solved(subst, free_vars, target, node)
+    inst = check_all_solved(subst, free_vars, func_ty, node)
 
     # Finally, check that the instantiation respects the linearity requirements
     # and the effects allowed in the context.
-    check_inst(target, inst, node)
-    _check_effects(target, callee, ctx, node)
+    check_inst(func_ty, inst, node)
+    _check_effects(func_ty, callee, ctx, node)
 
     return args, unquantified.output.substitute(subst), inst
 
 
 def check_call(
-    target: FunctionType,
+    func_ty: FunctionType,
     inputs: list[ast.expr],
     ty: Type,
     node: AstNode,
@@ -1499,8 +1499,8 @@ def check_call(
     Returns an annotated argument list, a substitution for the free variables in the
     expected type, and an instantiation for the quantifiers in the function type.
     """
-    assert not target.unsolved_vars
-    check_num_args(len(target.inputs), len(inputs), node, target)
+    assert not func_ty.unsolved_vars
+    check_num_args(len(func_ty.inputs), len(inputs), node, func_ty)
 
     # When checking, we can use the information from the expected return type to infer
     # some type arguments. However, this pushes errors inwards. For example, given a
@@ -1527,7 +1527,7 @@ def check_call(
     inputs_copy = copy.deepcopy(inputs)
 
     try:
-        inputs, synth, inst = synthesize_call(target, inputs, node, ctx, callee)
+        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx, callee)
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
@@ -1543,7 +1543,7 @@ def check_call(
 
     # If synthesis fails, we try again, this time also using information from the
     # expected return type
-    unquantified, free_vars = target.unquantified()
+    unquantified, free_vars = func_ty.unquantified()
     subst = unify(ty, unquantified.output, {})
     if subst is None:
         raise GuppyTypeError(TypeMismatchError(node, ty, unquantified.output, kind))
@@ -1552,7 +1552,7 @@ def check_call(
     # instantiation by checking the arguments
     var_mapping = {}
     inst_tele: list[Argument | None] = [None for _ in free_vars]
-    for ix, (var, param) in enumerate(zip(free_vars, target.params, strict=True)):
+    for ix, (var, param) in enumerate(zip(free_vars, func_ty.params, strict=True)):
         var_mapping[var] = param.instantiate_bounds(inst_tele)
         if isinstance(var, ExistentialTypeVar):
             inst_tele[ix] = TypeArg(var)
@@ -1565,7 +1565,7 @@ def check_call(
     # checking against
     if not set.issubset(ty.unsolved_vars, subst.keys()):
         unsolved = (subst.keys() - ty.unsolved_vars).pop()
-        err = TypeMismatchError(node, ty, target.output.substitute(subst))
+        err = TypeMismatchError(node, ty, func_ty.output.substitute(subst))
         err.add_sub_diagnostic(
             TypeMismatchError.CantInferParam(None, unsolved.display_name)
         )
@@ -1573,13 +1573,13 @@ def check_call(
 
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
-    inst = check_all_solved(subst, free_vars, target, node)
+    inst = check_all_solved(subst, free_vars, func_ty, node)
     subst = {v: t for v, t in subst.items() if v in ty.unsolved_vars}
 
     # Finally, check that the instantiation respects the linearity requirements
     # and the effects allowed in the context.
-    check_inst(target, inst, node)
-    _check_effects(target, callee, ctx, node)
+    check_inst(func_ty, inst, node)
+    _check_effects(func_ty, callee, ctx, node)
 
     return inputs, subst, inst
 
