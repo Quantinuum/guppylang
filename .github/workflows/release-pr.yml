@@ -250,3 +250,11 @@ jobs:
             gh pr edit "$NUMBER" --title "$title"
           fi
           echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh release-notes preview
+        uses: ./.github/actions/update-release-preview
+        with:
+          pr-number: ${{ steps.openpr.outputs.number }}
+          guppylang-version: ${{ steps.plan.outputs.guppylang }}
+          internals-version: ${{ steps.plan.outputs.internals }}
+          token: ${{ secrets.HUGRBOT_PAT }}
