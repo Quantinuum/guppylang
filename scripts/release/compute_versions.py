@@ -13,15 +13,19 @@ command (pure, prints the next versions) and several ``set-*`` commands that
 write the new versions into the relevant files.  This lets the release workflow
 apply each change as its own, appropriately named commit.
 
-Bump modes (``guppylang``), all easily adjustable:
+Bump modes for ``guppylang``:
 
 * ``auto``  -> same as ``alpha`` (the current, unstable-phase default).
-* ``alpha`` -> ``1.0.0-a5`` becomes ``1.0.0-a6``.
-* ``rc``    -> ``1.0.0-a5`` becomes ``1.0.0-rc1``; ``rc1`` becomes ``rc2``.
-* ``patch`` -> ``1.0.0-a5`` becomes ``1.0.1-a1``.
-* ``minor`` -> ``1.0.0-a5`` becomes ``1.1.0-a1``.
-* ``major`` -> ``1.0.0-a5`` becomes ``2.0.0-a1`` (guarded by the release PR).
-* ``stable``-> ``1.0.0-a5`` becomes ``1.0.0`` (drops the pre-release).
+* ``alpha`` -> ``1.0.0-a1`` becomes ``1.0.0-a2``
+* ``alpha-patch`` -> ``1.2.3`` becomes ``1.2.4-a0``
+* ``alpha-minor`` -> ``1.2.3`` becomes ``1.3.0-a0``
+* ``alpha-major`` -> ``1.2.3`` becomes ``2.0.0-a0``
+* ``beta``  -> ``1.0.0-a1`` becomes ``1.0.0-b0``; ``b1`` becomes ``b2``
+* ``rc``    -> ``1.0.0-X``  becomes ``1.0.0-rc0``; ``rc1`` becomes ``rc2``
+* ``stable``-> ``1.0.0-X``  becomes ``1.0.0`` (drops the pre-release)
+* ``patch`` -> ``1.0.1``    becomes ``1.0.2``
+* ``minor`` -> ``1.2.1``    becomes ``1.3.0``
+* ``major`` -> ``1.3.0``    becomes ``2.0.0``
 """
 
 from __future__ import annotations
@@ -30,13 +34,29 @@ import argparse
 import re
 import sys
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
-# The number the alpha series restarts from after a core (patch/minor/major)
-# bump.  Change this single constant to start fresh pre-releases elsewhere.
-INITIAL_PRERELEASE_NUM = 1
 
-BUMP_MODES = ("auto", "alpha", "rc", "patch", "minor", "major", "stable")
+class BumpMode(str, Enum):
+    auto = "auto"
+    alpha = "alpha"
+    alpha_patch = "alpha-patch"
+    alpha_minor = "alpha-minor"
+    alpha_major = "alpha-major"
+    beta = "beta"
+    rc = "rc"
+    stable = "stable"
+    patch = "patch"
+    minor = "minor"
+    major = "major"
+
+
+class PreLabel(str, Enum):
+    alpha = "a"
+    beta = "b"
+    rc = "rc"
+
 
 GUPPYLANG_PYPROJECT = "guppylang/pyproject.toml"
 GUPPYLANG_INIT = "guppylang/src/guppylang/__init__.py"
@@ -59,7 +79,7 @@ class GuppyVersion:
     major: int
     minor: int
     patch: int
-    pre_label: str | None = None
+    pre_label: PreLabel | None = None
     pre_num: int | None = None
 
     @property
@@ -70,7 +90,7 @@ class GuppyVersion:
         core = f"{self.major}.{self.minor}.{self.patch}"
         if self.pre_label is None:
             return core
-        return f"{core}-{self.pre_label}{self.pre_num}"
+        return f"{core}-{self.pre_label.value}{self.pre_num}"
 
 
 def parse_guppy_version(text: str) -> GuppyVersion:
@@ -84,57 +104,91 @@ def parse_guppy_version(text: str) -> GuppyVersion:
         major=int(match.group("major")),
         minor=int(match.group("minor")),
         patch=int(match.group("patch")),
-        pre_label=pre_label,
+        pre_label=PreLabel(pre_label) if pre_label is not None else None,
         pre_num=int(pre_num) if pre_num is not None else None,
     )
 
 
 def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
     """Compute the next ``guppylang`` version for the given bump mode."""
-    if mode == "auto":
-        mode = "alpha"
+    if mode == BumpMode.auto:
+        mode = BumpMode.alpha
 
-    if mode == "alpha":
-        if current.pre_label != "a" or current.pre_num is None:
-            msg = (
-                f"Cannot 'alpha'-bump {current.render()!r}: expected an alpha "
-                "pre-release. Use 'patch'/'minor'/'major' to start a new series."
+    match mode:
+        case BumpMode.alpha:
+            if current.pre_label != "a":
+                msg = (
+                    f"Cannot 'alpha'-bump {current.render()!r}: expected alpha series."
+                    "Use 'alpha-{patch,minor,major}' to start a new series."
+                )
+                raise ValueError(msg)
+            return GuppyVersion(
+                current.major,
+                current.minor,
+                current.patch,
+                PreLabel.alpha,
+                current.pre_num + 1,
             )
-            raise ValueError(msg)
-        return GuppyVersion(
-            current.major, current.minor, current.patch, "a", current.pre_num + 1
-        )
 
-    if mode == "rc":
-        if current.pre_label == "rc" and current.pre_num is not None:
-            next_num = current.pre_num + 1
-        elif current.pre_label in ("a", "b"):
-            next_num = 1
-        else:
-            msg = f"Cannot 'rc'-bump stable version {current.render()!r}."
-            raise ValueError(msg)
-        return GuppyVersion(current.major, current.minor, current.patch, "rc", next_num)
-
-    if mode == "stable":
-        if not current.is_prerelease:
-            msg = (
-                f"{current.render()!r} is already stable; use 'patch'/'minor'/'major'."
+        case BumpMode.alpha_patch:
+            return GuppyVersion(
+                current.major,
+                current.minor,
+                current.patch + 1,
+                PreLabel.alpha,
+                pre_num=0,
             )
-            raise ValueError(msg)
-        return GuppyVersion(current.major, current.minor, current.patch)
+        case BumpMode.alpha_minor:
+            return GuppyVersion(
+                current.major, current.minor + 1, 0, PreLabel.alpha, pre_num=0
+            )
+        case BumpMode.alpha_major:
+            return GuppyVersion(current.major + 1, 0, 0, PreLabel.alpha, pre_num=0)
 
-    if mode == "patch":
-        return GuppyVersion(
-            current.major, current.minor, current.patch + 1, "a", INITIAL_PRERELEASE_NUM
-        )
-    if mode == "minor":
-        return GuppyVersion(
-            current.major, current.minor + 1, 0, "a", INITIAL_PRERELEASE_NUM
-        )
-    if mode == "major":
-        return GuppyVersion(current.major + 1, 0, 0, "a", INITIAL_PRERELEASE_NUM)
+        case BumpMode.beta:
+            if current.pre_label == PreLabel.alpha:
+                next_num = 0
+            elif current.pre_label == PreLabel.beta:
+                next_num = current.pre_num + 1
+            else:
+                msg = (
+                    f"Cannot 'beta'-bump {current.render()!r}: expected alpha or beta "
+                    "series. Use 'alpha-{patch,minor,major}' to start a new series."
+                )
+                raise ValueError(msg)
+            return GuppyVersion(
+                current.major, current.minor, current.patch, PreLabel.beta, next_num
+            )
 
-    msg = f"Unknown bump mode: {mode!r} (expected one of {', '.join(BUMP_MODES)})"
+        case BumpMode.rc:
+            if current.pre_label in (PreLabel.alpha, PreLabel.beta):
+                next_num = 0
+            elif current.pre_label == PreLabel.rc:
+                next_num = current.pre_num + 1
+            else:
+                msg = f"Cannot 'rc'-bump non-prerelease version: {current.render()!r}."
+                raise ValueError(msg)
+            return GuppyVersion(
+                current.major, current.minor, current.patch, PreLabel.rc, next_num
+            )
+
+        case BumpMode.stable:
+            if not current.is_prerelease:
+                msg = (
+                    f"{current.render()!r} already stable; use 'patch'/'minor'/'major'."
+                )
+                raise ValueError(msg)
+            return GuppyVersion(current.major, current.minor, current.patch)
+
+        case BumpMode.patch:
+            return GuppyVersion(current.major, current.minor, current.patch + 1)
+        case BumpMode.minor:
+            return GuppyVersion(current.major, current.minor + 1, 0)
+        case BumpMode.major:
+            return GuppyVersion(current.major + 1, 0, 0)
+
+    bump_modes = BumpMode.__members__.values()
+    msg = f"Unknown bump mode: {mode!r} (expected one of {', '.join(bump_modes)})"
     raise ValueError(msg)
 
 
@@ -220,13 +274,11 @@ def cmd_compute(args: argparse.Namespace) -> int:
     current = read_current_guppylang(root)
     new_guppy = bump_guppylang(current, args.bump)
     new_internals = bump_internals(read_current_internals(root), new_guppy.major)
-    major_bumped = new_guppy.major > current.major
 
     lines = [
         f"current_guppylang={current.render()}",
         f"guppylang={new_guppy.render()}",
         f"internals={new_internals}",
-        f"major_bumped={'true' if major_bumped else 'false'}",
     ]
     print("\n".join(lines))
     if args.github_output is not None:
@@ -274,7 +326,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     compute = sub.add_parser("compute", help="Compute and print the next versions.")
-    compute.add_argument("--bump", choices=BUMP_MODES, default="auto")
+    compute.add_argument(
+        "--bump", choices=BumpMode.__members__.values(), default="auto"
+    )
     compute.add_argument(
         "--github-output",
         default=None,

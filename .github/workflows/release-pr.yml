@@ -7,7 +7,7 @@
 # `release-publish.yml` once this PR is merged.
 #
 # Versioning:
-#   * guppylang           -> semver with an alpha pre-release (e.g. 1.0.0-a6).
+#   * guppylang           -> semver with optional pre-release (e.g. 1.2.3 or 1.2.3-a6).
 #   * guppylang-internals -> <guppylang-major>.<build> (e.g. 1.6), build reset on
 #     a guppylang major bump.
 #
@@ -30,17 +30,21 @@ on:
         type: boolean
         default: false
       bump:
-        description: "How to bump guppylang ('auto' may decide not to release)"
+        description: "How to bump guppylang (`auto` by default). See `scripts/release/compute_versions.py` for reference."
         type: choice
         default: auto
         options:
           - auto
           - alpha
+          - alpha-patch
+          - alpha-minor
+          - alpha-major
+          - beta
           - rc
+          - stable
           - patch
           - minor
           - major
-          - stable
 
 permissions:
   contents: write
@@ -73,8 +77,6 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - name: Install Python
-        run: uv python install 3.13
       - name: Install git-cliff
         uses: taiki-e/install-action@v2
         with:
@@ -107,7 +109,7 @@ jobs:
         id: plan
         run: |
           set -euo pipefail
-          python3 scripts/release/compute_versions.py compute \
+          uv run scripts/release/compute_versions.py compute \
             --bump "${{ github.event.inputs.bump || 'auto' }}" \
             --github-output "$GITHUB_OUTPUT"
 
@@ -182,13 +184,13 @@ jobs:
 
           git checkout -B "$BRANCH"
 
-          python3 scripts/release/compute_versions.py set-internals "$INTERNALS"
+          uv run scripts/release/compute_versions.py set-internals "$INTERNALS"
           git commit -aqm "chore: bump guppylang-internals to $INTERNALS"
 
-          python3 scripts/release/compute_versions.py set-guppylang "$GUPPY"
+          uv run scripts/release/compute_versions.py set-guppylang "$GUPPY"
           git commit -aqm "chore: bump guppylang to $GUPPY"
 
-          python3 scripts/release/compute_versions.py set-pin "$INTERNALS"
+          uv run scripts/release/compute_versions.py set-pin "$INTERNALS"
           git commit -aqm "chore: pin guppylang-internals==$INTERNALS in guppylang"
 
           uv lock
@@ -198,13 +200,13 @@ jobs:
             git cliff --config cliff.toml --include-path 'guppylang/**' \
               --tag-pattern '^guppylang-v' --unreleased --tag "guppylang-v$GUPPY" \
               > /tmp/guppy_section.md
-            python3 scripts/release/update_changelog.py \
+            uv run scripts/release/update_changelog.py \
               guppylang/CHANGELOG.md "$GUPPY" /tmp/guppy_section.md
 
             git cliff --config cliff.toml --include-path 'guppylang-internals/**' \
               --tag-pattern '^guppylang-internals-v' --unreleased \
               --tag "guppylang-internals-v$INTERNALS" > /tmp/internals_section.md
-            python3 scripts/release/update_changelog.py \
+            uv run scripts/release/update_changelog.py \
               guppylang-internals/CHANGELOG.md "$INTERNALS" /tmp/internals_section.md
           else
             [ -f /tmp/guppylang_CHANGELOG.md ] \
@@ -246,12 +248,3 @@ jobs:
             gh pr edit "$NUMBER" --title "$title"
           fi
           echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
-
-      - name: Refresh release-notes preview
-        if: steps.gate.outputs.proceed == 'true'
-        uses: ./.github/actions/update-release-preview
-        with:
-          pr-number: ${{ steps.openpr.outputs.number }}
-          guppylang-version: ${{ steps.plan.outputs.guppylang }}
-          internals-version: ${{ steps.plan.outputs.internals }}
-          token: ${{ secrets.HUGRBOT_PAT }}
