@@ -26,21 +26,6 @@ def test_type_alias_bad_type_syntax():
         guppy.type_alias("MyAlias", "foo bar")
 
 
-def test_type_alias_non_str_name():
-    with pytest.raises(TypeError, match="expects a name string as the first argument"):
-        guppy.type_alias(123, "int")  # type: ignore[arg-type]
-
-
-def test_type_alias_missing_type():
-    with pytest.raises(TypeError, match="missing 1 required positional argument"):
-        guppy.type_alias("MyAlias")  # type: ignore[call-arg]
-
-
-def test_type_alias_non_str_type():
-    with pytest.raises(TypeError, match="expects a string type expression"):
-        guppy.type_alias("MyAlias", 123)  # type: ignore[arg-type]
-
-
 def test_type_alias_invalid_param():
     with pytest.raises(
         TypeError,

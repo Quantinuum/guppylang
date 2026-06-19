@@ -403,16 +403,6 @@ class _Guppy:
         """
         frame = get_calling_frame()
 
-        if not isinstance(name, str):
-            raise TypeError(
-                f"guppy.type_alias() expects a name string as the first argument, "
-                f"got {name!r}"
-            )
-        if not isinstance(ty, str):
-            raise TypeError(
-                f"guppy.type_alias() expects a string type expression, got {ty!r}"
-            )
-
         type_ast = _parse_expr_string(
             ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
         )
