@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
 """Version bump logic for the ``guppylang`` and ``guppylang-internals`` releases.
 
-``guppylang`` follows semantic versioning with an alpha pre-release suffix while
+``guppylang`` follows semantic versioning with an optional pre-release suffix if
 the language is unstable (e.g. ``1.0.0-a5``).  ``guppylang-internals`` uses the
 custom scheme ``<guppylang-major>.<build>`` (e.g. ``1.0``, ``1.1``, ...).  The
 internals build number is incremented on every release and reset to ``0``
 whenever the ``guppylang`` major version changes.
 
-The script is intentionally dependency-free (standard library only) so it can be
-run directly in CI without installing the project.  It is split into a ``compute``
-command (pure, prints the next versions) and several ``set-*`` commands that
-write the new versions into the relevant files.  This lets the release workflow
-apply each change as its own, appropriately named commit.
-
 Bump modes for ``guppylang``:
 
-* ``auto``  -> same as ``alpha`` (the current, unstable-phase default).
+* ``auto``  -> ask ``git-cliff`` what the conventional commits imply and express
+  that in the current pre-release scheme: a breaking/feature/fix bump of the
+  release core maps to ``alpha-major``/``alpha-minor``/``alpha-patch``, while an
+  unchanged core (the usual pre-release case) just increments the alpha number.
 * ``alpha`` -> ``1.0.0-a1`` becomes ``1.0.0-a2``
 * ``alpha-patch`` -> ``1.2.3`` becomes ``1.2.4-a0``
 * ``alpha-minor`` -> ``1.2.3`` becomes ``1.3.0-a0``
@@ -32,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from enum import Enum
@@ -63,6 +61,11 @@ GUPPYLANG_INIT = "guppylang/src/guppylang/__init__.py"
 INTERNALS_PYPROJECT = "guppylang-internals/pyproject.toml"
 INTERNALS_INIT = "guppylang-internals/src/guppylang_internals/__init__.py"
 
+# Scoping used to ask git-cliff about the next guppylang version in ``auto`` mode.
+GUPPYLANG_TAG_PATTERN = "^guppylang-v"
+GUPPYLANG_INCLUDE_PATH = "guppylang/**"
+DEFAULT_CLIFF_CONFIG = "cliff.toml"
+
 _GUPPY_RE = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
     r"(?:-?(?P<pre_label>a|b|rc)(?P<pre_num>\d+))?$"
@@ -72,6 +75,7 @@ _INTERNALS_RE = re.compile(r"^(?P<major>\d+)\.(?P<build>\d+)$")
 _VERSION_LINE_RE = re.compile(r'(?m)^version = "[^"]*"')
 _DUNDER_VERSION_RE = re.compile(r'(?m)^__version__ = "[^"]*"')
 _INTERNALS_DEP_RE = re.compile(r'"guppylang-internals[^"]*"')
+_CORE_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
 @dataclass(frozen=True)
@@ -111,10 +115,21 @@ def parse_guppy_version(text: str) -> GuppyVersion:
 
 def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
     """Compute the next ``guppylang`` version for the given bump mode."""
-    if mode == BumpMode.auto:
-        mode = BumpMode.alpha
-
     match mode:
+        # If we remain with auto even after consulting git-cliff earlier, bump on best
+        # effort basis.
+        case BumpMode.auto:
+            if current.is_prerelease:
+                return GuppyVersion(
+                    current.major,
+                    current.minor,
+                    current.patch,
+                    current.pre_label,
+                    current.pre_num + 1,
+                )
+            else:
+                return GuppyVersion(current.major, current.minor, current.patch + 1)
+
         case BumpMode.alpha:
             if current.pre_label != "a":
                 msg = (
@@ -187,9 +202,60 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
         case BumpMode.major:
             return GuppyVersion(current.major + 1, 0, 0)
 
+        case _:
+            raise ValueError(f"Unknown bump mode: {mode!r}")
+
     bump_modes = BumpMode.__members__.values()
     msg = f"Unknown bump mode: {mode!r} (expected one of {', '.join(bump_modes)})"
     raise ValueError(msg)
+
+
+def _auto_mode_from_core(
+    current: GuppyVersion, bumped_core: tuple[int, int, int] | None
+) -> BumpMode:
+    if bumped_core is not None:
+        major, minor, patch = bumped_core
+        if major > current.major:
+            return BumpMode.major
+        if major == current.major and minor > current.minor:
+            return BumpMode.minor
+        if (major, minor) == (current.major, current.minor) and patch > current.patch:
+            return BumpMode.patch
+    return BumpMode.auto
+
+
+def _git_cliff_bumped_core(root: Path) -> tuple[int, int, int] | None:
+    """Return the ``major.minor.patch`` git-cliff proposes for ``guppylang``.
+
+    Returns ``None`` when git-cliff is unavailable or produces no parseable
+    version (e.g. when there are no releasable commits).
+    """
+    cmd = [
+        "git-cliff",
+        "--config",
+        DEFAULT_CLIFF_CONFIG,
+        "--include-path",
+        GUPPYLANG_INCLUDE_PATH,
+        "--tag-pattern",
+        GUPPYLANG_TAG_PATTERN,
+        "--bumped-version",
+    ]
+    try:
+        result = subprocess.run(  # noqa: S603
+            cmd, cwd=str(root), capture_output=True, text=True, check=True
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = _CORE_RE.search(result.stdout)
+    if match is None:
+        return None
+    return (int(match[1]), int(match[2]), int(match[3]))
+
+
+def try_resolve_auto_mode(current: GuppyVersion, root: Path) -> BumpMode:
+    """Resolve the ``auto`` bump mode by consulting git-cliff, if possible."""
+    bumped_core = _git_cliff_bumped_core(root)
+    return _auto_mode_from_core(current, bumped_core)
 
 
 def bump_internals(current_text: str, new_guppy_major: int) -> str:
@@ -202,7 +268,7 @@ def bump_internals(current_text: str, new_guppy_major: int) -> str:
     """
     match = _INTERNALS_RE.match(current_text.strip())
     if match is None:
-        # Migration from the legacy scheme: seed the first build.
+        # Seed the first build of the new series as 0
         return f"{new_guppy_major}.0"
     current_major = int(match.group("major"))
     current_build = int(match.group("build"))
@@ -272,11 +338,15 @@ def read_current_internals(root: Path) -> str:
 def cmd_compute(args: argparse.Namespace) -> int:
     root = Path(args.repo_root)
     current = read_current_guppylang(root)
-    new_guppy = bump_guppylang(current, args.bump)
+    mode = BumpMode(args.bump)
+    if mode is BumpMode.auto:
+        mode = try_resolve_auto_mode(current, root)
+    new_guppy = bump_guppylang(current, mode)
     new_internals = bump_internals(read_current_internals(root), new_guppy.major)
 
     lines = [
         f"current_guppylang={current.render()}",
+        f"bump_mode={mode.value}",
         f"guppylang={new_guppy.render()}",
         f"internals={new_internals}",
     ]
