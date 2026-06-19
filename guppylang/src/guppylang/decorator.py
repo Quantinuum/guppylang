@@ -70,9 +70,9 @@ AnyRawFunctionDef = (
 __all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
 
 # Names of the custom modified definition methods. Used in the @guppy.unitary decorator.
-CALL_DAGGERED_METHOD = "call_daggered"
-CALL_CONTROLLED_METHOD = "call_controlled"
-CALL_CTRL_DAGGERED_METHOD = "call_ctrl_daggered"
+CALL_DAGGERED_METHOD = "daggered"
+CALL_CONTROLLED_METHOD = "controlled"
+CALL_CTRL_DAGGERED_METHOD = "ctrl_daggered"
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -327,6 +327,8 @@ class _Guppy:
                 RawModifiedDefs(call_daggered, call_controlled, call_ctrl_daggered),
             )
             object.__setattr__(raw_func, "name", cls.__name__)
+            # move this, so you can do the checking about having the minimum
+            # number of methods/minimun annotations
             if call_daggered is not None or call_ctrl_daggered is not None:
                 object.__setattr__(
                     raw_func,
