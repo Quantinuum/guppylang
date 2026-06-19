@@ -340,7 +340,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(func_ty, FunctionType)
-                args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+                # ALAN just passing the name of the proto func here
+                # - should pass the protocol defn id too
+                args, subst, inst = check_call(
+                    (node.func.id, func_ty), node.args, ty, node, self.ctx
+                )
                 return with_loc(
                     node,
                     ProtocolCall(
@@ -941,7 +945,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # protocol definition itself first.
             if isinstance(defn, ParsedProtocolDef):
                 assert isinstance(ty, FunctionType)
-                args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
+                # ALAN just passing the name of the proto func here
+                # - should pass the protocol defn id too
+                args, return_ty, inst = synthesize_call(
+                    (node.func.id, ty), node.args, node, self.ctx
+                )
                 return with_loc(
                     node,
                     ProtocolCall(
