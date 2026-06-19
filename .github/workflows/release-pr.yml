@@ -242,7 +242,7 @@ jobs:
               echo "<!-- END RELEASE NOTES PREVIEW -->"
             } > /tmp/pr_body.md
             gh pr create --base ${{ github.ref }} --head "$BRANCH" --title "$title" \
-              --body-file /tmp/pr_body.md \
+              --body-file /tmp/pr_body.md --draft \
               --label "$RELEASE_LABEL" --label "$REGEN_LABEL"
             NUMBER=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
           else

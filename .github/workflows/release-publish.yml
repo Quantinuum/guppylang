@@ -57,7 +57,7 @@ jobs:
             git tag "$tag"
             git push origin "$tag"
 
-            local args=(--title "$name $version" --notes-file /tmp/notes.md --verify-tag)
+            local args=(--title "$name $version" --notes-file /tmp/notes.md --verify-tag --draft)
             # PEP 440 pre-releases carry a '-' separator (e.g. 1.0.0-a6, 1.0.0-rc1).
             case "$version" in
               *-*) args+=(--prerelease) ;;
