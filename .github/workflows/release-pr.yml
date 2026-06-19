@@ -185,13 +185,13 @@ jobs:
 
           git checkout -B "$BRANCH"
 
-          uv run scripts/release/compute_versions.py set-internals "$INTERNALS"
+          uv run --no-project scripts/release/compute_versions.py set-internals "$INTERNALS"
           git commit -aqm "chore: bump guppylang-internals to $INTERNALS"
 
-          uv run scripts/release/compute_versions.py set-guppylang "$GUPPY"
+          uv run --no-project scripts/release/compute_versions.py set-guppylang "$GUPPY"
           git commit -aqm "chore: bump guppylang to $GUPPY"
 
-          uv run scripts/release/compute_versions.py set-pin "$INTERNALS"
+          uv run --no-project scripts/release/compute_versions.py set-pin "$INTERNALS"
           git commit -aqm "chore: pin guppylang-internals==$INTERNALS in guppylang"
 
           uv lock
@@ -201,13 +201,13 @@ jobs:
             git cliff --config cliff.toml --include-path 'guppylang/**' \
               --tag-pattern '^guppylang-v' --unreleased --tag "guppylang-v$GUPPY" \
               > /tmp/guppy_section.md
-            uv run scripts/release/update_changelog.py \
+            uv run --no-project scripts/release/update_changelog.py \
               guppylang/CHANGELOG.md "$GUPPY" /tmp/guppy_section.md
 
             git cliff --config cliff.toml --include-path 'guppylang-internals/**' \
               --tag-pattern '^guppylang-internals-v' --unreleased \
               --tag "guppylang-internals-v$INTERNALS" > /tmp/internals_section.md
-            uv run scripts/release/update_changelog.py \
+            uv run --no-project scripts/release/update_changelog.py \
               guppylang-internals/CHANGELOG.md "$INTERNALS" /tmp/internals_section.md
           else
             [ -f /tmp/guppylang_CHANGELOG.md ] \
