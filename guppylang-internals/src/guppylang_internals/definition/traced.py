@@ -115,7 +115,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self.name)
+        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self.id)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, subst
 
@@ -125,7 +125,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     ) -> tuple[ast.expr, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self.name)
+        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self.id)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, ty
 
