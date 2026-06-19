@@ -74,7 +74,7 @@ class TooManyEffectsError(Error):
     title: ClassVar[str] = "Too many effects"
     span_label: ClassVar[str] = "{target} not allowed inside `{in_func}`"
     callee: str | FunctionType
-    effects: list[Effect]
+    surplus_effects: list[Effect]
     in_func: str
 
     @property
@@ -83,12 +83,14 @@ class TooManyEffectsError(Error):
             return f"Call to `{self.callee}`" + self.note_effects()
         msg = f"Callee of type `{self.callee}`"
         if self.callee.declared_effects is None:
-            # FunctionType that will not display any effects, so list separately
+            # FunctionType that will not display any effects, so list separately.
+            # (We could do this for all FunctionTypes, as this should only be those
+            # not allowed in the context, which may still be helpful?)
             msg += self.note_effects()
         return msg
 
     def note_effects(self) -> str:
-        return f" has effects `{Effect.format_list(self.effects)}`"
+        return f" has effects `{Effect.format_list(self.surplus_effects)}`"
 
     @dataclass(frozen=True)
     class MaxFromDecl(Note):

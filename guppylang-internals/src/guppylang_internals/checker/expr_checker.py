@@ -1425,13 +1425,15 @@ def _check_effects(
             if isinstance(callee_id, tuple)
             else callee_id
         )
-        show_effects_allowed = mf.effects
-        if isinstance(mf.decl, ast.expr):
+        show_effects_allowed = (
             # We found the decorator that is the source of the effect constraint,
             # which will contain the allowed effects as an explicit argument
-            show_effects_allowed = None
-        # Otherwise, the error message points at all decorators, which may or may not
-        # list the allowed effects, so list them explicitly
+            None
+            if isinstance(mf.decl, ast.expr)
+            # Otherwise, the error message points at all decorators, which
+            # may or may not list the allowed effects, so list them explicitly
+            else mf.effects
+        )
 
         raise GuppyTypeError(
             TooManyEffectsError(
