@@ -1,9 +1,5 @@
 # Guards against an accidental major version bump of `guppylang` in a release PR.
-#
-# While the language is in its alpha phase we never want to silently jump major
-# versions (which would also reset the guppylang-internals build counter). This
-# fails the release PR if the guppylang major version increases relative to
-# `main`, unless the `X-allow-major-bump` label is explicitly applied.
+# Add the `X-allow-major-bump` label to the release PR opt-out of this guard.
 
 name: Release major-bump guard 🛑
 
