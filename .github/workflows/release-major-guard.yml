@@ -21,16 +21,19 @@ on:
 permissions:
   contents: read
 
+env:
+  ALLOW_MAJOR_BUMP_LABEL: "X-allow-major-bump"
+
 jobs:
   guard:
     name: Disallow unapproved major bump
     runs-on: ubuntu-latest
-    # Only relevant for the automated release PR.
-    if: startsWith(github.head_ref, 'release-pr')
+    if: github.head_ref == 'release-pr'
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
       - name: Compare guppylang major versions
         env:
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
@@ -46,10 +49,10 @@ jobs:
 
           echo "guppylang major version: base=$base_major head=$head_major"
           if [ "$head_major" -gt "$base_major" ]; then
-            if echo "$LABELS" | jq -e 'index("X-allow-major-bump")' >/dev/null; then
-              echo "Major bump permitted by the 'X-allow-major-bump' label."
+            if echo "$LABELS" | jq -e "index($ALLOW_MAJOR_BUMP_LABEL)" >/dev/null; then
+              echo "Major bump permitted by the '$ALLOW_MAJOR_BUMP_LABEL' label."
             else
-              echo "::error::guppylang major version would bump $base_major → $head_major. Add the 'X-allow-major-bump' label to allow this release."
+              echo "::error::guppylang major version would bump $base_major → $head_major. Add the '$ALLOW_MAJOR_BUMP_LABEL' label to allow this release."
               exit 1
             fi
           else
