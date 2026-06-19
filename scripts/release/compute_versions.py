@@ -345,8 +345,8 @@ def cmd_compute(args: argparse.Namespace) -> int:
     new_internals = bump_internals(read_current_internals(root), new_guppy.major)
 
     lines = [
-        f"current_guppylang={current.render()}",
         f"bump_mode={mode.value}",
+        f"current_guppylang={current.render()}",
         f"guppylang={new_guppy.render()}",
         f"internals={new_internals}",
     ]
