@@ -245,6 +245,7 @@ jobs:
               --label "$RELEASE_LABEL" --label "$REGEN_LABEL"
             NUMBER=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
           else
+            # Only update title, body is edited through changelog preview sync workflow.
             gh pr edit "$NUMBER" --title "$title"
           fi
           echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
