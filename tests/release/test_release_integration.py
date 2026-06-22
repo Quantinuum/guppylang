@@ -96,9 +96,29 @@ def test_compute_auto_falls_back_without_git_cliff(
     assert values["guppylang"] == "1.0.0-a6"
 
 
-def test_compute_auto_resolves_via_git_cliff(
+def test_compute_auto_does_not_resolve_via_git_cliff_if_prerelease(
     fake_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Start from a pre-release version.
+    assert cv.main(["--repo-root", str(fake_repo), "set-guppylang", "1.0.0-a7"]) == 0
+
+    monkeypatch.setattr(cv, "_git_cliff_bumped_core", lambda root: (1, 1, 0))
+    out = tmp_path / "gh_output"
+    rc = cv.main(
+        ["--repo-root", str(fake_repo), "compute", "--github-output", str(out)]
+    )
+    assert rc == 0
+    values = _outputs(out)
+    assert values["bump_mode"] == "auto"  # Left as auto because we are in a prerelease
+    assert values["guppylang"] == "1.0.0-a8"  # Alpha bumped in auto mode
+
+
+def test_compute_auto_resolves_via_git_cliff_if_not_prerelease(
+    fake_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Start from a stable version.
+    assert cv.main(["--repo-root", str(fake_repo), "set-guppylang", "1.0.0"]) == 0
+
     # git-cliff proposing a minor core bump flows through to a minor release.
     monkeypatch.setattr(cv, "_git_cliff_bumped_core", lambda root: (1, 1, 0))
     out = tmp_path / "gh_output"

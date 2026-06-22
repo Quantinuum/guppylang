@@ -131,7 +131,7 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
                 return GuppyVersion(current.major, current.minor, current.patch + 1)
 
         case BumpMode.alpha:
-            if current.pre_label != "a":
+            if current.pre_label != PreLabel.alpha:
                 msg = (
                     f"Cannot 'alpha'-bump {current.render()!r}: expected alpha series."
                     "Use 'alpha-{patch,minor,major}' to start a new series."
@@ -202,7 +202,7 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
         case BumpMode.major:
             return GuppyVersion(current.major + 1, 0, 0)
 
-    bump_modes = BumpMode.__members__.values()
+    bump_modes = [m.value for m in BumpMode]
     msg = f"Unknown mode: {mode!r} (must be one of {', '.join(bump_modes)})"
     raise ValueError(msg)
 
@@ -210,7 +210,7 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
 def _auto_mode_from_core(
     current: GuppyVersion, bumped_core: tuple[int, int, int] | None
 ) -> BumpMode:
-    if bumped_core is not None:
+    if bumped_core is not None and not current.is_prerelease:
         major, minor, patch = bumped_core
         if major > current.major:
             return BumpMode.major
