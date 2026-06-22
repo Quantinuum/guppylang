@@ -76,7 +76,7 @@ def compile_modified_block(
     if modified_block.has_dagger():
         dagger_ty = ht.FunctionType([hugr_ty], [hugr_ty])
         call = dfg.builder.add_op(
-            Pure(
+            Pure(  # This is generation of the daggered version, not calling it (below)
                 ops.ExtOp(
                     dagger_op_def,
                     dagger_ty,
@@ -90,6 +90,7 @@ def compile_modified_block(
         for power in modified_block.power:
             num = expr_compiler.compile(power.iter, dfg)
             call = dfg.builder.add_op(
+                # This is generation of the powered version, not calling it (below)
                 Pure(
                     ops.ExtOp(
                         power_op_def,
@@ -117,6 +118,7 @@ def compile_modified_block(
             output_fn_ty = ht.FunctionType(
                 [std_array, *hugr_ty.input], [std_array, *hugr_ty.output]
             )
+            # Compilation of the controlled version is pure, not calling it (below)
             op = Pure(
                 ops.ExtOp(
                     control_op_def,
