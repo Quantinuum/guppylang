@@ -335,15 +335,17 @@ def read_current_internals(root: Path) -> str:
 def cmd_compute(args: argparse.Namespace) -> int:
     root = Path(args.repo_root)
     current = read_current_guppylang(root)
+    internals = read_current_internals(root)
     mode = BumpMode(args.bump)
     if mode is BumpMode.auto:
         mode = try_resolve_auto_mode(current, root)
     new_guppy = bump_guppylang(current, mode)
-    new_internals = bump_internals(read_current_internals(root), new_guppy.major)
+    new_internals = bump_internals(internals, new_guppy.major)
 
     lines = [
         f"bump_mode={mode.value}",
         f"current_guppylang={current.render()}",
+        f"current_internals={internals}",
         f"guppylang={new_guppy.render()}",
         f"internals={new_internals}",
     ]

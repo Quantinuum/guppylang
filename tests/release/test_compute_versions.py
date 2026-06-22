@@ -149,29 +149,9 @@ def test_bump_internals(current_internals: str, new_major: int, expected: str) -
     assert cv.bump_internals(current_internals, new_major) == expected
 
 
-def test_set_version_in_pyproject() -> None:
-    text = 'name = "guppylang"\nversion = "1.0.0-a5"\nrequires-python = ">=3.10"\n'
-    out = cv.set_version_in_pyproject(text, "1.0.0-a6")
-    assert 'version = "1.0.0-a6"' in out
-    assert "1.0.0-a5" not in out
-
-
-def test_set_dunder_version() -> None:
-    text = '# comment\n__version__ = "1.0.0-a5"\n'
-    out = cv.set_dunder_version(text, "1.0.0-a6")
-    assert out == '# comment\n__version__ = "1.0.0-a6"\n'
-
-
-def test_set_internals_pin() -> None:
-    text = (
-        'dependencies = [\n    "guppylang-internals==1.0.0-a5",\n    "numpy>=2.0",\n]\n'
-    )
-    out = cv.set_internals_pin(text, "1.0")
-    assert '"guppylang-internals==1.0"' in out
-    assert "1.0.0-a5" not in out
-    assert '"numpy>=2.0"' in out
-
-
 def test_replace_once_requires_single_match() -> None:
+    # The file-rewriting helpers refuse to touch a file with no version line,
+    # rather than silently producing a no-op. (The happy paths are covered
+    # end-to-end in test_release_integration.py.)
     with pytest.raises(ValueError, match="Expected exactly one"):
         cv.set_dunder_version("no version here", "1.0.0")
