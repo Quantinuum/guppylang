@@ -150,7 +150,7 @@ and `release-publish.yml`), driven by [conventional commits](https://www.convent
 
 The two distributions are versioned differently:
 
-- `guppylang` follows semantic versioning with an optional pre-release suffix (`-a<N>` alpha, `-b<N>` beta, `-rc<N>`; e.g. `1.2.3b5`).
+- `guppylang` follows semantic versioning with an optional pre-release suffix (`-a<N>` alpha, `-b<N>` beta, `-rc<N>`; e.g. `1.2.3-b5`).
 - `guppylang-internals` uses the scheme `<guppylang-major>.<build>` (e.g. `1.6`).
   The build number increases on every release and resets to `0` whenever the
   `guppylang` major version changes.

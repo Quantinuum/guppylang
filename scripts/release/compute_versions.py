@@ -202,11 +202,8 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
         case BumpMode.major:
             return GuppyVersion(current.major + 1, 0, 0)
 
-        case _:
-            raise ValueError(f"Unknown bump mode: {mode!r}")
-
     bump_modes = BumpMode.__members__.values()
-    msg = f"Unknown bump mode: {mode!r} (expected one of {', '.join(bump_modes)})"
+    msg = f"Unknown mode: {mode!r} (must be one of {', '.join(bump_modes)})"
     raise ValueError(msg)
 
 

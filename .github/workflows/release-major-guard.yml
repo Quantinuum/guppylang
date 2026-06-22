@@ -46,7 +46,7 @@ jobs:
 
           echo "guppylang major version: base=$base_major head=$head_major"
           if [ "$head_major" -gt "$base_major" ]; then
-            if echo "$LABELS" | jq -e "index($ALLOW_MAJOR_BUMP_LABEL)" >/dev/null; then
+            if echo "$LABELS" | jq -e --arg l "$ALLOW_MAJOR_BUMP_LABEL" 'index($l)' >/dev/null; then
               echo "Major bump permitted by the '$ALLOW_MAJOR_BUMP_LABEL' label."
             else
               echo "::error::guppylang major version would bump $base_major → $head_major. Add the '$ALLOW_MAJOR_BUMP_LABEL' label to allow this release."

@@ -21,7 +21,8 @@ from pathlib import Path
 
 def _section_bounds(lines: list[str], version: str) -> tuple[int, int] | None:
     """Return the ``[start, end)`` line range of ``version``'s section, if any."""
-    target_re = re.compile(r"^## \[?" + re.escape(version) + r"\b")
+    boundary = r"(?![\w.-])"
+    target_re = re.compile(r"^## \[?" + re.escape(version) + boundary)
     start: int | None = None
     for index, line in enumerate(lines):
         if target_re.match(line):
@@ -39,7 +40,7 @@ def _section_bounds(lines: list[str], version: str) -> tuple[int, int] | None:
 
 def _first_version_header(lines: list[str]) -> int | None:
     for index, line in enumerate(lines):
-        if line.startswith("## "):
+        if line.startswith("## ["):
             return index
     return None
 

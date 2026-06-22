@@ -222,7 +222,7 @@ jobs:
             git commit -aqm "chore: update changelogs (by user)" || echo "changelogs unchanged"
           fi
 
-          git push --force origin "$BRANCH"
+          git push --force-with-lease origin "$BRANCH"
 
       - name: Create or update the release PR
         id: openpr
