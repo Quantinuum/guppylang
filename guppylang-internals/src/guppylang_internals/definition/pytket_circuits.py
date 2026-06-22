@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import hugr.build.function as hf
 from guppylang.defs import GuppyDefinition
-from hugr import Node, Wire, envelope, ops, val
+from hugr import Node, Wire, envelope, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DILocation, DISubprogram
@@ -21,6 +21,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.compiler.builder.ops import unpack_tuple
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -270,14 +271,15 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             angle_wires = [name_to_param[name] for name in param_order]
             # Need to convert all angles to rotations.
             for angle in angle_wires:
-                [halfturns] = outer_func.add_op(ops.UnpackTuple([FLOAT_T]), angle)
+                [halfturns] = outer_func.add_op(unpack_tuple([FLOAT_T]), angle)
                 rotation = outer_func.add_op(from_halfturns_unchecked(), halfturns)
                 param_wires.append(rotation)
 
-        # Pass all arguments to call node. Note that since we are using a
-        # FunctionBuilder, this will default to assuming that the target function
-        # is side-effecting, so may produce more order edges than necessary.
-        call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
+        # Pass all arguments to call node. We assume that the target function has no
+        # side-effects, since it came from a circuit.
+        call_node = outer_func.call(
+            hugr_func, *(input_list + bool_wires + param_wires), effects=[]
+        )
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
             # Function stub case.

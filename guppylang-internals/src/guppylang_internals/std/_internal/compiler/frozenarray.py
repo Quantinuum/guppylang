@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Final
 
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
 from hugr.std.collections.static_array import EXTENSION, StaticArray
 
-from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.compiler.builder import FunctionBuilder, OpWithEffects, Pure
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import CustomCallCompiler
@@ -25,13 +25,15 @@ if TYPE_CHECKING:
     from hugr.build import function as hf
 
 
-def static_array_get(elem_ty: ht.Type) -> ops.ExtOp:
+def static_array_get(elem_ty: ht.Type) -> OpWithEffects:
     """Returns the static array `get` operation."""
     assert elem_ty.type_bound() == ht.TypeBound.Copyable
     arr_ty = StaticArray(elem_ty)
-    return EXTENSION.get_op("get").instantiate(
-        [ht.TypeTypeArg(elem_ty)],
-        ht.FunctionType([arr_ty, ht.USize()], [ht.Option(elem_ty)]),
+    return Pure(
+        EXTENSION.get_op("get").instantiate(
+            [ht.TypeTypeArg(elem_ty)],
+            ht.FunctionType([arr_ty, ht.USize()], [ht.Option(elem_ty)]),
+        )
     )
 
 
@@ -65,6 +67,10 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
         type_args = [ht.TypeTypeArg(elem_ty)]
         with self.builder.set_ast_context(self.node):
             out = self.builder.call(
-                self.getitem_func(), *args, instantiation=inst, type_args=type_args
+                self.getitem_func(),
+                *args,
+                instantiation=inst,
+                type_args=type_args,
+                effects=[],
             )
         return unpack_wire(out, ty_arg.ty, self.builder, self.ctx)

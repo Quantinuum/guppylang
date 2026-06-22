@@ -1,0 +1,15 @@
+Error: Too many effects (at $FILE:15:4)
+   | 
+13 | @guppy(effects=[])
+14 | def dis(x: Foo @ owned) -> None:
+15 |     x.discard()
+   |     ^^^^^^^^^ Call to `discard` has effects `[ANY]` not allowed inside
+   |               `dis`
+
+Note:
+   | 
+12 | 
+13 | @guppy(effects=[])
+   |  ----------------- Allowed effects declared here
+
+Guppy compilation failed due to 1 previous error

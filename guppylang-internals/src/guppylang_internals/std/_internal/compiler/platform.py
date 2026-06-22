@@ -18,6 +18,7 @@ from guppylang_internals.std._internal.compiler.array import (
     array_to_std_array,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import RESULT_EXTENSION
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg
 from guppylang_internals.tys.builtin import get_element_type
 from guppylang_internals.tys.const import BoundConstVar, ConstValue
@@ -57,7 +58,7 @@ class OutputCompiler(CustomCallCompiler):
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         op = RESULT_EXTENSION.get_op(self.op_name)
         sig = tys.FunctionType(input=[hugr_ty], output=[])
-        self.builder.add_op(op.instantiate(args, sig), value)
+        self.builder.add_op((op.instantiate(args, sig), [Effect.ANY]), value)
         return []
 
 
@@ -96,7 +97,7 @@ class ArrayOutputCompiler(CustomInoutCallCompiler):
         if self.with_int_width:
             args.append(tys.BoundedNatArg(NumericType.INT_WIDTH))
         op = ops.ExtOp(RESULT_EXTENSION.get_op(self.op_name), signature=sig, args=args)
-        self.builder.add_op(op, arr)
+        self.builder.add_op((op, [Effect.ANY]), arr)
         return CallReturnWires([], [out_arr])
 
 

@@ -8,6 +8,7 @@ from hugr import model, ops, val
 from hugr import tys as ht
 from hugr.std.int import int_t
 
+from guppylang_internals.compiler.builder import OpWithEffects, Pure
 from guppylang_internals.std._internal.compiler.prelude import error_type
 from guppylang_internals.tys.ty import NumericType
 
@@ -47,41 +48,43 @@ def _instantiate_int_op(
     int_width: int | Sequence[int],
     inp: list[ht.Type],
     out: list[ht.Type],
-) -> ops.ExtOp:
+) -> OpWithEffects:
     op_def = hugr.std.int.INT_OPS_EXTENSION.get_op(name)
     int_width = [int_width] if isinstance(int_width, int) else int_width
-    return ops.ExtOp(
-        op_def,
-        ht.FunctionType(inp, out),
-        [ht.BoundedNatArg(w) for w in int_width],
+    return Pure(
+        ops.ExtOp(
+            op_def,
+            ht.FunctionType(inp, out),
+            [ht.BoundedNatArg(w) for w in int_width],
+        )
     )
 
 
-def ieq(width: int) -> ops.ExtOp:
+def ieq(width: int) -> OpWithEffects:
     """Returns a `std.arithmetic.int.ieq` operation."""
     return _instantiate_int_op("ieq", width, [int_t(width), int_t(width)], [ht.Bool])
 
 
-def ine(width: int) -> ops.ExtOp:
+def ine(width: int) -> OpWithEffects:
     """Returns a `std.arithmetic.int.ine` operation."""
     return _instantiate_int_op("ine", width, [int_t(width), int_t(width)], [ht.Bool])
 
 
-def iwiden_u(from_width: int, to_width: int) -> ops.ExtOp:
+def iwiden_u(from_width: int, to_width: int) -> OpWithEffects:
     """Returns an unsigned `std.arithmetic.int.widen_u` operation."""
     return _instantiate_int_op(
         "iwiden_u", [from_width, to_width], [int_t(from_width)], [int_t(to_width)]
     )
 
 
-def iwiden_s(from_width: int, to_width: int) -> ops.ExtOp:
+def iwiden_s(from_width: int, to_width: int) -> OpWithEffects:
     """Returns a signed `std.arithmetic.int.widen_s` operation."""
     return _instantiate_int_op(
         "iwiden_s", [from_width, to_width], [int_t(from_width)], [int_t(to_width)]
     )
 
 
-def inarrow_u(from_width: int, to_width: int) -> ops.ExtOp:
+def inarrow_u(from_width: int, to_width: int) -> OpWithEffects:
     """Returns an unsigned `std.arithmetic.int.narrow_u` operation."""
     return _instantiate_int_op(
         "inarrow_u",
@@ -91,7 +94,7 @@ def inarrow_u(from_width: int, to_width: int) -> ops.ExtOp:
     )
 
 
-def inarrow_s(from_width: int, to_width: int) -> ops.ExtOp:
+def inarrow_s(from_width: int, to_width: int) -> OpWithEffects:
     """Returns a signed `std.arithmetic.int.narrow_s` operation."""
     return _instantiate_int_op(
         "inarrow_s",
@@ -111,26 +114,26 @@ def _instantiate_convert_op(
     inp: list[ht.Type],
     out: list[ht.Type],
     args: list[ht.TypeArg] | None = None,
-) -> ops.ExtOp:
+) -> OpWithEffects:
     op_def = hugr.std.int.CONVERSIONS_EXTENSION.get_op(name)
-    return ops.ExtOp(op_def, ht.FunctionType(inp, out), args or [])
+    return Pure(ops.ExtOp(op_def, ht.FunctionType(inp, out), args or []))
 
 
-def convert_ifromusize() -> ops.ExtOp:
+def convert_ifromusize() -> OpWithEffects:
     """Returns a `std.arithmetic.conversions.ifromusize` operation."""
     return _instantiate_convert_op("ifromusize", [ht.USize()], [INT_T])
 
 
-def convert_itousize() -> ops.ExtOp:
+def convert_itousize() -> OpWithEffects:
     """Returns a `std.arithmetic.conversions.itousize` operation."""
     return _instantiate_convert_op("itousize", [INT_T], [ht.USize()])
 
 
-def convert_ifrombool() -> ops.ExtOp:
+def convert_ifrombool() -> OpWithEffects:
     """Returns a `std.arithmetic.conversions.ifrombool` operation."""
     return _instantiate_convert_op("ifrombool", [ht.Bool], [int_t(0)])
 
 
-def convert_itobool() -> ops.ExtOp:
+def convert_itobool() -> OpWithEffects:
     """Returns a `std.arithmetic.conversions.itobool` operation."""
     return _instantiate_convert_op("itobool", [int_t(0)], [ht.Bool])

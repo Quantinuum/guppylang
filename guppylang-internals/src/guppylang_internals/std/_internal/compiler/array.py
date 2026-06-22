@@ -9,14 +9,18 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
+from guppylang_internals.compiler.builder import OpWithEffects, Pure
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
 from guppylang_internals.std._internal.compiler.prelude import build_unwrap_right
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
     from guppylang_internals.ast_util import AstNode
     from guppylang_internals.compiler.builder import DFBuilder
 
@@ -32,9 +36,16 @@ def _instantiate_array_op(
     length: ht.TypeArg,
     inp: list[ht.Type],
     out: list[ht.Type],
-) -> ops.ExtOp:
-    return EXTENSION.get_op(name).instantiate(
-        [length, ht.TypeTypeArg(elem_ty)], ht.FunctionType(inp, out)
+    # Almost all (borrow-)array operations can panic if relevant element(s) are
+    # borrowed. Allow overriding for the minority that do not.
+    # Usual warning about mutable default arguments applies, but Sequence is read-only.
+    effects: Sequence[Effect] = [Effect.ANY],
+) -> OpWithEffects:
+    return (
+        EXTENSION.get_op(name).instantiate(
+            [length, ht.TypeTypeArg(elem_ty)], ht.FunctionType(inp, out)
+        ),
+        effects,
     )
 
 
@@ -57,16 +68,16 @@ def standard_array_type(elem_ty: ht.Type, length: ht.TypeArg) -> ht.ExtType:
     return defn.instantiate([length, elem_arg])
 
 
-def array_new(elem_ty: ht.Type, length: int) -> ops.ExtOp:
+def array_new(elem_ty: ht.Type, length: int) -> OpWithEffects:
     """Returns an operation that creates a new fixed length array."""
     length_arg = ht.BoundedNatArg(length)
     arr_ty = array_type(elem_ty, length_arg)
     return _instantiate_array_op(
-        "new_array", elem_ty, length_arg, [elem_ty] * length, [arr_ty]
-    )
+        "new_array", elem_ty, length_arg, [elem_ty] * length, [arr_ty], effects=[]
+    )  # never panics
 
 
-def array_unpack(elem_ty: ht.Type, length: int) -> ops.ExtOp:
+def array_unpack(elem_ty: ht.Type, length: int) -> OpWithEffects:
     """Returns an operation that unpacks a fixed length array."""
     length_arg = ht.BoundedNatArg(length)
     arr_ty = array_type(elem_ty, length_arg)
@@ -75,7 +86,7 @@ def array_unpack(elem_ty: ht.Type, length: int) -> ops.ExtOp:
     )
 
 
-def array_get(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def array_get(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `get` operation."""
     assert elem_ty.type_bound() == ht.TypeBound.Copyable
     arr_ty = array_type(elem_ty, length)
@@ -84,7 +95,7 @@ def array_get(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
     )
 
 
-def array_set(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def array_set(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `set` operation."""
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
@@ -96,7 +107,7 @@ def array_set(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
     )
 
 
-def array_pop(elem_ty: ht.Type, length: int, from_left: bool) -> ops.ExtOp:
+def array_pop(elem_ty: ht.Type, length: int, from_left: bool) -> OpWithEffects:
     """Returns an operation that pops an element from the left of an array."""
     assert length > 0
     length_arg = ht.BoundedNatArg(length)
@@ -108,11 +119,13 @@ def array_pop(elem_ty: ht.Type, length: int, from_left: bool) -> ops.ExtOp:
     )
 
 
-def array_discard_empty(elem_ty: ht.Type) -> ops.ExtOp:
+def array_discard_empty(elem_ty: ht.Type) -> OpWithEffects:
     """Returns an operation that discards an array of length zero."""
     arr_ty = array_type(elem_ty, ht.BoundedNatArg(0))
-    return EXTENSION.get_op("discard_empty").instantiate(
-        [ht.TypeTypeArg(elem_ty)], ht.FunctionType([arr_ty], [])
+    return Pure(
+        EXTENSION.get_op("discard_empty").instantiate(
+            [ht.TypeTypeArg(elem_ty)], ht.FunctionType([arr_ty], [])
+        )
     )
 
 
@@ -121,7 +134,7 @@ def array_scan(
     length: ht.TypeArg,
     new_elem_ty: ht.Type,
     accumulators: list[ht.Type],
-) -> ops.ExtOp:
+) -> OpWithEffects:
     """Returns an operation that maps and folds a function across an array."""
     ty_args = [
         length,
@@ -135,49 +148,65 @@ def array_scan(
         *accumulators,
     ]
     outs = [array_type(new_elem_ty, length), *accumulators]
-    return EXTENSION.get_op("scan").instantiate(ty_args, ht.FunctionType(ins, outs))
+    return (
+        EXTENSION.get_op("scan").instantiate(ty_args, ht.FunctionType(ins, outs)),
+        [Effect.ANY],  # can panic if any element is borrowed
+    )
 
 
-def array_map(elem_ty: ht.Type, length: ht.TypeArg, new_elem_ty: ht.Type) -> ops.ExtOp:
+def array_map(
+    elem_ty: ht.Type, length: ht.TypeArg, new_elem_ty: ht.Type
+) -> OpWithEffects:
     """Returns an operation that maps a function across an array."""
     return array_scan(elem_ty, length, new_elem_ty, accumulators=[])
 
 
-def array_repeat(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
-    """Returns an array `repeat` operation."""
-    return EXTENSION.get_op("repeat").instantiate(
-        [length, ht.TypeTypeArg(elem_ty)],
-        ht.FunctionType(
-            [ht.FunctionType([], [elem_ty])], [array_type(elem_ty, length)]
-        ),
+def array_repeat(
+    elem_ty: ht.Type, length: ht.TypeArg, effects: Iterable[Effect]
+) -> OpWithEffects:
+    """Returns an array `repeat` operation for a function, of no arguments
+    to one element, with the specified effects."""
+    func_ty = ht.FunctionType([], [elem_ty])
+    return _instantiate_array_op(
+        "repeat",
+        elem_ty,
+        length,
+        [func_ty],
+        [array_type(elem_ty, length)],
+        effects=list(
+            set(effects)
+        ),  # As the function, as it'll invoke the function many times
     )
 
 
-def array_to_std_array(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def array_to_std_array(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array operation to convert a value of the `borrow_array` type
     used by Guppy into a standard `array`.
     """
-    return EXTENSION.get_op("to_array").instantiate(
-        [length, ht.TypeTypeArg(elem_ty)],
-        ht.FunctionType(
-            [array_type(elem_ty, length)], [standard_array_type(elem_ty, length)]
-        ),
+    return _instantiate_array_op(
+        "to_array",
+        elem_ty,
+        length,
+        [array_type(elem_ty, length)],
+        [standard_array_type(elem_ty, length)],
     )
 
 
-def std_array_to_array(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def std_array_to_array(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array operation to convert the standard `array` type into the
     `borrow_array` type used by Guppy.
     """
-    return EXTENSION.get_op("from_array").instantiate(
-        [length, ht.TypeTypeArg(elem_ty)],
-        ht.FunctionType(
-            [standard_array_type(elem_ty, length)], [array_type(elem_ty, length)]
-        ),
+    return _instantiate_array_op(
+        "from_array",
+        elem_ty,
+        length,
+        [standard_array_type(elem_ty, length)],
+        [array_type(elem_ty, length)],
+        effects=[],  # Cannot panic: a standard array always has every element
     )
 
 
-def barray_borrow(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def barray_borrow(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `borrow` operation."""
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
@@ -185,7 +214,7 @@ def barray_borrow(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
     )
 
 
-def barray_return(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def barray_return(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `return` operation."""
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
@@ -193,27 +222,34 @@ def barray_return(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
     )
 
 
-def barray_discard_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def barray_discard_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `discard_all_borrowed` operation."""
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op("discard_all_borrowed", elem_ty, length, [arr_ty], [])
 
 
-def barray_new_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def barray_new_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `new_all_borrowed` operation."""
     arr_ty = array_type(elem_ty, length)
-    return _instantiate_array_op("new_all_borrowed", elem_ty, length, [], [arr_ty])
-
-
-def barray_is_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
-    """Returns an array `is_borrowed` operation."""
-    arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
-        "is_borrowed", elem_ty, length, [arr_ty, ht.USize()], [arr_ty, ht.Bool]
+        "new_all_borrowed", elem_ty, length, [], [arr_ty], effects=[]
     )
 
 
-def array_clone(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def barray_is_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
+    """Returns an array `is_borrowed` operation."""
+    arr_ty = array_type(elem_ty, length)
+    return _instantiate_array_op(
+        "is_borrowed",
+        elem_ty,
+        length,
+        [arr_ty, ht.USize()],
+        [arr_ty, ht.Bool],
+        effects=[],
+    )
+
+
+def array_clone(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `clone` operation for arrays none of whose elements are
     borrowed."""
     assert elem_ty.type_bound() == ht.TypeBound.Copyable
@@ -221,7 +257,7 @@ def array_clone(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
     return _instantiate_array_op("clone", elem_ty, length, [arr_ty], [arr_ty, arr_ty])
 
 
-def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
+def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `swap` operation.
 
     Swaps two elements at given indices in-place.
@@ -235,6 +271,7 @@ def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> ops.ExtOp:
         length,
         [arr_ty, ht.USize(), ht.USize()],
         [ht.Either([arr_ty], [arr_ty])],
+        effects=[],  # ALAN TODO CHECK: Do we swap borrowedness?
     )
 
 

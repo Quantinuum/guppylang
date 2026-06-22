@@ -200,7 +200,7 @@ class CompiledTracedFunctionDef(
         """Compiles a call to the function."""
         num_returns = len(type_to_row(self.ty.output))
         with dfg.builder.set_ast_context(node):
-            call = dfg.builder.call(self.func_def, *args)
+            call = dfg.builder.call(self.func_def, *args, effects=self.ty.effects)
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
             inout_returns=list(call[num_returns:]),

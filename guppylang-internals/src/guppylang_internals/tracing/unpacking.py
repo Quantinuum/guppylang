@@ -1,13 +1,13 @@
 from typing import Any, TypeVar
 
-from hugr import ops
+from hugr.ops import DfParentOp
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.comptime_errors import (
     IllegalComptimeExpressionError,
 )
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
-from guppylang_internals.compiler.builder import DFBuilder
+from guppylang_internals.compiler.builder import DFBuilder, ops
 from guppylang_internals.compiler.core import CompilerContext
 from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.error import GuppyComptimeError, GuppyError
@@ -29,7 +29,7 @@ from guppylang_internals.tys.builtin import (
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.ty import EnumType, NoneType, StructType, TupleType
 
-P = TypeVar("P", bound=ops.DfParentOp)
+P = TypeVar("P", bound=DfParentOp)
 
 
 def unpack_guppy_object(
@@ -49,13 +49,13 @@ def unpack_guppy_object(
         case NoneType():
             return None
         case TupleType(element_types=tys):
-            unpack = builder.add_op(ops.UnpackTuple(), obj._use_wire(None))
+            unpack = builder.add_op(ops.unpack_tuple(), obj._use_wire(None))
             return tuple(
                 unpack_guppy_object(GuppyObject(ty, wire), builder, frozen)
                 for ty, wire in zip(tys, unpack.outputs(), strict=True)
             )
         case StructType() as ty:
-            unpack = builder.add_op(ops.UnpackTuple(), obj._use_wire(None))
+            unpack = builder.add_op(ops.unpack_tuple(), obj._use_wire(None))
             field_values = [
                 unpack_guppy_object(GuppyObject(field.ty, wire), builder, frozen)
                 for field, wire in zip(ty.fields, unpack.outputs(), strict=True)
@@ -98,12 +98,14 @@ def guppy_object_from_py(
         case TracingDefMixin() as defn:
             return defn.to_guppy_object()
         case None:
-            return GuppyObject(NoneType(), builder.add_op(ops.MakeTuple()))
+            return GuppyObject(NoneType(), builder.add_op(ops.make_tuple()))
         case tuple(vs):
             objs = [guppy_object_from_py(v, builder, node, ctx) for v in vs]
             return GuppyObject(
                 TupleType([obj._ty for obj in objs]),
-                builder.add_op(ops.MakeTuple(), *(obj._use_wire(None) for obj in objs)),
+                builder.add_op(
+                    ops.make_tuple(), *(obj._use_wire(None) for obj in objs)
+                ),
             )
         case GuppyStructObject(_ty=struct_ty, _field_values=values):
             wires = []
@@ -117,7 +119,7 @@ def guppy_object_from_py(
                         f"unexpected type. Expected `{f.ty}`, got `{obj._ty}`."
                     )
                 wires.append(obj._use_wire(None))
-            return GuppyObject(struct_ty, builder.add_op(ops.MakeTuple(), *wires))
+            return GuppyObject(struct_ty, builder.add_op(ops.make_tuple(), *wires))
         case GuppyEnumObject(_ty=enum_ty, _wire=wire):
             return GuppyObject(enum_ty, wire)
         case list(vs) if len(vs) > 0:
@@ -171,7 +173,7 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: DFBuilder) -> bool:
         case tuple(vs):
             assert isinstance(obj._ty, TupleType)
             wire_iterator = builder.add_op(
-                ops.UnpackTuple(), obj._use_wire(None)
+                ops.unpack_tuple(), obj._use_wire(None)
             ).outputs()
             for v, ty, out_wire in zip(
                 vs, obj._ty.element_types, wire_iterator, strict=True
@@ -182,7 +184,7 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: DFBuilder) -> bool:
         case GuppyStructObject(_ty=ty, _field_values=values):
             assert obj._ty == ty
             wire_iterator = builder.add_op(
-                ops.UnpackTuple(), obj._use_wire(None)
+                ops.unpack_tuple(), obj._use_wire(None)
             ).outputs()
             for field, out_wire in zip(ty.fields, wire_iterator, strict=True):
                 v = values[field.name]

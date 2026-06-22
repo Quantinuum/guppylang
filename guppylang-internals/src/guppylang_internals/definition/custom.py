@@ -20,7 +20,10 @@ from guppylang_internals.ast_util import (
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
-from guppylang_internals.compiler.builder import DFBuilder, FunctionBuilder
+from guppylang_internals.compiler.builder import (
+    DFBuilder,
+    FunctionBuilder,
+)
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
@@ -344,6 +347,14 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
         ) as compiler:
             return compiler.compile_with_inouts(args)
 
+    @property
+    def effects(self) -> Sequence[Effect]:
+        """The effects of the function."""
+        # ALAN ?? if self.has_signature:
+        return self.ty.effects
+        # else:
+        #    return []
+
 
 class CustomCallChecker(ABC):
     """Abstract base class for custom function call type checkers."""
@@ -413,7 +424,7 @@ class CustomInoutCallCompiler(ABC):
     ctx: CompilerContext
     node: AstNode
     ty: ht.FunctionType
-    func: CustomMonoFunctionDef | None
+    func: CustomMonoFunctionDef
 
     _depth = 0
 
@@ -425,7 +436,7 @@ class CustomInoutCallCompiler(ABC):
         ctx: CompilerContext,
         node: AstNode,
         hugr_ty: ht.FunctionType,
-        func: CustomMonoFunctionDef | None,
+        func: CustomMonoFunctionDef,
     ) -> Generator["CustomInoutCallCompiler", None, None]:
         """
         A context manager to temporarily set up the compiler with required arguments,
@@ -532,7 +543,7 @@ class OpCompiler(CustomInoutCallCompiler):
     @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         op = self.op(self.ty, self.type_args, self.ctx)
-        node = self.builder.add_op(op, *args)
+        node = self.builder.add_op((op, self.func.effects), *args)
         num_returns = (
             len(type_to_row(self.func.ty.output)) if self.func else len(self.ty.output)
         )
@@ -582,6 +593,8 @@ class CopyInoutCompiler(CustomInoutCallCompiler):
                         type_args,
                         ht.FunctionType(self.ty.input, self.ty.output),
                     )
+                    # ALAN assume panics if any borrowed?
+                    clone_op = (clone_op, [Effect.ANY])
                     return list(self.builder.add_op(clone_op, arg))
             case _:
                 pass
