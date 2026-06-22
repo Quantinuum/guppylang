@@ -205,7 +205,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
-        # NICOLAL: TODO unitary are set according to the presence of custom
+        # NICOLA: TODO unitary are set according to the presence of custom
         # implementations (see decorator.py), but we also see if default implementations
         # are possible
         # To infer from the body, use the BBUnitaryChecker, but with different settings:

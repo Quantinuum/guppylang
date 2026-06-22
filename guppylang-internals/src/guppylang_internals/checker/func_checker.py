@@ -151,6 +151,8 @@ def check_global_func_def(
     if not has_custom_modifier:
         # if the function has custom modifiers, we don't check for invalid under dagger
         # since we don't need the default dagger implementation
+        # NICOLA TODO: ensure that if the function is daggerable from the flag applied
+        # to __call__ we need to check this. A personalized error would be nice here
         check_invalid_under_dagger(parsed_func_def.defined_at, ty.unitary_flags)
 
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)

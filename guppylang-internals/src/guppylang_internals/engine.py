@@ -122,13 +122,14 @@ class DefinitionStore:
     See `DEF_STORE` for the singleton instance of this class.
     """
 
-    # nico TODO add a new mapping from function to custom definition
+    # NICOLA TODO add a new mapping from function to custom definition
     raw_defs: dict[DefId, RawDef]
     type_members: defaultdict[DefId, dict[str, DefId]]
     type_member_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
     sources: SourceMap
+    custom_defs: dict[DefId, DefId]
 
     def __init__(self) -> None:
         self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
@@ -137,6 +138,7 @@ class DefinitionStore:
         self.frames = {}
         self.sources = SourceMap()
         self.wasm_functions = {}
+        self.custom_defs = {}
 
     def register_def(self, defn: RawDef, frame: FrameType) -> None:
         self.raw_defs[defn.id] = defn
@@ -165,6 +167,10 @@ class DefinitionStore:
 
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
+
+    # NICOLA TODO use this to register custom definitions
+    def register_custom_def(self, def_id: DefId, custom_def_id: DefId) -> None:
+        self.custom_defs[def_id] = custom_def_id
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()

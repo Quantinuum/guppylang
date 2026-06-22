@@ -316,40 +316,28 @@ class _Guppy:
         """
 
         guppy_def = _get_unitary_call_def(cls)
-        if guppy_def is not None:
-            raw_func = cast("RawFunctionDef", guppy_def.wrapped)
-            call_daggered = _get_unitary_method(cls, CALL_DAGGERED_METHOD)
-            call_controlled = _get_unitary_method(cls, CALL_CONTROLLED_METHOD)
-            call_ctrl_daggered = _get_unitary_method(cls, CALL_CTRL_DAGGERED_METHOD)
-            object.__setattr__(
-                raw_func,
-                "modified_defs",
-                RawModifiedDefs(call_daggered, call_controlled, call_ctrl_daggered),
-            )
-            object.__setattr__(raw_func, "name", cls.__name__)
-            # move this, so you can do the checking about having the minimum
-            # number of methods/minimun annotations
-            if call_daggered is not None or call_ctrl_daggered is not None:
-                object.__setattr__(
-                    raw_func,
-                    "unitary_flags",
-                    raw_func.unitary_flags | UnitaryFlags.Dagger,
-                )
-            if call_controlled is not None:
-                object.__setattr__(
-                    raw_func,
-                    "unitary_flags",
-                    raw_func.unitary_flags | UnitaryFlags.Control,
-                )
-            assert raw_func.metadata is not None
-            raw_func.metadata.set_unitary_flags(raw_func.unitary_flags.value)
+        raw_func = cast("RawFunctionDef", guppy_def.wrapped)
+        call_daggered = _get_unitary_method(cls, CALL_DAGGERED_METHOD)
+        call_controlled = _get_unitary_method(cls, CALL_CONTROLLED_METHOD)
+        call_ctrl_daggered = _get_unitary_method(cls, CALL_CTRL_DAGGERED_METHOD)
+        # object.__setattr__(
+        #     raw_func,
+        #     "modified_defs",
+        #     RawModifiedDefs(call_daggered, call_controlled, call_ctrl_daggered),
+        # )
+        object.__setattr__(raw_func, "name", cls.__name__)
 
-            return guppy_def  # type: ignore[return-value]
+        # NICOLA TODO :
+        # -> Set the unitary flags and check minimun requirement are satisfied:
+        #   -> cannot be daggarable and controllable without being unitary:
+        #       -> only `daggar` is fine
+        #      -> only `controlled` is fine
+        #      -> if we have `CTRL_DAGGERED` at least `CONTROLLED` is required (or
+        #         controllable=true) on __call__ for default implementation
+        assert raw_func.metadata is not None
+        raw_func.metadata.set_unitary_flags(raw_func.unitary_flags.value)
 
-        raise TypeError(
-            f"The `@guppy.unitary` class `{cls.__name__}` requires a `@guppy` "
-            f"annotated `__call__` method"
-        )
+        return guppy_def  # type: ignore[return-value]
 
     def require(
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
@@ -745,16 +733,22 @@ def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T
 
 def _get_unitary_call_def(
     cls: builtins.type[T],
-) -> GuppyDefinition | None:
-    """Returns the `@guppy`-annotated `__call__` method from a unitary class."""
+) -> GuppyDefinition:
+    """Returns the `@guppy`-annotated `__call__` method from a unitary class.
+    Raises a `TypeError` if the method is not present or not properly annotated."""
     val = cls.__dict__.get("__call__")
     if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
         return val
-    return None
+
+    raise TypeError(
+        f"The `@guppy.unitary` class `{cls.__name__}` requires a `@guppy` "
+        f"annotated `__call__` method"
+    )
 
 
 def _get_unitary_method(cls: builtins.type[T], name: str) -> RawFunctionDef | None:
-    """Returns an optional `@guppy`-annotated unitary modifier method."""
+    """Returns an optional `@guppy`-annotated unitary modifier method.
+    Raises a `TypeError` if the method is not properly annotated with @guppy."""
     val = cls.__dict__.get(name)
     if val is not None:
         if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
@@ -764,6 +758,30 @@ def _get_unitary_method(cls: builtins.type[T], name: str) -> RawFunctionDef | No
             f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a guppy "
             f"function"
         )
+
+    return None
+
+
+def _get_unitary_methods(cls: builtins.type[T]) -> list[RawFunctionDef | None]:
+    """Returns an optional `@guppy`-annotated unitary modifier method.
+    Raises a `TypeError` if the methods are not properly annotated or other @guppy
+    annotaded methods are present."""
+    for name in [
+        CALL_DAGGERED_METHOD,
+        CALL_CONTROLLED_METHOD,
+        CALL_CTRL_DAGGERED_METHOD,
+    ]:
+        val = cls.__dict__.get(name)
+        if val is not None:
+            if isinstance(val, GuppyDefinition) and isinstance(
+                val.wrapped, RawFunctionDef
+            ):
+                return val.wrapped
+
+            raise TypeError(
+                f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a guppy "
+                f"function"
+            )
 
     return None
 

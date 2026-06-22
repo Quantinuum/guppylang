@@ -6,7 +6,6 @@ from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Place
 from guppylang_internals.checker.errors.generic import ExpectedError, InvalidUnderDagger
-from guppylang_internals.definition.parameter import ConstParam
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
@@ -28,6 +27,7 @@ from guppylang_internals.tys.builtin import (
 )
 from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.errors import UnitaryCallError
+from guppylang_internals.tys.param import ConstParam
 from guppylang_internals.tys.qubit import contain_qubit_ty, is_qubit_ty
 from guppylang_internals.tys.ty import (
     FunctionType,
