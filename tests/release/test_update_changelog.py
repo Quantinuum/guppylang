@@ -58,3 +58,22 @@ def test_insert_into_changelog_without_versions() -> None:
     out = uc.update_changelog(base, "1.0", NEW_SECTION.replace("1.0.0-a6", "1.0"))
     assert "# Changelog" in out
     assert "1.0" in out
+
+
+def test_replace_short_version_keeps_longer_prefixed_section() -> None:
+    """Replacing the ``1.0`` draft must not also swallow the legacy ``1.0.0-a4`` section
+    that shares its prefix."""
+    base = (
+        "# Changelog\n\n"
+        "## [1.0](https://x)\n\n"
+        "* draft 1.0 notes\n\n"
+        "## [1.0.0-a4](https://x)\n\n"
+        "* legacy alpha notes\n"
+    )
+    revised = "## [1.0](https://x)\n\n* revised 1.0 notes\n"
+    out = uc.update_changelog(base, "1.0", revised)
+    assert "revised 1.0 notes" in out
+    assert "draft 1.0 notes" not in out
+    # The legacy section below must be preserved untouched.
+    assert "legacy alpha notes" in out
+    assert out.count("## [1.0.0-a4]") == 1
