@@ -219,26 +219,48 @@ to allow it.
 
 ### Publishing
 
-Once the release PR is merged, `release-publish.yml` tags both packages
-(`guppylang-v<version>` and `guppylang-internals-v<version>`) and creates a
-**draft** GitHub release for each, with notes sliced verbatim from the committed
-changelogs. Review each draft release and **publish** it when ready: publishing
-triggers `python-wheels.yml`, which uploads the wheels to PyPI. Wheels are only
-published once you publish the draft release, not when the merge first creates it.
+Release creation is **driven by tags**. When the release PR is merged, the
+`tag-on-main` job in `release-publish.yml` tags both packages
+(`guppylang-v<version>` and `guppylang-internals-v<version>`) and pushes the tags.
+Each tag push then triggers the `create-release` job, which creates a **draft**
+GitHub release for the matching package, with notes sliced verbatim from the
+committed changelog at that tag.
+
+Review each draft release and **publish** it when ready: publishing triggers
+`python-wheels.yml`, which uploads the wheels to PyPI. Wheels are only published
+once you publish the draft release, not when the tag first creates it.
 
 ### Patch releases
 
-Sometimes we need to release a patch version to fix a critical bug, but we don't want
-to include all the changes that have been merged into the main branch. In this case,
-you can create a new branch from the latest release tag and cherry-pick the commits
-you want to include in the patch release.
+Sometimes we need to release a patch version to fix a critical bug without
+shipping everything that has since landed on `main`. Because release creation is
+tag-driven, this works off any branch — **pushing the tag is all it takes** to get
+the draft GitHub release created automatically, no merge to `main` required.
 
-You will need to modify the version and changelog manually in this case. Once the
-branch is ready, create a draft PR so that the release team can review it, then
-create a [github release](https://github.com/quantinuum/guppylang/releases/new)
-with a tag following the format used by the previous releases (e.g.
-`guppylang-v1.0.1`). The CI will build and publish the wheels.
+1. Branch off the release tag you want to patch (e.g. `git switch -c
+   patch/1.0.1 guppylang-v1.0.0`) and cherry-pick or commit the fixes you want.
+2. Bump the version and update the changelog **on the branch**:
+   - `guppylang`: `uv run scripts/release/compute_versions.py set-guppylang 1.0.1`
+     (and `set-pin <internals-version>` if the internals pin needs to change).
+   - `guppylang-internals`: `uv run scripts/release/compute_versions.py
+     set-internals <version>`.
+   - Add a matching `## [<version>]` section to the package's `CHANGELOG.md`. The
+     `create-release` job extracts this section verbatim for the release notes, so
+     it must exist before you tag.
+   - Run `uv lock` to refresh the lock file.
 
-After the release is published, make sure to merge the changes to the CHANGELOG
-and versions back into the `main` branch. This may be done by cherry-picking the
-PR used to create the release.
+   Optionally open a PR against the branch so the release team can
+   review the diff.
+3. Tag the commit with the same format as the previous releases and push the tag:
+
+   ```sh
+   git tag guppylang-v1.0.1
+   git push origin guppylang-v1.0.1
+   ```
+
+   `release-publish.yml` picks up the tag, creates the draft GitHub release, and —
+   once you publish it — `python-wheels.yml` builds and uploads the wheels. Tag
+   each package you are releasing (`guppylang-v*` and/or `guppylang-internals-v*`).
+
+After the release is published, merge the changelog and version changes back into
+`main` (e.g. by cherry-picking the review PR) so the history stays consistent.

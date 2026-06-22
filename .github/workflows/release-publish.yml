@@ -1,10 +1,16 @@
-# Tags and publishes GitHub releases once a release PR is merged into `main`.
+# Creates the GitHub releases for `guppylang` and `guppylang-internals`.
 #
-# On every push to `main` this checks whether the committed package versions are
-# already tagged. If not (i.e. a release PR was just merged), it creates the tag
-# and a GitHub release for each package, using release notes sliced verbatim from
-# the committed CHANGELOG.md files. Creating the release triggers
-# `python-wheels.yml`, which publishes the wheels to PyPI.
+# Release creation is driven by tags. Pushing a `guppylang-v*` or
+# `guppylang-internals-v*` tag creates a draft GitHub release for the matching
+# package, with notes sliced verbatim from the committed CHANGELOG.md at that tag.
+# Publishing that draft release triggers `python-wheels.yml`, which uploads the
+# wheels to PyPI.
+#
+# Tags are produced in two ways, both of which feed the same `create-release` job:
+#   * Automatically: when a release PR is merged into `main`, the committed
+#     package versions are tagged here (the `tag-on-main` job).
+#   * Manually: for an out-of-band release (e.g. a patch cut from a branch off an
+#     old tag), a maintainer tags the commit themselves and pushes the tag.
 
 name: 🚚 Release publish
 
@@ -12,16 +18,27 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "guppylang-v*"
+      - "guppylang-internals-v*"
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-publish-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   GH_TOKEN: ${{ secrets.HUGRBOT_PAT }}
 
 jobs:
-  publish:
-    name: Tag and create GitHub releases
+  # On a push to `main` (typically a merged release PR), tag any package whose
+  # committed version is not yet tagged. Pushing the tag with the bot PAT then
+  # triggers the `create-release` job below.
+  tag-on-main:
+    name: Tag newly versioned packages
+    if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -32,41 +49,79 @@ jobs:
         run: |
           git config user.name "hugrbot"
           git config user.email "hugrbot@users.noreply.github.com"
-      - name: Create releases for newly versioned packages
+      - name: Tag newly versioned packages
         run: |
           set -euo pipefail
           read_version() { sed -n 's/^version = "\(.*\)"/\1/p' "$1" | head -n1; }
 
-          release_pkg() {
-            local name="$1" pyproject="$2" changelog="$3" prefix="$4"
+          tag_pkg() {
+            local pyproject="$1" prefix="$2"
             local version tag
             version=$(read_version "$pyproject")
             tag="${prefix}${version}"
 
             if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-              echo "$tag already exists; nothing to publish for $name."
+              echo "$tag already exists; nothing to tag."
               return
             fi
 
-            echo "Publishing $name $version as tag $tag"
-            if ! python3 scripts/release/extract_changelog.py "$changelog" "$version" > /tmp/notes.md; then
-              echo "No changelog section for $version; publishing with empty notes." >&2
-              : > /tmp/notes.md
-            fi
-
+            echo "Tagging $tag"
             git tag "$tag"
+            # Pushed with the bot PAT so it triggers the `create-release` job.
             git push origin "$tag"
-
-            local args=(--title "$name $version" --notes-file /tmp/notes.md --verify-tag --draft)
-            # PEP 440 pre-releases carry a '-' separator (e.g. 1.0.0-a6, 1.0.0-rc1).
-            case "$version" in
-              *-*) args+=(--prerelease) ;;
-            esac
-            gh release create "$tag" "${args[@]}"
           }
 
-          release_pkg "guppylang" \
-            "guppylang/pyproject.toml" "guppylang/CHANGELOG.md" "guppylang-v"
-          release_pkg "guppylang-internals" \
-            "guppylang-internals/pyproject.toml" "guppylang-internals/CHANGELOG.md" \
-            "guppylang-internals-v"
+          tag_pkg "guppylang/pyproject.toml" "guppylang-v"
+          tag_pkg "guppylang-internals/pyproject.toml" "guppylang-internals-v"
+
+  # On a push of a package tag (from `tag-on-main`, or a manual `git push` on a
+  # release branch), create the matching draft GitHub release.
+  create-release:
+    name: Create the GitHub release for the pushed tag
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.HUGRBOT_PAT }}
+      - name: Create the GitHub release
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          case "$TAG" in
+            guppylang-internals-v*)
+              name="guppylang-internals"
+              version="${TAG#guppylang-internals-v}"
+              changelog="guppylang-internals/CHANGELOG.md"
+              ;;
+            guppylang-v*)
+              name="guppylang"
+              version="${TAG#guppylang-v}"
+              changelog="guppylang/CHANGELOG.md"
+              ;;
+            *)
+              echo "Tag $TAG does not match a known package; skipping."
+              exit 0
+              ;;
+          esac
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to do."
+            exit 0
+          fi
+
+          echo "Creating release for $name $version (tag $TAG)"
+          if ! python3 scripts/release/extract_changelog.py "$changelog" "$version" > /tmp/notes.md; then
+            echo "No changelog section for $version; publishing with empty notes." >&2
+            : > /tmp/notes.md
+          fi
+
+          args=(--title "$name $version" --notes-file /tmp/notes.md --verify-tag --draft)
+          # PEP 440 pre-releases carry a '-' separator (e.g. 1.0.0-a6, 1.0.0-rc1).
+          case "$version" in
+            *-*) args+=(--prerelease) ;;
+          esac
+          gh release create "$TAG" "${args[@]}"
