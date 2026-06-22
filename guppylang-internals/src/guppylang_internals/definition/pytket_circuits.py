@@ -171,6 +171,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         ty: The type of the function.
         input_circuit: The user-provided pytket circuit.
         use_arrays: Whether the circuit function should use arrays as input types.
+        unitary_flags_value: The integer value of the unitary flags for this circuit.
     """
 
     input_circuit: Any
@@ -383,8 +384,10 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
         input_circuit: The user-provided pytket circuit.
-        func_df: The Hugr function definition.
+        func_def: The Hugr function definition.
         use_arrays: Whether the circuit function uses arrays as input types.
+        unitary_flags_value: The integer value of the unitary flags for this circuit.
+
     """
 
     func_def: hf.Function
