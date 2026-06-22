@@ -9,7 +9,6 @@ on:
       - synchronize
     branches:
       - main
-      - mr/chore/new-release-workflow
   workflow_dispatch:
 
 permissions:
