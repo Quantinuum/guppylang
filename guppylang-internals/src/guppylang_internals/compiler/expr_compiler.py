@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from typing import Any, TypeGuard, TypeVar
 
@@ -8,7 +8,8 @@ import hugr.std.float
 import hugr.std.int
 import hugr.std.logic
 import hugr.std.prelude
-from hugr import Node, Wire, ops
+from hugr import Node, Wire
+from hugr import ops as hops
 from hugr import tys as ht
 from hugr import val as hv
 
@@ -16,7 +17,12 @@ from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import Variable, contains_subscript
 from guppylang_internals.checker.errors.generic import UnsupportedError
-from guppylang_internals.compiler.builder import CondBuilder, DFBuilder
+from guppylang_internals.compiler.builder import (
+    CondBuilder,
+    DFBuilder,
+    Pure,
+    ops,
+)
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
     CompilerBase,
@@ -24,7 +30,7 @@ from guppylang_internals.compiler.core import (
     DFContainer,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
-from guppylang_internals.definition.common import CheckableGenericDef
+from guppylang_internals.definition.common import CheckableGenericDef, CompiledDef
 from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.value import (
     CallReturnWires,
@@ -71,10 +77,12 @@ from guppylang_internals.std._internal.compiler.list import (
     list_new,
 )
 from guppylang_internals.std._internal.compiler.prelude import (
+    barrier_op,
     build_panic,
     make_error,
     panic,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import (
     bool_type,
     get_element_type,
@@ -263,7 +271,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         if isinstance(get_type(node), FunctionDefType):
             # Function items don't need an actual runtime representation so we just
             # lower them to a unit value (see `FunctionItemType.to_hugr`)
-            return self.builder.add_op(ops.MakeTuple())
+            return self.builder.add_op(ops.make_tuple())
         defn = self.ctx.build_compiled_def(node.def_id, type_args=())
         assert isinstance(defn, CompiledValueDef)
         return defn.load(self.dfg, self.ctx, node)
@@ -291,12 +299,12 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
     def _unpack_tuple(self, wire: Wire, types: Sequence[Type]) -> Sequence[Wire]:
         """Add a tuple unpack operation to the graph"""
         types = [t.to_hugr(self.ctx) for t in types]
-        return list(self.builder.add_op(ops.UnpackTuple(types), wire))
+        return list(self.builder.add_op(ops.unpack_tuple(types), wire))
 
     def _pack_tuple(self, wires: Sequence[Wire], types: Sequence[Type]) -> Wire:
         """Add a tuple pack operation to the graph"""
         types = [t.to_hugr(self.ctx) for t in types]
-        return self.builder.add_op(ops.MakeTuple(types), *wires)
+        return self.builder.add_op(ops.make_tuple(types), *wires)
 
     def _pack_returns(self, returns: Sequence[Wire], return_ty: Type) -> Wire:
         """Groups function return values into a tuple"""
@@ -337,9 +345,34 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         assert isinstance(func_ty, FunctionType)
         num_returns = len(type_to_row(func_ty.output))
 
+        def get_def_effects(defn: CompiledDef) -> Iterable[Effect]:
+            assert isinstance(defn, CompiledCallableDef)
+            return defn.call_effects
+
+        def get_effects(func: ast.expr) -> Iterable[Effect]:
+            """Get the effects of a function call."""
+            func_ty = get_type(func)
+            if isinstance(func_ty, FunctionDefType):
+                defn = self.ctx.build_compiled_def(func_ty.def_id, func_ty.args)
+                return get_def_effects(defn)
+            # if isinstance(func, GlobalName):
+            #    defn = ENGINE.get_checked(func.def_id, ())
+            #    return get_def_effects(defn)
+            if isinstance(func, TypeApply) and isinstance(func.value, GlobalName):
+                defn = self.ctx.build_compiled_def(func.value.def_id, func.inst)
+                return get_def_effects(defn)
+            # if isinstance(func, TypeApply):
+            # Type applications cannot change effects as there are no effect variables.
+            # (ALAN unless we can TypeApply with a Protocol instance?)
+            # return get_effects(func.value)
+            raise InternalGuppyError(
+                f"Function {func} does not have effects information"
+            )
+
         args = self._compile_call_args(node.args, func_ty)
+        effects = get_effects(node.func)
         call = self.builder.add_op(
-            ops.CallIndirect(func_ty.to_hugr(self.ctx)),
+            (hops.CallIndirect(func_ty.to_hugr(self.ctx)), effects),
             func,
             *args,
         )
@@ -398,7 +431,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             consumed_args, other_args = args[0:input_len], args[input_len:]
             consumed_wires = self._compile_call_args(consumed_args, func_ty)
             call = self.builder.add_op(
-                ops.CallIndirect(func_ty.to_hugr(self.ctx)),
+                (
+                    hops.CallIndirect(func_ty.to_hugr(self.ctx)),
+                    # ALAN need something here, this will fail at runtime
+                    func_ty.effects,  # type: ignore[attr-defined]
+                ),
                 func,
                 *consumed_wires,
             )
@@ -472,7 +509,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         if isinstance(get_type(node), FunctionDefType):
             # Function items don't need an actual runtime representation so we just
             # lower them to a unit value (see `FunctionItemType.to_hugr`)
-            return self.builder.add_op(ops.MakeTuple())
+            return self.builder.add_op(ops.make_tuple())
         defn = self.ctx.build_compiled_def(node.value.def_id, node.inst)
         assert isinstance(defn, CompiledCallableDef)
         return defn.load(self.dfg, self.ctx, node)
@@ -482,7 +519,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # since it is not implemented via a dunder method
         if isinstance(node.op, ast.Not):
             arg = self.visit(node.operand)
-            return self.builder.add_op(hugr.std.logic.Not, arg)
+            return self.builder.add_op(Pure(hugr.std.logic.Not), arg)
 
         raise InternalGuppyError("Node should have been removed during type checking.")
 
@@ -545,12 +582,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_BarrierExpr(self, node: BarrierExpr) -> Wire:
         hugr_tys = [get_type(e).to_hugr(self.ctx) for e in node.args]
-        op = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
-            [ht.ListArg([ht.TypeTypeArg(ty) for ty in hugr_tys])],
-            ht.FunctionType.endo(hugr_tys),
-        )
 
-        barrier_n = self.builder.add_op(op, *(self.visit(e) for e in node.args))
+        barrier_n = self.builder.add_op(
+            barrier_op(hugr_tys), *(self.visit(e) for e in node.args)
+        )
 
         self._update_inout_ports(node.args, iter(barrier_n), node.func_ty)
         return self._pack_returns([], NoneType())
@@ -568,7 +603,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             [standard_array_type(ht.Qubit, num_qubits_arg)],
         )
 
-        op = ops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args)
+        op = (
+            hops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args),
+            [Effect.ANY],
+        )
 
         qubit_arr_in: Wire
         if not node.array_len:
@@ -694,17 +732,17 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 break_pred_hugr_ty = ht.Either([iter_ty.to_hugr(self.ctx)], [])
                 with stop_case:
                     self.dfg[break_pred.place] = self.builder.add_op(
-                        ops.Tag(1, break_pred_hugr_ty)
+                        ops.tag(1, break_pred_hugr_ty)
                     )
                 # Otherwise, we continue, set the break predicate to false, and insert
                 # the iterator for the next loop iteration
                 stack.enter_context(hasnext_case)
                 next_wire = self.dfg[next_var.place]
-                elt, it = self.builder.add_op(ops.UnpackTuple(), next_wire)
+                elt, it = self.builder.add_op(ops.unpack_tuple(), next_wire)
                 compiler.dfg = self.dfg
                 compiler._assign(gen.target, elt)
                 self.dfg[break_pred.place] = self.builder.add_op(
-                    ops.Tag(0, break_pred_hugr_ty), it
+                    ops.tag(0, break_pred_hugr_ty), it
                 )
                 # Enter nested conditionals for each if guard on the generator
                 for if_expr in gen.ifs:
@@ -735,7 +773,7 @@ def pack_returns(
         types = type_to_row(return_ty)
         assert len(returns) == len(types)
         hugr_tys = [t.to_hugr(ctx) for t in types]
-        return builder.add_op(ops.MakeTuple(hugr_tys), *returns)
+        return builder.add_op(ops.make_tuple(hugr_tys), *returns)
     assert len(returns) == 1, (
         f"Expected a single return value. Got {returns}. return type {return_ty}"
     )
@@ -753,7 +791,7 @@ def unpack_wire(
     if isinstance(return_ty, TupleType | NoneType):
         types = type_to_row(return_ty)
         hugr_tys = [t.to_hugr(ctx) for t in types]
-        return list(builder.add_op(ops.UnpackTuple(hugr_tys), wire).outputs())
+        return list(builder.add_op(ops.unpack_tuple(hugr_tys), wire).outputs())
     return [wire]
 
 

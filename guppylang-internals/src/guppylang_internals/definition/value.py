@@ -1,5 +1,6 @@
 import ast
-from abc import abstractmethod
+from abc import abstractmethod, abstractproperty
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -13,6 +14,7 @@ from guppylang_internals.tys.ty import FunctionType, Type
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Context
     from guppylang_internals.compiler.core import CompilerContext, DFContainer
+    from guppylang_internals.tys import Effect
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,10 @@ class CallableDef(ValueDef):
 
 class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, unused-ignore]
     """Abstract base class a global module-level function."""
+
+    @abstractproperty
+    def call_effects(self) -> Iterable["Effect"]:
+        """The maximum set of effects that may occur when calling the function."""
 
     @abstractmethod
     def compile_call(

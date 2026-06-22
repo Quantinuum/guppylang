@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Generic, TypeVar
 
-from hugr import Wire, ops
+from hugr import Wire
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
@@ -12,6 +12,7 @@ from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
+from guppylang_internals.compiler.builder.ops import tag
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -285,7 +286,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
                     self.builder.add_op(
-                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
+                        tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
                         *wires,
                     )
                 )
@@ -319,6 +320,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,
                 has_var_args=False,
+                effects=[],
             )
             variants_constructors.append(constructor_def)
 

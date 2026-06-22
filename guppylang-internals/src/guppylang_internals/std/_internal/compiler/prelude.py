@@ -12,7 +12,12 @@ from hugr import Node, Wire, ops
 from hugr import tys as ht
 from hugr import val as hv
 
-from guppylang_internals.compiler.builder import DFBuilder, FunctionBuilder
+from guppylang_internals.compiler.builder import (
+    DFBuilder,
+    FunctionBuilder,
+    OpWithEffects,
+    Pure,
+)
 from guppylang_internals.compiler.core import CompilerContext, GlobalConstId
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -21,6 +26,7 @@ from guppylang_internals.definition.custom import (
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.nodes import AbortKind
+from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -57,7 +63,7 @@ class ErrorVal(hv.ExtensionValue):
 
 def panic(
     inputs: list[ht.Type], outputs: list[ht.Type], kind: AbortKind = AbortKind.Panic
-) -> ops.ExtOp:
+) -> OpWithEffects:
     """Returns an operation that panics."""
     name = "panic" if kind == AbortKind.Panic else "exit"
     op_def = hugr.std.PRELUDE.get_op(name)
@@ -66,15 +72,16 @@ def panic(
         ht.ListArg([ht.TypeTypeArg(ty) for ty in outputs]),
     ]
     sig = ht.FunctionType([error_type(), *inputs], outputs)
-    return ops.ExtOp(op_def, sig, args)
+    return (ops.ExtOp(op_def, sig, args), [Effect.ANY])
 
 
-def make_error() -> ops.ExtOp:
-    """Returns an operation that makes an error."""
+def make_error() -> OpWithEffects:
+    """Returns an operation that makes an error (and returns the error as a value,
+    does nothing to raise it)."""
     op_def = hugr.std.PRELUDE.get_op("MakeError")
     args: list[ht.TypeArg] = []
     sig = ht.FunctionType([ht.USize(), hugr.std.prelude.STRING_T], [error_type()])
-    return ops.ExtOp(op_def, sig, args)
+    return Pure(ops.ExtOp(op_def, sig, args))
 
 
 # ------------------------------------------------------
@@ -272,6 +279,7 @@ def unwrap_result(
     func_call = builder.call(
         func,
         either,
+        effects=[Effect.ANY],  # panics
         instantiation=concrete_ty,
         type_args=type_args,
     )
@@ -303,9 +311,16 @@ class UnwrapOpCompiler(CustomInoutCallCompiler):
             output=[ht.Either([error_type()], self.ty.output)],
         )
         op = self.op(opt_func_type, self.type_args, self.ctx)
-        either = self.builder.add_op(op, *args)
+        either = self.builder.add_op((op, self.func.call_effects), *args)
         result = unwrap_result(self.builder, self.ctx, either)
         return CallReturnWires(regular_returns=[result], inout_returns=[])
+
+
+def barrier_op(tys: ht.TypeRow) -> OpWithEffects:
+    """Returns an operation that represents a barrier on the given types."""
+    op_def = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier")
+    args = [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
+    return Pure(op_def.instantiate(args, ht.FunctionType.endo(tys)))
 
 
 class BarrierCompiler(CustomCallCompiler):
@@ -314,11 +329,7 @@ class BarrierCompiler(CustomCallCompiler):
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         tys = [t for arg in args if (t := self.builder.get_wire_type(arg))]
 
-        op = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier").instantiate(
-            [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
-        )
-
-        barrier_n = self.builder.add_op(op, *args)
+        barrier_n = self.builder.add_op(barrier_op(tys), *args)
 
         return CallReturnWires(
             regular_returns=[], inout_returns=[barrier_n[i] for i in range(len(tys))]

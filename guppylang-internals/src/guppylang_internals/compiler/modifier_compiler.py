@@ -6,6 +6,7 @@ from hugr import tys as ht
 from guppylang_internals.ast_util import get_type
 from guppylang_internals.checker.core import SubscriptAccess, contains_subscript
 from guppylang_internals.checker.modifier_checker import non_copyable_front_others_back
+from guppylang_internals.compiler.builder import Pure
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
@@ -66,6 +67,7 @@ def compile_modified_block(
     # compile body
     cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
     func_builder.set_outputs(*cfg)
+    effects = func_builder._last_side_effect.keys()
 
     # Add the LoadFunc node
     call = dfg.builder.load_function(func_builder, hugr_ty)
@@ -78,10 +80,12 @@ def compile_modified_block(
     if modified_block.has_dagger():
         dagger_ty = ht.FunctionType([hugr_ty], [hugr_ty])
         call = dfg.builder.add_op(
-            ops.ExtOp(
-                dagger_op_def,
-                dagger_ty,
-                [in_out_arg, other_in_arg],
+            Pure(  # This is generation of the daggered version, not calling it (below)
+                ops.ExtOp(
+                    dagger_op_def,
+                    dagger_ty,
+                    [in_out_arg, other_in_arg],
+                )
             ),
             call,
         )
@@ -90,10 +94,13 @@ def compile_modified_block(
         for power in modified_block.power:
             num = expr_compiler.compile(power.iter, dfg)
             call = dfg.builder.add_op(
-                ops.ExtOp(
-                    power_op_def,
-                    power_ty,
-                    [in_out_arg, other_in_arg],
+                # This is generation of the powered version, not calling it (below)
+                Pure(
+                    ops.ExtOp(
+                        power_op_def,
+                        power_ty,
+                        [in_out_arg, other_in_arg],
+                    )
                 ),
                 call,
                 num,
@@ -115,10 +122,13 @@ def compile_modified_block(
             output_fn_ty = ht.FunctionType(
                 [std_array, *hugr_ty.input], [std_array, *hugr_ty.output]
             )
-            op = ops.ExtOp(
-                control_op_def,
-                ht.FunctionType([input_fn_ty], [output_fn_ty]),
-                [qubit_num, in_out_arg, other_in_arg],
+            # Compilation of the controlled version is pure, not calling it (below)
+            op = Pure(
+                ops.ExtOp(
+                    control_op_def,
+                    ht.FunctionType([input_fn_ty], [output_fn_ty]),
+                    [qubit_num, in_out_arg, other_in_arg],
+                )
             )
             call = dfg.builder.add_op(op, call)
             # Update types: later modifiers see the newly wrapped function type
@@ -149,7 +159,7 @@ def compile_modified_block(
 
     # Call the modified block.
     call = dfg.builder.add_op(
-        ops.CallIndirect(),
+        (ops.CallIndirect(), effects),
         call,
         *ctrl_args,
         *args,
