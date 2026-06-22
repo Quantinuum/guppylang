@@ -150,8 +150,7 @@ and `release-publish.yml`), driven by [conventional commits](https://www.convent
 
 The two distributions are versioned differently:
 
-- `guppylang` uses semantic versioning with an alpha pre-release suffix while the
-  language is unstable (e.g. `1.0.0-a6`).
+- `guppylang` follows semantic versioning with an optional pre-release suffix (`-a<N>` alpha, `-b<N>` beta, `-rc<N>`; e.g. `1.2.3b5`).
 - `guppylang-internals` uses the scheme `<guppylang-major>.<build>` (e.g. `1.6`).
   The build number increases on every release and resets to `0` whenever the
   `guppylang` major version changes.
@@ -179,8 +178,7 @@ The version math lives in `scripts/release/compute_versions.py`. By default the
 workflow uses the `auto` mode; you can override it through the `bump` input of the
 `release-pr.yml` *workflow_dispatch*.
 
-`guppylang` follows semantic versioning with an optional pre-release suffix
-(`-a<N>` alpha, `-b<N>` beta, `-rc<N>`). The available bump modes are:
+The available bump modes are:
 
 | mode          | example                  | notes                                          |
 |---------------|--------------------------|------------------------------------------------|
@@ -203,16 +201,12 @@ while an unchanged core — the usual case while iterating on a pre-release — 
 increments the alpha counter. Use an explicit mode to promote out of the alpha
 series (e.g. `beta`, `rc`, or `stable`).
 
-`guppylang-internals` follows `<guppylang-major>-<build-number>`, and is always derived
-from the new `guppylang` version: its build number increments on every release and
-resets to `0` whenever the `guppylang` major version changes.
-
 ### Curating the changelog
 
 `git-cliff` only seeds a *draft*; the committed `CHANGELOG.md` files are the
 single source of truth. The release PR body shows a verbatim preview of the
 release notes (refreshed on every push by `release-pr-changelog-preview.yml`),
-which is exactly what gets published.
+which is exactly what gets published in the GitHub release.
 
 While the `X-regen-changelog` label is set (added by default), the draft is
 regenerated on every push to `main`. **Remove the label** to take manual control:
