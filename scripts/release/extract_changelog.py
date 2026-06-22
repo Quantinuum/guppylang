@@ -16,8 +16,11 @@ from pathlib import Path
 
 def extract_section(changelog: str, version: str) -> str:
     """Return the changelog body for ``version`` (raises ``KeyError`` if absent)."""
-    header_re = re.compile(r"^## (?!\[?" + re.escape(version) + r"\b)")
-    target_re = re.compile(r"^## \[?" + re.escape(version) + r"\b")
+    # Match the version *exactly*: the version must not be followed by another
+    # version character, so e.g. ``1.0`` does not prefix-match ``1.0.0-a4``.
+    boundary = r"(?![\w.-])"
+    header_re = re.compile(r"^## (?!\[?" + re.escape(version) + boundary + r")")
+    target_re = re.compile(r"^## \[?" + re.escape(version) + boundary)
 
     lines = changelog.splitlines()
     start: int | None = None
