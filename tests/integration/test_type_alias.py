@@ -263,3 +263,21 @@ def test_alias_in_enum_variant_field(validate):
         return Msg.Value(n)
 
     validate(make_value.compile_function())
+
+
+def test_alias_as_type_arg_to_another_alias(validate):
+    """A generic alias can be instantiated with another alias as the type argument."""
+    T = guppy.type_var("T")
+
+    @guppy.struct
+    class Box(Generic[T]):
+        value: T
+
+    IntAlias = guppy.type_alias("IntAlias", "int")
+    BoxOfIntAlias = guppy.type_alias("BoxOfIntAlias", "Box[IntAlias]")
+
+    @guppy
+    def make_box(x: int) -> BoxOfIntAlias:
+        return Box(x)
+
+    validate(make_box.compile_function())

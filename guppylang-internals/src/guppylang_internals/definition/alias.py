@@ -1,7 +1,5 @@
 import ast
-from collections.abc import Callable, Iterator, Sequence
-from contextlib import contextmanager
-from contextvars import ContextVar
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
 
@@ -21,7 +19,12 @@ from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
-from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
+from guppylang_internals.tys.parsing import (
+    TypeParsingCtx,
+    annotation_nodes,
+    try_parse_defn,
+    type_from_ast,
+)
 from guppylang_internals.tys.subst import Instantiator
 from guppylang_internals.tys.ty import Type
 
@@ -142,59 +145,49 @@ class CheckedTypeAliasDef(TypeDef, CompiledDef):
         return self.ty.transform(Instantiator(args))
 
 
-@contextmanager
-def _patched_check_instantiate(
-    defn: ParsedTypeAliasDef,
-    replacement: Callable[[Sequence[Argument], AstNode | None], Type],
-) -> Iterator[None]:
-    """Temporarily override `check_instantiate` for recursive-alias detection."""
-    object.__setattr__(defn, "check_instantiate", replacement)
-    try:
-        yield
-    finally:
-        # Remove the instance attribute so method resolution falls back to the
-        # class descriptor, restoring the original behaviour cleanly.
-        object.__delattr__(defn, "check_instantiate")
-
-
-_active_alias_checks: ContextVar[tuple["ParsedTypeAliasDef", ...]] = ContextVar(
-    "_active_alias_checks", default=()
-)
-
-
 def check_not_recursive(defn: ParsedTypeAliasDef, ctx: TypeParsingCtx) -> None:
     """Throws a user error if the given type alias is recursive.
 
-    We do not have a separate alias-expansion pass, so we detect recursion by
-    temporarily swapping out this alias's `check_instantiate` method while parsing its
-    target type. If parsing the alias body reaches this same alias again, the patched
-    method fires and turns that recursive re-entry into a user-facing cycle diagnostic.
-
-    All cycle notes are attached at once inside `dummy_check_instantiate` so that only
-    aliases that are actually part of the cycle receive notes (not outer aliases that
-    merely lead to a cycle).
+    Walks the alias body AST, resolves any nested alias references, and detects
+    cycles via DFS over alias definition IDs — following the same pattern used for
+    structs and enums in ``guppylang_internals.definition.util``.
     """
-    token = _active_alias_checks.set((*_active_alias_checks.get(), defn))
+    _check_not_recursive(defn, ctx, [defn], set())
 
-    def dummy_check_instantiate(
-        args: Sequence[Argument],
-        loc: AstNode | None = None,
-    ) -> Type:
-        active = _active_alias_checks.get()
-        start = next(
-            i for i, active_defn in enumerate(active) if active_defn.id == defn.id
-        )
-        cycle_defs = (*active[start:], defn)
-        cycle = tuple(d.name for d in cycle_defs)
-        err = RecursiveTypeAliasError(loc, cycle)
-        _add_alias_notes_for_cycle(err, cycle_defs)
-        raise GuppyError(err)
 
-    try:
-        with _patched_check_instantiate(defn, dummy_check_instantiate):
-            type_from_ast(defn.type_ast, ctx)
-    finally:
-        _active_alias_checks.reset(token)
+def _check_not_recursive(
+    defn: ParsedTypeAliasDef,
+    ctx: TypeParsingCtx,
+    path: list[ParsedTypeAliasDef],
+    checked: set[DefId],
+) -> None:
+    for dep, dep_ctx, loc in _alias_dependencies(defn, ctx):
+        dep_idx = next((i for i, d in enumerate(path) if d.id == dep.id), None)
+        if dep_idx is not None:
+            cycle_defs = (*tuple(path[dep_idx:]), dep)
+            cycle = tuple(d.name for d in cycle_defs)
+            err = RecursiveTypeAliasError(loc, cycle)
+            _add_alias_notes_for_cycle(err, cycle_defs)
+            raise GuppyError(err)
+        if dep.id not in checked:
+            _check_not_recursive(dep, dep_ctx, [*path, dep], checked)
+    checked.add(defn.id)
+
+
+def _alias_dependencies(
+    defn: ParsedTypeAliasDef, ctx: TypeParsingCtx
+) -> Iterator[tuple["ParsedTypeAliasDef", TypeParsingCtx, AstNode]]:
+    """Yield ``(dep, dep_ctx, node)`` for each alias referenced in *defn*'s body.
+
+    Only ``ParsedTypeAliasDef`` entries are yielded — already-checked aliases cannot
+    contribute to a new cycle so they are skipped.
+    """
+    for node in annotation_nodes(defn.type_ast):
+        dep = try_parse_defn(node, ctx.globals)
+        if isinstance(dep, ParsedTypeAliasDef):
+            dep_globals = Globals(DEF_STORE.frames[dep.id])
+            dep_ctx = TypeParsingCtx(dep_globals)
+            yield dep, dep_ctx, node
 
 
 def _add_alias_notes_for_cycle(
