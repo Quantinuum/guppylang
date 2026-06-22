@@ -30,8 +30,6 @@ body = """
 ### ⚠ BREAKING CHANGES
 {% for commit in breaking %}
 * {{ commit.message | split(pat="\n") | first | upper_first }}\
-{% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/Quantinuum/guppylang/issues/{{ commit.remote.pr_number }}))\
-{% endif %}
 {% endfor %}
 {% endif %}\
 {% for group, commits in commits | group_by(attribute="group") %}
@@ -39,8 +37,7 @@ body = """
 ### {{ group | striptags | trim | upper_first }}
 {% for commit in commits %}
 * {{ commit.message | split(pat="\n") | first | upper_first }}\
-{% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/Quantinuum/guppylang/issues/{{ commit.remote.pr_number }}))\
-{% endif %} ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/Quantinuum/guppylang/commit/{{ commit.id }}))
+([{{ commit.id | truncate(length=7, end="") }}](https://github.com/Quantinuum/guppylang/commit/{{ commit.id }}))
 {% endfor %}
 {% endfor %}\n
 """
