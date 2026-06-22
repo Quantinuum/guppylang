@@ -10,6 +10,7 @@ on:
     branches:
       - main
       - mr/chore/new-release-workflow
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -142,6 +142,7 @@ jobs:
           # A pending publish only blocks automatic push runs, never manual dispatch.
           if [ "${{ github.event_name }}" = "push" ] && \
              [ "${{ steps.pending.outputs.pending }}" = "true" ]; then
+            echo "Publish pending on main!"
             proceed=false
           fi
           echo "proceed=$proceed" >> "$GITHUB_OUTPUT"

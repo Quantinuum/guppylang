@@ -240,7 +240,7 @@ the draft GitHub release created automatically, no merge to `main` required.
 1. Branch off the release tag you want to patch (e.g. `git switch -c
    patch/1.0.1 guppylang-v1.0.0`) and cherry-pick or commit the fixes you want.
 2. Bump the version and update the changelog **on the branch**:
-   - `guppylang`: `uv run scripts/release/compute_versions.py set-guppylang 1.0.1`
+   - `guppylang`: `uv run --no-project scripts/release/compute_versions.py set-guppylang 1.0.1`
      (and `set-pin <internals-version>` if the internals pin needs to change).
    - `guppylang-internals`: `uv run scripts/release/compute_versions.py
      set-internals <version>`.
@@ -249,8 +249,10 @@ the draft GitHub release created automatically, no merge to `main` required.
      it must exist before you tag.
    - Run `uv lock` to refresh the lock file.
 
-   Optionally open a PR against the branch so the release team can
-   review the diff.
+   Optionally open a PR against the branch so the release team can review the diff.
+   You can also dispatch the workflow `release-pr.yml` with `bump: patch` mode on the branch to automate the process.
+   Note however that the release notes preview will not automatically refresh; you will have to dispatch
+   `release-pr-changelog-preview.yml` manually if you want to preview the notes.
 3. Tag the commit with the same format as the previous releases and push the tag:
 
    ```sh
