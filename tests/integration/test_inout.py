@@ -343,7 +343,7 @@ def test_self_qubit(validate):
         result = q0.project_z()
         q0.measure()
         qubit().discard()
-        return result
+        return result.read()
 
     validate(test.compile_function())
 
