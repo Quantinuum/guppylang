@@ -1,15 +1,15 @@
-Error: Too many effects (at $FILE:5:11)
+Error: Too many effects (at $FILE:6:11)
   | 
-3 | @guppy(effects=[])
-4 | def pure_func(arr: array[int, 3]) -> int:
-5 |     return arr[0] + arr[1] + arr[2]
+4 | @guppy(effects=[])
+5 | def pure_func(arr: array[int, 3]) -> int:
+6 |     return arr[0] + arr[1] + arr[2]
   |            ^^^ Callee of type `forall L, n: nat. (array[L, n], int) -> L`
   |                has effects `[ANY]` not allowed inside `pure_func`
 
 Note:
   | 
-2 | 
-3 | @guppy(effects=[])
+3 | 
+4 | @guppy(effects=[])
   |  ----------------- Allowed effects declared here
 
 Guppy compilation failed due to 1 previous error

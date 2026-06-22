@@ -1,3 +1,4 @@
+from guppylang.std.builtins import array
 from guppylang.decorator import guppy
 
 @guppy(effects=[])
