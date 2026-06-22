@@ -115,11 +115,11 @@ class DFBuilder(ABC, ToNode):
         """Updates Hugr to reflect `op_node` having effects `effects`.
         Does nothing if effects is empty (or the node already has those effects)."""
         node = op_node.to_node()
-        # Effects newly added to our container
-        to_propagate = set()
+        to_propagate = set()  # Effects newly added to our container
 
         def get_last_node(e: Effect) -> Node:
-            if (last := self._last_side_effect.get(e)) is None:
+            last = self._last_side_effect.get(e)
+            if last is None:
                 to_propagate.add(e)
                 last = self.input_node
             else:
@@ -127,11 +127,15 @@ class DFBuilder(ABC, ToNode):
             self._last_side_effect[e] = node
             return last
 
-        for last in frozenset(get_last_node(e) for e in effects):
-            if (node != last) and (
-                node not in self._raw.hugr.outgoing_order_links(last)
-            ):
-                self._raw.add_state_order(last, node)
+        prev_nodes = {get_last_node(e) for e in effects}
+        # Avoid cycles and duplicate edges:
+        prev_nodes.discard(node)
+        for prev in self._raw.hugr.incoming_order_links(node):
+            prev_nodes.discard(prev)
+
+        for prev in prev_nodes:
+            self._raw.add_state_order(prev, node)
+
         if to_propagate:
             self._propagate_side_effects(to_propagate)
 
