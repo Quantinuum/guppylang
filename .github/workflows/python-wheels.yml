@@ -1,4 +1,4 @@
-name: Build and publish python wheels
+name: Python wheels
 # Builds and publishes the wheels on pypi.
 #
 # When running on a push-to-main event, or as a workflow dispatch on a branch,
