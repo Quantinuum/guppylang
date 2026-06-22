@@ -2,8 +2,7 @@
 
 This guide is intended to help you get started with developing guppylang.
 
-If you find any errors or omissions in this document,
-please [open an issue](https://github.com/quantinuum/guppylang/issues/new)!
+If you find any errors or omissions in this document, please [open an issue](https://github.com/quantinuum/guppylang/issues/new)!
 
 ## #️⃣ Setting up the development environment
 
@@ -31,8 +30,8 @@ To setup the environment manually you will need:
 
 - Just: [just.systems](https://just.systems/)
 - uv `>=0.6`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
-    - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
-      or by following the instructions in your package manager.
+  - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
+    or by following the instructions in your package manager.
 - bencher_cli: [bencer.dev](https://bencher.dev/docs/tutorial/quick-start/?adapter=json)
 
 Once you have these installed, you can install the required python dependencies and setup pre-commit hooks with:
@@ -68,8 +67,7 @@ or uploaded.
 
 ### codspeed benchmarks
 
-We use [codspeed](https://codspeed.io/docs) for doing one-shot CPU benchmarking of the compilation, checking and
-emulation of guppy programs in CI. Benchmarks are run for every PR and the results are available in the
+We use [codspeed](https://codspeed.io/docs) for doing one-shot CPU benchmarking of the compilation, checking and emulation of guppy programs in CI. Benchmarks are run for every PR and the results are available in the
 [codspeed dashboard](https://codspeed.io/Quantinuum/guppylang).
 
 ### bencher.dev benchmarks
@@ -119,11 +117,9 @@ and open it with your favourite coverage viewer. In VSCode, you can use
 
 ## 🌐 Contributing to Guppy
 
-We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new)
-or [pull request](https://github.com/quantinuum/guppylang/compare) if you have any questions or suggestions.
+We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new) or [pull request](https://github.com/quantinuum/guppylang/compare) if you have any questions or suggestions.
 
-PRs should be made against the `main` branch, and should pass all CI checks before being merged. This includes using
-the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format for the PR title.
+PRs should be made against the `main` branch, and should pass all CI checks before being merged. This includes using the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format for the PR title.
 
 The general format of a contribution title should be:
 
@@ -131,8 +127,7 @@ The general format of a contribution title should be:
 <type>(<scope>)!: <description>
 ```
 
-Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major
-version bump.
+Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major version bump.
 
 We accept the following contribution types:
 
