@@ -210,13 +210,16 @@ jobs:
               --tag "guppylang-internals-v$INTERNALS" > /tmp/internals_section.md
             uv run --no-project scripts/release/update_changelog.py \
               guppylang-internals/CHANGELOG.md "$INTERNALS" /tmp/internals_section.md
+          
+            git commit -aqm "chore: update changelogs (by regen)" || echo "changelogs unchanged"
           else
             [ -f /tmp/guppylang_CHANGELOG.md ] \
               && cp /tmp/guppylang_CHANGELOG.md guppylang/CHANGELOG.md || true
             [ -f /tmp/internals_CHANGELOG.md ] \
               && cp /tmp/internals_CHANGELOG.md guppylang-internals/CHANGELOG.md || true
+          
+            git commit -aqm "chore: update changelogs (by user)" || echo "changelogs unchanged"
           fi
-          git commit -aqm "chore: update changelogs" || echo "changelogs unchanged"
 
           git push --force origin "$BRANCH"
 
