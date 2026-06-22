@@ -243,3 +243,12 @@ class UnitaryCallError(Error):
         )
         callable_name: str
         function_description: str
+
+    @dataclass(frozen=True)
+    class PyTketHint(Help):
+        func_name: str
+        message: ClassVar[str] = (
+            "The function `{func_name}` corresponds to a PyTKET circuit containing a "
+            "measurement or a reset operation, which is not allowed in a "
+            "{context_description} context."
+        )
