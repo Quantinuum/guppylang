@@ -1,8 +1,8 @@
-Error: Too many type arguments (at $FILE:19:12)
+Error: Too many type arguments (at $FILE:18:12)
    | 
-17 | 
-18 | @guppy
-19 | def main(b: BoxAlias[int, bool]) -> int:
+16 | 
+17 | @guppy
+18 | def main(b: BoxAlias[int, bool]) -> int:  # Too many type args: BoxAlias takes 1
    |             ^^^^^^^^^^^^^^^^^^^ Unexpected type argument for type `BoxAlias` (expected 1,
    |                                 got 2)
 

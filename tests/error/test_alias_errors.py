@@ -34,6 +34,16 @@ def test_type_alias_invalid_param():
         guppy.type_alias("MyAlias", "int", params=["not a type var"])
 
 
+def test_type_alias_param_string_instead_of_var():
+    # Passing a type var name as a plain string (instead of the var object) is rejected.
+    T = guppy.type_var("T")  # noqa: F841
+    with pytest.raises(
+        TypeError,
+        match="type_alias params must be type variables created with",
+    ):
+        guppy.type_alias("MyAlias", "int", params=["T"])
+
+
 def test_type_alias_param_not_a_param_def():
     # A `GuppyDefinition` that isn't a type variable (e.g. a struct) is rejected.
     @guppy.struct

@@ -1,7 +1,7 @@
 import ast
 import builtins
 import inspect
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from types import FrameType
 from typing import (
     Any,
@@ -401,14 +401,11 @@ class _Guppy:
         When ``params`` is omitted, free type variables are collected from the body
         in order of first appearance.
         """
-        frame = get_calling_frame()
-
         type_ast = _parse_expr_string(
             ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
         )
-        explicit_params: Sequence[ParamDef] | None = (
-            _params_from_list(params) if params is not None else None
-        )
+        explicit_params = _params_from_list(params) if params is not None else None
+        frame = get_calling_frame()
         defn = RawTypeAliasDef(
             DefId.fresh(),
             name,

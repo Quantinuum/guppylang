@@ -11,12 +11,11 @@ class Box(Generic[T]):
     value: T
 
 
-# Too many type args for generic alias (Box[T] takes 1, given 2)
 BoxAlias = guppy.type_alias("BoxAlias", "Box[T]", params=[T])
 
 
 @guppy
-def main(b: BoxAlias[int, bool]) -> int:
+def main(b: BoxAlias[int, bool]) -> int:  # Too many type args: BoxAlias takes 1
     return b.value
 
 

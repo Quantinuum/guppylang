@@ -25,10 +25,6 @@ from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
 from guppylang_internals.tys.subst import Instantiator
 from guppylang_internals.tys.ty import Type
 
-_active_alias_checks: ContextVar[tuple["ParsedTypeAliasDef", ...]] = ContextVar(
-    "_active_alias_checks", default=()
-)
-
 
 @dataclass(frozen=True)
 class RecursiveTypeAliasError(Error):
@@ -159,6 +155,11 @@ def _patched_check_instantiate(
         # Remove the instance attribute so method resolution falls back to the
         # class descriptor, restoring the original behaviour cleanly.
         object.__delattr__(defn, "check_instantiate")
+
+
+_active_alias_checks: ContextVar[tuple["ParsedTypeAliasDef", ...]] = ContextVar(
+    "_active_alias_checks", default=()
+)
 
 
 def check_not_recursive(defn: ParsedTypeAliasDef, ctx: TypeParsingCtx) -> None:
