@@ -4,7 +4,7 @@ from guppylang import guppy, qubit
 
 circ = Circuit(1)
 circ.H(0)
-circ.measure_all()
+circ.Reset(0)
 
 guppy_circ = guppy.load_pytket("circ", circ)
 

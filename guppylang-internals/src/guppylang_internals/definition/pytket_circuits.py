@@ -422,7 +422,6 @@ def _signature_from_circuit(
     use_arrays: bool = False,
 ) -> FunctionType:
     """Helper function for inferring a function signature from a pytket circuit."""
-    # May want to set proper unitary flags in the future.
     from guppylang.std.angles import angle  # Avoid circular imports
     from guppylang.std.quantum import qubit
     from pytket.circuit import Circuit  # Decoupled import
