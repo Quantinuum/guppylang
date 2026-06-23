@@ -464,13 +464,12 @@ class SignatureDoesntMatchProto(Error):
 
     @dataclass(frozen=True)
     class SigMismatch(Note):
-        message: ClassVar[
-            str
-        ] = """Protocol `{protocol}` requires method `{method}` to have type signature:
-    `{required_sig}`
-but got actual type signature:
-    `{actual_sig}`
-        """
+        message: ClassVar[str] = (
+            "Protocol `{protocol}` requires method `{method}` to have type signature:"
+            "\n    `{required_sig}`"
+            "\nbut got actual type signature:"
+            "\n    `{actual_sig}`"
+        )
         protocol: ProtocolInst
         required_sig: FunctionType
         actual_sig: FunctionType
