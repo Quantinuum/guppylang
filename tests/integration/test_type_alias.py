@@ -303,3 +303,24 @@ def test_alias_as_type_arg_to_another_alias(validate):
         return Box(x)
 
     validate(make_box.compile_function())
+
+
+def test_alias_applied_recursively(validate):
+    """A generic struct alias can be applied to itself, e.g. ``MyBox[MyBox[int]]``.
+
+    This is recursive *application* (nesting), not a recursive (cyclic) definition,
+    so it should resolve and compile fine.
+    """
+    T = guppy.type_var("T")
+
+    @guppy.struct(frozen=True)
+    class Box(Generic[T]):
+        value: T
+
+    MyBox = guppy.type_alias("MyBox", "Box[T]")
+
+    @guppy
+    def unwrap(b: MyBox[MyBox[int]]) -> int:
+        return b.value.value
+
+    validate(unwrap.compile_function())
