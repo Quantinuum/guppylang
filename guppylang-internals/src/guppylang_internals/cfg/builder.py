@@ -29,7 +29,7 @@ from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import (
     check_lists_enabled,
-    check_modifiers_enabled,
+    check_power_modifier_enabled,
 )
 from guppylang_internals.nodes import (
     ComptimeExpr,
@@ -348,7 +348,6 @@ class CFGBuilder(AstVisitor[BB | None]):
         return bb
 
     def visit_With(self, node: ast.With, bb: BB, jumps: Jumps) -> BB | None:
-        check_modifiers_enabled(node)
         self._validate_modified_block(node)
 
         # Build context expressions and extract modifiers before constructing the inner
@@ -404,6 +403,7 @@ class CFGBuilder(AstVisitor[BB | None]):
                     raise GuppyError(WrongNumberOfArgsError(span, 1, len(e.args)))
                 modifier = Control(e, e.args)
             case ast.Call(func=ast.Name(id="power")):
+                check_power_modifier_enabled(e.func)
                 if len(e.args) == 0:
                     span = Span(to_span(e.func).end, to_span(e).end)
                     raise GuppyError(WrongNumberOfArgsError(span, 1, len(e.args)))
