@@ -1,8 +1,8 @@
-Error: Recursive type alias (at $FILE:4:0)
+Error: Unsupported (at $FILE:4:0)
   | 
 2 | 
 3 | 
 4 | MyAlias = guppy.type_alias("MyAlias", "MyAlias")
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type alias `MyAlias` expands to itself
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Recursive definitions are not supported
 
 Guppy compilation failed due to 1 previous error

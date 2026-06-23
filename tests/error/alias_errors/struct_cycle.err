@@ -1,8 +1,8 @@
-Error: Recursive type alias (at $FILE:14:0)
+Error: Unsupported (at $FILE:14:0)
    | 
 12 | 
 13 | # Alias whose body refers to itself via a struct type argument
 14 | MyAlias = guppy.type_alias("MyAlias", "Box[MyAlias]")
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type alias `MyAlias` expands to itself
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Recursive definitions are not supported
 
 Guppy compilation failed due to 1 previous error

@@ -35,11 +35,14 @@ if sys.version_info >= (3, 12):
     from guppylang_internals.tys.parsing import parse_parameter
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.alias import ParsedTypeAliasDef
     from guppylang_internals.definition.enum import ParsedEnumDef
     from guppylang_internals.definition.struct import ParsedStructDef
 
 
-ParsedRecursiveTypeDef: TypeAlias = "ParsedStructDef | ParsedEnumDef"
+ParsedRecursiveTypeDef: TypeAlias = (
+    "ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef"
+)
 
 
 @dataclass(frozen=True)
@@ -123,7 +126,7 @@ class CheckedField:
 
 
 def check_not_recursive(defn: ParsedRecursiveTypeDef, ctx: TypeParsingCtx) -> None:
-    """Raises a user error if a struct or enum definition depends on itself."""
+    """Raises a user error if a struct, enum, or type alias depends on itself."""
     _check_not_recursive(defn, ctx, [defn.id], set())
 
 
@@ -151,11 +154,12 @@ def _dependencies(
     for type_ast in _field_type_asts(defn):
         for node in annotation_nodes(type_ast):
             dependency = try_parse_defn(node, ctx.globals)
-            if _is_parsed_struct_or_enum(dependency):
+            if _is_parsed_recursive_type_def(dependency):
                 yield dependency, node
 
 
 def _field_type_asts(defn: ParsedRecursiveTypeDef) -> Iterator[ast.expr]:
+    from guppylang_internals.definition.alias import ParsedTypeAliasDef
     from guppylang_internals.definition.enum import ParsedEnumDef
     from guppylang_internals.definition.struct import ParsedStructDef
 
@@ -166,8 +170,12 @@ def _field_type_asts(defn: ParsedRecursiveTypeDef) -> Iterator[ast.expr]:
         for variant in defn.variants.values():
             for field in variant.fields:
                 yield field.type_ast
+    elif isinstance(defn, ParsedTypeAliasDef):
+        yield defn.type_ast
     else:
-        raise InternalGuppyError("Expected a parsed struct or enum definition")
+        raise InternalGuppyError(
+            "Expected a parsed struct, enum, or type alias definition"
+        )
 
 
 def _type_parsing_ctx(defn: ParsedRecursiveTypeDef) -> TypeParsingCtx:
@@ -178,17 +186,18 @@ def _type_parsing_ctx(defn: ParsedRecursiveTypeDef) -> TypeParsingCtx:
     """
     from guppylang_internals.engine import DEF_STORE
 
-    param_var_mapping = {p.name: p for p in defn.params}
+    param_var_mapping = {p.name: p for p in (defn.params or [])}
     return TypeParsingCtx(Globals(DEF_STORE.frames[defn.id]), param_var_mapping)
 
 
-def _is_parsed_struct_or_enum(
+def _is_parsed_recursive_type_def(
     defn: Definition | None,
 ) -> TypeGuard[ParsedRecursiveTypeDef]:
+    from guppylang_internals.definition.alias import ParsedTypeAliasDef
     from guppylang_internals.definition.enum import ParsedEnumDef
     from guppylang_internals.definition.struct import ParsedStructDef
 
-    return isinstance(defn, ParsedStructDef | ParsedEnumDef)
+    return isinstance(defn, ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef)
 
 
 def parse_py_class(
