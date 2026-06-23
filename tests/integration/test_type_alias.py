@@ -136,6 +136,28 @@ def test_implicit_generic_alias(run_int_fn):
     run_int_fn(main, expected=99)
 
 
+def test_forward_declared_generic_alias(validate):
+    """An alias can be defined before the type var and struct it references.
+
+    Alias bodies are resolved lazily when the alias is first checked, so a
+    forward reference to a struct (and type var) defined later still resolves.
+    """
+    # Alias defined first, before `T` and `Box` exist.
+    BoxAlias = guppy.type_alias("BoxAlias", "Box[T]")
+
+    T = guppy.type_var("T")
+
+    @guppy.struct
+    class Box(Generic[T]):
+        value: T
+
+    @guppy
+    def get_value(b: BoxAlias[int]) -> int:
+        return b.value
+
+    validate(get_value.compile_function())
+
+
 def test_const_var_alias(run_int_fn):
     """Generic aliases can be parameterised by const variables."""
     B = guppy.const_var("B", "bool")
