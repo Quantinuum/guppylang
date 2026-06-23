@@ -46,20 +46,28 @@ def check_modified_block(
     inputs = non_copyable_front_others_back(inputs)
     def_id = DefId.fresh()
     globals = ctx.globals
+    assert ctx.modified_block_counter is not None
+    block_name = (
+        f"{ctx.modified_block_name_base}."
+        f"__WithBlock__{next(ctx.modified_block_counter)}"
+    )
     checked_cfg = check_cfg(
         cfg,
         inputs,
         NoneType(),
         {},
-        "__modified__()",
+        ctx.func_name,
         globals,
         # We pass the first modifier node for better error messages in the cfg checker
         first_modifier_node=modified_block.first_modifier_node,
+        modified_block_name_base=ctx.modified_block_name_base,
+        modified_block_counter=ctx.modified_block_counter,
     )
     func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)
 
     checked_modifier = CheckedModifiedBlock(
         def_id,
+        block_name,
         checked_cfg,
         func_ty,
         captured,

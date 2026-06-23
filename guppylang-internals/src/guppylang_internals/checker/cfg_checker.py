@@ -6,6 +6,7 @@ Operates on CFGs produced by the `CFGBuilder`. Produces a `CheckedCFG` consistin
 
 import ast
 import collections
+import itertools
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Generic, TypeVar
@@ -77,6 +78,8 @@ def check_cfg(
     func_name: str,
     globals: Globals,
     first_modifier_node: ast.expr | None = None,
+    modified_block_name_base: str | None = None,
+    modified_block_counter: Iterator[int] | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
     checks it.
@@ -92,6 +95,11 @@ def check_cfg(
     Otherwise, it's the AST node of the first modifier, used in error reporting.
     """
 
+    if modified_block_counter is None:
+        modified_block_counter = itertools.count()
+    if modified_block_name_base is None:
+        modified_block_name_base = func_name
+
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
@@ -100,7 +108,15 @@ def check_cfg(
     # We start by compiling the entry BB
     checked_cfg: CheckedCFG[Variable] = CheckedCFG([v.ty for v in inputs], return_ty)
     checked_cfg.entry_bb = check_bb(
-        cfg.entry_bb, checked_cfg, inputs, return_ty, generic_args, globals
+        cfg.entry_bb,
+        checked_cfg,
+        inputs,
+        return_ty,
+        generic_args,
+        globals,
+        func_name,
+        modified_block_name_base,
+        modified_block_counter,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -127,7 +143,15 @@ def check_cfg(
         else:
             # Otherwise, check the BB and enqueue its successors
             checked_bb = check_bb(
-                bb, checked_cfg, input_row, return_ty, generic_args, globals
+                bb,
+                checked_cfg,
+                input_row,
+                return_ty,
+                generic_args,
+                globals,
+                func_name,
+                modified_block_name_base,
+                modified_block_counter,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -237,6 +261,9 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
+    func_name: str,
+    modified_block_name_base: str,
+    modified_block_counter: Iterator[int],
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -261,7 +288,14 @@ def check_bb(
         raise GuppyError(_assigned_in_modifier_error(x, use, assignment))
 
     # Check the basic block
-    ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
+    ctx = Context(
+        globals,
+        Locals({v.name: v for v in inputs}),
+        generic_args,
+        func_name=func_name,
+        modified_block_name_base=modified_block_name_base,
+        modified_block_counter=modified_block_counter,
+    )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
     # If we branch, we also have to check the branch predicate
