@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.const import Const
     from guppylang_internals.tys.param import TypeParam
+    from guppylang_internals.tys.protocol import ProtocolInst
     from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags
 
 
@@ -460,3 +461,16 @@ class SignatureDoesntMatchProto(Error):
         "Type signature of method `{method}` differs from that required by protocol"
     )
     method: str
+
+    @dataclass(frozen=True)
+    class SigMismatch(Note):
+        message: ClassVar[
+            str
+        ] = """Protocol `{protocol}` requires method `{method}` to have type signature:
+    `{required_sig}`
+but got actual type signature:
+    `{actual_sig}`
+        """
+        protocol: ProtocolInst
+        required_sig: FunctionType
+        actual_sig: FunctionType
