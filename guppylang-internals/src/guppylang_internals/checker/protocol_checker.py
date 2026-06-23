@@ -171,7 +171,13 @@ def check_protocol(
         # Try to unify both signatures.
         subst = unify(proto_sig, impl_sig, subst)
         if subst is None:
-            raise GuppyError(SignatureDoesntMatchProto(loc, name))
+            err = SignatureDoesntMatchProto(loc, name)
+            err.add_sub_diagnostic(
+                SignatureDoesntMatchProto.SigMismatch(
+                    None, protocol, proto_sig, impl_sig
+                )
+            )
+            raise GuppyError(err)
         if any(x not in subst for x in ex_impl_vars):
             err = CouldntInferProtoArgs(loc, protocol_def.name)
             bad_args = [arg for arg in ex_impl_vars if arg not in subst]
