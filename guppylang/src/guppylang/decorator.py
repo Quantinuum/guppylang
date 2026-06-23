@@ -405,7 +405,6 @@ class _Guppy:
             ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
         )
         explicit_params = _params_from_list(params) if params is not None else None
-        frame = get_calling_frame()
         defn = RawTypeAliasDef(
             DefId.fresh(),
             name,
@@ -413,7 +412,7 @@ class _Guppy:
             type_ast,
             explicit_params,
         )
-        DEF_STORE.register_def(defn, frame)
+        DEF_STORE.register_def(defn, get_calling_frame())
         return GuppyDefinition(defn)
 
     @overload
