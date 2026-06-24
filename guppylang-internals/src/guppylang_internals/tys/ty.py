@@ -436,7 +436,7 @@ class UnitaryFlags(Flag):
     def callable_name(
         self,
     ) -> Literal[
-        "Callable",
+        "Function",
         "Unitary",
         "Daggerable",
         "Controllable",
@@ -444,7 +444,7 @@ class UnitaryFlags(Flag):
         """Returns the name of the corresponding Callable variant for this flag."""
         match self:
             case UnitaryFlags.NoFlags:
-                return "Callable"
+                return "Function"
             case UnitaryFlags.Unitary:
                 return "Unitary"
             case UnitaryFlags.Dagger:

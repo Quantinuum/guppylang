@@ -1,6 +1,6 @@
 """Provides Python objects for builtin language keywords."""
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING, Any, Generic, ParamSpec, Protocol, TypeVar
 
 from guppylang_internals.error import GuppyComptimeError
@@ -41,6 +41,10 @@ class _Owned:
 
 
 owned = _Owned()
+
+
+#: The type of function values.
+Function = Callable  # type: ignore[type-arg]
 
 
 class Copy(Protocol):

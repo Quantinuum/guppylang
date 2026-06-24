@@ -101,7 +101,7 @@ class InvalidTypeError(Error):
 
 
 @dataclass(frozen=True)
-class InvalidCallableTypeError(Error):
+class InvalidFunctionTypeError(Error):
     title: ClassVar[str] = "Invalid type"
     span_label: ClassVar[str] = "Invalid function type"
 
@@ -109,11 +109,11 @@ class InvalidCallableTypeError(Error):
     class Explain(Help):
         message: ClassVar[str] = (
             "Function types are specified as follows: "
-            "`Callable[[<arguments>], <return type>]`"
+            "`Function[[<arguments>], <return type>]`"
         )
 
     def __post_init__(self) -> None:
-        self.add_sub_diagnostic(InvalidCallableTypeError.Explain(None))
+        self.add_sub_diagnostic(InvalidFunctionTypeError.Explain(None))
 
 
 @dataclass(frozen=True)
@@ -156,7 +156,7 @@ class LinearComptimeError(Error):
 
 
 @dataclass(frozen=True)
-class CallableComptimeError(Error):
+class FunctionTypeComptimeError(Error):
     title: ClassVar[str] = "Invalid annotation"
     span_label: ClassVar[str] = (
         "Comptime annotations are only allowed for named top-level function arguments"

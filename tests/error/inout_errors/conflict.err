@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:14:11)
+Error: Type mismatch (at $FILE:12:11)
    | 
-12 | @guppy
-13 | def test() -> Callable[[qubit @owned], qubit]:
-14 |     return foo
+10 | @guppy
+11 | def test() -> Function[[qubit @ owned], qubit]:
+12 |     return foo
    |            ^^^ Expected return value of type `qubit @owned -> qubit`, got
    |                `qubit -> qubit`
 
