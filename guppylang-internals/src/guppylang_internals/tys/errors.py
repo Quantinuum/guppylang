@@ -109,7 +109,7 @@ class InvalidFunctionTypeError(Error):
     class Explain(Help):
         message: ClassVar[str] = (
             "Function types are specified as follows: "
-            "`Fn[[<arguments>], <return type>]`"
+            "`Function[[<arguments>], <return type>]`"
         )
 
     def __post_init__(self) -> None:

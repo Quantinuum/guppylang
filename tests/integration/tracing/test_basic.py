@@ -1,5 +1,5 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, comptime, Fn
+from guppylang.std.builtins import array, comptime, Function
 from guppylang.std.mem import mem_swap
 from guppylang.std.qsystem.random import RNG
 
@@ -67,7 +67,7 @@ def test_load_func(validate):
     def foo(x: int) -> int: ...
 
     @guppy.comptime
-    def test() -> Fn[[int], int]:
+    def test() -> Function[[int], int]:
         return foo
 
     validate(test.compile_function())

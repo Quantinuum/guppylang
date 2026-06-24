@@ -1,5 +1,5 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import Fn
+from guppylang.std.builtins import Function
 
 @guppy.struct(frozen=True)
 class MyStruct:
@@ -8,7 +8,7 @@ class MyStruct:
         pass
 
 @guppy
-def takes_int(func: Fn[[int], None]) -> None:
+def takes_int(func: Function[[int], None]) -> None:
     pass
 
 @guppy

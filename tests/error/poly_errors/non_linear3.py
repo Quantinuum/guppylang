@@ -1,12 +1,12 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import Fn
+from guppylang.std.builtins import Function
 from guppylang.std.quantum import qubit
 
 T = guppy.type_var("T")
 
 
 @guppy.declare
-def foo(x: Fn[[T], None]) -> None:
+def foo(x: Function[[T], None]) -> None:
     ...
 
 @guppy.declare

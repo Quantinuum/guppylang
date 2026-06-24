@@ -8,7 +8,7 @@ from tests.integration.modules import struct_scope_defs
 
 
 if TYPE_CHECKING:
-    from guppylang.std.builtins import Fn
+    from guppylang.std.builtins import Function
 
 
 def test_basic_defs(validate):
@@ -150,7 +150,7 @@ def test_higher_order(validate):
         x: T
 
     @guppy
-    def factory(mk_struct: "Fn[[int], Struct[int]]", x: int) -> Struct[int]:
+    def factory(mk_struct: "Function[[int], Struct[int]]", x: int) -> Struct[int]:
         return mk_struct(x)
 
     @guppy

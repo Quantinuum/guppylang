@@ -2,8 +2,8 @@ Error: Error in comptime function return (at $FILE:13:0)
    | 
 11 | 
 12 | @guppy.comptime
-13 | def main() -> Fn[[int], int]:
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+13 | def main() -> Function[[int], int]:
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 14 |     return generic_func
    | ^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -1,10 +1,10 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import dagger, Fn
+from guppylang.std.builtins import dagger, Function
 from guppylang.std.quantum import qubit, h, discard
 
 
 @guppy(daggerable=True)
-def test_ho(f: Fn[[qubit], None], q: qubit) -> None:
+def test_ho(f: Function[[qubit], None], q: qubit) -> None:
     f(q)
 
 

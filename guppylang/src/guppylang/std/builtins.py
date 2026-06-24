@@ -6,7 +6,7 @@ from guppylang.std.iter import Range, SizedIter, range
 from guppylang.std.lang import (
     Controllable,
     Daggerable,
-    Fn,
+    Function,
     Unitary,
     comptime,
     control,
@@ -125,7 +125,7 @@ __all__ = (  # noqa: RUF022
     "exit",
     "filter",
     "float",
-    "Fn",
+    "Function",
     "format",
     "frozenarray",
     "frozenset",

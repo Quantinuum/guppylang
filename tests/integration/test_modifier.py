@@ -4,7 +4,7 @@ from guppylang.std.array import array
 from guppylang.std.builtins import (
     Controllable,
     Daggerable,
-    Fn,
+    Function,
     Unitary,
     control,
     dagger,
@@ -388,7 +388,7 @@ def test_return_callable_with_stronger_flags(validate):
         pass
 
     @guppy
-    def return_plain() -> Fn[[qubit], None]:
+    def return_plain() -> Function[[qubit], None]:
         return dagger_only
 
     @guppy
@@ -416,7 +416,7 @@ def test_take_callable_taking_weaker_callable(validate):
         pass
 
     @guppy
-    def apply_plain(f: Fn[[qubit], None], q: qubit) -> None:
+    def apply_plain(f: Function[[qubit], None], q: qubit) -> None:
         f(q)
 
     @guppy(daggerable=True)
@@ -425,13 +425,13 @@ def test_take_callable_taking_weaker_callable(validate):
 
     @guppy
     def take_plain_consumer(
-        consumer: Fn[[Fn[[qubit], None], qubit], None], q: qubit
+        consumer: Function[[Function[[qubit], None], qubit], None], q: qubit
     ) -> None:
         consumer(control_fun, q)
 
     @guppy
     def take_daggerable_consumer(
-        consumer: Fn[[Daggerable[[qubit], None], qubit], None], q: qubit
+        consumer: Function[[Daggerable[[qubit], None], qubit], None], q: qubit
     ) -> None:
         consumer(unitary_fun, q)
 

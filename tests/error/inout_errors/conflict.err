@@ -1,7 +1,7 @@
 Error: Type mismatch (at $FILE:12:11)
    | 
 10 | @guppy
-11 | def test() -> Fn[[qubit @owned], qubit]:
+11 | def test() -> Function[[qubit @ owned], qubit]:
 12 |     return foo
    |            ^^^ Expected return value of type `qubit @owned -> qubit`, got
    |                `qubit -> qubit`

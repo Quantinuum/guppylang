@@ -4,7 +4,7 @@ import pytest
 from hugr import Hugr, ops
 
 from guppylang import guppy, array, comptime
-from guppylang.std.builtins import Fn
+from guppylang.std.builtins import Function
 from guppylang.std.num import nat
 
 
@@ -547,7 +547,7 @@ def test_higher_order(validate):
         pass
 
     @guppy
-    def sfoo(f: Fn[[Struct[B, 42.0]], None]) -> None:
+    def sfoo(f: Function[[Struct[B, 42.0]], None]) -> None:
         pass
 
     @guppy
@@ -582,7 +582,7 @@ def test_higher_order(validate):
         pass
 
     @guppy
-    def efoo(f: Fn[[EnumType[B, 42.0]], None]) -> None:
+    def efoo(f: Function[[EnumType[B, 42.0]], None]) -> None:
         pass
 
     @guppy

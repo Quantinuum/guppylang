@@ -44,7 +44,7 @@ owned = _Owned()
 
 
 #: The type of function values.
-Fn = Callable  # type: ignore[type-arg]
+Function = Callable  # type: ignore[type-arg]
 
 
 class Copy(Protocol):

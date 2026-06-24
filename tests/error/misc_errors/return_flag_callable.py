@@ -1,10 +1,10 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import owned, Fn
+from guppylang.std.builtins import owned, Function
 from guppylang.std.quantum import qubit
 
 
 @guppy.declare
-def foo(f: "Fn[[], qubit @owned]") -> None: ...
+def foo(f: "Function[[], qubit @owned]") -> None: ...
 
 
 foo.compile()

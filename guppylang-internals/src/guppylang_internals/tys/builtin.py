@@ -33,17 +33,17 @@ from guppylang_internals.tys.ty import (
 
 @dataclass(frozen=True)
 class FunctionTypeDef(TypeDef, CompiledDef):
-    """Type definition associated with the builtin `Fn` type.
+    """Type definition associated with the builtin `Function` type.
 
     Any impls on functions can be registered with this definition.
     """
 
     name: Literal[
-        "Fn",
+        "Function",
         "Unitary",
         "Daggerable",
         "Controllable",
-    ] = field(default="Fn", kw_only=True)
+    ] = field(default="Function", kw_only=True)
     flags: UnitaryFlags = UnitaryFlags.NoFlags
 
     def __init__(
@@ -61,7 +61,9 @@ class FunctionTypeDef(TypeDef, CompiledDef):
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> FunctionType:
         # Function types are constructed using special logic in the type parser
-        raise InternalGuppyError("Tried to construct `Fn` type via `check_instantiate`")
+        raise InternalGuppyError(
+            "Tried to construct `{self.name}` type via `check_instantiate`"
+        )
 
 
 @dataclass(frozen=True)

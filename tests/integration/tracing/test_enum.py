@@ -1,7 +1,7 @@
 from typing import Generic
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import Fn
+from guppylang.std.builtins import Function
 
 
 def test_create(validate):
@@ -107,7 +107,7 @@ def test_load_constructor(validate):
         VariantA = {"x": int}
 
     @guppy.comptime
-    def test() -> Fn[[int], MyEnum]:
+    def test() -> Function[[int], MyEnum]:
         return MyEnum.VariantA
 
     validate(test.compile_function())

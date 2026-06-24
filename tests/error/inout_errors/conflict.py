@@ -1,5 +1,5 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import owned, Fn
+from guppylang.std.builtins import owned, Function
 from guppylang.std.quantum import qubit
 
 
@@ -8,7 +8,7 @@ def foo(x: qubit) -> qubit: ...
 
 
 @guppy
-def test() -> Fn[[qubit @owned], qubit]:
+def test() -> Function[[qubit @ owned], qubit]:
     return foo
 
 

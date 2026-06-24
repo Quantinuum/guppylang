@@ -2,9 +2,8 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import Function
 
 
-@guppy.comptime
-def test(f: Function[[], int]) -> int:
-    return f()
+@guppy.declare
+def foo(f: "Function[int, float, bool]") -> None: ...
 
 
-test.compile()
+foo.compile()

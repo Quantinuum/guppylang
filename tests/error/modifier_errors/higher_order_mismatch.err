@@ -1,7 +1,7 @@
 Error: Dagger constraint violation (at $FILE:8:4)
   | 
 6 | @guppy(daggerable=True)
-7 | def test_ho(f: Fn[[qubit], None], q: qubit) -> None:
+7 | def test_ho(f: Function[[qubit], None], q: qubit) -> None:
 8 |     f(q)
   |     ^^^^ This function cannot be called in a daggerable context
 

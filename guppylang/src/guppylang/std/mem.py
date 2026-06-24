@@ -7,7 +7,7 @@ from guppylang_internals.std._internal.compiler.mem import WithOwnedCompiler
 from guppylang_internals.std._internal.compiler.prelude import MemSwapCompiler
 
 from guppylang import guppy
-from guppylang.std.lang import Fn, owned
+from guppylang.std.lang import Function, owned
 
 T = guppy.type_var("T", copyable=False, droppable=False)
 Out = guppy.type_var("Out", copyable=False, droppable=False)
@@ -21,7 +21,7 @@ def mem_swap(x: T, y: T) -> None:
 
 @custom_function(WithOwnedCompiler())
 @no_type_check
-def with_owned(val: T, f: Fn[[T @ owned], tuple[Out, T]]) -> Out:
+def with_owned(val: T, f: Function[[T @ owned], tuple[Out, T]]) -> Out:
     """Runs a closure where the borrowed argument is promoted to an owned one.
 
     The closure should return two values:
