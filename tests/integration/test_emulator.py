@@ -186,7 +186,7 @@ def test_zeros():
     def main() -> array[qubit, comptime(N)]:
         q = array(qubit(), qubit())
         for i in range(comptime(N)):
-            output("c", project_z(q[i]))
+            output("c", project_z(q[i]).read())
         return q
 
     res = _build_run(main, n_qubits=N).results[0].entries
@@ -278,7 +278,7 @@ def test_alloc_free():
         qfree(q1)
         b2 = project_z(q0)
         output("c0", b1.read())
-        output("c1", b2)
+        output("c1", b2.read())
         output("c2", measure(q0).read())
 
     res = _build_run(main, n_qubits=2, n_shots=1, seed=12).results[0].entries
