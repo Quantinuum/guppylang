@@ -202,7 +202,7 @@ def _arg_from_instantiated_defn(
     from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     match defn:
-        # Special cases for the `Fn` type
+        # Special cases for the `Function` type
         case FunctionTypeDef(flags=flags):
             return TypeArg(_parse_function_type(arg_nodes, node, ctx, flags=flags))
         # Special case for the `Self` type
@@ -301,7 +301,7 @@ def _parse_function_type(
     ctx: TypeParsingCtx,
     flags: UnitaryFlags = UnitaryFlags.NoFlags,
 ) -> FunctionType:
-    """Helper function to parse a `Fn[[<arguments>], <return type>]` type."""
+    """Helper function to parse a `Function[[<arguments>], <return type>]` type."""
     err = InvalidFunctionTypeError(loc)
     if len(args) != 2:
         raise GuppyError(err)
