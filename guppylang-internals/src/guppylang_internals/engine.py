@@ -538,7 +538,10 @@ class CompilationEngine:
         )
         graph.hugr.module_root.metadata[HugrUsedExtensions] = used_exts_meta
         graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
-            name="guppylang", version=Version.parse(guppylang_internals.__version__)
+            name="guppylang",
+            version=Version.parse(
+                guppylang_internals.__version__, optional_minor_and_patch=True
+            ),
         )
         # Package all non-standard extensions used in the hugr.
         # Standard hugr extensions are universally available and don't need bundling.
