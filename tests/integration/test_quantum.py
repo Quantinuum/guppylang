@@ -4,7 +4,7 @@ from typing import no_type_check
 
 from guppylang.std.angles import angle
 
-from guppylang.std.builtins import owned, array, panic, result
+from guppylang.std.builtins import owned, array, panic, output
 from guppylang.std.platform import barrier
 
 from guppylang.std import quantum as q
@@ -99,7 +99,7 @@ def test_measure_ops(validate):
     """Compile various measurement-related operations."""
 
     @guppy
-    def test(q1: qubit @ owned, q2: qubit @ owned) -> tuple[bool, Measurement]:
+    def test(q1: qubit @ owned, q2: qubit @ owned) -> tuple[Measurement, Measurement]:
         q1, b1 = project_z(q1)
         q1 = discard(q1)
         q2 = reset(q2)
@@ -248,7 +248,7 @@ def test_barrier_misc(validate):
         x = 1
         barrier(q1, array(1, 2, 3), 2 + 3, x)
 
-        result("c", x)
-        result("c2", measure(q1).read())
+        output("c", x)
+        output("c2", measure(q1).read())
 
     validate(test.compile_function())

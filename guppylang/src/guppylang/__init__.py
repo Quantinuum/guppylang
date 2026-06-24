@@ -19,6 +19,6 @@ __all__ = (
     "qubit",
 )
 
-# This is updated by our release-please workflow, triggered by this
-# annotation: x-release-please-version
-__version__ = "1.0.0-a4"
+# This is kept in sync with the project version by the release workflow
+# (.github/workflows/release-pr.yml).
+__version__ = "1.0.0-a5"

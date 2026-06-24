@@ -144,44 +144,125 @@ We accept the following contribution types:
 
 ## :shipit: Releasing new versions
 
-We use automation to bump the version number and generate changelog entries
-based on the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) labels. Release PRs are created automatically
-for each package when new changes are merged into the `main` branch. Once the PR is
-approved by someone in the [release team](.github/CODEOWNERS) and is merged, the new package
-is published on PyPI.
+Releases are managed by a custom set of workflows under `.github/workflows`
+(`release-pr.yml`, `release-pr-changelog-preview.yml`, `release-major-guard.yml`,
+and `release-publish.yml`), driven by [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-The changelog can be manually edited before merging the release PR. Note however
-that modifying the diff before other changes are merged will cause the
-automation to close the release PR and create a new one to avoid conflicts.
+The two distributions are versioned differently:
 
-Releases are managed by `release-please`. This tool always bumps the
-minor version (or the pre-release version if the previous version was a
-pre-release).
+- `guppylang` follows semantic versioning with an optional pre-release suffix (`-a<N>` alpha, `-b<N>` beta, `-rc<N>`; e.g. `1.2.3-b5`).
+- `guppylang-internals` uses the scheme `<guppylang-major>.<build>` (e.g. `1.6`).
+  The build number increases on every release and resets to `0` whenever the
+  `guppylang` major version changes.
 
-To override the version getting released, you must merge a PR to `main` containing
-`Release-As: 0.1.0` in the description.
-Python pre-release versions should be formatted as `0.1.0a1` (or `b1`, `rc1`).
+### The release PR
 
-Before merging a release PR, make sure to update the uv lock file by running `uv
-lock` and pushing to the release branch.
-When releasing `guppylang-internals`, also update the dependency version in `guppylang/pyproject.toml`.
+On every push to `main`, `release-pr.yml` opens or updates a single release PR on
+the `release-pr--<base>` branch (e.g. `release-pr--main` for releases off `main`).
+It:
+
+1. computes the next `guppylang` version (see [Choosing the version
+   bump](#choosing-the-version-bump) below),
+2. bumps the `guppylang-internals` build number,
+3. pins `guppylang-internals==<version>` in `guppylang/pyproject.toml`,
+4. runs `uv lock`, and
+5. seeds a draft changelog for each package with `git-cliff`.
+
+Each step lands as its own commit, and the PR is opened in **draft**. You can also
+trigger the workflow manually via *workflow_dispatch* to force a PR open
+(`force_open`) and to override the bump (see below).
+
+### Choosing the version bump
+
+The version math lives in `scripts/release/compute_versions.py`. By default the
+workflow uses the `auto` mode; you can override it through the `bump` input of the
+`release-pr.yml` *workflow_dispatch*.
+
+The available bump modes are:
+
+| mode          | example                  | notes                                          |
+|---------------|--------------------------|------------------------------------------------|
+| `auto`        | `1.0.0-a5` → `1.0.0-a6`  | default; see below                             |
+| `alpha`       | `1.0.0-a5` → `1.0.0-a6`  | increment the alpha counter                    |
+| `alpha-patch` | `1.2.3` → `1.2.4-a0`     | start a new alpha series for a patch           |
+| `alpha-minor` | `1.2.3` → `1.3.0-a0`     | start a new alpha series for a minor           |
+| `alpha-major` | `1.2.3` → `2.0.0-a0`     | start a new alpha series for a major           |
+| `beta`        | `1.0.0-a5` → `1.0.0-b0`  | promote alpha → beta (`b1` → `b2`)             |
+| `rc`          | `1.0.0-b2` → `1.0.0-rc0` | promote to a release candidate (`rc1` → `rc2`) |
+| `stable`      | `1.0.0-rc1` → `1.0.0`    | drop the pre-release suffix                    |
+| `patch`       | `1.0.1` → `1.0.2`        | stable patch bump                              |
+| `minor`       | `1.2.1` → `1.3.0`        | stable minor bump                              |
+| `major`       | `1.3.0` → `2.0.0`        | stable major bump                              |
+
+In `auto` mode the script asks `git-cliff` what the conventional commits imply and
+expresses that in the current pre-release scheme: a `fix`/`feat`/breaking change
+that would bump the release core maps to `alpha-patch`/`alpha-minor`/`alpha-major`,
+while an unchanged core — the usual case while iterating on a pre-release — simply
+increments the alpha counter. Use an explicit mode to promote out of the alpha
+series (e.g. `beta`, `rc`, or `stable`).
+
+### Curating the changelog
+
+`git-cliff` only seeds a *draft*; the committed `CHANGELOG.md` files are the
+single source of truth. The release PR body shows a verbatim preview of the
+release notes (refreshed on every push by `release-pr-changelog-preview.yml`),
+which is exactly what gets published in the GitHub release.
+
+While the `X-regen-changelog` label is set (added by default), the draft is
+regenerated on every push to `main`. **Remove the label** to take manual control:
+subsequent pushes then leave the committed changelogs untouched, and your edits
+to the `release-pr--<base>` branch stick.
+
+A breaking change that would bump the `guppylang` major version is blocked by
+`release-major-guard.yml`. Add the `X-allow-major-bump` label to the release PR
+to allow it.
+
+### Publishing
+
+Release creation is **driven by tags**. When the release PR is merged, the
+`tag-on-main` job in `release-publish.yml` tags both packages
+(`guppylang-v<version>` and `guppylang-internals-v<version>`) and pushes the tags.
+Each tag push then triggers the `create-release` job, which creates a **draft**
+GitHub release for the matching package, with notes sliced verbatim from the
+committed changelog at that tag.
+
+Review each draft release and **publish** it when ready: publishing triggers
+`python-wheels.yml`, which uploads the wheels to PyPI. Wheels are only published
+once you publish the draft release, not when the tag first creates it.
 
 ### Patch releases
 
-Sometimes we need to release a patch version to fix a critical bug, but we don't want
-to include all the changes that have been merged into the main branch. In this case,
-you can create a new branch from the latest release tag and cherry-pick the commits
-you want to include in the patch release.
+Sometimes we need to release a patch version to fix a critical bug without
+shipping everything that has since landed on `main`. Because release creation is
+tag-driven, this works off any branch — **pushing the tag is all it takes** to get
+the draft GitHub release created automatically, no merge to `main` required.
 
-You will need to modify the version and changelog manually in this case. Check
-the existing release PRs for examples on how to do this. Once the branch is
-ready, create a draft PR so that the release team can review it.
+1. Branch off the release tag you want to patch (e.g. `git switch -c
+   patch/1.0.1 guppylang-v1.0.0`) and cherry-pick or commit the fixes you want.
+2. Bump the version and update the changelog **on the branch**:
+   - `guppylang`: `uv run --no-project scripts/release/compute_versions.py set-guppylang 1.0.1`
+     (and `set-pin <internals-version>` if the internals pin needs to change).
+   - `guppylang-internals`: `uv run scripts/release/compute_versions.py
+     set-internals <version>`.
+   - Add a matching `## [<version>]` section to the package's `CHANGELOG.md`. The
+     `create-release` job extracts this section verbatim for the release notes, so
+     it must exist before you tag.
+   - Run `uv lock` to refresh the lock file.
 
-The wheel building process and publication to PyPI is handled by the CI. Just
-create a [github release](https://github.com/quantinuum/guppylang/releases/new) from
-the **unmerged** branch, and the CI will take care of the rest. The release tag
-should follow the format used in the previous releases, e.g. `v0.1.1`.
+   Optionally open a PR against the branch so the release team can review the diff.
+   You can also dispatch the workflow `release-pr.yml` with `bump: patch` mode on the branch to automate the process.
+   Note however that the release notes preview will not automatically refresh; you will have to dispatch
+   `release-pr-changelog-preview.yml` manually if you want to preview the notes.
+3. Tag the commit with the same format as the previous releases and push the tag:
 
-After the release is published, make sure to merge the changes to the CHANGELOG
-and versions back into the `main` branch. This may be done by cherry-picking the
-PR used to create the release.
+   ```sh
+   git tag guppylang-v1.0.1
+   git push origin guppylang-v1.0.1
+   ```
+
+   `release-publish.yml` picks up the tag, creates the draft GitHub release, and —
+   once you publish it — `python-wheels.yml` builds and uploads the wheels. Tag
+   each package you are releasing (`guppylang-v*` and/or `guppylang-internals-v*`).
+
+After the release is published, merge the changelog and version changes back into
+`main` (e.g. by cherry-picking the review PR) so the history stays consistent.

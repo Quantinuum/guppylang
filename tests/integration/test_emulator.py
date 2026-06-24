@@ -1,8 +1,8 @@
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.emulator.exceptions import EmulatorBuildError
-from guppylang.std.builtins import result, array, comptime, exit, panic
-from guppylang.std.debug import state_result
+from guppylang.std.builtins import output, array, comptime, exit, panic
+from guppylang.std.debug import state_output
 from guppylang.std.mem import mem_swap
 from guppylang.std.quantum import (
     maybe_qubit,
@@ -45,7 +45,7 @@ import pytest
 def test_basic_emulation() -> None:
     @guppy
     def main() -> None:
-        result("c", measure(qubit()).read())
+        output("c", measure(qubit()).read())
 
     res = main.emulator(1).run()
     expected = EmulatorResult([[("c", False)]])
@@ -55,7 +55,7 @@ def test_basic_emulation() -> None:
     def main() -> None:
         q = qubit()
         h(q)
-        result("c", measure(q).read())
+        output("c", measure(q).read())
 
     res = main.emulator(1).statevector_sim().with_seed(42).run()
     expected = EmulatorResult([[("c", True)]])
@@ -105,7 +105,7 @@ def test_all_options() -> None:
 def test_no_given_qubits() -> None:
     @guppy()
     def main() -> None:
-        result("c", measure(qubit()).read())
+        output("c", measure(qubit()).read())
 
     with pytest.raises(
         EmulatorBuildError,
@@ -121,7 +121,7 @@ def test_no_given_qubits() -> None:
 def test_hinted_qubits() -> None:
     @guppy(max_qubits=1)
     def main() -> None:
-        result("c", measure(qubit()).read())
+        output("c", measure(qubit()).read())
 
     shots = main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
     assert shots[0].as_dict()["c"] == 1
@@ -131,7 +131,7 @@ def test_hinted_qubits_with_given_qubits() -> None:
     @guppy(max_qubits=1)
     def main() -> None:
         qubits = array(qubit() for _ in range(4))
-        result("c", collect_measurements(measure_array(qubits)))
+        output("c", collect_measurements(measure_array(qubits)))
 
     shots = main.emulator(n_qubits=4).coinflip_sim().with_seed(0).with_shots(1).run()
     assert shots[0].as_dict()["c"] == [1, 0, 1, 0]
@@ -140,7 +140,7 @@ def test_hinted_qubits_with_given_qubits() -> None:
 def test_hinted_qubits_with_insufficient_given_qubits() -> None:
     @guppy(max_qubits=3)
     def main() -> None:
-        result("c", measure(qubit()).read())
+        output("c", measure(qubit()).read())
 
     with pytest.raises(
         EmulatorBuildError,
@@ -157,9 +157,9 @@ def test_statevector() -> None:
     def main() -> None:
         q = qubit()
         x(q)
-        state_result("s", q)
-        state_result("s", q)
-        result("c", measure(q).read())
+        state_output("s", q)
+        state_output("s", q)
+        output("c", measure(q).read())
 
     res = main.emulator(1).run()
     (shot_states,) = res.partial_states()
@@ -186,7 +186,7 @@ def test_zeros():
     def main() -> array[qubit, comptime(N)]:
         q = array(qubit(), qubit())
         for i in range(comptime(N)):
-            result("c", project_z(q[i]))
+            output("c", project_z(q[i]).read())
         return q
 
     res = _build_run(main, n_qubits=N).results[0].entries
@@ -218,7 +218,7 @@ def test_4pi():
         cx(aux, tgt)
         h(aux)
 
-        result("aux", measure(aux).read())
+        output("aux", measure(aux).read())
         discard(tgt)
 
     res = _build_run(main, n_qubits=2, n_shots=1).results[0].entries
@@ -256,8 +256,8 @@ def test_qsystem():
 
         h(a)
         h(b)
-        result("a", measure(a).read())
-        result("b", measure(b).read())
+        output("a", measure(a).read())
+        output("b", measure(b).read())
 
     # deterministic - should always be 0
     res = _build_run(main, n_qubits=2)
@@ -277,9 +277,9 @@ def test_alloc_free():
         reset(q1)
         qfree(q1)
         b2 = project_z(q0)
-        result("c0", b1.read())
-        result("c1", b2)
-        result("c2", measure(q0).read())
+        output("c0", b1.read())
+        output("c1", b2.read())
+        output("c2", measure(q0).read())
 
     res = _build_run(main, n_qubits=2, n_shots=1, seed=12).results[0].entries
     assert dict(res) == {"c0": 1, "c1": 0, "c2": 0}
@@ -292,7 +292,7 @@ def test_multi_alloc_free():
     def main() -> None:
         for _ in range(comptime(N)):
             q = qubit()
-            result("c", measure(q).read())
+            output("c", measure(q).read())
 
     res = _build_run(main, n_qubits=2).results[0].entries
     assert res == [("c", 0)] * N
@@ -309,10 +309,10 @@ def test_user_panic() -> None:
     @guppy
     def main() -> None:
         current_shot = get_current_shot()
-        result("before", current_shot)
+        output("before", current_shot)
         if current_shot == 9:
             panic("Panic at shot 9!")
-        result("after", current_shot)
+        output("after", current_shot)
 
     with pytest.raises(EmulatorError, match="Panic at shot 9!") as exc_info:
         main.emulator(1).with_shots(20).run()
@@ -346,10 +346,10 @@ def test_friendly_emulator_panic() -> None:
     def main() -> None:
         q = qubit()
         current_shot = get_current_shot()
-        result("shot", current_shot)
+        output("shot", current_shot)
         if current_shot == 5:
             t(q)
-        result("measurement", measure(q).read())
+        output("measurement", measure(q).read())
 
     with pytest.raises(
         EmulatorError, match="not representable in stabiliser form"
@@ -374,7 +374,7 @@ def test_exit():
         i = get_current_shot()
         if i % 2 == 0:
             exit("even!", 0)
-        result("c", i)
+        output("c", i)
 
     res = _build_run(main, n_qubits=2, n_shots=N)
     assert res == EmulatorResult(
@@ -386,8 +386,8 @@ def test_static_array_bool():
     @guppy
     def main() -> None:
         q = comptime([[x % 2 == 0 for x in range(100)] for _ in range(100)])
-        result("a", q[50][50])
-        result("b", q[51][51])
+        output("a", q[50][50])
+        output("b", q[51][51])
 
     res = _build_run(main, n_qubits=1).results[0].entries
     assert res == [("a", True), ("b", False)]
@@ -398,7 +398,7 @@ def get_statevector(main: GuppyFunctionDefinition, n_qubits: int) -> StateVector
     def wrapper() -> None:
         qs = array(qubit() for _ in range(comptime(n_qubits)))
         main(qs)
-        state_result("result_state", qs)
+        state_output("result_state", qs)
         discard_array(qs)
 
     results = (

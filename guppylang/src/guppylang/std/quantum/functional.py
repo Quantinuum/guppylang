@@ -12,7 +12,7 @@ from guppylang.decorator import guppy
 # mypy: disable-error-code="empty-body, misc, valid-type"
 from guppylang.std.angles import angle
 from guppylang.std.lang import owned
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import Measurement, qubit
 
 
 @guppy
@@ -173,7 +173,7 @@ def reset(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def project_z(q: qubit @ owned) -> tuple[qubit, bool]:
+def project_z(q: qubit @ owned) -> tuple[qubit, Measurement]:
     """Functional project_z command."""
     b = quantum.project_z(q)
     return q, b

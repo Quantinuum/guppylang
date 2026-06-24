@@ -67,7 +67,7 @@ from guppylang_internals.nodes import (
     PartialApply,
     PlaceNode,
     ProtocolCall,
-    StateResultExpr,
+    StateOutputExpr,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
@@ -566,7 +566,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         self._visit_call_args(node.func_ty, node)
         self._reassign_inout_args(node.func_ty, node)
 
-    def visit_StateResultExpr(self, node: StateResultExpr) -> None:
+    def visit_StateOutputExpr(self, node: StateOutputExpr) -> None:
         self._visit_call_args(node.func_ty, node)
         self._reassign_inout_args(node.func_ty, node)
 

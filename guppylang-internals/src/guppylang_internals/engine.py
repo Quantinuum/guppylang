@@ -15,7 +15,7 @@ from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
 from hugr.package import ModulePointer, Package
 from semver import Version
-from typing_extensions import assert_never, deprecated
+from typing_extensions import assert_never
 
 import guppylang_internals
 from guppylang_internals.debug_mode import debug_mode_enabled
@@ -243,15 +243,6 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
-
-    @pretty_errors
-    @deprecated(
-        "Extensions are included automatically when used. "
-        "Manual registration is no longer necessary."
-    )
-    def register_extension(self, extension: Extension) -> None:
-        if extension not in self.additional_extensions:
-            self.additional_extensions.append(extension)
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
@@ -547,7 +538,10 @@ class CompilationEngine:
         )
         graph.hugr.module_root.metadata[HugrUsedExtensions] = used_exts_meta
         graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
-            name="guppylang", version=Version.parse(guppylang_internals.__version__)
+            name="guppylang",
+            version=Version.parse(
+                guppylang_internals.__version__, optional_minor_and_patch=True
+            ),
         )
         # Package all non-standard extensions used in the hugr.
         # Standard hugr extensions are universally available and don't need bundling.

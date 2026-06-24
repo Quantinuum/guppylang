@@ -48,7 +48,7 @@ from guppylang_internals.nodes import (
     LocalCall,
     PartialApply,
     PlaceNode,
-    StateResultExpr,
+    StateOutputExpr,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
@@ -483,8 +483,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         tuple_port = self.visit(node.value)
         return self._unpack_tuple(tuple_port, node.tuple_ty.element_types)[node.index]
 
-    def _visit_result_tag(self, tag: Const, loc: ast.expr) -> str:
-        """Helper method to resolve the tag string in `state_result` expressions.
+    def _visit_output_tag(self, tag: Const, loc: ast.expr) -> str:
+        """Helper method to resolve the tag string in `state_output` expressions.
 
         Also takes care of checking that the tag fits into the maximum tag length.
         Once we go ahead with https://github.com/quantinuum/guppylang/discussions/1299,
@@ -492,7 +492,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         """
         from guppylang_internals.std._internal.compiler.platform import (
             TAG_MAX_LEN,
-            TooLongError,
+            OutputTagTooLongError,
         )
 
         match tag:
@@ -504,8 +504,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
                 raise InternalGuppyError("Unexpected tag value")
 
         if len(tag_value.encode("utf-8")) > TAG_MAX_LEN:
-            err = TooLongError(loc)
-            err.add_sub_diagnostic(TooLongError.Hint(None))
+            err = OutputTagTooLongError(loc)
+            err.add_sub_diagnostic(OutputTagTooLongError.Hint(None))
             raise GuppyError(err)
         return tag_value
 
@@ -537,8 +537,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         self._update_inout_ports(node.args, iter(barrier_n), node.func_ty)
         return self._pack_returns([], NoneType())
 
-    def visit_StateResultExpr(self, node: StateResultExpr) -> Wire:
-        tag_value = self._visit_result_tag(node.tag_value, node.tag_expr)
+    def visit_StateOutputExpr(self, node: StateOutputExpr) -> Wire:
+        tag_value = self._visit_output_tag(node.tag_value, node.tag_expr)
         num_qubits_arg = (
             node.array_len.to_arg().to_hugr(self.ctx)
             if node.array_len

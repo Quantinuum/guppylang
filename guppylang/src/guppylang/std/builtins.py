@@ -1,8 +1,13 @@
 """Reexports core types and functions that are available without an explicit import."""
 
-from guppylang.std.array import ArrayIter, FrozenarrayIter, array, frozenarray
+from guppylang_internals.std._internal.moved import (
+    produce_moved_class,
+    produce_moved_function,
+)
+
+from guppylang.std.array import array, frozenarray
 from guppylang.std.bool import bool
-from guppylang.std.iter import Range, SizedIter, range
+from guppylang.std.iter import range
 from guppylang.std.lang import (
     Controllable,
     Daggerable,
@@ -16,11 +21,8 @@ from guppylang.std.lang import (
     py,
 )
 from guppylang.std.list import list
-from guppylang.std.mem import mem_swap
 from guppylang.std.num import (
     abs,
-    bytecast_float_to_nat,
-    bytecast_nat_to_float,
     divmod,
     float,
     int,
@@ -30,7 +32,7 @@ from guppylang.std.num import (
     round,
 )
 from guppylang.std.option import Option, nothing, some
-from guppylang.std.platform import barrier, exit, panic, result
+from guppylang.std.platform import exit, output, panic, result
 from guppylang.std.quantum import qubit
 from guppylang.std.reflection import callable
 from guppylang.std.string import str
@@ -92,6 +94,23 @@ from guppylang.std.unsupported import (
     type,
     vars,
     zip,
+)
+
+# TODO remove once https://github.com/Quantinuum/guppylang/issues/1019 has been resolved
+#  for a while
+mem_swap = produce_moved_function(__name__, "mem_swap", "guppylang.std.mem")  # type: ignore[var-annotated]
+bytecast_float_to_nat = produce_moved_function(  # type: ignore[var-annotated]
+    __name__, "bytecast_float_to_nat", "guppylang.std.num"
+)
+bytecast_nat_to_float = produce_moved_function(  # type: ignore[var-annotated]
+    __name__, "bytecast_nat_to_float", "guppylang.std.num"
+)
+barrier = produce_moved_function(__name__, "barrier", "guppylang.std.platform")  # type: ignore[var-annotated]
+Range = produce_moved_class(__name__, "Range", "guppylang.std.iter")
+SizedIter = produce_moved_class(__name__, "SizedIter", "guppylang.std.iter")
+ArrayIter = produce_moved_class(__name__, "ArrayIter", "guppylang.std.array")
+FrozenarrayIter = produce_moved_class(
+    __name__, "FrozenarrayIter", "guppylang.std.array"
 )
 
 __all__ = (  # noqa: RUF022
@@ -156,6 +175,7 @@ __all__ = (  # noqa: RUF022
     "open",
     "Option",
     "ord",
+    "output",
     "owned",
     "panic",
     "pow",
@@ -171,7 +191,6 @@ __all__ = (  # noqa: RUF022
     "round",
     "set",
     "setattr",
-    "SizedIter",
     "slice",
     "some",
     "sorted",
@@ -185,12 +204,4 @@ __all__ = (  # noqa: RUF022
     "Unitary",
     "Controllable",
     "Daggerable",
-    # TODO: Remove the following from prelude
-    "ArrayIter",  # Deprecated reexport
-    "barrier",  # Deprecated reexport
-    "bytecast_float_to_nat",  # Deprecated reexport
-    "bytecast_nat_to_float",  # Deprecated reexport
-    "FrozenarrayIter",  # Deprecated reexport
-    "mem_swap",  # Deprecated reexport
-    "Range",  # Deprecated reexport
 )
