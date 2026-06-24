@@ -30,7 +30,7 @@ jobs:
           - resolution: "lowest-direct"
             python: "3.10"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: mozilla-actions/sccache-action@v0.0.10
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release-pr--')
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           repository: Quantinuum/guppy-docs
           submodules: true
@@ -81,7 +81,7 @@ jobs:
           cd guppy-docs
           uv add "guppylang @ git+https://github.com/Quantinuum/guppylang.git@${{ github.event.pull_request.head.sha }}#subdirectory=guppylang" || uv sync --group docs
       - name: Checkout guppylang pyproject.toml
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: Quantinuum/guppylang
           ref: ${{ github.event.pull_request.head.sha }}
