@@ -156,6 +156,7 @@ def check_protocol(
                 raise GuppyError(FirstArgNotProtocol(None, protocol_def.name))
         func = ENGINE.get_instance_func(ty, name)
         if not func:
+            loc = loc or ENGINE.get_parsed(protocol_def.member_defs[name]).defined_at
             raise GuppyError(
                 ProtocolMemberMissing(
                     loc,
