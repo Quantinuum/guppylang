@@ -3,6 +3,53 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a5...guppylang-internals-v1.0) (2026-06-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add Guppy type aliases (#1645)
+* Promote `control` and `dagger` modifiers from experimental (#1881)
+* Remove deprecated reexports and leave custom import errors (#1886)
+* Remove deprecated decorators, functions, and sync dummy interface (#1855)
+* Allow implicit self args in protocols (#1770)
+* Rename result and state_result to output and state_output (#1871)
+
+
+### Bug Fixes
+
+* Add fallthrough error location (#1919)([00de27c](https://github.com/Quantinuum/guppylang/commit/00de27c3bd41fce1188e87dcfb1e6c2c541d37ee))
+
+* Disable imprecise array indexing check (#1859)([9f2afe0](https://github.com/Quantinuum/guppylang/commit/9f2afe045e886869bfa6789f2e7ed0a064e12e10))
+
+
+
+### Code Refactoring
+
+* Remove deprecated reexports and leave custom import errors (#1886)([3c19192](https://github.com/Quantinuum/guppylang/commit/3c1919266b82e039017394f23bccf9381fda5a6b))
+
+* Remove deprecated decorators, functions, and sync dummy interface (#1855)([68b217c](https://github.com/Quantinuum/guppylang/commit/68b217c92350b3e3ebe40779b7d97e0955f945f9))
+
+* Rename result and state_result to output and state_output (#1871)([a6a6ff6](https://github.com/Quantinuum/guppylang/commit/a6a6ff6ce3220fec258b22cb412cb8314d661302))
+
+
+
+### Features
+
+* Add Guppy type aliases (#1645)([5a3554a](https://github.com/Quantinuum/guppylang/commit/5a3554a649a8b1c3a45d8818d5f28c845f7758bf))
+
+* Better error message for protocol method signature mismatch (#1904)([80be9fc](https://github.com/Quantinuum/guppylang/commit/80be9fcccfd7b78b121616020de18a19c02d22cb))
+
+* Promote `control` and `dagger` modifiers from experimental (#1881)([7eb1d5c](https://github.com/Quantinuum/guppylang/commit/7eb1d5c8ef34ae8ed7551523d3c16a58aadf0bca))
+
+* Allow implicit self args in protocols (#1770)([cecc955](https://github.com/Quantinuum/guppylang/commit/cecc955a50c00fc8fc3c770e7ccbfb932d845b5b))
+
+
+
+### Performance Improvements
+
+* More efficient calling frame detection (#1884)([487a8ac](https://github.com/Quantinuum/guppylang/commit/487a8ac51068cec688d3794fcd59848896157a34))
+
 ## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a4...guppylang-internals-v1.0.0-a5) (2026-06-15)
 
 

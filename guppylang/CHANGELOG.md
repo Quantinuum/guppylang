@@ -14,6 +14,36 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a6](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a5...guppylang-v1.0.0-a6) (2026-06-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Quantum.project_z returns Measurement  (#1896)
+* Add Guppy type aliases (#1645)
+* Remove deprecated reexports and leave custom import errors (#1886)
+* Remove deprecated decorators, functions, and sync dummy interface (#1855)
+* Rename result and state_result to output and state_output (#1871)
+
+
+### Code Refactoring
+
+* Quantum.project_z returns Measurement  (#1896)([1d67161](https://github.com/Quantinuum/guppylang/commit/1d671613e8d084e9a37c1b69a3731c74649ead52))
+
+* Remove deprecated reexports and leave custom import errors (#1886)([3c19192](https://github.com/Quantinuum/guppylang/commit/3c1919266b82e039017394f23bccf9381fda5a6b))
+
+* Remove deprecated decorators, functions, and sync dummy interface (#1855)([68b217c](https://github.com/Quantinuum/guppylang/commit/68b217c92350b3e3ebe40779b7d97e0955f945f9))
+
+* Rename result and state_result to output and state_output (#1871)([a6a6ff6](https://github.com/Quantinuum/guppylang/commit/a6a6ff6ce3220fec258b22cb412cb8314d661302))
+
+
+
+### Features
+
+* Add Guppy type aliases (#1645)([5a3554a](https://github.com/Quantinuum/guppylang/commit/5a3554a649a8b1c3a45d8818d5f28c845f7758bf))
+
+* Add bounded random int to PCG32 (#1877)([01004a8](https://github.com/Quantinuum/guppylang/commit/01004a84714564549595954b045b927bb4bfb7b9))
+
 ## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a4...guppylang-v1.0.0-a5) (2026-06-15)
 
 
