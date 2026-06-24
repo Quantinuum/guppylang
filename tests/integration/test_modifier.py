@@ -1,5 +1,4 @@
 import base64
-from collections import Counter
 from collections.abc import Callable
 
 from guppylang.decorator import guppy

@@ -7,7 +7,6 @@ from guppylang_internals.cfg.bb import BB
 from guppylang_internals.checker.cfg_checker import check_cfg
 from guppylang_internals.checker.core import Context, Variable
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
-from guppylang_internals.definition.common import DefId
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
 from guppylang_internals.tys.ty import (
     FuncInput,
@@ -44,7 +43,6 @@ def check_modified_block(
     # Construct inputs for checking the body CFG
     inputs = [v for v, _ in captured.values()]
     inputs = non_copyable_front_others_back(inputs)
-    def_id = DefId.fresh()
     globals = ctx.globals
     assert ctx.modified_block_counter is not None
     block_name = (
@@ -66,7 +64,6 @@ def check_modified_block(
     func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)
 
     checked_modifier = CheckedModifiedBlock(
-        def_id,
         block_name,
         checked_cfg,
         func_ty,

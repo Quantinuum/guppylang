@@ -911,7 +911,6 @@ class ModifiedBlock(ast.With):
 
 
 class CheckedModifiedBlock(ast.With):
-    def_id: "DefId"
     name: str
     cfg: "CheckedCFG[Place]"
 
@@ -923,7 +922,6 @@ class CheckedModifiedBlock(ast.With):
 
     def __init__(
         self,
-        def_id: "DefId",
         name: str,
         cfg: "CheckedCFG[Place]",
         ty: FunctionType,
@@ -933,7 +931,6 @@ class CheckedModifiedBlock(ast.With):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.def_id = def_id
         self.name = name
         self.cfg = cfg
         self.ty = ty
