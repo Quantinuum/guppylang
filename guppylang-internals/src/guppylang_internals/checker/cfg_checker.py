@@ -114,7 +114,6 @@ def check_cfg(
         return_ty,
         generic_args,
         globals,
-        func_name,
         modified_block_name_base,
         modified_block_counter,
     )
@@ -149,7 +148,6 @@ def check_cfg(
                 return_ty,
                 generic_args,
                 globals,
-                func_name,
                 modified_block_name_base,
                 modified_block_counter,
             )
@@ -261,7 +259,6 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
-    func_name: str,
     modified_block_name_base: str,
     modified_block_counter: Iterator[int],
 ) -> CheckedBB[Variable]:
