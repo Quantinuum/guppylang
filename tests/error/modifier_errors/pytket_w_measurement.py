@@ -10,7 +10,7 @@ def guppy_circ(q: qubit) -> bool: ...
 
 @guppy(unitary=True)
 def foo(q: qubit) -> bool:
-    b =guppy_circ(q)
+    b = guppy_circ(q)
     return b
 
 

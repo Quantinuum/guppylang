@@ -128,7 +128,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
                     if isinstance(func, ParsedPytketDef):
                         err.add_sub_diagnostic(
-                            UnitaryCallError.PyTketHint(None, func.name)
+                            UnitaryCallError.PytketHint(None, func.name)
                         )
                     else:
                         err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))

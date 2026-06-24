@@ -5,7 +5,7 @@ Error: Control constraint violation (at $FILE:14:8)
 14 |         guppy_circ(q)
    |         ^^^^^^^^^^^^^ This function cannot be called in a controllable context
 
-Help: The function `circ` corresponds to a PyTKET circuit containing a
+Help: The function `circ` corresponds to a pytket circuit containing a
 measurement or a reset operation, which is not allowed in a controllable
 context.
 
