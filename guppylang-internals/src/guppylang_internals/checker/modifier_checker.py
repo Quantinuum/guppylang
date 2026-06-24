@@ -56,7 +56,7 @@ def check_modified_block(
         inputs,
         NoneType(),
         {},
-        ctx.func_name,
+        "__modified__()",
         globals,
         # We pass the first modifier node for better error messages in the cfg checker
         first_modifier_node=modified_block.first_modifier_node,

@@ -292,7 +292,6 @@ def check_bb(
         globals,
         Locals({v.name: v for v in inputs}),
         generic_args,
-        func_name=func_name,
         modified_block_name_base=modified_block_name_base,
         modified_block_counter=modified_block_counter,
     )

@@ -447,7 +447,6 @@ class Context(NamedTuple):
     globals: Globals
     locals: Locals[str, Variable]
     generic_param_inst: dict[str, Argument]
-    func_name: str = ""
     modified_block_name_base: str = ""
     modified_block_counter: Iterator[int] | None = None
 
