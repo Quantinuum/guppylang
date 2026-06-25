@@ -131,6 +131,7 @@ from guppylang_internals.nodes import (
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
+    CallableProtocolInst,
     bool_type,
     float_type,
     frozenarray_type,
@@ -357,12 +358,23 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             return self.visit_Call(node, ty)
 
         # Otherwise, it must be a function as a higher-order value - something
-        # whose type is either a FunctionType or a Tuple of FunctionTypes
+        # whose type is either a FunctionType, a genric parameter with a `Callable`
+        # bound, or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
             args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
+
+        if isinstance(func_ty, BoundTypeVar):
+            for protocol in func_ty.implements:
+                if isinstance(protocol, CallableProtocolInst):
+                    args, subst, inst = check_call(
+                        protocol.sig, node.args, ty, node, self.ctx
+                    )
+                    assert inst == (), "Callables are not generic"
+                    node.func = instantiate_poly(node.func, protocol.sig, inst)
+                    return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
         if isinstance(func_ty, TupleType) and (
             function_elements := parse_function_tensor(func_ty)
@@ -953,9 +965,19 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
-        elif isinstance(ty, TupleType) and (
-            function_elems := parse_function_tensor(ty)
-        ):
+
+        if isinstance(ty, BoundTypeVar):
+            for protocol in ty.implements:
+                if isinstance(protocol, CallableProtocolInst):
+                    args, return_ty, inst = synthesize_call(
+                        protocol.sig, node.args, node, self.ctx
+                    )
+                    assert inst == (), "Callables are not generic"
+                    node.func = instantiate_poly(node.func, protocol.sig, inst)
+                    call = LocalCall(func=node.func, args=args)
+                    return with_loc(node, call), return_ty
+
+        if isinstance(ty, TupleType) and (function_elems := parse_function_tensor(ty)):
             check_function_tensors_enabled(node.func)
             if any(f.parametrized for f in function_elems):
                 raise GuppyError(
