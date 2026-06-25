@@ -63,8 +63,8 @@ class _DummyMetadata:
     functions are recognised as regular functions and included in docs.
     """
 
-    def __call__(self, f: Any) -> Any:
-        return f
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return lambda f: f
 
 
 def _dummy_custom_decorator(*args: Any, **kwargs: Any) -> Any:
