@@ -243,3 +243,12 @@ class UnitaryCallError(Error):
         )
         callable_name: str
         function_description: str
+
+    @dataclass(frozen=True)
+    class PytketHint(Help):
+        func_name: str
+        message: ClassVar[str] = (
+            "The function `{func_name}` corresponds to a pytket circuit containing a "
+            "non unitary operation, which is not allowed in a "
+            "{context_description} context."
+        )
