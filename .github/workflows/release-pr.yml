@@ -257,6 +257,7 @@ jobs:
 
       - name: Refresh release-notes preview
         uses: ./.github/actions/update-release-preview
+        if: steps.gate.outputs.proceed == 'true'
         with:
           pr-number: ${{ steps.openpr.outputs.number }}
           guppylang-version: ${{ steps.plan.outputs.guppylang }}
