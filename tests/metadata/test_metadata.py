@@ -2,6 +2,8 @@
 
 from unittest.mock import Mock
 
+from guppylang import guppy
+from guppylang.decorator import metadata
 import pytest
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import (
@@ -91,3 +93,18 @@ def test_add_metadata_property_max_qubits():
     add_metadata(mock_hugr_node, guppy_metadata)
 
     assert mock_hugr_node.metadata.as_dict() == {"tket.hint.max_qubits": 5}
+
+
+def test_metadata_reserved_keys_using_decorator():
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError)
+            and e.error.keys == {"tket.unitary"}
+        ),
+    ):
+
+        @guppy
+        @metadata("tket.unitary", "value2")
+        def main() -> None:
+            pass

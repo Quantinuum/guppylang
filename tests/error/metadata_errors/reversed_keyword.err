@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "$FILE", line 5, in <module>
-    @guppy
-guppylang_internals.error.GuppyError: Fatal: The metadata key `tket.unitary` cannot be used because it is reserved by
-Guppy.
-
-Guppy compilation failed due to 1 previous error
-
