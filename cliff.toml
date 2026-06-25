@@ -37,7 +37,7 @@ body = """
 ### {{ group | striptags | trim | upper_first }}
 {% for commit in commits %}
 * {{ commit.message | split(pat="\n") | first | upper_first }}\
- ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/Quantinuum/guppylang/commit/{{ commit.id }}))\
+  ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/Quantinuum/guppylang/commit/{{ commit.id }}))\
 {% endfor %}
 {% endfor %}\n
 """
