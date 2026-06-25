@@ -1,3 +1,6 @@
+
+from collections.abc import Callable
+
 from guppylang import guppy, qubit
 from guppylang.std.builtins import Controllable, Daggerable, Unitary
 from guppylang.std.quantum import h
@@ -9,7 +12,7 @@ def unitary(q: qubit) -> None:
 
 
 @guppy
-def apply_control(f: Unitary[[qubit], None], q: qubit) -> Unitary[[qubit], None]:
+def apply_control(f: Callable[[qubit], None], q: qubit) -> Daggerable[[qubit], None]:
     f(q)
     return unitary
 

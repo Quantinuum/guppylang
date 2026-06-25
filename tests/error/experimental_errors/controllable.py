@@ -9,7 +9,7 @@ def unitary(q: qubit) -> None:
 
 
 @guppy
-def apply_control(f: Unitary[[qubit], None], q: qubit) -> Unitary[[qubit], None]:
+def apply_control(f: Controllable[[qubit], None], q: qubit) -> Unitary[[qubit], None]:
     f(q)
     return unitary
 
