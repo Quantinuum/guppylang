@@ -13,7 +13,6 @@ from guppylang.std.builtins import (
 )
 from guppylang.std.num import nat
 from guppylang.std.quantum import angle, cx, discard, h, qubit, rx, discard_array
-import pytest
 
 
 def test_dagger_simple(validate):
@@ -171,16 +170,15 @@ def test_control_subscript_nested(validate):
     validate(main.compile())
 
 
-@pytest.mark.xfail(
-    reason="Normalize guppy fails: power node is found by the ModifierResolverPass"
-)
 def test_power_simple(validate):
     @guppy
     def bar(n: nat) -> None:
         with power(n):
             pass
 
-    validate(bar.compile_function())
+    # Normalize guppy fails: power node is found by the ModifierResolverPass, thus we do
+    # not want to validate the exported hugr file on CI.
+    validate(bar.compile_function(), export=False)
 
 
 def test_call_in_modifier(validate):
@@ -307,11 +305,6 @@ def test_higher_order_daggerable_callable(validate):
     validate(main.compile_function())
 
 
-# Tket2 still contains some bugs with higher-order functions.
-# Waiting for:
-# - https://github.com/Quantinuum/guppylang/issues/1917 and
-# - https://github.com/Quantinuum/tket2/issues/1710
-@pytest.mark.xfail(reason="Waiting for fix on tket2")
 def test_higher_order_control_controllable_callable(validate):
     """Higher-order arguments can require control support."""
 
@@ -324,14 +317,14 @@ def test_higher_order_control_controllable_callable(validate):
     def main(ctrl: qubit, q: qubit) -> None:
         apply_control(h, ctrl, q)
 
-    validate(main.compile_function())
+    # Tket2 still contains some bugs with higher-order functions.
+    # Thus validating exported hugr files will fail on CI.
+    # Waiting for:
+    # - https://github.com/Quantinuum/guppylang/issues/1917 and
+    # - https://github.com/Quantinuum/tket2/issues/1710
+    validate(main.compile_function(), export=False)
 
 
-# Tket2 still contains some bugs with higher-order functions.
-# Waiting for:
-# - https://github.com/Quantinuum/guppylang/issues/1917 and
-# - https://github.com/Quantinuum/tket2/issues/1710
-@pytest.mark.xfail(reason="Waiting for fix on tket2")
 def test_higher_order_unitary_callable(validate):
     """A unitary higher-order argument can be used in a combined modifier context."""
 
@@ -341,7 +334,12 @@ def test_higher_order_unitary_callable(validate):
             with control(ctrl):
                 f(q)
 
-    validate(apply_unitary.compile_function())
+    # Tket2 still contains some bugs with higher-order functions.
+    # Thus validating exported hugr files will fail on CI.
+    # Waiting for:
+    # - https://github.com/Quantinuum/guppylang/issues/1917 and
+    # - https://github.com/Quantinuum/tket2/issues/1710
+    validate(apply_unitary.compile_function(), export=False)
 
 
 def test_return_callable_with_stronger_flags(validate):
