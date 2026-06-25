@@ -1,10 +1,10 @@
 Error: Invalid entry point (at $FILE:8:0)
   | 
-5 | 
-6 | @guppy
-7 | def func(x: T) -> array[T, 3]:
+6 | 
+7 | @guppy
+8 | def func(x: T) -> array[T, 3]:
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-8 |     return array(x for _ in range(3))
+9 |     return array(x for _ in range(3))
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Function `func` is not a valid compilation entry point since
   |                                       the value of its generic parameter `T` is not known
 
