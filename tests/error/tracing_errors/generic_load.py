@@ -1,6 +1,5 @@
-from typing import Callable
-
 from guppylang.decorator import guppy
+from guppylang.std.builtins import Function
 
 
 T = guppy.type_var("T")
@@ -11,7 +10,7 @@ def generic_func(x: T) -> T: ...
 
 
 @guppy.comptime
-def main() -> Callable[[int], int]:
+def main() -> Function[[int], int]:
     return generic_func
 
 

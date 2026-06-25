@@ -1,0 +1,11 @@
+Error: Invalid type (at $FILE:6:11)
+  | 
+4 | 
+5 | @guppy.declare
+6 | def foo(f: Function) -> None: ...
+  |            ^^^^^^^^ Invalid function type
+
+Help: Function types are specified as follows: `Function[[<arguments>], <return
+type>]`
+
+Guppy compilation failed due to 1 previous error
