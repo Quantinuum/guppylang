@@ -5,6 +5,7 @@ from `guppylang`.
 
 ## [1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0...guppylang-internals-v1.1) (2026-06-25)
 
+Note that this release raises the minimum compatible version of `pytket` to `2.7.0`.
 
 ### ⚠ BREAKING CHANGES
 

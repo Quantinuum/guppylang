@@ -16,6 +16,7 @@ As of August 2025, The Guppy language is undergoing rapid development and is cur
 
 ## [1.0.0-a7](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a6...guppylang-v1.0.0-a7) (2026-06-25)
 
+Note that this release raises the minimum compatible version of `pytket` to `2.7.0`.
 
 ### ⚠ BREAKING CHANGES
 
