@@ -11,6 +11,7 @@ from guppylang.std.iter import range
 from guppylang.std.lang import (
     Controllable,
     Daggerable,
+    Function,
     Unitary,
     comptime,
     control,
@@ -143,6 +144,7 @@ __all__ = (  # noqa: RUF022
     "exit",
     "filter",
     "float",
+    "Function",
     "format",
     "frozenarray",
     "frozenset",

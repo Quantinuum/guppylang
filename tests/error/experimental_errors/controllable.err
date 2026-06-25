@@ -1,0 +1,12 @@
+Error: Experimental feature (at $FILE:12:21)
+   | 
+10 | 
+11 | @guppy
+12 | def apply_control(f: Controllable[[qubit], None], q: qubit) -> Unitary[[qubit], None]:
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Controllable callable is an experimental feature
+
+Help: Experimental features are currently disabled. You can enable them by
+calling `guppylang.enable_experimental_features()`, however note that these
+features are unstable and might break in the future.
+
+Guppy compilation failed due to 1 previous error

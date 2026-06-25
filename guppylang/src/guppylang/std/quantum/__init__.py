@@ -6,7 +6,6 @@ from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type, hugr_op
 from guppylang_internals.std._internal.compiler.quantum import (
-    InoutMeasureCompiler,
     RotationCompiler,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import MEASUREMENT_EXTENSION
@@ -18,6 +17,7 @@ from guppylang import guppy
 from guppylang.std.angles import angle, pi
 from guppylang.std.array import array
 from guppylang.std.lang import owned
+from guppylang.std.mem import with_owned
 from guppylang.std.option import Option
 
 
@@ -34,7 +34,7 @@ class qubit:
 
     @guppy
     @no_type_check
-    def project_z(self: "qubit") -> bool:
+    def project_z(self: "qubit") -> "Measurement":
         return project_z(self)
 
     @guppy
@@ -371,10 +371,20 @@ def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
     """
 
 
-@custom_function(InoutMeasureCompiler())
+@guppy
 @no_type_check
-def project_z(q: qubit) -> bool:
+def project_z(q: qubit) -> Measurement:
     """Project a single qubit into the Z-basis (a non-destructive measurement)."""
+
+    # TODO revert to using "tket.quantum.Measure" op with InOutMeasureCompiler
+    # once bool -> Measurement is available https://github.com/Quantinuum/tket2/issues/1732
+    def helper(q: qubit @ owned) -> tuple[Measurement, qubit]:
+        return measure(q), qubit()
+
+    m = with_owned(q, helper)
+    if m:
+        x(q)
+    return m
 
 
 @hugr_op(quantum_op("QFree"))

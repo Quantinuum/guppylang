@@ -32,18 +32,18 @@ from guppylang_internals.tys.ty import (
 
 
 @dataclass(frozen=True)
-class CallableTypeDef(TypeDef, CompiledDef):
-    """Type definition associated with the builtin `Callable` type.
+class FunctionTypeDef(TypeDef, CompiledDef):
+    """Type definition associated with the builtin `Function` type.
 
     Any impls on functions can be registered with this definition.
     """
 
     name: Literal[
-        "Callable",
+        "Function",
         "Unitary",
         "Daggerable",
         "Controllable",
-    ] = field(default="Callable", kw_only=True)
+    ] = field(default="Function", kw_only=True)
     flags: UnitaryFlags = UnitaryFlags.NoFlags
 
     def __init__(
@@ -60,8 +60,10 @@ class CallableTypeDef(TypeDef, CompiledDef):
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> FunctionType:
-        # Callable types are constructed using special logic in the type parser
-        raise InternalGuppyError("Tried to `Callable` type via `check_instantiate`")
+        # Function types are constructed using special logic in the type parser
+        raise InternalGuppyError(
+            "Tried to construct `{self.name}` type via `check_instantiate`"
+        )
 
 
 @dataclass(frozen=True)
@@ -225,20 +227,20 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
     return ht.Option(arg.ty.to_hugr(ctx))
 
 
-callable_type_def = CallableTypeDef(DefId.fresh(), None, None)
-unitary_type_def = CallableTypeDef(
+function_type_def = FunctionTypeDef(DefId.fresh(), None, None)
+unitary_type_def = FunctionTypeDef(
     DefId.fresh(),
     None,
     None,
     flags=UnitaryFlags.Unitary,
 )
-daggerable_type_def = CallableTypeDef(
+daggerable_type_def = FunctionTypeDef(
     DefId.fresh(),
     None,
     None,
     flags=UnitaryFlags.Dagger,
 )
-controllable_type_def = CallableTypeDef(
+controllable_type_def = FunctionTypeDef(
     DefId.fresh(),
     None,
     None,
