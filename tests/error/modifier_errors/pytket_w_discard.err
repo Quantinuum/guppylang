@@ -1,8 +1,11 @@
-Error: Type mismatch (at $FILE:15:11)
+Error: Unitary constraint violation (at $FILE:14:4)
    | 
+12 | @guppy(unitary=True)
 13 | def foo(q: qubit) -> bool:
-14 |     b = guppy_circ(q)
-15 |     return b
-   |            ^ Expected return value of type `bool`, got `None`
+14 |     guppy_circ(q)
+   |     ^^^^^^^^^^^^^ This function cannot be called in a unitary context
+
+Help: The function `guppy_circ` corresponds to a pytket circuit containing a non
+unitary operation, which is not allowed in a unitary context.
 
 Guppy compilation failed due to 1 previous error

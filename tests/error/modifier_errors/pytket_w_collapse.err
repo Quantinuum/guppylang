@@ -1,10 +1,11 @@
-Error: Signature mismatch (at $FILE:9:0)
-  | 
-7 | 
-8 | @guppy.pytket(circ)
-9 | def guppy_circ(q: qubit) -> bool: ...
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Signature `guppy_circ` doesn't match provided circuit
+Error: Unitary constraint violation (at $FILE:13:4)
+   | 
+11 | @guppy(unitary=True)
+12 | def foo(q: qubit) -> None:
+13 |     guppy_circ(q)
+   |     ^^^^^^^^^^^^^ This function cannot be called in a unitary context
 
-Note: Expected circuit signature is `qubit -> None`
+Help: The function `guppy_circ` corresponds to a pytket circuit containing a non
+unitary operation, which is not allowed in a unitary context.
 
 Guppy compilation failed due to 1 previous error

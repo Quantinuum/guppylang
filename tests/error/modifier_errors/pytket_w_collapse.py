@@ -6,12 +6,11 @@ circ.H(0)
 circ.add_gate(OpType.Collapse, [0])
 
 @guppy.pytket(circ)
-def guppy_circ(q: qubit) -> bool: ...
+def guppy_circ(q: qubit) -> None: ...
 
 @guppy(unitary=True)
-def foo(q: qubit) -> bool:
-    b = guppy_circ(q)
-    return b
+def foo(q: qubit) -> None:
+    guppy_circ(q)
 
 
 foo.check()

@@ -480,11 +480,14 @@ def _infer_unitary_flags_from_circuit(input_circuit: Any) -> UnitaryFlags:
     if input_circuit.n_bits > 0:
         return UnitaryFlags.NoFlags
 
-    # List of not unitary operations that not involve classical bits.
-    black_list = {OpType.Reset, OpType.Create, OpType.Discard, OpType.Collapse}
+    # The circuit creates or discards qubits, we cannot ensure unitarity.
+    if input_circuit.created_qubits or input_circuit.discarded_qubits:
+        return UnitaryFlags.NoFlags
+
     counter = gate_counts(input_circuit)
 
-    for op in black_list:
+    # List of not unitary operations that not involve classical bits.
+    for op in {OpType.Reset, OpType.Collapse}:
         if counter[op] > 0:
             return UnitaryFlags.NoFlags
 
