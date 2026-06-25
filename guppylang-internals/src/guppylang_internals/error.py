@@ -16,6 +16,17 @@ class GuppyError(Exception):
 
     error: "Error | Fatal"
 
+    def __str__(self) -> str:
+        from guppylang_internals.diagnostic import DiagnosticsRenderer
+        from guppylang_internals.engine import DEF_STORE
+
+        renderer = DiagnosticsRenderer(DEF_STORE.sources)
+        renderer.render_diagnostic(self.error)
+        return (
+            "\n".join(renderer.buffer)
+            + "\n\nGuppy compilation failed due to 1 previous error\n"
+        )
+
 
 class GuppyTypeError(GuppyError):
     """Special Guppy exception for type errors."""
@@ -87,13 +98,7 @@ def pretty_errors(f: FuncT) -> FuncT:
     ) -> None:
         """Custom `excepthook` that intercepts `GuppyExceptions` for pretty printing."""
         if isinstance(err, GuppyError):
-            from guppylang_internals.diagnostic import DiagnosticsRenderer
-            from guppylang_internals.engine import DEF_STORE
-
-            renderer = DiagnosticsRenderer(DEF_STORE.sources)
-            renderer.render_diagnostic(err.error)
-            sys.stderr.write("\n".join(renderer.buffer))
-            sys.stderr.write("\n\nGuppy compilation failed due to 1 previous error\n")
+            sys.stderr.write(str(err))
             return
 
         # If it's not a GuppyError, fall back to default hook

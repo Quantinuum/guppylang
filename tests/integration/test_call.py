@@ -15,7 +15,7 @@ def test_call(validate):
 
 def test_call_back(validate):
     @guppy
-    def foo(x: int) -> int:
+    def foo(x: float) -> int:
         return bar(x)
 
     @guppy

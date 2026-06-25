@@ -96,7 +96,9 @@ def test_absolute_path_from_different_cwd(validate, monkeypatch, tmp_path):
 def test_nonexistent_relative_path_error():
     """A module using @wasm_module with a relative path that doesn't exist should
     raise WasmFileNotFound (See https://github.com/Quantinuum/guppylang/issues/1407)."""
-    with pytest.raises(GuppyError, match="WasmFileNotFound"):
+    with pytest.raises(
+        GuppyError, match=r"Error: Wasm file `no_such_file.wasm` not found"
+    ):
 
         @wasm_module("no_such_file.wasm")
         class BadWasm:
@@ -105,7 +107,9 @@ def test_nonexistent_relative_path_error():
 
 def test_nonexistent_absolute_path_error():
     """An absolute path that doesn't exist raises WasmFileNotFound."""
-    with pytest.raises(GuppyError, match="WasmFileNotFound"):
+    with pytest.raises(
+        GuppyError, match=r"Error: Wasm file `/nonexistent/path/to/file.wasm` not found"
+    ):
 
         @wasm_module("/nonexistent/path/to/file.wasm")
         class BadWasm:
