@@ -32,7 +32,7 @@ class ReservedMetadataKeysError(Fatal):
     title: ClassVar[str] = "Metadata key is reserved"
     message: ClassVar[str] = "{rendered_message}"
     keys: set[str]
-    singular: bool = field(default=False)
+    singular: bool
 
     @property
     def rendered_message(self) -> str:
