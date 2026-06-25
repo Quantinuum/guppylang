@@ -9,7 +9,7 @@ Note that this release raises the minimum compatible version of `pytket` to `2.7
 
 ### ⚠ BREAKING CHANGES
 
-* Infer unitary flags when loading PyTket circuits (#1897)
+* Infer unitary flags when loading `pytket` circuits (#1897)
 * Mark unitary callable interfaces as experimental (#1927)
 
 
