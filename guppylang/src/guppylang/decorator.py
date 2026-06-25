@@ -36,7 +36,11 @@ from guppylang_internals.definition.pytket_circuits import (
 )
 from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
-from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
+from guppylang_internals.dummy_decorator import (
+    _DummyGuppy,
+    _DummyMetadata,
+    sphinx_running,
+)
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
@@ -126,6 +130,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDef(
                 DefId.fresh(),
                 f.__name__,
@@ -172,6 +177,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawTracedFunctionDef(
                 DefId.fresh(),
                 f.__name__,
@@ -318,6 +324,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
@@ -434,6 +441,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
@@ -649,6 +657,35 @@ class _Guppy:
         return GuppyFunctionDefinition(defn)
 
 
+class _MetadataDecorator:
+    """Class for the `@metadata` decorator."""
+
+    def __call__(self, *args: Any) -> Any:
+        if len(args) == 2:
+
+            def decorator(f: Any) -> Any:
+                if isinstance(f, GuppyDefinition):
+                    raise TypeError(
+                        "@metadata must be placed below the @guppy decorator,"
+                        " not above it"
+                    )
+                f.__guppy_metadata__ = {
+                    **getattr(f, "__guppy_metadata__", {}),
+                    args[0]: args[1],
+                }
+                return f
+
+            return decorator
+
+        got = 0 if len(args) == 1 and _is_bare_decorated_target(args[0]) else len(args)
+        raise TypeError(f"@metadata requires exactly 2 arguments, got {got}")
+
+
+def _is_bare_decorated_target(arg: Any) -> bool:
+    """Returns whether `arg` looks like a function or class passed by bare @metadata."""
+    return inspect.isfunction(arg) or inspect.isclass(arg)
+
+
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
     """Helper function to parse expressions that are provided as strings.
 
@@ -815,7 +852,14 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     )
 
 
-guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
+def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> None:
+    """Adds the given metadata to the function's `__guppy_metadata__` attribute, which
+    is used by the compiler to store metadata for Guppy functions.
+    """
+    custom_metadata = getattr(f, "__guppy_metadata__", {})
+    assert isinstance(custom_metadata, dict)
+    for key, value in custom_metadata.items():
+        metadata.set_generic_metadata(key, value)
 
 
 def _params_from_list(params: list[Any]) -> list[ParamDef]:
@@ -838,3 +882,11 @@ def _params_from_list(params: list[Any]) -> list[ParamDef]:
             )
         result.append(defn)
     return result
+
+
+guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
+metadata = (
+    cast("_MetadataDecorator", _DummyMetadata())
+    if sphinx_running()
+    else _MetadataDecorator()
+)

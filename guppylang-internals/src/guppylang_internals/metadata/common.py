@@ -60,6 +60,11 @@ class FunctionMetadata:
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value
 
+    def set_generic_metadata(self, key: str, value: JsonType) -> None:
+        if key in self._RESERVED_KEYS:
+            raise GuppyError(ReservedMetadataKeysError(None, keys={key}))
+        self._node_metadata[key] = value
+
     def get_debug_info(self) -> DebugRecord | None:
         debug_record = self._node_metadata.get(HugrDebugInfo, None)
         assert debug_record is None or isinstance(debug_record, DebugRecord)
