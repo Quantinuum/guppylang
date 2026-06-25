@@ -218,8 +218,9 @@ def test_nested_modifiers(validate):
 def test_free_linear_variable_in_modifier(validate):
     T = guppy.type_var("T", copyable=False, droppable=False)
 
-    @guppy.declare(controllable=True)
-    def use(a: T) -> None: ...
+    @guppy(controllable=True)
+    def use(a: T) -> None:
+        pass
 
     @guppy.declare
     def discard(a: T @ owned) -> None: ...
@@ -326,6 +327,11 @@ def test_higher_order_control_controllable_callable(validate):
     validate(main.compile_function())
 
 
+# Skipped because tket2 still contains some bugs with higher-order functions.
+# Waiting for:
+# - https://github.com/Quantinuum/guppylang/issues/1917 and
+# - https://github.com/Quantinuum/tket2/issues/1710
+@pytest.mark.skip("CI fails, waiting for fix on tket2")
 def test_higher_order_unitary_callable(validate):
     """A unitary higher-order argument can be used in a combined modifier context."""
 
