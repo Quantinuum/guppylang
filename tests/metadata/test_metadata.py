@@ -2,9 +2,9 @@
 
 from unittest.mock import Mock
 
+import pytest
 from guppylang import guppy
 from guppylang.decorator import metadata
-import pytest
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import (
     FunctionMetadata,
