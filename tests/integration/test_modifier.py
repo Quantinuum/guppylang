@@ -171,8 +171,8 @@ def test_control_subscript_nested(validate):
     validate(main.compile())
 
 
-@pytest.mark.skip(
-    "Normalize guppy fails: power node is found by the ModifierResolverPass"
+@pytest.mark.xfail(
+    reason="Normalize guppy fails: power node is found by the ModifierResolverPass"
 )
 def test_power_simple(validate):
     @guppy
@@ -311,7 +311,7 @@ def test_higher_order_daggerable_callable(validate):
 # Waiting for:
 # - https://github.com/Quantinuum/guppylang/issues/1917 and
 # - https://github.com/Quantinuum/tket2/issues/1710
-@pytest.mark.skip("CI fails, waiting for fix on tket2")
+@pytest.mark.xfail(reason="Waiting for fix on tket2")
 def test_higher_order_control_controllable_callable(validate):
     """Higher-order arguments can require control support."""
 
@@ -331,7 +331,7 @@ def test_higher_order_control_controllable_callable(validate):
 # Waiting for:
 # - https://github.com/Quantinuum/guppylang/issues/1917 and
 # - https://github.com/Quantinuum/tket2/issues/1710
-@pytest.mark.skip("CI fails, waiting for fix on tket2")
+@pytest.mark.xfail(reason="Waiting for fix on tket2")
 def test_higher_order_unitary_callable(validate):
     """A unitary higher-order argument can be used in a combined modifier context."""
 
