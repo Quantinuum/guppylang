@@ -55,18 +55,6 @@ class _DummyGuppy:
         return None
 
 
-class _DummyMetadata:
-    """A dummy class with the same interface as `@metadata` that does nothing when used
-    to decorate functions.
-
-    We use this during sphinx builds as a mock for the decorator, to ensure that Guppy
-    functions are recognised as regular functions and included in docs.
-    """
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return lambda f: f
-
-
 def _dummy_custom_decorator(*args: Any, **kwargs: Any) -> Any:
     """Dummy version of custom decorators that are used during Sphinx builds."""
     return lambda f: f

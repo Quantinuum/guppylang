@@ -4,6 +4,7 @@ import inspect
 from collections.abc import Callable
 from types import FrameType
 from typing import (
+    TYPE_CHECKING,
     Any,
     NamedTuple,
     ParamSpec,
@@ -37,8 +38,8 @@ from guppylang_internals.definition.pytket_circuits import (
 from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
 from guppylang_internals.dummy_decorator import (
+    _dummy_custom_decorator,
     _DummyGuppy,
-    _DummyMetadata,
     sphinx_running,
 )
 from guppylang_internals.engine import DEF_STORE
@@ -657,33 +658,39 @@ class _Guppy:
         return GuppyFunctionDefinition(defn)
 
 
-class _MetadataDecorator:
-    """Class for the `@metadata` decorator."""
+def metadata(key: str, value: Any) -> Any:
+    """Decorator to attach metadata to a Guppy function. It must be placed below
+    the @guppy decorator.
 
-    def __call__(self, *args: Any) -> Any:
-        if len(args) == 2:
+    .. code-block:: python
 
-            def decorator(f: Any) -> Any:
-                if isinstance(f, GuppyDefinition):
-                    raise TypeError(
-                        "@metadata must be placed below the @guppy decorator,"
-                        " not above it"
-                    )
-                f.__guppy_metadata__ = {
-                    **getattr(f, "__guppy_metadata__", {}),
-                    args[0]: args[1],
-                }
-                return f
+        from guppylang import guppy
+        from guppylang.decorator import metadata
 
-            return decorator
+        @guppy.declare
+        @metadata("key1", "value1")
+        @metadata("key2", "value2")
+        def main() -> None:
+            pass
 
-        got = 0 if len(args) == 1 and _is_bare_decorated_target(args[0]) else len(args)
-        raise TypeError(f"@metadata requires exactly 2 arguments, got {got}")
+        main.compile()
 
+    During compilation, the node corresponding to the `main` function will have the
+    following metadata attached: {key1: value1, key2: value2}.
+    """
 
-def _is_bare_decorated_target(arg: Any) -> bool:
-    """Returns whether `arg` looks like a function or class passed by bare @metadata."""
-    return inspect.isfunction(arg) or inspect.isclass(arg)
+    def decorator(f: Any) -> Any:
+        if isinstance(f, GuppyDefinition):
+            raise TypeError(
+                "@metadata must be placed below the @guppy decorator, not above it"
+            )
+        f.__guppy_metadata__ = {
+            **getattr(f, "__guppy_metadata__", {}),
+            key: value,
+        }
+        return f
+
+    return decorator
 
 
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
@@ -885,8 +892,6 @@ def _params_from_list(params: list[Any]) -> list[ParamDef]:
 
 
 guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
-metadata = (
-    cast("_MetadataDecorator", _DummyMetadata())
-    if sphinx_running()
-    else _MetadataDecorator()
-)
+
+if not TYPE_CHECKING and sphinx_running():
+    metadata = _dummy_custom_decorator()

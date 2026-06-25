@@ -18,7 +18,7 @@ def test_metadata_decorator_position():
 def test_metadata_decorator_arguments():
     with pytest.raises(
         TypeError,
-        match="@metadata requires exactly 2 arguments, got 1",
+        match=r"metadata\(\) missing 1 required positional argument: 'value'",
     ):
         @guppy
         @metadata("key1")
@@ -27,7 +27,7 @@ def test_metadata_decorator_arguments():
 
     with pytest.raises(
         TypeError,
-        match="@metadata requires exactly 2 arguments, got 0",
+        match=r"metadata\(\) missing 1 required positional argument: 'value'",
     ):
         @guppy.struct
         @metadata
