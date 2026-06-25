@@ -1,4 +1,4 @@
-Error: Invalid entry point (at $FILE:9:4)
+Error: Invalid entry point (at $FILE:10:4)
    | 
  7 | class MyStruct:
  8 |     @guppy
