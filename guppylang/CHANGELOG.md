@@ -20,11 +20,22 @@ As of August 2025, The Guppy language is undergoing rapid development and is cur
 ### ⚠ BREAKING CHANGES
 
 * Move libraries into their own module (#1930)
+* Mark unitary callable interfaces as experimental (#1927)
+
+
+### Bug Fixes
+
+* Mark unitary callable interfaces as experimental (#1927)([ac12917](https://github.com/Quantinuum/guppylang/commit/ac1291792704e53b0a6dfdac9b94fd2dac4389e3))
 
 
 ### Code Refactoring
 
 * Move libraries into their own module (#1930)([dd5ca00](https://github.com/Quantinuum/guppylang/commit/dd5ca00a6a911ec54c3f3a5bc1b7c92ad665a84a))
+
+### Features
+
+* Render diagnostics when stringifying `GuppyError` (#1936)([9d3d36f](https://github.com/Quantinuum/guppylang/commit/9d3d36f6e600591def66358d117688593d58f9de))
+* Infer unitary flags when loading `pytket` circuits (#1897)([0b57ad9](https://github.com/Quantinuum/guppylang/commit/0b57ad9e8e36e336c4b75cc653aff1afdafad602))
 
 ## [1.0.0-a6](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a5...guppylang-v1.0.0-a6) (2026-06-24)
 

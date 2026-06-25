@@ -9,7 +9,6 @@ from `guppylang`.
 ### ⚠ BREAKING CHANGES
 
 * Infer unitary flags when loading PyTket circuits (#1897)
-* Move libraries into their own module (#1930)
 * Mark unitary callable interfaces as experimental (#1927)
 
 
@@ -26,7 +25,7 @@ from `guppylang`.
 ### Features
 
 * Render diagnostics when stringifying `GuppyError` (#1936)([9d3d36f](https://github.com/Quantinuum/guppylang/commit/9d3d36f6e600591def66358d117688593d58f9de))
-* Infer unitary flags when loading PyTket circuits (#1897)([0b57ad9](https://github.com/Quantinuum/guppylang/commit/0b57ad9e8e36e336c4b75cc653aff1afdafad602))
+* Infer unitary flags when loading `pytket` circuits (#1897)([0b57ad9](https://github.com/Quantinuum/guppylang/commit/0b57ad9e8e36e336c4b75cc653aff1afdafad602))
 
 ## [1.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a5...guppylang-internals-v1.0) (2026-06-24)
 
