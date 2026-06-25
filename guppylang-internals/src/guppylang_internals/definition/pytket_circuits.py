@@ -476,9 +476,16 @@ def _infer_unitary_flags_from_circuit(input_circuit: Any) -> UnitaryFlags:
 
     assert isinstance(input_circuit, Circuit)
 
+    # Classical bits are present in the circuit, we cannot ensure unitarity.
+    if input_circuit.n_bits > 0:
+        return UnitaryFlags.NoFlags
+
+    # List of not unitary operations that not involve classical bits.
+    black_list = {OpType.Reset, OpType.Create, OpType.Discard, OpType.Collapse}
     counter = gate_counts(input_circuit)
 
-    if counter[OpType.Measure] > 0 or counter[OpType.Reset] > 0:
-        return UnitaryFlags.NoFlags
-    else:
-        return UnitaryFlags.Unitary
+    for op in black_list:
+        if counter[op] > 0:
+            return UnitaryFlags.NoFlags
+
+    return UnitaryFlags.Unitary

@@ -1,0 +1,8 @@
+Error: Type mismatch (at $FILE:14:11)
+   | 
+12 | def foo(q: qubit) -> bool:
+13 |     b = guppy_circ(q)
+14 |     return b
+   |            ^ Expected return value of type `bool`, got `None`
+
+Guppy compilation failed due to 1 previous error
