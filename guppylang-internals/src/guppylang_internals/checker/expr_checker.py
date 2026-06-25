@@ -266,7 +266,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # When checking against a variable, we have to synthesize
         if isinstance(ty, ExistentialTypeVar):
             expr, syn_ty = self._synthesize(expr, allow_free_vars=False)
-            return with_type(syn_ty, expr), {ty: syn_ty}
+            expr, subst, inst = check_type_against(
+                syn_ty, ty, expr, self.ctx, self._kind
+            )
+            # Apply instantiation of quantified type variables
+            if inst:
+                expr = with_loc(expr, TypeApply(expr, inst))
+            return with_type(ty.substitute(subst), expr), subst
 
         # Otherwise, invoke the visitor
         old_kind = self._kind
@@ -1114,6 +1120,7 @@ def check_type_against(
         # Finally, check that the instantiation respects the linearity requirements and
         # if the unitary flags match
         check_inst(act, inst, node)
+        exp = exp.substitute(subst)
         assert isinstance(exp, FunctionType)
         check_unitary_flags(exp, act, node)
 
@@ -1130,6 +1137,7 @@ def check_type_against(
 
     # If we have a function type, we also check that unitary flags match
     if isinstance(act, FunctionType):
+        exp = exp.substitute(subst)
         assert isinstance(exp, FunctionType)
         check_unitary_flags(exp, act, node)
 
