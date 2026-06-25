@@ -1,8 +1,8 @@
-Error: Experimental feature (at $FILE:15:59)
+Error: Experimental feature (at $FILE:13:59)
    | 
-13 | 
-14 | @guppy
-15 | def apply_control(f: Callable[[qubit], None], q: qubit) -> Daggerable[[qubit], None]:
+11 | 
+12 | @guppy
+13 | def apply_control(f: Function[[qubit], None], q: qubit) -> Daggerable[[qubit], None]:
    |                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^ Daggerable callable is an experimental feature
 
 Help: Experimental features are currently disabled. You can enable them by

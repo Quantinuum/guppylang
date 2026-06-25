@@ -1,5 +1,5 @@
 from guppylang import guppy, qubit
-from guppylang.std.builtins import Controllable, Daggerable, Unitary
+from guppylang.std.builtins import Unitary
 from guppylang.std.quantum import h
 
 
