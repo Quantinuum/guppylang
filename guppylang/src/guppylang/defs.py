@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import guppylang_internals
-from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.declaration import RawFunctionDecl
 from guppylang_internals.definition.enum import CheckedEnumDef
 from guppylang_internals.definition.function import RawFunctionDef
@@ -18,9 +17,7 @@ from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, pretty_errors
 from guppylang_internals.span import Span, to_span
-from guppylang_internals.tracing.object import (
-    TracingDefMixin,
-)
+from guppylang_internals.tracing.object import TracingDefMixin
 from guppylang_internals.tracing.util import hide_trace
 from hugr.envelope import GeneratorDesc
 from hugr.hugr import Hugr
@@ -40,7 +37,6 @@ __all__ = (
     "GuppyDefinition",
     "GuppyEnumDefinition",
     "GuppyFunctionDefinition",
-    "GuppyLibrary",
     "GuppyTypeVarDefinition",
 )
 
@@ -259,41 +255,6 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
     def is_decl(self) -> bool:
         """Whether this function definition is a declaration (i.e. has no body)."""
         return isinstance(self.wrapped, RawFunctionDecl)
-
-
-@dataclass(frozen=True)
-class GuppyLibrary:
-    """A collection of Guppy definitions that can be compiled together into a linkable
-    unit exposing a public interface."""
-
-    members: list[DefId]
-
-    def _type_members(self) -> list[DefId]:
-        """Any implementations registered for members of this library. Note that the
-        list is only guaranteed to be complete after calling `check()` on the library
-        members, since auto-generated implementations may be added during checking."""
-        members: list[DefId] = []
-        for def_id in self.members:
-            # TODO automatic member inclusion should be based on the automatic
-            # collection when available
-            members.extend(DEF_STORE.type_members[def_id].values())
-
-        return members
-
-    def compile(self) -> Package:
-        """Compile this collection of definitions into a HUGR package."""
-        ENGINE.check(self.members)
-        # Check fills _type_members with additional members only available after
-        # checking, so we have to call it before compiling (without an engine reset).
-        pointer = ENGINE.compile(self.members + self._type_members(), reset=False)
-        for mod in pointer.package.modules:
-            _update_generator_metadata(mod)
-        return pointer.package
-
-    def check(self) -> None:
-        """Type-check all contained definitions."""
-        ENGINE.check(self.members)
-        ENGINE.check(self._type_members(), reset=False)
 
 
 @dataclass(frozen=True)
