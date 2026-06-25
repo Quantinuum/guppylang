@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "$FILE", line 5, in <module>
+    @guppy
+guppylang_internals.error.GuppyError: ReservedMetadataKeysError(span=None, _parent=None, children=[], keys={'tket.unitary'})
