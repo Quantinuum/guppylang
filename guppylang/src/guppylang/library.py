@@ -29,7 +29,7 @@ class GuppyLibrary:
             return 7
 
         # Compilable collection containing `foo` and `bar`.
-        lib = GuppyLibrary.library(foo, bar)
+        lib = GuppyLibrary.from_members(foo, bar)
     """
 
     members: list[DefId]
