@@ -152,3 +152,6 @@ class SourceMap:
         return self.sources[span.file][
             span.start.line - prefix_lines - 1 : span.end.line
         ]
+
+
+DUMMY_SPAN = Span(Loc("", 0, 0), Loc("", 0, 0))
