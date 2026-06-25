@@ -1,4 +1,5 @@
 from guppylang import guppy
+from guppylang.library import GuppyLibrary
 from guppylang.std.platform import output
 
 
@@ -9,7 +10,7 @@ def test_struct_defn():
         def super_func(self) -> int:
             return 5
 
-    lib = guppy.library(MyStruct).compile()
+    lib = GuppyLibrary.from_members(MyStruct).compile()
 
     @guppy.struct(link_name="super_struct")
     class MyStructInterface:
@@ -41,7 +42,7 @@ def test_structural_subtyping():
     def do_foo_impl(f: Bar) -> int:
         return f.x
 
-    lib = guppy.library(Bar, do_foo_impl).compile()
+    lib = GuppyLibrary.from_members(Bar, do_foo_impl).compile()
 
     @guppy
     def main() -> None:
