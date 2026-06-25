@@ -103,13 +103,14 @@ class InvalidTypeError(Error):
 @dataclass(frozen=True)
 class InvalidFunctionTypeError(Error):
     title: ClassVar[str] = "Invalid type"
-    span_label: ClassVar[str] = "Invalid function type"
+    span_label: ClassVar[str] = "Invalid `{kind}` type"
+    kind: str
 
     @dataclass(frozen=True)
     class Explain(Help):
         message: ClassVar[str] = (
-            "Function types are specified as follows: "
-            "`Function[[<arguments>], <return type>]`"
+            "{kind} types are specified as follows: "
+            "`{kind}[[<arguments>], <return type>]`"
         )
 
     def __post_init__(self) -> None:

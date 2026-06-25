@@ -50,6 +50,7 @@ from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
+    callable_protocol_def,
     controllable_type_def,
     daggerable_type_def,
     float_type_def,
@@ -101,6 +102,7 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
     frozenarray_type_def,
     sized_iter_type_def,
     option_type_def,
+    callable_protocol_def,
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}

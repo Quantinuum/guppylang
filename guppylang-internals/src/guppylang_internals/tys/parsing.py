@@ -3,7 +3,7 @@ import sys
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import ModuleType
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -21,6 +21,8 @@ from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
+    CallableProtocolDef,
+    CallableProtocolInst,
     FunctionTypeDef,
     SelfTypeDef,
     bool_type,
@@ -203,8 +205,23 @@ def _arg_from_instantiated_defn(
 
     match defn:
         # Special cases for the `Function` type
-        case FunctionTypeDef(flags=flags):
-            return TypeArg(_parse_function_type(arg_nodes, node, ctx, flags=flags))
+        case FunctionTypeDef(flags=flags, name=name):
+            return TypeArg(
+                _parse_function_type(arg_nodes, node, ctx, name, flags=flags)
+            )
+        # Special cases for the `Callable` protocol
+        case CallableProtocolDef():
+            sig = _parse_function_type(arg_nodes, node, ctx, "Callable")
+            proto_inst = CallableProtocolInst(sig)
+            param = TypeParam(
+                len(ctx.param_var_mapping),
+                name=str(proto_inst),
+                must_be_copyable=True,
+                must_be_droppable=True,
+                must_implement=[proto_inst],
+            )
+            ctx.param_var_mapping[param.name] = param
+            return param.to_bound()
         # Special case for the `Self` type
         case SelfTypeDef():
             self_ty = _parse_self_type(arg_nodes, node, ctx)
@@ -299,10 +316,11 @@ def _parse_function_type(
     args: list[ast.expr],
     loc: AstNode,
     ctx: TypeParsingCtx,
+    kind: Literal["Function", "Unitary", "Daggerable", "Controllable", "Callable"],
     flags: UnitaryFlags = UnitaryFlags.NoFlags,
 ) -> FunctionType:
     """Helper function to parse a `Function[[<arguments>], <return type>]` type."""
-    err = InvalidFunctionTypeError(loc)
+    err = InvalidFunctionTypeError(loc, kind)
     if len(args) != 2:
         raise GuppyError(err)
     [inputs, output] = args
@@ -469,6 +487,10 @@ if sys.version_info >= (3, 12):
                 if isinstance(bound.slice, ast.Tuple)
                 else [bound.slice]
             )
+            # Special case for the `Callable` protocol
+            if isinstance(proto_defn, CallableProtocolDef):
+                sig = _parse_function_type(arg_nodes, bound, ctx, "Callable")
+                return CallableProtocolInst(sig)
             proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
         else:
             proto_defn = try_parse_defn(bound, ctx.globals)
