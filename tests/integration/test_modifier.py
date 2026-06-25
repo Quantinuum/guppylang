@@ -307,7 +307,7 @@ def test_higher_order_daggerable_callable(validate):
     validate(main.compile_function())
 
 
-# Skipped because tket2 still contains some bugs with higher-order functions.
+# Tket2 still contains some bugs with higher-order functions.
 # Waiting for:
 # - https://github.com/Quantinuum/guppylang/issues/1917 and
 # - https://github.com/Quantinuum/tket2/issues/1710
@@ -327,7 +327,7 @@ def test_higher_order_control_controllable_callable(validate):
     validate(main.compile_function())
 
 
-# Skipped because tket2 still contains some bugs with higher-order functions.
+# Tket2 still contains some bugs with higher-order functions.
 # Waiting for:
 # - https://github.com/Quantinuum/guppylang/issues/1917 and
 # - https://github.com/Quantinuum/tket2/issues/1710
