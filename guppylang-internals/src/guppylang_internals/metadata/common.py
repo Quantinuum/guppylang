@@ -30,11 +30,22 @@ class MetadataAlreadySetError(Fatal):
 @dataclass(frozen=True)
 class ReservedMetadataKeysError(Fatal):
     title: ClassVar[str] = "Metadata key is reserved"
-    message: ClassVar[str] = (
-        "The following metadata keys are reserved by Guppy but also provided in "
-        "additional metadata: `{keys}`"
-    )
+    message: ClassVar[str] = "{rendered_message}"
     keys: set[str]
+
+    @property
+    def rendered_message(self) -> str:
+        assert len(self.keys) > 0
+        if len(self.keys) == 1:
+            return (
+                f"The metadata key `{next(iter(self.keys))}` cannot be used because "
+                f"it is reserved by Guppy."
+            )
+        else:
+            return (
+                f"The metadata keys `{self.keys}` cannot be used because they are "
+                f"reserved by Guppy."
+            )
 
 
 @dataclass
@@ -59,6 +70,11 @@ class FunctionMetadata:
 
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value
+
+    def set_generic_metadata(self, key: str, value: JsonType) -> None:
+        if key in FunctionMetadata.reserved_keys():
+            raise GuppyError(ReservedMetadataKeysError(None, keys={key}))
+        self._node_metadata[key] = value
 
     def get_debug_info(self) -> DebugRecord | None:
         debug_record = self._node_metadata.get(HugrDebugInfo, None)
