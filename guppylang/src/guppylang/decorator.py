@@ -44,6 +44,7 @@ from guppylang_internals.dummy_decorator import (
 )
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
+from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubits
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
@@ -78,7 +79,14 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy", "link_name", "metadata")
+__all__ = (
+    "GuppyKwargs",
+    "custom_guppy_decorator",
+    "expected_qubits",
+    "guppy",
+    "link_name",
+    "metadata",
+)
 
 LINK_NAME_KEY = "link_name"
 
@@ -713,6 +721,25 @@ def link_name(name: str) -> Any:
     return metadata(LINK_NAME_KEY, name)
 
 
+def expected_qubits(num: int) -> Any:
+    """Decorator to attach an expected number of qubits to a Guppy function. It must be
+    placed below the @guppy decorator.
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.decorator import expected_qubit
+
+        @guppy.declare
+        @expected_qubits(2)
+        def main() -> None:
+            pass
+
+        main.compile()
+    """
+    return metadata(MetadataExpectedQubits.KEY, num)
+
+
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
     """Helper function to parse expressions that are provided as strings.
 
@@ -863,7 +890,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     metadata.set_unitary_flags(flags.value)
 
     if "max_qubits" in kwargs:
-        metadata.set_max_qubits(kwargs.pop("max_qubits"))
+        metadata.set_expected_qubits(kwargs.pop("max_qubits"))
 
     if LINK_NAME_KEY in kwargs:
         raise TypeError(
@@ -897,8 +924,11 @@ def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> 
     assert isinstance(custom_metadata, dict)
     for key, value in custom_metadata.items():
         if key == LINK_NAME_KEY:
-            continue  # link_name is handled separately
-        metadata.set_generic_metadata(key, value)
+            pass  # link_name is handled separately
+        elif key == MetadataExpectedQubits.KEY:
+            metadata.set_expected_qubits(value)
+        else:
+            metadata.set_generic_metadata(key, value)
 
 
 def _params_from_list(params: list[Any]) -> list[ParamDef]:

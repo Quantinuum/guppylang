@@ -168,7 +168,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             isinstance(self.wrapped, RawFunctionDef)
             and self.wrapped.metadata is not None
         ):
-            hinted_qubits = self.wrapped.metadata.get_max_qubits()
+            hinted_qubits = self.wrapped.metadata.get_expected_qubits()
             if qubits is None:
                 qubits = hinted_qubits
             elif hinted_qubits is not None and qubits < hinted_qubits:

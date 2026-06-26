@@ -65,8 +65,8 @@ class FunctionMetadata:
     def set_debug_info(self, debug_info: DebugRecord) -> None:
         self._node_metadata[HugrDebugInfo] = debug_info
 
-    def set_max_qubits(self, max_qubits: int) -> None:
-        self._node_metadata[MetadataExpectedQubits] = max_qubits
+    def set_expected_qubits(self, expected_qubits: int) -> None:
+        self._node_metadata[MetadataExpectedQubits] = expected_qubits
 
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value
@@ -81,7 +81,7 @@ class FunctionMetadata:
         assert debug_record is None or isinstance(debug_record, DebugRecord)
         return debug_record
 
-    def get_max_qubits(self) -> int | None:
+    def get_expected_qubits(self) -> int | None:
         qubits = self._node_metadata.get(MetadataExpectedQubits, None)
         assert qubits is None or isinstance(qubits, int)
         return qubits
