@@ -266,7 +266,7 @@ def _arg_from_proto(
 ) -> Argument:
     """Parses a protocol definition with type args into an argument."""
     proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
-    inst = proto_defn.check_instantiate(proto_args, node)
+    inst = proto_defn.check(ctx.globals).check_instantiate(proto_args, node)
     if proto_defn.name in ctx.param_var_mapping:
         param = ctx.param_var_mapping[proto_defn.name]
     else:
@@ -499,7 +499,8 @@ if sys.version_info >= (3, 12):
             proto_defn = try_parse_defn(bound, ctx.globals)
 
         if isinstance(proto_defn, ParsedProtocolDef):
-            inst = proto_defn.check_instantiate(proto_args, bound)
+            checked_defn = proto_defn.check(globals)
+            inst = checked_defn.check_instantiate(proto_args, bound)
             return inst
         return None
 

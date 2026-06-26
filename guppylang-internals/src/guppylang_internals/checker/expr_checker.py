@@ -80,6 +80,7 @@ from guppylang_internals.checker.errors.type_errors import (
     IntOverflowError,
     KindMismatch,
     ModuleMemberNotFoundError,
+    NoMatchingProtocol,
     NonLinearInstantiateError,
     NotCallableError,
     ParameterInferenceError,
@@ -127,6 +128,7 @@ from guppylang_internals.nodes import (
     TensorCall,
     TupleAccessAndDrop,
     TypeApply,
+    UnresolvedProtocolMethod,
 )
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
@@ -182,6 +184,8 @@ from guppylang_internals.tys.var import ExistentialVar
 
 if TYPE_CHECKING:
     from guppylang_internals.diagnostic import SubDiagnostic
+    from guppylang_internals.tys.protocol import ProtocolInst
+
 
 # Mapping from unary AST op to dunder method and display name
 unary_table: dict[type[ast.unaryop], tuple[str, str]] = {
@@ -340,7 +344,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
 
-            from guppylang_internals.definition.protocol import ParsedProtocolDef
+            from guppylang_internals.definition.protocol import (
+                CheckedProtocolDef,
+                ParsedProtocolDef,
+            )
 
             # Protocol methods don't have their own definition, we have to look up the
             # protocol definition itself first.
@@ -381,6 +388,63 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
                     return with_loc(node, LocalCall(func=node.func, args=args)), subst
+
+        if isinstance(node.func, UnresolvedProtocolMethod):
+            # If we have multiple protocol implementations that a method call could
+            # resolve to, we iterate through them, type checking the method signature
+            # against the arguments, then use the first one that accepts the arguments
+            # and has the correct return type.
+            from guppylang_internals.definition.protocol import (
+                CheckedProtocolDef,
+            )
+
+            method = node.func.method
+            failed_protocols: list[tuple[ProtocolInst, FunctionType]] = []
+            for proto_inst in node.func.protocol_insts:
+                proto_defn = ENGINE.get_checked(proto_inst.def_id, proto_inst.type_args)
+                assert isinstance(proto_defn, CheckedProtocolDef)
+                # Instantiate the method with the arguments to the protocol, and the
+                # `self` argument
+                method_ty_generic = proto_defn.member_sig(method)
+                method_inst: list[Argument | None] = [
+                    None for _ in method_ty_generic.params
+                ]
+                for ix, arg in enumerate(proto_inst.type_args):
+                    method_inst[ix] = arg
+                method_inst[len(proto_inst.type_args)] = (
+                    node.func.implementor_ty.to_arg()
+                )
+                method_ty: FunctionType = method_ty_generic.instantiate_partial(
+                    method_inst
+                )
+
+                try:
+                    args, subst = type_check_args(
+                        [node.func.implementor, *node.args],
+                        method_ty,
+                        {},
+                        {},
+                        self.ctx,
+                        node,
+                    )
+                    subst = unify(method_ty.output, ty, subst)
+
+                    if subst is not None:
+                        return with_loc(
+                            node, ProtocolCall(method, proto_inst.def_id, args, ())
+                        ), subst
+                except GuppyTypeInferenceError:
+                    pass
+                except GuppyTypeError:
+                    pass
+                failed_protocols.append((proto_inst, method_ty))
+
+            err = NoMatchingProtocol(node, method)
+            for inst, sig in failed_protocols:
+                err.add_sub_diagnostic(
+                    NoMatchingProtocol.FoundProtoImpl(None, inst, sig)
+                )
+            raise GuppyError(err)
 
         if isinstance(func_ty, TupleType) and (
             function_elements := parse_function_tensor(func_ty)
@@ -653,25 +717,46 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         elif isinstance(ty, BoundTypeVar):
             from guppylang_internals.definition.protocol import CheckedProtocolDef
 
+            # Protocols implemented by `ty` that have the method we want.
+            valid_proto_impls: list[ProtocolInst] = []
             for proto in ty.implements:
                 proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
                 assert isinstance(proto_def, CheckedProtocolDef)
-                for member_name, member_id in proto_def.member_defs.items():
-                    member_ty = proto_def.member_sig(member_name)
-                    if node.attr == member_name:
-                        name_node = with_type(
-                            member_ty,
-                            with_loc(
-                                node,
-                                GlobalName(id=member_name, def_id=member_id),
+                if node.attr in proto_def.member_defs:
+                    valid_proto_impls.append(proto)
+            match valid_proto_impls:
+                case []:
+                    raise GuppyError(AttributeNotFoundError(node, ty, node.attr))
+                case [proto_impl]:
+                    proto_def = ENGINE.get_checked(
+                        proto_impl.def_id, proto_impl.type_args
+                    )
+                    assert isinstance(proto_def, CheckedProtocolDef)
+                    member_ty = proto_def.member_sig(node.attr)
+
+                    name_node = with_type(
+                        member_ty,
+                        with_loc(
+                            node,
+                            GlobalName(
+                                id=node.attr, def_id=proto_def.member_defs[node.attr]
                             ),
-                        )
-                        ty_without_self = FunctionType(
-                            member_ty.inputs[1:], member_ty.output, member_ty.params
-                        )
-                        return with_loc(
-                            node, PartialApply(func=name_node, args=[node.value])
-                        ), ty_without_self
+                        ),
+                    )
+                    ty_without_self = FunctionType(
+                        member_ty.inputs[1:], member_ty.output, member_ty.params
+                    )
+                    return with_loc(
+                        node, PartialApply(func=name_node, args=[node.value])
+                    ), ty_without_self
+                case _:
+                    return UnresolvedProtocolMethod(
+                        node.value,
+                        ty,
+                        valid_proto_impls,
+                        node.attr,
+                    ), ty  # Dummy type!!
+
         elif isinstance(ty, EnumType):
             if node.attr in ty.variants_as_dict:
                 # If we are accessing to a variant, we need to check that node.value is
