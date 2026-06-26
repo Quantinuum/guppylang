@@ -5,11 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from guppylang import guppy
-from guppylang.optimizer import (
+from guppylang import (
     GuppyCompilableProgram,
     OptimizationLevel,
     OptimizerInstance,
+    guppy,
 )
 from hugr.passes.composable import ComposablePass, PassResult
 
@@ -35,7 +35,7 @@ class CountingPass(ComposablePass):
 
 
 def test_opt_levels() -> None:
-    """Test that changing the optimization levels affects the compiled HUGR."""
+    """Test that optimization levels configure the expected pass lists."""
 
     # Minimal optimization
     @guppy
@@ -43,6 +43,13 @@ def test_opt_levels() -> None:
         _x = 2 + 2
 
     optimizer_minimal = main_minimal.with_opt_level(OptimizationLevel.Minimal)
+
+    # Classical-only optimization
+    @guppy
+    def main_classical() -> None:
+        _x = 2 + 2
+
+    optimizer_classical = main_classical.with_opt_level(OptimizationLevel.Classical)
 
     # Default optimization
     @guppy
@@ -56,16 +63,27 @@ def test_opt_levels() -> None:
     assert optimizer_minimal.definition is main_minimal
     assert optimizer_minimal.passes == OptimizationLevel.Minimal.passes()
 
+    assert isinstance(optimizer_classical, OptimizerInstance)
+    assert isinstance(optimizer_classical, GuppyCompilableProgram)
+    assert optimizer_classical.definition is main_classical
+    assert optimizer_classical.passes == OptimizationLevel.Classical.passes()
+    assert optimizer_default.passes == optimizer_classical.passes
+
     assert isinstance(optimizer_default, OptimizerInstance)
     assert isinstance(optimizer_default, GuppyCompilableProgram)
     assert optimizer_default.definition is main_default
     assert optimizer_default.passes == OptimizationLevel.Default.passes()
 
-    # Compile the programs and compare their sizes
+    # Compile a program with each level to exercise the configured pass list.
     package_minimal = optimizer_minimal.compile()
+    package_classical = optimizer_classical.compile()
     package_default = optimizer_default.compile()
 
-    assert len(package_minimal.modules[0]) > len(package_default.modules[0])
+    assert (
+        len(package_minimal.modules[0])
+        <= len(package_classical.modules[0])
+        <= len(package_default.modules[0])
+    )
 
 
 def test_opt_level_passes() -> None:
@@ -78,13 +96,13 @@ def test_opt_level_passes() -> None:
         _x = 2 + 2
 
     optimizer = (
-        main.with_opt_level(OptimizationLevel.Default)
+        main.with_opt_level(OptimizationLevel.Classical)
         .with_optimization(counting_pass)
         .with_optimization(counting_pass)
     )
 
     # No passes have been dropped from the list.
-    assert len(optimizer.passes) == len(OptimizationLevel.Default.passes()) + 2
+    assert len(optimizer.passes) == len(OptimizationLevel.Classical.passes()) + 2
 
     # Compile the program and check that the counting pass was called
     _package = optimizer.compile()

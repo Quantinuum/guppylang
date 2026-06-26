@@ -12,7 +12,6 @@ from typing import (
 )
 
 from hugr.package import Package
-from tket import passes
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -54,14 +53,43 @@ class OptimizationLevel(Enum):
     def passes(self) -> list[ComposablePass]:
         """Return the HUGR passes that implement this optimization level."""
         match self:
-            case OptimizationLevel.Default:
-                # TODO: Partially disabled due to <https://github.com/Quantinuum/tket2/issues/1755>
-                return [passes.NormalizeGuppy(remove_dead_funcs=False)]
-            case OptimizationLevel.Classical:
-                # TODO: Partially disabled due to <https://github.com/Quantinuum/tket2/issues/1755>
-                return [passes.NormalizeGuppy(remove_dead_funcs=False)]
+            case OptimizationLevel.Default | OptimizationLevel.Classical:
+                from tket import passes
+
+                # TODO: Partially disabled due to tket2 issues. Re-enable these
+                # flags as the corresponding tket bugs are fixed.
+                return [
+                    passes.NormalizeGuppy(
+                        resolve_modifiers=False,
+                        simplify_cfgs=False,
+                        remove_tuple_untuple=True,
+                        constant_folding=False,
+                        # Removes public function declarations.
+                        #
+                        # See <https://github.com/Quantinuum/tket2/issues/1755>
+                        remove_dead_funcs=False,
+                        inline_dfgs=True,
+                        remove_redundant_order_edges=False,
+                        squash_borrows=True,
+                    )
+                ]
             case OptimizationLevel.Minimal:
                 return []
+
+
+def _sync_handles_metadata(package: Package) -> None:
+    """Keep the node handle metadata in sync with main node data.
+
+    Temporary workaround for <https://github.com/Quantinuum/tket2/issues/1757>.
+    """
+    for module in package.modules:
+        root_metadata = module.module_root.metadata.as_dict()
+        root_metadata.clear()
+        root_metadata.update(module[module.module_root].metadata.as_dict())
+
+        entrypoint_metadata = module.entrypoint.metadata.as_dict()
+        entrypoint_metadata.clear()
+        entrypoint_metadata.update(module[module.entrypoint].metadata.as_dict())
 
 
 def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package:
@@ -70,8 +98,23 @@ def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package
 
     modules = package.modules
     for pass_ in passes:
-        modules = [pass_.run(module, inplace=False).hugr for module in modules]
-    return Package(modules=modules, extensions=package.extensions)
+        next_package = Package(
+            [pass_.run(module, inplace=False).hugr for module in modules],
+            extensions=package.extensions,
+        )
+        # TODO: Temporary workaround for tket/hugr roundtrips leaving
+        # module.module_root.metadata and module.entrypoint.metadata
+        # disconnected from module[module.module_root].metadata.
+        #
+        # See <https://github.com/Quantinuum/tket2/issues/1757>
+        #
+        # We should be able to replace the whole loop contents with inline pass
+        # runs once the above gets fixed.
+        _sync_handles_metadata(next_package)
+
+        package = next_package
+        modules = package.modules
+    return package
 
 
 @dataclass

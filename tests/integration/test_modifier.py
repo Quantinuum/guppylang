@@ -1,5 +1,6 @@
 import base64
 
+from guppylang import OptimizationLevel
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.array import array
@@ -180,8 +181,11 @@ def test_power_simple(validate):
             pass
 
     # Tket passes reject power modifiers, so do not export this HUGR for CI
-    # normalization.
-    validate(bar.compile_function(), export=False)
+    # normalization and don't run default optimization passes.
+    validate(
+        bar.with_opt_level(OptimizationLevel.Minimal).compile_function(),
+        export=False,
+    )
 
 
 def test_call_in_modifier(validate):
