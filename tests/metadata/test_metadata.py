@@ -23,7 +23,7 @@ def test_add_metadata():
 
     assert mock_hugr_node.metadata.as_dict() == {
         "some-key": "some-value",
-        "tket.hint.max_qubits": 5,
+        "tket.hint.expected_qubits": 5,
     }
 
 
@@ -47,17 +47,19 @@ def test_add_metadata_no_reserved_metadata():
         GuppyError,
         check=lambda e: (
             isinstance(e.error, ReservedMetadataKeysError)
-            and e.error.keys == {"tket.hint.max_qubits"}
+            and e.error.keys == {"tket.hint.expected_qubits"}
         ),
     ):
-        add_metadata(mock_hugr_node, additional_metadata={"tket.hint.max_qubits": 3})
+        add_metadata(
+            mock_hugr_node, additional_metadata={"tket.hint.expected_qubits": 3}
+        )
 
 
 def test_add_metadata_metadata_already_set():
     mock_hugr_node = Mock()
     mock_hugr_node.metadata = NodeMetadata(
         {
-            "tket.hint.max_qubits": 1,
+            "tket.hint.expected_qubits": 1,
             "preset-key": "preset-value",
         }
     )
@@ -68,7 +70,7 @@ def test_add_metadata_metadata_already_set():
         GuppyError,
         check=lambda e: (
             isinstance(e.error, MetadataAlreadySetError)
-            and e.error.key == "tket.hint.max_qubits"
+            and e.error.key == "tket.hint.expected_qubits"
         ),
     ):
         add_metadata(mock_hugr_node, guppy_metadata)
@@ -90,4 +92,4 @@ def test_add_metadata_property_max_qubits():
     guppy_metadata.set_max_qubits(5)
     add_metadata(mock_hugr_node, guppy_metadata)
 
-    assert mock_hugr_node.metadata.as_dict() == {"tket.hint.max_qubits": 5}
+    assert mock_hugr_node.metadata.as_dict() == {"tket.hint.expected_qubits": 5}
