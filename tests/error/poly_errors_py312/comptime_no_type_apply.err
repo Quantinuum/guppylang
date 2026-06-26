@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "$FILE", line 13, in <module>
+    test.compile()
+  File "$FILE", line 11, in test
+    mt = MyType[int]()
+guppylang_internals.error.GuppyComptimeError: Explicitly specifying type arguments of generic structs in a comptime context is not supported yet

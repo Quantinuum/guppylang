@@ -99,7 +99,7 @@ def test_measure_ops(validate):
     """Compile various measurement-related operations."""
 
     @guppy
-    def test(q1: qubit @ owned, q2: qubit @ owned) -> tuple[bool, Measurement]:
+    def test(q1: qubit @ owned, q2: qubit @ owned) -> tuple[Measurement, Measurement]:
         q1, b1 = project_z(q1)
         q1 = discard(q1)
         q2 = reset(q2)

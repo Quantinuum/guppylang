@@ -1,0 +1,71 @@
+# git-cliff configuration for the guppylang monorepo.
+#
+# git-cliff is used ONLY to seed a *draft* changelog section inside the release
+# PR. It is never trusted for the published release notes: those are sliced
+# verbatim out of the committed CHANGELOG.md files by
+# scripts/release/extract_changelog.py. The draft is meant to be curated by hand
+# in the release PR before merging.
+#
+# The release workflow runs git-cliff once per package, scoping commits to that
+# package's directory with `--include-path`, and selecting the package's tags
+# with `--tag-pattern`. The output is a single `## [<version>] ...` section that
+# scripts/release/update_changelog.py inserts at the top of the relevant
+# CHANGELOG.md.
+
+[changelog]
+# No header: the section is inserted into an existing CHANGELOG.md that already
+# has its title and intro.
+header = ""
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="guppylang-internals-v") | trim_start_matches(pat="guppylang-v") }}]\
+{% if previous.version %}(https://github.com/Quantinuum/guppylang/compare/{{ previous.version }}...{{ version }})\
+{% endif %} ({{ timestamp | date(format="%Y-%m-%d") }})
+{% else %}\
+## [Unreleased]
+{% endif %}\
+{% set breaking = commits | filter(attribute="breaking", value=true) %}\
+{% if breaking | length > 0 %}
+
+### ⚠ BREAKING CHANGES
+{% for commit in breaking %}
+* {{ commit.message | split(pat="\n") | first | upper_first }}\
+{% endfor %}
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+* {{ commit.message | split(pat="\n") | first | upper_first }}\
+  ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/Quantinuum/guppylang/commit/{{ commit.id }}))\
+{% endfor %}
+{% endfor %}\n
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = true
+filter_commits = true
+topo_order = false
+sort_commits = "newest"
+
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^perf", group = "Performance Improvements" },
+    { message = "^refactor", group = "Code Refactoring" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^revert", group = "Reverts" },
+    # Not included in changelog
+    { message = "^chore", skip = true },
+    { message = "^ci", skip = true },
+    { message = "^test", skip = true },
+    { message = "^style", skip = true },
+]
+
+[remote.github]
+owner = "Quantinuum"
+repo = "guppylang"

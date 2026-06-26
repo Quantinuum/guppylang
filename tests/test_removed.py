@@ -4,7 +4,7 @@ import pytest
 def test_removed_quantum_functional():
     with pytest.raises(
         ImportError,
-        match=r"`guppylang.std.quantum_functional` has been removed. Import from `guppylang.std.quantum_functional` instead.",  # noqa: E501
+        match=r"`guppylang.std.quantum_functional` has been removed. Import from `guppylang.std.quantum.functional` instead.",  # noqa: E501
     ):
         import guppylang.std.quantum_functional  # noqa: F401
 

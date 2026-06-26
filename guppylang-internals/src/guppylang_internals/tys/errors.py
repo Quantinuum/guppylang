@@ -101,19 +101,20 @@ class InvalidTypeError(Error):
 
 
 @dataclass(frozen=True)
-class InvalidCallableTypeError(Error):
+class InvalidFunctionTypeError(Error):
     title: ClassVar[str] = "Invalid type"
-    span_label: ClassVar[str] = "Invalid function type"
+    span_label: ClassVar[str] = "Invalid `{kind}` type"
+    kind: str
 
     @dataclass(frozen=True)
     class Explain(Help):
         message: ClassVar[str] = (
-            "Function types are specified as follows: "
-            "`Callable[[<arguments>], <return type>]`"
+            "{kind} types are specified as follows: "
+            "`{kind}[[<arguments>], <return type>]`"
         )
 
     def __post_init__(self) -> None:
-        self.add_sub_diagnostic(InvalidCallableTypeError.Explain(None))
+        self.add_sub_diagnostic(InvalidFunctionTypeError.Explain(None))
 
 
 @dataclass(frozen=True)
@@ -156,7 +157,7 @@ class LinearComptimeError(Error):
 
 
 @dataclass(frozen=True)
-class CallableComptimeError(Error):
+class FunctionTypeComptimeError(Error):
     title: ClassVar[str] = "Invalid annotation"
     span_label: ClassVar[str] = (
         "Comptime annotations are only allowed for named top-level function arguments"
@@ -243,3 +244,12 @@ class UnitaryCallError(Error):
         )
         callable_name: str
         function_description: str
+
+    @dataclass(frozen=True)
+    class PytketHint(Help):
+        func_name: str
+        message: ClassVar[str] = (
+            "The function `{func_name}` corresponds to a pytket circuit containing a "
+            "non unitary operation, which is not allowed in a "
+            "{context_description} context."
+        )

@@ -1,7 +1,7 @@
 import pytest
 
 from guppylang import guppy
-from guppylang.defs import GuppyLibrary
+from guppylang.library import GuppyLibrary
 from guppylang.emulator import EmulatorBuilder
 from guppylang.std.platform import output
 from guppylang.std.lang import comptime
@@ -14,7 +14,7 @@ def gen_adder_library(*, name: str, value: int) -> GuppyLibrary:
     def func(x: int) -> int:
         return x + comptime(value)
 
-    return guppy.library(func)
+    return GuppyLibrary.from_members(func)
 
 
 def test_missing_impl():
@@ -104,7 +104,7 @@ def test_unused_func_missing_impl():
         return x + 1
 
     # Missing an implementation for func2
-    lib = guppy.library(func).compile()
+    lib = GuppyLibrary.from_members(func).compile()
 
     @guppy
     def main() -> None:
@@ -186,7 +186,7 @@ def test_dependency_public():
         return x + dependency_func(x)
 
     # Including depender_func causes dependency to be emitted already
-    lib = guppy.library(depender_func, dependency_func).compile()
+    lib = GuppyLibrary.from_members(depender_func, dependency_func).compile()
 
     @guppy.declare(link_name="adder")
     def depender_func_decl(x: int) -> int: ...

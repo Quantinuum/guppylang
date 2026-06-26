@@ -3,6 +3,68 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0...guppylang-internals-v1.1) (2026-06-25)
+
+Note that this release raises the minimum compatible version of `pytket` to `2.7.0`.
+
+### ⚠ BREAKING CHANGES
+
+* Infer unitary flags when loading `pytket` circuits (#1897)
+* Mark unitary callable interfaces as experimental (#1927)
+
+
+### Bug Fixes
+
+* Mark unitary callable interfaces as experimental (#1927)([ac12917](https://github.com/Quantinuum/guppylang/commit/ac1291792704e53b0a6dfdac9b94fd2dac4389e3))
+
+
+### Code Refactoring
+
+* Move libraries into their own module (#1930)([dd5ca00](https://github.com/Quantinuum/guppylang/commit/dd5ca00a6a911ec54c3f3a5bc1b7c92ad665a84a))
+
+
+### Features
+
+* Render diagnostics when stringifying `GuppyError` (#1936)([9d3d36f](https://github.com/Quantinuum/guppylang/commit/9d3d36f6e600591def66358d117688593d58f9de))
+* Infer unitary flags when loading `pytket` circuits (#1897)([0b57ad9](https://github.com/Quantinuum/guppylang/commit/0b57ad9e8e36e336c4b75cc653aff1afdafad602))
+
+## [1.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a5...guppylang-internals-v1.0) (2026-06-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add type aliases (#1645)
+* Promote `control` and `dagger` modifiers from experimental (#1881)
+* Remove deprecated decorators, functions, and sync dummy interface (#1855)
+* Allow implicit self args in protocols (#1770)
+* Rename result and state_result to output and state_output (#1871)
+
+
+### Bug Fixes
+
+* Add fallthrough error location (#1919)([00de27c](https://github.com/Quantinuum/guppylang/commit/00de27c3bd41fce1188e87dcfb1e6c2c541d37ee))
+* Disable imprecise array indexing check (#1859)([9f2afe0](https://github.com/Quantinuum/guppylang/commit/9f2afe045e886869bfa6789f2e7ed0a064e12e10))
+
+
+### Code Refactoring
+
+* Remove deprecated reexports and leave custom import errors (#1886)([3c19192](https://github.com/Quantinuum/guppylang/commit/3c1919266b82e039017394f23bccf9381fda5a6b))
+* Remove deprecated decorators, functions, and sync dummy interface (#1855)([68b217c](https://github.com/Quantinuum/guppylang/commit/68b217c92350b3e3ebe40779b7d97e0955f945f9))
+* Rename result and state_result to output and state_output (#1871)([a6a6ff6](https://github.com/Quantinuum/guppylang/commit/a6a6ff6ce3220fec258b22cb412cb8314d661302))
+
+
+### Features
+
+* Add type aliases (#1645)([5a3554a](https://github.com/Quantinuum/guppylang/commit/5a3554a649a8b1c3a45d8818d5f28c845f7758bf))
+* Better error message for protocol method signature mismatch (#1904)([80be9fc](https://github.com/Quantinuum/guppylang/commit/80be9fcccfd7b78b121616020de18a19c02d22cb))
+* Promote `control` and `dagger` modifiers from experimental (#1881)([7eb1d5c](https://github.com/Quantinuum/guppylang/commit/7eb1d5c8ef34ae8ed7551523d3c16a58aadf0bca))
+* Allow implicit self args in protocols (#1770)([cecc955](https://github.com/Quantinuum/guppylang/commit/cecc955a50c00fc8fc3c770e7ccbfb932d845b5b))
+
+
+### Performance Improvements
+
+* More efficient calling frame detection (#1884)([487a8ac](https://github.com/Quantinuum/guppylang/commit/487a8ac51068cec688d3794fcd59848896157a34))
+
 ## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a4...guppylang-internals-v1.0.0-a5) (2026-06-15)
 
 

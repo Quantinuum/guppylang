@@ -1,0 +1,265 @@
+# Opens or updates a single release PR for `guppylang` and `guppylang-internals`.
+#
+# Runs on every push to `main` (and can be dispatched manually). It computes the
+# next versions from conventional commits, applies the version bumps, refreshes
+# the lock file, seeds a draft changelog for each package, and opens/updates a PR
+# on the `release-pr--<base>` branch. The actual GitHub releases are cut by
+# `release-publish.yml` once this PR is merged.
+#
+# Versioning:
+#   * guppylang           -> semver with optional pre-release (e.g. 1.2.3 or 1.2.3-a6).
+#   * guppylang-internals -> <guppylang-major>.<build> (e.g. 1.6), build reset on
+#     a guppylang major bump.
+#
+# Changelogs are only a *draft* seeded by git-cliff. While the `X-regen-changelog`
+# label is set (added by default), the draft is regenerated on every push. Remove
+# the label to take manual control: subsequent pushes then leave the committed
+# changelogs untouched. The published release notes are sliced verbatim from the
+# committed CHANGELOG.md files, so the PR preview is exactly what ships.
+
+name: 🚚 Release PR
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      force_open:
+        description: "Open/update the release PR even if no releasable commits are found"
+        type: boolean
+        default: false
+      bump:
+        description: "How to bump guppylang (`auto` by default). See `scripts/release/compute_versions.py` for reference."
+        type: choice
+        default: auto
+        options:
+          - auto
+          - alpha
+          - alpha-patch
+          - alpha-minor
+          - alpha-major
+          - beta
+          - rc
+          - stable
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-pr--${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  BASE: ${{ github.ref_name }}
+  BRANCH: release-pr--${{ github.ref_name }}
+  RELEASE_LABEL: X-release
+  REGEN_LABEL: X-regen-changelog
+  UV_VERSION: "0.11.22"
+  GITHUB_TOKEN: ${{ secrets.HUGRBOT_PAT }}
+
+jobs:
+  release-pr:
+    name: Open or update the release PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Full history + tags are required for git-cliff.
+          fetch-depth: 0
+          token: ${{ secrets.HUGRBOT_PAT }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Configure git identity
+        run: |
+          git config user.name "hugrbot"
+          git config user.email "hugrbot@users.noreply.github.com"
+
+      - name: Detect releasable commits
+        id: releasable
+        run: |
+          set -euo pipefail
+          count() {
+            git cliff --config cliff.toml --include-path "$1" --tag-pattern "$2" \
+              --unreleased --context 2>/dev/null | jq '[.[]?.commits[]?] | length'
+          }
+          guppy=$(count 'guppylang/**' '^guppylang-v')
+          internals=$(count 'guppylang-internals/**' '^guppylang-internals-v')
+          echo "guppylang=$guppy" >> "$GITHUB_OUTPUT"
+          echo "internals=$internals" >> "$GITHUB_OUTPUT"
+          if [ "${guppy:-0}" != "0" ] || [ "${internals:-0}" != "0" ]; then
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute next versions
+        id: plan
+        run: |
+          set -euo pipefail
+          uv run --no-project scripts/release/compute_versions.py compute \
+            --bump "${{ github.event.inputs.bump || 'auto' }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Detect a pending publish
+        id: pending
+        run: |
+          set -euo pipefail
+          # On `main`, the committed guppylang version is normally already tagged
+          # (i.e. released). If it is not, the just-merged commit is a release PR
+          # whose tags are still being created by `release-publish.yml`. Opening a
+          # new release PR now would double-bump, so we skip this run.
+          cur=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang/pyproject.toml | head -n1)
+          if git rev-parse -q --verify "refs/tags/guppylang-v$cur" >/dev/null; then
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+            echo "guppylang v$cur is not tagged yet; a release is pending publish."
+          fi
+
+      - name: Decide whether to proceed
+        id: gate
+        run: |
+          proceed=false
+          if [ "${{ steps.releasable.outputs.any }}" = "true" ] || \
+             [ "${{ github.event.inputs.force_open }}" = "true" ]; then
+            proceed=true
+          fi
+          # A pending publish only blocks automatic push runs, never manual dispatch.
+          if [ "${{ github.event_name }}" = "push" ] && \
+             [ "${{ steps.pending.outputs.pending }}" = "true" ]; then
+            echo "Publish pending on main!"
+            proceed=false
+          fi
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+          if [ "$proceed" != "true" ]; then
+            echo "Nothing to do; skipping release PR."
+          fi
+
+      - name: Inspect existing release PR for changelog regen
+        id: pr
+        if: steps.gate.outputs.proceed == 'true'
+        run: |
+          set -euo pipefail
+          data=$(gh pr list --head "$BRANCH" --state open --json number,labels)
+          number=$(echo "$data" | jq -r '.[0].number // ""')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          if [ -z "$number" ]; then
+            # No PR yet: seed the changelog draft on first creation.
+            echo "regen=true" >> "$GITHUB_OUTPUT"
+          else
+            regen=$(echo "$data" | jq -r --arg l "$REGEN_LABEL" \
+              '([.[0].labels[].name] | index($l)) != null')
+            echo "regen=$regen" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build the release branch
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          GUPPY: ${{ steps.plan.outputs.guppylang }}
+          INTERNALS: ${{ steps.plan.outputs.internals }}
+          REGEN: ${{ steps.pr.outputs.regen }}
+        run: |
+          set -euo pipefail
+
+          # Preserve human-curated changelogs when regeneration is disabled.
+          if [ "$REGEN" != "true" ]; then
+            git fetch origin "$BRANCH" || true
+            git show "origin/$BRANCH:guppylang/CHANGELOG.md" \
+              > /tmp/guppylang_CHANGELOG.md 2>/dev/null || true
+            git show "origin/$BRANCH:guppylang-internals/CHANGELOG.md" \
+              > /tmp/internals_CHANGELOG.md 2>/dev/null || true
+          fi
+
+          git checkout -B "$BRANCH"
+
+          uv run --no-project scripts/release/compute_versions.py set-internals "$INTERNALS"
+          git commit -aqm "chore: bump guppylang-internals to $INTERNALS"
+
+          uv run --no-project scripts/release/compute_versions.py set-guppylang "$GUPPY"
+          git commit -aqm "chore: bump guppylang to $GUPPY"
+
+          uv run --no-project scripts/release/compute_versions.py set-pin "$INTERNALS"
+          git commit -aqm "chore: pin guppylang-internals==$INTERNALS in guppylang"
+
+          uv lock
+          git commit -aqm "chore: update uv.lock" || echo "uv.lock unchanged"
+
+          if [ "$REGEN" = "true" ]; then
+            git cliff --config cliff.toml --include-path 'guppylang/**' \
+              --tag-pattern '^guppylang-v' --unreleased --tag "guppylang-v$GUPPY" \
+              > /tmp/guppy_section.md
+            uv run --no-project scripts/release/update_changelog.py \
+              guppylang/CHANGELOG.md "$GUPPY" /tmp/guppy_section.md
+
+            git cliff --config cliff.toml --include-path 'guppylang-internals/**' \
+              --tag-pattern '^guppylang-internals-v' --unreleased \
+              --tag "guppylang-internals-v$INTERNALS" > /tmp/internals_section.md
+            uv run --no-project scripts/release/update_changelog.py \
+              guppylang-internals/CHANGELOG.md "$INTERNALS" /tmp/internals_section.md
+          
+            git commit -aqm "chore: update changelogs (by regen)" || echo "changelogs unchanged"
+          else
+            [ -f /tmp/guppylang_CHANGELOG.md ] \
+              && cp /tmp/guppylang_CHANGELOG.md guppylang/CHANGELOG.md || true
+            [ -f /tmp/internals_CHANGELOG.md ] \
+              && cp /tmp/internals_CHANGELOG.md guppylang-internals/CHANGELOG.md || true
+          
+            git commit -aqm "chore: update changelogs (by user)" || echo "changelogs unchanged"
+          fi
+
+          git push --force-with-lease origin "$BRANCH"
+
+      - name: Create or update the release PR
+        id: openpr
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          GUPPY: ${{ steps.plan.outputs.guppylang }}
+          INTERNALS: ${{ steps.plan.outputs.internals }}
+          NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          title="chore: release guppylang $GUPPY (internals $INTERNALS)"
+          if [ -z "$NUMBER" ]; then
+            {
+              echo "Automated release PR."
+              echo
+              echo "- \`guppylang\` → \`$GUPPY\`"
+              echo "- \`guppylang-internals\` → \`$INTERNALS\`"
+              echo
+              echo "Remove the \`$REGEN_LABEL\` label to take manual control of the changelogs."
+              echo
+              echo "<!-- BEGIN RELEASE NOTES PREVIEW -->"
+              echo "<!-- END RELEASE NOTES PREVIEW -->"
+            } > /tmp/pr_body.md
+            gh pr create --base "$BASE" --head "$BRANCH" --title "$title" \
+              --body-file /tmp/pr_body.md --draft \
+              --label "$RELEASE_LABEL" --label "$REGEN_LABEL"
+            NUMBER=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          else
+            # Only update title, body is edited through changelog preview sync workflow.
+            gh pr edit "$NUMBER" --title "$title"
+          fi
+          echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh release-notes preview
+        uses: ./.github/actions/update-release-preview
+        if: steps.gate.outputs.proceed == 'true'
+        with:
+          pr-number: ${{ steps.openpr.outputs.number }}
+          guppylang-version: ${{ steps.plan.outputs.guppylang }}
+          internals-version: ${{ steps.plan.outputs.internals }}
+          token: ${{ secrets.HUGRBOT_PAT }}

@@ -3,9 +3,19 @@ import builtins
 import inspect
 from collections.abc import Callable
 from types import FrameType
-from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    NamedTuple,
+    ParamSpec,
+    TypedDict,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from guppylang_internals.ast_util import annotate_location
+from guppylang_internals.definition.alias import RawTypeAliasDef
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.const import RawConstDef
 from guppylang_internals.definition.custom import RawCustomFunctionDef
@@ -16,6 +26,7 @@ from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
+    ParamDef,
     RawConstVarDef,
     TypeVarDef,
 )
@@ -26,7 +37,11 @@ from guppylang_internals.definition.pytket_circuits import (
 )
 from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
-from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
+from guppylang_internals.dummy_decorator import (
+    _dummy_custom_decorator,
+    _DummyGuppy,
+    sphinx_running,
+)
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
@@ -44,7 +59,6 @@ from guppylang.defs import (
     GuppyDefinition,
     GuppyEnumDefinition,
     GuppyFunctionDefinition,
-    GuppyLibrary,
     GuppyTypeVarDefinition,
 )
 
@@ -117,6 +131,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDef(
                 DefId.fresh(),
                 f.__name__,
@@ -163,6 +178,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawTracedFunctionDef(
                 DefId.fresh(),
                 f.__name__,
@@ -309,6 +325,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
@@ -365,6 +382,46 @@ class _Guppy:
         # `GuppyDefinition` that pretends to be a TypeVar at runtime
         return GuppyTypeVarDefinition(defn, TypeVar(name))  # type: ignore[return-value]
 
+    def type_alias(self, name: str, ty: str, params: list[Any] | None = None) -> Any:
+        """Creates a new type alias.
+
+        .. code-block:: python
+
+            from guppylang import guppy, array
+
+            Row = guppy.type_alias("Row", "array[int, 4]")
+
+            @guppy
+            def sum_row(row: Row) -> int:
+                return row[0] + row[1] + row[2] + row[3]
+
+        Generic aliases are supported by passing a list of type variables as ``params``.
+        The order determines how the alias is instantiated (e.g. ``Alias[int, bool]``
+        binds the first param to ``int`` and the second to ``bool``):
+
+        .. code-block:: python
+
+            T = guppy.type_var("T")
+            U = guppy.type_var("U")
+            Pair = guppy.type_alias("Pair", "tuple[T, U]", params=[T, U])
+
+        When ``params`` is omitted, free type variables are collected from the body
+        in order of first appearance.
+        """
+        type_ast = _parse_expr_string(
+            ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
+        )
+        explicit_params = _params_from_list(params) if params is not None else None
+        defn = RawTypeAliasDef(
+            DefId.fresh(),
+            name,
+            type_ast,
+            type_ast,
+            explicit_params,
+        )
+        DEF_STORE.register_def(defn, get_calling_frame())
+        return GuppyDefinition(defn)
+
     @overload
     def declare(
         self, /, **kwargs: Unpack[GuppyKwargs]
@@ -385,6 +442,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
@@ -497,28 +555,6 @@ class _Guppy:
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
-    def library(self, *members: GuppyDefinition) -> GuppyLibrary:
-        """Defines a Guppy library, which is a collection of Guppy definitions that can
-        be compiled together and linked as a unit.
-
-        This function does not act as a decorator.
-
-        .. code-block:: python
-            from guppylang import guppy
-
-            @guppy
-            def foo() -> int:
-                return 42
-            @guppy
-            def bar() -> int:
-                return 7
-
-            # Compilable collection containing `foo` and `bar`.
-            lib = guppy.library(foo, bar)
-        """
-
-        return GuppyLibrary([member.id for member in members])
-
     def pytket(
         self, input_circuit: Any
     ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
@@ -620,6 +656,41 @@ class _Guppy:
         )
         DEF_STORE.register_def(defn, get_calling_frame())
         return GuppyFunctionDefinition(defn)
+
+
+def metadata(key: str, value: Any) -> Any:
+    """Decorator to attach metadata to a Guppy function. It must be placed below
+    the @guppy decorator.
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.decorator import metadata
+
+        @guppy.declare
+        @metadata("key1", "value1")
+        @metadata("key2", "value2")
+        def main() -> None:
+            pass
+
+        main.compile()
+
+    During compilation, the node corresponding to the `main` function will have the
+    following metadata attached: {key1: value1, key2: value2}.
+    """
+
+    def decorator(f: Any) -> Any:
+        if isinstance(f, GuppyDefinition):
+            raise TypeError(
+                "@metadata must be placed below the @guppy decorator, not above it"
+            )
+        f.__guppy_metadata__ = {
+            **getattr(f, "__guppy_metadata__", {}),
+            key: value,
+        }
+        return f
+
+    return decorator
 
 
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
@@ -788,4 +859,39 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     )
 
 
+def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> None:
+    """Adds the given metadata to the function's `__guppy_metadata__` attribute, which
+    is used by the compiler to store metadata for Guppy functions.
+    """
+    custom_metadata = getattr(f, "__guppy_metadata__", {})
+    assert isinstance(custom_metadata, dict)
+    for key, value in custom_metadata.items():
+        metadata.set_generic_metadata(key, value)
+
+
+def _params_from_list(params: list[Any]) -> list[ParamDef]:
+    """Validate a list of Guppy type-variable definitions for use as alias params.
+
+    Each entry must be a type variable created with :func:`guppy.type_var`,
+    :func:`guppy.nat_var`, or :func:`guppy.const_var`. The underlying
+    :class:`~guppylang_internals.definition.parameter.ParamDef`\\ s are returned in
+    order; they are converted to :class:`~guppylang_internals.tys.param.Parameter`\\ s
+    later (in :meth:`ParsedTypeAliasDef.check`) where the globals needed to resolve
+    ``const_var`` types are available.
+    """
+    result: list[ParamDef] = []
+    for p in params:
+        defn = p.wrapped if isinstance(p, GuppyDefinition) else None
+        if not isinstance(defn, ParamDef):
+            raise TypeError(
+                "type_alias params must be type variables created with "
+                f"guppy.type_var(), guppy.nat_var(), or guppy.const_var(), got {p!r}"
+            )
+        result.append(defn)
+    return result
+
+
 guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
+
+if not TYPE_CHECKING and sphinx_running():
+    metadata = _dummy_custom_decorator()

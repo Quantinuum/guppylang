@@ -5,7 +5,7 @@ from guppylang.std.builtins import comptime, nat
 
 
 @guppy
-def main(f: Callable[[nat @comptime], None]) -> None:
+def main(f: Callable[[nat @ comptime], None]) -> None:
     pass
 
 

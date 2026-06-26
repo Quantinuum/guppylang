@@ -1,8 +1,8 @@
-Error: Invalid annotation (at $FILE:8:26)
+Error: Invalid annotation (at $FILE:8:27)
   | 
 6 | 
 7 | @guppy.declare
-8 | def foo(f: Callable[[int @owned], None]) -> None: ...
-  |                           ^^^^^ Classical type `int` cannot be owned
+8 | def foo(f: Callable[[int @ owned], None]) -> None: ...
+  |                            ^^^^^ Classical type `int` cannot be owned
 
 Guppy compilation failed due to 1 previous error
