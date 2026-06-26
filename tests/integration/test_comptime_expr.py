@@ -35,6 +35,18 @@ def test_implicit(validate):
     validate(foo.compile_function())
 
 
+def test_implicit_int_to_float(validate):
+    """A Python int variable in a float context coerces, rather than failing the
+    int-typed hint."""
+    x = 42
+
+    @guppy
+    def foo() -> float:
+        return x
+
+    validate(foo.compile_function())
+
+
 def test_builtin(validate):
     @compile_guppy
     def foo() -> int:

@@ -396,7 +396,7 @@ def test_static_array_bool():
 def get_statevector(main: GuppyFunctionDefinition, n_qubits: int) -> StateVector:
     @guppy
     def wrapper() -> None:
-        qs = array(qubit() for _ in range(comptime(n_qubits)))
+        qs = array(qubit() for _ in range(n_qubits))
         main(qs)
         state_output("result_state", qs)
         discard_array(qs)

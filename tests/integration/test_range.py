@@ -54,6 +54,17 @@ def test_py_size(validate):
     validate(negative.compile_function())
 
 
+def test_py_size_var(validate):
+    """Python variable (not literal) used as sized range argument."""
+    n = 10
+
+    @guppy
+    def foo() -> SizedIter[Range, 10]:
+        return range(n)
+
+    validate(foo.compile_function())
+
+
 def test_static_generic_size(validate):
     n = guppy.nat_var("n")
 

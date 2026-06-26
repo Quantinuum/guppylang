@@ -6,7 +6,7 @@ import guppylang.std.qsystem.sol as sol_mod
 import guppylang.std.qsystem.sol.functional as sol_fn_mod
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle
-from guppylang.std.builtins import array, comptime, owned
+from guppylang.std.builtins import array, owned
 from typing import NamedTuple
 from types import ModuleType
 
@@ -167,10 +167,10 @@ def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
         qubits: array[qubit, NUM_QUBITS] @ owned,
     ) -> array[Measurement, NUM_QUBITS]:
         ms = measure_array(qubits)
-        qa = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qa = array(qubit() for _ in range(NUM_QUBITS))
         ms2 = lazy_measure_array(qa)
         collect_measurements(ms2)
-        qb = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qb = array(qubit() for _ in range(NUM_QUBITS))
         ms3 = measure_and_reset_array(qb)
         collect_measurements(ms3)
         ms4 = lazy_measure_and_reset_array(qb)
@@ -227,7 +227,7 @@ def test_qsystem_sol_functional(validate):  # type: ignore[no-untyped-def]
         qubits: array[qubit, NUM_QUBITS] @ owned,
     ) -> array[Measurement, NUM_QUBITS]:
         ms = measure_array(qubits)
-        qa = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qa = array(qubit() for _ in range(NUM_QUBITS))
         qb, ms2 = measure_and_reset_array(qa)
         collect_measurements(ms2)
         qc, ms3 = lazy_measure_and_reset_array(qb)
@@ -289,7 +289,7 @@ def test_lazy_measure_array(validate, run_int_fn, qsys_mod: QsysMod):  # type: i
 
     @guppy
     def test() -> int:
-        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qubits = array(qubit() for _ in range(NUM_QUBITS))
         for i in range(len(qubits)):
             x(qubits[i])
         measurements = lazy_measure_array(qubits)
@@ -349,7 +349,7 @@ def test_measure_and_reset_array(validate, run_int_fn, qsys_mod: QsysMod):  # ty
 
     @guppy
     def test() -> int:
-        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qubits = array(qubit() for _ in range(NUM_QUBITS))
         pattern = array(1, 0, 1, 1, 0)
         for i in range(len(qubits)):
             if pattern[i]:
@@ -374,7 +374,7 @@ def test_measure_array_functional(validate, run_int_fn, qsys_mod_fn: QsysModFn):
 
     @guppy
     def test() -> int:
-        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qubits = array(qubit() for _ in range(NUM_QUBITS))
         pattern = array(1, 0, 1, 1, 0)
         for i in range(len(qubits)):
             if pattern[i]:
@@ -400,7 +400,7 @@ def test_measure_and_reset_array_functional(
 
     @guppy
     def test() -> int:
-        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qubits = array(qubit() for _ in range(NUM_QUBITS))
         pattern = array(1, 0, 1, 1, 0)
         for i in range(len(qubits)):
             if pattern[i]:
@@ -429,7 +429,7 @@ def test_lazy_measure_and_reset_array_functional(
 
     @guppy
     def test() -> int:
-        qubits = array(qubit() for _ in range(comptime(NUM_QUBITS)))
+        qubits = array(qubit() for _ in range(NUM_QUBITS))
         pattern = array(1, 0, 1, 1, 0)
         for i in range(len(qubits)):
             if pattern[i]:

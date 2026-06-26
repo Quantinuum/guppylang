@@ -287,6 +287,25 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         """Invokes the type synthesiser"""
         return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars)
 
+    def _check_python_value(
+        self, value: Any, node: ast.expr, ty: Type
+    ) -> tuple[ast.expr, Subst] | None:
+        """Tries to check a primitive Python value against an expected type.
+
+        Returns the type-annotated constant and substitution if the value can be
+        represented in Guppy and matches `ty`, otherwise `None`. Never raises:
+        `python_value_to_guppy_type` only provides a hint, so we unify against `ty`
+        and leave it to the caller to decide how to handle a mismatch."""
+        act = python_value_to_guppy_type(value, node, ty)
+        if act is None:
+            return None
+        subst = unify(ty, act, {})
+        if subst is None:
+            return None
+        act = act.substitute(subst)
+        subst = {x: s for x, s in subst.items() if x in ty.unsolved_vars}
+        return with_type(act, with_loc(node, ast.Constant(value=value))), subst
+
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
         act = python_value_to_guppy_type(node.value, node, ty)
         if act is None:
@@ -294,6 +313,18 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
         assert inst == (), "Const values are not generic"
         return node, subst
+
+    def visit_Name(self, node: ast.Name, ty: Type) -> tuple[ast.expr, Subst]:
+        """Check a name against an expected type, propagating the hint for Python
+        values so that e.g. a non-negative Python int variable is accepted where a
+        ``nat @comptime`` is expected (mirroring what ``visit_Constant`` does for
+        literals)."""
+        if node.id in self.ctx.globals:
+            match self.ctx.globals[node.id]:
+                case PythonObject(obj=val):
+                    if (result := self._check_python_value(val, node, ty)) is not None:
+                        return result
+        return self.generic_visit(node, ty)
 
     def visit_Tuple(self, node: ast.Tuple, ty: Type) -> tuple[ast.expr, Subst]:
         if not isinstance(ty, TupleType) or len(ty.element_types) != len(node.elts):
@@ -411,15 +442,14 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if act := python_value_to_guppy_type(python_val, node.value, ty):
-            subst = unify(ty, act, {})
-            if subst is None:
-                self._fail(ty, act, node)
-            act = act.substitute(subst)
-            subst = {x: s for x, s in subst.items() if x in ty.unsolved_vars}
-            return with_type(act, with_loc(node, ast.Constant(value=python_val))), subst
-
-        raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
+        if (result := self._check_python_value(python_val, node.value, ty)) is not None:
+            expr, subst = result
+            return with_loc(node, expr), subst
+        # `_check_python_value` failed: distinguish a value that isn't representable
+        # in Guppy at all from one that just doesn't match the expected type.
+        if python_value_to_guppy_type(python_val, node.value, ty) is None:
+            raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
+        self._fail(ty, with_loc(node, ast.Constant(value=python_val)), node)
 
     def generic_visit(self, node: ast.expr, ty: Type) -> tuple[ast.expr, Subst]:
         # Try to synthesize and then check if we can unify it with the given type
