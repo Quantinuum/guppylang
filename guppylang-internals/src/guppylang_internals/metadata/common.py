@@ -32,18 +32,18 @@ class ReservedMetadataKeysError(Fatal):
     title: ClassVar[str] = "Metadata key is reserved"
     message: ClassVar[str] = "{rendered_message}"
     keys: set[str]
-    singular: bool
 
     @property
     def rendered_message(self) -> str:
-        if self.singular:
+        assert len(self.keys) > 0
+        if len(self.keys) == 1:
             return (
                 f"The metadata key `{next(iter(self.keys))}` cannot be used because "
                 f"it is reserved by Guppy."
             )
         else:
             return (
-                f"The metadata keys {self.keys} cannot be used because they are "
+                f"The metadata keys `{self.keys}` cannot be used because they are "
                 f"reserved by Guppy."
             )
 
@@ -73,7 +73,7 @@ class FunctionMetadata:
 
     def set_generic_metadata(self, key: str, value: JsonType) -> None:
         if key in FunctionMetadata.reserved_keys():
-            raise GuppyError(ReservedMetadataKeysError(None, keys={key}, singular=True))
+            raise GuppyError(ReservedMetadataKeysError(None, keys={key}))
         self._node_metadata[key] = value
 
     def get_debug_info(self) -> DebugRecord | None:
@@ -110,11 +110,7 @@ def add_metadata(
         reserved_keys = FunctionMetadata.reserved_keys()
         used_reserved_keys = reserved_keys.intersection(additional_metadata.keys())
         if len(used_reserved_keys) > 0:
-            raise GuppyError(
-                ReservedMetadataKeysError(
-                    None, keys=used_reserved_keys, singular=len(used_reserved_keys) == 1
-                )
-            )
+            raise GuppyError(ReservedMetadataKeysError(None, keys=used_reserved_keys))
 
         for key, value in additional_metadata.items():
             if key in node.metadata:

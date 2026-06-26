@@ -1,4 +1,7 @@
+import pytest
 from guppylang.decorator import guppy, metadata
+from guppylang_internals.error import GuppyError
+from guppylang_internals.metadata.common import ReservedMetadataKeysError
 from hugr.ops import FuncDefn
 
 
@@ -38,3 +41,18 @@ def test_wrapping_metadata_decorator():
 
     assert len(funcs) == 1
     assert funcs[0].metadata["custom-key"] == {"nested": ["value"]}
+
+
+def test_metadata_reserved_keys_using_decorator():
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError)
+            and e.error.keys == {"tket.unitary"}
+        ),
+    ):
+
+        @guppy
+        @metadata("tket.unitary", "value2")
+        def main() -> None:
+            pass

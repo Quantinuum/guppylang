@@ -3,7 +3,6 @@ import pytest
 from guppylang.decorator import guppy, metadata
 
 
-
 def test_metadata_decorator_position():
     with pytest.raises(
         TypeError,
