@@ -181,11 +181,14 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
                 )
 
         if qubits is None:
+            from guppylang.decorator import expected_qubits
+
             raise EmulatorBuildError(
                 ValueError(
                     "Number of qubits to be used must be specified, either as an "
                     f"argument to `{self.emulator.__name__}` or hinted on the "
-                    "entrypoint function using `@guppy(max_qubits=...)`."
+                    "entrypoint function using the decorator "
+                    f"`@{expected_qubits.__name__}`."
                 )
             )
 
