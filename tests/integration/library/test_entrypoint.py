@@ -5,6 +5,7 @@ from hugr._hugr.linking import HugrLinkingError
 from guppylang import guppy
 from guppylang.defs import GuppyDefinition
 from guppylang.emulator import EmulatorBuilder
+from guppylang.library import GuppyLibrary
 from guppylang.std.platform import output
 
 
@@ -16,8 +17,8 @@ def test_manual_link_no_entrypoints():
     def impl(x: int) -> int:
         return x + 5
 
-    lib1 = guppy.library(decl).compile()
-    lib2 = guppy.library(impl).compile()
+    lib1 = GuppyLibrary.from_members(decl).compile()
+    lib2 = GuppyLibrary.from_members(impl).compile()
 
     linked = lib1.link(lib2)
     # Not an executable module
@@ -32,7 +33,7 @@ def test_manual_link_entrypoint_lhs():
     def impl(x: int) -> int:
         return x + 5
 
-    adder_lib = guppy.library(impl).compile()
+    adder_lib = GuppyLibrary.from_members(impl).compile()
 
     @guppy
     def main() -> None:
@@ -51,7 +52,7 @@ def test_manual_link_entrypoint_rhs():
     def impl(x: int) -> int:
         return x + 5
 
-    adder_lib = guppy.library(impl).compile()
+    adder_lib = GuppyLibrary.from_members(impl).compile()
 
     @guppy
     def main() -> None:

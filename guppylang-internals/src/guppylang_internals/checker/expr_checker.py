@@ -364,7 +364,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             return self.visit_Call(node, ty)
 
         # Otherwise, it must be a function as a higher-order value - something
-        # whose type is either a FunctionType, a genric parameter with a `Callable`
+        # whose type is either a FunctionType, a generic parameter with a `Callable`
         # bound, or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
             args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)

@@ -1,6 +1,7 @@
 from hugr.package import Package
 
 from guppylang import guppy
+from guppylang.library import GuppyLibrary
 from guppylang.std.platform import output
 
 
@@ -10,7 +11,7 @@ def lib_hugr() -> Package:
     def super_adder_impl(x: int) -> int:
         return x + x
 
-    lib = guppy.library(super_adder_impl).compile()
+    lib = GuppyLibrary.from_members(super_adder_impl).compile()
     return lib
 
 

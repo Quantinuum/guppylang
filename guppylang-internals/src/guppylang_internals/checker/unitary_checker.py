@@ -122,7 +122,16 @@ class BBUnitaryChecker(ast.NodeVisitor):
                         self.flags & (~ty.unitary_flags),
                         missing_keyword_hint=False,
                     )
-                    err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
+                    from guppylang_internals.definition.pytket_circuits import (
+                        ParsedPytketDef,
+                    )
+
+                    if isinstance(func, ParsedPytketDef):
+                        err.add_sub_diagnostic(
+                            UnitaryCallError.PytketHint(None, func.name)
+                        )
+                    else:
+                        err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
                 else:
                     # If func is None, we are checking a higher-order call
                     missing_flags = self.flags & (~ty.unitary_flags)

@@ -54,7 +54,6 @@ from guppylang.defs import (
     GuppyDefinition,
     GuppyEnumDefinition,
     GuppyFunctionDefinition,
-    GuppyLibrary,
     GuppyTypeVarDefinition,
 )
 
@@ -546,28 +545,6 @@ class _Guppy:
         # We're pretending to return a free type variable, but in fact we return
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
-
-    def library(self, *members: GuppyDefinition) -> GuppyLibrary:
-        """Defines a Guppy library, which is a collection of Guppy definitions that can
-        be compiled together and linked as a unit.
-
-        This function does not act as a decorator.
-
-        .. code-block:: python
-            from guppylang import guppy
-
-            @guppy
-            def foo() -> int:
-                return 42
-            @guppy
-            def bar() -> int:
-                return 7
-
-            # Compilable collection containing `foo` and `bar`.
-            lib = guppy.library(foo, bar)
-        """
-
-        return GuppyLibrary([member.id for member in members])
 
     def pytket(
         self, input_circuit: Any
