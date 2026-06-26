@@ -55,9 +55,11 @@ class OptimizationLevel(Enum):
         """Return the HUGR passes that implement this optimization level."""
         match self:
             case OptimizationLevel.Default:
-                return [passes.NormalizeGuppy()]
+                # TODO: Partially disabled due to <https://github.com/Quantinuum/tket2/issues/1755>
+                return [passes.NormalizeGuppy(remove_dead_funcs=False)]
             case OptimizationLevel.Classical:
-                return [passes.NormalizeGuppy()]
+                # TODO: Partially disabled due to <https://github.com/Quantinuum/tket2/issues/1755>
+                return [passes.NormalizeGuppy(remove_dead_funcs=False)]
             case OptimizationLevel.Minimal:
                 return []
 
