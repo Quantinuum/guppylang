@@ -1,7 +1,7 @@
 import builtins
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import range, py
+from guppylang.std.builtins import range
 from guppylang.std.iter import Range, SizedIter
 
 
@@ -47,11 +47,9 @@ def test_static_size(validate):
 
 
 def test_py_size(validate):
-    n = 10
-
     @guppy
     def negative() -> SizedIter[Range, 10]:
-        return range(py(n))
+        return range(10)
 
     validate(negative.compile_function())
 

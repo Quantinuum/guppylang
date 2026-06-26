@@ -6,8 +6,7 @@ import guppylang.std.qsystem.sol as sol_mod
 import guppylang.std.qsystem.sol.functional as sol_fn_mod
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle
-from guppylang.std.builtins import array, owned
-from guppylang.std.lang import comptime
+from guppylang.std.builtins import array, comptime, owned
 from typing import NamedTuple
 from types import ModuleType
 
@@ -165,8 +164,8 @@ def test_qsystem_sol(validate):  # type: ignore[no-untyped-def]
 
     @guppy
     def test_arrays(
-        qubits: array[qubit, comptime(NUM_QUBITS)] @ owned,
-    ) -> array[Measurement, comptime(NUM_QUBITS)]:
+        qubits: array[qubit, NUM_QUBITS] @ owned,
+    ) -> array[Measurement, NUM_QUBITS]:
         ms = measure_array(qubits)
         qa = array(qubit() for _ in range(comptime(NUM_QUBITS)))
         ms2 = lazy_measure_array(qa)
@@ -225,8 +224,8 @@ def test_qsystem_sol_functional(validate):  # type: ignore[no-untyped-def]
 
     @guppy
     def test_arrays(
-        qubits: array[qubit, comptime(NUM_QUBITS)] @ owned,
-    ) -> array[Measurement, comptime(NUM_QUBITS)]:
+        qubits: array[qubit, NUM_QUBITS] @ owned,
+    ) -> array[Measurement, NUM_QUBITS]:
         ms = measure_array(qubits)
         qa = array(qubit() for _ in range(comptime(NUM_QUBITS)))
         qb, ms2 = measure_and_reset_array(qa)

@@ -183,9 +183,9 @@ def test_zeros():
     N = 2
 
     @guppy
-    def main() -> array[qubit, comptime(N)]:
+    def main() -> array[qubit, N]:
         q = array(qubit(), qubit())
-        for i in range(comptime(N)):
+        for i in range(N):
             output("c", project_z(q[i]).read())
         return q
 
@@ -290,7 +290,7 @@ def test_multi_alloc_free():
 
     @guppy
     def main() -> None:
-        for _ in range(comptime(N)):
+        for _ in range(N):
             q = qubit()
             output("c", measure(q).read())
 
