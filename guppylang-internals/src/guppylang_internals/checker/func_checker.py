@@ -417,7 +417,6 @@ def parse_self_arg_proto(
     This argument is special since its type annotation may be omitted. Furthermore, if a
     type is provided then it must match the parent type.
     """
-    from guppylang_internals.checker.protocol_checker import check_protocol
 
     assert self_defn.params is not None
     if arg.annotation is None:
@@ -451,7 +450,7 @@ def parse_self_arg_proto(
         # Check that the annotation matches the parent type. We can do this by unifying
         # with the expected self type where all params are instantiated with unification
         # vars
-        _impl_proof, subst = check_protocol(user_ty, self_ty_head, arg)
+        _impl_proof, subst = self_ty_head.check_implemented_by(user_ty, arg)
         if subst is None:
             raise GuppyError(
                 InvalidSelfError(arg.annotation, arg.arg, str(self_ty_head))

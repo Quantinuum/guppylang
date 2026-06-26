@@ -3,7 +3,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.type_errors import (
     AmbiguousProtocol,
     CouldntInferProtoArgs,
@@ -16,6 +15,7 @@ from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.protocol import CheckedProtocolDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
+from guppylang_internals.span import ToSpan
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.protocol import ProtocolInst
@@ -37,9 +37,6 @@ class ImplProofBase(ABC):
     proto: ProtocolInst
     ty: Type
 
-    def __post_init__(self) -> None:
-        assert all(not arg.unsolved_vars for arg in self.proto.type_args)
-
 
 @dataclass(frozen=True)
 class ConcreteImplProof(ImplProofBase):
@@ -57,9 +54,6 @@ class AssumptionImplProof(ImplProofBase):
     #: Proof by assumption. The protocol is a BoundTypeVar that explicitly implements
     #: the protocol instantiation we're looking for.
     ty: BoundTypeVar
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
 
 
 ImplProof: TypeAlias = ConcreteImplProof | AssumptionImplProof
@@ -100,7 +94,7 @@ def _instantiate_self(
 
 
 def check_protocol(
-    ty: Type, protocol: ProtocolInst, loc: AstNode | None = None
+    ty: Type, protocol: ProtocolInst, loc: ToSpan | None = None
 ) -> tuple[ImplProof, Subst]:
     """Check that `ty` implements `protocol`, returning a proof and substitution.
 
