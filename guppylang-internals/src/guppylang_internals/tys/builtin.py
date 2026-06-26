@@ -1,7 +1,7 @@
 import ast
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Literal, TypeGuard
+from typing import TYPE_CHECKING, Literal, TypeGuard
 
 import hugr.std
 import hugr.std.collections.array
@@ -9,18 +9,24 @@ import hugr.std.collections.list
 from hugr import tys as ht
 
 from guppylang_internals.ast_util import AstNode
+from guppylang_internals.checker.errors.type_errors import DoesntImplementProtocol
 from guppylang_internals.definition.common import CompiledDef, DefId
+from guppylang_internals.definition.protocol import CheckedProtocolDef
 from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import check_lists_enabled
+from guppylang_internals.span import ToSpan
 from guppylang_internals.std._internal.compiler.tket_exts import WASM_EXTENSION
 from guppylang_internals.std._internal.wasm import WasmPlatform
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.common import ToHugrContext
+from guppylang_internals.tys.common import ToHugrContext, Transformer
 from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.errors import WrongNumberOfTypeArgsError
 from guppylang_internals.tys.param import ConstParam, Parameter, TypeParam
+from guppylang_internals.tys.protocol import ProtocolInst
+from guppylang_internals.tys.subst import Substituter
 from guppylang_internals.tys.ty import (
+    BoundTypeVar,
     FunctionType,
     NoneType,
     NumericType,
@@ -28,7 +34,12 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
     UnitaryFlags,
+    unify,
 )
+
+if TYPE_CHECKING:
+    from guppylang_internals.checker.protocol_checker import ImplProof
+    from guppylang_internals.tys.subst import Subst
 
 
 @dataclass(frozen=True)
@@ -184,6 +195,70 @@ class _ListTypeDef(OpaqueTypeDef, CompiledDef):
         return super().check_instantiate(args, loc)
 
 
+@dataclass(frozen=True)
+class CallableProtocolDef(CheckedProtocolDef):
+    """Protocol definition associated with the builtin `Callable` protocol."""
+
+    name: Literal["Callable"] = field(default="Callable", init=False)
+    params: Sequence[Parameter] = ()
+    member_defs: Mapping[str, DefId] = field(default_factory=dict)
+
+    def check_instantiate(
+        self, args: Sequence[Argument], loc: AstNode | None = None
+    ) -> ProtocolInst:
+        # Callable instances are constructed using special logic in the type parser
+        raise InternalGuppyError(
+            "Tried to build `Callable` type via `check_instantiate`"
+        )
+
+
+@dataclass(frozen=True, init=False)
+class CallableProtocolInst(ProtocolInst):
+    """Protocol instance associated with the builtin `Callable` protocol."""
+
+    sig: FunctionType = field(hash=False)
+
+    def __init__(self, sig: FunctionType):
+        assert not sig.parametrized
+        type_args = (*(TypeArg(inp.ty) for inp in sig.inputs), TypeArg(sig.output))
+        super().__init__(type_args, callable_protocol_def.id)
+        object.__setattr__(self, "sig", sig)
+
+    def transform(self, transformer: Transformer) -> "CallableProtocolInst":
+        sig = self.sig.transform(transformer)
+        assert isinstance(sig, FunctionType)
+        return CallableProtocolInst(sig)
+
+    def check_implemented_by(
+        self, ty: "Type", loc: ToSpan | None
+    ) -> "tuple[ImplProof, Subst]":
+        from guppylang_internals.checker.protocol_checker import (
+            AssumptionImplProof,
+            ConcreteImplProof,
+        )
+
+        if isinstance(ty, FunctionType):
+            assert not ty.parametrized
+            subst = unify(self.sig, ty, {})
+            if subst is not None:
+                return ConcreteImplProof(
+                    self.transform(Substituter(subst)), ty, {}
+                ), subst
+
+        elif isinstance(ty, BoundTypeVar):
+            for protocol in ty.implements:
+                if isinstance(protocol, CallableProtocolInst):
+                    subst = unify(self.sig, protocol.sig, {})
+                    if subst is not None:
+                        return AssumptionImplProof(self, ty), subst
+
+        raise GuppyError(DoesntImplementProtocol(loc, str(ty), str(self)))
+
+    def __str__(self) -> str:
+        inputs = ", ".join(str(inp.ty) for inp in self.sig.inputs)
+        return f"Callable[[{inputs}], {self.sig.output}]"
+
+
 def _list_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
     # Type checker ensures that we get a single arg of kind type
     [arg] = args
@@ -330,6 +405,7 @@ option_type_def = OpaqueTypeDef(
     never_droppable=False,
     to_hugr=_option_to_hugr,
 )
+callable_protocol_def = CallableProtocolDef(DefId.fresh(), defined_at=None)
 
 
 def bool_type() -> OpaqueType:

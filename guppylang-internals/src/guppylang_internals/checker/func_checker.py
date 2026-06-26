@@ -138,6 +138,7 @@ def check_global_func_def(
     generic_ty: FunctionType,
     type_args: Inst,
     globals: Globals,
+    link_name: str,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -157,7 +158,15 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    return check_cfg(cfg, inputs, ty.output, generic_args, func_def.name, globals)
+    return check_cfg(
+        cfg,
+        inputs,
+        ty.output,
+        generic_args,
+        func_def.name,
+        globals,
+        modified_block_name_base=link_name,
+    )
 
 
 def check_nested_func_def(
@@ -417,7 +426,6 @@ def parse_self_arg_proto(
     This argument is special since its type annotation may be omitted. Furthermore, if a
     type is provided then it must match the parent type.
     """
-    from guppylang_internals.checker.protocol_checker import check_protocol
 
     assert self_defn.params is not None
     if arg.annotation is None:
@@ -451,7 +459,7 @@ def parse_self_arg_proto(
         # Check that the annotation matches the parent type. We can do this by unifying
         # with the expected self type where all params are instantiated with unification
         # vars
-        _impl_proof, subst = check_protocol(user_ty, self_ty_head, arg)
+        _impl_proof, subst = self_ty_head.check_implemented_by(user_ty, arg)
         if subst is None:
             raise GuppyError(
                 InvalidSelfError(arg.annotation, arg.arg, str(self_ty_head))

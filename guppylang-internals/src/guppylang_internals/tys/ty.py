@@ -11,6 +11,7 @@ from hugr import tys as ht
 from typing_extensions import assert_never
 
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.span import DUMMY_SPAN
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
     ToHugr,
@@ -970,15 +971,17 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
         return None
     # Check that `t` implements all protocols required by `var`.
     if var.implements:
-        from guppylang_internals.checker.protocol_checker import check_protocol
-
-        try:
-            for proto in var.implements:
-                _, proto_subst = check_protocol(t, proto)
+        for proto in var.implements:
+            try:
+                loc = DUMMY_SPAN  # We catch the error later so the span doesn't matter
+                _, proto_subst = proto.check_implemented_by(t, loc)
                 subst |= proto_subst
-        except GuppyError:
-            return None
-    return {var: t, **subst}
+            except GuppyError:  # noqa: PERF203
+                # At this point, we only use protocol checking to infer types. If the
+                # protocol is not satisfied, we still keep going. The error will be
+                # raised later when we check the inferred instantiation.
+                pass
+    return {var: t.substitute(subst), **subst}
 
 
 def _unify_const_var(

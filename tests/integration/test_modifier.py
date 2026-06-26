@@ -1,4 +1,7 @@
+import base64
+
 from guppylang.decorator import guppy
+from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.array import array
 
 from guppylang.std.builtins import (
@@ -535,3 +538,44 @@ def test_comptime_unitary_mixed(validate):
         return q1
 
     validate(foo.compile_function())
+
+
+def test_hugr_stability():
+    """Test that the Hugr representation of a function is stable across multiple
+    compilations: https://github.com/Quantinuum/guppylang/issues/1905"""
+
+    @guppy(unitary=True)
+    def foo(q: qubit) -> None:
+        h(q)
+        with dagger:
+            h(q)
+        with dagger:
+            h(q)
+
+    @guppy
+    def main() -> None:
+        q1 = qubit()
+        q2 = qubit()
+        with dagger:
+            foo(q1)
+            with control(q1):
+                foo(q2)
+        cx(q1, q2)
+        with control(q1):
+            foo(q2)
+
+        discard(q1)
+        discard(q2)
+
+    hashes = set()
+
+    def compile_to_sig(guppy_func: GuppyFunctionDefinition) -> str:
+        package = guppy_func.compile()
+        http_data = package.to_bytes()
+        return base64.b64encode(http_data).decode()[-10:]
+
+    for _ in range(20):
+        sig = compile_to_sig(main)
+        hashes.add(sig)
+
+    assert len(hashes) == 1

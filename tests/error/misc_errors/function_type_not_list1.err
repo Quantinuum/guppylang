@@ -3,7 +3,7 @@ Error: Invalid type (at $FILE:6:12)
 4 | 
 5 | @guppy.declare
 6 | def foo(f: "Function[int, float, bool]") -> None: ...
-  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^ Invalid function type
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^ Invalid `Function` type
 
 Help: Function types are specified as follows: `Function[[<arguments>], <return
 type>]`
