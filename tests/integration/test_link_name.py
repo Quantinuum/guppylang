@@ -288,3 +288,17 @@ def test_file_level_members(qualifier):
         "tests.integration.test_link_name.FileLevelEnum.superb_name_defn",
         "tests.integration.test_link_name.FileLevelEnum.superb_name_decl",
     }
+
+
+def test_error_when_using_old_kwarg():
+    """Asserts that using the old `link_name` kwarg raises an error."""
+
+    with pytest.raises(
+        TypeError,
+        match="`link_name` keyword argument is not allowed in @guppy decorator, "
+        "use @link_name decorator instead",
+    ):
+
+        @guppy(link_name="some.qualified.name")
+        def main() -> None:
+            pass
