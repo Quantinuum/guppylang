@@ -3,6 +3,7 @@ from hugr.ops import FuncDefn, FuncDecl
 from hugr.package import Package
 
 from guppylang import guppy
+from guppylang.decorator import link_name
 
 
 @pytest.fixture
@@ -38,11 +39,13 @@ def _func_names_excluding_main(package: Package, qualifier: str) -> set[str]:
 def test_func_link_name_annotated():
     """Asserts that annotated function `link_name`s are passed to the HUGR nodes."""
 
-    @guppy(link_name="some.qualified.name")
+    @guppy
+    @link_name("some.qualified.name")
     def main_def() -> None:
         pass
 
-    @guppy.declare(link_name="some.other.qualified.name")
+    @guppy.declare
+    @link_name("some.other.qualified.name")
     def main_dec() -> None: ...
 
     assert _func_names(main_def.compile()) == {"some.qualified.name"}
@@ -68,11 +71,13 @@ def test_struct_member_link_name_annotated(qualifier):
 
     @guppy.struct
     class MySuperbStruct:
-        @guppy(link_name="totally_qualified_override_name")
+        @guppy
+        @link_name("totally_qualified_override_name")
         def some_name_that_is_crazy(self) -> None:
             pass
 
-        @guppy.declare(link_name="superbly_qualified_override_name")
+        @guppy.declare
+        @link_name("superbly_qualified_override_name")
         def some_other_name_that_is_crazy(self) -> None: ...
 
     @guppy
@@ -117,13 +122,15 @@ def test_struct_member_link_name_supported(qualifier):
     """Asserts that function `link_name`s of struct members that are derived through
     providing a `link_name` to the struct are correctly inferred."""
 
-    @guppy.struct(link_name="my.superb.qualifier")
+    @guppy.struct
+    @link_name("my.superb.qualifier")
     class MySuperbStruct:
         @guppy
         def some_name_that_is_crazy(self) -> None:
             pass
 
-        @guppy(link_name="the.override.still.works")
+        @guppy
+        @link_name("the.override.still.works")
         def some_other_name_that_is_crazy(self) -> None:
             pass
 
@@ -147,11 +154,13 @@ def test_enum_member_link_name_annotated(qualifier):
     class MySuperbEnum:
         Variant = {}
 
-        @guppy(link_name="totally_qualified_override_name")
+        @guppy
+        @link_name("totally_qualified_override_name")
         def some_name_that_is_crazy(self) -> None:
             pass
 
-        @guppy.declare(link_name="superbly_qualified_override_name")
+        @guppy.declare
+        @link_name("superbly_qualified_override_name")
         def some_other_name_that_is_crazy(self) -> None: ...
 
     @guppy
@@ -198,7 +207,8 @@ def test_enum_member_link_name_supported(qualifier):
     """Asserts that function `link_name`s of enum members that are derived through
     providing a `link_name` to the enum are correctly inferred."""
 
-    @guppy.enum(link_name="my.superb.qualifier")
+    @guppy.enum
+    @link_name("my.superb.qualifier")
     class MySuperbEnum:
         Variant = {}
 
@@ -206,7 +216,8 @@ def test_enum_member_link_name_supported(qualifier):
         def some_name_that_is_crazy(self) -> None:
             pass
 
-        @guppy(link_name="the.override.still.works")
+        @guppy
+        @link_name("the.override.still.works")
         def some_other_name_that_is_crazy(self) -> None:
             pass
 

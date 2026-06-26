@@ -78,7 +78,9 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
+__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy", "link_name", "metadata")
+
+LINK_NAME_KEY = "link_name"
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -90,7 +92,6 @@ class GuppyKwargs(TypedDict, total=False):
     controllable: bool
     daggerable: bool
     max_qubits: int
-    link_name: str
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -139,7 +140,7 @@ class _Guppy:
                 f,
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -226,7 +227,7 @@ class _Guppy:
                 None,
                 cls,
                 frozen=kwargs.pop("frozen", False),  # Mutable by default
-                link_name=kwargs.pop("link_name", None),
+                link_name=_get_link_name(cls),
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
@@ -270,7 +271,7 @@ class _Guppy:
                 cls.__name__,
                 None,
                 cls,
-                link_name=kwargs.pop("link_name", None),
+                link_name=_get_link_name(cls),
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
@@ -332,7 +333,7 @@ class _Guppy:
                 None,
                 f,
                 unitary_flags=parsed.flags,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
                 metadata=parsed.metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
@@ -449,7 +450,7 @@ class _Guppy:
                 None,
                 f,
                 unitary_flags=parsed.flags,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
                 metadata=parsed.metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
@@ -693,6 +694,25 @@ def metadata(key: str, value: Any) -> Any:
     return decorator
 
 
+def link_name(name: str) -> Any:
+    """Decorator to attach a link name to a Guppy definition. It must be placed below
+    the @guppy decorator.
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.decorator import link_name
+
+        @guppy.declare
+        @link_name("my_link_name")
+        def main() -> None:
+            pass
+
+        main.compile()
+    """
+    return metadata(LINK_NAME_KEY, name)
+
+
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
     """Helper function to parse expressions that are provided as strings.
 
@@ -823,7 +843,6 @@ def _with_optional_kwargs(
 class ParsedGuppyKwargs(NamedTuple):
     flags: UnitaryFlags
     metadata: FunctionMetadata
-    link_name: str | None
 
 
 @hide_trace
@@ -846,7 +865,11 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     if "max_qubits" in kwargs:
         metadata.set_max_qubits(kwargs.pop("max_qubits"))
 
-    link_name = kwargs.pop("link_name", None)
+    if LINK_NAME_KEY in kwargs:
+        raise TypeError(
+            "`link_name` keyword argument is not allowed in @guppy decorator, "
+            "use @link_name decorator instead"
+        )
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
@@ -855,10 +878,17 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     return ParsedGuppyKwargs(
         flags=flags,
         metadata=metadata,
-        link_name=link_name,
     )
 
 
+def _get_link_name(f: Callable[..., Any]) -> str | None:
+    """Returns the link name for a Guppy function, if it has one."""
+    custom_metadata = getattr(f, "__guppy_metadata__", {})
+    assert isinstance(custom_metadata, dict)
+    return custom_metadata.get(LINK_NAME_KEY, None)
+
+
+@hide_trace
 def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> None:
     """Adds the given metadata to the function's `__guppy_metadata__` attribute, which
     is used by the compiler to store metadata for Guppy functions.
@@ -866,6 +896,8 @@ def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> 
     custom_metadata = getattr(f, "__guppy_metadata__", {})
     assert isinstance(custom_metadata, dict)
     for key, value in custom_metadata.items():
+        if key == LINK_NAME_KEY:
+            continue  # link_name is handled separately
         metadata.set_generic_metadata(key, value)
 
 

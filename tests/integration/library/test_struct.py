@@ -1,10 +1,12 @@
 from guppylang import guppy
+from guppylang.decorator import link_name
 from guppylang.library import GuppyLibrary
 from guppylang.std.platform import output
 
 
 def test_struct_defn():
-    @guppy.struct(link_name="super_struct")
+    @guppy.struct
+    @link_name("super_struct")
     class MyStruct:
         @guppy
         def super_func(self) -> int:
@@ -12,7 +14,8 @@ def test_struct_defn():
 
     lib = GuppyLibrary.from_members(MyStruct).compile()
 
-    @guppy.struct(link_name="super_struct")
+    @guppy.struct
+    @link_name("super_struct")
     class MyStructInterface:
         @guppy.declare
         def super_func(self) -> int: ...
@@ -35,10 +38,12 @@ def test_structural_subtyping():
     class Bar:
         x: int
 
-    @guppy.declare(link_name="my_name")
+    @guppy.declare
+    @link_name("my_name")
     def do_foo(f: Foo) -> int: ...
 
-    @guppy(link_name="my_name")
+    @guppy
+    @link_name("my_name")
     def do_foo_impl(f: Bar) -> int:
         return f.x
 

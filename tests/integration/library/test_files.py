@@ -1,3 +1,4 @@
+from guppylang.decorator import link_name
 from hugr.package import Package
 
 from guppylang import guppy
@@ -7,7 +8,8 @@ from guppylang.std.platform import output
 
 def lib_hugr() -> Package:
 
-    @guppy(link_name="lib1.my_super_adder")
+    @guppy
+    @link_name("lib1.my_super_adder")
     def super_adder_impl(x: int) -> int:
         return x + x
 
