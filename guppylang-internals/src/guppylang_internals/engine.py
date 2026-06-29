@@ -50,10 +50,12 @@ from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
+    callable_protocol_def,
     controllable_type_def,
     daggerable_type_def,
     float_type_def,
     frozenarray_type_def,
+    function_def_type_def,
     function_type_def,
     int_type_def,
     list_type_def,
@@ -74,6 +76,7 @@ from guppylang_internals.tys.ty import (
     BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
+    FunctionDefType,
     FunctionType,
     NoneType,
     NumericType,
@@ -85,6 +88,7 @@ from guppylang_internals.tys.ty import (
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
+    function_def_type_def,
     unitary_type_def,
     daggerable_type_def,
     controllable_type_def,
@@ -101,6 +105,7 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
     frozenarray_type_def,
     sized_iter_type_def,
     option_type_def,
+    callable_protocol_def,
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
@@ -348,6 +353,8 @@ class CompilationEngine:
                         return assert_never(kind)
             case FunctionType():
                 type_defn = function_type_def
+            case FunctionDefType():
+                type_defn = function_def_type_def
             case OpaqueType() as ty:
                 type_defn = ty.defn
             case StructType() as ty:

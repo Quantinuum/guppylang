@@ -64,5 +64,7 @@ def get_tracing_state() -> TracingState:
 def set_tracing_state(state: TracingState) -> Iterator[None]:
     """Context manager to update tracing state for the duration of a code block."""
     token = _STATE.set(state)
-    yield
-    _STATE.reset(token)
+    try:
+        yield
+    finally:
+        _STATE.reset(token)

@@ -1,8 +1,8 @@
-Error: Invalid annotation (at $FILE:6:22)
+Error: Invalid annotation (at $FILE:8:22)
   | 
-4 | 
-5 | @guppy
-6 | def main(f: Function[[nat @ comptime], None]) -> None:
+6 | 
+7 | @guppy
+8 | def main(f: Callable[[nat @ comptime], None]) -> None:
   |                       ^^^^^^^^^^^^^^ Comptime annotations are only allowed for named top-level
   |                                      function arguments
 

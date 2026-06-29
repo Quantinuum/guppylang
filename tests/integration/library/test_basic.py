@@ -1,6 +1,8 @@
 import pytest
 
 from guppylang import guppy
+from guppylang.library import link_name
+
 from guppylang.library import GuppyLibrary
 from guppylang.emulator import EmulatorBuilder
 from guppylang.std.platform import output
@@ -10,7 +12,8 @@ from hugr._hugr.linking import HugrLinkingError
 
 
 def gen_adder_library(*, name: str, value: int) -> GuppyLibrary:
-    @guppy(link_name=name)
+    @guppy
+    @link_name(name)
     def func(x: int) -> int:
         return x + comptime(value)
 
@@ -18,7 +21,8 @@ def gen_adder_library(*, name: str, value: int) -> GuppyLibrary:
 
 
 def test_missing_impl():
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
     @guppy
@@ -37,7 +41,8 @@ def test_missing_impl_existing_lib():
     """Asserts that even with a library that provides a function implementation, if the
     library is not explicitly included the function is still missing."""
 
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
     _ = gen_adder_library(name="super_adder", value=10).compile()
@@ -56,7 +61,8 @@ def test_missing_impl_existing_lib():
 
 def test_impl_provided():
 
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
     adder_lib = gen_adder_library(name="super_adder", value=10).compile()
@@ -75,7 +81,8 @@ def test_impl_provided_second_lib():
     only including one library does not result in an error, and the correct
     implementation is used."""
 
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
     adder_lib = gen_adder_library(name="super_adder", value=5).compile()
@@ -93,13 +100,16 @@ def test_unused_func_missing_impl():
     """Asserts that when a function is declared but not used (and so not included in the
     Hugr), it does not matter if the library is missing a function implementation."""
 
-    @guppy.declare(link_name="func1")
+    @guppy.declare
+    @link_name("func1")
     def decl_1(x: int) -> int: ...
 
-    @guppy.declare(link_name="func2")
+    @guppy.declare
+    @link_name("func2")
     def decl_2(x: int) -> int: ...
 
-    @guppy(link_name="func1")
+    @guppy
+    @link_name("func1")
     def func(x: int) -> int:
         return x + 1
 
@@ -116,7 +126,8 @@ def test_unused_func_missing_impl():
 
 def test_duplicate_defn():
 
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
     adder_lib_1 = gen_adder_library(name="super_adder", value=5).compile()
@@ -137,7 +148,8 @@ def test_unused_func_duplicate_defn():
     """Asserts that duplicate definitions for unused functions still cause linkage to
     fail, since the resulting Hugr is not well-formed."""
 
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
     lib_1 = gen_adder_library(name="super_adder", value=5).compile()
@@ -156,7 +168,8 @@ def test_unused_func_duplicate_defn():
 
 
 def test_pre_compile():
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
     adder_lib = gen_adder_library(name="super_adder", value=10).compile()
@@ -181,14 +194,16 @@ def test_dependency_public():
     def dependency_func(x: int) -> int:
         return 2 * x
 
-    @guppy(link_name="adder")
+    @guppy
+    @link_name("adder")
     def depender_func(x: int) -> int:
         return x + dependency_func(x)
 
     # Including depender_func causes dependency to be emitted already
     lib = GuppyLibrary.from_members(depender_func, dependency_func).compile()
 
-    @guppy.declare(link_name="adder")
+    @guppy.declare
+    @link_name("adder")
     def depender_func_decl(x: int) -> int: ...
 
     @guppy

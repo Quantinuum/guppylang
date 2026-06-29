@@ -1,0 +1,17 @@
+Error: Different types (at $FILE:18:11)
+   | 
+16 |     else:
+17 |         baz = bar
+18 |     return baz()
+   |            ^^^ Variable `baz` may refer to different types
+
+Notes:
+   | 
+14 |     if b:
+15 |         baz = foo
+   |         --- This is of type `def foo() -> int`
+16 |     else:
+17 |         baz = bar
+   |         --- This is of type `def bar() -> int`
+
+Guppy compilation failed due to 1 previous error

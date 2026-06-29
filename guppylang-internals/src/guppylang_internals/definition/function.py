@@ -172,9 +172,11 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     @override
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
-        cfg = check_global_func_def(self.defined_at, self.ty, type_args, globals)
-        mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
+        cfg = check_global_func_def(
+            self.defined_at, self.ty, type_args, globals, mono_link_name
+        )
+        mono_ty = self.ty.instantiate_partial(type_args)
         return CheckedFunctionDef(
             self.id,
             self.name,

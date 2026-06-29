@@ -1,9 +1,11 @@
+from collections.abc import Callable
+
 from guppylang import guppy
-from guppylang.std.builtins import comptime, nat, Function
+from guppylang.std.builtins import comptime, nat
 
 
 @guppy
-def main(f: Function[[nat @ comptime], None]) -> None:
+def main(f: Callable[[nat @ comptime], None]) -> None:
     pass
 
 

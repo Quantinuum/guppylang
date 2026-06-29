@@ -95,7 +95,7 @@ from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
-from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -131,6 +131,7 @@ from guppylang_internals.nodes import (
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
+    CallableProtocolInst,
     bool_type,
     float_type,
     frozenarray_type,
@@ -164,6 +165,7 @@ from guppylang_internals.tys.ty import (
     EnumType,
     ExistentialTypeVar,
     FuncInput,
+    FunctionDefType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -265,7 +267,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # When checking against a variable, we have to synthesize
         if isinstance(ty, ExistentialTypeVar):
             expr, syn_ty = self._synthesize(expr, allow_free_vars=False)
-            return with_type(syn_ty, expr), {ty: syn_ty}
+            expr, subst, inst = check_type_against(
+                syn_ty, ty, expr, self.ctx, self._kind
+            )
+            # Apply instantiation of quantified type variables
+            if inst:
+                expr = with_loc(expr, TypeApply(expr, inst))
+            return with_type(ty.substitute(subst), expr), subst
 
         # Otherwise, invoke the visitor
         old_kind = self._kind
@@ -327,6 +335,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, func_ty = self._synthesize(node.func, allow_free_vars=False)
 
+        if isinstance(func_ty, FunctionDefType):
+            node.func = function_def_value_to_global_name(node.func, func_ty)
+
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
@@ -357,12 +368,23 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             return self.visit_Call(node, ty)
 
         # Otherwise, it must be a function as a higher-order value - something
-        # whose type is either a FunctionType or a Tuple of FunctionTypes
+        # whose type is either a FunctionType, a generic parameter with a `Callable`
+        # bound, or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
             args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
+
+        if isinstance(func_ty, BoundTypeVar):
+            for protocol in func_ty.implements:
+                if isinstance(protocol, CallableProtocolInst):
+                    args, subst, inst = check_call(
+                        protocol.sig, node.args, ty, node, self.ctx
+                    )
+                    assert inst == (), "Callables are not generic"
+                    node.func = instantiate_poly(node.func, protocol.sig, inst)
+                    return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
         if isinstance(func_ty, TupleType) and (
             function_elements := parse_function_tensor(func_ty)
@@ -526,6 +548,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         """Checks a global definition in an expression position."""
         match defn:
+            case CallableDef() as defn:
+                ty = FunctionDefType(defn.id)
+                return with_loc(node, GlobalName(id=name, def_id=defn.id)), ty
             case ValueDef() as defn:
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
             # We need a special case for enums since they don't have a `__new__` method,
@@ -850,6 +875,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def visit_Subscript(self, node: ast.Subscript) -> tuple[ast.expr, Type]:
         node.value, ty = self.synthesize(node.value)
         # Special case for subscripts on functions: Those are type applications
+        if isinstance(ty, FunctionDefType):
+            ty = ty.sig
         if isinstance(ty, FunctionType):
             inst = check_type_apply(ty, node, self.ctx)
             return instantiate_poly(node.value, ty, inst), ty.instantiate(inst)
@@ -919,6 +946,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, ty = self.synthesize(node.func)
 
+        if isinstance(ty, FunctionDefType):
+            node.func = function_def_value_to_global_name(node.func, ty)
+
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
@@ -953,9 +983,19 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
-        elif isinstance(ty, TupleType) and (
-            function_elems := parse_function_tensor(ty)
-        ):
+
+        if isinstance(ty, BoundTypeVar):
+            for protocol in ty.implements:
+                if isinstance(protocol, CallableProtocolInst):
+                    args, return_ty, inst = synthesize_call(
+                        protocol.sig, node.args, node, self.ctx
+                    )
+                    assert inst == (), "Callables are not generic"
+                    node.func = instantiate_poly(node.func, protocol.sig, inst)
+                    call = LocalCall(func=node.func, args=args)
+                    return with_loc(node, call), return_ty
+
+        if isinstance(ty, TupleType) and (function_elems := parse_function_tensor(ty)):
             check_function_tensors_enabled(node.func)
             if any(f.parametrized for f in function_elems):
                 raise GuppyError(
@@ -1065,17 +1105,24 @@ def check_type_against(
     assert not isinstance(exp, FunctionType) or not exp.parametrized
     assert not act.unsolved_vars
 
+    # If the actual type is a function item, we coerce it early to allow for generic to
+    # be inferred below
+    if isinstance(act, FunctionDefType) and isinstance(exp, FunctionType):
+        node = function_def_value_to_global_name(node, act)
+        act = act.sig
+
     # The actual type may be parametrised. In that case, we have to find an
     # instantiation to avoid higher-rank types.
     subst: Subst | None
-    if isinstance(act, FunctionType) and act.parametrized:
+    if isinstance(act, FunctionType | FunctionDefType) and act.parametrized:
+        act_sig = act if isinstance(act, FunctionType) else act.sig
         unquantified, free_vars = act.unquantified()
         subst = unify(exp, unquantified, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
         # Check that we have found a valid instantiation for all params
         for i, v in enumerate(free_vars):
-            param = act.params[i].name
+            param = act_sig.params[i].name
             if v not in subst:
                 err = TypeMismatchError(node, exp, act, kind)
                 err.add_sub_diagnostic(TypeMismatchError.CantInferParam(None, param))
@@ -1091,9 +1138,11 @@ def check_type_against(
 
         # Finally, check that the instantiation respects the linearity requirements and
         # if the unitary flags match
-        check_inst(act, inst, node)
+        check_inst(act_sig, inst, node)
+        exp = exp.substitute(subst)
+        exp = exp.sig if isinstance(exp, FunctionDefType) else exp
         assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act, node)
+        check_unitary_flags(exp, act_sig, node)
 
         return node, subst, inst
 
@@ -1108,6 +1157,7 @@ def check_type_against(
 
     # If we have a function type, we also check that unitary flags match
     if isinstance(act, FunctionType):
+        exp = exp.substitute(subst)
         assert isinstance(exp, FunctionType)
         check_unitary_flags(exp, act, node)
 
@@ -1121,7 +1171,15 @@ def try_coerce_to(
 
     Returns the coerced expression or `None` if the type cannot be implicitly coerced.
     """
-    # Currently, we only support implicit coercions of numeric types
+    # Function items coerce into opaque function types
+    if (
+        isinstance(act, FunctionDefType)
+        and isinstance(exp, FunctionType)
+        and act.sig == exp
+    ):
+        return function_def_value_to_global_name(node, act)
+
+    # We also support implicit coercions of numeric types
     if not isinstance(act, NumericType) or not isinstance(exp, NumericType):
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
@@ -1134,6 +1192,17 @@ def try_coerce_to(
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
     return None
+
+
+def function_def_value_to_global_name(expr: AstNode, ty: FunctionDefType) -> GlobalName:
+    """Turns an expressions with a `FunctionDefType` into the corresponding
+    `GlobalName`.
+
+    This is allowed since the function item already uniquely identifies the function
+    value, so there is no need to keep the expression that evaluates to this value.
+    """
+    name = DEF_STORE.raw_defs[ty.def_id].name
+    return with_type(ty.sig, with_loc(expr, GlobalName(id=name, def_id=ty.def_id)))
 
 
 def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
