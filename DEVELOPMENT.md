@@ -164,7 +164,11 @@ We use Rust-style release branches, one per minor series:
   `release/<major>.<minor>` branch is cut from `main` (e.g. `release/1.6`). The
   `rc → stable → patch` lifecycle then happens **on that branch** (`1.6.0-rc0`,
   …, `1.6.0`, `1.6.1`, …).
-- On a release branch the minor is frozen, so `auto` bumps are capped to `patch`.
+- The minor on a release branch is *frozen*: a release PR that would move the
+  major or minor is blocked by `release-major-guard.yml` (see below). `auto` still
+  proposes whatever the commits imply (including a minor/major) — this is
+  deliberate, so an unwanted change is surfaced by the guard rather than silently
+  downgraded.
 
 #### Cutting a release branch
 
@@ -222,8 +226,9 @@ while an unchanged core — the usual case while iterating on a pre-release — 
 increments the alpha counter. Use an explicit mode to promote out of the alpha
 series (e.g. `beta`, `rc`, or `stable`).
 
-On a `release/<major>.<minor>` branch the minor is frozen, so `auto` is capped to
-`patch`: any releasable change ships as the next patch (`1.6.0` → `1.6.1`).
+On a `release/<major>.<minor>` branch `auto` still proposes a minor/major when the
+commits imply it; that bump is then rejected by `release-major-guard.yml` (the line
+is frozen), which surfaces the unexpected change for review.
 
 ### Curating the changelog
 
@@ -268,8 +273,7 @@ can tag a commit manually — release creation is tag-driven, so **pushing the t
 all it takes**:
 
 1. Bump the version and update the changelog on the commit/branch:
-   - `uv run --no-project scripts/release/compute_versions.py set-guppylang <version>`
-   - `uv run --no-project scripts/release/compute_versions.py set-internals <version>`
+   - `uv run --no-project scripts/release/compute_versions.py set-versions <version>`
    - `uv run --no-project scripts/release/compute_versions.py set-pin <version>`
    - Add a matching `## [<version>]` section to each package's `CHANGELOG.md`. The
      `create-release` job extracts this section verbatim for the release notes, so

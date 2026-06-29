@@ -12,8 +12,6 @@ Bump modes:
   that in the current pre-release scheme: a breaking/feature/fix bump of the
   release core maps to ``alpha-major``/``alpha-minor``/``alpha-patch``, while an
   unchanged core (the usual pre-release case) just increments the alpha number.
-  On a release branch (``--release-branch``) the minor is frozen, so ``auto``
-  caps at ``patch`` regardless of what git-cliff proposes.
 * ``alpha`` -> ``1.0.0-a1`` becomes ``1.0.0-a2``
 * ``alpha-patch`` -> ``1.2.3`` becomes ``1.2.4-a0``
 * ``alpha-minor`` -> ``1.2.3`` becomes ``1.3.0-a0``
@@ -208,18 +206,10 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
 
 
 def _auto_mode_from_core(
-    current: GuppyVersion,
-    bumped_core: tuple[int, int, int] | None,
-    *,
-    release_line: bool = False,
+    current: GuppyVersion, bumped_core: tuple[int, int, int] | None
 ) -> BumpMode:
     if bumped_core is None or current.is_prerelease:
         return BumpMode.auto
-    current_core = (current.major, current.minor, current.patch)
-    if release_line:
-        # On a release branch the major.minor is frozen, so any releasable change
-        # is expressed as a patch bump (never minor/major).
-        return BumpMode.patch if bumped_core != current_core else BumpMode.auto
     major, minor, patch = bumped_core
     if major > current.major:
         return BumpMode.major
@@ -258,12 +248,10 @@ def _git_cliff_bumped_core(root: Path) -> tuple[int, int, int] | None:
     return (int(match[1]), int(match[2]), int(match[3]))
 
 
-def try_resolve_auto_mode(
-    current: GuppyVersion, root: Path, *, release_line: bool = False
-) -> BumpMode:
+def try_resolve_auto_mode(current: GuppyVersion, root: Path) -> BumpMode:
     """Resolve the ``auto`` bump mode by consulting git-cliff, if possible."""
     bumped_core = _git_cliff_bumped_core(root)
-    return _auto_mode_from_core(current, bumped_core, release_line=release_line)
+    return _auto_mode_from_core(current, bumped_core)
 
 
 def _replace_once(
@@ -320,7 +308,7 @@ def cmd_compute(args: argparse.Namespace) -> int:
     current = read_current_guppylang(root)
     mode = BumpMode(args.bump)
     if mode is BumpMode.auto:
-        mode = try_resolve_auto_mode(current, root, release_line=args.release_branch)
+        mode = try_resolve_auto_mode(current, root)
     new_version = bump_guppylang(current, mode)
 
     # Both packages always share the exact same version.
@@ -376,11 +364,6 @@ def build_parser() -> argparse.ArgumentParser:
     compute = sub.add_parser("compute", help="Compute and print the next versions.")
     compute.add_argument(
         "--bump", choices=BumpMode.__members__.values(), default="auto"
-    )
-    compute.add_argument(
-        "--release-branch",
-        action="store_true",
-        help="Treat this as a frozen minor-series branch: 'auto' caps at 'patch'.",
     )
     compute.add_argument(
         "--github-output",

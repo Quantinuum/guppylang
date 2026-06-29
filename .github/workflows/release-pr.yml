@@ -116,15 +116,8 @@ jobs:
         id: plan
         run: |
           set -euo pipefail
-          # On a `release/<major>.<minor>` branch the minor is frozen, so cap
-          # `auto` bumps to `patch`.
-          extra=()
-          case "$BASE" in
-            release/*) extra+=(--release-branch) ;;
-          esac
           uv run --no-project scripts/release/compute_versions.py compute \
             --bump "${{ github.event.inputs.bump || 'auto' }}" \
-            "${extra[@]}" \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Detect a pending publish
