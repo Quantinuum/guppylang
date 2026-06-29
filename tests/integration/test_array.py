@@ -861,3 +861,21 @@ def test_array_const(validate, run_int_fn):
         return int(bs[0])
 
     run_int_fn(main, expected=1)
+
+
+def test_array_reverse(validate, run_int_fn)->None:
+    @guppy
+    def main() -> int:
+        a = array(1,2,3)
+        a.reverse()
+        return a[0]
+    run_int_fn(main, expected=3)
+
+
+def test_array_reverse_linear(validate)->None:
+    @guppy
+    def main() -> None:
+        qs = array(qubit() for _ in range(6))
+        qs.reverse()
+        discard_array(qs)
+    validate(main.compile())
