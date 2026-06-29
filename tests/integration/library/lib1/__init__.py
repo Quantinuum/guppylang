@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang.decorator import link_name
+from guppylang.library import link_name
 
 
 @guppy.declare

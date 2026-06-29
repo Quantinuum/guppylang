@@ -84,11 +84,8 @@ __all__ = (
     "custom_guppy_decorator",
     "expected_qubits",
     "guppy",
-    "link_name",
     "metadata",
 )
-
-LINK_NAME_KEY = "link_name"
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -702,25 +699,6 @@ def metadata(key: str, value: Any) -> Any:
     return decorator
 
 
-def link_name(name: str) -> Any:
-    """Decorator to attach a link name to a Guppy definition. It must be placed below
-    the @guppy decorator.
-
-    .. code-block:: python
-
-        from guppylang import guppy
-        from guppylang.decorator import link_name
-
-        @guppy.declare
-        @link_name("my_link_name")
-        def main() -> None:
-            pass
-
-        main.compile()
-    """
-    return metadata(LINK_NAME_KEY, name)
-
-
 def expected_qubits(num: int) -> Any:
     """Decorator to attach an expected number of qubits to a Guppy function. It must be
     placed below the @guppy decorator.
@@ -895,10 +873,10 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
             "use @expected_qubits decorator instead"
         )
 
-    if LINK_NAME_KEY in kwargs:
+    if "link_name" in kwargs:
         raise TypeError(
-            "`link_name` keyword argument is not allowed in @guppy decorator, "
-            "use @link_name decorator instead"
+            "`link_name` keyword argument has been removed from the `@guppy` decorator,"
+            " use the `@link_name` in `guppylang.library` decorator instead."
         )
 
     if remaining := next(iter(kwargs), None):
@@ -912,10 +890,11 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 
 
 def _get_link_name(f: Callable[..., Any]) -> str | None:
-    """Returns the link name for a Guppy function, if it has one."""
+    from guppylang.library import LINK_NAME_METADATA_KEY
+
     custom_metadata = getattr(f, "__guppy_metadata__", {})
     assert isinstance(custom_metadata, dict)
-    return custom_metadata.get(LINK_NAME_KEY, None)
+    return custom_metadata.get(LINK_NAME_METADATA_KEY, None)
 
 
 @hide_trace
@@ -926,9 +905,7 @@ def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> 
     custom_metadata = getattr(f, "__guppy_metadata__", {})
     assert isinstance(custom_metadata, dict)
     for key, value in custom_metadata.items():
-        if key == LINK_NAME_KEY:
-            pass  # link_name is handled separately
-        elif key == MetadataExpectedQubits.KEY:
+        if key == MetadataExpectedQubits.KEY:
             metadata.set_expected_qubits(value)
         else:
             metadata.set_generic_metadata(key, value)
