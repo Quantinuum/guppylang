@@ -263,6 +263,12 @@ Review each draft release and **publish** it when ready: publishing triggers
 `python-wheels.yml`, which uploads the wheels to PyPI. Wheels are only published
 once you publish the draft release, not when the tag first creates it.
 
+### After-release chores
+
+After a release is made, the main branch needs to be updated to reflect the newest version and changelog.
+Create a PR that updates version references and the changelog on the main branch (by cherry-picking the release commit).
+You should not update the version (i.e. only update the changelog) if the main branch already tracks the alpha of the next version!
+
 ### Patch releases
 
 Patches for a shipped minor series live on its `release/<major>.<minor>` branch.
