@@ -673,13 +673,16 @@ class FunctionType(ParametrizedTypeBase):
 
 
 @dataclass(frozen=True)
-class FunctionItemType(TypeBase):
+class FunctionDefType(TypeBase):
     """The type of function values associated with a concrete definition.
 
-    Unlike the `Function` type, which denotes an opaque function value, function items
-    are unique to one definition. For example, two functions `foo` and `bar` with the
-    same signature will still have two different item types. However, function items
-    can be implicitly coerced into opaque `Function` values.
+    Unlike the `Function` type, which denotes an opaque function value, function def
+    types are unique to one definition. For example, two functions `foo` and `bar` with
+    the same signature will still have two different item types. However, function def
+    types can be implicitly coerced into opaque `Function` values.
+
+    The equivalent concept in Rust are "function item types":
+    https://doc.rust-lang.org/reference/types/function-item.html
 
     Finally, users are not able to write out the type of a function item, they can only
     be produced by the compiler. In error messages, they are printed out in the
@@ -694,7 +697,7 @@ class FunctionItemType(TypeBase):
 
     @property
     def defn(self) -> "CallableDef":
-        """The definition object associated with this function item."""
+        """The definition object associated with this function def type."""
         from guppylang_internals.definition.value import CallableDef
         from guppylang_internals.engine import ENGINE
 
@@ -704,7 +707,7 @@ class FunctionItemType(TypeBase):
 
     @property
     def sig(self) -> FunctionType:
-        """The signature of this function."""
+        """The signature of this function def type."""
         generic_sig = self.defn.ty
         return generic_sig.instantiate(self.args) if self.args else generic_sig
 
@@ -731,14 +734,14 @@ class FunctionItemType(TypeBase):
 
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
-        return transformer.transform(self) or FunctionItemType(
+        return transformer.transform(self) or FunctionDefType(
             self.def_id, tuple(arg.transform(transformer) for arg in self.args)
         )
 
-    def unquantified(self) -> tuple["FunctionItemType", Sequence[ExistentialVar]]:
+    def unquantified(self) -> tuple["FunctionDefType", Sequence[ExistentialVar]]:
         """Instantiates all parameters with existential variables.
 
-        The returned type is still a `FunctionItemType`, so we remember which definition
+        The returned type is still a `FunctionDefType`, so we remember which definition
         this instantiation came from.
         """
         from guppylang_internals.tys.subst import Instantiator
@@ -751,7 +754,7 @@ class FunctionItemType(TypeBase):
             exes.append(ex.transform(inst))
             args.append(arg.transform(inst))
 
-        return FunctionItemType(self.def_id, tuple(args)), exes
+        return FunctionDefType(self.def_id, tuple(args)), exes
 
 
 @dataclass(frozen=True, init=False)
@@ -965,7 +968,7 @@ Type: TypeAlias = (
     | ExistentialTypeVar
     | NumericType
     | NoneType
-    | FunctionItemType
+    | FunctionDefType
     | ParametrizedType
 )
 
@@ -1139,7 +1142,7 @@ def parse_function_tensor(ty: TupleType) -> list[FunctionType] | None:
     for el in ty.element_types:
         if isinstance(el, FunctionType):
             result.append(el)
-        elif isinstance(el, FunctionItemType):
+        elif isinstance(el, FunctionDefType):
             result.append(el.sig)
         elif isinstance(el, TupleType):
             funcs = parse_function_tensor(el)

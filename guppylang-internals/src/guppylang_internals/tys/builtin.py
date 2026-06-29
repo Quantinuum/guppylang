@@ -27,7 +27,7 @@ from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.subst import Substituter
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
-    FunctionItemType,
+    FunctionDefType,
     FunctionType,
     NoneType,
     NumericType,
@@ -238,7 +238,7 @@ class CallableProtocolInst(ProtocolInst):
             ConcreteImplProof,
         )
 
-        if isinstance(ty, FunctionType | FunctionItemType):
+        if isinstance(ty, FunctionType | FunctionDefType):
             assert not ty.parametrized
             sig = ty if isinstance(ty, FunctionType) else ty.sig
             subst = unify(self.sig, sig, {})
@@ -305,7 +305,7 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 
 function_type_def = FunctionTypeDef(DefId.fresh(), None, None)
-function_item_type_def = FunctionTypeDef(DefId.fresh(), None, None)
+function_def_type_def = FunctionTypeDef(DefId.fresh(), None, None)
 unitary_type_def = FunctionTypeDef(
     DefId.fresh(),
     None,

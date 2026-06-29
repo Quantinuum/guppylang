@@ -85,7 +85,7 @@ from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FuncInput,
-    FunctionItemType,
+    FunctionDefType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -260,7 +260,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             )
             raise GuppyError(err)
 
-        if isinstance(get_type(node), FunctionItemType):
+        if isinstance(get_type(node), FunctionDefType):
             # Function items don't need an actual runtime representation so we just
             # lower them to a unit value (see `FunctionItemType.to_hugr`)
             return self.builder.add_op(ops.MakeTuple())
@@ -407,7 +407,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             self._update_inout_ports(consumed_args, inout_returns, func_ty)
             return regular_returns, other_args
 
-        elif isinstance(func_ty, FunctionItemType):
+        elif isinstance(func_ty, FunctionDefType):
             input_len = len(func_ty.sig.inputs)
             consumed_args, other_args = args[0:input_len], args[input_len:]
             node = GlobalCall(def_id=func_ty.def_id, args=consumed_args, type_args=())
@@ -469,7 +469,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # For now, we can only TypeApply global FunctionDefs/Decls.
         if not isinstance(node.value, GlobalName):
             raise InternalGuppyError("Dynamic TypeApply not supported yet!")
-        if isinstance(get_type(node), FunctionItemType):
+        if isinstance(get_type(node), FunctionDefType):
             # Function items don't need an actual runtime representation so we just
             # lower them to a unit value (see `FunctionItemType.to_hugr`)
             return self.builder.add_op(ops.MakeTuple())

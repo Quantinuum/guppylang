@@ -6,7 +6,7 @@ from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.param import ConstParam, TypeParam
 from guppylang_internals.tys.ty import (
     EnumType,
-    FunctionItemType,
+    FunctionDefType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -109,7 +109,7 @@ class TypePrinter:
         return _wrap(f"{inputs} -> {output}", inside_row)
 
     @_visit.register
-    def _visit_FunctionItemType(self, ty: FunctionItemType, inside_row: bool) -> str:
+    def _visit_FunctionItemType(self, ty: FunctionDefType, inside_row: bool) -> str:
         from guppylang_internals.engine import ENGINE
 
         defn = ENGINE.get_parsed(ty.def_id)

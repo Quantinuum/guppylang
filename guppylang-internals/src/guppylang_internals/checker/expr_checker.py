@@ -165,7 +165,7 @@ from guppylang_internals.tys.ty import (
     EnumType,
     ExistentialTypeVar,
     FuncInput,
-    FunctionItemType,
+    FunctionDefType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -335,8 +335,8 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, func_ty = self._synthesize(node.func, allow_free_vars=False)
 
-        if isinstance(func_ty, FunctionItemType):
-            node.func = function_item_to_global_name(node.func, func_ty)
+        if isinstance(func_ty, FunctionDefType):
+            node.func = function_def_value_to_global_name(node.func, func_ty)
 
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
@@ -549,7 +549,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         """Checks a global definition in an expression position."""
         match defn:
             case CallableDef() as defn:
-                ty = FunctionItemType(defn.id)
+                ty = FunctionDefType(defn.id)
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), ty
             case ValueDef() as defn:
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
@@ -875,7 +875,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def visit_Subscript(self, node: ast.Subscript) -> tuple[ast.expr, Type]:
         node.value, ty = self.synthesize(node.value)
         # Special case for subscripts on functions: Those are type applications
-        if isinstance(ty, FunctionItemType):
+        if isinstance(ty, FunctionDefType):
             ty = ty.sig
         if isinstance(ty, FunctionType):
             inst = check_type_apply(ty, node, self.ctx)
@@ -946,8 +946,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, ty = self.synthesize(node.func)
 
-        if isinstance(ty, FunctionItemType):
-            node.func = function_item_to_global_name(node.func, ty)
+        if isinstance(ty, FunctionDefType):
+            node.func = function_def_value_to_global_name(node.func, ty)
 
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
@@ -1107,14 +1107,14 @@ def check_type_against(
 
     # If the actual type is a function item, we coerce it early to allow for generic to
     # be inferred below
-    if isinstance(act, FunctionItemType) and isinstance(exp, FunctionType):
-        node = function_item_to_global_name(node, act)
+    if isinstance(act, FunctionDefType) and isinstance(exp, FunctionType):
+        node = function_def_value_to_global_name(node, act)
         act = act.sig
 
     # The actual type may be parametrised. In that case, we have to find an
     # instantiation to avoid higher-rank types.
     subst: Subst | None
-    if isinstance(act, FunctionType | FunctionItemType) and act.parametrized:
+    if isinstance(act, FunctionType | FunctionDefType) and act.parametrized:
         act_sig = act if isinstance(act, FunctionType) else act.sig
         unquantified, free_vars = act.unquantified()
         subst = unify(exp, unquantified, {})
@@ -1140,7 +1140,7 @@ def check_type_against(
         # if the unitary flags match
         check_inst(act_sig, inst, node)
         exp = exp.substitute(subst)
-        exp = exp.sig if isinstance(exp, FunctionItemType) else exp
+        exp = exp.sig if isinstance(exp, FunctionDefType) else exp
         assert isinstance(exp, FunctionType)
         check_unitary_flags(exp, act_sig, node)
 
@@ -1173,11 +1173,11 @@ def try_coerce_to(
     """
     # Function items coerce into opaque function types
     if (
-        isinstance(act, FunctionItemType)
+        isinstance(act, FunctionDefType)
         and isinstance(exp, FunctionType)
         and act.sig == exp
     ):
-        return function_item_to_global_name(node, act)
+        return function_def_value_to_global_name(node, act)
 
     # We also support implicit coercions of numeric types
     if not isinstance(act, NumericType) or not isinstance(exp, NumericType):
@@ -1194,8 +1194,8 @@ def try_coerce_to(
     return None
 
 
-def function_item_to_global_name(expr: AstNode, ty: FunctionItemType) -> GlobalName:
-    """Turns an expressions with a `FunctionItemType` into the corresponding
+def function_def_value_to_global_name(expr: AstNode, ty: FunctionDefType) -> GlobalName:
+    """Turns an expressions with a `FunctionDefType` into the corresponding
     `GlobalName`.
 
     This is allowed since the function item already uniquely identifies the function
