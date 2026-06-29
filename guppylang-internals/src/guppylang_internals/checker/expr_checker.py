@@ -95,7 +95,7 @@ from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
-from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -165,6 +165,7 @@ from guppylang_internals.tys.ty import (
     EnumType,
     ExistentialTypeVar,
     FuncInput,
+    FunctionItemType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -333,6 +334,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, func_ty = self._synthesize(node.func, allow_free_vars=False)
+
+        if isinstance(func_ty, FunctionItemType):
+            node.func = function_item_to_global_name(node.func, func_ty)
 
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
@@ -544,6 +548,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         """Checks a global definition in an expression position."""
         match defn:
+            case CallableDef() as defn:
+                ty = FunctionItemType(defn.id)
+                return with_loc(node, GlobalName(id=name, def_id=defn.id)), ty
             case ValueDef() as defn:
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
             # We need a special case for enums since they don't have a `__new__` method,
@@ -868,6 +875,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def visit_Subscript(self, node: ast.Subscript) -> tuple[ast.expr, Type]:
         node.value, ty = self.synthesize(node.value)
         # Special case for subscripts on functions: Those are type applications
+        if isinstance(ty, FunctionItemType):
+            ty = ty.sig
         if isinstance(ty, FunctionType):
             inst = check_type_apply(ty, node, self.ctx)
             return instantiate_poly(node.value, ty, inst), ty.instantiate(inst)
@@ -936,6 +945,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, ty = self.synthesize(node.func)
+
+        if isinstance(ty, FunctionItemType):
+            node.func = function_item_to_global_name(node.func, ty)
 
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
@@ -1093,17 +1105,24 @@ def check_type_against(
     assert not isinstance(exp, FunctionType) or not exp.parametrized
     assert not act.unsolved_vars
 
+    # If the actual type is a function item, we coerce it early to allow for generic to
+    # be inferred below
+    if isinstance(act, FunctionItemType) and isinstance(exp, FunctionType):
+        node = function_item_to_global_name(node, act)
+        act = act.sig
+
     # The actual type may be parametrised. In that case, we have to find an
     # instantiation to avoid higher-rank types.
     subst: Subst | None
-    if isinstance(act, FunctionType) and act.parametrized:
+    if isinstance(act, FunctionType | FunctionItemType) and act.parametrized:
+        act_sig = act if isinstance(act, FunctionType) else act.sig
         unquantified, free_vars = act.unquantified()
         subst = unify(exp, unquantified, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
         # Check that we have found a valid instantiation for all params
         for i, v in enumerate(free_vars):
-            param = act.params[i].name
+            param = act_sig.params[i].name
             if v not in subst:
                 err = TypeMismatchError(node, exp, act, kind)
                 err.add_sub_diagnostic(TypeMismatchError.CantInferParam(None, param))
@@ -1119,10 +1138,11 @@ def check_type_against(
 
         # Finally, check that the instantiation respects the linearity requirements and
         # if the unitary flags match
-        check_inst(act, inst, node)
+        check_inst(act_sig, inst, node)
         exp = exp.substitute(subst)
+        exp = exp.sig if isinstance(exp, FunctionItemType) else exp
         assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act, node)
+        check_unitary_flags(exp, act_sig, node)
 
         return node, subst, inst
 
@@ -1151,7 +1171,15 @@ def try_coerce_to(
 
     Returns the coerced expression or `None` if the type cannot be implicitly coerced.
     """
-    # Currently, we only support implicit coercions of numeric types
+    # Function items coerce into opaque function types
+    if (
+        isinstance(act, FunctionItemType)
+        and isinstance(exp, FunctionType)
+        and act.sig == exp
+    ):
+        return function_item_to_global_name(node, act)
+
+    # We also support implicit coercions of numeric types
     if not isinstance(act, NumericType) or not isinstance(exp, NumericType):
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
@@ -1164,6 +1192,17 @@ def try_coerce_to(
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
     return None
+
+
+def function_item_to_global_name(expr: AstNode, ty: FunctionItemType) -> GlobalName:
+    """Turns an expressions with a `FunctionItemType` into the corresponding
+    `GlobalName`.
+
+    This is allowed since the function item already uniquely identifies the function
+    value, so there is no need to keep the expression that evaluates to this value.
+    """
+    name = DEF_STORE.raw_defs[ty.def_id].name
+    return with_type(ty.sig, with_loc(expr, GlobalName(id=name, def_id=ty.def_id)))
 
 
 def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
