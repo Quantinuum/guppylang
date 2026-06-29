@@ -105,12 +105,45 @@ def test_auto_mode_from_core(
     assert result is expected
 
 
+@pytest.mark.parametrize(
+    ("current", "bumped_core", "expected"),
+    [
+        # On a frozen release line, any releasable core change is a patch.
+        ("1.2.0", (1, 2, 1), cv.BumpMode.patch),
+        ("1.2.0", (1, 3, 0), cv.BumpMode.patch),
+        ("1.2.0", (2, 0, 0), cv.BumpMode.patch),
+        # No releasable change / no git-cliff -> stay on auto.
+        ("1.2.0", (1, 2, 0), cv.BumpMode.auto),
+        ("1.2.0", None, cv.BumpMode.auto),
+        # A pre-release (e.g. the rc phase) is handled by 'auto' itself.
+        ("1.2.0-rc0", (1, 3, 0), cv.BumpMode.auto),
+    ],
+)
+def test_auto_mode_from_core_on_release_line(
+    current: str, bumped_core: tuple[int, int, int] | None, expected: cv.BumpMode
+) -> None:
+    result = cv._auto_mode_from_core(
+        cv.parse_guppy_version(current), bumped_core, release_line=True
+    )
+    assert result is expected
+
+
 def test_try_resolve_auto_mode_uses_git_cliff(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(cv, "_git_cliff_bumped_core", lambda root: (1, 3, 0))
     mode = cv.try_resolve_auto_mode(cv.parse_guppy_version("1.2.3"), Path())
     assert mode is cv.BumpMode.minor
+
+
+def test_try_resolve_auto_mode_release_line_caps_at_patch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cv, "_git_cliff_bumped_core", lambda root: (1, 3, 0))
+    mode = cv.try_resolve_auto_mode(
+        cv.parse_guppy_version("1.2.0"), Path(), release_line=True
+    )
+    assert mode is cv.BumpMode.patch
 
 
 def test_try_resolve_auto_mode_falls_back_when_git_cliff_missing(
@@ -129,24 +162,6 @@ def test_git_cliff_bumped_core_handles_missing_binary(
 
     monkeypatch.setattr(cv.subprocess, "run", boom)
     assert cv._git_cliff_bumped_core(Path()) is None
-
-
-@pytest.mark.parametrize(
-    ("current_internals", "new_major", "expected"),
-    [
-        # Migration from the legacy 3-part scheme seeds build 0.
-        ("1.0.0-a5", 1, "1.0"),
-        ("2.3.4", 2, "2.0"),
-        # Normal build increment within the same major.
-        ("1.0", 1, "1.1"),
-        ("1.7", 1, "1.8"),
-        # Reset to build 0 on a major bump.
-        ("1.7", 2, "2.0"),
-        ("1.0", 3, "3.0"),
-    ],
-)
-def test_bump_internals(current_internals: str, new_major: int, expected: str) -> None:
-    assert cv.bump_internals(current_internals, new_major) == expected
 
 
 def test_replace_once_requires_single_match() -> None:

@@ -1,15 +1,20 @@
 # Opens or updates a single release PR for `guppylang` and `guppylang-internals`.
 #
-# Runs on every push to `main` (and can be dispatched manually). It computes the
-# next versions from conventional commits, applies the version bumps, refreshes
-# the lock file, seeds a draft changelog for each package, and opens/updates a PR
-# on the `release-pr--<base>` branch. The actual GitHub releases are cut by
+# Runs on every push to `main` and to any `release/<major>.<minor>` branch (and
+# can be dispatched manually). It computes the next version from conventional
+# commits, applies the version bumps, refreshes the lock file, seeds a draft
+# changelog for each package, and opens/updates a PR on the `release-pr--<base>`
+# branch (one per base branch). The actual GitHub releases are cut by
 # `release-publish.yml` once this PR is merged.
 #
 # Versioning:
-#   * guppylang           -> semver with optional pre-release (e.g. 1.2.3 or 1.2.3-a6).
-#   * guppylang-internals -> <guppylang-major>.<build> (e.g. 1.6), build reset on
-#     a guppylang major bump.
+#   * `guppylang` and `guppylang-internals` always share the *exact same* version
+#     (e.g. `1.2.3` or `1.2.3-a6`): they are bumped together and enter/leave
+#     pre-releases together.
+#   * On `main` we develop the next minor as an alpha series. At feature-freeze a
+#     `release/<major>.<minor>` branch is cut (see `release-branch-cut.yml`); the
+#     rc -> stable -> patch lifecycle then happens on that branch, where `auto`
+#     bumps are capped to `patch` (the minor is frozen).
 #
 # Changelogs are only a *draft* seeded by git-cliff. While the `X-regen-changelog`
 # label is set (added by default), the draft is regenerated on every push. Remove
@@ -23,6 +28,7 @@ on:
   push:
     branches:
       - main
+      - "release/**"
   workflow_dispatch:
     inputs:
       force_open:
@@ -110,8 +116,15 @@ jobs:
         id: plan
         run: |
           set -euo pipefail
+          # On a `release/<major>.<minor>` branch the minor is frozen, so cap
+          # `auto` bumps to `patch`.
+          extra=()
+          case "$BASE" in
+            release/*) extra+=(--release-branch) ;;
+          esac
           uv run --no-project scripts/release/compute_versions.py compute \
             --bump "${{ github.event.inputs.bump || 'auto' }}" \
+            "${extra[@]}" \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Detect a pending publish
@@ -169,8 +182,7 @@ jobs:
       - name: Build the release branch
         if: steps.gate.outputs.proceed == 'true'
         env:
-          GUPPY: ${{ steps.plan.outputs.guppylang }}
-          INTERNALS: ${{ steps.plan.outputs.internals }}
+          VERSION: ${{ steps.plan.outputs.version }}
           REGEN: ${{ steps.pr.outputs.regen }}
         run: |
           set -euo pipefail
@@ -186,30 +198,27 @@ jobs:
 
           git checkout -B "$BRANCH"
 
-          uv run --no-project scripts/release/compute_versions.py set-internals "$INTERNALS"
-          git commit -aqm "chore: bump guppylang-internals to $INTERNALS"
+          uv run --no-project scripts/release/compute_versions.py set-versions "$VERSION"
+          git commit -aqm "chore: bump guppylang and guppylang-internals to $VERSION"
 
-          uv run --no-project scripts/release/compute_versions.py set-guppylang "$GUPPY"
-          git commit -aqm "chore: bump guppylang to $GUPPY"
-
-          uv run --no-project scripts/release/compute_versions.py set-pin "$INTERNALS"
-          git commit -aqm "chore: pin guppylang-internals==$INTERNALS in guppylang"
+          uv run --no-project scripts/release/compute_versions.py set-pin "$VERSION"
+          git commit -aqm "chore: pin guppylang-internals==$VERSION in guppylang"
 
           uv lock
           git commit -aqm "chore: update uv.lock" || echo "uv.lock unchanged"
 
           if [ "$REGEN" = "true" ]; then
             git cliff --config cliff.toml --include-path 'guppylang/**' \
-              --tag-pattern '^guppylang-v' --unreleased --tag "guppylang-v$GUPPY" \
+              --tag-pattern '^guppylang-v' --unreleased --tag "guppylang-v$VERSION" \
               > /tmp/guppy_section.md
             uv run --no-project scripts/release/update_changelog.py \
-              guppylang/CHANGELOG.md "$GUPPY" /tmp/guppy_section.md
+              guppylang/CHANGELOG.md "$VERSION" /tmp/guppy_section.md
 
             git cliff --config cliff.toml --include-path 'guppylang-internals/**' \
               --tag-pattern '^guppylang-internals-v' --unreleased \
-              --tag "guppylang-internals-v$INTERNALS" > /tmp/internals_section.md
+              --tag "guppylang-internals-v$VERSION" > /tmp/internals_section.md
             uv run --no-project scripts/release/update_changelog.py \
-              guppylang-internals/CHANGELOG.md "$INTERNALS" /tmp/internals_section.md
+              guppylang-internals/CHANGELOG.md "$VERSION" /tmp/internals_section.md
           
             git commit -aqm "chore: update changelogs (by regen)" || echo "changelogs unchanged"
           else
@@ -227,18 +236,17 @@ jobs:
         id: openpr
         if: steps.gate.outputs.proceed == 'true'
         env:
-          GUPPY: ${{ steps.plan.outputs.guppylang }}
-          INTERNALS: ${{ steps.plan.outputs.internals }}
+          VERSION: ${{ steps.plan.outputs.version }}
           NUMBER: ${{ steps.pr.outputs.number }}
         run: |
           set -euo pipefail
-          title="chore: release guppylang $GUPPY (internals $INTERNALS)"
+          title="chore: release guppylang and guppylang-internals $VERSION"
           if [ -z "$NUMBER" ]; then
             {
               echo "Automated release PR."
               echo
-              echo "- \`guppylang\` → \`$GUPPY\`"
-              echo "- \`guppylang-internals\` → \`$INTERNALS\`"
+              echo "- \`guppylang\` → \`$VERSION\`"
+              echo "- \`guppylang-internals\` → \`$VERSION\`"
               echo
               echo "Remove the \`$REGEN_LABEL\` label to take manual control of the changelogs."
               echo
@@ -260,6 +268,5 @@ jobs:
         if: steps.gate.outputs.proceed == 'true'
         with:
           pr-number: ${{ steps.openpr.outputs.number }}
-          guppylang-version: ${{ steps.plan.outputs.guppylang }}
-          internals-version: ${{ steps.plan.outputs.internals }}
+          version: ${{ steps.plan.outputs.version }}
           token: ${{ secrets.HUGRBOT_PAT }}

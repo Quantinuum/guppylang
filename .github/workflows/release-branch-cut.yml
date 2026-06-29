@@ -1,0 +1,69 @@
+# Cuts a `release/<major>.<minor>` branch for the current development line.
+#
+# `main` develops the next minor as an alpha series. When that minor is ready to
+# stabilise (usually a feature-freeze), dispatch this workflow to cut a long-lived
+# release branch for it (Rust-style `1.X` branches). The rc -> stable -> patch
+# lifecycle then happens on the release branch via `release-pr.yml`, where `auto`
+# bumps are capped to `patch` (the minor is frozen).
+#
+# This workflow only creates the branch. Bumping `main` to the next minor alpha
+# is a separate, manual step (dispatch `release-pr.yml` with e.g. `alpha-minor`).
+
+name: 🚚 Release cut branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or ref to cut the release branch from."
+        type: string
+        default: main
+
+permissions:
+  contents: write
+
+env:
+  GITHUB_TOKEN: ${{ secrets.HUGRBOT_PAT }}
+
+jobs:
+  cut:
+    name: Cut the release branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.HUGRBOT_PAT }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "hugrbot"
+          git config user.email "hugrbot@users.noreply.github.com"
+
+      - name: Determine the release branch name
+        id: name
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang/pyproject.toml | head -n1)
+          series=$(echo "$version" | sed -n 's/^\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/p')
+          if [ -z "$series" ]; then
+            echo "::error::Could not derive a release series from version '$version'."
+            exit 1
+          fi
+          branch="release/$series"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "Cutting '$branch' from '${{ github.event.inputs.ref }}' (version $version)."
+
+      - name: Create the release branch
+        env:
+          BRANCH: ${{ steps.name.outputs.branch }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::error::'$BRANCH' already exists; nothing to do."
+            exit 1
+          fi
+          git switch -c "$BRANCH"
+          git push origin "$BRANCH"
+          echo "Created and pushed '$BRANCH'."

@@ -33,11 +33,11 @@ def fake_repo(tmp_path: Path) -> Path:
         "guppylang-internals/pyproject.toml": textwrap.dedent("""\
             [project]
             name = "guppylang-internals"
-            version = "1.0"
+            version = "1.0.0-a5"
             requires-python = ">=3.10"
         """),
         "guppylang-internals/src/guppylang_internals/__init__.py": (
-            '__version__ = "1.0"\n'
+            '__version__ = "1.0.0-a5"\n'
         ),
         "guppylang-internals/CHANGELOG.md": "# Changelog\n",
     }
@@ -75,10 +75,9 @@ def test_compute_writes_github_output(fake_repo: Path, tmp_path: Path) -> None:
     assert rc == 0
     values = _outputs(out)
     assert values["bump_mode"] == "rc"
-    assert values["current_guppylang"] == "1.0.0-a5"
-    assert values["current_internals"] == "1.0"
-    assert values["guppylang"] == "1.0.0-rc0"
-    assert values["internals"] == "1.1"
+    assert values["current"] == "1.0.0-a5"
+    # Both packages always share the exact same version.
+    assert values["version"] == "1.0.0-rc0"
 
 
 def test_compute_auto_falls_back_without_git_cliff(
@@ -93,7 +92,7 @@ def test_compute_auto_falls_back_without_git_cliff(
     values = _outputs(out)
     assert values["bump_mode"] == "auto"
     # Best-effort on a pre-release just increments the alpha number.
-    assert values["guppylang"] == "1.0.0-a6"
+    assert values["version"] == "1.0.0-a6"
 
 
 def test_compute_auto_does_not_resolve_via_git_cliff_if_prerelease(
@@ -110,7 +109,7 @@ def test_compute_auto_does_not_resolve_via_git_cliff_if_prerelease(
     assert rc == 0
     values = _outputs(out)
     assert values["bump_mode"] == "auto"  # Left as auto because we are in a prerelease
-    assert values["guppylang"] == "1.0.0-a8"  # Alpha bumped in auto mode
+    assert values["version"] == "1.0.0-a8"  # Alpha bumped in auto mode
 
 
 def test_compute_auto_resolves_via_git_cliff_if_not_prerelease(
@@ -128,13 +127,39 @@ def test_compute_auto_resolves_via_git_cliff_if_not_prerelease(
     assert rc == 0
     values = _outputs(out)
     assert values["bump_mode"] == "minor"
-    assert values["guppylang"] == "1.1.0"
+    assert values["version"] == "1.1.0"
+
+
+def test_compute_release_branch_caps_at_patch(
+    fake_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A shipped, stable release line.
+    assert cv.main(["--repo-root", str(fake_repo), "set-guppylang", "1.2.0"]) == 0
+
+    # git-cliff proposing a minor bump is capped to a patch on a release branch.
+    monkeypatch.setattr(cv, "_git_cliff_bumped_core", lambda root: (1, 3, 0))
+    out = tmp_path / "gh_output"
+    rc = cv.main(
+        [
+            "--repo-root",
+            str(fake_repo),
+            "compute",
+            "--release-branch",
+            "--github-output",
+            str(out),
+        ]
+    )
+    assert rc == 0
+    values = _outputs(out)
+    assert values["bump_mode"] == "patch"
+    assert values["version"] == "1.2.1"
 
 
 def test_set_commands_rewrite_package_files(fake_repo: Path) -> None:
+    # Both packages are set to the exact same version.
     assert cv.main(["--repo-root", str(fake_repo), "set-guppylang", "1.0.0-rc0"]) == 0
-    assert cv.main(["--repo-root", str(fake_repo), "set-internals", "1.1"]) == 0
-    assert cv.main(["--repo-root", str(fake_repo), "set-pin", "1.1"]) == 0
+    assert cv.main(["--repo-root", str(fake_repo), "set-internals", "1.0.0-rc0"]) == 0
+    assert cv.main(["--repo-root", str(fake_repo), "set-pin", "1.0.0-rc0"]) == 0
 
     guppy_pyproject = (fake_repo / "guppylang/pyproject.toml").read_text()
     guppy_init = (fake_repo / "guppylang/src/guppylang/__init__.py").read_text()
@@ -145,10 +170,10 @@ def test_set_commands_rewrite_package_files(fake_repo: Path) -> None:
 
     assert 'version = "1.0.0-rc0"' in guppy_pyproject
     assert '__version__ = "1.0.0-rc0"' in guppy_init
-    assert 'version = "1.1"' in internals_pyproject
-    assert '__version__ = "1.1"' in internals_init
+    assert 'version = "1.0.0-rc0"' in internals_pyproject
+    assert '__version__ = "1.0.0-rc0"' in internals_init
     # The pin is rewritten without disturbing the other dependencies.
-    assert '"guppylang-internals==1.1"' in guppy_pyproject
+    assert '"guppylang-internals==1.0.0-rc0"' in guppy_pyproject
     assert '"numpy>=2.0"' in guppy_pyproject
     assert "1.0.0-a5" not in guppy_pyproject
 
@@ -177,18 +202,18 @@ def test_release_rehearsal_end_to_end(
         == 0
     )
     values = _outputs(out)
-    guppy, internals = values["guppylang"], values["internals"]
+    guppy = values["version"]
     assert guppy == "1.0.0"  # 1.0.0-a5 promoted to stable
-    assert internals == "1.1"
 
-    # Apply the computed versions, exactly as the workflow does.
-    assert cv.main(["--repo-root", str(fake_repo), "set-internals", internals]) == 0
+    # Apply the computed versions, exactly as the workflow does. Both packages
+    # share the same version.
+    assert cv.main(["--repo-root", str(fake_repo), "set-internals", guppy]) == 0
     assert cv.main(["--repo-root", str(fake_repo), "set-guppylang", guppy]) == 0
-    assert cv.main(["--repo-root", str(fake_repo), "set-pin", internals]) == 0
+    assert cv.main(["--repo-root", str(fake_repo), "set-pin", guppy]) == 0
 
     assert 'version = "1.0.0"' in (fake_repo / "guppylang/pyproject.toml").read_text()
     assert (
-        '"guppylang-internals==1.1"'
+        '"guppylang-internals==1.0.0"'
         in (fake_repo / "guppylang/pyproject.toml").read_text()
     )
 

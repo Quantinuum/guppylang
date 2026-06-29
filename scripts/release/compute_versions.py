@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """Version bump logic for the ``guppylang`` and ``guppylang-internals`` releases.
 
-``guppylang`` follows semantic versioning with an optional pre-release suffix if
-the language is unstable (e.g. ``1.0.0-a5``).  ``guppylang-internals`` uses the
-custom scheme ``<guppylang-major>.<build>`` (e.g. ``1.0``, ``1.1``, ...).  The
-internals build number is incremented on every release and reset to ``0``
-whenever the ``guppylang`` major version changes.
+``guppylang`` and ``guppylang-internals`` always share the *exact same* version:
+they are bumped together, and enter/leave pre-releases together.  The version
+follows semantic versioning with an optional pre-release suffix if the language
+is unstable (e.g. ``1.0.0-a5``).
 
-Bump modes for ``guppylang``:
+Bump modes:
 
 * ``auto``  -> ask ``git-cliff`` what the conventional commits imply and express
   that in the current pre-release scheme: a breaking/feature/fix bump of the
   release core maps to ``alpha-major``/``alpha-minor``/``alpha-patch``, while an
   unchanged core (the usual pre-release case) just increments the alpha number.
+  On a release branch (``--release-branch``) the minor is frozen, so ``auto``
+  caps at ``patch`` regardless of what git-cliff proposes.
 * ``alpha`` -> ``1.0.0-a1`` becomes ``1.0.0-a2``
 * ``alpha-patch`` -> ``1.2.3`` becomes ``1.2.4-a0``
 * ``alpha-minor`` -> ``1.2.3`` becomes ``1.3.0-a0``
@@ -70,7 +71,6 @@ _GUPPY_RE = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
     r"(?:-?(?P<pre_label>a|b|rc)(?P<pre_num>\d+))?$"
 )
-_INTERNALS_RE = re.compile(r"^(?P<major>\d+)\.(?P<build>\d+)$")
 
 _VERSION_LINE_RE = re.compile(r'(?m)^version = "[^"]*"')
 _DUNDER_VERSION_RE = re.compile(r'(?m)^__version__ = "[^"]*"')
@@ -208,16 +208,25 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
 
 
 def _auto_mode_from_core(
-    current: GuppyVersion, bumped_core: tuple[int, int, int] | None
+    current: GuppyVersion,
+    bumped_core: tuple[int, int, int] | None,
+    *,
+    release_line: bool = False,
 ) -> BumpMode:
-    if bumped_core is not None and not current.is_prerelease:
-        major, minor, patch = bumped_core
-        if major > current.major:
-            return BumpMode.major
-        if major == current.major and minor > current.minor:
-            return BumpMode.minor
-        if (major, minor) == (current.major, current.minor) and patch > current.patch:
-            return BumpMode.patch
+    if bumped_core is None or current.is_prerelease:
+        return BumpMode.auto
+    current_core = (current.major, current.minor, current.patch)
+    if release_line:
+        # On a release branch the major.minor is frozen, so any releasable change
+        # is expressed as a patch bump (never minor/major).
+        return BumpMode.patch if bumped_core != current_core else BumpMode.auto
+    major, minor, patch = bumped_core
+    if major > current.major:
+        return BumpMode.major
+    if major == current.major and minor > current.minor:
+        return BumpMode.minor
+    if (major, minor) == (current.major, current.minor) and patch > current.patch:
+        return BumpMode.patch
     return BumpMode.auto
 
 
@@ -249,29 +258,12 @@ def _git_cliff_bumped_core(root: Path) -> tuple[int, int, int] | None:
     return (int(match[1]), int(match[2]), int(match[3]))
 
 
-def try_resolve_auto_mode(current: GuppyVersion, root: Path) -> BumpMode:
+def try_resolve_auto_mode(
+    current: GuppyVersion, root: Path, *, release_line: bool = False
+) -> BumpMode:
     """Resolve the ``auto`` bump mode by consulting git-cliff, if possible."""
     bumped_core = _git_cliff_bumped_core(root)
-    return _auto_mode_from_core(current, bumped_core)
-
-
-def bump_internals(current_text: str, new_guppy_major: int) -> str:
-    """Compute the next ``guppylang-internals`` version.
-
-    Increments the build number, resetting it to ``0`` when the ``guppylang``
-    major version changes.  Versions that do not yet follow the
-    ``<major>.<build>`` scheme (e.g. the legacy ``1.0.0-a5``) are treated as a
-    migration and seeded at ``<new-major>.0``.
-    """
-    match = _INTERNALS_RE.match(current_text.strip())
-    if match is None:
-        # Seed the first build of the new series as 0
-        return f"{new_guppy_major}.0"
-    current_major = int(match.group("major"))
-    current_build = int(match.group("build"))
-    if current_major != new_guppy_major:
-        return f"{new_guppy_major}.0"
-    return f"{new_guppy_major}.{current_build + 1}"
+    return _auto_mode_from_core(current, bumped_core, release_line=release_line)
 
 
 def _replace_once(
@@ -323,31 +315,19 @@ def read_current_guppylang(root: Path) -> GuppyVersion:
     return parse_guppy_version(raw)
 
 
-def read_current_internals(root: Path) -> str:
-    text = _read(root / INTERNALS_PYPROJECT)
-    match = _VERSION_LINE_RE.search(text)
-    if match is None:
-        msg = f"No project version found in {INTERNALS_PYPROJECT}"
-        raise ValueError(msg)
-    return match.group(0).split('"')[1]
-
-
 def cmd_compute(args: argparse.Namespace) -> int:
     root = Path(args.repo_root)
     current = read_current_guppylang(root)
-    internals = read_current_internals(root)
     mode = BumpMode(args.bump)
     if mode is BumpMode.auto:
-        mode = try_resolve_auto_mode(current, root)
-    new_guppy = bump_guppylang(current, mode)
-    new_internals = bump_internals(internals, new_guppy.major)
+        mode = try_resolve_auto_mode(current, root, release_line=args.release_branch)
+    new_version = bump_guppylang(current, mode)
 
+    # Both packages always share the exact same version.
     lines = [
         f"bump_mode={mode.value}",
-        f"current_guppylang={current.render()}",
-        f"current_internals={internals}",
-        f"guppylang={new_guppy.render()}",
-        f"internals={new_internals}",
+        f"current={current.render()}",
+        f"version={new_version.render()}",
     ]
     print("\n".join(lines))
     if args.github_output is not None:
@@ -356,17 +336,16 @@ def cmd_compute(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_set_internals(args: argparse.Namespace) -> int:
+def cmd_set_versions(args: argparse.Namespace) -> int:
     root = Path(args.repo_root)
+
+    # Set internals
     pyproject = root / INTERNALS_PYPROJECT
     init = root / INTERNALS_INIT
     _write(pyproject, set_version_in_pyproject(_read(pyproject), args.version))
     _write(init, set_dunder_version(_read(init), args.version))
-    return 0
 
-
-def cmd_set_guppylang(args: argparse.Namespace) -> int:
-    root = Path(args.repo_root)
+    # Set main lang
     pyproject = root / GUPPYLANG_PYPROJECT
     init = root / GUPPYLANG_INIT
     _write(pyproject, set_version_in_pyproject(_read(pyproject), args.version))
@@ -399,21 +378,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--bump", choices=BumpMode.__members__.values(), default="auto"
     )
     compute.add_argument(
+        "--release-branch",
+        action="store_true",
+        help="Treat this as a frozen minor-series branch: 'auto' caps at 'patch'.",
+    )
+    compute.add_argument(
         "--github-output",
         default=None,
         help="Optional path of a GITHUB_OUTPUT file to append the results to.",
     )
     compute.set_defaults(func=cmd_compute)
 
-    set_internals = sub.add_parser(
-        "set-internals", help="Write the guppylang-internals version."
+    set_versions = sub.add_parser(
+        "set-versions", help="Write guppylang(-internals) versions."
     )
-    set_internals.add_argument("version")
-    set_internals.set_defaults(func=cmd_set_internals)
-
-    set_guppylang = sub.add_parser("set-guppylang", help="Write the guppylang version.")
-    set_guppylang.add_argument("version")
-    set_guppylang.set_defaults(func=cmd_set_guppylang)
+    set_versions.add_argument("version")
+    set_versions.set_defaults(func=cmd_set_versions)
 
     set_pin = sub.add_parser(
         "set-pin", help="Pin the guppylang-internals dependency in guppylang."
