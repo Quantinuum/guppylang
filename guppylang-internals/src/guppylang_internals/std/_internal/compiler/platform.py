@@ -1,9 +1,10 @@
 import ast
 from dataclasses import dataclass
-from typing import ClassVar, override
+from typing import ClassVar
 
 import hugr
 from hugr import Wire, ops, tys
+from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
