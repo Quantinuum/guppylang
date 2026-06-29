@@ -31,8 +31,6 @@ on:
     branches:
       - main
       - "release/**"
-      # TEMP test (remove before merge): exercise the release flow on this dev branch.
-      - mr/chore/release-workflow-yet-again
   workflow_dispatch:
     inputs:
       force_open:
