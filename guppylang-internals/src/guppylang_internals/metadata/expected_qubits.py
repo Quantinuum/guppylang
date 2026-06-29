@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import ClassVar
 
 from hugr.metadata import Metadata
 from hugr.utils import JsonType
