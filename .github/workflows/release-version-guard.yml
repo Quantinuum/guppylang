@@ -3,7 +3,12 @@
 #   * On a `release/<major>.<minor>` branch: the minor is frozen, so blocks any
 #     change to the major *or* minor (only patches/pre-releases are allowed).
 #
-# Add the `X-allow-major-bump` label to the release PR to opt out of this guard.
+# Opt out per escalation kind by labelling the release PR:
+#   * `X-allow-major-bump` permits a *major* bump.
+#   * `X-allow-minor-bump` permits a *minor* bump (only relevant on a frozen
+#     release line; minors are expected on `main`).
+# The two labels are checked independently: a major bump needs the major label
+# even if the minor label is present, and vice versa.
 
 name: 🚚 Release version-bump guard
 
@@ -26,6 +31,7 @@ permissions:
 
 env:
   ALLOW_MAJOR_BUMP_LABEL: "X-allow-major-bump"
+  ALLOW_MINOR_BUMP_LABEL: "X-allow-minor-bump"
 
 jobs:
   guard:
@@ -47,24 +53,34 @@ jobs:
           series() {
             sed -n 's/^version = "\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/p' "$1" | head -n1
           }
-          allowed() {
-            echo "$LABELS" | jq -e --arg l "$ALLOW_MAJOR_BUMP_LABEL" 'index($l)' >/dev/null
+          has_label() {
+            echo "$LABELS" | jq -e --arg l "$1" 'index($l)' >/dev/null
           }
 
           git fetch origin "$BASE_REF" --depth=1
           git show "origin/$BASE_REF:guppylang/pyproject.toml" > /tmp/base_pyproject.toml
 
+          base_major=$(major /tmp/base_pyproject.toml)
+          head_major=$(major guppylang/pyproject.toml)
+          base_series=$(series /tmp/base_pyproject.toml)
+          head_series=$(series guppylang/pyproject.toml)
+
           case "$BASE_REF" in
             release/*)
               # The minor is frozen on a release branch: major.minor must not move.
-              base_series=$(series /tmp/base_pyproject.toml)
-              head_series=$(series guppylang/pyproject.toml)
               echo "guppylang release line: base=$base_series head=$head_series"
-              if [ "$head_series" != "$base_series" ]; then
-                if allowed; then
-                  echo "Frozen-line change permitted by the '$ALLOW_MAJOR_BUMP_LABEL' label."
+              if [ "$head_major" -gt "$base_major" ]; then
+                if has_label "$ALLOW_MAJOR_BUMP_LABEL"; then
+                  echo "Major bump permitted by the '$ALLOW_MAJOR_BUMP_LABEL' label."
                 else
-                  echo "::error::$BASE_REF is frozen to $base_series but this PR moves it to $head_series. Add the '$ALLOW_MAJOR_BUMP_LABEL' label to allow this."
+                  echo "::error::$BASE_REF is frozen to $base_series but this PR bumps the major to $head_series. Add the '$ALLOW_MAJOR_BUMP_LABEL' label to allow this."
+                  exit 1
+                fi
+              elif [ "$head_series" != "$base_series" ]; then
+                if has_label "$ALLOW_MINOR_BUMP_LABEL"; then
+                  echo "Minor bump permitted by the '$ALLOW_MINOR_BUMP_LABEL' label."
+                else
+                  echo "::error::$BASE_REF is frozen to $base_series but this PR moves it to $head_series. Add the '$ALLOW_MINOR_BUMP_LABEL' label to allow this."
                   exit 1
                 fi
               else
@@ -72,11 +88,10 @@ jobs:
               fi
               ;;
             *)
-              base_major=$(major /tmp/base_pyproject.toml)
-              head_major=$(major guppylang/pyproject.toml)
+              # On `main` minors are expected; only a major bump needs sign-off.
               echo "guppylang major version: base=$base_major head=$head_major"
               if [ "$head_major" -gt "$base_major" ]; then
-                if allowed; then
+                if has_label "$ALLOW_MAJOR_BUMP_LABEL"; then
                   echo "Major bump permitted by the '$ALLOW_MAJOR_BUMP_LABEL' label."
                 else
                   echo "::error::guppylang major version would bump $base_major → $head_major. Add the '$ALLOW_MAJOR_BUMP_LABEL' label to allow this release."

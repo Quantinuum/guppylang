@@ -15,8 +15,8 @@
 #     `release/<major>.<minor>` branch is cut (see `release-branch-cut.yml`); the
 #     rc -> stable -> patch lifecycle then happens on that branch. `auto` still
 #     proposes whatever the commits imply (incl. minor/major); the frozen line is
-#     enforced by `release-version-guard.yml`, which fails the PR if the series
-#     changes without the `X-allow-major-bump` label.
+#     enforced by `release-version-guard.yml`, which fails the PR if the major or
+#     minor changes without the `X-allow-major-bump` / `X-allow-minor-bump` label.
 #
 # Changelogs are only a *draft* seeded by git-cliff. While the `X-regen-changelog`
 # label is set (added by default), the draft is regenerated on every push. Remove

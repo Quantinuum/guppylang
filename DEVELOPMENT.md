@@ -165,7 +165,7 @@ We use Rust-style release branches, one per minor series:
   `rc → stable → patch` lifecycle then happens **on that branch** (`1.6.0-rc0`,
   …, `1.6.0`, `1.6.1`, …).
 - The minor on a release branch is *frozen*: a release PR that would move the
-  major or minor is blocked by `release-major-guard.yml` (see below). `auto` still
+  major or minor is blocked by `release-version-guard.yml` (see below). `auto` still
   proposes whatever the commits imply (including a minor/major) — this is
   deliberate, so an unwanted change is surfaced by the guard rather than silently
   downgraded.
@@ -242,10 +242,13 @@ regenerated on every push to the base branch. **Remove the label** to take manua
 control: subsequent pushes then leave the committed changelogs untouched, and your
 edits to the `release-pr--<base>` branch stick.
 
-A change that would escalate the version is blocked by `release-major-guard.yml`:
+A change that would escalate the version is blocked by `release-version-guard.yml`:
 on `main` a `guppylang` *major* bump is blocked, and on a `release/<major>.<minor>`
-branch any change to the major *or* minor (the line is frozen) is blocked. Add the
-`X-allow-major-bump` label to the release PR to allow it.
+branch any change to the major *or* minor (the line is frozen) is blocked. Opt out
+per escalation kind by labelling the release PR: `X-allow-major-bump` permits a
+major bump and `X-allow-minor-bump` permits a minor bump. The two are checked
+independently, so a major bump needs the major label even if the minor label is
+present, and vice versa.
 
 ### Publishing
 
