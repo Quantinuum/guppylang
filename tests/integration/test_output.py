@@ -1,6 +1,5 @@
 from guppylang import guppy
 from guppylang.std.builtins import array, comptime, nat, output, result
-from guppylang.std.quantum import qubit
 from tests.util import compile_guppy
 
 
