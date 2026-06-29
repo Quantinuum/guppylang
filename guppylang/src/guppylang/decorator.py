@@ -61,6 +61,7 @@ from guppylang.defs import (
     GuppyFunctionDefinition,
     GuppyTypeVarDefinition,
 )
+from guppylang.library import _get_link_name
 
 K = TypeVar("K")
 S = TypeVar("S")
@@ -863,14 +864,6 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         flags=flags,
         metadata=metadata,
     )
-
-
-def _get_link_name(f: Callable[..., Any]) -> str | None:
-    from guppylang.library import LINK_NAME_METADATA_KEY
-
-    custom_metadata = getattr(f, "__guppy_metadata__", {})
-    assert isinstance(custom_metadata, dict)
-    return custom_metadata.get(LINK_NAME_METADATA_KEY, None)
 
 
 @hide_trace
