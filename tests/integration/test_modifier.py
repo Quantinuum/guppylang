@@ -344,7 +344,10 @@ def test_higher_order_unitary_callable(validate):
         apply_unitary(h, q1, q2)
         apply_unitary(foo, q1, q2)
 
-    validate(main.compile_function())
+    # Tket2 still contains some bugs with higher-order functions.
+    # Thus validating exported hugr files will fail on CI.
+    # Waiting for https://github.com/Quantinuum/tket2/issues/1761
+    validate(main.compile_function(), export=False)
 
 
 @pytest.mark.xfail(reason="Returning protocols not supported")
