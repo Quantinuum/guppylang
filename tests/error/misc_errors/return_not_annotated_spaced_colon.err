@@ -1,8 +1,8 @@
-Error: Missing type annotation (at $FILE:6:0)
+Error: Missing type annotation (at $FILE:5:0)
   | 
+3 | 
 4 | @compile_guppy
-5 | # fmt: off
-6 | def foo() :
+5 | def foo() :
   | ^^^^^^^^^^^ Return type must be annotated
 
 Help: Looks like `foo` doesn't return anything. Consider annotating it with `->
