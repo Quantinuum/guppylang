@@ -852,7 +852,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     if "link_name" in kwargs:
         raise TypeError(
             "`link_name` keyword argument has been removed from the `@guppy` decorator,"
-            " use the `@link_name` in `guppylang.library` decorator instead."
+            " use the `@link_name` decorator from `guppylang.library` instead."
         )
 
     if remaining := next(iter(kwargs), None):

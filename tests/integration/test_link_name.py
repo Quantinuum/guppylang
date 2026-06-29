@@ -299,7 +299,7 @@ def test_error_when_using_old_kwarg():
         TypeError,
         match=re.escape(
             "`link_name` keyword argument has been removed from the `@guppy` decorator,"
-            " use the `@link_name` in `guppylang.library` decorator instead."
+            " use the `@link_name` decorator from `guppylang.library` instead."
         ),
     ):
 
