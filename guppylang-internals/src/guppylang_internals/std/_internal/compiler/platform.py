@@ -1,27 +1,36 @@
+import ast
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, override
 
 import hugr
 from hugr import Wire, ops, tys
 
 from guppylang_internals.ast_util import AstNode
+from guppylang_internals.checker.errors.type_errors import TypeMismatchError
+from guppylang_internals.checker.expr_checker import ExprSynthesizer
 from guppylang_internals.compiler.core import CompilerContext
 from guppylang_internals.definition.custom import (
+    CustomCallChecker,
     CustomCallCompiler,
     CustomInoutCallCompiler,
 )
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.diagnostic import Error, Note
-from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.error import (
+    BypassOverloadError,
+    GuppyError,
+    GuppyTypeError,
+    InternalGuppyError,
+)
 from guppylang_internals.std._internal.compiler.array import (
     array_clone,
     array_to_std_array,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import RESULT_EXTENSION
 from guppylang_internals.tys.arg import Argument, ConstArg
-from guppylang_internals.tys.builtin import get_element_type
+from guppylang_internals.tys.builtin import get_element_type, is_array_type
 from guppylang_internals.tys.const import BoundConstVar, ConstValue
-from guppylang_internals.tys.ty import NumericType
+from guppylang_internals.tys.ty import NumericType, Type
 
 #: Maximum length of a tag in the `output` function.
 TAG_MAX_LEN = 200
@@ -119,3 +128,62 @@ def tag_to_hugr(tag_arg: Argument, ctx: CompilerContext, loc: AstNode) -> tys.Ty
         err.add_sub_diagnostic(OutputTagTooLongError.Hint(None))
         raise GuppyError(err)
     return tys.StringArg(tag)
+
+
+class MeasurementOutputChecker(CustomCallChecker):
+    """Call checker enabling an additional hint when rejecting `Measurement` values
+    from the overloaded `output` function.
+    """
+
+    exclude_from_overload_hints = True
+
+    @dataclass(frozen=True)
+    class MeasurementOutputError(Error):
+        title: ClassVar[str] = "Unsupported output value type"
+        span_label: ClassVar[str] = (
+            "Values of type `Measurement` cannot be passed to `output` directly"
+        )
+
+        @dataclass(frozen=True)
+        class ReadHint(Note):
+            message: ClassVar[str] = (
+                "Use `.read()` on the value to get a bool (this will block execution "
+                "until the measurement result is available)"
+            )
+
+        @dataclass(frozen=True)
+        class ReadArrayHint(Note):
+            message: ClassVar[str] = (
+                "Use `collect_measurements()` on the array to get an array of bools "
+                "(this will block execution until all the measurement results are "
+                "available)"
+            )
+
+    @override
+    def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
+        # Type-check the given value against the expected type (either `Measurement` or
+        # `array[Measurement, n]`).
+        _, arg_ty = ExprSynthesizer(self.ctx).synthesize(args[1])
+        expected_ty = self.func.ty.inputs[1].ty
+        is_array = is_array_type(arg_ty)
+
+        if is_array:
+            if (not is_array_type(expected_ty)) or (
+                get_element_type(arg_ty) != get_element_type(expected_ty)
+            ):
+                raise GuppyTypeError(TypeMismatchError(self.node, expected_ty, arg_ty))
+        elif arg_ty != expected_ty:
+            raise GuppyTypeError(TypeMismatchError(self.node, expected_ty, arg_ty))
+
+        # Raise an error that can bypass the default overload error suppression so we
+        # can provide a more specific hint to the user.
+        err = MeasurementOutputChecker.MeasurementOutputError(self.node)
+        if is_array:
+            err.add_sub_diagnostic(
+                MeasurementOutputChecker.MeasurementOutputError.ReadArrayHint(None)
+            )
+        else:
+            err.add_sub_diagnostic(
+                MeasurementOutputChecker.MeasurementOutputError.ReadHint(None)
+            )
+        raise BypassOverloadError(err)
