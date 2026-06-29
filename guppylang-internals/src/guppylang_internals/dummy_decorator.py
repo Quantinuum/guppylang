@@ -15,7 +15,7 @@ class _DummyGuppy:
     def comptime(self, f: Any) -> Any:
         return f
 
-    def struct(self, cls: Any) -> Any:
+    def struct(self, cls: Any, **kwargs: Any) -> Any:
         return cls
 
     def enum(self, cls: Any) -> Any:
