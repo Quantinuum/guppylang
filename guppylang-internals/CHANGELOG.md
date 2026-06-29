@@ -3,6 +3,31 @@
 First release of `guppylang_internals` package containing refactored out internal components
 from `guppylang`.
 
+## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1...guppylang-internals-v1.0.0-a8) (2026-06-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add function item type (#1950)
+* Make modifier block names stable under repeated compilations (#1907)
+* Add `Callable` protocol (#1929)
+* Add `@metadata` decorator (#1937)
+
+
+### Bug Fixes
+
+* Improve precision on span of missing return type error to function header (#1882)([4b7260b](https://github.com/Quantinuum/guppylang/commit/4b7260b10a4128fcd7473a0421beb15fa9a127b8))
+* Allow 'frozen' kwarg in _DummyGuppy mock class (#1946)([3a0f2cc](https://github.com/Quantinuum/guppylang/commit/3a0f2cc431006639022797f35a18fcf8b67f7ec9))
+* Make modifier block names stable under repeated compilations (#1907)([975105e](https://github.com/Quantinuum/guppylang/commit/975105ec691160a8fc0e12ca52e07004613f8308))
+* Improve error message for struct type application in comptime (#1938)([9a1c1d3](https://github.com/Quantinuum/guppylang/commit/9a1c1d31f5a00a0f628e0d9b7ede2055eac21102))
+
+
+### Features
+
+* Add function item type (#1950)([503063c](https://github.com/Quantinuum/guppylang/commit/503063cd1341ce26665f84da8e3f2bbfea8cf261))
+* Add `Callable` protocol (#1929)([5231e39](https://github.com/Quantinuum/guppylang/commit/5231e3976394ba1ec12655612a8f5d217a5c018f))
+* Add `@metadata` decorator (#1937)([206d309](https://github.com/Quantinuum/guppylang/commit/206d309b01798ea9cb3feae37bc03aa94efb88bb))
+
 ## [1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0...guppylang-internals-v1.1) (2026-06-25)
 
 Note that this release raises the minimum compatible version of `pytket` to `2.7.0`.
