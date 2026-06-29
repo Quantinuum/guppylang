@@ -1,9 +1,9 @@
-Error: Higher-order overloaded function (at $FILE:18:8)
+Error: Higher-order overloaded function (at $FILE:19:28)
    | 
-16 | @guppy
-17 | def main() -> None:
-18 |     f = overloaded
-   |         ^^^^^^^^^^ Overloaded function `overloaded` may not be used as a
-   |                    higher-order value
+17 | @guppy
+18 | def main() -> None:
+19 |     f: Function[[], None] = overloaded
+   |                             ^^^^^^^^^^ Overloaded function `overloaded` may not be used as a
+   |                                        higher-order value
 
 Guppy compilation failed due to 1 previous error

@@ -3,6 +3,8 @@ import pytest
 from hugr._hugr.linking import HugrLinkingError
 
 from guppylang import guppy
+from guppylang.library import link_name
+
 from guppylang.defs import GuppyDefinition
 from guppylang.emulator import EmulatorBuilder
 from guppylang.library import GuppyLibrary
@@ -10,10 +12,12 @@ from guppylang.std.platform import output
 
 
 def test_manual_link_no_entrypoints():
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
-    @guppy(link_name="super_adder")
+    @guppy
+    @link_name("super_adder")
     def impl(x: int) -> int:
         return x + 5
 
@@ -26,10 +30,12 @@ def test_manual_link_no_entrypoints():
 
 
 def test_manual_link_entrypoint_lhs():
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
-    @guppy(link_name="super_adder")
+    @guppy
+    @link_name("super_adder")
     def impl(x: int) -> int:
         return x + 5
 
@@ -45,10 +51,12 @@ def test_manual_link_entrypoint_lhs():
 
 
 def test_manual_link_entrypoint_rhs():
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
-    @guppy(link_name="super_adder")
+    @guppy
+    @link_name("super_adder")
     def impl(x: int) -> int:
         return x + 5
 
