@@ -118,11 +118,35 @@ jobs:
 
       - name: Compute next versions
         id: plan
+        env:
+          BUMP: ${{ github.event.inputs.bump || 'auto' }}
         run: |
           set -euo pipefail
-          uv run --no-project scripts/release/compute_versions.py compute \
-            --bump "${{ github.event.inputs.bump || 'auto' }}" \
-            --github-output "$GITHUB_OUTPUT"
+          # Once a release PR exists, the version it already carries is the source
+          # of truth: reuse it instead of recomputing, so a version chosen on an
+          # earlier run (e.g. a manual `force_open` with an explicit bump) is not
+          # silently reverted by automatic syncs. We only reuse a version that has
+          # not been released yet — an already-tagged version means the branch is
+          # stale (its PR merged), so we fall back to recomputing. A non-`auto`
+          # bump on manual dispatch always overrides the existing branch.
+          existing=""
+          if [ "$BUMP" = "auto" ]; then
+            git fetch origin "$BRANCH" >/dev/null 2>&1 || true
+            candidate=$(git show "origin/$BRANCH:guppylang/pyproject.toml" 2>/dev/null \
+              | sed -n 's/^version = "\(.*\)"/\1/p' | head -n1 || true)
+            if [ -n "$candidate" ] && \
+               ! git rev-parse -q --verify "refs/tags/guppylang-v$candidate" >/dev/null; then
+              existing="$candidate"
+            fi
+          fi
+          if [ -n "$existing" ]; then
+            echo "Reusing in-flight version $existing from $BRANCH (skipping recompute)."
+            echo "version=$existing" >> "$GITHUB_OUTPUT"
+          else
+            uv run --no-project scripts/release/compute_versions.py compute \
+              --bump "$BUMP" \
+              --github-output "$GITHUB_OUTPUT"
+          fi
 
       - name: Detect a pending publish
         id: pending

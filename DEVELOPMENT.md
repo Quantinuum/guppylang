@@ -203,6 +203,14 @@ The version math lives in `scripts/release/compute_versions.py`. By default the
 workflow uses the `auto` mode; you can override it through the `bump` input of the
 `release-pr.yml` *workflow_dispatch*.
 
+Once a release PR is open, the version committed on its `release-pr--<base>`
+branch becomes the source of truth: automatic syncs **reuse** it rather than
+recomputing, so a version you picked earlier (e.g. a manual `force_open` with an
+explicit `bump`) is not silently reverted when new commits land. To change it,
+dispatch the workflow again with an explicit `bump` — a non-`auto` bump always
+overrides the in-flight version. (A version that has already been tagged is
+treated as released, so a stale branch falls back to a fresh recompute.)
+
 The available bump modes are:
 
 | mode          | example                  | notes                                          |
