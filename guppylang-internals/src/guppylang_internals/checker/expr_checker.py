@@ -132,6 +132,7 @@ from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableProtocolInst,
+    ModifiableFunctionProtocolInst,
     bool_type,
     float_type,
     frozenarray_type,
@@ -986,7 +987,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         if isinstance(ty, BoundTypeVar):
             for protocol in ty.implements:
-                if isinstance(protocol, CallableProtocolInst):
+                if isinstance(
+                    protocol, CallableProtocolInst | ModifiableFunctionProtocolInst
+                ):
                     args, return_ty, inst = synthesize_call(
                         protocol.sig, node.args, node, self.ctx
                     )

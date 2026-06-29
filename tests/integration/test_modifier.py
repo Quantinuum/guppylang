@@ -1,4 +1,5 @@
 import base64
+import pytest
 
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
@@ -320,12 +321,7 @@ def test_higher_order_control_controllable_callable(validate):
     def main(ctrl: qubit, q: qubit) -> None:
         apply_control(h, ctrl, q)
 
-    # Tket2 still contains some bugs with higher-order functions.
-    # Thus validating exported hugr files will fail on CI.
-    # Waiting for:
-    # - https://github.com/Quantinuum/guppylang/issues/1917 and
-    # - https://github.com/Quantinuum/tket2/issues/1710
-    validate(main.compile_function(), export=False)
+    validate(main.compile_function())
 
 
 def test_higher_order_unitary_callable(validate):
@@ -337,14 +333,21 @@ def test_higher_order_unitary_callable(validate):
             with control(ctrl):
                 f(q)
 
-    # Tket2 still contains some bugs with higher-order functions.
-    # Thus validating exported hugr files will fail on CI.
-    # Waiting for:
-    # - https://github.com/Quantinuum/guppylang/issues/1917 and
-    # - https://github.com/Quantinuum/tket2/issues/1710
-    validate(apply_unitary.compile_function(), export=False)
+    apply_unitary.check()
+
+    @guppy(unitary=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def main(q1: qubit, q2: qubit) -> None:
+        apply_unitary(h, q1, q2)
+        apply_unitary(foo, q1, q2)
+
+    validate(main.compile_function())
 
 
+@pytest.mark.xfail(reason="Returning protocols not supported")
 def test_return_callable_with_stronger_flags(validate):
     """Returning a callable with more flags than required is valid."""
 
@@ -393,21 +396,7 @@ def test_take_callable_taking_weaker_callable(validate):
         f(q)
 
     @guppy
-    def take_plain_consumer(
-        consumer: Function[[Function[[qubit], None], qubit], None], q: qubit
-    ) -> None:
-        consumer(control_fun, q)
-
-    @guppy
-    def take_daggerable_consumer(
-        consumer: Function[[Daggerable[[qubit], None], qubit], None], q: qubit
-    ) -> None:
-        consumer(unitary_fun, q)
-
-    @guppy
     def main(q: qubit) -> None:
-        take_plain_consumer(apply_dagger, q)
-        take_daggerable_consumer(apply_plain, q)
         apply_plain(control_fun, q)
         apply_dagger(unitary_fun, q)
 

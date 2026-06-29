@@ -19,12 +19,13 @@ from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
-from guppylang_internals.experimental import check_unitary_callable_enabled
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableProtocolDef,
     CallableProtocolInst,
     FunctionTypeDef,
+    ModifiableFunctionProtocolDef,
+    ModifiableFunctionProtocolInst,
     SelfTypeDef,
     bool_type,
 )
@@ -206,16 +207,25 @@ def _arg_from_instantiated_defn(
 
     match defn:
         # Special cases for the `Function` type
-        case FunctionTypeDef(flags=flags, name=name):
-            if flags != UnitaryFlags.NoFlags:
-                check_unitary_callable_enabled(flags.callable_name(), node)
-            return TypeArg(
-                _parse_function_type(arg_nodes, node, ctx, name, flags=flags)
-            )
+        case FunctionTypeDef(name=name):
+            return TypeArg(_parse_function_type(arg_nodes, node, ctx, name))
         # Special cases for the `Callable` protocol
         case CallableProtocolDef():
             sig = _parse_function_type(arg_nodes, node, ctx, "Callable")
             proto_inst = CallableProtocolInst(sig)
+            param = TypeParam(
+                len(ctx.param_var_mapping),
+                name=str(proto_inst),
+                must_be_copyable=True,
+                must_be_droppable=True,
+                must_implement=[proto_inst],
+            )
+            ctx.param_var_mapping[param.name] = param
+            return param.to_bound()
+        # Special case for the `Unitary`, `Controllable`, and `Daggerable` protocols
+        case ModifiableFunctionProtocolDef(flags=flags):
+            sig = _parse_function_type(arg_nodes, node, ctx, flags.callable_name())
+            proto_inst = ModifiableFunctionProtocolInst(sig.with_unitary_flags(flags))
             param = TypeParam(
                 len(ctx.param_var_mapping),
                 name=str(proto_inst),
