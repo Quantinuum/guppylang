@@ -7,14 +7,12 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from hugr.package import Package
 from typing_extensions import Self
 
-from guppylang.decorator import metadata
 from guppylang.defs import GuppyDefinition, _update_generator_metadata
 
 _LINK_NAME_METADATA_KEY = "guppylang.library.annotated_link_name"
 
 
 __all__ = [
-    "LINK_NAME_METADATA_KEY",
     "GuppyLibrary",
     "link_name",
 ]
