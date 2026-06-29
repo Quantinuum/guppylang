@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -9,7 +10,7 @@ from typing_extensions import Self
 from guppylang.decorator import metadata
 from guppylang.defs import GuppyDefinition, _update_generator_metadata
 
-LINK_NAME_METADATA_KEY = "guppylang.library.annotated_link_name"
+_LINK_NAME_METADATA_KEY = "guppylang.library.annotated_link_name"
 
 
 __all__ = [
@@ -90,5 +91,12 @@ def link_name(name: str) -> Any:
 
         main.compile()
     """
+    from guppylang.decorator import metadata
 
-    return metadata(LINK_NAME_METADATA_KEY, name)
+    return metadata(_LINK_NAME_METADATA_KEY, name)
+
+
+def _get_link_name(f: Callable[..., Any]) -> str | None:
+    custom_metadata = getattr(f, "__guppy_metadata__", {})
+    assert isinstance(custom_metadata, dict)
+    return custom_metadata.get(_LINK_NAME_METADATA_KEY, None)
