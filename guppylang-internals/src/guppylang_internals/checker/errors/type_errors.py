@@ -473,3 +473,13 @@ class SignatureDoesntMatchProto(Error):
         protocol: ProtocolInst
         required_sig: FunctionType
         actual_sig: FunctionType
+
+
+@dataclass(frozen=True)
+class DontUseProtocolSugar(Error):
+    title: ClassVar[str] = "Protocol not allowed to be used as a type"
+    span_label: ClassVar[str] = (
+        "Protocols are not allowed to be used as types in struct fields. Consider"
+        " adding a parameter to the struct definition, with `{proto}` as a bound."
+    )
+    proto: str

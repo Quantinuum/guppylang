@@ -162,7 +162,7 @@ class ParsedStructDef(TypeDef, CheckableDef):
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""
         param_var_mapping = {p.name: p for p in self.params}
-        ctx = TypeParsingCtx(globals, param_var_mapping)
+        ctx = TypeParsingCtx(globals, param_var_mapping, disallow_protocol_types=True)
 
         # Before checking the fields, make sure that this definition is not recursive,
         # otherwise the code below would not terminate.

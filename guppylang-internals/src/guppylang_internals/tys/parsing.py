@@ -13,6 +13,7 @@ from guppylang_internals.ast_util import (
 from guppylang_internals.cfg.builder import is_comptime_expression
 from guppylang_internals.checker.core import Context, Globals, Locals, PythonObject
 from guppylang_internals.checker.errors.generic import ExpectedError, UnsupportedError
+from guppylang_internals.checker.errors.type_errors import DontUseProtocolSugar
 from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
@@ -92,13 +93,18 @@ class TypeParsingCtx:
     #: the type this method belongs to in order to resolve `Self` annotations.
     self_ty: Type | None = None
 
+    #: Allow protocols to be referred to by name as syntactic sugar for creating a bound
+    #: variable that implements the protocol and referencing that.
+    #: This is disallowed in struct fields.
+    disallow_protocol_types: bool = False
+
 
 def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     """Turns an AST expression into an argument."""
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
 
     # A single (possibly qualified) identifier
-    if defn := try_parse_defn(node, ctx.globals):
+    if defn := try_parse_defn(node, ctx):
         return _arg_from_instantiated_defn(defn, [], node, ctx)
 
     # An identifier referring to a quantified variable
@@ -110,9 +116,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
         raise GuppyError(VarNotDefinedError(node, node.id))
 
     # A parametrised type, e.g. `list[??]`
-    if isinstance(node, ast.Subscript) and (
-        defn := try_parse_defn(node.value, ctx.globals)
-    ):
+    if isinstance(node, ast.Subscript) and (defn := try_parse_defn(node.value, ctx)):
         arg_nodes = (
             node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
         )
@@ -166,24 +170,27 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     raise GuppyError(InvalidTypeArgError(node))
 
 
-def try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
+def try_parse_defn(node: AstNode, ctx: TypeParsingCtx) -> Definition | None:
     """Tries to parse a (possibly qualified) name into a global definition."""
     from guppylang.defs import GuppyDefinition
 
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
+    from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     match node:
         case ast.Name(id=x):
-            if x not in globals:
+            if x not in ctx.globals:
                 return None
-            defn = globals[x]
+            defn = ctx.globals[x]
             if isinstance(defn, PythonObject):
                 return None
+            if ctx.disallow_protocol_types and isinstance(defn, ParsedProtocolDef):
+                raise GuppyError(DontUseProtocolSugar(node, node.id))
             return defn
         case ast.Attribute(value=ast.Name(id=module_name) as value, attr=x):
-            if module_name not in globals:
+            if module_name not in ctx.globals:
                 raise GuppyError(VarNotDefinedError(value, module_name))
-            match globals[module_name]:
+            match ctx.globals[module_name]:
                 case PythonObject(ModuleType() as module):
                     if x in module.__dict__:
                         val = module.__dict__[x]
@@ -484,7 +491,7 @@ if sys.version_info >= (3, 12):
         proto_defn = None
         proto_args = []
         if isinstance(bound, ast.Subscript):
-            proto_defn = try_parse_defn(bound.value, ctx.globals)
+            proto_defn = try_parse_defn(bound.value, ctx)
             arg_nodes = (
                 bound.slice.elts
                 if isinstance(bound.slice, ast.Tuple)
@@ -496,7 +503,7 @@ if sys.version_info >= (3, 12):
                 return CallableProtocolInst(sig)
             proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
         else:
-            proto_defn = try_parse_defn(bound, ctx.globals)
+            proto_defn = try_parse_defn(bound, ctx)
 
         if isinstance(proto_defn, ParsedProtocolDef):
             inst = proto_defn.check_instantiate(proto_args, bound)
