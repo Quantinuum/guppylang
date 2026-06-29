@@ -6,7 +6,7 @@ from hugr.utils import JsonType
 
 
 @dataclass(frozen=True)
-class MetadataExpectedQubits(Metadata[int]):
+class MetadataExpectedQubitsHint(Metadata[int]):
     KEY = "tket.hint.expected_qubits"
     ALIASES: ClassVar[list[str]] = ["tket.hint.max_qubits"]
 

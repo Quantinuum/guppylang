@@ -44,7 +44,7 @@ from guppylang_internals.dummy_decorator import (
 )
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
-from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubits
+from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
@@ -716,7 +716,7 @@ def expected_qubits(num: int) -> Any:
 
         main.compile()
     """
-    return metadata(MetadataExpectedQubits.KEY, num)
+    return metadata(MetadataExpectedQubitsHint.KEY, num)
 
 
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
@@ -892,7 +892,7 @@ def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> 
     custom_metadata = getattr(f, "__guppy_metadata__", {})
     assert isinstance(custom_metadata, dict)
     for key, value in custom_metadata.items():
-        if key == MetadataExpectedQubits.KEY:
+        if key == MetadataExpectedQubitsHint.KEY:
             metadata.set_expected_qubits(value)
         else:
             metadata.set_generic_metadata(key, value)
