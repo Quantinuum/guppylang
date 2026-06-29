@@ -1,9 +1,11 @@
+import re
+
 import pytest
 from hugr.ops import FuncDefn, FuncDecl
 from hugr.package import Package
 
 from guppylang import guppy
-from guppylang.decorator import link_name
+from guppylang.library import link_name
 
 
 @pytest.fixture
@@ -291,12 +293,14 @@ def test_file_level_members(qualifier):
 
 
 def test_error_when_using_old_kwarg():
-    """Asserts that using the old `link_name` kwarg raises an error."""
+    """Asserts that using the old `link_name` kwarg raises a helpful error."""
 
     with pytest.raises(
         TypeError,
-        match="`link_name` keyword argument is not allowed in @guppy decorator, "
-        "use @link_name decorator instead",
+        match=re.escape(
+            "`link_name` keyword argument has been removed from the `@guppy` decorator,"
+            " use the `@link_name` in `guppylang.library` decorator instead."
+        ),
     ):
 
         @guppy(link_name="some.qualified.name")

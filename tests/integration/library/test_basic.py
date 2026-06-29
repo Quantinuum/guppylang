@@ -1,7 +1,8 @@
 import pytest
 
 from guppylang import guppy
-from guppylang.decorator import link_name
+from guppylang.library import link_name
+
 from guppylang.library import GuppyLibrary
 from guppylang.emulator import EmulatorBuilder
 from guppylang.std.platform import output

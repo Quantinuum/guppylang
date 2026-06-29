@@ -1,4 +1,5 @@
-from guppylang.decorator import link_name
+from guppylang.library import link_name
+
 from hugr.package import Package
 
 from guppylang import guppy

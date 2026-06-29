@@ -1,14 +1,21 @@
 from dataclasses import dataclass
+from typing import Any
 
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from hugr.package import Package
 from typing_extensions import Self
 
+from guppylang.decorator import metadata
 from guppylang.defs import GuppyDefinition, _update_generator_metadata
 
+LINK_NAME_METADATA_KEY = "guppylang.library.annotated_link_name"
+
+
 __all__ = [
+    "LINK_NAME_METADATA_KEY",
     "GuppyLibrary",
+    "link_name",
 ]
 
 
@@ -64,3 +71,24 @@ class GuppyLibrary:
     @classmethod
     def from_members(cls, *members: GuppyDefinition) -> Self:
         return cls([member.id for member in members])
+
+
+def link_name(name: str) -> Any:
+    """Decorator to attach a link name to a Guppy definition. It must be placed below
+    the @guppy decorator.
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.library import link_name
+
+
+        @guppy.declare
+        @link_name("my_link_name")
+        def main() -> None:
+            pass
+
+        main.compile()
+    """
+
+    return metadata(LINK_NAME_METADATA_KEY, name)

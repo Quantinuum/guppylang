@@ -3,7 +3,8 @@ import pytest
 from hugr._hugr.linking import HugrLinkingError
 
 from guppylang import guppy
-from guppylang.decorator import link_name
+from guppylang.library import link_name
+
 from guppylang.defs import GuppyDefinition
 from guppylang.emulator import EmulatorBuilder
 from guppylang.library import GuppyLibrary
