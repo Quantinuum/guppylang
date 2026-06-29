@@ -1,5 +1,7 @@
 from typing import Any, TypeVar
 
+from typing_extensions import dataclass_transform
+
 
 class _DummyGuppy:
     """A dummy class with the same interface as `@guppy` that does nothing when used to
@@ -15,6 +17,7 @@ class _DummyGuppy:
     def comptime(self, f: Any) -> Any:
         return f
 
+    @dataclass_transform()
     def struct(self, cls: Any, *args: Any, **kwargs: Any) -> Any:
         return cls
 
