@@ -867,12 +867,6 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 
     metadata.set_unitary_flags(flags.value)
 
-    if MetadataExpectedQubits.KEY in kwargs:
-        raise TypeError(
-            "`max_qubits` keyword argument is not allowed in @guppy decorator, "
-            "use @expected_qubits decorator instead"
-        )
-
     if "link_name" in kwargs:
         raise TypeError(
             "`link_name` keyword argument has been removed from the `@guppy` decorator,"
