@@ -18,6 +18,10 @@ on:
         description: "Branch or ref to cut the release branch from."
         type: string
         default: main
+      series:
+        description: "Release series to cut, e.g. `1.6` (defaults to the series of the current version)."
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -43,13 +47,24 @@ jobs:
 
       - name: Determine the release branch name
         id: name
+        env:
+          SERIES_OVERRIDE: ${{ github.event.inputs.series }}
         run: |
           set -euo pipefail
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang/pyproject.toml | head -n1)
-          series=$(echo "$version" | sed -n 's/^\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/p')
-          if [ -z "$series" ]; then
-            echo "::error::Could not derive a release series from version '$version'."
-            exit 1
+          if [ -n "$SERIES_OVERRIDE" ]; then
+            if ! echo "$SERIES_OVERRIDE" | grep -Eq '^[0-9]+\.[0-9]+$'; then
+              echo "::error::Invalid series override '$SERIES_OVERRIDE'; expected '<major>.<minor>' (e.g. '1.6')."
+              exit 1
+            fi
+            series="$SERIES_OVERRIDE"
+            echo "Using series override '$series' (current version $version)."
+          else
+            series=$(echo "$version" | sed -n 's/^\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/p')
+            if [ -z "$series" ]; then
+              echo "::error::Could not derive a release series from version '$version'."
+              exit 1
+            fi
           fi
           branch="release/$series"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
