@@ -261,6 +261,13 @@ class array(builtins.list[_T], Generic[_T, _n]):
     @guppy
     @no_type_check
     def reverse(self: array[L, n]) -> None:
+        """Reverse array elements in-place.
+
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(2))
+            qs.reverse()
+        """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
 
