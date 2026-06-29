@@ -10,6 +10,8 @@ on:
     branches:
       - main
       - "release/**"
+      # TEMP test (remove before merge): refresh preview for the test release PR.
+      - mr/chore/release-workflow-yet-again
   workflow_dispatch:
 
 permissions:
