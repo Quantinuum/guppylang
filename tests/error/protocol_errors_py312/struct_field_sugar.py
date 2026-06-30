@@ -15,7 +15,7 @@ class Ty:
 
 @guppy.struct(frozen=True)
 class S:
-    p: Proto[int] # This should fail with a nice error
+    p: Proto[int]
 
 @guppy
 def foo(s: S) -> None:

@@ -2,7 +2,7 @@ Error: Protocol not allowed to be used as a type (at $FILE:18:7)
    | 
 16 | @guppy.struct(frozen=True)
 17 | class S:
-18 |     p: Proto[int] # This should fail with a nice error
+18 |     p: Proto[int]
    |        ^^^^^ Protocols are not allowed to be used as types in struct
    |              fields. Consider adding a parameter to the struct
    |              definition, with `Proto` as a bound.
