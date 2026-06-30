@@ -63,7 +63,10 @@ def test_assignment_in_dagger(validate):
         discard(q)
         discard(c)
 
-    validate(main.compile_function())
+    # Current tket NormalizeGuppy modifier resolution cannot rewrite this shape
+    # yet; keep validating the HUGR locally, but do not export it for tket
+    # normalization in CI.
+    validate(main.compile_function(), export=False)
 
 
 def test_control_simple(validate):
@@ -180,8 +183,8 @@ def test_power_simple(validate):
         with power(n):
             pass
 
-    # Normalize guppy fails: power node is found by the ModifierResolverPass, thus we do
-    # not want to validate the exported hugr file on CI.
+    # Tket passes reject power modifiers, so do not export this HUGR for CI
+    # normalization.
     validate(bar.compile_function(), export=False)
 
 
@@ -439,7 +442,8 @@ def test_double_dagger_cancellation_2(validate):
         discard(c2)
 
     main.check()
-    # Since power is not supported yet in tket2 passes, the validation will fail on CI.
+    # Tket passes reject power modifiers, so do not export this HUGR for CI
+    # normalization.
     # validate(main.compile())
 
 

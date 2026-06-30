@@ -4,13 +4,15 @@
 # `guppylang-internals-v*` tag creates a draft GitHub release for the matching
 # package, with notes sliced verbatim from the committed CHANGELOG.md at that tag.
 # Publishing that draft release triggers `python-wheels.yml`, which uploads the
-# wheels to PyPI.
+# wheels to PyPI. `guppylang` and `guppylang-internals` always share the exact
+# same version, so a release tags both packages at that version.
 #
 # Tags are produced in two ways, both of which feed the same `create-release` job:
-#   * Automatically: when a release PR is merged into `main`, the committed
-#     package versions are tagged here (the `tag-on-main` job).
-#   * Manually: for an out-of-band release (e.g. a patch cut from a branch off an
-#     old tag), a maintainer tags the commit themselves and pushes the tag.
+#   * Automatically: when a release PR is merged into `main` or a
+#     `release/<major>.<minor>` branch, the committed package versions are tagged
+#     here (the `tag-release-line` job).
+#   * Manually: for an out-of-band release, a maintainer tags the commit
+#     themselves and pushes the tag.
 
 name: 🚚 Release publish
 
@@ -18,6 +20,7 @@ on:
   push:
     branches:
       - main
+      - "release/**"
     tags:
       - "guppylang-v*"
       - "guppylang-internals-v*"
@@ -33,15 +36,15 @@ env:
   GH_TOKEN: ${{ secrets.HUGRBOT_PAT }}
 
 jobs:
-  # On a push to `main` (typically a merged release PR), tag any package whose
-  # committed version is not yet tagged. Pushing the tag with the bot PAT then
-  # triggers the `create-release` job below.
-  tag-on-main:
+  # On a push to `main` or a `release/<major>.<minor>` branch (typically a merged
+  # release PR), tag any package whose committed version is not yet tagged.
+  # Pushing the tag with the bot PAT then triggers the `create-release` job below.
+  tag-release-line:
     name: Tag newly versioned packages
     if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.HUGRBOT_PAT }}
@@ -74,14 +77,14 @@ jobs:
           tag_pkg "guppylang/pyproject.toml" "guppylang-v"
           tag_pkg "guppylang-internals/pyproject.toml" "guppylang-internals-v"
 
-  # On a push of a package tag (from `tag-on-main`, or a manual `git push` on a
-  # release branch), create the matching draft GitHub release.
+  # On a push of a package tag (from `tag-release-line`, or a manual `git push`),
+  # create the matching draft GitHub release.
   create-release:
     name: Create the GitHub release for the pushed tag
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.HUGRBOT_PAT }}
