@@ -62,8 +62,10 @@ _BORROW_ARRAY_DEF = BORROW_ARRAY_EXT.types["borrow_array"]
 #: when runtime arguments are injected via ``read_arg``.
 _ARGS_WRAPPER_ENTRYPOINT_NAME = "__entrypoint_with_args"
 
-#: Human-readable description of the supported entrypoint argument types.
-SUPPORTED_ARG_TYPES_MSG = "`bool`, `int`, `float`, and arrays of those"
+# Keep in sync with `ArgValue`.
+_SUPPORTED_ARG_TYPES_MSG = (
+    "`bool`, `int`, `float`, and (one-dimensional) arrays of those"
+)
 
 #: Python value types accepted as entrypoint arguments.
 #: Sequences (lists, tuples, numpy arrays, etc.) are accepted for array arguments
@@ -122,11 +124,11 @@ def unsupported_arg_reason(ty: Type) -> str | None:
             )
         return (
             f"Arrays of `{elem}` are not supported as entrypoint arguments. "
-            f"Supported element types are {SUPPORTED_ARG_TYPES_MSG}."
+            f"Supported element types are {_SUPPORTED_ARG_TYPES_MSG}."
         )
     return (
         f"Type `{ty}` is not supported as an entrypoint argument. "
-        f"Supported types are {SUPPORTED_ARG_TYPES_MSG}."
+        f"Supported types are {_SUPPORTED_ARG_TYPES_MSG}."
     )
 
 
