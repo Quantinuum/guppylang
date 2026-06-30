@@ -293,13 +293,13 @@ class EmulatorInstance:
             )
         _validate_per_shot_args(self._arg_specs, args)
         if self.shot_offset != 0:
-            raise EntrypointArgValueError(
+            raise ValueError(
                 "`run_per_shot` is not compatible with a non-zero shot offset "
                 f"(got {self.shot_offset}); per-shot arguments are indexed from 0."
             )
         set_shots = self._options._shots
         if set_shots is not None and set_shots != len(args):
-            raise EntrypointArgValueError(
+            raise ValueError(
                 f"`with_shots` was set to {set_shots}, but `run_per_shot` was given "
                 f"{len(args)} argument record(s); the shot count is fixed by the "
                 "number of records. Remove the conflicting `with_shots` call."

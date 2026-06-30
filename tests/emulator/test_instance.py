@@ -482,14 +482,14 @@ def test_run_per_shot_runs_len_shots() -> None:
 def test_run_per_shot_rejects_shot_offset() -> None:
     instance, _ = _arg_instance()
     instance = instance.with_shot_offset(5)
-    with pytest.raises(EntrypointArgValueError, match="shot offset"):
+    with pytest.raises(ValueError, match="shot offset"):
         instance.run_per_shot([{"theta": 1.0}])
 
 
 def test_run_per_shot_rejects_conflicting_with_shots() -> None:
     instance, _ = _arg_instance()
     instance = instance.with_shots(5)
-    with pytest.raises(EntrypointArgValueError, match="with_shots"):
+    with pytest.raises(ValueError, match="with_shots"):
         instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
 
 
@@ -498,7 +498,7 @@ def test_run_per_shot_rejects_explicit_with_shots_one() -> None:
     # still conflicts with a multi-record call.
     instance, _ = _arg_instance()
     instance = instance.with_shots(1)
-    with pytest.raises(EntrypointArgValueError, match="with_shots"):
+    with pytest.raises(ValueError, match="with_shots"):
         instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
 
 
