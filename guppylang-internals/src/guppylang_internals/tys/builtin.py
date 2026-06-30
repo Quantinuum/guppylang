@@ -9,7 +9,11 @@ import hugr.std.collections.list
 from hugr import tys as ht
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.errors.type_errors import DoesntImplementProtocol
+from guppylang_internals.checker.errors.type_errors import (
+    DoesntImplementProtocol,
+    FunctionPointerNotModifiableHint,
+    UnitaryFlagMismatchHint,
+)
 from guppylang_internals.definition.common import CompiledDef, DefId
 from guppylang_internals.definition.protocol import CheckedProtocolDef
 from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
@@ -50,31 +54,14 @@ class FunctionTypeDef(TypeDef, CompiledDef):
     Any impls on functions can be registered with this definition.
     """
 
-    name: Literal[
-        "Function",
-        "Unitary",
-        "Daggerable",
-        "Controllable",
-    ] = field(default="Function", kw_only=True)
-    flags: UnitaryFlags = UnitaryFlags.NoFlags
-
-    def __init__(
-        self,
-        id: DefId,
-        defined_at: ast.AST | None,
-        params: Sequence[Parameter] | None,
-        *,
-        flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    ) -> None:
-        super().__init__(id, flags.callable_name(), defined_at, params)
-        object.__setattr__(self, "flags", flags)
+    name: Literal["Function"] = field(default="Function", init=False)
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
     ) -> FunctionType:
         # Function types are constructed using special logic in the type parser
         raise InternalGuppyError(
-            "Tried to construct `{self.name}` type via `check_instantiate`"
+            "Tried to construct `Function` type via `check_instantiate`"
         )
 
 
@@ -238,6 +225,9 @@ class CallableProtocolInst(ProtocolInst):
             ConcreteImplProof,
         )
 
+        if isinstance(ty, FunctionDefType):
+            ty = ty.sig
+
         if isinstance(ty, FunctionType | FunctionDefType):
             assert not ty.parametrized
             sig = ty if isinstance(ty, FunctionType) else ty.sig
@@ -259,6 +249,95 @@ class CallableProtocolInst(ProtocolInst):
     def __str__(self) -> str:
         inputs = ", ".join(str(inp.ty) for inp in self.sig.inputs)
         return f"Callable[[{inputs}], {self.sig.output}]"
+
+
+@dataclass(frozen=True)
+class ModifiableFunctionProtocolDef(CheckedProtocolDef):
+    """Protocol definition associated with the builtin `Unitary`, `Controllable`, and
+    Daggerable` protocols.
+    """
+
+    name: str
+    flags: UnitaryFlags
+
+    def __init__(
+        self,
+        id: DefId,
+        flags: UnitaryFlags,
+        defined_at: ast.ClassDef | None,
+    ) -> None:
+        super().__init__(
+            id, flags.callable_name(), defined_at, params=(), member_defs={}
+        )
+        object.__setattr__(self, "flags", flags)
+
+    def check_instantiate(
+        self, args: Sequence[Argument], loc: AstNode | None = None
+    ) -> ProtocolInst:
+        # Modifiable function instances are constructed using special logic in the type
+        # parser
+        raise InternalGuppyError(
+            f"Tried to build `{self.name}` type via `check_instantiate`"
+        )
+
+
+@dataclass(frozen=True, init=False)
+class ModifiableFunctionProtocolInst(ProtocolInst):
+    """Protocol instance associated with the builtin `Unitary`, `Controllable`, and
+    `Daggerable` protocols.
+    """
+
+    sig: FunctionType = field(hash=False)
+
+    def __init__(self, sig: FunctionType):
+        assert not sig.parametrized
+        type_args = (*(inp.ty.to_arg() for inp in sig.inputs), sig.output.to_arg())
+        super().__init__(type_args, callable_protocol_def.id)
+        object.__setattr__(self, "sig", sig)
+
+    def transform(self, transformer: Transformer) -> "ModifiableFunctionProtocolInst":
+        sig = self.sig.transform(transformer)
+        assert isinstance(sig, FunctionType)
+        return ModifiableFunctionProtocolInst(sig)
+
+    def check_implemented_by(
+        self, ty: "Type", loc: ToSpan | None
+    ) -> "tuple[ImplProof, Subst]":
+        from guppylang_internals.checker.protocol_checker import (
+            AssumptionImplProof,
+            ConcreteImplProof,
+        )
+
+        err = DoesntImplementProtocol(loc, str(ty), str(self))
+        if isinstance(ty, FunctionDefType):
+            assert not ty.sig.parametrized
+            subst = unify(self.sig, ty.sig, {})
+            if subst is None:
+                raise GuppyError(err)
+            if self.sig.unitary_flags not in ty.sig.unitary_flags:
+                hint = UnitaryFlagMismatchHint(
+                    None, self.sig.unitary_flags, ty.sig.unitary_flags, ty.defn.name
+                )
+                err.add_sub_diagnostic(hint)
+                raise GuppyError(err)
+            return ConcreteImplProof(self.transform(Substituter(subst)), ty, {}), subst
+
+        elif isinstance(ty, BoundTypeVar):
+            for protocol in ty.implements:
+                if isinstance(protocol, CallableProtocolInst):
+                    subst = unify(self.sig, protocol.sig, {})
+                    if subst is not None:
+                        return AssumptionImplProof(self, ty), subst
+
+        elif isinstance(ty, FunctionType):
+            err.add_sub_diagnostic(FunctionPointerNotModifiableHint(None))
+
+        raise GuppyError(err)
+
+    def __str__(self) -> str:
+        inputs = ", ".join(str(inp.ty) for inp in self.sig.inputs)
+        name = self.sig.unitary_flags.callable_name()
+        return f"{name}[[{inputs}], {self.sig.output}]"
 
 
 def _list_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
@@ -306,23 +385,14 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 function_type_def = FunctionTypeDef(DefId.fresh(), None, None)
 function_def_type_def = FunctionTypeDef(DefId.fresh(), None, None)
-unitary_type_def = FunctionTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    flags=UnitaryFlags.Unitary,
+unitary_protocol_def = ModifiableFunctionProtocolDef(
+    DefId.fresh(), UnitaryFlags.Unitary, None
 )
-daggerable_type_def = FunctionTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    flags=UnitaryFlags.Dagger,
+daggerable_protocol_def = ModifiableFunctionProtocolDef(
+    DefId.fresh(), UnitaryFlags.Dagger, None
 )
-controllable_type_def = FunctionTypeDef(
-    DefId.fresh(),
-    None,
-    None,
-    flags=UnitaryFlags.Control,
+controllable_protocol_def = ModifiableFunctionProtocolDef(
+    DefId.fresh(), UnitaryFlags.Control, None
 )
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
 tuple_type_def = _TupleTypeDef(DefId.fresh(), None, None)

@@ -61,6 +61,32 @@ class UnitaryFlagMismatchError(Error):
 
 
 @dataclass(frozen=True)
+class UnitaryFlagMismatchHint(Note):
+    expected: UnitaryFlags
+    actual: UnitaryFlags
+    name: str
+
+    @property
+    def rendered_message(self) -> str:
+        from guppylang_internals.tys.ty import UnitaryFlags
+
+        if self.actual == UnitaryFlags.NoFlags:
+            return (
+                f"Function `{self.name}` is not declared as "
+                f"`{self.expected.hint_rendering()}`"
+            )
+        return (
+            f"Function `{self.name}` is only declared as "
+            f"`{self.actual.hint_rendering()}`"
+        )
+
+
+@dataclass(frozen=True)
+class FunctionPointerNotModifiableHint(Note):
+    message: ClassVar[str] = "Only statically known functions can be modified"
+
+
+@dataclass(frozen=True)
 class ConstMismatchError(Error):
     title: ClassVar[str] = "Value mismatch"
     span_label: ClassVar[str] = "Expected constant `{expected}`, got `{actual}`"
