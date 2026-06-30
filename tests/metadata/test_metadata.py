@@ -78,7 +78,7 @@ def test_add_metadata_metadata_already_set():
         add_metadata(node_metadata, additional_metadata={"preset-key": "preset-value"})
 
 
-def test_add_metadata_property_max_qubits():
+def test_add_metadata_property_expected_qubits():
     node_metadata = NodeMetadata({})
 
     guppy_metadata = FunctionMetadata()
