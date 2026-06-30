@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
@@ -92,9 +93,12 @@ def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package
     if not passes:
         return package
 
-    for pass_ in passes:
-        for module in package.modules:
-            pass_.run(module, inplace=True)
+    # Compose the passes to trigger any cross-pass optimizations that may be possible.
+    composed = functools.reduce(lambda x, y: x.then(y), passes)
+
+    for module in package.modules:
+        composed.run(module, inplace=True)
+
     return package
 
 
