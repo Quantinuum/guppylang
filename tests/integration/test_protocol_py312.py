@@ -389,3 +389,37 @@ def test_params(validate):
         return hoo(Goo(), 42, "", -1)
 
     validate(main.compile())
+
+
+def test_clash(validate):
+    @guppy.protocol
+    class FooNat:
+        @guppy.require
+        def foo(self, n: nat) -> nat: ...
+
+    @guppy.protocol
+    class FooInt:
+        @guppy.require
+        def foo(self, n: int) -> int: ...
+
+    @guppy.struct(frozen=True)
+    class Foo:
+        @guppy
+        def foo[T: (Copy, Drop)](self, n: T) -> T:
+            return n
+
+    @guppy
+    def bar_nat[T: (FooNat, FooInt)](t: T, n: nat) -> nat:
+        return t.foo(n)
+
+    @guppy
+    def bar_int[T: (FooNat, FooInt)](t: T, n: int) -> int:
+        return t.foo(n)
+
+    @guppy
+    def main() -> None:
+        bar_nat(Foo(), 42)
+        bar_int(Foo(), 42)
+        return
+
+    validate(main.compile())

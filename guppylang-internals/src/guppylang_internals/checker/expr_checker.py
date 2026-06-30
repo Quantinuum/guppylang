@@ -184,6 +184,8 @@ from guppylang_internals.tys.var import ExistentialVar
 
 if TYPE_CHECKING:
     from guppylang_internals.diagnostic import SubDiagnostic
+    from guppylang_internals.tys.protocol import ProtocolInst
+
 
 # Mapping from unary AST op to dunder method and display name
 unary_table: dict[type[ast.unaryop], tuple[str, str]] = {
@@ -379,7 +381,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
 
-            from guppylang_internals.definition.protocol import ParsedProtocolDef
+            from guppylang_internals.definition.protocol import (
+                ParsedProtocolDef,
+            )
 
             # Protocol methods don't have their own definition, we have to look up the
             # protocol definition itself first.
@@ -691,25 +695,41 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         elif isinstance(ty, BoundTypeVar):
             from guppylang_internals.definition.protocol import CheckedProtocolDef
 
+            # Protocols implemented by `ty` that have the method we want.
+            valid_proto_impls: list[ProtocolInst] = []
             for proto in ty.implements:
                 proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
                 assert isinstance(proto_def, CheckedProtocolDef)
-                for member_name, member_id in proto_def.member_defs.items():
-                    member_ty = proto_def.member_sig(member_name)
-                    if node.attr == member_name:
-                        name_node = with_type(
-                            member_ty,
-                            with_loc(
-                                node,
-                                GlobalName(id=member_name, def_id=member_id),
+                if node.attr in proto_def.member_defs:
+                    valid_proto_impls.append(proto)
+            match valid_proto_impls:
+                case []:
+                    raise GuppyError(AttributeNotFoundError(node, ty, node.attr))
+                case [proto_impl]:
+                    proto_def = ENGINE.get_checked(
+                        proto_impl.def_id, proto_impl.type_args
+                    )
+                    assert isinstance(proto_def, CheckedProtocolDef)
+                    member_ty = proto_def.member_sig(node.attr)
+
+                    name_node = with_type(
+                        member_ty,
+                        with_loc(
+                            node,
+                            GlobalName(
+                                id=node.attr, def_id=proto_def.member_defs[node.attr]
                             ),
-                        )
-                        ty_without_self = FunctionType(
-                            member_ty.inputs[1:], member_ty.output, member_ty.params
-                        )
-                        return with_loc(
-                            node, PartialApply(func=name_node, args=[node.value])
-                        ), ty_without_self
+                        ),
+                    )
+                    ty_without_self = FunctionType(
+                        member_ty.inputs[1:], member_ty.output, member_ty.params
+                    )
+                    return with_loc(
+                        node, PartialApply(func=name_node, args=[node.value])
+                    ), ty_without_self
+                case _:
+                    raise RequiresMonomorphizationError
+
         elif isinstance(ty, EnumType):
             if node.attr in ty.variants_as_dict:
                 # If we are accessing to a variant, we need to check that node.value is

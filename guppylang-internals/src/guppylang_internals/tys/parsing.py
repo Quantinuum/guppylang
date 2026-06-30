@@ -536,7 +536,8 @@ if sys.version_info >= (3, 12):
             proto_defn = try_parse_defn(bound, ctx)
 
         if isinstance(proto_defn, ParsedProtocolDef):
-            inst = proto_defn.check_instantiate(proto_args, bound)
+            checked_defn = proto_defn.check(globals)
+            inst = checked_defn.check_instantiate(proto_args, bound)
             return inst
         return None
 
