@@ -15,10 +15,7 @@ def test_pcg32_compile(validate) -> None:
         second = rng.next_int()
         return first, second
 
-    # Current tket NormalizeGuppy function inlining over-expands this HUGR and
-    # panics in portgraph; keep validating the HUGR locally, but do not export it
-    # for tket normalization in CI.
-    validate(main.compile_function(), export=False)
+    validate(main.compile_function())
 
 
 def test_pcg32_sequence_seed_1(run_int_fn) -> None:

@@ -62,10 +62,7 @@ def test_assignment_in_dagger(validate):
         discard(q)
         discard(c)
 
-    # Current tket NormalizeGuppy modifier resolution cannot rewrite this shape
-    # yet; keep validating the HUGR locally, but do not export it for tket
-    # normalization in CI.
-    validate(main.compile_function(), export=False)
+    validate(main.compile_function())
 
 
 def test_control_simple(validate):
