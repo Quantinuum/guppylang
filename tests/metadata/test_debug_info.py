@@ -59,7 +59,8 @@ def test_subprogram():
         pytket_bar_stub(q)
         discard(q)
 
-    hugr = foo.compile().modules[0]
+    # Avoid inlining the called functions so we can check their debug info.
+    hugr = foo.with_minimal_opt().compile().modules[0]
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
     debug_info = DICompileUnit.from_json(meta[HugrDebugInfo.KEY])

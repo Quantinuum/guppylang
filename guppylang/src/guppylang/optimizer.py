@@ -64,9 +64,7 @@ class OptimizationLevel(Enum):
                         remove_dead_funcs=True,
                         remove_redundant_order_edges=True,
                         squash_borrows=True,
-                        # Multiple tests assume no function inlining.
-                        # They must be updated before this can be enabled.
-                        inline_funcs=False,
+                        inline_funcs=True,
                         # Tket reports invalid constructed HUGRs
                         # / "cannot modify indirect call" errors.
                         resolve_modifiers=False,

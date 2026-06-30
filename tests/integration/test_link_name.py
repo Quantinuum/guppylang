@@ -89,7 +89,7 @@ def test_struct_member_link_name_annotated(qualifier):
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names_excluding_main(main.compile(), qualifier) == {
+    assert _func_names_excluding_main(main.with_minimal_opt().compile(), qualifier) == {
         "totally_qualified_override_name",
         "superbly_qualified_override_name",
     }
@@ -114,7 +114,7 @@ def test_struct_member_link_name_inferred(qualifier):
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names_excluding_main(main.compile(), qualifier) == {
+    assert _func_names_excluding_main(main.with_minimal_opt().compile(), qualifier) == {
         f"{qualifier}.<locals>.MySuperbStruct.some_name_that_is_crazy",
         f"{qualifier}.<locals>.MySuperbStruct.some_other_name_that_is_crazy",
     }
@@ -143,7 +143,7 @@ def test_struct_member_link_name_supported(qualifier):
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names_excluding_main(main.compile(), qualifier) == {
+    assert _func_names_excluding_main(main.with_minimal_opt().compile(), qualifier) == {
         "my.superb.qualifier.some_name_that_is_crazy",
         "the.override.still.works",
     }
@@ -172,7 +172,7 @@ def test_enum_member_link_name_annotated(qualifier):
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names_excluding_main(main.compile(), qualifier) == {
+    assert _func_names_excluding_main(main.with_minimal_opt().compile(), qualifier) == {
         "totally_qualified_override_name",
         "superbly_qualified_override_name",
     }
@@ -199,7 +199,7 @@ def test_enum_member_link_name_inferred(qualifier):
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names_excluding_main(main.compile(), qualifier) == {
+    assert _func_names_excluding_main(main.with_minimal_opt().compile(), qualifier) == {
         f"{qualifier}.<locals>.MySuperbEnum.some_name_that_is_crazy",
         f"{qualifier}.<locals>.MySuperbEnum.some_other_name_that_is_crazy",
     }
@@ -230,7 +230,7 @@ def test_enum_member_link_name_supported(qualifier):
         a.some_name_that_is_crazy()
         a.some_other_name_that_is_crazy()
 
-    assert _func_names_excluding_main(main.compile(), qualifier) == {
+    assert _func_names_excluding_main(main.with_minimal_opt().compile(), qualifier) == {
         "my.superb.qualifier.some_name_that_is_crazy",
         "the.override.still.works",
     }
@@ -282,7 +282,7 @@ def test_file_level_members(qualifier):
         file_level_decl()
         file_level_defn()
 
-    assert _func_names_excluding_main(main.compile(), qualifier) == {
+    assert _func_names_excluding_main(main.with_minimal_opt().compile(), qualifier) == {
         "tests.integration.test_link_name.file_level_defn",
         "tests.integration.test_link_name.file_level_decl",
         "tests.integration.test_link_name.FileLevelStruct.crazy_name_defn",
