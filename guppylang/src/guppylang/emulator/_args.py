@@ -174,7 +174,7 @@ def _value_error(ty: Type, value: object) -> str | None:
     return f"unsupported argument type `{ty}`"
 
 
-def _validate_record(
+def validate_record(
     specs: Sequence[EntrypointArgSpec],
     record: Mapping[str, object],
     *,
@@ -207,7 +207,7 @@ def _validate_record(
             )
 
 
-def _validate_per_shot_args(
+def validate_per_shot_args(
     specs: Sequence[EntrypointArgSpec],
     per_shot: Sequence[Mapping[str, object]],
 ) -> None:
@@ -217,7 +217,7 @@ def _validate_per_shot_args(
             "`run_per_shot` requires at least one shot's arguments."
         )
     for shot, record in enumerate(per_shot):
-        _validate_record(specs, record, shot=shot)
+        validate_record(specs, record, shot=shot)
 
 
 def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> None:

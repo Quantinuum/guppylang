@@ -10,9 +10,9 @@ from guppylang.emulator._args import (
     EntrypointArgSpec,
     EntrypointArgValueError,
     _is_supported_arg_type,
-    _validate_per_shot_args,
-    _validate_record,
     unsupported_arg_reason,
+    validate_per_shot_args,
+    validate_record,
     wrap_entrypoint_with_args,
 )
 from guppylang.std.builtins import array, result
@@ -76,47 +76,47 @@ def _specs() -> tuple[EntrypointArgSpec, ...]:
 
 
 def test_validate_record_ok() -> None:
-    _validate_record(_specs(), {"theta": 1.5, "k": 3, "flag": True})
+    validate_record(_specs(), {"theta": 1.5, "k": 3, "flag": True})
     # ints are accepted for floats
-    _validate_record(_specs(), {"theta": 2, "k": 3, "flag": False})
+    validate_record(_specs(), {"theta": 2, "k": 3, "flag": False})
 
 
 def test_validate_record_missing() -> None:
     with pytest.raises(EntrypointArgValueError, match=r"Missing.*`flag`"):
-        _validate_record(_specs(), {"theta": 1.5, "k": 3})
+        validate_record(_specs(), {"theta": 1.5, "k": 3})
 
 
 def test_validate_record_extra() -> None:
     with pytest.raises(EntrypointArgValueError, match=r"Unexpected.*`extra`"):
-        _validate_record(_specs(), {"theta": 1.5, "k": 3, "flag": True, "extra": 1})
+        validate_record(_specs(), {"theta": 1.5, "k": 3, "flag": True, "extra": 1})
 
 
 def test_validate_record_wrong_type() -> None:
     with pytest.raises(EntrypointArgValueError, match=r"`k`.*expected an `int`"):
-        _validate_record(_specs(), {"theta": 1.5, "k": "x", "flag": True})
+        validate_record(_specs(), {"theta": 1.5, "k": "x", "flag": True})
 
 
 def test_validate_record_bool_not_int() -> None:
     with pytest.raises(EntrypointArgValueError, match="got a `bool`"):
-        _validate_record(_specs(), {"theta": 1.5, "k": True, "flag": True})
+        validate_record(_specs(), {"theta": 1.5, "k": True, "flag": True})
 
 
 def test_validate_array_args() -> None:
     specs = (EntrypointArgSpec("xs", array_type(int_type(), 3)),)
-    _validate_record(specs, {"xs": [1, 2, 3]})
+    validate_record(specs, {"xs": [1, 2, 3]})
 
     with pytest.raises(EntrypointArgValueError, match="length 3, got 2"):
-        _validate_record(specs, {"xs": [1, 2]})
+        validate_record(specs, {"xs": [1, 2]})
 
     with pytest.raises(EntrypointArgValueError, match="length 3, got 0"):
-        _validate_record(specs, {"xs": []})
+        validate_record(specs, {"xs": []})
 
     with pytest.raises(EntrypointArgValueError, match="array element"):
-        _validate_record(specs, {"xs": [1, "x", 3]})
+        validate_record(specs, {"xs": [1, "x", 3]})
 
 
-def test__validate_per_shot_args_ok() -> None:
-    _validate_per_shot_args(
+def test_validate_per_shot_args_ok() -> None:
+    validate_per_shot_args(
         _specs(),
         [
             {"theta": 1.0, "k": 1, "flag": True},
@@ -125,14 +125,14 @@ def test__validate_per_shot_args_ok() -> None:
     )
 
 
-def test__validate_per_shot_args_empty() -> None:
+def test_validate_per_shot_args_empty() -> None:
     with pytest.raises(EntrypointArgValueError, match="at least one"):
-        _validate_per_shot_args(_specs(), [])
+        validate_per_shot_args(_specs(), [])
 
 
-def test__validate_per_shot_args_reports_shot() -> None:
+def test_validate_per_shot_args_reports_shot() -> None:
     with pytest.raises(EntrypointArgValueError, match="for shot 1"):
-        _validate_per_shot_args(
+        validate_per_shot_args(
             _specs(),
             [
                 {"theta": 1.0, "k": 1, "flag": True},

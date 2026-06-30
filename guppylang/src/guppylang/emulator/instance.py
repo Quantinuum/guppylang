@@ -20,8 +20,8 @@ from typing_extensions import Self
 from ._args import (
     ArgValue,
     EntrypointArgValueError,
-    _validate_per_shot_args,
-    _validate_record,
+    validate_per_shot_args,
+    validate_record,
 )
 from .exceptions import EmulatorError
 from .result import EmulatorResult
@@ -263,7 +263,7 @@ class EmulatorInstance:
                 )
             return self._collect_results(self._run_instance())
 
-        _validate_record(self._arg_specs, args)
+        validate_record(self._arg_specs, args)
         provider = ArgProvider()
         provider.set_constant_args(**_to_provider_args(args))
         with provider:
@@ -291,7 +291,7 @@ class EmulatorInstance:
                 "This entrypoint takes no runtime arguments; `run_per_shot` is not "
                 "applicable."
             )
-        _validate_per_shot_args(self._arg_specs, args)
+        validate_per_shot_args(self._arg_specs, args)
         if self.shot_offset != 0:
             raise ValueError(
                 "`run_per_shot` is not compatible with a non-zero shot offset "
