@@ -514,5 +514,5 @@ class DontUseProtocolSugar(Error):
 @dataclass(frozen=True)
 class DontReturnProtocol(Error):
     title: ClassVar[str] = "Protocols are not allowed as return types"
-    span_label: ClassVar[str] = "Protocol `{proto}` as return type"
+    span_label: ClassVar[str] = "`{proto}` is a protocol, which is not allowed as a return type"
     proto: str
