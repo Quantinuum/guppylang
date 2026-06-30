@@ -277,8 +277,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         """
 
         pack = self.compile_function()
-        result = self._compiled_entrypoint_with_inputs()
-        if result is not None:
+        if (result := self._compiled_entrypoint_with_inputs()) is not None:
             compiled_def, defined_at = result
             start = to_span(defined_at.args.args[0])
             end = to_span(defined_at.args.args[-1])
