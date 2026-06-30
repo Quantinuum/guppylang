@@ -9,4 +9,7 @@ Help: Experimental features are currently disabled. You can enable them by
 calling `guppylang.enable_experimental_features()`, however note that these
 features are unstable and might break in the future.
 
+Help: Native Python lists are not supported here. Use `array` from
+`guppylang.std.quantum` instead.
+
 Guppy compilation failed due to 1 previous error
