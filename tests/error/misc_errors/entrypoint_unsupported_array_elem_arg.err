@@ -3,8 +3,8 @@ Error: Unsupported entrypoint argument type (at $FILE:7:8)
 5 | 
 6 | @guppy
 7 | def foo(x: array[nat, 3]) -> None:
-  |         ^^^^^^^^^^^^^^^^ Arrays of `nat` are not supported as entrypoint arguments.
-  |                          Supported element types are `bool`, `int`, `float`, and
-  |                          arrays of those.
+  |         ^^^^^^^^^^^^^^^^ Arrays of unsigned `nat` are not supported as entrypoint
+  |                          arguments. Use a signed `int` element and convert in your
+  |                          program if needed.
 
 Guppy compilation failed due to 1 previous error

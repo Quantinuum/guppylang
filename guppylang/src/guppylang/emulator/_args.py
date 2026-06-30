@@ -115,6 +115,11 @@ def unsupported_arg_reason(ty: Type) -> str | None:
         elem = get_element_type(ty)
         if is_array_type(elem):
             return "Nested arrays are not supported as entrypoint arguments."
+        if isinstance(elem, NumericType) and elem.kind is NumericType.Kind.Nat:
+            return (
+                "Arrays of unsigned `nat` are not supported as entrypoint arguments. "
+                "Use a signed `int` element and convert in your program if needed."
+            )
         return (
             f"Arrays of `{elem}` are not supported as entrypoint arguments. "
             f"Supported element types are {SUPPORTED_ARG_TYPES_MSG}."
