@@ -150,7 +150,7 @@ def test_call_location():
     assert len(calls) == 4
     # TODO: Use relative numbers, so things don't break each time we modify this .py
     # See <https://github.com/Quantinuum/guppylang/issues/1964>
-    expected_info = [(140, 8), (141, 8), (27, 0), (143, 8)]
+    expected_info = [(141, 8), (142, 8), (27, 0), (144, 8)]
     for i, call in enumerate(calls):
         call_metadata = hugr[call].metadata
         assert HugrDebugInfo in call_metadata
@@ -204,7 +204,7 @@ def test_ext_op_location():
 
     # TODO: These line numbers are unstable under edits to this test file.
     # See <https://github.com/Quantinuum/guppylang/issues/1964>
-    assert 167 in found_annotated_tuples
+    assert 168 in found_annotated_tuples
 
 
 def test_turn_off_debug_mode():
