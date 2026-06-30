@@ -6,7 +6,6 @@ from guppylang.library import link_name
 from guppylang.library import GuppyLibrary
 from guppylang.emulator import EmulatorBuilder
 from guppylang.std.platform import output
-from guppylang.std.lang import comptime
 
 from hugr._hugr.linking import HugrLinkingError
 
@@ -15,7 +14,7 @@ def gen_adder_library(*, name: str, value: int) -> GuppyLibrary:
     @guppy
     @link_name(name)
     def func(x: int) -> int:
-        return x + comptime(value)
+        return x + value
 
     return GuppyLibrary.from_members(func)
 

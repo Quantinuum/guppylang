@@ -7,9 +7,11 @@ from guppylang_internals.tys.ty import FunctionType
 
 
 @dataclass(frozen=True)
-class IllegalComptimeExpressionError(Error):
-    title: ClassVar[str] = "Unsupported Python expression"
-    span_label: ClassVar[str] = "Expression of type `{python_ty}` is not supported"
+class UnsupportedPythonValueError(Error):
+    title: ClassVar[str] = "Unsupported Python value"
+    span_label: ClassVar[str] = (
+        "Python value of type `{python_ty}` cannot be used in Guppy"
+    )
     python_ty: type
 
     @dataclass(frozen=True)
