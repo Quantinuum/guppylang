@@ -15,12 +15,12 @@ def test_add_metadata():
     node_metadata = NodeMetadata({"some-key": "some-value"})
 
     guppy_metadata = FunctionMetadata()
-    guppy_metadata.set_max_qubits(5)
+    guppy_metadata.set_expected_qubits(5)
     add_metadata(node_metadata, guppy_metadata)
 
     assert node_metadata.as_dict() == {
         "some-key": "some-value",
-        "tket.hint.max_qubits": 5,
+        "tket.hint.expected_qubits": 5,
     }
 
 
@@ -42,27 +42,29 @@ def test_add_metadata_no_reserved_metadata():
         GuppyError,
         check=lambda e: (
             isinstance(e.error, ReservedMetadataKeysError)
-            and e.error.keys == {"tket.hint.max_qubits"}
+            and e.error.keys == {"tket.hint.expected_qubits"}
         ),
     ):
-        add_metadata(node_metadata, additional_metadata={"tket.hint.max_qubits": 3})
+        add_metadata(
+            node_metadata, additional_metadata={"tket.hint.expected_qubits": 3}
+        )
 
 
 def test_add_metadata_metadata_already_set():
     node_metadata = NodeMetadata(
         {
-            "tket.hint.max_qubits": 1,
+            "tket.hint.expected_qubits": 1,
             "preset-key": "preset-value",
         }
     )
 
     guppy_metadata = FunctionMetadata()
-    guppy_metadata.set_max_qubits(5)
+    guppy_metadata.set_expected_qubits(5)
     with pytest.raises(
         GuppyError,
         check=lambda e: (
             isinstance(e.error, MetadataAlreadySetError)
-            and e.error.key == "tket.hint.max_qubits"
+            and e.error.key == "tket.hint.expected_qubits"
         ),
     ):
         add_metadata(node_metadata, guppy_metadata)
@@ -76,11 +78,11 @@ def test_add_metadata_metadata_already_set():
         add_metadata(node_metadata, additional_metadata={"preset-key": "preset-value"})
 
 
-def test_add_metadata_property_max_qubits():
+def test_add_metadata_property_expected_qubits():
     node_metadata = NodeMetadata({})
 
     guppy_metadata = FunctionMetadata()
-    guppy_metadata.set_max_qubits(5)
+    guppy_metadata.set_expected_qubits(5)
     add_metadata(node_metadata, guppy_metadata)
 
-    assert node_metadata.as_dict() == {"tket.hint.max_qubits": 5}
+    assert node_metadata.as_dict() == {"tket.hint.expected_qubits": 5}
