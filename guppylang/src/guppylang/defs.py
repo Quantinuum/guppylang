@@ -148,8 +148,11 @@ class GuppyCompilableProgram(Protocol):
         ...
 
     def compile(self) -> Package:
-        """Compile an execution entrypoint to a HUGR package."""
-        ...
+        """Compile an execution entrypoint to a HUGR package.
+
+        Alias for :py:meth:`compile_entrypoint`.
+        """
+        return self.compile_entrypoint()
 
     def compile_entrypoint(self) -> Package:
         """Compile an execution entrypoint to a HUGR package."""

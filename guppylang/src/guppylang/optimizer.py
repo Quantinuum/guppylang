@@ -128,7 +128,10 @@ class OptimizerInstance(Generic[P, Out]):
         )
 
     def compile(self) -> Package:
-        """Compile an execution entrypoint with the configured optimizations."""
+        """Compile an execution entrypoint with the configured optimizations.
+
+        Alias for :py:meth:`compile_entrypoint`.
+        """
         return self.compile_entrypoint()
 
     def compile_entrypoint(self) -> Package:
