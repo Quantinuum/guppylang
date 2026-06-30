@@ -509,3 +509,12 @@ class DontUseProtocolSugar(Error):
         " adding a parameter to the struct definition, with `{proto}` as a bound."
     )
     proto: str
+
+
+@dataclass(frozen=True)
+class DontReturnProtocol(Error):
+    title: ClassVar[str] = "Protocols are not allowed as return types"
+    span_label: ClassVar[str] = (
+        "`{proto}` is a protocol, which is not allowed as a return type"
+    )
+    proto: str

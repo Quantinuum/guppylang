@@ -368,7 +368,7 @@ def check_signature(
                 raise GuppyError(MissingArgAnnotationError(inp))
             input = parse_function_arg_annotation(ty_ast, inp.arg, ctx)
         inputs.append(input)
-    output = type_from_ast(func_def.returns, ctx)
+    output = type_from_ast(func_def.returns, replace(ctx, is_output=True))
     return FunctionType(
         inputs,
         output,
