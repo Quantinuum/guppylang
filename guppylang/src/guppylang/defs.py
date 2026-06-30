@@ -151,15 +151,33 @@ class GuppyCompilableProgram(Protocol):
         """Compile an execution entrypoint to a HUGR package.
 
         Alias for :py:meth:`compile_entrypoint`.
+
+
+        Returns:
+            Package: The compiled package object.
+        Raises:
+            GuppyError: If the entrypoint has arguments.
         """
         return self.compile_entrypoint()
 
     def compile_entrypoint(self) -> Package:
-        """Compile an execution entrypoint to a HUGR package."""
+        """Compile an execution entrypoint to a HUGR package.
+
+        Returns:
+            Package: The compiled package object.
+        Raises:
+            GuppyError: If the entrypoint has arguments.
+        """
         ...
 
     def compile_function(self) -> Package:
-        """Compile the function definition to a HUGR package."""
+        """Compile the function definition to a HUGR package.
+
+        Returns:
+            Package: The compiled package object.
+        Raises:
+            GuppyError: If the function has arguments.
+        """
         ...
 
 
