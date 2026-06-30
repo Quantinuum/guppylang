@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import functools
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -10,26 +10,98 @@ from guppylang import guppy
 from guppylang.emulator import EmulatorResult
 from guppylang.std.builtins import array, result
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
-@functools.cache
-def _args_supported() -> bool:
-    """Probe whether the toolchain can build & run an entrypoint with arguments.
-
-    TODO: Remove this guard once published releases of tket_exts and the selene
-    compiler include the ``tket.argument`` extension.
-    """
-    try:
-        from selene_argreader_plugin import ArgProvider  # noqa: F401
-        from tket_exts.tket.argument import ArgumentExtension  # noqa: F401
-    except ImportError:
-        return False
-    return True
+    from guppylang.defs import GuppyFunctionDefinition
 
 
-pytestmark = pytest.mark.skipif(
-    not _args_supported(),
-    reason="toolchain does not support the tket.argument extension",
+def _bool_echo() -> GuppyFunctionDefinition[..., None]:
+    @guppy
+    def main(x: bool) -> None:
+        result("x", x)
+
+    return main
+
+
+def _int_echo() -> GuppyFunctionDefinition[..., None]:
+    @guppy
+    def main(x: int) -> None:
+        result("x", x)
+
+    return main
+
+
+def _float_echo() -> GuppyFunctionDefinition[..., None]:
+    @guppy
+    def main(x: float) -> None:
+        result("x", x)
+
+    return main
+
+
+def _bool_array_echo() -> GuppyFunctionDefinition[..., None]:
+    @guppy
+    def main(xs: array[bool, 3]) -> None:
+        result("e0", xs[0])
+        result("e1", xs[1])
+        result("e2", xs[2])
+
+    return main
+
+
+def _int_array_echo() -> GuppyFunctionDefinition[..., None]:
+    @guppy
+    def main(xs: array[int, 3]) -> None:
+        result("e0", xs[0])
+        result("e1", xs[1])
+        result("e2", xs[2])
+
+    return main
+
+
+def _float_array_echo() -> GuppyFunctionDefinition[..., None]:
+    @guppy
+    def main(xs: array[float, 3]) -> None:
+        result("e0", xs[0])
+        result("e1", xs[1])
+        result("e2", xs[2])
+
+    return main
+
+
+@pytest.mark.parametrize(
+    ("make_main", "value"),
+    [
+        pytest.param(_bool_echo, True, id="bool"),
+        pytest.param(_int_echo, 7, id="int"),
+        pytest.param(_float_echo, 1.5, id="float"),
+    ],
 )
+def test_scalar_arg_roundtrip(
+    make_main: Callable[[], GuppyFunctionDefinition[..., None]],
+    value: float,
+) -> None:
+    main = make_main()
+    res = main.emulator(n_qubits=1).run(x=value)
+    assert res == EmulatorResult([[("x", value)]])
+
+
+@pytest.mark.parametrize(
+    ("make_main", "values"),
+    [
+        pytest.param(_bool_array_echo, [True, False, True], id="array_bool"),
+        pytest.param(_int_array_echo, [1, 2, 3], id="array_int"),
+        pytest.param(_float_array_echo, [1.0, 2.0, 3.0], id="array_float"),
+    ],
+)
+def test_array_arg_roundtrip(
+    make_main: Callable[[], GuppyFunctionDefinition[..., None]],
+    values: list[int] | list[float] | list[bool],
+) -> None:
+    main = make_main()
+    res = main.emulator(n_qubits=1).run(xs=values)
+    assert res == EmulatorResult([[(f"e{i}", v) for i, v in enumerate(values)]])
 
 
 def test_constant_args() -> None:
@@ -68,27 +140,6 @@ def test_per_shot_args() -> None:
     assert res == EmulatorResult(
         [[("doubled", s["theta"] * 2.0), ("k1", s["k"] + 1)] for s in shot_inputs]
     )
-
-
-def test_array_arg() -> None:
-    @guppy
-    def main(xs: array[float, 3]) -> None:
-        result("first", xs[0])
-        result("third", xs[2])
-
-    py_xs = [1.0, 2.0, 3.0]
-    res = main.emulator(n_qubits=1).run(xs=py_xs)
-    assert res == EmulatorResult([[("first", py_xs[0]), ("third", py_xs[2])]])
-
-
-def test_bool_arg() -> None:
-    @guppy
-    def main(flag: bool) -> None:
-        result("flag", flag)
-
-    py_flag = True
-    res = main.emulator(n_qubits=1).run(flag=py_flag)
-    assert res == EmulatorResult([[("flag", py_flag)]])
 
 
 @pytest.mark.xfail(
