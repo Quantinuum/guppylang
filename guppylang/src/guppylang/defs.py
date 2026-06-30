@@ -27,6 +27,11 @@ from semver import Version
 
 import guppylang
 from guppylang.emulator import EmulatorBuilder, EmulatorInstance
+from guppylang.emulator._args import (
+    EntrypointArgSpec,
+    unsupported_arg_reason,
+    wrap_entrypoint_with_args,
+)
 from guppylang.emulator.builder import Platform
 from guppylang.emulator.exceptions import EmulatorBuildError
 
@@ -74,6 +79,13 @@ class EntrypointArgsError(Error):
     def input_names(self) -> str:
         """Returns a comma-separated list of input names."""
         return ", ".join(f"`{x}`" for x in self.args)
+
+
+@dataclass(frozen=True)
+class UnsupportedEntrypointArgError(Error):
+    title: ClassVar[str] = "Unsupported entrypoint argument type"
+    span_label: ClassVar[str] = "{reason}"
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -134,11 +146,10 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
-        Calls `compile()` to get the HUGR package and then builds it using the
-        provided `EmulatorBuilder` configuration or a default one.
+        Compiles the function to a HUGR package and builds it using the provided
+        `EmulatorBuilder` configuration or a default one.
 
         See :py:mod:`guppylang.emulator` for more details on the emulator.
-
 
         Args:
             n_qubits: The number of qubits to allocate for the function. If it is not
@@ -156,13 +167,20 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
-        mod = self.compile()
+        mod = self.compile_function()
 
         if libs is not None:
             mod = mod.link(*libs)
 
         if builder is None:
             builder = EmulatorBuilder().with_platform(platform)
+
+        if arg_specs := self._entrypoint_arg_specs():
+            from selene_argreader_plugin import ArgReaderPlugin
+
+            wrap_entrypoint_with_args(mod, [spec.name for spec in arg_specs])
+            builder = builder.link_utility(ArgReaderPlugin())
+
         qubits = n_qubits
         if (
             isinstance(self.wrapped, RawFunctionDef)
@@ -192,7 +210,48 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
                 )
             )
 
-        return builder.build(mod, n_qubits=qubits)
+        return builder.build(mod, n_qubits=qubits, arg_specs=arg_specs)
+
+    @pretty_errors
+    def _entrypoint_arg_specs(self) -> list[EntrypointArgSpec]:
+        """Validate and collect the runtime argument schema of the entrypoint.
+
+        Returns an empty list if the entrypoint takes no arguments. Raises a
+        `GuppyError` if any argument has an unsupported type.
+        """
+        result = self._compiled_entrypoint_with_inputs()
+        if result is None:
+            return []
+
+        compiled_def, defined_at = result
+        specs: list[EntrypointArgSpec] = []
+        for name, inp, ast_arg in zip(
+            compiled_def.ty.input_names or [],
+            compiled_def.ty.inputs,
+            defined_at.args.args,
+            strict=True,
+        ):
+            if (reason := unsupported_arg_reason(inp.ty)) is not None:
+                raise GuppyError(
+                    UnsupportedEntrypointArgError(span=to_span(ast_arg), reason=reason)
+                )
+            specs.append(EntrypointArgSpec(name=name, ty=inp.ty))
+        return specs
+
+    def _compiled_entrypoint_with_inputs(
+        self,
+    ) -> tuple[CompiledCallableDef, "ast.FunctionDef"] | None:
+        """Return the compiled entrypoint and its AST node if it has inputs, else
+        None.
+        """
+        # Entrypoints cannot be polymorphic; we always look up the monomorphized id.
+        compiled_def = ENGINE.compiled.get((self.id, ()))
+        if (
+            isinstance(compiled_def, CompiledCallableDef)
+            and len(compiled_def.ty.inputs) > 0
+        ):
+            return compiled_def, cast("ast.FunctionDef", compiled_def.defined_at)
+        return None
 
     def compile(self) -> Package:
         """
@@ -221,15 +280,8 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         """
 
         pack = self.compile_function()
-        # entrypoint cannot be polymorphic
-        monomorphized_id = (self.id, ())
-        compiled_def = ENGINE.compiled.get(monomorphized_id)
-        if (
-            isinstance(compiled_def, CompiledCallableDef)
-            and len(compiled_def.ty.inputs) > 0
-        ):
-            # Check if the entrypoint has arguments
-            defined_at = cast("ast.FunctionDef", compiled_def.defined_at)
+        if (result := self._compiled_entrypoint_with_inputs()) is not None:
+            compiled_def, defined_at = result
             start = to_span(defined_at.args.args[0])
             end = to_span(defined_at.args.args[-1])
             span = Span(start=start.start, end=end.end)
