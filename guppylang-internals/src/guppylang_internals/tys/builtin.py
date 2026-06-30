@@ -291,7 +291,7 @@ class ModifiableFunctionProtocolInst(ProtocolInst):
 
     def __init__(self, sig: FunctionType):
         assert not sig.parametrized
-        type_args = (*(TypeArg(inp.ty) for inp in sig.inputs), TypeArg(sig.output))
+        type_args = (*(inp.ty.to_arg() for inp in sig.inputs), sig.output.to_arg())
         super().__init__(type_args, callable_protocol_def.id)
         object.__setattr__(self, "sig", sig)
 
