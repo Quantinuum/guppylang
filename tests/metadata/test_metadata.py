@@ -1,6 +1,4 @@
-"""Unit tests for guppylang.emulator.builder module."""
-
-from unittest.mock import Mock
+"""Unit tests for metadata helpers."""
 
 import pytest
 from guppylang_internals.error import GuppyError
@@ -14,34 +12,31 @@ from hugr.metadata import NodeMetadata
 
 
 def test_add_metadata():
-    mock_hugr_node = Mock()
-    mock_hugr_node.metadata = NodeMetadata({"some-key": "some-value"})
+    node_metadata = NodeMetadata({"some-key": "some-value"})
 
     guppy_metadata = FunctionMetadata()
     guppy_metadata.set_max_qubits(5)
-    add_metadata(mock_hugr_node, guppy_metadata)
+    add_metadata(node_metadata, guppy_metadata)
 
-    assert mock_hugr_node.metadata.as_dict() == {
+    assert node_metadata.as_dict() == {
         "some-key": "some-value",
         "tket.hint.max_qubits": 5,
     }
 
 
 def test_add_additional_metadata():
-    mock_hugr_node = Mock()
-    mock_hugr_node.metadata = NodeMetadata({"some-key": "some-value"})
+    node_metadata = NodeMetadata({"some-key": "some-value"})
 
-    add_metadata(mock_hugr_node, additional_metadata={"more-key": "more-value"})
+    add_metadata(node_metadata, additional_metadata={"more-key": "more-value"})
 
-    assert mock_hugr_node.metadata.as_dict() == {
+    assert node_metadata.as_dict() == {
         "some-key": "some-value",
         "more-key": "more-value",
     }
 
 
 def test_add_metadata_no_reserved_metadata():
-    mock_hugr_node = Mock()
-    mock_hugr_node.metadata = NodeMetadata({})
+    node_metadata = NodeMetadata({})
 
     with pytest.raises(
         GuppyError,
@@ -50,12 +45,11 @@ def test_add_metadata_no_reserved_metadata():
             and e.error.keys == {"tket.hint.max_qubits"}
         ),
     ):
-        add_metadata(mock_hugr_node, additional_metadata={"tket.hint.max_qubits": 3})
+        add_metadata(node_metadata, additional_metadata={"tket.hint.max_qubits": 3})
 
 
 def test_add_metadata_metadata_already_set():
-    mock_hugr_node = Mock()
-    mock_hugr_node.metadata = NodeMetadata(
+    node_metadata = NodeMetadata(
         {
             "tket.hint.max_qubits": 1,
             "preset-key": "preset-value",
@@ -71,7 +65,7 @@ def test_add_metadata_metadata_already_set():
             and e.error.key == "tket.hint.max_qubits"
         ),
     ):
-        add_metadata(mock_hugr_node, guppy_metadata)
+        add_metadata(node_metadata, guppy_metadata)
 
     with pytest.raises(
         GuppyError,
@@ -79,15 +73,14 @@ def test_add_metadata_metadata_already_set():
             isinstance(e.error, MetadataAlreadySetError) and e.error.key == "preset-key"
         ),
     ):
-        add_metadata(mock_hugr_node, additional_metadata={"preset-key": "preset-value"})
+        add_metadata(node_metadata, additional_metadata={"preset-key": "preset-value"})
 
 
 def test_add_metadata_property_max_qubits():
-    mock_hugr_node = Mock()
-    mock_hugr_node.metadata = NodeMetadata({})
+    node_metadata = NodeMetadata({})
 
     guppy_metadata = FunctionMetadata()
     guppy_metadata.set_max_qubits(5)
-    add_metadata(mock_hugr_node, guppy_metadata)
+    add_metadata(node_metadata, guppy_metadata)
 
-    assert mock_hugr_node.metadata.as_dict() == {"tket.hint.max_qubits": 5}
+    assert node_metadata.as_dict() == {"tket.hint.max_qubits": 5}
