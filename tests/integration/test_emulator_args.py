@@ -8,7 +8,7 @@ import pytest
 
 from guppylang import guppy
 from guppylang.emulator import EmulatorResult
-from guppylang.std.builtins import array, result
+from guppylang.std.builtins import array, output
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 def _bool_echo() -> GuppyFunctionDefinition[..., None]:
     @guppy
     def main(x: bool) -> None:
-        result("x", x)
+        output("x", x)
 
     return main
 
@@ -27,7 +27,7 @@ def _bool_echo() -> GuppyFunctionDefinition[..., None]:
 def _int_echo() -> GuppyFunctionDefinition[..., None]:
     @guppy
     def main(x: int) -> None:
-        result("x", x)
+        output("x", x)
 
     return main
 
@@ -35,7 +35,7 @@ def _int_echo() -> GuppyFunctionDefinition[..., None]:
 def _float_echo() -> GuppyFunctionDefinition[..., None]:
     @guppy
     def main(x: float) -> None:
-        result("x", x)
+        output("x", x)
 
     return main
 
@@ -43,9 +43,9 @@ def _float_echo() -> GuppyFunctionDefinition[..., None]:
 def _bool_array_echo() -> GuppyFunctionDefinition[..., None]:
     @guppy
     def main(xs: array[bool, 3]) -> None:
-        result("e0", xs[0])
-        result("e1", xs[1])
-        result("e2", xs[2])
+        output("e0", xs[0])
+        output("e1", xs[1])
+        output("e2", xs[2])
 
     return main
 
@@ -53,9 +53,9 @@ def _bool_array_echo() -> GuppyFunctionDefinition[..., None]:
 def _int_array_echo() -> GuppyFunctionDefinition[..., None]:
     @guppy
     def main(xs: array[int, 3]) -> None:
-        result("e0", xs[0])
-        result("e1", xs[1])
-        result("e2", xs[2])
+        output("e0", xs[0])
+        output("e1", xs[1])
+        output("e2", xs[2])
 
     return main
 
@@ -63,9 +63,9 @@ def _int_array_echo() -> GuppyFunctionDefinition[..., None]:
 def _float_array_echo() -> GuppyFunctionDefinition[..., None]:
     @guppy
     def main(xs: array[float, 3]) -> None:
-        result("e0", xs[0])
-        result("e1", xs[1])
-        result("e2", xs[2])
+        output("e0", xs[0])
+        output("e1", xs[1])
+        output("e2", xs[2])
 
     return main
 
@@ -107,8 +107,8 @@ def test_array_arg_roundtrip(
 def test_constant_args() -> None:
     @guppy
     def main(theta: float, k: int) -> None:
-        result("doubled", theta * 2.0)
-        result("k1", k + 1)
+        output("doubled", theta * 2.0)
+        output("k1", k + 1)
 
     py_theta, py_k = 1.5, 3
     res = main.emulator(n_qubits=1).run(theta=py_theta, k=py_k)
@@ -118,7 +118,7 @@ def test_constant_args() -> None:
 def test_constant_args_broadcast_over_shots() -> None:
     @guppy
     def main(theta: float) -> None:
-        result("theta", theta)
+        output("theta", theta)
 
     py_theta, n_shots = 2.0, 3
     res = main.emulator(n_qubits=1).with_shots(n_shots).run(theta=py_theta)
@@ -128,8 +128,8 @@ def test_constant_args_broadcast_over_shots() -> None:
 def test_per_shot_args() -> None:
     @guppy
     def main(theta: float, k: int) -> None:
-        result("doubled", theta * 2.0)
-        result("k1", k + 1)
+        output("doubled", theta * 2.0)
+        output("k1", k + 1)
 
     shot_inputs = [
         {"theta": 1.0, "k": 10},
@@ -155,7 +155,7 @@ def test_empty_array_arg() -> None:
     # released, remove the xfail mark above.
     @guppy
     def main(xs: array[int, 0]) -> None:
-        result("done", 1)
+        output("done", 1)
 
     res = main.emulator(n_qubits=1).run(xs=[])
     assert res == EmulatorResult([[("done", 1)]])
