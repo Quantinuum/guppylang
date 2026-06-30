@@ -1,4 +1,7 @@
+import ast
+import inspect
 from pathlib import Path
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 from guppylang import guppy
@@ -12,6 +15,7 @@ from hugr.debug_info import DICompileUnit, DILocation, DISubprogram
 from hugr.metadata import HugrDebugInfo
 from hugr.ops import Call, ExtOp, FuncDecl, FuncDefn, MakeTuple
 
+from tests.resources import debug_info_example
 from tests.resources.debug_info_example import (
     bar,
     baz,
@@ -32,6 +36,51 @@ def get_last_uri_part(uri: str) -> str:
 
 def get_last_name_part(file_name: str) -> str:
     return file_name.split(".")[-1]
+
+
+def definition_ast(definition) -> ast.FunctionDef:
+    """Parse a Guppy definition's Python source with original line/column positions."""
+    lines, line_offset = inspect.getsourcelines(definition.wrapped.python_func)
+    source = "".join(lines)
+    if lines[0][0].isspace():
+        tree = ast.parse(f"if True:\n{source}")
+        [node] = tree.body[0].body
+        ast.increment_lineno(node, line_offset - 2)
+    else:
+        tree = ast.parse(source)
+        [node] = tree.body
+        ast.increment_lineno(node, line_offset - 1)
+    assert isinstance(node, ast.FunctionDef)
+    return node
+
+
+def module_assignment_location(module: ModuleType, target_name: str) -> tuple[int, int]:
+    """Return the source location of a module-level assignment."""
+    lines, line_offset = inspect.getsourcelines(module)
+    line_offset = max(line_offset, 1)
+    tree = ast.parse("".join(lines))
+    assignment = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == target_name
+            for target in node.targets
+        )
+    )
+    return line_offset + assignment.lineno - 1, assignment.col_offset
+
+
+def call_location(definition, call_name: str) -> tuple[int, int]:
+    function = definition_ast(definition)
+    call = next(
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == call_name
+    )
+    return call.lineno, call.col_offset
 
 
 def test_compile_unit():
@@ -75,51 +124,35 @@ def test_subprogram():
         assert isinstance(op, FuncDefn | FuncDecl)
         func_map[get_last_name_part(op.f_name)] = func
 
-    foo_func = func_map.pop("foo")
-    assert HugrDebugInfo in foo_func.metadata
-    debug_info = DISubprogram.from_json(foo_func.metadata[HugrDebugInfo.KEY])
-    assert debug_info.file == 0
-    assert debug_info.line_no == 53
-    assert debug_info.scope_line == 54
+    def check_subprogram(name, file_idx, definition, *, is_decl=False):
+        node = definition_ast(definition)
+        func = func_map.pop(name)
+        assert HugrDebugInfo in func.metadata
+        debug_info = DISubprogram.from_json(func.metadata[HugrDebugInfo.KEY])
+        assert debug_info.file == file_idx
+        assert (debug_info.line_no, debug_info.scope_line) == (
+            node.lineno,
+            None if is_decl else node.body[0].lineno,
+        )
 
-    bar_func = func_map.pop("bar")
-    assert HugrDebugInfo in bar_func.metadata
-    debug_info = DISubprogram.from_json(bar_func.metadata[HugrDebugInfo.KEY])
-    assert debug_info.file == 1
-    assert debug_info.line_no == 9
-    assert debug_info.scope_line == 12
-
-    baz_func = func_map.pop("baz")
-    assert HugrDebugInfo in baz_func.metadata
-    debug_info = DISubprogram.from_json(baz_func.metadata[HugrDebugInfo.KEY])
-    assert debug_info.file == 1
-    assert debug_info.line_no == 16
-    assert debug_info.scope_line is None
-
-    comptime_bar_func = func_map.pop("comptime_bar")
-    assert HugrDebugInfo in comptime_bar_func.metadata
-    debug_info = DISubprogram.from_json(comptime_bar_func.metadata[HugrDebugInfo.KEY])
-    assert debug_info.file == 1
-    assert debug_info.line_no == 20
-    assert debug_info.scope_line == 21
+    check_subprogram("foo", 0, foo)
+    check_subprogram("bar", 1, bar)
+    check_subprogram("baz", 1, baz, is_decl=True)
+    check_subprogram("comptime_bar", 1, comptime_bar)
 
     pytket_bar_load_func = func_map.pop("pytket_bar_load")
     assert HugrDebugInfo in pytket_bar_load_func.metadata
-    debug_info = DISubprogram.from_json(
+    subprogram = DISubprogram.from_json(
         pytket_bar_load_func.metadata[HugrDebugInfo.KEY]
     )
-    assert debug_info.file == 1
-    assert debug_info.line_no == 27
-    assert debug_info.scope_line is None
-
-    pytket_bar_stub_func = func_map.pop("pytket_bar_stub")
-    assert HugrDebugInfo in pytket_bar_stub_func.metadata
-    debug_info = DISubprogram.from_json(
-        pytket_bar_stub_func.metadata[HugrDebugInfo.KEY]
+    assert subprogram.file == 1
+    assert (
+        subprogram.line_no
+        == module_assignment_location(debug_info_example, "pytket_bar_load")[0]
     )
-    assert debug_info.file == 1
-    assert debug_info.line_no == 31
-    assert debug_info.scope_line is None
+    assert subprogram.scope_line is None
+
+    check_subprogram("pytket_bar_stub", 1, pytket_bar_stub, is_decl=True)
 
     inner_func = func_map.pop("")
     # No metadata on the inner circuit function.
@@ -140,7 +173,12 @@ def test_call_location():
     hugr = foo.compile().modules[0]
     calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
     assert len(calls) == 4
-    expected_info = [(134, 8), (135, 8), (27, 0), (137, 8)]
+    expected_info = [
+        call_location(foo, "bar"),
+        call_location(foo, "comptime_bar"),
+        module_assignment_location(debug_info_example, "pytket_bar_load"),
+        call_location(foo, "pytket_bar_load"),
+    ]
     for i, call in enumerate(calls):
         assert HugrDebugInfo in call.metadata
         debug_info = DILocation.from_json(call.metadata[HugrDebugInfo.KEY])
@@ -189,7 +227,7 @@ def test_ext_op_location():
             debug_info = DILocation.from_json(node.metadata[HugrDebugInfo.KEY])
             found_annotated_tuples.append(debug_info.line_no)
     # Check constructor call is annotated (even though it is not an ExtOp).
-    assert 157 in found_annotated_tuples
+    assert call_location(foo, "MyStruct")[0] in found_annotated_tuples
 
 
 def test_turn_off_debug_mode():
