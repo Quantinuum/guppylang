@@ -1,13 +1,10 @@
-Error: No given protocols apply (at $FILE:22:11)
+Error: Type mismatch (at $FILE:22:11)
    | 
 20 | @guppy
 21 | def bar_flt[T: (FooNat, FooInt)](t: T, n: float) -> nat:
 22 |     return t.foo(n)
-   |            ^^^^^^^^ Couldn't find a protocol implementation providing `foo` with
-   |                     a valid signature.
+   |            ^^^^^^^^ Expected expression of type `nat`, got `float`
 
-Note: Protocol `FooNat` provides method `foo` with signature:  `(T, nat) -> nat`
-
-Note: Protocol `FooInt` provides method `foo` with signature:  `(T, int) -> int`
+Note: Error occurred while checking the instantiation `T := Foo`
 
 Guppy compilation failed due to 1 previous error

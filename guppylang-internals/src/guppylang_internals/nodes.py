@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.core import Place, Variable
     from guppylang_internals.definition.common import DefId
     from guppylang_internals.definition.util import CheckedField
-    from guppylang_internals.tys.protocol import ProtocolInst
 
 
 class PlaceNode(ast.expr):
@@ -134,27 +133,6 @@ class GlobalCall(ast.expr):
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
-
-
-class UnresolvedProtocolMethod(ast.expr):
-    implementor: ast.expr
-    implementor_ty: Type
-    protocol_insts: list["ProtocolInst"]
-    method: str
-
-    _fields = ("implementor", "implementor_ty", "protocol_insts", "method")
-
-    def __init__(
-        self,
-        implementor: ast.expr,
-        implementor_ty: Type,
-        protocol_insts: list["ProtocolInst"],
-        method: str,
-    ):
-        self.implementor = implementor
-        self.implementor_ty = implementor_ty
-        self.protocol_insts = protocol_insts
-        self.method = method
 
 
 class ProtocolCall(ast.expr):

@@ -473,22 +473,3 @@ class SignatureDoesntMatchProto(Error):
         protocol: ProtocolInst
         required_sig: FunctionType
         actual_sig: FunctionType
-
-
-@dataclass(frozen=True)
-class NoMatchingProtocol(Error):
-    title: ClassVar[str] = "No given protocols apply"
-    span_label: ClassVar[str] = (
-        "Couldn't find a protocol implementation providing `{method}` with a valid "
-        "signature."
-    )
-    method: str
-
-    @dataclass(frozen=True)
-    class FoundProtoImpl(Note):
-        message: ClassVar[str] = (
-            "Protocol `{proto}` provides method `{method}` with signature:"
-            "  `{actual_sig}`"
-        )
-        proto: ProtocolInst
-        actual_sig: FunctionType
