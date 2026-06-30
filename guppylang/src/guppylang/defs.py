@@ -172,12 +172,10 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         if libs is not None:
             mod = mod.link(*libs)
 
-        arg_specs = self._entrypoint_arg_specs()
-
         if builder is None:
             builder = EmulatorBuilder().with_platform(platform)
 
-        if arg_specs:
+        if arg_specs := self._entrypoint_arg_specs():
             from selene_argreader_plugin import ArgReaderPlugin
 
             wrap_entrypoint_with_args(mod, [spec.name for spec in arg_specs])
