@@ -210,15 +210,15 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         return builder.build(mod, n_qubits=qubits, arg_specs=arg_specs)
 
     @pretty_errors
-    def _entrypoint_arg_specs(self) -> tuple[EntrypointArgSpec, ...]:
+    def _entrypoint_arg_specs(self) -> Sequence[EntrypointArgSpec]:
         """Validate and collect the runtime argument schema of the entrypoint.
 
-        Returns an empty tuple if the entrypoint takes no arguments. Raises a
+        Returns an empty list if the entrypoint takes no arguments. Raises a
         `GuppyError` if any argument has an unsupported type.
         """
         result = self._compiled_entrypoint_with_inputs()
         if result is None:
-            return ()
+            return []
 
         compiled_def, defined_at = result
         specs: list[EntrypointArgSpec] = []
@@ -233,7 +233,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
                     UnsupportedEntrypointArgError(span=to_span(ast_arg), reason=reason)
                 )
             specs.append(EntrypointArgSpec(name=name, ty=inp.ty))
-        return tuple(specs)
+        return specs
 
     def _compiled_entrypoint_with_inputs(
         self,
