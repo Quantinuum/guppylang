@@ -153,7 +153,7 @@ def _dependencies(
 ) -> Iterator[tuple[ParsedRecursiveTypeDef, AstNode]]:
     for type_ast in _field_type_asts(defn):
         for node in annotation_nodes(type_ast):
-            dependency = try_parse_defn(node, ctx.globals)
+            dependency = try_parse_defn(node, ctx)
             if _is_parsed_recursive_type_def(dependency):
                 yield dependency, node
 
