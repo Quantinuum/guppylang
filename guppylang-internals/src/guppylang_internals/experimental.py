@@ -59,8 +59,7 @@ class ExperimentalFeatureError(Error):
 @dataclass(frozen=True)
 class NativePythonListsSuggestion(Help):
     message: ClassVar[str] = (
-        "Native Python lists are not supported here. "
-        "Use `array` from `guppylang.std.quantum` instead."
+        "You may be looking for `array` from `guppylang.std.array` or native Python tuples."
     )
 
 
