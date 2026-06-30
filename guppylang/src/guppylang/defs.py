@@ -213,7 +213,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         return builder.build(mod, n_qubits=qubits, arg_specs=arg_specs)
 
     @pretty_errors
-    def _entrypoint_arg_specs(self) -> Sequence[EntrypointArgSpec]:
+    def _entrypoint_arg_specs(self) -> list[EntrypointArgSpec]:
         """Validate and collect the runtime argument schema of the entrypoint.
 
         Returns an empty list if the entrypoint takes no arguments. Raises a
