@@ -1,29 +1,4 @@
-"""Support for runtime arguments to emulator entrypoint functions.
-
-A Guppy execution entrypoint is normally required to take no inputs. To support
-*runtime arguments* (e.g. for variational workflows where the same program is run
-many times with different parameters), the emulator compiles an entrypoint with
-parameters by *wrapping* it:
-
-* the wrapper takes no inputs,
-* for each parameter it reads the value at runtime via the ``tket.argument``
-  ``read_arg`` op (tagged with the parameter name), and
-* it calls the original entrypoint with those values.
-
-Argument *values* are supplied at run time through selene's ``ArgProvider`` (see
-:meth:`EmulatorInstance.run <guppylang.emulator.EmulatorInstance.run>` and
-:meth:`run_per_shot <guppylang.emulator.EmulatorInstance.run_per_shot>`), keyed by
-the parameter name.
-
-This is currently an emulator-only (selene) feature: the ``read_arg`` op is only
-lowered by the selene compiler, and argument values are provided through selene's
-``ArgProvider``.
-
-Only a restricted set of argument types is supported: ``bool``, signed ``int``,
-``float``, and (one-dimensional) arrays of those. Unsigned ``nat`` is deliberately
-not supported so that a single generic ``read_arg`` op suffices without signedness
-ambiguity; take an ``int`` and convert in-script instead.
-"""
+"""Support for runtime arguments to emulator entrypoint functions."""
 
 from __future__ import annotations
 
