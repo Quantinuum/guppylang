@@ -266,6 +266,9 @@ def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> Non
             f"({len(arg_names)}) and HUGR inputs ({len(input_types)})."
         )
 
+    # The wrapper is added as a second public function alongside the original
+    # entrypoint (which stays public so the wrapper can call it). Having two public
+    # functions in the module is a deliberate choice rather than an oversight.
     wrapper = Function.new_nested(
         ops.FuncDefn(_ARGS_WRAPPER_ENTRYPOINT_NAME, [], visibility="Public"),
         module,
