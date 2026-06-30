@@ -466,7 +466,7 @@ def test_run_requires_args_when_expected() -> None:
 def test_run_per_shot_runs_len_shots() -> None:
     instance, mock_selene = _required_theta_arg_instance()
     instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}, {"theta": 3.0}])
-    # n_shots should be overridden to the number of per-shot records
+    # n_shots should be set to the number of per-shot records
     assert mock_selene.run_shots.call_args.kwargs["n_shots"] == 3
 
 
@@ -488,6 +488,9 @@ def test_run_per_shot_rejects_explicit_with_shots_one() -> None:
     # An explicit `with_shots(1)` is distinguishable from the unset default and
     # still conflicts with a multi-record call.
     instance, _ = _required_theta_arg_instance()
+    # Sanity-check the default so this test still exercises an explicit override
+    # if the default shot count ever changes.
+    assert instance.shots == 1
     instance = instance.with_shots(1)
     with pytest.raises(ValueError, match="with_shots"):
         instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
