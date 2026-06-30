@@ -440,7 +440,8 @@ def test_emulator_instance_full_configuration_workflow():
         mock_result.assert_called_once_with(mock_result_stream)
 
 
-def _required_theta_arg_instance() -> tuple[EmulatorInstance, Mock]:
+@pytest.fixture
+def required_theta_arg_instance() -> tuple[EmulatorInstance, Mock]:
     """An EmulatorInstance with a float arg `theta` and a mocked selene instance."""
     mock_selene_instance = Mock()
     mock_selene_instance.run_shots.return_value = iter([])
@@ -457,37 +458,47 @@ def test_run_rejects_kwargs_when_no_args() -> None:
         instance.run(theta=1.0)
 
 
-def test_run_requires_args_when_expected() -> None:
-    instance, _ = _required_theta_arg_instance()
+def test_run_requires_args_when_expected(
+    required_theta_arg_instance: tuple[EmulatorInstance, Mock],
+) -> None:
+    instance, _ = required_theta_arg_instance
     with pytest.raises(EntrypointArgValueError, match=r"Missing.*`theta`"):
         instance.run()
 
 
-def test_run_per_shot_runs_len_shots() -> None:
-    instance, mock_selene = _required_theta_arg_instance()
+def test_run_per_shot_runs_len_shots(
+    required_theta_arg_instance: tuple[EmulatorInstance, Mock],
+) -> None:
+    instance, mock_selene = required_theta_arg_instance
     instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}, {"theta": 3.0}])
     # n_shots should be set to the number of per-shot records
     assert mock_selene.run_shots.call_args.kwargs["n_shots"] == 3
 
 
-def test_run_per_shot_rejects_shot_offset() -> None:
-    instance, _ = _required_theta_arg_instance()
+def test_run_per_shot_rejects_shot_offset(
+    required_theta_arg_instance: tuple[EmulatorInstance, Mock],
+) -> None:
+    instance, _ = required_theta_arg_instance
     instance = instance.with_shot_offset(5)
     with pytest.raises(ValueError, match="shot offset"):
         instance.run_per_shot([{"theta": 1.0}])
 
 
-def test_run_per_shot_rejects_conflicting_with_shots() -> None:
-    instance, _ = _required_theta_arg_instance()
+def test_run_per_shot_rejects_conflicting_with_shots(
+    required_theta_arg_instance: tuple[EmulatorInstance, Mock],
+) -> None:
+    instance, _ = required_theta_arg_instance
     instance = instance.with_shots(5)
     with pytest.raises(ValueError, match="with_shots"):
         instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
 
 
-def test_run_per_shot_rejects_explicit_with_shots_one() -> None:
+def test_run_per_shot_rejects_explicit_with_shots_one(
+    required_theta_arg_instance: tuple[EmulatorInstance, Mock],
+) -> None:
     # An explicit `with_shots(1)` is distinguishable from the unset default and
     # still conflicts with a multi-record call.
-    instance, _ = _required_theta_arg_instance()
+    instance, _ = required_theta_arg_instance
     # Sanity-check the default so this test still exercises an explicit override
     # if the default shot count ever changes.
     assert instance.shots == 1
@@ -496,8 +507,10 @@ def test_run_per_shot_rejects_explicit_with_shots_one() -> None:
         instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
 
 
-def test_run_per_shot_allows_matching_with_shots() -> None:
-    instance, mock_selene = _required_theta_arg_instance()
+def test_run_per_shot_allows_matching_with_shots(
+    required_theta_arg_instance: tuple[EmulatorInstance, Mock],
+) -> None:
+    instance, mock_selene = required_theta_arg_instance
     instance = instance.with_shots(2)
     instance.run_per_shot([{"theta": 1.0}, {"theta": 2.0}])
     assert mock_selene.run_shots.call_args.kwargs["n_shots"] == 2
