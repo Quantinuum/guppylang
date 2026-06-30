@@ -86,7 +86,6 @@ class EntrypointArgValueError(ValueError):
 
 
 def _is_supported_scalar(ty: Type) -> bool:
-    """Whether ``ty`` is a supported scalar entrypoint argument type."""
     if is_bool_type(ty):
         return True
     if isinstance(ty, NumericType):
@@ -95,7 +94,6 @@ def _is_supported_scalar(ty: Type) -> bool:
 
 
 def _is_supported_arg_type(ty: Type) -> bool:
-    """Whether ``ty`` may be used as an entrypoint runtime argument."""
     if _is_supported_scalar(ty):
         return True
     if is_array_type(ty):
