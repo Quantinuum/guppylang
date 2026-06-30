@@ -146,7 +146,8 @@ def test_call_location():
     hugr = foo.compile().modules[0]
     calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
     assert len(calls) == 4
-    expected_info = [(142, 8), (143, 8), (27, 0), (145, 8)]
+    # TODO: Use relative numbers, so things don't break each time we modify this .py
+    expected_info = [(140, 8), (141, 8), (27, 0), (143, 8)]
     for i, call in enumerate(calls):
         call_metadata = hugr[call].metadata
         assert HugrDebugInfo in call_metadata
@@ -196,7 +197,7 @@ def test_ext_op_location():
             debug_info = DILocation.from_json(node_data.metadata[HugrDebugInfo.KEY])
             found_annotated_tuples.append(debug_info.line_no)
     # Check constructor call is annotated (even though it is not an ExtOp).
-    assert 157 in found_annotated_tuples
+    assert 165 in found_annotated_tuples
 
 
 def test_turn_off_debug_mode():
