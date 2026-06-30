@@ -14,6 +14,26 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a7...guppylang-v1.0.0-a8) (2026-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add `@expected_qubits` decorator and remove `max_qubits` kwarg (#1942)
+* Bump `hugr` and `tket` dependencies to 0.18 and 0.15 resp. (#1963)
+* Add `@link_name` decorator and remove `link_name` kwarg (#1941)
+* Add `@metadata` decorator (#1937)
+
+
+### Features
+
+* Runtime entrypoint arguments for the emulator (#1890)([cbd603c](https://github.com/Quantinuum/guppylang/commit/cbd603cae008d3c60ff8a47469ffebdeb22caf2c))
+* Add `@expected_qubits` decorator and remove `max_qubits` kwarg (#1942)([a50e5fb](https://github.com/Quantinuum/guppylang/commit/a50e5fb8f6a347a17425738ceeb6e1101a7c47cc))
+* Bump `hugr` and `tket` dependencies to 0.18 and 0.15 resp. (#1963)([bb90943](https://github.com/Quantinuum/guppylang/commit/bb9094333158b52f717acf7a24c998e389e59756))
+* Add hint to error when passing `Measurement` values to `output` (#1955)([85d3b94](https://github.com/Quantinuum/guppylang/commit/85d3b944782946580814d873eb2653a71cb03d2b))
+* Add `@link_name` decorator and remove `link_name` kwarg (#1941)([728baed](https://github.com/Quantinuum/guppylang/commit/728baedac4c80336249c91f25b1ff1174ad8641a))
+* Add `@metadata` decorator (#1937)([206d309](https://github.com/Quantinuum/guppylang/commit/206d309b01798ea9cb3feae37bc03aa94efb88bb))
+
 ## [1.0.0-a7](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a6...guppylang-v1.0.0-a7) (2026-06-25)
 
 Note that this release raises the minimum compatible version of `pytket` to `2.7.0`.

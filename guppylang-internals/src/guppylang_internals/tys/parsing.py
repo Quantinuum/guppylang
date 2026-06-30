@@ -1,7 +1,7 @@
 import ast
 import sys
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
@@ -13,19 +13,23 @@ from guppylang_internals.ast_util import (
 from guppylang_internals.cfg.builder import is_comptime_expression
 from guppylang_internals.checker.core import Context, Globals, Locals, PythonObject
 from guppylang_internals.checker.errors.generic import ExpectedError, UnsupportedError
-from guppylang_internals.checker.errors.type_errors import DontUseProtocolSugar
+from guppylang_internals.checker.errors.type_errors import (
+    DontReturnProtocol,
+    DontUseProtocolSugar,
+)
 from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
-from guppylang_internals.experimental import check_unitary_callable_enabled
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableProtocolDef,
     CallableProtocolInst,
     FunctionTypeDef,
+    ModifiableFunctionProtocolDef,
+    ModifiableFunctionProtocolInst,
     SelfTypeDef,
     bool_type,
 )
@@ -98,13 +102,20 @@ class TypeParsingCtx:
     #: This is disallowed in struct fields.
     disallow_protocol_types: bool = False
 
+    #: Whether the type we're parsing is a return type
+    is_output: bool = False
+
 
 def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     """Turns an AST expression into an argument."""
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
+    from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     # A single (possibly qualified) identifier
     if defn := try_parse_defn(node, ctx):
+        if ctx.is_output and isinstance(defn, ParsedProtocolDef):
+            raise GuppyError(DontReturnProtocol(node, defn.name))
+
         return _arg_from_instantiated_defn(defn, [], node, ctx)
 
     # An identifier referring to a quantified variable
@@ -223,16 +234,25 @@ def _arg_from_instantiated_defn(
 
     match defn:
         # Special cases for the `Function` type
-        case FunctionTypeDef(flags=flags, name=name):
-            if flags != UnitaryFlags.NoFlags:
-                check_unitary_callable_enabled(flags.callable_name(), node)
-            return TypeArg(
-                _parse_function_type(arg_nodes, node, ctx, name, flags=flags)
-            )
+        case FunctionTypeDef(name=name):
+            return TypeArg(_parse_function_type(arg_nodes, node, ctx, name))
         # Special cases for the `Callable` protocol
         case CallableProtocolDef():
             sig = _parse_function_type(arg_nodes, node, ctx, "Callable")
             proto_inst = CallableProtocolInst(sig)
+            param = TypeParam(
+                len(ctx.param_var_mapping),
+                name=str(proto_inst),
+                must_be_copyable=True,
+                must_be_droppable=True,
+                must_implement=[proto_inst],
+            )
+            ctx.param_var_mapping[param.name] = param
+            return param.to_bound()
+        # Special case for the `Unitary`, `Controllable`, and `Daggerable` protocols
+        case ModifiableFunctionProtocolDef(flags=flags):
+            sig = _parse_function_type(arg_nodes, node, ctx, flags.callable_name())
+            proto_inst = ModifiableFunctionProtocolInst(sig.with_unitary_flags(flags))
             param = TypeParam(
                 len(ctx.param_var_mapping),
                 name=str(proto_inst),
@@ -347,7 +367,7 @@ def _parse_function_type(
     if not isinstance(inputs, ast.List):
         raise GuppyError(err)
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
-    output = type_from_ast(output, ctx)
+    output = type_from_ast(output, replace(ctx, is_output=True))
 
     return FunctionType(inputs, output, unitary_flags=flags)
 

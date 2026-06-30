@@ -124,7 +124,7 @@ class OptimizerInstance(Generic[P, Out]):
     ) -> EmulatorInstance:
         """Compile this function for emulation with the configured optimizations."""
         return self.definition._emulator(
-            self.compile(), n_qubits, builder, libs, platform
+            self.compile_function(), n_qubits, builder, libs, platform
         )
 
     def compile(self) -> Package:

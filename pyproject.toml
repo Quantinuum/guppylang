@@ -45,6 +45,10 @@ allow_redefinition = true
 [[tool.mypy.overrides]]
 module = ["miette_py"]
 
+[[tool.mypy.overrides]]
+module = ["selene_argreader_plugin"]
+ignore_missing_imports = true
+
 [tool.coverage.report]
 exclude_also = [
   # Don't complain about missing coverage on typing imports
