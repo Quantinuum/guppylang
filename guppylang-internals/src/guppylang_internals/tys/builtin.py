@@ -254,7 +254,7 @@ class CallableProtocolInst(ProtocolInst):
 @dataclass(frozen=True)
 class ModifiableFunctionProtocolDef(CheckedProtocolDef):
     """Protocol definition associated with the builtin `Unitary`, `Controllable`, and
-    Daggaerable` protocols.
+    Daggerable` protocols.
     """
 
     name: str
@@ -284,7 +284,7 @@ class ModifiableFunctionProtocolDef(CheckedProtocolDef):
 @dataclass(frozen=True, init=False)
 class ModifiableFunctionProtocolInst(ProtocolInst):
     """Protocol instance associated with the builtin `Unitary`, `Controllable`, and
-    `Daggaerable` protocols.
+    `Daggerable` protocols.
     """
 
     sig: FunctionType = field(hash=False)
