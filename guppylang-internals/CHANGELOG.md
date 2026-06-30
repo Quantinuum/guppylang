@@ -1,7 +1,41 @@
 # Changelog
 
-First release of `guppylang_internals` package containing refactored out internal components
-from `guppylang`.
+## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1...guppylang-internals-v1.0.0-a8) (2026-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Turn modifiers into protocols (#1951)
+* Add `@expected_qubits` decorator and remove `max_qubits` kwarg (#1942)
+* Bump `hugr` and `tket` dependencies to 0.18 and 0.15 resp. (#1963)
+* Better error for Protocols as types in struct fields (#1952)
+* Implicit loading of Python values (#1944)
+* Add function item type (#1950)
+* Make modifier block names stable under repeated compilations (#1907)
+* Add `Callable` protocol (#1929)
+* Add `@metadata` decorator (#1937)
+
+
+### Bug Fixes
+
+* Improve precision on span of missing return type error to function header (#1882)([4b7260b](https://github.com/Quantinuum/guppylang/commit/4b7260b10a4128fcd7473a0421beb15fa9a127b8))
+* Allow 'frozen' kwarg in _DummyGuppy mock class (#1946)([3a0f2cc](https://github.com/Quantinuum/guppylang/commit/3a0f2cc431006639022797f35a18fcf8b67f7ec9))
+* Make modifier block names stable under repeated compilations (#1907)([975105e](https://github.com/Quantinuum/guppylang/commit/975105ec691160a8fc0e12ca52e07004613f8308))
+* Improve error message for struct type application in comptime (#1938)([9a1c1d3](https://github.com/Quantinuum/guppylang/commit/9a1c1d31f5a00a0f628e0d9b7ede2055eac21102))
+
+
+### Features
+
+* Point users of native Python lists experimental feature to array via helptext (#1965)([df20e05](https://github.com/Quantinuum/guppylang/commit/df20e0597db46842f2fadd55ff8553abef03c8f3))
+* Turn modifiers into protocols (#1951)([8cbe5fd](https://github.com/Quantinuum/guppylang/commit/8cbe5fd3673e1605b599994a5341aadf3bbba816))
+* Add `@expected_qubits` decorator and remove `max_qubits` kwarg (#1942)([a50e5fb](https://github.com/Quantinuum/guppylang/commit/a50e5fb8f6a347a17425738ceeb6e1101a7c47cc))
+* Bump `hugr` and `tket` dependencies to 0.18 and 0.15 resp. (#1963)([bb90943](https://github.com/Quantinuum/guppylang/commit/bb9094333158b52f717acf7a24c998e389e59756))
+* Better error for Protocols as types in struct fields (#1952)([636c74e](https://github.com/Quantinuum/guppylang/commit/636c74e4a310f16aa73b580fff08e304853f33bd))
+* Add hint to error when passing `Measurement` values to `output` (#1955)([85d3b94](https://github.com/Quantinuum/guppylang/commit/85d3b944782946580814d873eb2653a71cb03d2b))
+* Implicit loading of Python values (#1944)([1a5a1e4](https://github.com/Quantinuum/guppylang/commit/1a5a1e46ea1f62dc33871fb98eb62ce0c3d09d3c))
+* Add function item type (#1950)([503063c](https://github.com/Quantinuum/guppylang/commit/503063cd1341ce26665f84da8e3f2bbfea8cf261))
+* Add `Callable` protocol (#1929)([5231e39](https://github.com/Quantinuum/guppylang/commit/5231e3976394ba1ec12655612a8f5d217a5c018f))
+* Add `@metadata` decorator (#1937)([206d309](https://github.com/Quantinuum/guppylang/commit/206d309b01798ea9cb3feae37bc03aa94efb88bb))
 
 ## [1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0...guppylang-internals-v1.1) (2026-06-25)
 
