@@ -3,7 +3,7 @@ import pytest
 
 from tests.error.util import run_error_test
 
-path = pathlib.Path(__file__).parent.resolve() / "result_errors"
+path = pathlib.Path(__file__).parent.resolve() / "output_errors"
 files = [
     x
     for x in path.iterdir()

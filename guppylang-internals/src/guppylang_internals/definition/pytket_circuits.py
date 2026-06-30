@@ -208,8 +208,10 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             self.name, func_type.body.input, func_type.body.output
         )
 
-        hugr_func.metadata[MetadataUnitaryFlags] = self.unitary_flags_value
-        outer_func.metadata[MetadataUnitaryFlags] = self.unitary_flags_value
+        hugr_func_metadata = module.hugr[hugr_func].metadata
+        outer_func_metadata = module.hugr[outer_func].metadata
+        hugr_func_metadata[MetadataUnitaryFlags] = self.unitary_flags_value
+        outer_func_metadata[MetadataUnitaryFlags] = self.unitary_flags_value
 
         # Add circuit function definition metadata (we can't add metadata to the
         # internal circuit function as we don't have that information).
@@ -230,7 +232,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                     line_no=self.source_span.start.line,
                     scope_line=None,
                 )
-            outer_func.metadata[HugrDebugInfo] = func_metadata
+            outer_func_metadata[HugrDebugInfo] = func_metadata
         outer_func = FunctionBuilder(outer_func)
         # Number of qubit inputs in the outer function.
         offset = (
@@ -263,7 +265,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         # Symbolic parameters (if present) get passed after qubits and bools.
         num_params = len(self.input_circuit.free_symbols())
         has_params = num_params != 0
-        if has_params and "TKET1.input_parameters" not in hugr_func.metadata:
+        if has_params and "TKET1.input_parameters" not in hugr_func_metadata:
             raise InternalGuppyError(
                 "Parameter metadata is missing from pytket circuit HUGR"
             ) from None
@@ -279,7 +281,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 )
                 lex_params = list(unpack_result)
             param_order = cast(
-                "list[str]", hugr_func.metadata["TKET1.input_parameters"]
+                "list[str]", hugr_func_metadata["TKET1.input_parameters"]
             )
             lex_names = sorted(param_order)
             name_to_param = dict(zip(lex_names, lex_params, strict=True))
@@ -296,14 +298,13 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
+            call_metadata = outer_func._raw.hugr[call_node].metadata
             # Function stub case.
             if self.defined_at is not None:
-                call_node.metadata[HugrDebugInfo] = make_location_record(
-                    self.defined_at
-                )
+                call_metadata[HugrDebugInfo] = make_location_record(self.defined_at)
             # Load pytket case,
             elif self.source_span is not None:
-                call_node.metadata[HugrDebugInfo] = DILocation(
+                call_metadata[HugrDebugInfo] = DILocation(
                     column=self.source_span.start.column,
                     line_no=self.source_span.start.line,
                 )

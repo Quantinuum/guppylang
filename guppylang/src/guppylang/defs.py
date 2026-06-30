@@ -48,7 +48,7 @@ Out = TypeVar("Out")
 def _update_generator_metadata(hugr: Hugr[Any]) -> None:
     """Update the generator metadata of a Hugr to be
     guppylang rather than just internals."""
-    hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
+    hugr[hugr.module_root].metadata[HugrGenerator] = GeneratorDesc(
         name=f"guppylang (guppylang-internals-v{guppylang_internals.__version__})",
         version=Version.parse(guppylang.__version__),
     )

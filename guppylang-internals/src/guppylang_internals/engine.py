@@ -55,6 +55,7 @@ from guppylang_internals.tys.builtin import (
     daggerable_type_def,
     float_type_def,
     frozenarray_type_def,
+    function_def_type_def,
     function_type_def,
     int_type_def,
     list_type_def,
@@ -75,6 +76,7 @@ from guppylang_internals.tys.ty import (
     BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
+    FunctionDefType,
     FunctionType,
     NoneType,
     NumericType,
@@ -86,6 +88,7 @@ from guppylang_internals.tys.ty import (
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
+    function_def_type_def,
     unitary_type_def,
     daggerable_type_def,
     controllable_type_def,
@@ -350,6 +353,8 @@ class CompilationEngine:
                         return assert_never(kind)
             case FunctionType():
                 type_defn = function_type_def
+            case FunctionDefType():
+                type_defn = function_def_type_def
             case OpaqueType() as ty:
                 type_defn = ty.defn
             case StructType() as ty:
@@ -506,7 +511,7 @@ class CompilationEngine:
                 filename=ctx.metadata_file_table.get_index(filename),
                 file_table=ctx.metadata_file_table.table,
             )
-            graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
+            graph.hugr[graph.hugr.module_root].metadata[HugrDebugInfo] = module_info
 
         # Build resolve registry: start with cached base, add any additional
         if self.additional_extensions:
@@ -538,8 +543,9 @@ class CompilationEngine:
                 for ext_name in used_extensions_result.unresolved_extensions
             ]
         )
-        graph.hugr.module_root.metadata[HugrUsedExtensions] = used_exts_meta
-        graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
+        root_metadata = graph.hugr[graph.hugr.module_root].metadata
+        root_metadata[HugrUsedExtensions] = used_exts_meta
+        root_metadata[HugrGenerator] = GeneratorDesc(
             name="guppylang",
             version=Version.parse(
                 guppylang_internals.__version__, optional_minor_and_patch=True

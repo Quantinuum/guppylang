@@ -57,9 +57,9 @@ def test_conditional(validate):
     @guppy
     def main(b: bool) -> int:
         if b:
-            baz = foo
+            baz: Function[[], int] = foo
         else:
-            baz = bar
+            baz: Function[[], int] = bar
         return baz()
 
     validate(main.compile_function())
