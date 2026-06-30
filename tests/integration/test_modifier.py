@@ -63,7 +63,10 @@ def test_assignment_in_dagger(validate):
         discard(q)
         discard(c)
 
-    validate(main.compile_function())
+    # TODO: Tket's full ModifierResolution pass constructs a cyclic DFG.
+    # Export disabled while we fix the issue.
+    # See <https://github.com/Quantinuum/tket2/issues/1774>
+    validate(main.compile_function(), export=False)
 
 
 def test_control_simple(validate):
