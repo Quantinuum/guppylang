@@ -1044,7 +1044,7 @@ requires-dist = [
     { name = "guppylang-internals", editable = "guppylang-internals" },
     { name = "numpy", specifier = "~=2.0" },
     { name = "pytket", specifier = ">=2.7.0" },
-    { name = "selene-hugr-qis-compiler", specifier = "~=0.3.0" },
+    { name = "selene-hugr-qis-compiler", specifier = "~=0.4.0" },
     { name = "selene-sim", specifier = "~=0.3.0a1" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
