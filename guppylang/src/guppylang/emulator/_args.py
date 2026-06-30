@@ -31,17 +31,6 @@ if TYPE_CHECKING:
     from hugr.hugr import Hugr
     from hugr.package import Package
 
-_BORROW_ARRAY_DEF = BORROW_ARRAY_EXT.types["borrow_array"]
-
-#: Name of the no-input wrapper function generated around the original entrypoint
-#: when runtime arguments are injected via ``read_arg``.
-_ARGS_WRAPPER_ENTRYPOINT_NAME = "__entrypoint_with_args"
-
-# Keep in sync with `ArgValue`.
-_SUPPORTED_ARG_TYPES_MSG = (
-    "`bool`, `int`, `float`, and (one-dimensional) arrays of those"
-)
-
 #: Python value types accepted as entrypoint arguments.
 #: Sequences (lists, tuples, numpy arrays, etc.) are accepted for array arguments
 #: and converted to ``list`` before being passed to the selene argument provider.
@@ -79,6 +68,10 @@ def _is_supported_arg_type(ty: Type) -> bool:
 def unsupported_arg_reason(ty: Type) -> str | None:
     """Return ``None`` if ``ty`` is a supported argument type, otherwise a
     human-readable explanation of why it is not."""
+    # Keep in sync with `ArgValue`.
+    supported_types_msg = (
+        "`bool`, `int`, `float`, and (one-dimensional) arrays of those"
+    )
     if _is_supported_arg_type(ty):
         return None
     if isinstance(ty, NumericType) and ty.kind is NumericType.Kind.Nat:
@@ -97,11 +90,11 @@ def unsupported_arg_reason(ty: Type) -> str | None:
             )
         return (
             f"Arrays of `{elem}` are not supported as entrypoint arguments. "
-            f"Supported element types are {_SUPPORTED_ARG_TYPES_MSG}."
+            f"Supported element types are {supported_types_msg}."
         )
     return (
         f"Type `{ty}` is not supported as an entrypoint argument. "
-        f"Supported types are {_SUPPORTED_ARG_TYPES_MSG}."
+        f"Supported types are {supported_types_msg}."
     )
 
 
@@ -213,7 +206,8 @@ def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> Non
         a standard ``array`` and convert it to the ``borrow_array`` the entrypoint
         expects (the mirror of how the result compiler converts the other way).
         """
-        if isinstance(ty, ht.ExtType) and ty.type_def is _BORROW_ARRAY_DEF:
+        borrow_array_def = BORROW_ARRAY_EXT.types["borrow_array"]
+        if isinstance(ty, ht.ExtType) and ty.type_def is borrow_array_def:
             length_arg, elem_arg = ty.args
             assert isinstance(elem_arg, ht.TypeTypeArg)
             elem_ty = elem_arg.ty
@@ -244,8 +238,10 @@ def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> Non
     # The wrapper is added as a second public function alongside the original
     # entrypoint (which stays public so the wrapper can call it). Having two public
     # functions in the module is a deliberate choice rather than an oversight.
+    # Name of the no-input wrapper generated around the original entrypoint.
+    wrapper_name = "__entrypoint_with_args"
     wrapper = Function.new_nested(
-        ops.FuncDefn(_ARGS_WRAPPER_ENTRYPOINT_NAME, [], visibility="Public"),
+        ops.FuncDefn(wrapper_name, [], visibility="Public"),
         module,
         module.module_root,
     )
