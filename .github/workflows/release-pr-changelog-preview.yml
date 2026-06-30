@@ -9,6 +9,7 @@ on:
       - synchronize
     branches:
       - main
+      - "release/**"
   workflow_dispatch:
 
 permissions:
@@ -30,14 +31,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Read released versions
-        id: versions
+      - name: Read released version
+        id: version
         run: |
           set -euo pipefail
           guppy=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang/pyproject.toml | head -n1)
-          internals=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang-internals/pyproject.toml | head -n1)
           echo "guppylang=$guppy" >> "$GITHUB_OUTPUT"
-          echo "internals=$internals" >> "$GITHUB_OUTPUT"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -49,6 +48,5 @@ jobs:
         uses: ./.github/actions/update-release-preview
         with:
           pr-number: ${{ github.event.pull_request.number }}
-          guppylang-version: ${{ steps.versions.outputs.guppylang }}
-          internals-version: ${{ steps.versions.outputs.internals }}
+          version: ${{ steps.version.outputs.guppylang }}
           token: ${{ secrets.HUGRBOT_PAT }}

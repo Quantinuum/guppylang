@@ -131,24 +131,6 @@ def test_git_cliff_bumped_core_handles_missing_binary(
     assert cv._git_cliff_bumped_core(Path()) is None
 
 
-@pytest.mark.parametrize(
-    ("current_internals", "new_major", "expected"),
-    [
-        # Migration from the legacy 3-part scheme seeds build 0.
-        ("1.0.0-a5", 1, "1.0"),
-        ("2.3.4", 2, "2.0"),
-        # Normal build increment within the same major.
-        ("1.0", 1, "1.1"),
-        ("1.7", 1, "1.8"),
-        # Reset to build 0 on a major bump.
-        ("1.7", 2, "2.0"),
-        ("1.0", 3, "3.0"),
-    ],
-)
-def test_bump_internals(current_internals: str, new_major: int, expected: str) -> None:
-    assert cv.bump_internals(current_internals, new_major) == expected
-
-
 def test_replace_once_requires_single_match() -> None:
     # The file-rewriting helpers refuse to touch a file with no version line,
     # rather than silently producing a no-op. (The happy paths are covered
