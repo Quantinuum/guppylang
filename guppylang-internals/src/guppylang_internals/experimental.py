@@ -59,7 +59,8 @@ class ExperimentalFeatureError(Error):
 @dataclass(frozen=True)
 class NativePythonListsSuggestion(Help):
     message: ClassVar[str] = (
-        "You may be looking for `array` from `guppylang.std.array` or native Python tuples."
+        "You may be looking for `array` from `guppylang.std.array` or native "
+        "Python tuples."
     )
 
 
