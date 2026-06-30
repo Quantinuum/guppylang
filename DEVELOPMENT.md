@@ -145,7 +145,7 @@ We accept the following contribution types:
 
 Releases are managed by a custom set of workflows under `.github/workflows`
 (`release-pr.yml`, `release-branch-cut.yml`, `release-pr-changelog-preview.yml`,
-`release-major-guard.yml`, and `release-publish.yml`), driven by
+`release-version-guard.yml`, and `release-publish.yml`), driven by
 [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 `guppylang` and `guppylang-internals` always share the **exact same version**:
@@ -234,7 +234,7 @@ increments the alpha counter. Use an explicit mode to promote out of the alpha
 series (e.g. `beta`, `rc`, or `stable`).
 
 On a `release/<major>.<minor>` branch `auto` still proposes a minor/major when the
-commits imply it; that bump is then rejected by `release-major-guard.yml` (the line
+commits imply it; that bump is then rejected by `release-version-guard.yml` (the line
 is frozen), which surfaces the unexpected change for review.
 
 ### Curating the changelog
