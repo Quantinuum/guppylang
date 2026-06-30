@@ -67,7 +67,7 @@ jobs:
     name: Open or update the release PR
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # Full history + tags are required for git-cliff.
           fetch-depth: 0
