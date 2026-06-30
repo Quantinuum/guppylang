@@ -1,5 +1,8 @@
 from guppylang import guppy
-from guppylang.std.builtins import frozenarray, panic, py
+from guppylang.std.builtins import frozenarray, panic
+
+_RANGE_42 = list(range(42))
+_NESTED_2X2 = [[1, 2], [3, 4]]
 
 
 def test_len(run_int_fn):
@@ -9,8 +12,7 @@ def test_len(run_int_fn):
 
     @guppy
     def main() -> int:
-        xs = py(list(range(42)))
-        return foo(xs)
+        return foo(_RANGE_42)
 
     run_int_fn(main, 42)
 
@@ -22,8 +24,7 @@ def test_subscript(run_int_fn):
 
     @guppy
     def main() -> int:
-        xs = py(list(range(42)))
-        return foo(xs)
+        return foo(_RANGE_42)
 
     run_int_fn(main, 20)
 
@@ -38,8 +39,7 @@ def test_iter(run_int_fn):
 
     @guppy
     def main() -> int:
-        xs = py(list(range(42)))
-        return foo(xs)
+        return foo(_RANGE_42)
 
     run_int_fn(main, sum(range(42)))
 
@@ -52,8 +52,7 @@ def test_alias(run_int_fn):
 
     @guppy
     def main() -> int:
-        xs = py(list(range(42)))
-        return foo(xs)
+        return foo(_RANGE_42)
 
     run_int_fn(main, 1)
 
@@ -72,8 +71,7 @@ def test_mutable_copy(run_int_fn):
 
     @guppy
     def main() -> int:
-        xs = py(list(range(42)))
-        return foo(xs)
+        return foo(_RANGE_42)
 
     run_int_fn(main, 2 * sum(range(42)))
 
@@ -85,8 +83,7 @@ def test_nested_subscript(run_int_fn):
 
     @guppy
     def main() -> int:
-        xs = py([[1, 2], [3, 4]])
-        return foo(xs)
+        return foo(_NESTED_2X2)
 
     run_int_fn(main, 1 + 2 + 3 + 4)
 
@@ -104,7 +101,7 @@ def test_nested_iter(run_int_fn):
 
     @guppy
     def main() -> int:
-        return foo(py(xss))
+        return foo(xss)
 
     run_int_fn(main, sum([sum(xs) for xs in xss]))
 

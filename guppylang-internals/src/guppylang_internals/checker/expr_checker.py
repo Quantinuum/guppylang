@@ -63,7 +63,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprTypeVarError,
     ComptimeGuppyObjectError,
     ComptimeUnknownError,
-    IllegalComptimeExpressionError,
+    UnsupportedPythonValueError,
 )
 from guppylang_internals.checker.errors.generic import (
     ExpectedError,
@@ -288,6 +288,23 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         """Invokes the type synthesiser"""
         return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars)
 
+    def _check_python_value(
+        self, value: Any, act: Type, node: ast.expr, ty: Type
+    ) -> tuple[ast.expr, Subst] | None:
+        """Tries to check a primitive Python value with inferred type `act` against an
+        expected type `ty`.
+
+        Returns the type-annotated constant and substitution on match, or `None` if
+        `act` does not unify with `ty`. `act` is only a hint (e.g. from
+        `python_value_to_guppy_type`), so we unify against `ty` and leave it to the
+        caller to decide how to handle a mismatch. Never raises."""
+        subst = unify(ty, act, {})
+        if subst is None:
+            return None
+        act = act.substitute(subst)
+        subst = {x: s for x, s in subst.items() if x in ty.unsolved_vars}
+        return with_type(act, with_loc(node, ast.Constant(value=value))), subst
+
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
         act = python_value_to_guppy_type(node.value, node, ty)
         if act is None:
@@ -295,6 +312,23 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
         assert inst == (), "Const values are not generic"
         return node, subst
+
+    def visit_Name(self, node: ast.Name, ty: Type) -> tuple[ast.expr, Subst]:
+        """Check a name against an expected type, propagating the hint for Python
+        values so that e.g. a non-negative Python int variable is accepted where a
+        ``nat @comptime`` is expected (mirroring what ``visit_Constant`` does for
+        literals)."""
+        if node.id in self.ctx.globals:
+            match self.ctx.globals[node.id]:
+                case PythonObject(obj=val):
+                    act = python_value_to_guppy_type(val, node, ty)
+                    if (
+                        act is not None
+                        and (result := self._check_python_value(val, act, node, ty))
+                        is not None
+                    ):
+                        return result
+        return self.generic_visit(node, ty)
 
     def visit_Tuple(self, node: ast.Tuple, ty: Type) -> tuple[ast.expr, Subst]:
         if not isinstance(ty, TupleType) or len(ty.element_types) != len(node.elts):
@@ -415,15 +449,15 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if act := python_value_to_guppy_type(python_val, node.value, ty):
-            subst = unify(ty, act, {})
-            if subst is None:
-                self._fail(ty, act, node)
-            act = act.substitute(subst)
-            subst = {x: s for x, s in subst.items() if x in ty.unsolved_vars}
-            return with_type(act, with_loc(node, ast.Constant(value=python_val))), subst
-
-        raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
+        act = python_value_to_guppy_type(python_val, node.value, ty)
+        if act is None:
+            raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
+        if (
+            result := self._check_python_value(python_val, act, node.value, ty)
+        ) is None:
+            self._fail(ty, act, node)
+        expr, subst = result
+        return with_loc(node, expr), subst
 
     def generic_visit(self, node: ast.expr, ty: Type) -> tuple[ast.expr, Subst]:
         # Try to synthesize and then check if we can unify it with the given type
@@ -527,14 +561,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                             err.add_sub_diagnostic(ExpectedError.EnumHelp(None))
                             raise GuppyError(err)
                     return self._check_global(defn, name_id, node)
-                case PythonObject():
-                    from guppylang_internals.checker.cfg_checker import (
-                        VarNotDefinedError,
-                    )
-
-                    # TODO: Emit a hint that the variable could be accessed through a
-                    #  comptime expression
-                    raise GuppyError(VarNotDefinedError(node, node.id))
+                case PythonObject(obj=val):
+                    if ty := python_value_to_guppy_type(val, node):
+                        return with_loc(node, ast.Constant(value=val)), ty
+                    raise GuppyError(UnsupportedPythonValueError(node, type(val)))
 
         raise InternalGuppyError(
             f"Variable `{name_id}` is not defined in `TypeSynthesiser`."
@@ -1068,7 +1098,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if ty := python_value_to_guppy_type(python_val, node):
             return with_loc(node, ast.Constant(value=python_val)), ty
 
-        raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
+        raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> tuple[ast.expr, Type]:
         raise InternalGuppyError(
@@ -1765,9 +1795,9 @@ def python_value_to_guppy_type(
             for elt, hint in zip(elts, hints, strict=False):
                 ty = python_value_to_guppy_type(elt, node, hint)
                 if ty is None:
-                    err = IllegalComptimeExpressionError(node, type(elt))
+                    err = UnsupportedPythonValueError(node, type(elt))
                     err.add_sub_diagnostic(
-                        IllegalComptimeExpressionError.InContainer(None, tuple)
+                        UnsupportedPythonValueError.InContainer(None, tuple)
                     )
                     raise GuppyError(err)
                 tys.append(ty)
@@ -1813,16 +1843,14 @@ def _python_list_to_guppy_type(
     )
     el_ty = python_value_to_guppy_type(v, node, elt_hint)
     if el_ty is None:
-        err = IllegalComptimeExpressionError(node, type(v))
-        err.add_sub_diagnostic(IllegalComptimeExpressionError.InContainer(None, list))
+        err = UnsupportedPythonValueError(node, type(v))
+        err.add_sub_diagnostic(UnsupportedPythonValueError.InContainer(None, list))
         raise GuppyError(err)
     for v in rest:
         ty = python_value_to_guppy_type(v, node, elt_hint)
         if ty is None:
-            err = IllegalComptimeExpressionError(node, type(v))
-            err.add_sub_diagnostic(
-                IllegalComptimeExpressionError.InContainer(None, list)
-            )
+            err = UnsupportedPythonValueError(node, type(v))
+            err.add_sub_diagnostic(UnsupportedPythonValueError.InContainer(None, list))
             raise GuppyError(err)
         if (subst := unify(ty, el_ty, {})) is None:
             raise GuppyError(ComptimeExprIncoherentListError(node))
