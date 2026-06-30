@@ -59,17 +59,29 @@ class OptimizationLevel(Enum):
                 # flags as the corresponding tket bugs are fixed.
                 return [
                     passes.NormalizeGuppy(
+                        remove_tuple_untuple=True,
+                        remove_dead_funcs=True,
+                        remove_redundant_order_edges=True,
+                        squash_borrows=True,
+                        # Multiple tests assume no function inlining.
+                        # They must be updated before this can be enabled.
+                        inline_funcs=False,
+                        # Tket reports invalid constructed HUGRs
+                        # / "cannot modify indirect call" errors.
                         resolve_modifiers=False,
+                        # Causes errors in the notebook examples;
+                        # Emulation succeeds but shots lose expected result entries
+                        # (`eigenvalue` / `attempts`), producing `KeyError` in the
+                        # plotting cells.
                         simplify_cfgs=False,
-                        remove_tuple_untuple=False,
+                        # fails `test_arithmetic.py::test_float_to_int`
+                        # Selene reports package validation error:
+                        # `Node(...) has an unconnected port Port(Outgoing, 0)`
                         constant_folding=False,
-                        # Removes public function declarations.
-                        #
-                        # See <https://github.com/Quantinuum/tket2/issues/1755>
-                        remove_dead_funcs=False,
+                        # when combined with `inline_funcs=True` fails
+                        # `test_qsystem_sol_functional`: tket/portgraph panic
+                        # with `Outgoing port count exceeds maximum`
                         inline_dfgs=False,
-                        remove_redundant_order_edges=False,
-                        squash_borrows=False,
                     )
                 ]
             case OptimizationLevel.Minimal:

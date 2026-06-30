@@ -133,7 +133,7 @@ def test_call(validate):
         f(q2)
 
     # Disable optimization so the calls don't get inlined.
-    compiled = test.with_optimization(OptimizationLevel.Minimal).compile_function()
+    compiled = test.with_opt_level(OptimizationLevel.Minimal).compile_function()
     validate(compiled)
 
     # Check that we have the expected order edges between the allocations and calls
