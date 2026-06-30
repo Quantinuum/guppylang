@@ -61,6 +61,7 @@ from guppylang.defs import (
     GuppyFunctionDefinition,
     GuppyTypeVarDefinition,
 )
+from guppylang.library import _get_link_name
 
 K = TypeVar("K")
 S = TypeVar("S")
@@ -78,7 +79,12 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
+__all__ = (
+    "GuppyKwargs",
+    "custom_guppy_decorator",
+    "guppy",
+    "metadata",
+)
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -90,7 +96,6 @@ class GuppyKwargs(TypedDict, total=False):
     controllable: bool
     daggerable: bool
     max_qubits: int
-    link_name: str
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -139,7 +144,7 @@ class _Guppy:
                 f,
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -226,7 +231,7 @@ class _Guppy:
                 None,
                 cls,
                 frozen=kwargs.pop("frozen", False),  # Mutable by default
-                link_name=kwargs.pop("link_name", None),
+                link_name=_get_link_name(cls),
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
@@ -270,7 +275,7 @@ class _Guppy:
                 cls.__name__,
                 None,
                 cls,
-                link_name=kwargs.pop("link_name", None),
+                link_name=_get_link_name(cls),
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
@@ -332,7 +337,7 @@ class _Guppy:
                 None,
                 f,
                 unitary_flags=parsed.flags,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
                 metadata=parsed.metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
@@ -449,7 +454,7 @@ class _Guppy:
                 None,
                 f,
                 unitary_flags=parsed.flags,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
                 metadata=parsed.metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
@@ -823,7 +828,6 @@ def _with_optional_kwargs(
 class ParsedGuppyKwargs(NamedTuple):
     flags: UnitaryFlags
     metadata: FunctionMetadata
-    link_name: str | None
 
 
 @hide_trace
@@ -846,7 +850,11 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     if "max_qubits" in kwargs:
         metadata.set_max_qubits(kwargs.pop("max_qubits"))
 
-    link_name = kwargs.pop("link_name", None)
+    if "link_name" in kwargs:
+        raise TypeError(
+            "`link_name` keyword argument has been removed from the `@guppy` decorator,"
+            " use the `@link_name` decorator from `guppylang.library` instead."
+        )
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
@@ -855,10 +863,10 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     return ParsedGuppyKwargs(
         flags=flags,
         metadata=metadata,
-        link_name=link_name,
     )
 
 
+@hide_trace
 def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> None:
     """Adds the given metadata to the function's `__guppy_metadata__` attribute, which
     is used by the compiler to store metadata for Guppy functions.

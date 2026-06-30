@@ -3,8 +3,8 @@ Error: Type mismatch (at $FILE:20:8)
 18 | @guppy
 19 | def main() -> None:
 20 |     foo(bar)
-   |         ^^^ Expected expression of type `?Callable[[T], T]`, got `forall
-   |             T. T -> T`
+   |         ^^^ Expected expression of type `?Callable[[T], T]`, got `def
+   |             bar(x: T) -> T`
 
 Note: Couldn't infer an instantiation for type variable `?T` (higher-rank
 polymorphic types are not supported)
