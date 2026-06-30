@@ -71,7 +71,7 @@ def _float_array_echo() -> GuppyFunctionDefinition[..., None]:
 
 
 @pytest.mark.parametrize(
-    ("make_main", "value"),
+    ("make_main", "expected"),
     [
         pytest.param(_bool_echo, True, id="bool"),
         pytest.param(_int_echo, 7, id="int"),
@@ -80,15 +80,15 @@ def _float_array_echo() -> GuppyFunctionDefinition[..., None]:
 )
 def test_scalar_arg_roundtrip(
     make_main: Callable[[], GuppyFunctionDefinition[..., None]],
-    value: float,
+    expected: float,
 ) -> None:
     main = make_main()
-    res = main.emulator(n_qubits=1).run(x=value)
-    assert res == EmulatorResult([[("x", value)]])
+    res = main.emulator(n_qubits=1).run(x=expected)
+    assert res == EmulatorResult([[("x", expected)]])
 
 
 @pytest.mark.parametrize(
-    ("make_main", "values"),
+    ("make_main", "expected"),
     [
         pytest.param(_bool_array_echo, [True, False, True], id="array_bool"),
         pytest.param(_int_array_echo, [1, 2, 3], id="array_int"),
@@ -97,11 +97,11 @@ def test_scalar_arg_roundtrip(
 )
 def test_array_arg_roundtrip(
     make_main: Callable[[], GuppyFunctionDefinition[..., None]],
-    values: list[int] | list[float] | list[bool],
+    expected: list[int] | list[float] | list[bool],
 ) -> None:
     main = make_main()
-    res = main.emulator(n_qubits=1).run(xs=values)
-    assert res == EmulatorResult([[(f"e{i}", v) for i, v in enumerate(values)]])
+    res = main.emulator(n_qubits=1).run(xs=expected)
+    assert res == EmulatorResult([[(f"e{i}", v) for i, v in enumerate(expected)]])
 
 
 def test_constant_args() -> None:
