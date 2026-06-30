@@ -10,15 +10,18 @@ example_notebooks = list(
 # Turn paths into strings, otherwise pytest doesn't display the names
 example_notebooks = [str(f) for f in example_notebooks]
 
-# Cells in qaoa_maxcut_example.ipynb whose outputs depend on the optimizer
-# convergence path, which varies across scipy/numpy versions and platforms.
-# The notebook is still executed in full — only the exact numerical outputs
-# of these cells are excluded from the regression comparison.
-_QAOA_STOCHASTIC_CELLS = (
-    "/cells/33/outputs",  # optimizer convergence summary
-    "/cells/37/outputs",  # validation success ratio
-    "/cells/39/outputs",  # per-cut-value probability distribution
-)
+# Per-notebook cells to exclude from regression comparison, keyed by a substring
+# of the notebook filename. Values are added to nb_regression.diff_ignore when
+# the key matches.
+_DIFF_IGNORE_CELLS: dict[str, tuple[str, ...]] = {
+    # qaoa_maxcut_example: cells whose outputs depend on optimizer convergence
+    # path, which varies across scipy/numpy versions and platforms.
+    "qaoa_maxcut_example": (
+        "/cells/33/outputs",  # optimizer convergence summary
+        "/cells/37/outputs",  # validation success ratio
+        "/cells/39/outputs",  # per-cut-value probability distribution
+    ),
+}
 
 
 @pytest.mark.parametrize("notebook", example_notebooks)
@@ -27,8 +30,9 @@ def test_example_notebooks(nb_regression, notebook: Path):
         "/metadata/language_info/version",
         "/cells/*/outputs/*/data/image/png",
     )
-    if "qaoa_maxcut_example" in str(notebook):
-        nb_regression.diff_ignore += _QAOA_STOCHASTIC_CELLS
+    for key, cells in _DIFF_IGNORE_CELLS.items():
+        if key in str(notebook):
+            nb_regression.diff_ignore += cells
     nb_regression.check(notebook)
 
 
