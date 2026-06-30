@@ -2,6 +2,7 @@
 side-effects.
 """
 
+from guppylang.optimizer import OptimizationLevel
 from hugr import ops, Hugr, Node
 from hugr.std import PRELUDE
 
@@ -131,7 +132,8 @@ def test_call(validate):
         f = my_discard
         f(q2)
 
-    compiled = test.compile_function()
+    # Disable optimization so the calls don't get inlined.
+    compiled = test.with_optimization(OptimizationLevel.Minimal).compile_function()
     validate(compiled)
 
     # Check that we have the expected order edges between the allocations and calls

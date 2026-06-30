@@ -203,7 +203,7 @@ def test_ext_op_location():
 
     # TODO: These line numbers are unstable under edits to this test file.
     # See <https://github.com/Quantinuum/guppylang/issues/1964>
-    assert 166 in found_annotated_tuples
+    assert 167 in found_annotated_tuples
 
 
 def test_turn_off_debug_mode():
