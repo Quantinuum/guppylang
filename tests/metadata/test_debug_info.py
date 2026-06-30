@@ -59,7 +59,8 @@ def test_subprogram():
         pytket_bar_stub(q)
         discard(q)
 
-    hugr = foo.compile().modules[0]
+    # Avoid inlining the called functions so we can check their debug info.
+    hugr = foo.with_minimal_opt().compile().modules[0]
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
     debug_info = DICompileUnit.from_json(meta[HugrDebugInfo.KEY])
@@ -143,11 +144,13 @@ def test_call_location():
         pytket_bar_load(q)  # inner circuit function call 3 (in other file) + call 4
         discard(q)  # compiles to extension op (see test below)
 
-    hugr = foo.compile().modules[0]
+    # Compile with minimal optimization to preserve call ordering in the graph.
+    hugr = foo.with_minimal_opt().compile().modules[0]
     calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
     assert len(calls) == 4
     # TODO: Use relative numbers, so things don't break each time we modify this .py
-    expected_info = [(140, 8), (141, 8), (27, 0), (143, 8)]
+    # See <https://github.com/Quantinuum/guppylang/issues/1964>
+    expected_info = [(141, 8), (142, 8), (27, 0), (144, 8)]
     for i, call in enumerate(calls):
         call_metadata = hugr[call].metadata
         assert HugrDebugInfo in call_metadata
@@ -178,7 +181,8 @@ def test_ext_op_location():
                 if bools[0]:
                     output("tag", bools)  # Check output usage
 
-    hugr = foo.compile().modules[0]
+    # Compile with minimal optimization to preserve all annotated ops.
+    hugr = foo.with_minimal_opt().compile().modules[0]
 
     known_exceptions = [
         # TODO: Reads are usually used inside of a global function defined by a compiler
@@ -197,7 +201,10 @@ def test_ext_op_location():
             debug_info = DILocation.from_json(node_data.metadata[HugrDebugInfo.KEY])
             found_annotated_tuples.append(debug_info.line_no)
     # Check constructor call is annotated (even though it is not an ExtOp).
-    assert 165 in found_annotated_tuples
+
+    # TODO: These line numbers are unstable under edits to this test file.
+    # See <https://github.com/Quantinuum/guppylang/issues/1964>
+    assert 168 in found_annotated_tuples
 
 
 def test_turn_off_debug_mode():

@@ -6,7 +6,17 @@ with the compiler-internal definition objects in the `definitions` module.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+    cast,
+    runtime_checkable,
+)
 
 import guppylang_internals
 from guppylang_internals.definition.declaration import RawFunctionDecl
@@ -26,23 +36,29 @@ from hugr.package import Package
 from semver import Version
 
 import guppylang
-from guppylang.emulator import EmulatorBuilder, EmulatorInstance
+from guppylang.emulator import EmulatorBuilder, EmulatorInstance, Platform
 from guppylang.emulator._args import (
     EntrypointArgSpec,
     unsupported_arg_reason,
     wrap_entrypoint_with_args,
 )
-from guppylang.emulator.builder import Platform
 from guppylang.emulator.exceptions import EmulatorBuildError
+from guppylang.optimizer import (
+    OptimizationLevel,
+    OptimizerInstance,
+)
 
 if TYPE_CHECKING:
     import ast
 
 __all__ = (
+    "GuppyCompilableProgram",
     "GuppyDefinition",
     "GuppyEnumDefinition",
     "GuppyFunctionDefinition",
     "GuppyTypeVarDefinition",
+    "OptimizationLevel",
+    "OptimizerInstance",
 )
 
 
@@ -129,8 +145,78 @@ class GuppyEnumDefinition(GuppyDefinition):
         )
 
 
+@runtime_checkable
+class GuppyCompilableProgram(Protocol):
+    """A guppy definition for a program that can be compiled or emulated."""
+
+    def emulator(
+        self,
+        n_qubits: int | None = None,
+        builder: EmulatorBuilder | None = None,
+        libs: list[Package] | None = None,
+        platform: Platform = "helios",
+    ) -> EmulatorInstance:
+        """Compile this function for emulation with the selene-sim emulator.
+
+        Compiles the function to a HUGR package and builds it using the provided
+        `EmulatorBuilder` configuration or a default one.
+
+        See :py:mod:`guppylang.emulator` for more details on the emulator.
+
+        Args:
+            n_qubits: The number of qubits to allocate for the function. If it is not
+            provided, the function has to declare the maximum number of qubits it needs
+            in the decorator, e.g. `@guppy(max_qubits=5)`.
+            builder: An optional `EmulatorBuilder` to use for building the emulator
+            instance. If not provided, the default `EmulatorBuilder` will be used.
+            libs: An optional list of additional HUGR packages to link with the compiled
+            function. This can be used to provide additional library functions that the
+            function being compiled depends on.
+            platform: The quantum platform to target. Defaults to ``"helios"``. Set to
+            ``"sol"`` to target the Sol QIS. Ignored if an explicit ``builder`` is
+            provided (use ``builder.with_platform()`` in that case).
+
+        Returns:
+            An `EmulatorInstance` that can be used to run the function in an emulator.
+        """
+        ...
+
+    def compile(self) -> Package:
+        """Compile an execution entrypoint to a HUGR package.
+
+        Alias for :py:meth:`compile_entrypoint`.
+
+
+        Returns:
+            Package: The compiled package object.
+        Raises:
+            GuppyError: If the entrypoint has arguments.
+        """
+        return self.compile_entrypoint()
+
+    def compile_entrypoint(self) -> Package:
+        """Compile an execution entrypoint to a HUGR package.
+
+        Returns:
+            Package: The compiled package object.
+        Raises:
+            GuppyError: If the entrypoint has arguments.
+        """
+        ...
+
+    def compile_function(self) -> Package:
+        """Compile the function definition to a HUGR package.
+
+        Returns:
+            Package: The compiled package object.
+        Raises:
+            GuppyError: If the function has arguments.
+        """
+        ...
+
+
 @dataclass(frozen=True)
-class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
+class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P, Out]):
     """A Guppy function definition."""
 
     @hide_trace
@@ -167,8 +253,19 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
-        mod = self.compile_function()
+        return self.with_opt_level(OptimizationLevel.Default).emulator(
+            n_qubits, builder, libs, platform
+        )
 
+    def _emulator(
+        self,
+        mod: Package,
+        n_qubits: int | None = None,
+        builder: EmulatorBuilder | None = None,
+        libs: list[Package] | None = None,
+        platform: Platform = "helios",
+    ) -> EmulatorInstance:
+        """Build an emulator instance from a compiled package."""
         if libs is not None:
             mod = mod.link(*libs)
 
@@ -253,6 +350,17 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             return compiled_def, cast("ast.FunctionDef", compiled_def.defined_at)
         return None
 
+    def with_opt_level(self, level: OptimizationLevel) -> "OptimizerInstance[P, Out]":
+        """Configure the optimization level used when compiling this function."""
+        return OptimizerInstance(self, level.passes())
+
+    def with_minimal_opt(self) -> "OptimizerInstance[P, Out]":
+        """Configure the function to use minimal optimization when compiling.
+
+        Equivalent to `with_opt_level(OptimizationLevel.Minimal)`.
+        """
+        return self.with_opt_level(OptimizationLevel.Minimal)
+
     def compile(self) -> Package:
         """
         Compiles an execution entrypoint function definition to a HUGR package
@@ -266,7 +374,7 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             GuppyError: If the entrypoint has arguments.
         """
 
-        return self.compile_entrypoint()
+        return self.with_opt_level(OptimizationLevel.Default).compile()
 
     @pretty_errors
     def compile_entrypoint(self) -> Package:
@@ -279,7 +387,12 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
             GuppyError: If the entrypoint has arguments.
         """
 
-        pack = self.compile_function()
+        return self.with_opt_level(OptimizationLevel.Default).compile_entrypoint()
+
+    @pretty_errors
+    def _compile_entrypoint(self) -> Package:
+        """Compile an execution entrypoint without applying optimization passes."""
+        pack = self._compile_function()
         if (result := self._compiled_entrypoint_with_inputs()) is not None:
             compiled_def, defined_at = result
             start = to_span(defined_at.args.args[0])
@@ -304,6 +417,10 @@ class GuppyFunctionDefinition(GuppyDefinition, Generic[P, Out]):
         Returns:
             Package: The compiled package object.
         """
+        return self.with_opt_level(OptimizationLevel.Default).compile_function()
+
+    def _compile_function(self) -> Package:
+        """Compile a Guppy function definition without applying optimization passes."""
         return super().compile()
 
     @property

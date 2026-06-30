@@ -63,7 +63,10 @@ def test_assignment_in_dagger(validate):
         discard(q)
         discard(c)
 
-    validate(main.compile_function())
+    # TODO: Tket's full ModifierResolution pass constructs a cyclic DFG.
+    # Export disabled while we fix the issue.
+    # See <https://github.com/Quantinuum/tket2/issues/1774>
+    validate(main.compile_function(), export=False)
 
 
 def test_control_simple(validate):
@@ -181,8 +184,11 @@ def test_power_simple(validate):
             pass
 
     # Tket passes reject power modifiers, so do not export this HUGR for CI
-    # normalization.
-    validate(bar.compile_function(), export=False)
+    # normalization and don't run default optimization passes.
+    validate(
+        bar.with_minimal_opt().compile_function(),
+        export=False,
+    )
 
 
 def test_call_in_modifier(validate):

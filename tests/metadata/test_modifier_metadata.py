@@ -68,7 +68,8 @@ def test_unitary_metadata_power_dagger_control():
         discard(c1)
         discard(t)
 
-    h = main.compile_function().modules[0]
+    # The tket ModifierResolverPass no longer supports power modifiers.
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -91,7 +92,8 @@ def test_unitary_metadata_dagger_power_control():
         discard(c1)
         discard(t)
 
-    h = main.compile_function().modules[0]
+    # The tket ModifierResolverPass no longer supports power modifiers.
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -114,7 +116,8 @@ def test_unitary_metadata_control_dagger_power():
         discard(c1)
         discard(t)
 
-    h = main.compile_function().modules[0]
+    # The tket ModifierResolverPass no longer supports power modifiers.
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -137,7 +140,8 @@ def test_unitary_metadata_power_control_dagger():
         discard(c1)
         discard(t)
 
-    h = main.compile_function().modules[0]
+    # The tket ModifierResolverPass no longer supports power modifiers.
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -160,7 +164,8 @@ def test_unitary_metadata_dagger_control_power():
         discard(c1)
         discard(t)
 
-    h = main.compile_function().modules[0]
+    # The tket ModifierResolverPass no longer supports power modifiers.
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -183,7 +188,8 @@ def test_unitary_metadata_control_power_dagger():
         discard(c1)
         discard(t)
 
-    h = main.compile_function().modules[0]
+    # The tket ModifierResolverPass no longer supports power modifiers.
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
