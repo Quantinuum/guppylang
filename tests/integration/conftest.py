@@ -47,7 +47,7 @@ def export_test_cases_dir(request):
     r = request.config.getoption("--export-test-cases")
     if r is not None:
         if not r.exists():
-            r.mkdir(parents=True)
+            r.mkdir(parents=True, exist_ok=True)
         return Path(r).absolute()
 
 

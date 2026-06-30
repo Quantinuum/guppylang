@@ -1,0 +1,11 @@
+Error: Missing protocol implementation (at $FILE:21:18)
+   | 
+19 | def main(q: qubit) -> None:
+20 |     f: Function[[qubit], None] = unitary
+21 |     apply_unitary(f, q)
+   |                   ^ Type `qubit -> None` does not implement protocol
+   |                     `Unitary[[qubit], None]`
+
+Note: Only statically known functions can be modified
+
+Guppy compilation failed due to 1 previous error

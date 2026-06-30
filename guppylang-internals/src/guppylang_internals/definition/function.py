@@ -260,7 +260,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             assert self.metadata is not None
             self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
         add_metadata(
-            func_def,
+            module.hugr[func_def].metadata,
             self.metadata,
         )
         return CompiledFunctionDef(

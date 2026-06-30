@@ -208,11 +208,11 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
 
         node = module.declare_function(self.link_name, self.ty.to_hugr_poly(ctx))
         add_metadata(
-            node,
+            module.hugr[node].metadata,
             self.metadata,
         )
         if debug_mode_enabled():
-            node.metadata[HugrDebugInfo] = make_subprogram_record(
+            module.hugr[node].metadata[HugrDebugInfo] = make_subprogram_record(
                 self.defined_at, ctx, is_decl=True
             )
         return CompiledFunctionDecl(

@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile()
   File "$FILE", line 10, in test
     foo(set())
-guppylang_internals.error.GuppyComptimeError: Unsupported Python expression: Expression of type `<class 'set'>` is not supported
+guppylang_internals.error.GuppyComptimeError: Unsupported Python value: Python value of type `<class 'set'>` cannot be used in Guppy

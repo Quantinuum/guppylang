@@ -14,7 +14,7 @@ def test_generic(validate):
 
     @guppy
     def main() -> None:
-        foo[comptime(N)]()
+        foo[N]()
 
     validate(main.compile_function())
 
