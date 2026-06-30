@@ -62,8 +62,7 @@ Run `just` to see all available commands.
 
 The benchmarks are disabled (not skipped) in local test runs using `--benchmark-disable`, which means that
 the tests that use the `benchmark` fixture are executed when doing `just test` or `uv run pytest`,
-but they are not run multiple times or with CPU instrumentation, and no no metrics are collected
-or uploaded.
+but they are not run multiple times or with CPU instrumentation, and no metrics are collected or uploaded.
 
 ### codspeed benchmarks
 
