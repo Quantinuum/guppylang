@@ -58,7 +58,10 @@ def compile_modified_block(
     func_builder = dfg.builder.define_function(
         str(modified_block), hugr_ty.input, hugr_ty.output
     )
-    add_unitary_metadata(func_builder, modified_block.ty.unitary_flags.value)
+    add_unitary_metadata(
+        func_builder._raw.hugr[func_builder].metadata,
+        modified_block.ty.unitary_flags.value,
+    )
 
     # compile body
     cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
