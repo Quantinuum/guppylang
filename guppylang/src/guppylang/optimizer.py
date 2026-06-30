@@ -98,7 +98,7 @@ def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package
     return package
 
 
-@dataclass
+@dataclass(frozen=True)
 class OptimizerInstance(Generic[P, Out]):
     """Builder used to configure optimizations for compiling a Guppy program."""
 
