@@ -1,8 +1,5 @@
 # Changelog
 
-First release of `guppylang_internals` package containing refactored out internal components
-from `guppylang`.
-
 ## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1...guppylang-internals-v1.0.0-a8) (2026-06-30)
 
 
