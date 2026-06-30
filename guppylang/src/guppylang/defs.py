@@ -252,6 +252,13 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         """Configure the optimization level used when compiling this function."""
         return OptimizerInstance(self, level.passes())
 
+    def with_minimal_opt(self) -> "OptimizerInstance[P, Out]":
+        """Configure the function to use minimal optimization when compiling.
+
+        Equivalent to `with_opt_level(OptimizationLevel.Minimal)`.
+        """
+        return self.with_opt_level(OptimizationLevel.Minimal)
+
     def compile(self) -> Package:
         """
         Compiles an execution entrypoint function definition to a HUGR package

@@ -1,7 +1,7 @@
 """Tests that modifier blocks have the correct `unitary` metadata attached."""
 
 import guppylang as _guppylang
-from guppylang import OptimizationLevel, guppy
+from guppylang import guppy
 from guppylang.std.angles import angle
 from guppylang.std.builtins import control, dagger, power, qubit
 from guppylang.std.quantum import discard, rx
@@ -69,7 +69,7 @@ def test_unitary_metadata_power_dagger_control():
         discard(t)
 
     # The tket ModifierResolverPass no longer supports power modifiers.
-    h = main.with_opt_level(OptimizationLevel.Minimal).compile_function().modules[0]
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -93,7 +93,7 @@ def test_unitary_metadata_dagger_power_control():
         discard(t)
 
     # The tket ModifierResolverPass no longer supports power modifiers.
-    h = main.with_opt_level(OptimizationLevel.Minimal).compile_function().modules[0]
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -117,7 +117,7 @@ def test_unitary_metadata_control_dagger_power():
         discard(t)
 
     # The tket ModifierResolverPass no longer supports power modifiers.
-    h = main.with_opt_level(OptimizationLevel.Minimal).compile_function().modules[0]
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -141,7 +141,7 @@ def test_unitary_metadata_power_control_dagger():
         discard(t)
 
     # The tket ModifierResolverPass no longer supports power modifiers.
-    h = main.with_opt_level(OptimizationLevel.Minimal).compile_function().modules[0]
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -165,7 +165,7 @@ def test_unitary_metadata_dagger_control_power():
         discard(t)
 
     # The tket ModifierResolverPass no longer supports power modifiers.
-    h = main.with_opt_level(OptimizationLevel.Minimal).compile_function().modules[0]
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [
@@ -189,7 +189,7 @@ def test_unitary_metadata_control_power_dagger():
         discard(t)
 
     # The tket ModifierResolverPass no longer supports power modifiers.
-    h = main.with_opt_level(OptimizationLevel.Minimal).compile_function().modules[0]
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
         [

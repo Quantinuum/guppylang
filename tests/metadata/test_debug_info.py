@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from guppylang import OptimizationLevel, guppy
+from guppylang import guppy
 from guppylang.std import array
 from guppylang.std.debug import state_output
 from guppylang.std.lang import comptime
@@ -144,7 +144,7 @@ def test_call_location():
         discard(q)  # compiles to extension op (see test below)
 
     # Compile with minimal optimization to preserve call ordering in the graph.
-    hugr = foo.with_opt_level(OptimizationLevel.Minimal).compile().modules[0]
+    hugr = foo.with_minimal_opt().compile().modules[0]
     calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
     assert len(calls) == 4
     # TODO: Use relative numbers, so things don't break each time we modify this .py
@@ -181,7 +181,7 @@ def test_ext_op_location():
                     output("tag", bools)  # Check output usage
 
     # Compile with minimal optimization to preserve all annotated ops.
-    hugr = foo.with_opt_level(OptimizationLevel.Minimal).compile().modules[0]
+    hugr = foo.with_minimal_opt().compile().modules[0]
 
     known_exceptions = [
         # TODO: Reads are usually used inside of a global function defined by a compiler

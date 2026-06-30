@@ -42,7 +42,7 @@ def test_opt_levels() -> None:
     def main_minimal() -> None:
         _x = 2 + 2
 
-    optimizer_minimal = main_minimal.with_opt_level(OptimizationLevel.Minimal)
+    optimizer_minimal = main_minimal.with_minimal_opt()
 
     # Classical-only optimization
     @guppy

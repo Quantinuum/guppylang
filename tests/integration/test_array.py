@@ -1,4 +1,3 @@
-from guppylang.optimizer import OptimizationLevel
 import pytest
 from hugr import ops
 
@@ -50,7 +49,7 @@ def test_len_generic(validate):
 
     # Skip optimizations during compilation to preserve the UnsignedIntVal
     # instantiation.
-    package = main.with_opt_level(OptimizationLevel.Minimal).compile_function()
+    package = main.with_minimal_opt().compile_function()
     validate(package)
 
     hg = package.modules[0]
