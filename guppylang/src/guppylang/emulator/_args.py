@@ -240,7 +240,7 @@ def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> Non
     # functions in the module is a deliberate choice to allow the original
     # entrypoint to be called as a library function.
     # Name of the no-input wrapper generated around the original entrypoint.
-    wrapper_name = "__entrypoint_with_args"
+    wrapper_name = f"__{op.f_name}_with_args"
     wrapper = Function.new_nested(
         ops.FuncDefn(wrapper_name, [], visibility="Public"),
         module,
