@@ -7,7 +7,7 @@ from hugr.utils import JsonType
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.max_qubits import MetadataMaxQubits
+from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 
 
 class MetadataUnitaryFlags(Metadata[int]):
@@ -54,7 +54,7 @@ class FunctionMetadata:
     _node_metadata: NodeMetadata = field(default_factory=NodeMetadata)
     _RESERVED_KEYS: ClassVar[set[str]] = {
         HugrDebugInfo.KEY,
-        MetadataMaxQubits.KEY,
+        MetadataExpectedQubitsHint.KEY,
         MetadataUnitaryFlags.KEY,
     }
 
@@ -64,8 +64,8 @@ class FunctionMetadata:
     def set_debug_info(self, debug_info: DebugRecord) -> None:
         self._node_metadata[HugrDebugInfo] = debug_info
 
-    def set_max_qubits(self, max_qubits: int) -> None:
-        self._node_metadata[MetadataMaxQubits] = max_qubits
+    def set_expected_qubits(self, expected_qubits: int) -> None:
+        self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
 
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value
@@ -80,8 +80,8 @@ class FunctionMetadata:
         assert debug_record is None or isinstance(debug_record, DebugRecord)
         return debug_record
 
-    def get_max_qubits(self) -> int | None:
-        qubits = self._node_metadata.get(MetadataMaxQubits, None)
+    def get_expected_qubits(self) -> int | None:
+        qubits = self._node_metadata.get(MetadataExpectedQubitsHint, None)
         assert qubits is None or isinstance(qubits, int)
         return qubits
 
