@@ -51,8 +51,8 @@ from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
     callable_protocol_def,
-    controllable_type_def,
-    daggerable_type_def,
+    controllable_protocol_def,
+    daggerable_protocol_def,
     float_type_def,
     frozenarray_type_def,
     function_def_type_def,
@@ -66,7 +66,7 @@ from guppylang_internals.tys.builtin import (
     sized_iter_type_def,
     string_type_def,
     tuple_type_def,
-    unitary_type_def,
+    unitary_protocol_def,
 )
 from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.param import Parameter
@@ -89,9 +89,9 @@ from guppylang_internals.tys.ty import (
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
     function_def_type_def,
-    unitary_type_def,
-    daggerable_type_def,
-    controllable_type_def,
+    unitary_protocol_def,
+    daggerable_protocol_def,
+    controllable_protocol_def,
     self_type_def,
     tuple_type_def,
     none_type_def,

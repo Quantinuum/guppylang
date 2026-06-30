@@ -385,13 +385,13 @@ def _option_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
 
 function_type_def = FunctionTypeDef(DefId.fresh(), None, None)
 function_def_type_def = FunctionTypeDef(DefId.fresh(), None, None)
-unitary_type_def = ModifiableFunctionProtocolDef(
+unitary_protocol_def = ModifiableFunctionProtocolDef(
     DefId.fresh(), UnitaryFlags.Unitary, None
 )
-daggerable_type_def = ModifiableFunctionProtocolDef(
+daggerable_protocol_def = ModifiableFunctionProtocolDef(
     DefId.fresh(), UnitaryFlags.Dagger, None
 )
-controllable_type_def = ModifiableFunctionProtocolDef(
+controllable_protocol_def = ModifiableFunctionProtocolDef(
     DefId.fresh(), UnitaryFlags.Control, None
 )
 self_type_def = SelfTypeDef(DefId.fresh(), None, [])
