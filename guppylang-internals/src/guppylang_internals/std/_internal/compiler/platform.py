@@ -16,7 +16,7 @@ from guppylang_internals.definition.custom import (
     CustomInoutCallCompiler,
 )
 from guppylang_internals.definition.value import CallReturnWires
-from guppylang_internals.diagnostic import Error, Note
+from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.error import (
     BypassOverloadError,
     GuppyError,
@@ -146,14 +146,14 @@ class MeasurementOutputChecker(CustomCallChecker):
         )
 
         @dataclass(frozen=True)
-        class ReadHint(Note):
+        class ReadHint(Help):
             message: ClassVar[str] = (
                 "Use `.read()` on the value to get a bool (this will block execution "
                 "until the measurement result is available)"
             )
 
         @dataclass(frozen=True)
-        class ReadArrayHint(Note):
+        class ReadArrayHint(Help):
             message: ClassVar[str] = (
                 "Use `collect_measurements()` on the array to get an array of bools "
                 "(this will block execution until all the measurement results are "
