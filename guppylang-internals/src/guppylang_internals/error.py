@@ -36,6 +36,10 @@ class GuppyTypeInferenceError(GuppyError):
     """Special Guppy exception for type inference errors."""
 
 
+class BypassOverloadError(GuppyError):
+    """A Guppy error that should bypass overload error suppression."""
+
+
 class MissingModuleError(Exception):
     """Special Guppy exception for operations that require a guppy module."""
 

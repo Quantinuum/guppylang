@@ -14,6 +14,7 @@ from guppylang_internals.std._internal.checker import (
 )
 from guppylang_internals.std._internal.compiler.platform import (
     ArrayOutputCompiler,
+    MeasurementOutputChecker,
     OutputCompiler,
 )
 from guppylang_internals.tys.builtin import int_type, string_type
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     from guppylang.std.array import array
     from guppylang.std.lang import comptime
     from guppylang.std.num import nat
+    from guppylang.std.quantum import Measurement
 
 n = guppy.nat_var("n")
 
@@ -45,6 +47,10 @@ def _output_bool(tag: str @ comptime, value: bool) -> None: ...
 def _output_float(tag: str @ comptime, value: float) -> None: ...
 
 
+@custom_function(checker=MeasurementOutputChecker())
+def _output_measurement(tag: str @ comptime, value: Measurement) -> None: ...
+
+
 @custom_function(ArrayOutputCompiler("result_array_int", with_int_width=True))
 def _output_int_array(tag: str @ comptime, value: array[int, n]) -> None: ...
 
@@ -61,15 +67,23 @@ def _output_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
 def _output_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
 
 
+@custom_function(checker=MeasurementOutputChecker())
+def _output_measurement_array(
+    tag: str @ comptime, value: array[Measurement, n]
+) -> None: ...
+
+
 @guppy.overload(
     _output_int,
     _output_nat,
     _output_bool,
     _output_float,
+    _output_measurement,
     _output_int_array,
     _output_nat_array,
     _output_bool_array,
     _output_float_array,
+    _output_measurement_array,
 )
 def output(tag: str, value):
     """Report an output with the given tag and value.
