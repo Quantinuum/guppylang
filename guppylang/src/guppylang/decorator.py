@@ -97,7 +97,6 @@ class GuppyKwargs(TypedDict, total=False):
     unitary: bool
     controllable: bool
     daggerable: bool
-    max_qubits: int
 
 
 class GuppyStructKwargs(TypedDict, total=False):
