@@ -103,7 +103,7 @@ class GuppyKwargs(TypedDict, total=False):
     dagger: bool
     power: bool
     max_qubits: int
-    inline: Literal["best_effort" | "None"]
+    inline: Literal["best_effort", "None"]
     link_name: str
 
 

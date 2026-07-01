@@ -26,7 +26,7 @@ class MetadataMaxQubits(GuppyMetadataValue[int]):
     key = "tket.hint.max_qubits"
 
 
-class MetadataInline(GuppyMetadataValue[Literal["best_effort" | "None"]]):
+class MetadataInline(GuppyMetadataValue[Literal["best_effort", "None"]]):
     key = "tket.inline"
 
 
