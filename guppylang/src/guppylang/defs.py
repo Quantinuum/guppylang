@@ -166,7 +166,7 @@ class GuppyCompilableProgram(Protocol):
         Args:
             n_qubits: The number of qubits to allocate for the function. If it is not
             provided, the function has to declare the expected number of qubits it needs
-            in the decorator, e.g. `@expected_qubits(5)`.
+            with the decorator `@expected_qubits`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
             instance. If not provided, the default `EmulatorBuilder` will be used.
             libs: An optional list of additional HUGR packages to link with the compiled
@@ -240,7 +240,7 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         Args:
             n_qubits: The number of qubits to allocate for the function. If it is not
             provided, the function has to declare the expected number of qubits it needs
-            in the decorator, e.g. `@expected_qubits(5)`.
+            with the decorator `@expected_qubits`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
             instance. If not provided, the default `EmulatorBuilder` will be used.
             libs: An optional list of additional HUGR packages to link with the compiled
