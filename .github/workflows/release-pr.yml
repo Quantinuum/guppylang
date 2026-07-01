@@ -264,9 +264,6 @@ jobs:
             {
               echo "Automated release PR."
               echo
-              echo "- \`guppylang\` → \`$VERSION\`"
-              echo "- \`guppylang-internals\` → \`$VERSION\`"
-              echo
               echo "Remove the \`$REGEN_LABEL\` label to take manual control of the changelogs."
               echo
               echo "<!-- BEGIN RELEASE NOTES PREVIEW -->"
