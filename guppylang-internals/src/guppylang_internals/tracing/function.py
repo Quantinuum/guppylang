@@ -19,6 +19,7 @@ from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
+from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import DEF_STORE
@@ -221,8 +222,20 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     # Update inouts
     # If the input types of the function aren't known, we can't check this.
     # This is the case for functions with a custom checker and no type annotations.
-    if len(func.ty.inputs) != 0:
-        for inp, arg, var in zip(func.ty.inputs, args, arg_vars, strict=True):
+    # For overloaded functions, we first need to get the signature for the specific
+    # overload that was used.
+    resolved_func = func
+    if len(resolved_func.ty.inputs) == 0 and isinstance(func, OverloadedFunctionDef):
+        result = func.resolve_overload(arg_exprs, state.node, ctx)
+        # Since we already type checked the call, this should always succeed.
+        assert result is not None
+        # Custom checkers with varargs that are overloaded can still not be updated.
+        # See https://github.com/Quantinuum/guppylang/issues/1980.
+        if len(result.ty.inputs) == len(args):
+            resolved_func = result
+
+    if len(resolved_func.ty.inputs) != 0:
+        for inp, arg, var in zip(resolved_func.ty.inputs, args, arg_vars, strict=True):
             if InputFlags.Inout in inp.flags:
                 # Note that `inp.ty` could refer to bound variables in the function
                 # signature. Instead, make sure to use `var.ty` which will always be a
