@@ -1021,7 +1021,7 @@ wheels = [
 
 [[package]]
 name = "guppylang"
-version = "1.0.0a8"
+version = "1.0.0a9"
 source = { editable = "guppylang" }
 dependencies = [
     { name = "guppylang-internals" },
@@ -1048,7 +1048,7 @@ requires-dist = [
 
 [[package]]
 name = "guppylang-internals"
-version = "1.0.0a8"
+version = "1.0.0a9"
 source = { editable = "guppylang-internals" }
 dependencies = [
     { name = "hugr" },
