@@ -432,7 +432,6 @@ def test_unitary(validate):
         control,
         dagger,
     )
-    from guppylang.std.debug import state_result
     from guppylang.std.quantum import discard, h, qubit, s
 
     @guppy(unitary=True)
