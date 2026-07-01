@@ -6,6 +6,7 @@ from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
+    Literal,
     NamedTuple,
     ParamSpec,
     TypedDict,
@@ -45,6 +46,7 @@ from guppylang_internals.dummy_decorator import (
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
+from guppylang_internals.metadata.inline import MetadataInline
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
@@ -85,6 +87,7 @@ __all__ = (
     "custom_guppy_decorator",
     "expected_qubits",
     "guppy",
+    "inline",
     "metadata",
 )
 
@@ -97,7 +100,6 @@ class GuppyKwargs(TypedDict, total=False):
     unitary: bool
     controllable: bool
     daggerable: bool
-    max_qubits: int
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -719,6 +721,25 @@ def expected_qubits(num: int) -> Any:
     return metadata(MetadataExpectedQubitsHint.KEY, num)
 
 
+def inline(value: Literal["best_effort", "never"]) -> Any:
+    """Decorator to attach inline metadata to a Guppy function. It must be
+    placed below the @guppy decorator.
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.decorator import inline
+
+        @guppy
+        @inline("best_effort")
+        def main() -> None:
+            pass
+
+        main.compile()
+    """
+    return metadata(MetadataInline.KEY, value)
+
+
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
     """Helper function to parse expressions that are provided as strings.
 
@@ -892,10 +913,13 @@ def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> 
     custom_metadata = getattr(f, "__guppy_metadata__", {})
     assert isinstance(custom_metadata, dict)
     for key, value in custom_metadata.items():
-        if key == MetadataExpectedQubitsHint.KEY:
-            metadata.set_expected_qubits(value)
-        else:
-            metadata.set_generic_metadata(key, value)
+        match key:
+            case MetadataExpectedQubitsHint.KEY:
+                metadata.set_expected_qubits(value)
+            case MetadataInline.KEY:
+                metadata.set_inline(value)
+            case _:
+                metadata.set_generic_metadata(key, value)
 
 
 def _params_from_list(params: list[Any]) -> list[ParamDef]:
