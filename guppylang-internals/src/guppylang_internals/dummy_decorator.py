@@ -15,8 +15,8 @@ class _DummyGuppy:
     def comptime(self, f: Any) -> Any:
         return f
 
-    def struct(self, cls: Any) -> Any:
-        return cls
+    def struct(self, *args: Any, **kwargs: Any) -> Any:
+        return self
 
     def enum(self, cls: Any) -> Any:
         return cls
@@ -46,9 +46,6 @@ class _DummyGuppy:
         return None
 
     def _extern(self, *args: Any, **kwargs: Any) -> Any:
-        return None
-
-    def library(self, *args: Any, **kwargs: Any) -> Any:
         return None
 
     def pytket(self, *args: Any, **kwargs: Any) -> Any:

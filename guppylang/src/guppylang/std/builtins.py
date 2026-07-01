@@ -11,6 +11,7 @@ from guppylang.std.iter import range
 from guppylang.std.lang import (
     Controllable,
     Daggerable,
+    Function,
     Unitary,
     comptime,
     control,
@@ -32,7 +33,7 @@ from guppylang.std.num import (
 )
 from guppylang.std.option import Option, nothing, some
 from guppylang.std.platform import exit, output, panic, result
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import Measurement, qubit
 from guppylang.std.reflection import callable
 from guppylang.std.string import str
 from guppylang.std.unsupported import (
@@ -143,6 +144,7 @@ __all__ = (  # noqa: RUF022
     "exit",
     "filter",
     "float",
+    "Function",
     "format",
     "frozenarray",
     "frozenset",
@@ -163,6 +165,7 @@ __all__ = (  # noqa: RUF022
     "locals",
     "map",
     "max",
+    "Measurement",
     "memoryview",
     "min",
     "nat",

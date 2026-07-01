@@ -16,6 +16,7 @@ from guppylang_internals.checker.errors.type_errors import (
 )
 from guppylang_internals.definition.common import CheckableGenericDef, DefId, Definition
 from guppylang_internals.definition.protocol import ProtocolDef
+from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -567,8 +568,15 @@ class TracingDefMixin(DunderMixin):
         # If this is a type definition, then `__getitem__` might be called when
         # specifying generic arguments
         if isinstance(self.wrapped, TypeDef | ProtocolDef):
-            # It doesn't really matter what we return here since we don't support types
-            # as comptime values yet, so just give back the definition
+            # In the case of struct type definitions, we want to raise an error for the
+            # constructor in the same way as we do for generic functions below
+            if tracing_active() and isinstance(self.wrapped, RawStructDef):
+                raise GuppyComptimeError(
+                    "Explicitly specifying type arguments of generic structs in a "
+                    "comptime context is not supported yet"
+                )
+            # Otherwise it doesn't really matter what we return here since we don't
+            # support types as comptime values yet, so just give back the definition
             return self
         # TODO: Alternatively, it could be a type application on a generic function.
         #  Supporting those requires a comptime representation of types as values

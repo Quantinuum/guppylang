@@ -85,6 +85,7 @@ from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FuncInput,
+    FunctionDefType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -259,6 +260,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             )
             raise GuppyError(err)
 
+        if isinstance(get_type(node), FunctionDefType):
+            # Function items don't need an actual runtime representation so we just
+            # lower them to a unit value (see `FunctionItemType.to_hugr`)
+            return self.builder.add_op(ops.MakeTuple())
         defn = self.ctx.build_compiled_def(node.def_id, type_args=())
         assert isinstance(defn, CompiledValueDef)
         return defn.load(self.dfg, self.ctx, node)
@@ -401,6 +406,15 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             inout_returns = call[num_returns:]
             self._update_inout_ports(consumed_args, inout_returns, func_ty)
             return regular_returns, other_args
+
+        elif isinstance(func_ty, FunctionDefType):
+            input_len = len(func_ty.sig.inputs)
+            consumed_args, other_args = args[0:input_len], args[input_len:]
+            node = GlobalCall(def_id=func_ty.def_id, args=consumed_args, type_args=())
+            out = self.visit_GlobalCall(node)
+            returns = unpack_wire(out, func_ty.sig.output, self.builder, self.ctx, node)
+            return returns, other_args
+
         else:
             raise InternalGuppyError("Tensor element wasn't function or tuple")
 
@@ -455,6 +469,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # For now, we can only TypeApply global FunctionDefs/Decls.
         if not isinstance(node.value, GlobalName):
             raise InternalGuppyError("Dynamic TypeApply not supported yet!")
+        if isinstance(get_type(node), FunctionDefType):
+            # Function items don't need an actual runtime representation so we just
+            # lower them to a unit value (see `FunctionItemType.to_hugr`)
+            return self.builder.add_op(ops.MakeTuple())
         defn = self.ctx.build_compiled_def(node.value.def_id, node.inst)
         assert isinstance(defn, CompiledCallableDef)
         return defn.load(self.dfg, self.ctx, node)

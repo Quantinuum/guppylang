@@ -1,9 +1,9 @@
 import ast
 import sys
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from types import ModuleType
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -13,6 +13,10 @@ from guppylang_internals.ast_util import (
 from guppylang_internals.cfg.builder import is_comptime_expression
 from guppylang_internals.checker.core import Context, Globals, Locals, PythonObject
 from guppylang_internals.checker.errors.generic import ExpectedError, UnsupportedError
+from guppylang_internals.checker.errors.type_errors import (
+    DontReturnProtocol,
+    DontUseProtocolSugar,
+)
 from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
@@ -21,20 +25,24 @@ from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
-    CallableTypeDef,
+    CallableProtocolDef,
+    CallableProtocolInst,
+    FunctionTypeDef,
+    ModifiableFunctionProtocolDef,
+    ModifiableFunctionProtocolInst,
     SelfTypeDef,
     bool_type,
 )
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.errors import (
-    CallableComptimeError,
     ComptimeArgShadowError,
     FlagNotAllowedError,
     FreeTypeVarError,
+    FunctionTypeComptimeError,
     HigherKindedTypeVarError,
-    IllegalComptimeTypeArgError,
-    InvalidCallableTypeError,
+    IllegalPythonTypeArgError,
     InvalidFlagError,
+    InvalidFunctionTypeError,
     InvalidTypeArgError,
     InvalidTypeError,
     LinearComptimeError,
@@ -89,13 +97,25 @@ class TypeParsingCtx:
     #: the type this method belongs to in order to resolve `Self` annotations.
     self_ty: Type | None = None
 
+    #: Allow protocols to be referred to by name as syntactic sugar for creating a bound
+    #: variable that implements the protocol and referencing that.
+    #: This is disallowed in struct fields.
+    disallow_protocol_types: bool = False
+
+    #: Whether the type we're parsing is a return type
+    is_output: bool = False
+
 
 def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     """Turns an AST expression into an argument."""
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
+    from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     # A single (possibly qualified) identifier
-    if defn := try_parse_defn(node, ctx.globals):
+    if defn := try_parse_defn(node, ctx):
+        if ctx.is_output and isinstance(defn, ParsedProtocolDef):
+            raise GuppyError(DontReturnProtocol(node, defn.name))
+
         return _arg_from_instantiated_defn(defn, [], node, ctx)
 
     # An identifier referring to a quantified variable
@@ -104,12 +124,15 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
             return ctx.param_inst[node.id]
         if node.id in ctx.param_var_mapping:
             return ctx.param_var_mapping[node.id].to_bound()
+        if node.id in ctx.globals:
+            defn_or_python_obj = ctx.globals[node.id]
+            if isinstance(defn_or_python_obj, PythonObject):
+                return check_comptime_value(defn_or_python_obj.obj, node)
+
         raise GuppyError(VarNotDefinedError(node, node.id))
 
     # A parametrised type, e.g. `list[??]`
-    if isinstance(node, ast.Subscript) and (
-        defn := try_parse_defn(node.value, ctx.globals)
-    ):
+    if isinstance(node, ast.Subscript) and (defn := try_parse_defn(node.value, ctx)):
         arg_nodes = (
             node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
         )
@@ -149,11 +172,7 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
         from guppylang_internals.checker.expr_checker import eval_comptime_expr
 
         v = eval_comptime_expr(comptime_expr, Context(ctx.globals, Locals({}), {}))
-        if isinstance(v, int):
-            nat_ty = NumericType(NumericType.Kind.Nat)
-            return ConstArg(ConstValue(nat_ty, v))
-        else:
-            raise GuppyError(IllegalComptimeTypeArgError(node, v))
+        return check_comptime_value(v, node)
 
     # Finally, we also support delayed annotations in strings
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -163,24 +182,36 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     raise GuppyError(InvalidTypeArgError(node))
 
 
-def try_parse_defn(node: AstNode, globals: Globals) -> Definition | None:
+def check_comptime_value(v: Any, node: AstNode) -> Argument:
+    """Checks if a Python value is a valid type argument."""
+    if isinstance(v, int):
+        nat_ty = NumericType(NumericType.Kind.Nat)
+        return ConstArg(ConstValue(nat_ty, v))
+    else:
+        raise GuppyError(IllegalPythonTypeArgError(node, v))
+
+
+def try_parse_defn(node: AstNode, ctx: TypeParsingCtx) -> Definition | None:
     """Tries to parse a (possibly qualified) name into a global definition."""
     from guppylang.defs import GuppyDefinition
 
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
+    from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     match node:
         case ast.Name(id=x):
-            if x not in globals:
+            if x not in ctx.globals:
                 return None
-            defn = globals[x]
+            defn = ctx.globals[x]
             if isinstance(defn, PythonObject):
                 return None
+            if ctx.disallow_protocol_types and isinstance(defn, ParsedProtocolDef):
+                raise GuppyError(DontUseProtocolSugar(node, node.id))
             return defn
         case ast.Attribute(value=ast.Name(id=module_name) as value, attr=x):
-            if module_name not in globals:
+            if module_name not in ctx.globals:
                 raise GuppyError(VarNotDefinedError(value, module_name))
-            match globals[module_name]:
+            match ctx.globals[module_name]:
                 case PythonObject(ModuleType() as module):
                     if x in module.__dict__:
                         val = module.__dict__[x]
@@ -202,9 +233,35 @@ def _arg_from_instantiated_defn(
     from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     match defn:
-        # Special cases for the `Callable` type
-        case CallableTypeDef(flags=flags):
-            return TypeArg(_parse_callable_type(arg_nodes, node, ctx, flags=flags))
+        # Special cases for the `Function` type
+        case FunctionTypeDef(name=name):
+            return TypeArg(_parse_function_type(arg_nodes, node, ctx, name))
+        # Special cases for the `Callable` protocol
+        case CallableProtocolDef():
+            sig = _parse_function_type(arg_nodes, node, ctx, "Callable")
+            proto_inst = CallableProtocolInst(sig)
+            param = TypeParam(
+                len(ctx.param_var_mapping),
+                name=str(proto_inst),
+                must_be_copyable=True,
+                must_be_droppable=True,
+                must_implement=[proto_inst],
+            )
+            ctx.param_var_mapping[param.name] = param
+            return param.to_bound()
+        # Special case for the `Unitary`, `Controllable`, and `Daggerable` protocols
+        case ModifiableFunctionProtocolDef(flags=flags):
+            sig = _parse_function_type(arg_nodes, node, ctx, flags.callable_name())
+            proto_inst = ModifiableFunctionProtocolInst(sig.with_unitary_flags(flags))
+            param = TypeParam(
+                len(ctx.param_var_mapping),
+                name=str(proto_inst),
+                must_be_copyable=True,
+                must_be_droppable=True,
+                must_implement=[proto_inst],
+            )
+            ctx.param_var_mapping[param.name] = param
+            return param.to_bound()
         # Special case for the `Self` type
         case SelfTypeDef():
             self_ty = _parse_self_type(arg_nodes, node, ctx)
@@ -295,21 +352,22 @@ def annotation_nodes(node: ast.expr) -> Iterator[ast.expr]:
             yield from annotation_nodes(child)
 
 
-def _parse_callable_type(
+def _parse_function_type(
     args: list[ast.expr],
     loc: AstNode,
     ctx: TypeParsingCtx,
+    kind: Literal["Function", "Unitary", "Daggerable", "Controllable", "Callable"],
     flags: UnitaryFlags = UnitaryFlags.NoFlags,
 ) -> FunctionType:
-    """Helper function to parse a `Callable[[<arguments>], <return type>]` type."""
-    err = InvalidCallableTypeError(loc)
+    """Helper function to parse a `Function[[<arguments>], <return type>]` type."""
+    err = InvalidFunctionTypeError(loc, kind)
     if len(args) != 2:
         raise GuppyError(err)
     [inputs, output] = args
     if not isinstance(inputs, ast.List):
         raise GuppyError(err)
     inputs = [parse_function_arg_annotation(inp, None, ctx) for inp in inputs.elts]
-    output = type_from_ast(output, ctx)
+    output = type_from_ast(output, replace(ctx, is_output=True))
 
     return FunctionType(inputs, output, unitary_flags=flags)
 
@@ -349,7 +407,7 @@ def check_function_arg(
         flags |= InputFlags.Inout
     if InputFlags.Comptime in flags:
         if name is None:
-            raise GuppyError(CallableComptimeError(loc))
+            raise GuppyError(FunctionTypeComptimeError(loc))
 
         # Make sure we're not shadowing a type variable with the same name that was
         # already used on the left. E.g
@@ -463,18 +521,23 @@ if sys.version_info >= (3, 12):
         proto_defn = None
         proto_args = []
         if isinstance(bound, ast.Subscript):
-            proto_defn = try_parse_defn(bound.value, ctx.globals)
+            proto_defn = try_parse_defn(bound.value, ctx)
             arg_nodes = (
                 bound.slice.elts
                 if isinstance(bound.slice, ast.Tuple)
                 else [bound.slice]
             )
+            # Special case for the `Callable` protocol
+            if isinstance(proto_defn, CallableProtocolDef):
+                sig = _parse_function_type(arg_nodes, bound, ctx, "Callable")
+                return CallableProtocolInst(sig)
             proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
         else:
-            proto_defn = try_parse_defn(bound, ctx.globals)
+            proto_defn = try_parse_defn(bound, ctx)
 
         if isinstance(proto_defn, ParsedProtocolDef):
-            inst = proto_defn.check_instantiate(proto_args, bound)
+            checked_defn = proto_defn.check(globals)
+            inst = checked_defn.check_instantiate(proto_args, bound)
             return inst
         return None
 

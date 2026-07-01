@@ -10,7 +10,9 @@ import hugr.std.int
 from hugr import tys as ht
 from typing_extensions import assert_never
 
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.span import DUMMY_SPAN
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
     ToHugr,
@@ -29,6 +31,7 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.struct import CheckedStructDef
     from guppylang_internals.definition.ty import OpaqueTypeDef
     from guppylang_internals.definition.util import CheckedField
+    from guppylang_internals.definition.value import CallableDef
     from guppylang_internals.tys.subst import Inst, PartialInst, Subst
 
 
@@ -436,7 +439,7 @@ class UnitaryFlags(Flag):
     def callable_name(
         self,
     ) -> Literal[
-        "Callable",
+        "Function",
         "Unitary",
         "Daggerable",
         "Controllable",
@@ -444,7 +447,7 @@ class UnitaryFlags(Flag):
         """Returns the name of the corresponding Callable variant for this flag."""
         match self:
             case UnitaryFlags.NoFlags:
-                return "Callable"
+                return "Function"
             case UnitaryFlags.Unitary:
                 return "Unitary"
             case UnitaryFlags.Dagger:
@@ -669,6 +672,91 @@ class FunctionType(ParametrizedTypeBase):
         )
 
 
+@dataclass(frozen=True)
+class FunctionDefType(TypeBase):
+    """The type of function values associated with a concrete definition.
+
+    Unlike the `Function` type, which denotes an opaque function value, function def
+    types are unique to one definition. For example, two functions `foo` and `bar` with
+    the same signature will still have two different item types. However, function def
+    types can be implicitly coerced into opaque `Function` values.
+
+    The equivalent concept in Rust are "function item types":
+    https://doc.rust-lang.org/reference/types/function-item.html
+
+    Finally, users are not able to write out the type of a function item, they can only
+    be produced by the compiler. In error messages, they are printed out in the
+    following style: `def name(arg: ty) -> return`
+    """
+
+    def_id: DefId
+    args: "Inst" = ()
+
+    copyable: bool = field(default=True, init=True)
+    droppable: bool = field(default=True, init=True)
+
+    @property
+    def defn(self) -> "CallableDef":
+        """The definition object associated with this function def type."""
+        from guppylang_internals.definition.value import CallableDef
+        from guppylang_internals.engine import ENGINE
+
+        defn = ENGINE.get_parsed(self.def_id)
+        assert isinstance(defn, CallableDef)
+        return defn
+
+    @property
+    def sig(self) -> FunctionType:
+        """The signature of this function def type."""
+        generic_sig = self.defn.ty
+        return generic_sig.instantiate(self.args) if self.args else generic_sig
+
+    @property
+    def parametrized(self) -> bool:
+        """Whether the function is parametrized."""
+        return self.sig.parametrized and not self.args
+
+    def cast(self) -> "Type":
+        """Casts an implementor of `TypeBase` into a `Type`."""
+        return self
+
+    def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
+        """Computes the Hugr representation of the type."""
+        # We can compile function items into trivial Hugr types since all required
+        # information is available statically
+        return ht.Unit
+
+    def visit(self, visitor: Visitor) -> None:
+        """Accepts a visitor on this type."""
+        if not visitor.visit(self):
+            for arg in self.args:
+                visitor.visit(arg)
+
+    def transform(self, transformer: Transformer) -> "Type":
+        """Accepts a transformer on this type."""
+        return transformer.transform(self) or FunctionDefType(
+            self.def_id, tuple(arg.transform(transformer) for arg in self.args)
+        )
+
+    def unquantified(self) -> tuple["FunctionDefType", Sequence[ExistentialVar]]:
+        """Instantiates all parameters with existential variables.
+
+        The returned type is still a `FunctionDefType`, so we remember which definition
+        this instantiation came from.
+        """
+        from guppylang_internals.tys.subst import Instantiator
+
+        args: list[Argument] = []
+        exes = []
+        for param in self.defn.ty.params:
+            arg, ex = param.to_existential()
+            inst = Instantiator(args)
+            exes.append(ex.transform(inst))
+            args.append(arg.transform(inst))
+
+        return FunctionDefType(self.def_id, tuple(args)), exes
+
+
 @dataclass(frozen=True, init=False)
 class TupleType(ParametrizedTypeBase):
     """Type of tuples."""
@@ -876,7 +964,12 @@ ParametrizedType: TypeAlias = (
 #:   * https://peps.python.org/pep-0622/#sealed-classes-as-algebraic-data-types
 #:   * https://github.com/johnthagen/sealed-typing-pep
 Type: TypeAlias = (
-    BoundTypeVar | ExistentialTypeVar | NumericType | NoneType | ParametrizedType
+    BoundTypeVar
+    | ExistentialTypeVar
+    | NumericType
+    | NoneType
+    | FunctionDefType
+    | ParametrizedType
 )
 
 #: An immutable row of Guppy types.
@@ -970,15 +1063,17 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
         return None
     # Check that `t` implements all protocols required by `var`.
     if var.implements:
-        from guppylang_internals.checker.protocol_checker import check_protocol
-
-        try:
-            for proto in var.implements:
-                _, proto_subst = check_protocol(t, proto)
+        for proto in var.implements:
+            try:
+                loc = DUMMY_SPAN  # We catch the error later so the span doesn't matter
+                _, proto_subst = proto.check_implemented_by(t, loc)
                 subst |= proto_subst
-        except GuppyError:
-            return None
-    return {var: t, **subst}
+            except GuppyError:  # noqa: PERF203
+                # At this point, we only use protocol checking to infer types. If the
+                # protocol is not satisfied, we still keep going. The error will be
+                # raised later when we check the inferred instantiation.
+                pass
+    return {var: t.substitute(subst), **subst}
 
 
 def _unify_const_var(
@@ -1047,6 +1142,8 @@ def parse_function_tensor(ty: TupleType) -> list[FunctionType] | None:
     for el in ty.element_types:
         if isinstance(el, FunctionType):
             result.append(el)
+        elif isinstance(el, FunctionDefType):
+            result.append(el.sig)
         elif isinstance(el, TupleType):
             funcs = parse_function_tensor(el)
             if funcs:
