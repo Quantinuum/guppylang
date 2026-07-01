@@ -11,7 +11,9 @@ from typing import (
     ParamSpec,
     TypedDict,
     TypeVar,
+    Unpack,
     cast,
+    dataclass_transform,
     overload,
 )
 
@@ -55,7 +57,6 @@ from guppylang_internals.tys.ty import (
     UnitaryFlags,
 )
 from hugr import val as hv
-from typing_extensions import Unpack, dataclass_transform
 
 from guppylang.defs import (
     GuppyDefinition,

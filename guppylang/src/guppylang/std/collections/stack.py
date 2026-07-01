@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, no_type_check
+from typing import TYPE_CHECKING, Generic, Self, no_type_check
 
 from guppylang_internals.std._internal.moved import (
     produce_moved_class,
     produce_moved_function,
 )
-from typing_extensions import Self
 
 from guppylang.decorator import guppy
 from guppylang.std.array import array

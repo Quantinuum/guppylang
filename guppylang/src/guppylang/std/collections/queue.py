@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, no_type_check
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Generic, Self, no_type_check
 
 from guppylang.decorator import guppy
 from guppylang.std.array import array

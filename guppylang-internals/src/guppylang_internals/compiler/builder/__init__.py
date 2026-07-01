@@ -3,7 +3,7 @@ from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Generic, NamedTuple, TypeAlias, TypeVar
+from typing import Generic, Self, TypeVar, override
 
 from hugr import Node, Wire, val
 from hugr import tys as ht

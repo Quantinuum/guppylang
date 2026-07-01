@@ -12,10 +12,9 @@ from typing import (
     NamedTuple,
     TypeAlias,
     TypeVar,
+    assert_never,
     overload,
 )
-
-from typing_extensions import assert_never
 
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
 from guppylang_internals.cfg.bb import VId
