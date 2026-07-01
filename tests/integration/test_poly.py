@@ -9,7 +9,8 @@ from hugr import Wire
 from guppylang.decorator import guppy
 from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.definition.custom import CustomCallCompiler
-from guppylang.std.builtins import array, Function
+from guppylang.std.builtins import array, Function, comptime, Copy, Drop, nat, owned
+from guppylang.std.option import Option, nothing
 from guppylang.std.quantum import qubit
 
 
@@ -428,5 +429,325 @@ def test_higher_order_value(validate):
     def main(b: bool) -> int:
         f = foo if b else bar
         return f(42)
+
+    validate(main.compile_function())
+
+
+def test_function(validate):
+    @guppy
+    def foo[S, T](x: S @ owned, y: T @ owned) -> tuple[T, S]:
+        return y, x
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
+    @guppy
+    def main() -> None:
+        foo(1, 2)
+        foo(True, False)
+
+    validate(main.compile_function())
+
+
+def test_struct(validate):
+    @guppy.struct
+    class MyStruct[S, T]:
+        x: S
+        y: T
+
+    @guppy
+    def main(s: MyStruct[int, float]) -> float:
+        return s.x + s.y
+
+    validate(main.compile_function())
+
+
+def test_enum(validate):
+    @guppy.enum
+    class MyEnum[S, T]:
+        VariantA = {"x": S}
+        VariantB = {"x": S, "y": T}
+
+    @guppy
+    def main() -> None:
+        MyEnum.VariantA[int, float](1)
+        MyEnum.VariantB[int, float](2, 3.0)
+
+    validate(main.compile_function())
+
+
+def test_inner_frame(validate):
+    """See https://github.com/quantinuum/guppylang/issues/1116"""
+
+    def make():
+        @guppy.struct
+        class MyStruct[T]:
+            @guppy
+            def foo(self: "MyStruct[int]") -> None:
+                pass
+
+        @guppy.enum
+        class MyEnum[T]:
+            VariantA = {}
+
+            @guppy
+            def method(self: "MyEnum[int]") -> None:
+                pass
+
+        @guppy
+        def main() -> None:
+            MyStruct[int]().foo()
+            MyEnum.VariantA[int]().method()
+
+        return main
+
+    validate(make().compile_function())
+
+
+def test_copy_bound(validate):
+
+    @guppy.struct
+    class MyStruct[T: Copy]:
+        x: T
+
+    @guppy.enum
+    class MyEnum[T: Copy]:
+        VariantA = {"x": T}
+
+    @guppy
+    def foo_enum[T: Copy](e1: MyEnum[T]) -> tuple[MyEnum[T], MyEnum[T]]:
+        return e1, e1
+
+    @guppy
+    def foo_struct[T: Copy](s: MyStruct[T]) -> tuple[T, T]:
+        return s.x, s.x
+
+    # We can't compile the functions on their own, but we can check them
+    foo_enum.check()
+    foo_struct.check()
+
+    @guppy
+    def main() -> None:
+        foo_struct(MyStruct(42))
+        foo_struct(MyStruct(False))
+        foo_enum(MyEnum.VariantA[int](42))
+        foo_enum(MyEnum.VariantA[bool](False))
+
+    validate(main.compile_function())
+
+
+def test_drop_bound(validate):
+    @guppy.struct
+    class MyStruct[T: Drop]:
+        x: T
+
+    @guppy.enum
+    class MyEnum[T: Drop]:
+        VariantA = {"x": T}
+
+    @guppy
+    def helper[T: Drop](s: MyStruct[T] @ owned, e: MyEnum[T] @ owned) -> None:
+        pass
+
+    # We can't compile helper on its own, but we can check it
+    helper.check()
+
+    @guppy
+    def main(
+        s: MyStruct[array[int, 5]] @ owned, e: MyEnum[array[int, 5]] @ owned
+    ) -> None:
+        helper(s, e)
+
+    helper.check()
+    validate(main.compile_function())
+
+
+def test_copy_and_drop_bound(validate):
+    @guppy.struct
+    class MyStruct[T: (Copy, Drop)]:
+        x: T
+
+    @guppy.enum
+    class MyEnum[T: (Copy, Drop)]:
+        VariantA = {"x": T}
+
+    @guppy
+    def foo[T: (Copy, Drop)](
+        s1: MyStruct[T], s2: MyStruct[T], e1: MyEnum[T], e2: MyEnum[T]
+    ) -> tuple[T, T, MyEnum[T], MyEnum[T]]:
+        return s1.x, s1.x, e1, e1
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
+    @guppy
+    def main() -> None:
+        foo(
+            MyStruct(42),
+            MyStruct(43),
+            MyEnum.VariantA[int](42),
+            MyEnum.VariantA[int](43),
+        )
+        foo(
+            MyStruct(False),
+            MyStruct(True),
+            MyEnum.VariantA[bool](False),
+            MyEnum.VariantA[bool](True),
+        )
+
+    validate(main.compile_function())
+
+
+def test_const_param(validate):
+    @guppy.struct
+    class MyStruct[T, n: nat]:
+        xs: array[T, n]
+
+    @guppy.enum
+    class MyEnum[T, n: nat]:
+        VariantA = {"xs": array[T, n]}
+        VariantB = {}
+
+    @guppy
+    def foo[T, n: nat](xs: array[T, n], s: MyStruct[T, n], e: MyEnum[T, n]) -> nat:
+        return n
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
+    @guppy
+    def main() -> None:
+        foo(array(1, 2, 3), MyStruct(array(4, 5, 6)), MyEnum.VariantA(array(7, 8, 9)))
+        foo[float, 0](array(), MyStruct(array()), MyEnum.VariantB[float, 0]())
+
+    validate(main.compile_function())
+
+
+def test_mixed_legacy_params(validate):
+    T = guppy.type_var("T", copyable=False, droppable=False)
+
+    @guppy
+    def foo[S](x: S @ owned, y: T @ owned) -> tuple[T, S]:
+        return y, x
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
+    @guppy
+    def main() -> tuple[qubit, qubit]:
+        foo(1, 2)
+        return foo(qubit(), qubit())
+
+    validate(main.compile_function())
+
+
+def test_reference_inside(validate):
+    @guppy
+    def helper[T: Drop]() -> None:
+        x: Option[T] = nothing()
+        nothing[T]()
+
+    # We can't compile helper on its own, but we can check it
+    helper.check()
+
+    # Just check we can instantiate a Drop type-parameter with a classical type.
+    @guppy
+    def main() -> None:
+        helper[int]()
+
+    validate(main.compile_function())
+
+
+def test_dependent_function(validate):
+    @guppy
+    def foo[T: (Copy, Drop), x: T]() -> T:
+        return x
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
+    @guppy
+    def main() -> float:
+        return foo[nat, 42]() + foo[float, 1.5]()
+
+    validate(main.compile_function())
+
+
+@guppy.struct
+class Phantom[T: (Copy, Drop), x: T]:
+    """Dummy struct with dependent parameters."""
+
+    @guppy
+    def get[T: (Copy, Drop), x: T](self: "Phantom[T, x]") -> T:
+        return x
+
+
+def test_dependent_struct(run_float_fn_approx):
+    @guppy
+    def make_phantom[T: (Copy, Drop)](x: T @ comptime) -> "Phantom[T, x]":  # noqa: F821
+        return Phantom()
+
+    @guppy
+    def foo(x: Phantom[bool, True]) -> float:
+        return 0.0 if x.get() else make_phantom(42).get() + make_phantom(1.5).get()
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
+    @guppy
+    def main() -> float:
+        return foo(Phantom())
+
+    run_float_fn_approx(main, 0)
+
+
+def test_dependent_comptime(validate):
+    T = guppy.type_var("T", copyable=True, droppable=True)
+
+    @guppy
+    def foo(x: T @ comptime, y: "Phantom[T, x]") -> T:  # noqa: F821
+        return y.get()
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
+    @guppy
+    def main() -> int:
+        return foo(42, Phantom())
+
+    validate(main.compile_function())
+
+
+def test_multi_dependent():
+    @guppy
+    def foo[
+        T: (Copy, Drop),
+        x: T,
+        y: Phantom[T, x],
+        z: Phantom[Phantom[T, x], y],
+    ]() -> tuple[T, T, T]:
+        return x, y.get(), z.get().get()
+
+    # We can't define a main that calls `foo` since we don't have comptime constructors
+    # for structs yet. We can't even check that `foo` type checks
+
+
+def test_generic_tuple_chain(validate):
+    T = guppy.type_var("T", copyable=True, droppable=True)
+
+    @guppy
+    def bar(t: tuple[T, T] @ comptime, p: "Phantom[tuple[T, T], t]") -> T:  # noqa: F821
+        return p.get()[0]
+
+    @guppy
+    def foo(a: tuple[T, T] @ comptime) -> T:
+        return bar(a, Phantom())
+
+    # We can't compile foo on its own, but we can check it
+    foo.check()
+
+    @guppy
+    def main() -> int:
+        return foo(comptime((1, 2)))
 
     validate(main.compile_function())
