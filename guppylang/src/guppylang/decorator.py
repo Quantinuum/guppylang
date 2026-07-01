@@ -3,7 +3,16 @@ import builtins
 import inspect
 from collections.abc import Callable, Sequence
 from types import FrameType
-from typing import Any, Literal, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
+from typing import (
+    Any,
+    Literal,
+    NamedTuple,
+    ParamSpec,
+    TypedDict,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.compiler.core import (
@@ -94,7 +103,7 @@ class GuppyKwargs(TypedDict, total=False):
     dagger: bool
     power: bool
     max_qubits: int
-    inline: Literal["always"]
+    inline: Literal["best_effort" | "None"]
     link_name: str
 
 
