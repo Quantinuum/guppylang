@@ -1,8 +1,6 @@
 import ast
 from dataclasses import dataclass
-from typing import ClassVar
-
-from typing_extensions import assert_never, override
+from typing import ClassVar, assert_never, override
 
 from guppylang_internals.ast_util import fake_call, get_type, with_loc, with_type
 from guppylang_internals.checker.core import Context, Variable

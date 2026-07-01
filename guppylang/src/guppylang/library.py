@@ -1,11 +1,10 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from hugr.package import Package
-from typing_extensions import Self
 
 from guppylang.defs import GuppyDefinition, _update_generator_metadata
 

@@ -3,12 +3,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, assert_never, cast
 
 import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
-from typing_extensions import assert_never
 
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import GuppyError, InternalGuppyError
@@ -1068,7 +1067,7 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
                 loc = DUMMY_SPAN  # We catch the error later so the span doesn't matter
                 _, proto_subst = proto.check_implemented_by(t, loc)
                 subst |= proto_subst
-            except GuppyError:  # noqa: PERF203
+            except GuppyError:
                 # At this point, we only use protocol checking to infer types. If the
                 # protocol is not satisfied, we still keep going. The error will be
                 # raised later when we check the inferred instantiation.

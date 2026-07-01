@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, TypeAlias
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Self, TypeAlias
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.generic import ExpectedError

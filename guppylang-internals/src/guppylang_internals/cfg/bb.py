@@ -2,9 +2,7 @@ import ast
 from abc import ABC
 from collections.abc import Hashable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Generic, TypeVar
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
 from guppylang_internals.nodes import (

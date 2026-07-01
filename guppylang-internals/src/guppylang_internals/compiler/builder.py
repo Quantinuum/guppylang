@@ -3,7 +3,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Generic, TypeVar
+from typing import Generic, Self, TypeVar, override
 
 from hugr import Node, Wire, ops, val
 from hugr import tys as ht
@@ -11,7 +11,6 @@ from hugr.build import Block, Case, Cfg, Conditional, TailLoop
 from hugr.build import function as hf
 from hugr.hugr.node_port import ToNode
 from hugr.metadata import HugrDebugInfo
-from typing_extensions import Self, override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.compiler.core import may_have_side_effect
