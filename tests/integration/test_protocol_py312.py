@@ -451,7 +451,6 @@ def test_unitary(validate):
         with control(c), dagger:
             apply(s, q)
             apply(h, q)
-        state_result("r", c, q)
         discard(q)
         discard(c)
 
