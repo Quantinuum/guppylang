@@ -423,3 +423,34 @@ def test_clash(validate):
         return
 
     validate(main.compile())
+
+
+def test_unitary(validate):
+    from guppylang import guppy
+    from guppylang.std.builtins import (
+        Unitary,
+        control,
+        dagger,
+    )
+    from guppylang.std.quantum import discard, h, qubit, s
+
+    @guppy(unitary=True)
+    def apply(f: Unitary[[qubit], None], q: qubit) -> None:
+        apply2(f, q)
+
+    @guppy(unitary=True)
+    def apply2(f: Unitary[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        c = qubit()
+        h(c)
+        with control(c), dagger:
+            apply(s, q)
+            apply(h, q)
+        discard(q)
+        discard(c)
+
+    validate(main.compile())

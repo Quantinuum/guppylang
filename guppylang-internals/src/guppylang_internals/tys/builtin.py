@@ -324,7 +324,7 @@ class ModifiableFunctionProtocolInst(ProtocolInst):
 
         elif isinstance(ty, BoundTypeVar):
             for protocol in ty.implements:
-                if isinstance(protocol, CallableProtocolInst):
+                if isinstance(protocol, ModifiableFunctionProtocolInst):
                     subst = unify(self.sig, protocol.sig, {})
                     if subst is not None:
                         return AssumptionImplProof(self, ty), subst
