@@ -122,6 +122,26 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         )
         return new_node, ty
 
+    def resolve_overload(
+        self, args: list[ast.expr], node: AstNode, ctx: "Context"
+    ) -> CallableDef | None:
+        """Resolves an overload usage to a specific function definition based on the
+        provided arguments. Returns None if no matching overload can be synthesized."""
+        for def_id in self.func_ids:
+            defn = ctx.globals[def_id]
+            assert isinstance(defn, CallableDef)
+            try:
+                # synthesize_call may modify args and node,
+                # thus we deepcopy them before passing in the function
+                node_copy = copy.deepcopy(node)
+                args_copy = copy.deepcopy(args)
+                defn.synthesize_call(args_copy, node_copy, ctx)
+            except GuppyError:
+                continue
+            else:
+                return defn
+        return None
+
     def _try_overloads(
         self,
         args: list[ast.expr],
