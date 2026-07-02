@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a8...guppylang-internals-v1.0.0-rc0) (2026-07-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Drop support for Python 3.10 and 3.11 (#1985)
+
+
+### Bug Fixes
+
+* Fix inout updates for overloaded functions in a comptime context (#1986)([100f1b9](https://github.com/Quantinuum/guppylang/commit/100f1b9bbf5a863bf94353d14fc6ec07f110d791))
+* Assumption check for ModifiableFunctionProtocol (#1974)([2cd0459](https://github.com/Quantinuum/guppylang/commit/2cd04591b3033c0e9b44c81e9e395139a3be6d84))
+
+
+### Features
+
+* Drop support for Python 3.10 and 3.11 (#1985)([9e3e543](https://github.com/Quantinuum/guppylang/commit/9e3e54395c791ea4c869ba995bbb0f175643b92f))
+* Choose a valid protocol when multiple protocols give a method (#1945)([272c1de](https://github.com/Quantinuum/guppylang/commit/272c1de729da36ffaab49724682070767f9f5e2b))
+* Disallow protocols as return types (#1967)([18ae480](https://github.com/Quantinuum/guppylang/commit/18ae48007179cedf2445b67508b3fd60a2c7b738))
+
 ## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1...guppylang-internals-v1.0.0-a8) (2026-06-30)
 
 
