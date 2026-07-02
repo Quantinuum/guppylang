@@ -9,7 +9,8 @@ from hugr import Wire
 from guppylang.decorator import guppy
 from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.definition.custom import CustomCallCompiler
-from guppylang.std.builtins import array, Function, comptime, Copy, Drop, nat, owned
+from guppylang.std.builtins import array, Function, comptime, nat, owned
+from guppylang.std.lang import Copy, Drop
 from guppylang.std.option import Option, nothing
 from guppylang.std.quantum import qubit
 

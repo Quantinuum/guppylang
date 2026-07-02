@@ -1,6 +1,7 @@
 from typing import Generic, Protocol, Self
 from guppylang.decorator import guppy
-from guppylang.std.builtins import nat, Copy, Drop
+from guppylang.std.lang import Copy, Drop
+from guppylang.std.builtins import nat
 import pytest
 
 
