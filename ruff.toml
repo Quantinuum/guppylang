@@ -83,9 +83,6 @@ ignore = [
 "scripts/release/*" = ["T201"]                                        # CLI scripts print to stdout
 "__init__.py" = ["F401"]                                              # module imported but unused
 
-[per-file-target-version]
-"guppylang/src/guppylang/std/*" = "py310"
-
 # [pydocstyle]
 # convention = "google"
 

@@ -7,7 +7,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     NamedTuple,
-    ParamSpec,
     TypedDict,
     TypeVar,
     Unpack,
@@ -65,12 +64,7 @@ from guppylang.defs import (
 )
 from guppylang.library import _get_link_name
 
-K = TypeVar("K")
-S = TypeVar("S")
-T = TypeVar("T")
-F = TypeVar("F", bound=Callable[..., Any])
-P = ParamSpec("P")
-Decorator = Callable[[S], T]
+type Decorator[S, T] = Callable[[S], T]
 
 AnyRawFunctionDef = (
     RawFunctionDef,
@@ -121,14 +115,16 @@ class _Guppy:
     """Class for the `@guppy` decorator."""
 
     @overload
-    def __call__(
+    def __call__[**P, T](
         self, /, **kwargs: Unpack[GuppyKwargs]
     ) -> Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]: ...
 
     @overload
-    def __call__(self, f: Callable[P, T], /) -> GuppyFunctionDefinition[P, T]: ...
+    def __call__[**P, T](
+        self, f: Callable[P, T], /
+    ) -> GuppyFunctionDefinition[P, T]: ...
 
-    def __call__(
+    def __call__[**P, T](
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
     ) -> (
         GuppyFunctionDefinition[P, T]
@@ -154,14 +150,16 @@ class _Guppy:
         return _with_optional_kwargs(decorator, args, kwargs)
 
     @overload
-    def comptime(
+    def comptime[**P, T](
         self, /, **kwargs: Unpack[GuppyKwargs]
     ) -> Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]: ...
 
     @overload
-    def comptime(self, f: Callable[P, T], /) -> GuppyFunctionDefinition[P, T]: ...
+    def comptime[**P, T](
+        self, f: Callable[P, T], /
+    ) -> GuppyFunctionDefinition[P, T]: ...
 
-    def comptime(
+    def comptime[**P, T](
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
     ) -> (
         GuppyFunctionDefinition[P, T]
@@ -200,7 +198,7 @@ class _Guppy:
         return _with_optional_kwargs(decorator, args, kwargs)
 
     @dataclass_transform()
-    def struct(
+    def struct[T](
         self, *args: Any, **kwargs: Unpack[GuppyStructKwargs]
     ) -> builtins.type[T]:
         """Registers a class as a Guppy struct.
@@ -252,7 +250,9 @@ class _Guppy:
         return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
 
     @dataclass_transform()
-    def enum(self, *args: Any, **kwargs: Unpack[GuppyEnumKwargs]) -> builtins.type[T]:
+    def enum[T](
+        self, *args: Any, **kwargs: Unpack[GuppyEnumKwargs]
+    ) -> builtins.type[T]:
         """Registers a class as a Guppy enum.
 
         .. code-block:: python
@@ -296,7 +296,7 @@ class _Guppy:
         return _with_optional_kwargs(decorator, args, kwargs)  # type: ignore[return-value]
 
     @dataclass_transform()
-    def protocol(self, cls: builtins.type[T]) -> builtins.type[T]:
+    def protocol[T](self, cls: builtins.type[T]) -> builtins.type[T]:
         """Registers a class as a Guppy protocol.
 
         .. code-block:: python
@@ -320,7 +320,7 @@ class _Guppy:
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
-    def require(
+    def require[**P, T](
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
     ) -> (
         GuppyFunctionDefinition[P, T]
@@ -430,14 +430,16 @@ class _Guppy:
         return GuppyDefinition(defn)
 
     @overload
-    def declare(
+    def declare[**P, T](
         self, /, **kwargs: Unpack[GuppyKwargs]
     ) -> Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]: ...
 
     @overload
-    def declare(self, f: Callable[P, T], /) -> GuppyFunctionDefinition[P, T]: ...
+    def declare[**P, T](
+        self, f: Callable[P, T], /
+    ) -> GuppyFunctionDefinition[P, T]: ...
 
-    def declare(
+    def declare[**P, T](
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
     ) -> (
         GuppyFunctionDefinition[P, T]
@@ -464,7 +466,7 @@ class _Guppy:
 
         return _with_optional_kwargs(decorator, args, kwargs)
 
-    def overload(
+    def overload[**P, T](
         self, *funcs: Any
     ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
         """Collects multiple function definitions into one overloaded function.
@@ -532,7 +534,7 @@ class _Guppy:
 
         return decorator
 
-    def constant(self, name: str, ty: str, value: hv.Value) -> T:  # type: ignore[type-var]  # Since we're returning a free type variable
+    def constant[T](self, name: str, ty: str, value: hv.Value) -> T:  # type: ignore[type-var]  # Since we're returning a free type variable
         """Adds a constant to a module, backed by a `hugr.val.Value`."""
         type_ast = _parse_expr_string(
             ty, f"Not a valid Guppy type: `{ty}`", DEF_STORE.sources
@@ -543,7 +545,7 @@ class _Guppy:
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
-    def _extern(
+    def _extern[T](
         self,
         name: str,
         ty: str,
@@ -562,7 +564,7 @@ class _Guppy:
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
-    def pytket(
+    def pytket[**P, T](
         self, input_circuit: Any
     ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
         """Backs a function declaration by the given pytket circuit. The declaration
@@ -773,7 +775,7 @@ def _find_load_call(sources: SourceMap) -> Span | None:
     return None
 
 
-def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T]:
+def _set_firstlineno[T](cls: builtins.type[T], frame: FrameType) -> builtins.type[T]:
     """Helper function to set the `__firstlineno__` attribute on a class if it is not
     already there.
 
@@ -786,7 +788,7 @@ def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T
     return cls
 
 
-def custom_guppy_decorator(f: F) -> F:
+def custom_guppy_decorator[F: Callable[..., Any]](f: F) -> F:
     """Decorator to mark user-defined decorators that wrap builtin `guppy` decorators.
 
     Example:
@@ -827,7 +829,7 @@ def get_calling_frame() -> FrameType:
     raise RuntimeError("Couldn't obtain stack frame for definition")
 
 
-def _with_optional_kwargs(
+def _with_optional_kwargs[S, K, T](
     decorator: Callable[[S, K], T], args: tuple[Any, ...], kwargs: K
 ) -> T | Callable[[S], T]:
     """Helper function to define decorators that may be used directly (`@decorator`) but

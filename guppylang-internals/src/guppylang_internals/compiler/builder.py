@@ -3,7 +3,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Generic, Self, TypeVar, override
+from typing import Self, override
 
 from hugr import Node, Wire, ops, val
 from hugr import tys as ht
@@ -173,11 +173,8 @@ class DFBuilder(ABC, ToNode):
         return self._raw.add_const(value, parent)
 
 
-B = TypeVar("B", bound=hf.Function | Case | TailLoop | Block)
-
-
 @dataclass
-class _DFBuilderRaw(DFBuilder, Generic[B]):
+class _DFBuilderRaw[B: hf.Function | Case | TailLoop | Block](DFBuilder):
     _raw_builder: B
 
     @property

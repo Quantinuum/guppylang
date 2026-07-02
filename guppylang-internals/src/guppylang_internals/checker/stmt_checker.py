@@ -13,7 +13,7 @@ import functools
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from itertools import takewhile
-from typing import TypeVar, cast
+from typing import cast
 
 from guppylang_internals.ast_util import (
     AstVisitor,
@@ -482,10 +482,7 @@ class StmtChecker(AstVisitor[BBStatement]):
         raise InternalGuppyError("Control-flow statement should not be present here.")
 
 
-T = TypeVar("T")
-
-
-def all_equal(xs: Iterable[T]) -> bool:
+def all_equal[T](xs: Iterable[T]) -> bool:
     """Checks if all elements yielded from an iterable are equal."""
     it = iter(xs)
     try:

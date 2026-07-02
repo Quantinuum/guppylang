@@ -1,23 +1,19 @@
 import ast
 import copy
 import itertools
-from collections.abc import Iterable, Iterator
+from collections.abc import Hashable, Iterable, Iterator
 from dataclasses import dataclass, field, replace
 from functools import cache, cached_property
 from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Generic,
     NamedTuple,
-    TypeAlias,
-    TypeVar,
     assert_never,
     overload,
 )
 
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
-from guppylang_internals.cfg.bb import VId
 from guppylang_internals.definition.common import (
     DefId,
     Definition,
@@ -48,12 +44,10 @@ if TYPE_CHECKING:
 #:
 #: All places are equipped with a unique id, a type and an optional definition AST
 #: location. During linearity checking, they are tracked separately.
-Place: TypeAlias = "Variable | FieldAccess | SubscriptAccess | TupleAccess"
+type Place = "Variable | FieldAccess | SubscriptAccess | TupleAccess"
 
 #: Unique identifier for a `Place`.
-PlaceId: TypeAlias = (
-    "Variable.Id | FieldAccess.Id | SubscriptAccess.Id | TupleAccess.Id"
-)
+type PlaceId = "Variable.Id | FieldAccess.Id | SubscriptAccess.Id | TupleAccess.Id"
 
 
 @dataclass(frozen=True)
@@ -385,11 +379,8 @@ class Globals:
                 return assert_never(x)
 
 
-V = TypeVar("V")
-
-
 @dataclass
-class Locals(Generic[VId, V]):
+class Locals[VId: Hashable, V]:
     """Scoped mapping from program variable ids to the corresponding program variable.
 
     Depending on which checking phase we are in (type checking or linearity checking),
