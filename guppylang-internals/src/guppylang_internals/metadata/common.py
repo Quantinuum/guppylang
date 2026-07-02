@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from hugr.debug_info import DebugRecord
 from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
@@ -8,6 +8,7 @@ from hugr.utils import JsonType
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
+from guppylang_internals.metadata.inline import MetadataInline
 
 
 class MetadataUnitaryFlags(Metadata[int]):
@@ -56,6 +57,7 @@ class FunctionMetadata:
         HugrDebugInfo.KEY,
         MetadataExpectedQubitsHint.KEY,
         MetadataUnitaryFlags.KEY,
+        MetadataInline.KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -66,6 +68,9 @@ class FunctionMetadata:
 
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
+
+    def set_inline(self, inline: Literal["best_effort", "never"]) -> None:
+        self._node_metadata[MetadataInline] = inline
 
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value
@@ -84,6 +89,11 @@ class FunctionMetadata:
         qubits = self._node_metadata.get(MetadataExpectedQubitsHint, None)
         assert qubits is None or isinstance(qubits, int)
         return qubits
+
+    def get_inline(self) -> Literal["best_effort", "never"] | None:
+        inline = self._node_metadata.get(MetadataInline, None)
+        assert inline is None or inline in ["best_effort", "never"]
+        return inline
 
     @classmethod
     def reserved_keys(cls) -> set[str]:
