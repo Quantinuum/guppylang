@@ -1,6 +1,6 @@
 [project]
 name = "guppylang-internals"
-version = "1.0.0-a8"
+version = "1.0.0-rc0"
 requires-python = ">=3.12,<4"
 description = "Compiler internals for `guppylang` package."
 license = { file = "LICENCE" }
