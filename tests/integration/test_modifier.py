@@ -246,8 +246,9 @@ def test_free_linear_variable_in_modifier(validate):
 def test_free_copyable_variable_in_modifier(validate):
     T = guppy.type_var("T", copyable=True, droppable=True)
 
-    @guppy.declare
-    def use(a: T) -> None: ...
+    @guppy
+    def use(a: T) -> None:
+        pass
 
     @guppy
     def bar(q: array[qubit, 3]) -> None:

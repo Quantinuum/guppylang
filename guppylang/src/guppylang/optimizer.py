@@ -67,7 +67,7 @@ class OptimizationLevel(Enum):
                         inline_funcs=True,
                         # Tket reports invalid constructed HUGRs
                         # / "cannot modify indirect call" errors.
-                        resolve_modifiers=False,
+                        resolve_modifiers=True,
                         # Causes errors in the notebook examples;
                         # Emulation succeeds but shots lose expected result entries
                         # (`eigenvalue` / `attempts`), producing `KeyError` in the
