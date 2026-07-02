@@ -246,7 +246,12 @@ def _arg_from_instantiated_defn(
                 must_be_droppable=True,
                 must_implement=[proto_inst],
             )
-            ctx.param_var_mapping[param.name] = param
+            # Create a fresh parameter to take this `Callable` protocol bound.
+            # If we see another callable in the signature, we *don't* want it to resolve
+            # to this one.
+            # Hence, the key here is assumed to be unique, which is assumed because we
+            # don't otherwise have numerals as param vars.
+            ctx.param_var_mapping[str(len(ctx.param_var_mapping))] = param
             return param.to_bound()
         # Special case for the `Unitary`, `Controllable`, and `Daggerable` protocols
         case ModifiableFunctionProtocolDef(flags=flags):
@@ -259,7 +264,8 @@ def _arg_from_instantiated_defn(
                 must_be_droppable=True,
                 must_implement=[proto_inst],
             )
-            ctx.param_var_mapping[param.name] = param
+            # See comment in the `CallableProtocolDef` above.
+            ctx.param_var_mapping[str(len(ctx.param_var_mapping))] = param
             return param.to_bound()
         # Special case for the `Self` type
         case SelfTypeDef():
@@ -313,7 +319,12 @@ def _arg_from_proto(
             must_be_droppable=True,
             must_implement=[inst],
         )
-        ctx.param_var_mapping[proto_defn.name] = param
+        # Create a fresh parameter to represent this protocol bound. If we see another
+        # instance of the bound in the type signature, we *don't* want it to resolve to
+        # this one.
+        # Hence, the key here is assumed to be unique, which is assumed because we don't
+        # otherwise have numerals as param vars.
+        ctx.param_var_mapping[str(len(ctx.param_var_mapping))] = param
     return param.to_bound()
 
 
