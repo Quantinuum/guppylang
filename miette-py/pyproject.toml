@@ -1,6 +1,6 @@
 [project]
 name = "miette-py"
-requires-python = ">=3.10,<4"
+requires-python = ">=3.12,<4"
 classifiers = ["Private :: Do Not Upload"]
 dynamic = ["version"]
 
