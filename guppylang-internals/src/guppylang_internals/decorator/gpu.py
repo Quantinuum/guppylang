@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, overload
 
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.custom import DefaultCallChecker
@@ -24,11 +24,8 @@ if TYPE_CHECKING:
 
     from guppylang_internals.definition.ty import OpaqueTypeDef
 
-T = TypeVar("T")
-P = ParamSpec("P")
 
-
-def gpu_module(
+def gpu_module[T](
     filename: str, config_filename: str | None
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
     def type_def_wrapper(
@@ -51,10 +48,12 @@ def gpu_module(
 
 # Dual-form decorator, usable as @gpu and @gpu(<number>)
 @overload
-def gpu(fn_id: Callable[P, T]) -> GuppyFunctionDefinition[P, T]: ...
+def gpu[**P, T](fn_id: Callable[P, T]) -> GuppyFunctionDefinition[P, T]: ...
 @overload
-def gpu(fn_id: int) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]: ...
-def gpu(
+def gpu[**P, T](
+    fn_id: int,
+) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]: ...
+def gpu[**P, T](
     fn_id: int | Callable[P, T],
 ) -> (
     GuppyFunctionDefinition[P, T]
@@ -70,7 +69,9 @@ def gpu(
         return _gpu_helper(None, fn_id)
 
 
-def _gpu_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
+def _gpu_helper[**P, T](
+    fn_id: int | None, f: Callable[P, T]
+) -> GuppyFunctionDefinition[P, T]:
     from guppylang.defs import GuppyFunctionDefinition
 
     func = RawGpuFunctionDef(

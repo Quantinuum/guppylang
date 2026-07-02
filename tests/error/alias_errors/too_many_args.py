@@ -1,13 +1,8 @@
-from typing import Generic
-
 from guppylang import guppy
 
 
-T = guppy.type_var("T")
-
-
 @guppy.struct
-class Box(Generic[T]):
+class Box[T]:
     value: T
 
 

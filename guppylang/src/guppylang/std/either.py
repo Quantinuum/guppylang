@@ -20,8 +20,6 @@ from guppylang import guppy
 from guppylang.std.lang import owned
 from guppylang.std.option import Option
 
-L = guppy.type_var("L", copyable=False, droppable=False)
-R = guppy.type_var("R", copyable=False, droppable=False)
 Droppable = guppy.type_var("Droppable", copyable=False, droppable=True)
 
 _params = [TypeParam(0, "L", False, False), TypeParam(1, "L", False, False)]
@@ -78,7 +76,7 @@ class Either[L, R]:
 
 @custom_function(EitherConstructor(0), unitary_flags=UnitaryFlags.Dagger)
 @no_type_check
-def left(val: L @ owned) -> Either[L, R]:
+def left[L, R](val: L @ owned) -> Either[L, R]:
     """Constructs a `left` either value."""
 
 

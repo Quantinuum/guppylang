@@ -2,7 +2,7 @@
 discrete probability distributions."""
 
 # mypy: disable-error-code="no-any-return"
-from typing import Generic, no_type_check
+from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type, hugr_op
 from guppylang_internals.std._internal.compiler.qsystem import (
@@ -21,12 +21,11 @@ from guppylang import guppy
 from guppylang.std.angles import angle, pi
 from guppylang.std.array import array_swap
 from guppylang.std.builtins import array, owned, panic
+from guppylang.std.num import nat
 from guppylang.std.option import Option
 
 SHUFFLE_N = guppy.nat_var("SHUFFLE_N")
 SHUFFLE_T = guppy.type_var("SHUFFLE_T", copyable=False, droppable=False)
-
-DISCRETE_N = guppy.nat_var("DISCRETE_N")
 
 
 @hugr_op(external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION))
@@ -100,7 +99,7 @@ class RNG:
 
 
 @guppy.struct(frozen=True)
-class DiscreteDistribution(Generic[DISCRETE_N]):  # type: ignore[misc]
+class DiscreteDistribution[DISCRETE_N: nat]:  # type: ignore[misc]
     """A generic probability distribution over a set of the form {0, 1, ..., N-1}.
 
     Objects of this class should be generated using
@@ -109,7 +108,7 @@ class DiscreteDistribution(Generic[DISCRETE_N]):  # type: ignore[misc]
 
     # The `sums` array represents the cumulative probability distribution. That is,
     # sums[i] is the probability of drawing a value <= i from the distribution.
-    _sums: array[float, DISCRETE_N]  # type: ignore[valid-type]
+    _sums: array[float, DISCRETE_N]
 
     @guppy
     @no_type_check
@@ -132,7 +131,7 @@ class DiscreteDistribution(Generic[DISCRETE_N]):  # type: ignore[misc]
 
 @guppy
 @no_type_check
-def make_discrete_distribution(
+def make_discrete_distribution[DISCRETE_N: nat](
     weights: array[float, DISCRETE_N],
 ) -> DiscreteDistribution[DISCRETE_N]:
     """Construct a discrete probability distribution over the set
@@ -146,10 +145,10 @@ def make_discrete_distribution(
         W += w
     if W == 0.0:
         panic("No positive weights included in discrete distribution.")
-    sums = array(0.0 for _ in range(DISCRETE_N))
+    sums = array(0.0 for _ in range(DISCRETE_N))  # type:ignore[name-defined]
     s = 0.0
-    for i in range(DISCRETE_N - 1):
+    for i in range(DISCRETE_N - 1):  # type:ignore[name-defined]
         s += weights[i]
         sums[i] = s / W
-    sums[DISCRETE_N - 1] = 1.0
+    sums[DISCRETE_N - 1] = 1.0  # type:ignore[name-defined]
     return DiscreteDistribution(sums)
