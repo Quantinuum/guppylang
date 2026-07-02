@@ -446,3 +446,55 @@ def test_lazy_measure_and_reset_array_functional(
 
     validate(test.compile_function())
     run_int_fn(test, 1, num_qubits=NUM_QUBITS, platform=qsys_mod_fn.platform)
+
+
+def test_set_platform_config_defaults(validate):  # type: ignore[no-untyped-def]
+    """set_platform_config sets the expected metadata with default values."""
+    from guppylang.std.qsystem.helios.config import (
+        set_platform_config,
+        HELIOS_CONFIG_META_KEY,
+    )
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+    set_platform_config(package)
+
+    validate(package)
+
+    for module in package.modules:
+        config = module.module_root.metadata[HELIOS_CONFIG_META_KEY]
+        assert config == {
+            "squash_rxys": True,
+            "enable_replay": False,
+        }
+
+
+def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
+    """set_platform_config sets the expected metadata with custom values."""
+    from guppylang.std.qsystem.helios.config import (
+        set_platform_config,
+        HELIOS_CONFIG_META_KEY,
+    )
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+    set_platform_config(
+        package,
+        squash_rxys=False,
+        enable_replay=True,
+    )
+
+    validate(package)
+
+    for module in package.modules:
+        config = module.module_root.metadata[HELIOS_CONFIG_META_KEY]
+        assert config == {
+            "squash_rxys": False,
+            "enable_replay": True,
+        }
