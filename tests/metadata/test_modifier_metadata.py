@@ -37,7 +37,8 @@ def test_unitary_metadata_dagger_only():
             rx(t, angle(1 / 3))
         discard(t)
 
-    h = main.compile_function().modules[0]
+    # For test sake we need the original unmodified HUGR
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(h, [UnitaryFlags.Dagger.value])
 
 
@@ -51,7 +52,7 @@ def test_unitary_metadata_control_only():
         discard(c1)
         discard(t)
 
-    h = main.compile_function().modules[0]
+    h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(h, [UnitaryFlags.Control.value])
 
 
@@ -68,7 +69,7 @@ def test_unitary_metadata_power_dagger_control():
         discard(c1)
         discard(t)
 
-    # The tket ModifierResolverPass no longer supports power modifiers.
+    # For test sake we need the original unmodified HUGR
     h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
@@ -92,7 +93,7 @@ def test_unitary_metadata_dagger_power_control():
         discard(c1)
         discard(t)
 
-    # The tket ModifierResolverPass no longer supports power modifiers.
+    # For test sake we need the original unmodified HUGR
     h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
@@ -116,7 +117,7 @@ def test_unitary_metadata_control_dagger_power():
         discard(c1)
         discard(t)
 
-    # The tket ModifierResolverPass no longer supports power modifiers.
+    # For test sake we need the original unmodified HUGR
     h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
@@ -140,7 +141,7 @@ def test_unitary_metadata_power_control_dagger():
         discard(c1)
         discard(t)
 
-    # The tket ModifierResolverPass no longer supports power modifiers.
+    # For test sake we need the original unmodified HUGR
     h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
@@ -164,7 +165,7 @@ def test_unitary_metadata_dagger_control_power():
         discard(c1)
         discard(t)
 
-    # The tket ModifierResolverPass no longer supports power modifiers.
+    # For test sake we need the original unmodified HUGR
     h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
@@ -188,7 +189,7 @@ def test_unitary_metadata_control_power_dagger():
         discard(c1)
         discard(t)
 
-    # The tket ModifierResolverPass no longer supports power modifiers.
+    # For test sake we need the original unmodified HUGR
     h = main.with_minimal_opt().compile_function().modules[0]
     _check_block_metadata(
         h,
@@ -231,7 +232,8 @@ def test_unitary_metadata_function_definition():
         "__main__.uni": UnitaryFlags.Unitary.value,
     }
 
-    hugr = main.compile().modules[0]
+    # For test sake we need the original unmodified HUGR
+    hugr = main.with_minimal_opt().compile().modules[0]
     for _, data in hugr.nodes():
         if (
             isinstance(data.op, (FuncDefn, FuncDecl))
