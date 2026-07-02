@@ -21,6 +21,7 @@ As of August 2025, The Guppy language is undergoing rapid development and is cur
 
 * Drop support for Python 3.10 and 3.11 (#1985)
 * Remove `max_qubits` from `GuppyKwargs` TypedDict (#1977)
+* Optimization is now enabled by default in compilation workflows (#1885)
 
 
 ### Code Refactoring
