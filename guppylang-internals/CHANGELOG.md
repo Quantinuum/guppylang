@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.1.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc0...guppylang-internals-v1.1.0-a0) (2026-07-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Drop support for Python 3.10 and 3.11 (#1971)
+
+
+### Bug Fixes
+
+* Make auto type params for protocol bounds unique (#1997)([f711512](https://github.com/Quantinuum/guppylang/commit/f7115120fddb498876f5138a8272836181f452d1))
+* Fix inout updates for overloaded functions in a comptime context (#1981)([bcd97b6](https://github.com/Quantinuum/guppylang/commit/bcd97b60ae29ea7b245d7592e1ffa5e98e0e364d))
+
+
+### Code Refactoring
+
+* Remove version guards for Python 3.12 lower bound (#1973)([5f3212e](https://github.com/Quantinuum/guppylang/commit/5f3212e605e2e43c7451bdcdb9558a853debf04b))
+
+
+### Features
+
+* Drop support for Python 3.10 and 3.11 (#1971)([ac2209c](https://github.com/Quantinuum/guppylang/commit/ac2209cb6675de74deb357d965fc22c473a7732e))
+
 ## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1...guppylang-internals-v1.0.0-a8) (2026-06-30)
 
 
