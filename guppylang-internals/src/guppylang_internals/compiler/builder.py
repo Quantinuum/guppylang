@@ -3,7 +3,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Generic, TypeVar
+from typing import Self, override
 
 from hugr import Node, Wire, ops, val
 from hugr import tys as ht
@@ -11,7 +11,6 @@ from hugr.build import Block, Case, Cfg, Conditional, TailLoop
 from hugr.build import function as hf
 from hugr.hugr.node_port import ToNode
 from hugr.metadata import HugrDebugInfo
-from typing_extensions import Self, override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.compiler.core import may_have_side_effect
@@ -174,11 +173,8 @@ class DFBuilder(ABC, ToNode):
         return self._raw.add_const(value, parent)
 
 
-B = TypeVar("B", bound=hf.Function | Case | TailLoop | Block)
-
-
 @dataclass
-class _DFBuilderRaw(DFBuilder, Generic[B]):
+class _DFBuilderRaw[B: hf.Function | Case | TailLoop | Block](DFBuilder):
     _raw_builder: B
 
     @property

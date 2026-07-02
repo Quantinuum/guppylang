@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Generic, Protocol, TypeVar
-
-T = TypeVar("T")
+from typing import Any, Protocol
 
 
 class ToHugrContext(Protocol):
@@ -15,7 +13,7 @@ class ToHugrContext(Protocol):
     """
 
 
-class ToHugr(ABC, Generic[T]):
+class ToHugr[T](ABC):
     """Abstract base class for objects that have a Hugr representation."""
 
     @abstractmethod
@@ -58,7 +56,7 @@ class Visitable(ABC):
         """
 
 
-class Transformable(Visitable, ABC, Generic[T]):
+class Transformable[T](Visitable, ABC):
     """Abstract base class for objects that can be recursively transformed."""
 
     @abstractmethod

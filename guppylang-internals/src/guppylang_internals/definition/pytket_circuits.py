@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, cast, override
 
 import hugr.build.function as hf
 from guppylang.defs import GuppyDefinition
@@ -11,7 +11,6 @@ from hugr.debug_info import DILocation, DISubprogram
 from hugr.envelope import EnvelopeConfig
 from hugr.metadata import HugrDebugInfo
 from hugr.std.float import FLOAT_T
-from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals

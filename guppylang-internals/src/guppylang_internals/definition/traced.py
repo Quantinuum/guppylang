@@ -1,14 +1,13 @@
 import ast
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, override
 
 import hugr.build.function as hf
 import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.metadata import HugrDebugInfo
-from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals

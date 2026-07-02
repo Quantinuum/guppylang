@@ -1,11 +1,10 @@
 import ast
 import inspect
 import linecache
-import sys
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from types import FrameType
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, ClassVar, TypeGuard
 
 from guppylang_internals.ast_util import AstNode, annotate_location, parse_source
 from guppylang_internals.checker.core import Globals
@@ -27,12 +26,10 @@ from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
     annotation_nodes,
+    parse_parameter,
     try_parse_defn,
 )
 from guppylang_internals.tys.ty import Type
-
-if sys.version_info >= (3, 12):
-    from guppylang_internals.tys.parsing import parse_parameter
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.alias import ParsedTypeAliasDef
@@ -40,9 +37,7 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.struct import ParsedStructDef
 
 
-ParsedRecursiveTypeDef: TypeAlias = (
-    "ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef"
-)
+type ParsedRecursiveTypeDef = "ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef"
 
 
 @dataclass(frozen=True)
@@ -259,15 +254,14 @@ def extract_generic_params(
     params_span: Span | None = None
 
     # Look for generic parameters from Python 3.12 style syntax
-    if sys.version_info >= (3, 12):
-        if cls_def.type_params:
-            first, last = cls_def.type_params[0], cls_def.type_params[-1]
-            params_span = Span(to_span(first).start, to_span(last).end)
-            param_vars_mapping: dict[str, Parameter] = {}
-            for idx, param_node in enumerate(cls_def.type_params):
-                param = parse_parameter(param_node, idx, globals, param_vars_mapping)
-                param_vars_mapping[param.name] = param
-                params.append(param)
+    if cls_def.type_params:
+        first, last = cls_def.type_params[0], cls_def.type_params[-1]
+        params_span = Span(to_span(first).start, to_span(last).end)
+        param_vars_mapping: dict[str, Parameter] = {}
+        for idx, param_node in enumerate(cls_def.type_params):
+            param = parse_parameter(param_node, idx, globals, param_vars_mapping)
+            param_vars_mapping[param.name] = param
+            params.append(param)
 
     base_params: list[Parameter] = []
     for base in cls_def.bases:

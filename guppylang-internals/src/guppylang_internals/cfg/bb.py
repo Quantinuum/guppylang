@@ -2,9 +2,7 @@ import ast
 from abc import ABC
 from collections.abc import Hashable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Generic, TypeVar
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Self
 
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
 from guppylang_internals.nodes import (
@@ -21,13 +19,10 @@ if TYPE_CHECKING:
     from guppylang_internals.cfg.cfg import BaseCFG
 
 
-# Type variable for ids of entities which we may wish to track during program analysis
-# (generally ids for program variables or parts thereof)
-VId = TypeVar("VId", bound=Hashable)
-
-
+# VId is a type variable for ids of entities which we may wish to track during program
+# analysis (generally ids for program variables or parts thereof)
 @dataclass
-class VariableStats(Generic[VId]):
+class VariableStats[VId: Hashable]:
     """Stores variable usage information for a basic block."""
 
     # Variables that are assigned in the BB

@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
-from typing import Any, TypeGuard, TypeVar
+from typing import Any, TypeGuard
 
 import hugr
 import hugr.std.float
@@ -801,9 +801,6 @@ def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value
     return None
 
 
-T = TypeVar("T")
-
-
-def doesnt_contain_none(xs: list[T | None]) -> TypeGuard[list[T]]:
+def doesnt_contain_none[T](xs: list[T | None]) -> TypeGuard[list[T]]:
     """Checks if a list contains `None`."""
     return all(x is not None for x in xs)

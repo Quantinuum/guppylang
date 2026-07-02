@@ -3,7 +3,7 @@
 Type `Either[L, R]` represents a value of either typr `L` ("left") or `R` ("right").
 """
 
-from typing import Generic, no_type_check
+from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.std._internal.compiler.either import (
@@ -19,15 +19,13 @@ from guppylang import guppy
 from guppylang.std.lang import owned
 from guppylang.std.option import Option
 
-L = guppy.type_var("L", copyable=False, droppable=False)
-R = guppy.type_var("R", copyable=False, droppable=False)
 Droppable = guppy.type_var("Droppable", copyable=False, droppable=True)
 
 _params = [TypeParam(0, "L", False, False), TypeParam(1, "L", False, False)]
 
 
 @custom_type(either_to_hugr, params=_params)
-class Either(Generic[L, R]):  # type: ignore[misc]
+class Either[L, R]:
     """Represents a union of either a `left` or a `right` value."""
 
     @custom_function(EitherTestCompiler(0))
@@ -77,11 +75,11 @@ class Either(Generic[L, R]):  # type: ignore[misc]
 
 @custom_function(EitherConstructor(0))
 @no_type_check
-def left(val: L @ owned) -> Either[L, R]:
+def left[L, R](val: L @ owned) -> Either[L, R]:
     """Constructs a `left` either value."""
 
 
 @custom_function(EitherConstructor(1))
 @no_type_check
-def right(val: R @ owned) -> Either[L, R]:
+def right[L, R](val: R @ owned) -> Either[L, R]:
     """Constructs a `right` either value."""

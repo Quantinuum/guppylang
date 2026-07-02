@@ -3,7 +3,6 @@
 import ast
 import linecache
 from dataclasses import dataclass
-from typing import TypeAlias
 
 from guppylang_internals.ast_util import get_file, get_line_offset, get_source
 from guppylang_internals.error import InternalGuppyError
@@ -102,7 +101,7 @@ class Span:
 
 
 #: Objects in the compiler that are associated with a source span
-ToSpan: TypeAlias = ast.AST | Span
+type ToSpan = ast.AST | Span
 
 
 def to_span(x: ToSpan) -> Span:
@@ -155,7 +154,7 @@ def function_header_span(func_def: ast.FunctionDef) -> Span:
 
 
 #: List of source lines in a file
-SourceLines: TypeAlias = list[str]
+type SourceLines = list[str]
 
 
 class SourceMap:

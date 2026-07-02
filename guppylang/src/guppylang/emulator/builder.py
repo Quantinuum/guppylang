@@ -5,10 +5,9 @@ Compiling and building emulator instances for guppy programs.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 import selene_sim
-from typing_extensions import Self
 
 from .instance import EmulatorInstance
 

@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, NamedTuple, TypeAlias
+from typing import Any, ClassVar, NamedTuple
 
 from hugr import Wire
 
@@ -46,8 +46,8 @@ reverse_binary_table = {
     for method, reverse_method, display_name in expr_checker.binary_table.values()
 }
 
-UnaryDunderMethod: TypeAlias = Callable[["DunderMixin"], Any]
-BinaryDunderMethod: TypeAlias = Callable[["DunderMixin", Any], Any]
+type UnaryDunderMethod = Callable[["DunderMixin"], Any]
+type BinaryDunderMethod = Callable[["DunderMixin", Any], Any]
 
 
 def unary_operation(f: UnaryDunderMethod) -> UnaryDunderMethod:
