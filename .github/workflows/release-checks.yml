@@ -29,7 +29,7 @@ jobs:
           - resolution: "highest"
             python: "3.14"
           - resolution: "lowest-direct"
-            python: "3.10"
+            python: "3.12"
     steps:
       - uses: actions/checkout@v7
       - uses: mozilla-actions/sccache-action@v0.0.10
