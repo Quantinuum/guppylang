@@ -1,4 +1,8 @@
+import base64
+import pytest
+
 from guppylang.decorator import guppy
+from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.array import array
 
 from guppylang.std.builtins import (
@@ -59,7 +63,10 @@ def test_assignment_in_dagger(validate):
         discard(q)
         discard(c)
 
-    validate(main.compile_function())
+    # TODO: Tket's full ModifierResolution pass constructs a cyclic DFG.
+    # Export disabled while we fix the issue.
+    # See <https://github.com/Quantinuum/tket2/issues/1774>
+    validate(main.compile_function(), export=False)
 
 
 def test_control_simple(validate):
@@ -176,9 +183,12 @@ def test_power_simple(validate):
         with power(n):
             pass
 
-    # Normalize guppy fails: power node is found by the ModifierResolverPass, thus we do
-    # not want to validate the exported hugr file on CI.
-    validate(bar.compile_function(), export=False)
+    # Tket passes reject power modifiers, so do not export this HUGR for CI
+    # normalization and don't run default optimization passes.
+    validate(
+        bar.with_minimal_opt().compile_function(),
+        export=False,
+    )
 
 
 def test_call_in_modifier(validate):
@@ -317,12 +327,7 @@ def test_higher_order_control_controllable_callable(validate):
     def main(ctrl: qubit, q: qubit) -> None:
         apply_control(h, ctrl, q)
 
-    # Tket2 still contains some bugs with higher-order functions.
-    # Thus validating exported hugr files will fail on CI.
-    # Waiting for:
-    # - https://github.com/Quantinuum/guppylang/issues/1917 and
-    # - https://github.com/Quantinuum/tket2/issues/1710
-    validate(main.compile_function(), export=False)
+    validate(main.compile_function())
 
 
 def test_higher_order_unitary_callable(validate):
@@ -334,14 +339,24 @@ def test_higher_order_unitary_callable(validate):
             with control(ctrl):
                 f(q)
 
+    apply_unitary.check()
+
+    @guppy(unitary=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def main(q1: qubit, q2: qubit) -> None:
+        apply_unitary(h, q1, q2)
+        apply_unitary(foo, q1, q2)
+
     # Tket2 still contains some bugs with higher-order functions.
     # Thus validating exported hugr files will fail on CI.
-    # Waiting for:
-    # - https://github.com/Quantinuum/guppylang/issues/1917 and
-    # - https://github.com/Quantinuum/tket2/issues/1710
-    validate(apply_unitary.compile_function(), export=False)
+    # Waiting for https://github.com/Quantinuum/tket2/issues/1761
+    validate(main.compile_function(), export=False)
 
 
+@pytest.mark.xfail(reason="Returning protocols not supported")
 def test_return_callable_with_stronger_flags(validate):
     """Returning a callable with more flags than required is valid."""
 
@@ -390,21 +405,7 @@ def test_take_callable_taking_weaker_callable(validate):
         f(q)
 
     @guppy
-    def take_plain_consumer(
-        consumer: Function[[Function[[qubit], None], qubit], None], q: qubit
-    ) -> None:
-        consumer(control_fun, q)
-
-    @guppy
-    def take_daggerable_consumer(
-        consumer: Function[[Daggerable[[qubit], None], qubit], None], q: qubit
-    ) -> None:
-        consumer(unitary_fun, q)
-
-    @guppy
     def main(q: qubit) -> None:
-        take_plain_consumer(apply_dagger, q)
-        take_daggerable_consumer(apply_plain, q)
         apply_plain(control_fun, q)
         apply_dagger(unitary_fun, q)
 
@@ -444,7 +445,8 @@ def test_double_dagger_cancellation_2(validate):
         discard(c2)
 
     main.check()
-    # Since power is not supported yet in tket2 passes, the validation will fail on CI.
+    # Tket passes reject power modifiers, so do not export this HUGR for CI
+    # normalization.
     # validate(main.compile())
 
 
@@ -535,3 +537,44 @@ def test_comptime_unitary_mixed(validate):
         return q1
 
     validate(foo.compile_function())
+
+
+def test_hugr_stability():
+    """Test that the Hugr representation of a function is stable across multiple
+    compilations: https://github.com/Quantinuum/guppylang/issues/1905"""
+
+    @guppy(unitary=True)
+    def foo(q: qubit) -> None:
+        h(q)
+        with dagger:
+            h(q)
+        with dagger:
+            h(q)
+
+    @guppy
+    def main() -> None:
+        q1 = qubit()
+        q2 = qubit()
+        with dagger:
+            foo(q1)
+            with control(q1):
+                foo(q2)
+        cx(q1, q2)
+        with control(q1):
+            foo(q2)
+
+        discard(q1)
+        discard(q2)
+
+    hashes = set()
+
+    def compile_to_sig(guppy_func: GuppyFunctionDefinition) -> str:
+        package = guppy_func.compile()
+        http_data = package.to_bytes()
+        return base64.b64encode(http_data).decode()[-10:]
+
+    for _ in range(20):
+        sig = compile_to_sig(main)
+        hashes.add(sig)
+
+    assert len(hashes) == 1

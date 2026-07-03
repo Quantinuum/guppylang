@@ -7,7 +7,6 @@ node straight from the Python AST. We build a CFG, check it, and return a
 
 import ast
 import copy
-import sys
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, ClassVar, cast
 
@@ -25,11 +24,13 @@ from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
+from guppylang_internals.span import function_header_span
 from guppylang_internals.tys.param import Parameter, TypeParam
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
     check_function_arg,
     parse_function_arg_annotation,
+    parse_parameter,
     type_from_ast,
     type_with_flags_from_ast,
 )
@@ -47,9 +48,6 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.protocol import CheckedProtocolDef
-
-if sys.version_info >= (3, 12):
-    from guppylang_internals.tys.parsing import parse_parameter
 
 
 @dataclass(frozen=True)
@@ -138,6 +136,7 @@ def check_global_func_def(
     generic_ty: FunctionType,
     type_args: Inst,
     globals: Globals,
+    link_name: str,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -157,7 +156,15 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    return check_cfg(cfg, inputs, ty.output, generic_args, func_def.name, globals)
+    return check_cfg(
+        cfg,
+        inputs,
+        ty.output,
+        generic_args,
+        func_def.name,
+        globals,
+        modified_block_name_base=link_name,
+    )
 
 
 def check_nested_func_def(
@@ -306,8 +313,7 @@ def check_signature(
             UnsupportedError(func_def.args.defaults[0], "Default arguments")
         )
     if func_def.returns is None:
-        err = MissingReturnAnnotationError(func_def)
-        # TODO: Error location is incorrect
+        err = MissingReturnAnnotationError(function_header_span(func_def))
         if all(r.value is None for r in return_nodes_in_ast(func_def)):
             err.add_sub_diagnostic(
                 MissingReturnAnnotationError.ReturnNone(None, func_def.name)
@@ -317,10 +323,9 @@ def check_signature(
     # Prepopulate parameter mapping when using Python 3.12 style generic syntax
     if param_var_mapping is None:
         param_var_mapping = {}
-    if sys.version_info >= (3, 12):
-        for i, param_node in enumerate(func_def.type_params):
-            param = parse_parameter(param_node, i, globals, param_var_mapping)
-            param_var_mapping[param.name] = param
+    for i, param_node in enumerate(func_def.type_params):
+        param = parse_parameter(param_node, i, globals, param_var_mapping)
+        param_var_mapping[param.name] = param
 
     # Figure out if this is a method
     self_defn: ProtocolDef | TypeDef | None = None
@@ -359,7 +364,7 @@ def check_signature(
                 raise GuppyError(MissingArgAnnotationError(inp))
             input = parse_function_arg_annotation(ty_ast, inp.arg, ctx)
         inputs.append(input)
-    output = type_from_ast(func_def.returns, ctx)
+    output = type_from_ast(func_def.returns, replace(ctx, is_output=True))
     return FunctionType(
         inputs,
         output,
@@ -417,7 +422,6 @@ def parse_self_arg_proto(
     This argument is special since its type annotation may be omitted. Furthermore, if a
     type is provided then it must match the parent type.
     """
-    from guppylang_internals.checker.protocol_checker import check_protocol
 
     assert self_defn.params is not None
     if arg.annotation is None:
@@ -451,7 +455,7 @@ def parse_self_arg_proto(
         # Check that the annotation matches the parent type. We can do this by unifying
         # with the expected self type where all params are instantiated with unification
         # vars
-        _impl_proof, subst = check_protocol(user_ty, self_ty_head, arg)
+        _impl_proof, subst = self_ty_head.check_implemented_by(user_ty, arg)
         if subst is None:
             raise GuppyError(
                 InvalidSelfError(arg.annotation, arg.arg, str(self_ty_head))

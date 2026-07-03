@@ -145,11 +145,11 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.name, func_type.body.input, func_type.body.output, func_type.params
         )
         add_metadata(
-            func_def,
+            module.hugr[func_def].metadata,
             self.metadata,
         )
         if debug_mode_enabled():
-            func_def.metadata[HugrDebugInfo] = make_subprogram_record(
+            module.hugr[func_def].metadata[HugrDebugInfo] = make_subprogram_record(
                 self.defined_at, ctx
             )
         return CompiledTracedFunctionDef(

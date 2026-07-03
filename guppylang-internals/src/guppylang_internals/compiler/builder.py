@@ -96,7 +96,7 @@ class DFBuilder(ABC, ToNode):
 
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
-            op_node.metadata[HugrDebugInfo] = make_location_record(
+            self._raw.hugr[op_node].metadata[HugrDebugInfo] = make_location_record(
                 self.current_ast_node
             )
         return op_node
@@ -134,7 +134,9 @@ class DFBuilder(ABC, ToNode):
         self._handle_side_effects(call)
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
-            call.metadata[HugrDebugInfo] = make_location_record(self.current_ast_node)
+            self._raw.hugr[call].metadata[HugrDebugInfo] = make_location_record(
+                self.current_ast_node
+            )
         return call
 
     # Other frequently used operations for which we want to avoid having to use

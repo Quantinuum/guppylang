@@ -63,7 +63,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprTypeVarError,
     ComptimeGuppyObjectError,
     ComptimeUnknownError,
-    IllegalComptimeExpressionError,
+    UnsupportedPythonValueError,
 )
 from guppylang_internals.checker.errors.generic import (
     ExpectedError,
@@ -95,7 +95,7 @@ from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
-from guppylang_internals.engine import ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -131,6 +131,8 @@ from guppylang_internals.nodes import (
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
+    CallableProtocolInst,
+    ModifiableFunctionProtocolInst,
     bool_type,
     float_type,
     frozenarray_type,
@@ -164,6 +166,7 @@ from guppylang_internals.tys.ty import (
     EnumType,
     ExistentialTypeVar,
     FuncInput,
+    FunctionDefType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -181,6 +184,8 @@ from guppylang_internals.tys.var import ExistentialVar
 
 if TYPE_CHECKING:
     from guppylang_internals.diagnostic import SubDiagnostic
+    from guppylang_internals.tys.protocol import ProtocolInst
+
 
 # Mapping from unary AST op to dunder method and display name
 unary_table: dict[type[ast.unaryop], tuple[str, str]] = {
@@ -265,7 +270,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # When checking against a variable, we have to synthesize
         if isinstance(ty, ExistentialTypeVar):
             expr, syn_ty = self._synthesize(expr, allow_free_vars=False)
-            return with_type(syn_ty, expr), {ty: syn_ty}
+            expr, subst, inst = check_type_against(
+                syn_ty, ty, expr, self.ctx, self._kind
+            )
+            # Apply instantiation of quantified type variables
+            if inst:
+                expr = with_loc(expr, TypeApply(expr, inst))
+            return with_type(ty.substitute(subst), expr), subst
 
         # Otherwise, invoke the visitor
         old_kind = self._kind
@@ -280,6 +291,23 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         """Invokes the type synthesiser"""
         return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars)
 
+    def _check_python_value(
+        self, value: Any, act: Type, node: ast.expr, ty: Type
+    ) -> tuple[ast.expr, Subst] | None:
+        """Tries to check a primitive Python value with inferred type `act` against an
+        expected type `ty`.
+
+        Returns the type-annotated constant and substitution on match, or `None` if
+        `act` does not unify with `ty`. `act` is only a hint (e.g. from
+        `python_value_to_guppy_type`), so we unify against `ty` and leave it to the
+        caller to decide how to handle a mismatch. Never raises."""
+        subst = unify(ty, act, {})
+        if subst is None:
+            return None
+        act = act.substitute(subst)
+        subst = {x: s for x, s in subst.items() if x in ty.unsolved_vars}
+        return with_type(act, with_loc(node, ast.Constant(value=value))), subst
+
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
         act = python_value_to_guppy_type(node.value, node, ty)
         if act is None:
@@ -287,6 +315,23 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         node, subst, inst = check_type_against(act, ty, node, self.ctx, self._kind)
         assert inst == (), "Const values are not generic"
         return node, subst
+
+    def visit_Name(self, node: ast.Name, ty: Type) -> tuple[ast.expr, Subst]:
+        """Check a name against an expected type, propagating the hint for Python
+        values so that e.g. a non-negative Python int variable is accepted where a
+        ``nat @comptime`` is expected (mirroring what ``visit_Constant`` does for
+        literals)."""
+        if node.id in self.ctx.globals:
+            match self.ctx.globals[node.id]:
+                case PythonObject(obj=val):
+                    act = python_value_to_guppy_type(val, node, ty)
+                    if (
+                        act is not None
+                        and (result := self._check_python_value(val, act, node, ty))
+                        is not None
+                    ):
+                        return result
+        return self.generic_visit(node, ty)
 
     def visit_Tuple(self, node: ast.Tuple, ty: Type) -> tuple[ast.expr, Subst]:
         if not isinstance(ty, TupleType) or len(ty.element_types) != len(node.elts):
@@ -327,13 +372,18 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, func_ty = self._synthesize(node.func, allow_free_vars=False)
 
+        if isinstance(func_ty, FunctionDefType):
+            node.func = function_def_value_to_global_name(node.func, func_ty)
+
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
 
-            from guppylang_internals.definition.protocol import ParsedProtocolDef
+            from guppylang_internals.definition.protocol import (
+                ParsedProtocolDef,
+            )
 
             # Protocol methods don't have their own definition, we have to look up the
             # protocol definition itself first.
@@ -357,12 +407,23 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             return self.visit_Call(node, ty)
 
         # Otherwise, it must be a function as a higher-order value - something
-        # whose type is either a FunctionType or a Tuple of FunctionTypes
+        # whose type is either a FunctionType, a generic parameter with a `Callable`
+        # bound, or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
             args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
+
+        if isinstance(func_ty, BoundTypeVar):
+            for protocol in func_ty.implements:
+                if isinstance(protocol, CallableProtocolInst):
+                    args, subst, inst = check_call(
+                        protocol.sig, node.args, ty, node, self.ctx
+                    )
+                    assert inst == (), "Callables are not generic"
+                    node.func = instantiate_poly(node.func, protocol.sig, inst)
+                    return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
         if isinstance(func_ty, TupleType) and (
             function_elements := parse_function_tensor(func_ty)
@@ -393,15 +454,15 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         self, node: ComptimeExpr, ty: Type
     ) -> tuple[ast.expr, Subst]:
         python_val = eval_comptime_expr(node, self.ctx)
-        if act := python_value_to_guppy_type(python_val, node.value, ty):
-            subst = unify(ty, act, {})
-            if subst is None:
-                self._fail(ty, act, node)
-            act = act.substitute(subst)
-            subst = {x: s for x, s in subst.items() if x in ty.unsolved_vars}
-            return with_type(act, with_loc(node, ast.Constant(value=python_val))), subst
-
-        raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
+        act = python_value_to_guppy_type(python_val, node.value, ty)
+        if act is None:
+            raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
+        if (
+            result := self._check_python_value(python_val, act, node.value, ty)
+        ) is None:
+            self._fail(ty, act, node)
+        expr, subst = result
+        return with_loc(node, expr), subst
 
     def generic_visit(self, node: ast.expr, ty: Type) -> tuple[ast.expr, Subst]:
         # Try to synthesize and then check if we can unify it with the given type
@@ -505,14 +566,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                             err.add_sub_diagnostic(ExpectedError.EnumHelp(None))
                             raise GuppyError(err)
                     return self._check_global(defn, name_id, node)
-                case PythonObject():
-                    from guppylang_internals.checker.cfg_checker import (
-                        VarNotDefinedError,
-                    )
-
-                    # TODO: Emit a hint that the variable could be accessed through a
-                    #  comptime expression
-                    raise GuppyError(VarNotDefinedError(node, node.id))
+                case PythonObject(obj=val):
+                    if ty := python_value_to_guppy_type(val, node):
+                        return with_loc(node, ast.Constant(value=val)), ty
+                    raise GuppyError(UnsupportedPythonValueError(node, type(val)))
 
         raise InternalGuppyError(
             f"Variable `{name_id}` is not defined in `TypeSynthesiser`."
@@ -526,6 +583,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         """Checks a global definition in an expression position."""
         match defn:
+            case CallableDef() as defn:
+                ty = FunctionDefType(defn.id)
+                return with_loc(node, GlobalName(id=name, def_id=defn.id)), ty
             case ValueDef() as defn:
                 return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
             # We need a special case for enums since they don't have a `__new__` method,
@@ -635,25 +695,41 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         elif isinstance(ty, BoundTypeVar):
             from guppylang_internals.definition.protocol import CheckedProtocolDef
 
+            # Protocols implemented by `ty` that have the method we want.
+            valid_proto_impls: list[ProtocolInst] = []
             for proto in ty.implements:
                 proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
                 assert isinstance(proto_def, CheckedProtocolDef)
-                for member_name, member_id in proto_def.member_defs.items():
-                    member_ty = proto_def.member_sig(member_name)
-                    if node.attr == member_name:
-                        name_node = with_type(
-                            member_ty,
-                            with_loc(
-                                node,
-                                GlobalName(id=member_name, def_id=member_id),
+                if node.attr in proto_def.member_defs:
+                    valid_proto_impls.append(proto)
+            match valid_proto_impls:
+                case []:
+                    raise GuppyError(AttributeNotFoundError(node, ty, node.attr))
+                case [proto_impl]:
+                    proto_def = ENGINE.get_checked(
+                        proto_impl.def_id, proto_impl.type_args
+                    )
+                    assert isinstance(proto_def, CheckedProtocolDef)
+                    member_ty = proto_def.member_sig(node.attr)
+
+                    name_node = with_type(
+                        member_ty,
+                        with_loc(
+                            node,
+                            GlobalName(
+                                id=node.attr, def_id=proto_def.member_defs[node.attr]
                             ),
-                        )
-                        ty_without_self = FunctionType(
-                            member_ty.inputs[1:], member_ty.output, member_ty.params
-                        )
-                        return with_loc(
-                            node, PartialApply(func=name_node, args=[node.value])
-                        ), ty_without_self
+                        ),
+                    )
+                    ty_without_self = FunctionType(
+                        member_ty.inputs[1:], member_ty.output, member_ty.params
+                    )
+                    return with_loc(
+                        node, PartialApply(func=name_node, args=[node.value])
+                    ), ty_without_self
+                case _:
+                    raise RequiresMonomorphizationError
+
         elif isinstance(ty, EnumType):
             if node.attr in ty.variants_as_dict:
                 # If we are accessing to a variant, we need to check that node.value is
@@ -850,6 +926,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def visit_Subscript(self, node: ast.Subscript) -> tuple[ast.expr, Type]:
         node.value, ty = self.synthesize(node.value)
         # Special case for subscripts on functions: Those are type applications
+        if isinstance(ty, FunctionDefType):
+            ty = ty.sig
         if isinstance(ty, FunctionType):
             inst = check_type_apply(ty, node, self.ctx)
             return instantiate_poly(node.value, ty, inst), ty.instantiate(inst)
@@ -919,6 +997,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, ty = self.synthesize(node.func)
 
+        if isinstance(ty, FunctionDefType):
+            node.func = function_def_value_to_global_name(node.func, ty)
+
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
@@ -953,9 +1034,21 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
-        elif isinstance(ty, TupleType) and (
-            function_elems := parse_function_tensor(ty)
-        ):
+
+        if isinstance(ty, BoundTypeVar):
+            for protocol in ty.implements:
+                if isinstance(
+                    protocol, CallableProtocolInst | ModifiableFunctionProtocolInst
+                ):
+                    args, return_ty, inst = synthesize_call(
+                        protocol.sig, node.args, node, self.ctx
+                    )
+                    assert inst == (), "Callables are not generic"
+                    node.func = instantiate_poly(node.func, protocol.sig, inst)
+                    call = LocalCall(func=node.func, args=args)
+                    return with_loc(node, call), return_ty
+
+        if isinstance(ty, TupleType) and (function_elems := parse_function_tensor(ty)):
             check_function_tensors_enabled(node.func)
             if any(f.parametrized for f in function_elems):
                 raise GuppyError(
@@ -1028,7 +1121,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if ty := python_value_to_guppy_type(python_val, node):
             return with_loc(node, ast.Constant(value=python_val)), ty
 
-        raise GuppyError(IllegalComptimeExpressionError(node.value, type(python_val)))
+        raise GuppyError(UnsupportedPythonValueError(node.value, type(python_val)))
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> tuple[ast.expr, Type]:
         raise InternalGuppyError(
@@ -1065,17 +1158,24 @@ def check_type_against(
     assert not isinstance(exp, FunctionType) or not exp.parametrized
     assert not act.unsolved_vars
 
+    # If the actual type is a function item, we coerce it early to allow for generic to
+    # be inferred below
+    if isinstance(act, FunctionDefType) and isinstance(exp, FunctionType):
+        node = function_def_value_to_global_name(node, act)
+        act = act.sig
+
     # The actual type may be parametrised. In that case, we have to find an
     # instantiation to avoid higher-rank types.
     subst: Subst | None
-    if isinstance(act, FunctionType) and act.parametrized:
+    if isinstance(act, FunctionType | FunctionDefType) and act.parametrized:
+        act_sig = act if isinstance(act, FunctionType) else act.sig
         unquantified, free_vars = act.unquantified()
         subst = unify(exp, unquantified, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
         # Check that we have found a valid instantiation for all params
         for i, v in enumerate(free_vars):
-            param = act.params[i].name
+            param = act_sig.params[i].name
             if v not in subst:
                 err = TypeMismatchError(node, exp, act, kind)
                 err.add_sub_diagnostic(TypeMismatchError.CantInferParam(None, param))
@@ -1091,9 +1191,11 @@ def check_type_against(
 
         # Finally, check that the instantiation respects the linearity requirements and
         # if the unitary flags match
-        check_inst(act, inst, node)
+        check_inst(act_sig, inst, node)
+        exp = exp.substitute(subst)
+        exp = exp.sig if isinstance(exp, FunctionDefType) else exp
         assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act, node)
+        check_unitary_flags(exp, act_sig, node)
 
         return node, subst, inst
 
@@ -1108,6 +1210,7 @@ def check_type_against(
 
     # If we have a function type, we also check that unitary flags match
     if isinstance(act, FunctionType):
+        exp = exp.substitute(subst)
         assert isinstance(exp, FunctionType)
         check_unitary_flags(exp, act, node)
 
@@ -1121,7 +1224,15 @@ def try_coerce_to(
 
     Returns the coerced expression or `None` if the type cannot be implicitly coerced.
     """
-    # Currently, we only support implicit coercions of numeric types
+    # Function items coerce into opaque function types
+    if (
+        isinstance(act, FunctionDefType)
+        and isinstance(exp, FunctionType)
+        and act.sig == exp
+    ):
+        return function_def_value_to_global_name(node, act)
+
+    # We also support implicit coercions of numeric types
     if not isinstance(act, NumericType) or not isinstance(exp, NumericType):
         return None
     # Ordering on `NumericType.Kind` defines the coercion relation
@@ -1134,6 +1245,17 @@ def try_coerce_to(
         assert len(subst) == 0, "Coercion methods are not generic"
         return node
     return None
+
+
+def function_def_value_to_global_name(expr: AstNode, ty: FunctionDefType) -> GlobalName:
+    """Turns an expressions with a `FunctionDefType` into the corresponding
+    `GlobalName`.
+
+    This is allowed since the function item already uniquely identifies the function
+    value, so there is no need to keep the expression that evaluates to this value.
+    """
+    name = DEF_STORE.raw_defs[ty.def_id].name
+    return with_type(ty.sig, with_loc(expr, GlobalName(id=name, def_id=ty.def_id)))
 
 
 def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
@@ -1696,9 +1818,9 @@ def python_value_to_guppy_type(
             for elt, hint in zip(elts, hints, strict=False):
                 ty = python_value_to_guppy_type(elt, node, hint)
                 if ty is None:
-                    err = IllegalComptimeExpressionError(node, type(elt))
+                    err = UnsupportedPythonValueError(node, type(elt))
                     err.add_sub_diagnostic(
-                        IllegalComptimeExpressionError.InContainer(None, tuple)
+                        UnsupportedPythonValueError.InContainer(None, tuple)
                     )
                     raise GuppyError(err)
                 tys.append(ty)
@@ -1744,16 +1866,14 @@ def _python_list_to_guppy_type(
     )
     el_ty = python_value_to_guppy_type(v, node, elt_hint)
     if el_ty is None:
-        err = IllegalComptimeExpressionError(node, type(v))
-        err.add_sub_diagnostic(IllegalComptimeExpressionError.InContainer(None, list))
+        err = UnsupportedPythonValueError(node, type(v))
+        err.add_sub_diagnostic(UnsupportedPythonValueError.InContainer(None, list))
         raise GuppyError(err)
     for v in rest:
         ty = python_value_to_guppy_type(v, node, elt_hint)
         if ty is None:
-            err = IllegalComptimeExpressionError(node, type(v))
-            err.add_sub_diagnostic(
-                IllegalComptimeExpressionError.InContainer(None, list)
-            )
+            err = UnsupportedPythonValueError(node, type(v))
+            err.add_sub_diagnostic(UnsupportedPythonValueError.InContainer(None, list))
             raise GuppyError(err)
         if (subst := unify(ty, el_ty, {})) is None:
             raise GuppyError(ComptimeExprIncoherentListError(node))

@@ -4,6 +4,7 @@ import inspect
 from collections.abc import Callable
 from types import FrameType
 from typing import (
+    TYPE_CHECKING,
     Any,
     NamedTuple,
     ParamSpec,
@@ -36,9 +37,14 @@ from guppylang_internals.definition.pytket_circuits import (
 )
 from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
-from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
+from guppylang_internals.dummy_decorator import (
+    _dummy_custom_decorator,
+    _DummyGuppy,
+    sphinx_running,
+)
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
+from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
@@ -56,6 +62,7 @@ from guppylang.defs import (
     GuppyFunctionDefinition,
     GuppyTypeVarDefinition,
 )
+from guppylang.library import _get_link_name
 
 K = TypeVar("K")
 S = TypeVar("S")
@@ -73,7 +80,13 @@ AnyRawFunctionDef = (
     OverloadedFunctionDef,
 )
 
-__all__ = ("GuppyKwargs", "custom_guppy_decorator", "guppy")
+__all__ = (
+    "GuppyKwargs",
+    "custom_guppy_decorator",
+    "expected_qubits",
+    "guppy",
+    "metadata",
+)
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -84,8 +97,6 @@ class GuppyKwargs(TypedDict, total=False):
     unitary: bool
     controllable: bool
     daggerable: bool
-    max_qubits: int
-    link_name: str
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -126,6 +137,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDef(
                 DefId.fresh(),
                 f.__name__,
@@ -133,7 +145,7 @@ class _Guppy:
                 f,
                 unitary_flags=parsed.flags,
                 metadata=parsed.metadata,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
@@ -172,6 +184,7 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawTracedFunctionDef(
                 DefId.fresh(),
                 f.__name__,
@@ -219,7 +232,7 @@ class _Guppy:
                 None,
                 cls,
                 frozen=kwargs.pop("frozen", False),  # Mutable by default
-                link_name=kwargs.pop("link_name", None),
+                link_name=_get_link_name(cls),
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
@@ -263,7 +276,7 @@ class _Guppy:
                 cls.__name__,
                 None,
                 cls,
-                link_name=kwargs.pop("link_name", None),
+                link_name=_get_link_name(cls),
             )
             frame = get_calling_frame()
             DEF_STORE.register_def(defn, frame)
@@ -318,13 +331,14 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
                 None,
                 f,
                 unitary_flags=parsed.flags,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
                 metadata=parsed.metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
@@ -434,13 +448,14 @@ class _Guppy:
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
             parsed = _parse_kwargs(kwargs)
+            _add_generic_metadata(f, parsed.metadata)
             defn = RawFunctionDecl(
                 DefId.fresh(),
                 f.__name__,
                 None,
                 f,
                 unitary_flags=parsed.flags,
-                link_name=parsed.link_name,
+                link_name=_get_link_name(f),
                 metadata=parsed.metadata,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
@@ -649,6 +664,60 @@ class _Guppy:
         return GuppyFunctionDefinition(defn)
 
 
+def metadata(key: str, value: Any) -> Any:
+    """Decorator to attach metadata to a Guppy function. It must be placed below
+    the @guppy decorator.
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.decorator import metadata
+
+        @guppy.declare
+        @metadata("key1", "value1")
+        @metadata("key2", "value2")
+        def main() -> None:
+            pass
+
+        main.compile()
+
+    During compilation, the node corresponding to the `main` function will have the
+    following metadata attached: {key1: value1, key2: value2}.
+    """
+
+    def decorator(f: Any) -> Any:
+        if isinstance(f, GuppyDefinition):
+            raise TypeError(
+                "@metadata must be placed below the @guppy decorator, not above it"
+            )
+        f.__guppy_metadata__ = {
+            **getattr(f, "__guppy_metadata__", {}),
+            key: value,
+        }
+        return f
+
+    return decorator
+
+
+def expected_qubits(num: int) -> Any:
+    """Decorator to attach an expected number of qubits to a Guppy function. It must be
+    placed below the @guppy decorator.
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.decorator import expected_qubit
+
+        @guppy.declare
+        @expected_qubits(2)
+        def main() -> None:
+            pass
+
+        main.compile()
+    """
+    return metadata(MetadataExpectedQubitsHint.KEY, num)
+
+
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
     """Helper function to parse expressions that are provided as strings.
 
@@ -779,7 +848,6 @@ def _with_optional_kwargs(
 class ParsedGuppyKwargs(NamedTuple):
     flags: UnitaryFlags
     metadata: FunctionMetadata
-    link_name: str | None
 
 
 @hide_trace
@@ -799,10 +867,11 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 
     metadata.set_unitary_flags(flags.value)
 
-    if "max_qubits" in kwargs:
-        metadata.set_max_qubits(kwargs.pop("max_qubits"))
-
-    link_name = kwargs.pop("link_name", None)
+    if "link_name" in kwargs:
+        raise TypeError(
+            "`link_name` keyword argument has been removed from the `@guppy` decorator,"
+            " use the `@link_name` decorator from `guppylang.library` instead."
+        )
 
     if remaining := next(iter(kwargs), None):
         err = f"Unknown keyword argument: `{remaining}`"
@@ -811,11 +880,21 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
     return ParsedGuppyKwargs(
         flags=flags,
         metadata=metadata,
-        link_name=link_name,
     )
 
 
-guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
+@hide_trace
+def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> None:
+    """Adds the given metadata to the function's `__guppy_metadata__` attribute, which
+    is used by the compiler to store metadata for Guppy functions.
+    """
+    custom_metadata = getattr(f, "__guppy_metadata__", {})
+    assert isinstance(custom_metadata, dict)
+    for key, value in custom_metadata.items():
+        if key == MetadataExpectedQubitsHint.KEY:
+            metadata.set_expected_qubits(value)
+        else:
+            metadata.set_generic_metadata(key, value)
 
 
 def _params_from_list(params: list[Any]) -> list[ParamDef]:
@@ -838,3 +917,9 @@ def _params_from_list(params: list[Any]) -> list[ParamDef]:
             )
         result.append(defn)
     return result
+
+
+guppy = cast("_Guppy", _DummyGuppy()) if sphinx_running() else _Guppy()
+
+if not TYPE_CHECKING and sphinx_running():
+    metadata = _dummy_custom_decorator()

@@ -619,7 +619,8 @@ def test_nat_generic(validate):
     def main() -> None:
         bar(1, 2)
 
-    compiled = main.compile()
+    # Avoid optimizing the hugr so the functions are not inlined.
+    compiled = main.with_minimal_opt().compile()
     validate(compiled)
 
     # Check we have main, bar, and 4 monomorphisations of foo

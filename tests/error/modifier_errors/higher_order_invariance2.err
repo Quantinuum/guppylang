@@ -1,0 +1,11 @@
+Error: Missing protocol implementation (at $FILE:26:29)
+   | 
+24 |     # The Daggerable constraint is scoped to `take_daggerable_consumer`, so it's not
+25 |     # contravariant w.r.t. to the Function that is passed in!
+26 |     take_daggerable_consumer(apply_plain, q)
+   |                              ^^^^^^^^^^^ Type `qubit -> None` does not implement protocol
+   |                                          `Daggerable[[qubit], None]`
+
+Note: Only statically known functions can be modified
+
+Guppy compilation failed due to 1 previous error

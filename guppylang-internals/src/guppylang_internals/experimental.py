@@ -56,6 +56,14 @@ class ExperimentalFeatureError(Error):
         self.add_sub_diagnostic(ExperimentalFeatureError.Suggestion(None))
 
 
+@dataclass(frozen=True)
+class NativePythonListsSuggestion(Help):
+    message: ClassVar[str] = (
+        "You may be looking for `array` from `guppylang.std.array` or native "
+        "Python tuples."
+    )
+
+
 def check_partial_functions_enabled(node: expr | None = None) -> None:
     if not EXPERIMENTAL_FEATURES_ENABLED:
         raise GuppyError(ExperimentalFeatureError(node, "Partial functions"))
@@ -68,7 +76,9 @@ def check_function_tensors_enabled(node: expr | None = None) -> None:
 
 def check_lists_enabled(loc: AstNode | None = None) -> None:
     if not EXPERIMENTAL_FEATURES_ENABLED:
-        raise GuppyError(ExperimentalFeatureError(loc, "Lists"))
+        err = ExperimentalFeatureError(loc, "Lists")
+        err.add_sub_diagnostic(NativePythonListsSuggestion(None))
+        raise GuppyError(err)
 
 
 def check_capturing_closures_enabled(loc: AstNode | None = None) -> None:
@@ -80,11 +90,4 @@ def check_power_modifier_enabled(loc: AstNode | None = None) -> None:
     if not EXPERIMENTAL_FEATURES_ENABLED:
         raise GuppyError(
             ExperimentalFeatureError(loc, "`power` modifier", singular_things=True)
-        )
-
-
-def check_unitary_callable_enabled(thing: str, loc: AstNode | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
-        raise GuppyError(
-            ExperimentalFeatureError(loc, thing + " callable", singular_things=True)
         )

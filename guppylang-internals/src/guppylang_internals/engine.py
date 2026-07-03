@@ -50,10 +50,12 @@ from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
-    controllable_type_def,
-    daggerable_type_def,
+    callable_protocol_def,
+    controllable_protocol_def,
+    daggerable_protocol_def,
     float_type_def,
     frozenarray_type_def,
+    function_def_type_def,
     function_type_def,
     int_type_def,
     list_type_def,
@@ -64,7 +66,7 @@ from guppylang_internals.tys.builtin import (
     sized_iter_type_def,
     string_type_def,
     tuple_type_def,
-    unitary_type_def,
+    unitary_protocol_def,
 )
 from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.param import Parameter
@@ -74,6 +76,7 @@ from guppylang_internals.tys.ty import (
     BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
+    FunctionDefType,
     FunctionType,
     NoneType,
     NumericType,
@@ -85,9 +88,10 @@ from guppylang_internals.tys.ty import (
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
-    unitary_type_def,
-    daggerable_type_def,
-    controllable_type_def,
+    function_def_type_def,
+    unitary_protocol_def,
+    daggerable_protocol_def,
+    controllable_protocol_def,
     self_type_def,
     tuple_type_def,
     none_type_def,
@@ -101,6 +105,7 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
     frozenarray_type_def,
     sized_iter_type_def,
     option_type_def,
+    callable_protocol_def,
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
@@ -348,6 +353,8 @@ class CompilationEngine:
                         return assert_never(kind)
             case FunctionType():
                 type_defn = function_type_def
+            case FunctionDefType():
+                type_defn = function_def_type_def
             case OpaqueType() as ty:
                 type_defn = ty.defn
             case StructType() as ty:
@@ -504,7 +511,7 @@ class CompilationEngine:
                 filename=ctx.metadata_file_table.get_index(filename),
                 file_table=ctx.metadata_file_table.table,
             )
-            graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
+            graph.hugr[graph.hugr.module_root].metadata[HugrDebugInfo] = module_info
 
         # Build resolve registry: start with cached base, add any additional
         if self.additional_extensions:
@@ -536,8 +543,9 @@ class CompilationEngine:
                 for ext_name in used_extensions_result.unresolved_extensions
             ]
         )
-        graph.hugr.module_root.metadata[HugrUsedExtensions] = used_exts_meta
-        graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
+        root_metadata = graph.hugr[graph.hugr.module_root].metadata
+        root_metadata[HugrUsedExtensions] = used_exts_meta
+        root_metadata[HugrGenerator] = GeneratorDesc(
             name="guppylang",
             version=Version.parse(
                 guppylang_internals.__version__, optional_minor_and_patch=True

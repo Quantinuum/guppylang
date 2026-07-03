@@ -355,14 +355,14 @@ def test_run_int(validate, run_int_fn):
             return 9
 
     @guppy
-    def get_fav_num(a: Animal) -> nat:
-        return a.fav_num()
+    def sum_fav_num(a: Animal, b: Animal) -> nat:
+        x = a.fav_num()
+        x += b.fav_num()
+        return x
 
     @guppy
     def main() -> nat:
-        a = get_fav_num(Dog())
-        b = get_fav_num(Duck())
-        return a + b
+        return sum_fav_num(Dog(), Duck())
 
     validate(main.compile())
     run_int_fn(main, 13)
@@ -389,3 +389,97 @@ def test_params(validate):
         return hoo(Goo(), 42, "", -1)
 
     validate(main.compile())
+
+
+def test_clash(validate):
+    @guppy.protocol
+    class FooNat:
+        @guppy.require
+        def foo(self, n: nat) -> nat: ...
+
+    @guppy.protocol
+    class FooInt:
+        @guppy.require
+        def foo(self, n: int) -> int: ...
+
+    @guppy.struct(frozen=True)
+    class Foo:
+        @guppy
+        def foo[T: (Copy, Drop)](self, n: T) -> T:
+            return n
+
+    @guppy
+    def bar_nat[T: (FooNat, FooInt)](t: T, n: nat) -> nat:
+        return t.foo(n)
+
+    @guppy
+    def bar_int[T: (FooNat, FooInt)](t: T, n: int) -> int:
+        return t.foo(n)
+
+    @guppy
+    def main() -> None:
+        bar_nat(Foo(), 42)
+        bar_int(Foo(), 42)
+        return
+
+    validate(main.compile())
+
+
+def test_unitary(validate):
+    from guppylang import guppy
+    from guppylang.std.builtins import (
+        Unitary,
+        control,
+        dagger,
+    )
+    from guppylang.std.quantum import discard, h, qubit, s
+
+    @guppy(unitary=True)
+    def apply(f: Unitary[[qubit], None], q: qubit) -> None:
+        apply2(f, q)
+
+    @guppy(unitary=True)
+    def apply2(f: Unitary[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        c = qubit()
+        h(c)
+        with control(c), dagger:
+            apply(s, q)
+            apply(h, q)
+        discard(q)
+        discard(c)
+
+    validate(main.compile())
+
+
+def test_double_fn(validate):
+    from collections.abc import Callable
+    from guppylang.std.builtins import qubit
+
+    @guppy
+    def take_two(
+        a: Callable[[qubit], None], b: Callable[[qubit], None], q: qubit
+    ) -> None:
+        a(q)
+        b(q)
+
+    @guppy
+    def fn(q: qubit) -> None:
+        return
+
+    @guppy
+    def fn2(q: qubit) -> None:
+        return
+
+    @guppy
+    def call_two() -> None:
+        q = qubit()
+        take_two(fn, fn2, q)
+        take_two(fn, fn, q)
+        q.discard()
+
+    validate(call_two.compile())

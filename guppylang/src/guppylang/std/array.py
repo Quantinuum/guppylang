@@ -35,6 +35,7 @@ from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
+from guppylang.std.mem import mem_swap
 from guppylang.std.option import Option, nothing, some
 
 if TYPE_CHECKING:
@@ -256,6 +257,19 @@ class array(builtins.list[_T], Generic[_T, _n]):
         if len(args) == 1 and isinstance(args[0], GeneratorType):
             return list(args[0])
         return [*args]
+
+    @guppy
+    @no_type_check
+    def reverse_in_place(self: array[L, n]) -> None:
+        """Reverse array elements in-place.
+
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(2))
+            qs.reverse_in_place()
+        """
+        for i in range(n // 2):
+            mem_swap(self[i], self[n - i - 1])
 
 
 @guppy.struct
