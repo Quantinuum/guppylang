@@ -78,6 +78,9 @@ class CFGBuilder(AstVisitor[BB | None]):
 
     cfg: CFG
     globals: Globals
+    # The accumulated unitary flags correspond to the flags accumulated inside a
+    # function via the modifier `block`.
+    accumulated_flags: UnitaryFlags
 
     def build(
         self,
@@ -85,6 +88,7 @@ class CFGBuilder(AstVisitor[BB | None]):
         returns_none: bool,
         globals: Globals,
         unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        accumulated_flags: UnitaryFlags = UnitaryFlags.NoFlags,
     ) -> CFG:
         """Builds a CFG from a list of ast nodes.
 
@@ -95,6 +99,7 @@ class CFGBuilder(AstVisitor[BB | None]):
         self.cfg = CFG()
         self.cfg.unitary_flags = unitary_flags
         self.globals = globals
+        self.accumulated_flags = accumulated_flags
 
         final_bb = self.visit_stmts(
             nodes, self.cfg.entry_bb, Jumps(self.cfg.exit_bb, None, None)
@@ -356,7 +361,17 @@ class CFGBuilder(AstVisitor[BB | None]):
         for item in node.items:
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
             modifiers.push(self._handle_withitem(item))
-        accumulated_flags = self.cfg.unitary_flags.accumulate(modifiers.flags())
+
+        # accumulate_flags accumulates flags to handle nested dagger blocks (even dagger
+        # nullify themself).
+        accumulated_flags = self.accumulated_flags.accumulate(modifiers.flags())
+        # we overwrite the accumulate_flags with self.cfg.unitary_flags to ensure that
+        # the flags declared via the `@guppy` decorator are always preserved. This is
+        # done to ensure that a dagger block inside a @guppy(daggarable=true) function
+        # has the dagger flag (and thus the type checker can correctly handle it)
+        outer_unitary_flags = self.cfg.unitary_flags
+        accumulated_flags |= outer_unitary_flags
+
         if UnitaryFlags.Dagger in accumulated_flags:
             # `original_ast_body` is only needed for checking invalid constructs under
             # dagger, so we only need to save it if dagger is present.
@@ -364,7 +379,13 @@ class CFGBuilder(AstVisitor[BB | None]):
         else:
             original_ast_body = None
 
-        cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
+        cfg = CFGBuilder().build(
+            node.body,
+            True,
+            self.globals,
+            outer_unitary_flags,
+            accumulated_flags,
+        )
         new_node = ModifiedBlock(
             cfg,
             modifiers,
