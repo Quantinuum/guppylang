@@ -1,3 +1,4 @@
+import pytest
 from guppylang import qubit, array
 from guppylang.decorator import guppy
 from guppylang.std.quantum import discard
@@ -215,3 +216,27 @@ def test_comptime_linearity_check(validate):
             discard(q)
 
     validate(main.compile_function())
+
+
+def test_mixed_static_overload():
+    with pytest.raises(
+        TypeError,
+        match="Some implementations of overloaded method are static whereas "
+        "others are not "
+        r"static: \['func2'\] "
+        r"non-static: \['func1'\]",
+    ):
+
+        @guppy.struct
+        class MyClass:
+            @guppy
+            def func1(x: int) -> int:
+                return x + 1
+
+            @guppy
+            @staticmethod
+            def func2(x: int) -> int:
+                return x + 2
+
+            @guppy.overload(func1, func2)
+            def overloaded() -> None: ...

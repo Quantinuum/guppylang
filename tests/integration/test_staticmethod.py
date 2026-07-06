@@ -1,11 +1,11 @@
-from guppylang.library import GuppyLibrary
+from guppylang.library import GuppyLibrary, link_name
 from guppylang.std.builtins import result
 from typing import Generic
 import pytest
 from guppylang.decorator import guppy
 from collections.abc import Callable
 
-# @pytest.mark.xfail(reason="temp")
+
 def test_staticmethod_struct_generic(validate):
     T = guppy.type_var("T")
 
@@ -25,7 +25,7 @@ def test_staticmethod_struct_generic(validate):
 
     validate(main.compile())
 
-# @pytest.mark.xfail(reason="temp")
+
 def test_staticmethod_higher_order(validate):
 
     @guppy.struct
@@ -66,7 +66,7 @@ def test_staticmethod_comptime(validate):
 
     validate(main.compile())
 
-# @pytest.mark.xfail(reason="temp")
+
 def test_staticmethod_enum(validate):
 
     @guppy.enum
@@ -82,7 +82,7 @@ def test_staticmethod_enum(validate):
 
     validate(main.compile())
 
-# @pytest.mark.xfail(reason="temp")
+
 def test_staticmethod_enum_instantiated(validate):
 
     @guppy.enum
@@ -102,7 +102,7 @@ def test_staticmethod_enum_instantiated(validate):
 
     validate(main.compile())
 
-# @pytest.mark.xfail(reason="temp")
+
 def test_staticmethod_overload(validate):
     @guppy.struct
     class Test:
@@ -128,9 +128,10 @@ def test_staticmethod_overload(validate):
 
     validate(main.compile())
 
-# @pytest.mark.xfail(reason="temp")
+
 def test_library_staticmethod():
-    @guppy.struct(link_name="super_struct")
+    @guppy.struct
+    @link_name("super_struct")
     class MyStruct:
         @guppy
         @staticmethod
@@ -139,7 +140,8 @@ def test_library_staticmethod():
 
     lib = GuppyLibrary.from_members(MyStruct).compile()
 
-    @guppy.struct(link_name="super_struct")
+    @guppy.struct
+    @link_name("super_struct")
     class MyStructInterface:
         @guppy.declare
         @staticmethod

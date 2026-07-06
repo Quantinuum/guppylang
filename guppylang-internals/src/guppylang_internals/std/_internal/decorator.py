@@ -1,4 +1,3 @@
-from guppylang_internals.decorator.ty import determine_static
 import ast
 import builtins
 from collections.abc import Callable
@@ -9,6 +8,7 @@ from guppylang.defs import GuppyDefinition, GuppyFunctionDefinition
 from guppylang_internals.compiler.core import (
     GlobalConstId,
 )
+from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.custom import (
     CustomFunctionDef,

@@ -1,3 +1,4 @@
+from guppylang.std.builtins import panic
 import re
 
 import pytest
@@ -306,3 +307,31 @@ def test_error_when_using_old_kwarg():
         @guppy(link_name="some.qualified.name")
         def main() -> None:
             pass
+
+
+def test_struct_staticmethod_annotated(qualifier):
+    """Asserts that annotated staticmethod `link_name`s are passed to the HUGR nodes."""
+
+    @guppy.struct
+    class MySuperbStruct:
+        @guppy
+        @link_name("totally_qualified_override_name")
+        @staticmethod
+        def some_name_that_is_crazy() -> None:
+            panic("help")
+
+        @guppy.declare
+        @link_name("superbly_qualified_override_name")
+        @staticmethod
+        def some_other_name_that_is_crazy() -> None: ...
+
+    @guppy
+    def main() -> None:
+        # Use so they get compiled and included in the package
+        MySuperbStruct.some_name_that_is_crazy()
+        MySuperbStruct.some_other_name_that_is_crazy()
+
+    assert _func_names_excluding_main(main.compile(), qualifier) == {
+        "totally_qualified_override_name",
+        "superbly_qualified_override_name",
+    }
