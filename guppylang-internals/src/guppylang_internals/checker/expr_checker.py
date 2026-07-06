@@ -648,6 +648,18 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # manually need to call the helper instead of relying on the standard
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
+            if node.value.id in self.ctx.globals:
+                defn_or_python_object = self.ctx.globals[node.value.id]
+                if isinstance(defn_or_python_object, TypeDef):
+                    ty_def = ENGINE.parsed[defn_or_python_object.id]
+                    if (
+                        node.attr in DEF_STORE.type_members[ty_def.id]
+                        and isinstance(ty_def, TypeDef)
+                        and (func := ENGINE.get_instance_func(ty_def, node.attr))
+                    ):
+                        return with_loc(
+                            node, GlobalName(id=node.attr, def_id=func.id)
+                        ), func.ty
             if ty is None:
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
@@ -747,7 +759,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def _check_method(
         self, ty: Type, node: ast.Attribute
-    ) -> tuple[PartialApply, FunctionType] | None:
+    ) -> tuple[ast.expr, FunctionType] | None:
         """Helper method to check if an attribute access corresponds to a method call"""
         if func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
@@ -755,8 +767,20 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             )
             # Make a closure by partially applying the `self` argument
             # TODO: Try to infer some type args based on `self`
-            result_ty = FunctionType(func.ty.inputs[1:], func.ty.output, func.ty.params)
-            return with_loc(node, PartialApply(func=name, args=[node.value])), result_ty
+            if DEF_STORE.type_members[DEF_STORE.type_member_parents[func.id]][
+                node.attr
+            ].is_static:
+                # if this is a staticmethod do not partially apply `self`
+                return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
+            else:
+                # Make a closure by partially applying the `self` argument
+                # TODO: Try to infer some type args based on `self`
+                result_ty = FunctionType(
+                    func.ty.inputs[1:], func.ty.output, func.ty.params
+                )
+                return with_loc(
+                    node, PartialApply(func=name, args=[node.value])
+                ), result_ty
         else:
             return None
 

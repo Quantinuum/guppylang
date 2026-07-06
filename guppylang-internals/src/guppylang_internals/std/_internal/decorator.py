@@ -1,3 +1,4 @@
+from guppylang_internals.decorator.ty import determine_static
 import ast
 import builtins
 from collections.abc import Callable
@@ -70,7 +71,10 @@ def ext_module_decorator(
             for val in cls.__dict__.values():
                 if isinstance(val, GuppyDefinition):
                     DEF_STORE.register_type_member(
-                        ext_module.id, val.wrapped.name, val.id
+                        ext_module.id,
+                        val.wrapped.name,
+                        val.id,
+                        is_static=determine_static(val.wrapped),
                     )
                     wasm_def: RawWasmFunctionDef
                     if isinstance(val, GuppyFunctionDefinition) and isinstance(
@@ -154,7 +158,9 @@ def ext_module_decorator(
                 has_var_args=False,
             )
             DEF_STORE.register_def(call_method, get_calling_frame())
-            DEF_STORE.register_type_member(ext_module.id, "__new__", call_method.id)
+            DEF_STORE.register_type_member(
+                ext_module.id, "__new__", call_method.id, is_static=True
+            )
             DEF_STORE.register_def(discard, get_calling_frame())
             DEF_STORE.register_type_member(ext_module.id, "discard", discard.id)
 

@@ -327,15 +327,28 @@ def check_signature(
         param = parse_parameter(param_node, i, globals, param_var_mapping)
         param_var_mapping[param.name] = param
 
+    is_static = False
     # Figure out if this is a method
     self_defn: ProtocolDef | TypeDef | None = None
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
-    has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
+    has_parent = False
+    if def_id is not None and def_id in DEF_STORE.type_member_parents:
+        has_parent = True
+        is_static = DEF_STORE.type_members[DEF_STORE.type_member_parents[def_id]][
+            func_def.name
+        ].is_static
+
     for i, inp in enumerate(func_def.args.args):
-        # Special handling for `self` arguments. Note that `__new__` is excluded here
-        # since it's not a method so doesn't take `self`.
-        if i == 0 and func_def.name != "__new__" and has_parent and def_id is not None:
+        # Special handling for `self` arguments. Note that `__new__` and staticmethods
+        # are excluded here since they do not take `self`.
+        if (
+            i == 0
+            and func_def.name != "__new__"
+            and has_parent
+            and def_id is not None
+            and not is_static
+        ):
             self_def_id = DEF_STORE.type_member_parents[def_id]
             self_defn_untyped = ENGINE.get_checked(self_def_id, mono_args=())
             input: FuncInput
