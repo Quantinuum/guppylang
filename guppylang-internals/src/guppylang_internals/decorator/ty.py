@@ -2,13 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
-from guppylang_internals.definition.custom import RawCustomFunctionDef
-from guppylang_internals.definition.declaration import RawFunctionDecl
-from guppylang_internals.definition.function import RawFunctionDef
-from guppylang_internals.definition.overloaded import OverloadedFunctionDef
-from guppylang_internals.definition.traced import RawTracedFunctionDef
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
-from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import InternalGuppyError
 
 if TYPE_CHECKING:
@@ -29,6 +23,8 @@ def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], t
     """
     from guppylang.defs import GuppyDefinition
 
+    from guppylang_internals.engine import DEF_STORE
+
     def dec(c: type) -> type:
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
@@ -45,6 +41,13 @@ def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], t
 
 def determine_static(defn: Definition) -> bool:
     """Check if a Definition corresponds to a static method."""
+    from guppylang_internals.definition.custom import RawCustomFunctionDef
+    from guppylang_internals.definition.declaration import RawFunctionDecl
+    from guppylang_internals.definition.function import RawFunctionDef
+    from guppylang_internals.definition.overloaded import OverloadedFunctionDef
+    from guppylang_internals.definition.traced import RawTracedFunctionDef
+    from guppylang_internals.engine import DEF_STORE
+
     match defn:
         case RawFunctionDef() | RawCustomFunctionDef() | RawFunctionDecl():
             return isinstance(defn.python_func, staticmethod)

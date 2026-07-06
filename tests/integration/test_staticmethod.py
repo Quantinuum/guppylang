@@ -157,55 +157,89 @@ def test_library_staticmethod():
     assert results == [("result", 5)]
 
 
-# def test_staticmethod_protocol_basic(validate):
-#     T = guppy.type_var("T")
+def test_staticmethod_protocol_basic(validate):
 
-#     @guppy.protocol
-#     class MyProto:
-#         @guppy.require
-#         @staticmethod
-#         def foo(x: int) -> str: ...
+    @guppy.protocol
+    class MyProto:
+        @guppy.require
+        @staticmethod
+        def foo(x: int) -> str: ...
 
-#     @guppy.struct
-#     class Test:
-#         @guppy
-#         @staticmethod
-#         def foo(x: int) -> str:
-#             return "help"
+    @guppy.struct(frozen=True)
+    class Test:
+        @guppy
+        @staticmethod
+        def foo(x: int) -> str:
+            return "help"
 
-#     @guppy
-#     def hasmyproto(t: MyProto) -> None:
-#         t.foo(3)
+    @guppy
+    def hasmyproto(t: MyProto) -> None:
+        t.foo(3)
+        MyProto.foo(3)
 
-#     @guppy
-#     def main() -> None:
-#         t = Test()
-#         hasmyproto(t)
+    @guppy
+    def main() -> None:
+        t = Test()
+        hasmyproto(t)
 
-#     validate(main.compile())
+    validate(main.compile())
 
 
-# def test_staticmethod_protocol_generic(validate):
+def test_staticmethod_protocol_generic(validate):
 
-#     @guppy.protocol
-#     class Default:
-#         @guppy.require
-#         @staticmethod
-#         def default() -> "Default": ...
+    # T = guppy.type_var("T")
 
-#     @guppy.struct
-#     class Test:
-#         @guppy
-#         @staticmethod
-#         def default() -> "Test":
-#             return Test()
+    @guppy.protocol
+    class MyProto[T]:
+        @guppy.require
+        @staticmethod
+        def foo[T](arg: T) -> str: ...
 
-#     @guppy
-#     def hasdefault[D: Default]() -> None:
-#         D.default()
+    @guppy.struct(frozen=True)
+    class Test[T]:
+        @guppy
+        @staticmethod
+        def foo[T](arg: T) -> str:
+            return "help"
 
-#     @guppy
-#     def main() -> None:
-#         hasdefault[Test]()
+    @guppy
+    def hasmyproto[T](ty: MyProto[T], arg: T) -> None:
+        # ty.foo()
+        MyProto.foo(arg)
 
-#     validate(main.compile())
+    @guppy
+    def main() -> None:
+        t = Test[int]()
+        hasmyproto(t, 3)
+        # inference error can be fixed with
+        # hasmyproto[int, Test[int]](t, 3)
+
+    validate(main.compile())
+
+
+def test_staticmethod_protocol_self(validate):
+
+    @guppy.protocol
+    class Default:
+        @guppy.require
+        @staticmethod
+        def foo() -> "Self": ...
+
+    @guppy.struct(frozen=True)
+    class Test:
+        @guppy
+        @staticmethod
+        def foo() -> "Self":
+            return Test()
+
+    @guppy
+    def hasmyproto[D: Default](t: D) -> None:
+        t.foo()
+        D.foo()
+
+    @guppy
+    def main() -> None:
+        t = Test()
+        hasmyproto(t)
+
+    validate(main.compile())

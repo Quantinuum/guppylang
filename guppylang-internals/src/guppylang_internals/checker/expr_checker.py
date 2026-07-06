@@ -159,6 +159,7 @@ from guppylang_internals.tys.param import (
     check_all_args,
 )
 from guppylang_internals.tys.parsing import arg_from_ast
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
@@ -183,7 +184,6 @@ from guppylang_internals.tys.var import ExistentialVar
 
 if TYPE_CHECKING:
     from guppylang_internals.diagnostic import SubDiagnostic
-    from guppylang_internals.tys.protocol import ProtocolInst
 
 
 # Mapping from unary AST op to dunder method and display name
@@ -648,6 +648,23 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # manually need to call the helper instead of relying on the standard
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
+            if node.value.id in self.ctx.generic_param_inst:
+                typearg = self.ctx.generic_param_inst[node.value.id]
+                if isinstance(typearg, TypeArg):
+                    match typearg.ty:
+                        case BoundTypeVar() as ty:
+                            return self._check_bound_type_method(ty, node)
+                        case StructType() | EnumType() as ty:
+                            # case for when the type is known
+                            # what types actually should this be?
+                            ty_def = ty.defn
+                            if node.attr in DEF_STORE.type_members[ty_def.id] and (
+                                func := ENGINE.get_instance_func(ty_def, node.attr)
+                            ):
+                                return with_loc(
+                                    node, GlobalName(id=node.attr, def_id=func.id)
+                                ), func.ty
+
             if node.value.id in self.ctx.globals:
                 defn_or_python_object = self.ctx.globals[node.value.id]
                 if isinstance(defn_or_python_object, TypeDef):
@@ -687,13 +704,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         elif isinstance(ty, BoundTypeVar):
             from guppylang_internals.definition.protocol import CheckedProtocolDef
 
-            # Protocols implemented by `ty` that have the method we want.
-            valid_proto_impls: list[ProtocolInst] = []
-            for proto in ty.implements:
-                proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
-                assert isinstance(proto_def, CheckedProtocolDef)
-                if node.attr in proto_def.member_defs:
-                    valid_proto_impls.append(proto)
+            valid_proto_impls = self._protos_with_method_impl_by_ty(ty, node.attr)
             match valid_proto_impls:
                 case []:
                     raise GuppyError(AttributeNotFoundError(node, ty, node.attr))
@@ -704,21 +715,30 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     assert isinstance(proto_def, CheckedProtocolDef)
                     member_ty = proto_def.member_sig(node.attr)
 
-                    name_node = with_type(
-                        member_ty,
-                        with_loc(
+                    if proto_def.member_defs[node.attr].is_static:
+                        return with_loc(
                             node,
                             GlobalName(
                                 id=node.attr, def_id=proto_def.member_defs[node.attr].id
                             ),
-                        ),
-                    )
-                    ty_without_self = FunctionType(
-                        member_ty.inputs[1:], member_ty.output, member_ty.params
-                    )
-                    return with_loc(
-                        node, PartialApply(func=name_node, args=[node.value])
-                    ), ty_without_self
+                        ), member_ty
+                    else:
+                        name_node = with_type(
+                            member_ty,
+                            with_loc(
+                                node,
+                                GlobalName(
+                                    id=node.attr,
+                                    def_id=proto_def.member_defs[node.attr].id,
+                                ),
+                            ),
+                        )
+                        ty_without_self = FunctionType(
+                            member_ty.inputs[1:], member_ty.output, member_ty.params
+                        )
+                        return with_loc(
+                            node, PartialApply(func=name_node, args=[node.value])
+                        ), ty_without_self
                 case _:
                     raise RequiresMonomorphizationError
 
@@ -783,6 +803,52 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 ), result_ty
         else:
             return None
+
+    def _protos_with_method_impl_by_ty(
+        self, ty: BoundTypeVar, method_name: str
+    ) -> Sequence[ProtocolInst]:
+        from guppylang_internals.definition.protocol import CheckedProtocolDef
+
+        valid_proto_impls: list[ProtocolInst] = []
+        for proto in ty.implements:
+            proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
+            assert isinstance(proto_def, CheckedProtocolDef)
+            if method_name in proto_def.member_defs:
+                valid_proto_impls.append(proto)
+        return valid_proto_impls
+
+    def _check_bound_type_method(
+            self, ty: BoundTypeVar, node: ast.Attribute
+        ) -> tuple[ast.expr, FunctionType] | None:
+        from guppylang_internals.definition.protocol import (
+            CheckedProtocolDef,
+        )
+        # check for protocol methods called on the type
+        valid_proto_impls = self._protos_with_method_impl_by_ty(
+            ty, node.attr
+        )
+        match valid_proto_impls:
+            case []:
+                raise GuppyError(
+                    AttributeNotFoundError(
+                        node, ty, node.attr
+                    )
+                )
+            case [proto_impl]:
+                proto_def = ENGINE.get_checked(
+                    proto_impl.def_id, proto_impl.type_args
+                )
+                assert isinstance(proto_def, CheckedProtocolDef)
+                member_ty = proto_def.member_sig(node.attr)
+                return with_loc(
+                    node,
+                    GlobalName(
+                        id=node.attr,
+                        def_id=proto_def.member_defs[node.attr].id,
+                    ),
+                ), member_ty
+            case _:
+                raise RequiresMonomorphizationError
 
     def _is_python_module(self, node: ast.expr) -> ModuleType | None:
         """Checks whether an AST node corresponds to a Python module in scope."""

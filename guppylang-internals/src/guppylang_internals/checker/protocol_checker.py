@@ -143,7 +143,9 @@ def check_protocol(
     member_impls: dict[str, tuple[DefId, Inst]] = {}
     for name in protocol_def.member_defs:
         proto_sig = protocol_def.member_sig(name)
-        if len(proto_sig.inputs) > 0:
+        if (
+            len(proto_sig.inputs) > 0 and not protocol_def.member_defs[name].is_static
+        ):  # HACK
             if isinstance(proto_sig.inputs[0].ty, BoundTypeVar):
                 proto_sig = _instantiate_self(proto_sig, protocol, ty)
             else:
