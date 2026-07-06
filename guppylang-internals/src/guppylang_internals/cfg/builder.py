@@ -78,6 +78,11 @@ class CFGBuilder(AstVisitor[BB | None]):
 
     cfg: CFG
     globals: Globals
+    # The unitary flags correspond to the flags declared via the `@guppy` decorator on
+    # the function. When the builder is consider a with block this field contain the
+    # flag corresponding to outer function. This allow us to prevent the accumulated
+    # flag to nullify the outer function flag (e.g. in case of even daggers).
+    function_unitary_flags: UnitaryFlags
     # The accumulated unitary flags correspond to the flags accumulated inside a
     # function via the modifier `block`.
     accumulated_flags: UnitaryFlags
@@ -87,8 +92,8 @@ class CFGBuilder(AstVisitor[BB | None]):
         nodes: list[ast.stmt],
         returns_none: bool,
         globals: Globals,
-        unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-        accumulated_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        function_unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        accumulated_flags: UnitaryFlags | None = None,
     ) -> CFG:
         """Builds a CFG from a list of ast nodes.
 
@@ -97,9 +102,18 @@ class CFGBuilder(AstVisitor[BB | None]):
         variables.
         """
         self.cfg = CFG()
-        self.cfg.unitary_flags = unitary_flags
+        self.function_unitary_flags = function_unitary_flags
+        if accumulated_flags is None:
+            # If accumulated_flags is None, we are building the CFG for a function, thus
+            # the flag declared in the decorator counts.
+            self.cfg.unitary_flags = function_unitary_flags
+            self.accumulated_flags = UnitaryFlags.NoFlags
+        else:
+            # Otherwise, we are building the CFG for with a block and the unitary flags
+            # of the cfg correspond to the accumulated flags.
+            self.cfg.unitary_flags = accumulated_flags
+            self.accumulated_flags = accumulated_flags
         self.globals = globals
-        self.accumulated_flags = accumulated_flags
 
         final_bb = self.visit_stmts(
             nodes, self.cfg.entry_bb, Jumps(self.cfg.exit_bb, None, None)
@@ -365,12 +379,11 @@ class CFGBuilder(AstVisitor[BB | None]):
         # accumulate_flags accumulates flags to handle nested dagger blocks (even dagger
         # nullify themself).
         accumulated_flags = self.accumulated_flags.accumulate(modifiers.flags())
-        # we overwrite the accumulate_flags with self.cfg.unitary_flags to ensure that
-        # the flags declared via the `@guppy` decorator are always preserved. This is
-        # done to ensure that a dagger block inside a @guppy(daggarable=true) function
-        # has the dagger flag (and thus the type checker can correctly handle it)
-        outer_unitary_flags = self.cfg.unitary_flags
-        accumulated_flags |= outer_unitary_flags
+        # we overwrite the accumulate_flags with self.function_unitary_flags to ensure
+        # that the flags declared via the `@guppy` decorator are always preserved.
+        # This is done to ensure that a dagger block inside a @guppy(daggarable=true)
+        # function has the dagger flag (and the type checker can correctly handle it).
+        accumulated_flags |= self.function_unitary_flags
 
         if UnitaryFlags.Dagger in accumulated_flags:
             # `original_ast_body` is only needed for checking invalid constructs under
@@ -383,7 +396,7 @@ class CFGBuilder(AstVisitor[BB | None]):
             node.body,
             True,
             self.globals,
-            outer_unitary_flags,
+            self.function_unitary_flags,
             accumulated_flags,
         )
         new_node = ModifiedBlock(
