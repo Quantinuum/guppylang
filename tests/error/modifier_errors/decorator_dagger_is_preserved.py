@@ -1,9 +1,9 @@
 from guppylang import guppy, qubit
-from guppylang.std.builtins import control, dagger, Controllable
+from guppylang.std.builtins import dagger, Controllable
 
 
 @guppy(daggerable=True)
-def apply_unitary(f: Controllable[[qubit], None], ctrl: qubit, q: qubit) -> None:
+def apply_unitary(f: Controllable[[qubit], None], q: qubit) -> None:
     with dagger:
         f(q)
 
@@ -11,8 +11,8 @@ def apply_unitary(f: Controllable[[qubit], None], ctrl: qubit, q: qubit) -> None
 def foo(q: qubit) -> None:...
 
 @guppy
-def main(q1: qubit, q2: qubit) -> None:
-    apply_unitary(foo, q1, q2)
+def main(q1: qubit) -> None:
+    apply_unitary(foo, q1)
 
 
 main.check()

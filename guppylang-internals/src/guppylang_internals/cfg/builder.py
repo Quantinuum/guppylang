@@ -78,10 +78,10 @@ class CFGBuilder(AstVisitor[BB | None]):
 
     cfg: CFG
     globals: Globals
-    # The unitary flags correspond to the flags declared via the `@guppy` decorator on
-    # the function. When the builder is consider a with block this field contain the
-    # flag corresponding to outer function. This allow us to prevent the accumulated
-    # flag to nullify the outer function flag (e.g. in case of even daggers).
+    # The unitary flags correspond to flags declared via the `@guppy` decorator on the
+    # function. When the builder is constructing a `with` block, this field contains the
+    # flags corresponding to the outer function. This allows us to prevent accumulated
+    # flags from nullifying the outer-function flags (e.g. an even number of daggers).
     function_unitary_flags: UnitaryFlags
     # The accumulated unitary flags correspond to the flags accumulated inside a
     # function via the modifier `block`.
@@ -376,13 +376,13 @@ class CFGBuilder(AstVisitor[BB | None]):
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
             modifiers.push(self._handle_withitem(item))
 
-        # accumulate_flags accumulates flags to handle nested dagger blocks (even dagger
-        # nullify themself).
+        # `accumulated_flags` accumulates flags to handle nested dagger blocks (an even
+        # number of daggers cancels out).
         accumulated_flags = self.accumulated_flags.accumulate(modifiers.flags())
-        # we overwrite the accumulate_flags with self.function_unitary_flags to ensure
-        # that the flags declared via the `@guppy` decorator are always preserved.
-        # This is done to ensure that a dagger block inside a @guppy(daggarable=true)
-        # function has the dagger flag (and the type checker can correctly handle it).
+        # Preserve flags declared via the `@guppy` decorator so they cannot be cancelled
+        # out by nested modifier blocks. This ensures that a modifier block inside a
+        # `@guppy(daggerable=True)` function is treated as daggerable by the type
+        # checker.
         accumulated_flags |= self.function_unitary_flags
 
         if UnitaryFlags.Dagger in accumulated_flags:

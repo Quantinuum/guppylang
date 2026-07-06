@@ -1,6 +1,6 @@
 Error: Dagger constraint violation (at $FILE:8:8)
   | 
-6 | def apply_unitary(f: Controllable[[qubit], None], ctrl: qubit, q: qubit) -> None:
+6 | def apply_unitary(f: Controllable[[qubit], None], q: qubit) -> None:
 7 |     with dagger:
 8 |         f(q)
   |         ^^^^ This function cannot be called in a daggerable context
