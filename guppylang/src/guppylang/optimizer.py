@@ -72,15 +72,15 @@ class OptimizationLevel(Enum):
                         # Emulation succeeds but shots lose expected result entries
                         # (`eigenvalue` / `attempts`), producing `KeyError` in the
                         # plotting cells.
-                        simplify_cfgs=False,
+                        simplify_cfgs=True,
                         # fails `test_arithmetic.py::test_float_to_int`
                         # Selene reports package validation error:
                         # `Node(...) has an unconnected port Port(Outgoing, 0)`
-                        constant_folding=False,
+                        constant_folding=True,
                         # when combined with `inline_funcs=True` fails
                         # `test_qsystem_sol_functional`: tket/portgraph panic
                         # with `Outgoing port count exceeds maximum`
-                        inline_dfgs=False,
+                        inline_dfgs=True,
                     )
                 ]
             case OptimizationLevel.Minimal:
