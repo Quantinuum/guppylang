@@ -709,7 +709,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         with_loc(
                             node,
                             GlobalName(
-                                id=node.attr, def_id=proto_def.member_defs[node.attr]
+                                id=node.attr, def_id=proto_def.member_defs[node.attr].id
                             ),
                         ),
                     )

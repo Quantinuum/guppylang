@@ -4,7 +4,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, NamedTuple, cast
+from typing import ClassVar, cast
 
 import hugr
 import hugr.build.function as hf
@@ -28,6 +28,7 @@ from guppylang_internals.definition.common import (
     ParsableDef,
     ParsedDef,
     RawDef,
+    TypeMember,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
@@ -118,11 +119,6 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 #: registered with an empty tuple () as `Inst`. Otherwise, `Inst` will be the
 #: instantiation for the generic parameters for the monomorphized version.
 MonoDefId = tuple[DefId, Inst]
-
-
-class TypeMember(NamedTuple):
-    id: DefId
-    is_static: bool
 
 
 class DefinitionStore:

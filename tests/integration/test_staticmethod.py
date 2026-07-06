@@ -157,4 +157,55 @@ def test_library_staticmethod():
     assert results == [("result", 5)]
 
 
-# TODO add protocol tests
+# def test_staticmethod_protocol_basic(validate):
+#     T = guppy.type_var("T")
+
+#     @guppy.protocol
+#     class MyProto:
+#         @guppy.require
+#         @staticmethod
+#         def foo(x: int) -> str: ...
+
+#     @guppy.struct
+#     class Test:
+#         @guppy
+#         @staticmethod
+#         def foo(x: int) -> str:
+#             return "help"
+
+#     @guppy
+#     def hasmyproto(t: MyProto) -> None:
+#         t.foo(3)
+
+#     @guppy
+#     def main() -> None:
+#         t = Test()
+#         hasmyproto(t)
+
+#     validate(main.compile())
+
+
+# def test_staticmethod_protocol_generic(validate):
+
+#     @guppy.protocol
+#     class Default:
+#         @guppy.require
+#         @staticmethod
+#         def default() -> "Default": ...
+
+#     @guppy.struct
+#     class Test:
+#         @guppy
+#         @staticmethod
+#         def default() -> "Test":
+#             return Test()
+
+#     @guppy
+#     def hasdefault[D: Default]() -> None:
+#         D.default()
+
+#     @guppy
+#     def main() -> None:
+#         hasdefault[Test]()
+
+#     validate(main.compile())

@@ -3,7 +3,7 @@ import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, ClassVar, NamedTuple, TypeAlias
 
 from hugr.build.dfg import DefinitionBuilder, OpVar
 
@@ -41,6 +41,11 @@ class DefId:
     @classmethod
     def fresh(cls) -> "DefId":
         return DefId(next(cls._ids))
+
+
+class TypeMember(NamedTuple):
+    id: DefId
+    is_static: bool
 
 
 @dataclass(frozen=True)
