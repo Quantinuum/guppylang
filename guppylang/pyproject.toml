@@ -1,6 +1,6 @@
 [project]
 name = "guppylang"
-version = "1.0.0-rc0"
+version = "1.0.0-rc1"
 requires-python = ">=3.12,<4"
 description = "Pythonic quantum-classical programming language"
 license = { file = "LICENCE" }
