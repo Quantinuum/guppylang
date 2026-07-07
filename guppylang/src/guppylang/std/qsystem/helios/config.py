@@ -13,6 +13,7 @@ def set_platform_config(
     hugr: Package | Hugr[Any],
     squash_rxys: bool = True,
     enable_replay: bool = False,
+    enable_dd: bool = False,
 ) -> None:
     """EXPERIMENTAL: Set Helios-specific job configuration options on a compiled HUGR.
     This is currently provided for development purposes only - options may not work as
@@ -27,11 +28,13 @@ def set_platform_config(
         squash_rxys: Whether to combine single-qubit gates at runtime
                         (independent of any compile-time squashing). Defaults to True.
         enable_replay: Whether to enable replay logging. Defaults to False.
+        enable_dd: Enable dynamical decoupling. Defaults to False.
     """
     config = {
         "squash_rxys": squash_rxys,
         "enable_replay": enable_replay,
+        "enable_dd": enable_dd,
     }
     modules = hugr.modules if isinstance(hugr, Package) else [hugr]
     for module in modules:
-        module.module_root.metadata[HELIOS_CONFIG_META_KEY] = config.copy()
+        module[module.module_root].metadata[HELIOS_CONFIG_META_KEY] = config.copy()

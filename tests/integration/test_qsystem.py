@@ -465,10 +465,11 @@ def test_set_platform_config_defaults(validate):  # type: ignore[no-untyped-def]
     validate(package)
 
     for module in package.modules:
-        config = module.module_root.metadata[HELIOS_CONFIG_META_KEY]
+        config = module[module.module_root].metadata[HELIOS_CONFIG_META_KEY]
         assert config == {
             "squash_rxys": True,
             "enable_replay": False,
+            "enable_dd": False,
         }
 
 
@@ -484,17 +485,14 @@ def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
         return True
 
     package = test.compile_function()
-    set_platform_config(
-        package,
-        squash_rxys=False,
-        enable_replay=True,
-    )
+    set_platform_config(package, squash_rxys=False, enable_replay=True, enable_dd=True)
 
     validate(package)
 
     for module in package.modules:
-        config = module.module_root.metadata[HELIOS_CONFIG_META_KEY]
+        config = module[module.module_root].metadata[HELIOS_CONFIG_META_KEY]
         assert config == {
             "squash_rxys": False,
             "enable_replay": True,
+            "enable_dd": True,
         }
