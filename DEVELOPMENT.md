@@ -284,7 +284,7 @@ Fixes should land on the main branch (unless provably inapplicable) and be backp
 ### Backports
 
 A new commit should always land on the main branch (there may be exceptions to this if a bug can be proven to not be present on the main branch but in a released version to be patched).
-The corresponding PR may then be labelled with `B-backport-nominated`, and if accepted by a Guppy team member, it will also be labelled with `B-backport-accepted`.
+The corresponding PR may then be labelled with `B-backport-nominated`, and if accepted by *another* Guppy team member, it will also be labelled with `B-backport-accepted`.
 
 Regularly, a Guppy team member backports pending fixes (identified via a [`nominated+accepted`](https://github.com/Quantinuum/guppylang/issues?q=label%3AB-backport-nominated%20label%3AB-backport-accepted) query) onto the release branch of the last minor version (or earlier versions as well if applicable) and documents the backport status in the original PR.
 Backporting fixes should be done by opening a PR against the release branch with the cherry-picked commit, and labelling the backport PR with `C-backport`.
