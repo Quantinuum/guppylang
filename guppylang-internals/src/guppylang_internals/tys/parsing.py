@@ -1,5 +1,4 @@
 import ast
-import sys
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from types import ModuleType
@@ -247,7 +246,12 @@ def _arg_from_instantiated_defn(
                 must_be_droppable=True,
                 must_implement=[proto_inst],
             )
-            ctx.param_var_mapping[param.name] = param
+            # Create a fresh parameter to take this `Callable` protocol bound.
+            # If we see another callable in the signature, we *don't* want it to resolve
+            # to this one.
+            # Hence, the key here is assumed to be unique, which is assumed because we
+            # don't otherwise have numerals as param vars.
+            ctx.param_var_mapping[str(len(ctx.param_var_mapping))] = param
             return param.to_bound()
         # Special case for the `Unitary`, `Controllable`, and `Daggerable` protocols
         case ModifiableFunctionProtocolDef(flags=flags):
@@ -260,7 +264,8 @@ def _arg_from_instantiated_defn(
                 must_be_droppable=True,
                 must_implement=[proto_inst],
             )
-            ctx.param_var_mapping[param.name] = param
+            # See comment in the `CallableProtocolDef` above.
+            ctx.param_var_mapping[str(len(ctx.param_var_mapping))] = param
             return param.to_bound()
         # Special case for the `Self` type
         case SelfTypeDef():
@@ -314,7 +319,12 @@ def _arg_from_proto(
             must_be_droppable=True,
             must_implement=[inst],
         )
-        ctx.param_var_mapping[proto_defn.name] = param
+        # Create a fresh parameter to represent this protocol bound. If we see another
+        # instance of the bound in the type signature, we *don't* want it to resolve to
+        # this one.
+        # Hence, the key here is assumed to be unique, which is assumed because we don't
+        # otherwise have numerals as param vars.
+        ctx.param_var_mapping[str(len(ctx.param_var_mapping))] = param
     return param.to_bound()
 
 
@@ -426,120 +436,113 @@ def check_function_arg(
     return FuncInput(ty, flags, name)
 
 
-if sys.version_info >= (3, 12):
+def parse_parameter(
+    node: ast.type_param,
+    idx: int,
+    globals: Globals,
+    param_var_mapping: dict[str, Parameter],
+    allow_free_vars: bool = False,
+) -> Parameter:
+    """Parses a `Variable: Bound` generic type parameter declaration."""
+    if isinstance(node, ast.TypeVarTuple | ast.ParamSpec):
+        raise GuppyError(UnsupportedError(node, "Variadic generic parameters"))
+    assert isinstance(node, ast.TypeVar)
 
-    def parse_parameter(
-        node: ast.type_param,
-        idx: int,
-        globals: Globals,
-        param_var_mapping: dict[str, Parameter],
-        allow_free_vars: bool = False,
-    ) -> Parameter:
-        """Parses a `Variable: Bound` generic type parameter declaration."""
-        if isinstance(node, ast.TypeVarTuple | ast.ParamSpec):
-            raise GuppyError(UnsupportedError(node, "Variadic generic parameters"))
-        assert isinstance(node, ast.TypeVar)
+    match node.bound:
+        # No bound means it's a linear type parameter
+        case None:
+            return TypeParam(
+                idx, node.name, must_be_copyable=False, must_be_droppable=False
+            )
+        # Special `Copy` or `Drop` bounds for types
+        case ast.Name(id="Copy"):
+            return TypeParam(
+                idx, node.name, must_be_copyable=True, must_be_droppable=False
+            )
+        case ast.Name(id="Drop"):
+            return TypeParam(
+                idx, node.name, must_be_copyable=False, must_be_droppable=True
+            )
+        # Copy and drop is annotated as `T: (Copy, Drop)`
+        # TODO: Should we also allow `T: Copy + Drop`? Mypy would complain about it
+        case ast.Tuple(elts=elts):
+            bounds: list[ProtocolInst] = []
+            for elt in elts:
+                match elt:
+                    case ast.Name(id="Copy"):
+                        continue
+                    case ast.Name(id="Drop"):
+                        continue
+                    case _:
+                        if proto_inst := parse_bound(
+                            elt, globals, param_var_mapping, allow_free_vars
+                        ):
+                            bounds.append(proto_inst)
+                        else:
+                            raise GuppyError(UnrecognisedBound(elt, ast.unparse(elt)))
+            return TypeParam(
+                idx,
+                node.name,
+                must_be_copyable=True,
+                must_be_droppable=True,
+                must_implement=bounds,
+            )
 
-        match node.bound:
-            # No bound means it's a linear type parameter
-            case None:
-                return TypeParam(
-                    idx, node.name, must_be_copyable=False, must_be_droppable=False
-                )
-            # Special `Copy` or `Drop` bounds for types
-            case ast.Name(id="Copy"):
-                return TypeParam(
-                    idx, node.name, must_be_copyable=True, must_be_droppable=False
-                )
-            case ast.Name(id="Drop"):
-                return TypeParam(
-                    idx, node.name, must_be_copyable=False, must_be_droppable=True
-                )
-            # Copy and drop is annotated as `T: (Copy, Drop)`
-            # TODO: Should we also allow `T: Copy + Drop`? Mypy would complain about it
-            case ast.Tuple(elts=elts):
-                bounds: list[ProtocolInst] = []
-                for elt in elts:
-                    match elt:
-                        case ast.Name(id="Copy"):
-                            continue
-                        case ast.Name(id="Drop"):
-                            continue
-                        case _:
-                            if proto_inst := parse_bound(
-                                elt, globals, param_var_mapping, allow_free_vars
-                            ):
-                                bounds.append(proto_inst)
-                            else:
-                                raise GuppyError(
-                                    UnrecognisedBound(elt, ast.unparse(elt))
-                                )
+        # Otherwise, it must be either a protocol or a const parameter
+        case bound:
+            if proto_inst := parse_bound(
+                bound, globals, param_var_mapping, allow_free_vars
+            ):
                 return TypeParam(
                     idx,
                     node.name,
                     must_be_copyable=True,
                     must_be_droppable=True,
-                    must_implement=bounds,
+                    must_implement=[proto_inst],
                 )
+            else:
+                # TODO: In the future we might want to allow stuff like
+                #   `def foo[T, XS: array[T, 42]]` and so on
+                ctx = TypeParsingCtx(globals, param_var_mapping, {}, allow_free_vars)
+                ty = type_from_ast(bound, ctx)
+                if not ty.copyable or not ty.droppable:
+                    raise GuppyError(LinearConstParamError(bound, ty))
+                return ConstParam(idx, node.name, ty)
 
-            # Otherwise, it must be either a protocol or a const parameter
-            case bound:
-                if proto_inst := parse_bound(
-                    bound, globals, param_var_mapping, allow_free_vars
-                ):
-                    return TypeParam(
-                        idx,
-                        node.name,
-                        must_be_copyable=True,
-                        must_be_droppable=True,
-                        must_implement=[proto_inst],
-                    )
-                else:
-                    # TODO: In the future we might want to allow stuff like
-                    #   `def foo[T, XS: array[T, 42]]` and so on
-                    ctx = TypeParsingCtx(
-                        globals, param_var_mapping, {}, allow_free_vars
-                    )
-                    ty = type_from_ast(bound, ctx)
-                    if not ty.copyable or not ty.droppable:
-                        raise GuppyError(LinearConstParamError(bound, ty))
-                    return ConstParam(idx, node.name, ty)
 
-    def parse_bound(
-        bound: ast.expr,
-        globals: Globals,
-        param_var_mapping: dict[str, Parameter],
-        allow_free_vars: bool,
-    ) -> ProtocolInst | None:
-        from guppylang_internals.definition.protocol import ParsedProtocolDef
+def parse_bound(
+    bound: ast.expr,
+    globals: Globals,
+    param_var_mapping: dict[str, Parameter],
+    allow_free_vars: bool,
+) -> ProtocolInst | None:
+    from guppylang_internals.definition.protocol import ParsedProtocolDef
 
-        ctx = TypeParsingCtx(globals, param_var_mapping, {}, allow_free_vars)
+    ctx = TypeParsingCtx(globals, param_var_mapping, {}, allow_free_vars)
 
-        # First, try to see if this is a protocol bound by checking if can find
-        # a protocol definition with this name. In contrast to normal
-        # parameters, protocol parameters could be parametrised themselves.
-        proto_defn = None
-        proto_args = []
-        if isinstance(bound, ast.Subscript):
-            proto_defn = try_parse_defn(bound.value, ctx)
-            arg_nodes = (
-                bound.slice.elts
-                if isinstance(bound.slice, ast.Tuple)
-                else [bound.slice]
-            )
-            # Special case for the `Callable` protocol
-            if isinstance(proto_defn, CallableProtocolDef):
-                sig = _parse_function_type(arg_nodes, bound, ctx, "Callable")
-                return CallableProtocolInst(sig)
-            proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
-        else:
-            proto_defn = try_parse_defn(bound, ctx)
+    # First, try to see if this is a protocol bound by checking if can find
+    # a protocol definition with this name. In contrast to normal
+    # parameters, protocol parameters could be parametrised themselves.
+    proto_defn = None
+    proto_args = []
+    if isinstance(bound, ast.Subscript):
+        proto_defn = try_parse_defn(bound.value, ctx)
+        arg_nodes = (
+            bound.slice.elts if isinstance(bound.slice, ast.Tuple) else [bound.slice]
+        )
+        # Special case for the `Callable` protocol
+        if isinstance(proto_defn, CallableProtocolDef):
+            sig = _parse_function_type(arg_nodes, bound, ctx, "Callable")
+            return CallableProtocolInst(sig)
+        proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
+    else:
+        proto_defn = try_parse_defn(bound, ctx)
 
-        if isinstance(proto_defn, ParsedProtocolDef):
-            checked_defn = proto_defn.check(globals)
-            inst = checked_defn.check_instantiate(proto_args, bound)
-            return inst
-        return None
+    if isinstance(proto_defn, ParsedProtocolDef):
+        checked_defn = proto_defn.check(globals)
+        inst = checked_defn.check_instantiate(proto_args, bound)
+        return inst
+    return None
 
 
 _type_param = TypeParam(0, "T", False, False)
