@@ -238,17 +238,24 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         See :py:mod:`guppylang.emulator` for more details on the emulator.
 
         Args:
-            n_qubits: The number of qubits to allocate for the function. If it is not
-            provided, the function has to declare the expected number of qubits it needs
-            with the decorator `@expected_qubits`.
-            builder: An optional `EmulatorBuilder` to use for building the emulator
-            instance. If not provided, the default `EmulatorBuilder` will be used.
-            libs: An optional list of additional HUGR packages to link with the compiled
-            function. This can be used to provide additional library functions that the
-            function being compiled depends on.
-            platform: The quantum platform to target. Defaults to ``"helios"``. Set to
-            ``"sol"`` to target the Sol QIS. Ignored if an explicit ``builder`` is
-            provided (use ``builder.with_platform()`` in that case).
+            n_qubits:
+                The number of qubits to allocate for the function. If it is not
+                provided, the function has to declare the expected number of qubits it
+                  needs with the decorator `@expected_qubits`.
+
+            builder:
+                An optional `EmulatorBuilder` to use for building the emulator
+                instance. If not provided, the default `EmulatorBuilder` will be used.
+
+            libs:
+                An optional list of additional HUGR packages to link with the compiled
+                function. This can be used to provide additional library functions that
+                  the function being compiled depends on.
+
+            platform:
+                The quantum platform to target. Defaults to ``"helios"``. Set to
+                ``"sol"`` to target the Sol QIS. Ignored if an explicit ``builder`` is
+                provided (use ``builder.with_platform()`` in that case).
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
