@@ -827,7 +827,7 @@ requires-dist = [
     { name = "pytket", specifier = ">=2.18.1" },
     { name = "tket", extras = ["pytket"], specifier = "~=0.15.1" },
     { name = "tket-exts", specifier = "~=0.14.0" },
-    { name = "typing-extensions", specifier = ">=4.16.0,<5" },
+    { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "wasmtime", specifier = ">=38.0,<46.1" },
 ]
 
