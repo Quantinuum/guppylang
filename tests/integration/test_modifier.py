@@ -63,10 +63,7 @@ def test_assignment_in_dagger(validate):
         discard(q)
         discard(c)
 
-    # TODO: Tket's full ModifierResolution pass constructs a cyclic DFG.
-    # Export disabled while we fix the issue.
-    # See <https://github.com/Quantinuum/tket2/issues/1774>
-    validate(main.compile_function(), export=False)
+    validate(main.compile_function())
 
 
 def test_control_simple(validate):
@@ -351,10 +348,7 @@ def test_higher_order_unitary_callable(validate):
         apply_unitary(h, q1, q2)
         apply_unitary(foo, q1, q2)
 
-    # Tket2 still contains some bugs with higher-order functions.
-    # Thus validating exported hugr files will fail on CI.
-    # Waiting for https://github.com/Quantinuum/tket2/issues/1761
-    validate(main.compile_function(), export=False)
+    validate(main.compile_function())
 
 
 @pytest.mark.xfail(reason="Returning protocols not supported")
