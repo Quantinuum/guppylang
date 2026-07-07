@@ -126,7 +126,7 @@ The general format of a contribution title should be:
 <type>(<scope>)!: <description>
 ```
 
-Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major version bump.
+Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major version bump *to the `guppylang` package*.
 
 We accept the following contribution types:
 
