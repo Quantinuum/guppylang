@@ -4,7 +4,7 @@ from hugr.package import Package, PackagePointer
 from pathlib import Path
 import pytest
 from typing import Any, Literal, cast
-from typing_extensions import assert_never
+from typing import assert_never
 
 from selene_hugr_qis_compiler import check_hugr
 

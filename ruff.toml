@@ -84,7 +84,7 @@ ignore = [
 "__init__.py" = ["F401"]                                              # module imported but unused
 
 [per-file-target-version]
-"tests/*/*_py312.py" = "py312"
+"tests/integration/*" = "py312"
 
 # [pydocstyle]
 # convention = "google"
