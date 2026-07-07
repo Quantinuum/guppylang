@@ -1,7 +1,6 @@
 import ast
 import inspect
 import linecache
-import sys
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from types import FrameType
@@ -27,19 +26,20 @@ from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
     annotation_nodes,
+    parse_parameter,
     try_parse_defn,
 )
 from guppylang_internals.tys.ty import Type
 
-if sys.version_info >= (3, 12):
-    from guppylang_internals.tys.parsing import parse_parameter
-
 if TYPE_CHECKING:
+    from guppylang_internals.definition.alias import ParsedTypeAliasDef
     from guppylang_internals.definition.enum import ParsedEnumDef
     from guppylang_internals.definition.struct import ParsedStructDef
 
 
-ParsedRecursiveTypeDef: TypeAlias = "ParsedStructDef | ParsedEnumDef"
+ParsedRecursiveTypeDef: TypeAlias = (
+    "ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef"
+)
 
 
 @dataclass(frozen=True)
@@ -123,7 +123,7 @@ class CheckedField:
 
 
 def check_not_recursive(defn: ParsedRecursiveTypeDef, ctx: TypeParsingCtx) -> None:
-    """Raises a user error if a struct or enum definition depends on itself."""
+    """Raises a user error if a struct, enum, or type alias depends on itself."""
     _check_not_recursive(defn, ctx, [defn.id], set())
 
 
@@ -150,12 +150,13 @@ def _dependencies(
 ) -> Iterator[tuple[ParsedRecursiveTypeDef, AstNode]]:
     for type_ast in _field_type_asts(defn):
         for node in annotation_nodes(type_ast):
-            dependency = try_parse_defn(node, ctx.globals)
-            if _is_parsed_struct_or_enum(dependency):
+            dependency = try_parse_defn(node, ctx)
+            if _is_parsed_recursive_type_def(dependency):
                 yield dependency, node
 
 
 def _field_type_asts(defn: ParsedRecursiveTypeDef) -> Iterator[ast.expr]:
+    from guppylang_internals.definition.alias import ParsedTypeAliasDef
     from guppylang_internals.definition.enum import ParsedEnumDef
     from guppylang_internals.definition.struct import ParsedStructDef
 
@@ -166,8 +167,12 @@ def _field_type_asts(defn: ParsedRecursiveTypeDef) -> Iterator[ast.expr]:
         for variant in defn.variants.values():
             for field in variant.fields:
                 yield field.type_ast
+    elif isinstance(defn, ParsedTypeAliasDef):
+        yield defn.type_ast
     else:
-        raise InternalGuppyError("Expected a parsed struct or enum definition")
+        raise InternalGuppyError(
+            "Expected a parsed struct, enum, or type alias definition"
+        )
 
 
 def _type_parsing_ctx(defn: ParsedRecursiveTypeDef) -> TypeParsingCtx:
@@ -178,17 +183,18 @@ def _type_parsing_ctx(defn: ParsedRecursiveTypeDef) -> TypeParsingCtx:
     """
     from guppylang_internals.engine import DEF_STORE
 
-    param_var_mapping = {p.name: p for p in defn.params}
+    param_var_mapping = {p.name: p for p in defn.params} if defn.params else {}
     return TypeParsingCtx(Globals(DEF_STORE.frames[defn.id]), param_var_mapping)
 
 
-def _is_parsed_struct_or_enum(
+def _is_parsed_recursive_type_def(
     defn: Definition | None,
 ) -> TypeGuard[ParsedRecursiveTypeDef]:
+    from guppylang_internals.definition.alias import ParsedTypeAliasDef
     from guppylang_internals.definition.enum import ParsedEnumDef
     from guppylang_internals.definition.struct import ParsedStructDef
 
-    return isinstance(defn, ParsedStructDef | ParsedEnumDef)
+    return isinstance(defn, ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef)
 
 
 def parse_py_class(
@@ -250,15 +256,14 @@ def extract_generic_params(
     params_span: Span | None = None
 
     # Look for generic parameters from Python 3.12 style syntax
-    if sys.version_info >= (3, 12):
-        if cls_def.type_params:
-            first, last = cls_def.type_params[0], cls_def.type_params[-1]
-            params_span = Span(to_span(first).start, to_span(last).end)
-            param_vars_mapping: dict[str, Parameter] = {}
-            for idx, param_node in enumerate(cls_def.type_params):
-                param = parse_parameter(param_node, idx, globals, param_vars_mapping)
-                param_vars_mapping[param.name] = param
-                params.append(param)
+    if cls_def.type_params:
+        first, last = cls_def.type_params[0], cls_def.type_params[-1]
+        params_span = Span(to_span(first).start, to_span(last).end)
+        param_vars_mapping: dict[str, Parameter] = {}
+        for idx, param_node in enumerate(cls_def.type_params):
+            param = parse_parameter(param_node, idx, globals, param_vars_mapping)
+            param_vars_mapping[param.name] = param
+            params.append(param)
 
     base_params: list[Parameter] = []
     for base in cls_def.bases:

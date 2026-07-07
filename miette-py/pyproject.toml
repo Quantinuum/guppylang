@@ -1,11 +1,11 @@
 [project]
 name = "miette-py"
-requires-python = ">=3.10,<4"
+requires-python = ">=3.12,<4"
 classifiers = ["Private :: Do Not Upload"]
 dynamic = ["version"]
 
 [build-system]
-requires = ["maturin>=1.14.0,<2.0"]
+requires = ["maturin>=1.14.1,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]

@@ -1,0 +1,52 @@
+# Keeps the release-notes preview in the release PR body in sync with the
+# committed changelogs. Does not commit, so it cannot loop.
+
+name: 🚚 Release PR changelog preview
+
+on:
+  pull_request:
+    types:
+      - synchronize
+    branches:
+      - main
+      - "release/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: release-pr-preview-${{ github.head_ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.11.22"
+
+jobs:
+  preview:
+    name: Refresh release-notes preview
+    runs-on: ubuntu-latest
+    if: startsWith(github.head_ref, 'release-pr--')
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read released version
+        id: version
+        run: |
+          set -euo pipefail
+          guppy=$(sed -n 's/^version = "\(.*\)"/\1/p' guppylang/pyproject.toml | head -n1)
+          echo "guppylang=$guppy" >> "$GITHUB_OUTPUT"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Refresh release-notes preview
+        uses: ./.github/actions/update-release-preview
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          version: ${{ steps.version.outputs.guppylang }}
+          token: ${{ secrets.HUGRBOT_PAT }}

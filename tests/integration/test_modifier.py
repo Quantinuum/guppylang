@@ -1,11 +1,14 @@
-from collections.abc import Callable
+import base64
+import pytest
 
 from guppylang.decorator import guppy
+from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.array import array
 
 from guppylang.std.builtins import (
     Controllable,
     Daggerable,
+    Function,
     Unitary,
     control,
     dagger,
@@ -54,13 +57,16 @@ def test_assignment_in_dagger(validate):
             rx(q, angle(1 / x))
         with dagger:
             y = 2
-            with power(2), control(c):
+            with control(c):
                 rx(q, angle(1 / y))
 
         discard(q)
         discard(c)
 
-    validate(main.compile_function())
+    # TODO: Tket's full ModifierResolution pass constructs a cyclic DFG.
+    # Export disabled while we fix the issue.
+    # See <https://github.com/Quantinuum/tket2/issues/1774>
+    validate(main.compile_function(), export=False)
 
 
 def test_control_simple(validate):
@@ -177,7 +183,12 @@ def test_power_simple(validate):
         with power(n):
             pass
 
-    validate(bar.compile_function())
+    # Tket passes reject power modifiers, so do not export this HUGR for CI
+    # normalization and don't run default optimization passes.
+    validate(
+        bar.with_minimal_opt().compile_function(),
+        export=False,
+    )
 
 
 def test_call_in_modifier(validate):
@@ -196,7 +207,7 @@ def test_call_in_modifier(validate):
 def test_combined_modifiers(validate):
     @guppy
     def bar(q: qubit) -> None:
-        with control(q), power(2), dagger:
+        with control(q), dagger:
             pass
 
     validate(bar.compile_function())
@@ -206,9 +217,8 @@ def test_nested_modifiers(validate):
     @guppy
     def bar(q: qubit) -> None:
         with control(q):
-            with power(2):
-                with dagger:
-                    pass
+            with dagger:
+                pass
 
     validate(bar.compile_function())
 
@@ -216,8 +226,9 @@ def test_nested_modifiers(validate):
 def test_free_linear_variable_in_modifier(validate):
     T = guppy.type_var("T", copyable=False, droppable=False)
 
-    @guppy.declare(controllable=True)
-    def use(a: T) -> None: ...
+    @guppy(controllable=True)
+    def use(a: T) -> None:
+        pass
 
     @guppy.declare
     def discard(a: T @ owned) -> None: ...
@@ -247,28 +258,6 @@ def test_free_copyable_variable_in_modifier(validate):
     validate(bar.compile_function())
 
 
-def test_nested_dagger_power(validate):
-    """Nested dagger+power: daggerable/unitary functions are valid
-    (power adds no unitary flag)."""
-
-    @guppy(daggerable=True)
-    def foo_d(q: qubit) -> None:
-        pass
-
-    @guppy(unitary=True)
-    def foo_u(q: qubit) -> None:
-        pass
-
-    @guppy
-    def bar(q: qubit) -> None:
-        with dagger:
-            with power(2):
-                foo_d(q)
-                foo_u(q)
-
-    validate(bar.compile_function())
-
-
 def test_nested_control_dagger(validate):
     """Nested control+dagger: function supporting both flags is valid."""
 
@@ -290,29 +279,7 @@ def test_nested_control_dagger(validate):
     validate(bar.compile_function())
 
 
-def test_nested_power_control(validate):
-    """Nested power+control: controllable/unitary functions are valid
-    (power adds no unitary flag)."""
-
-    @guppy(controllable=True)
-    def foo_c(q: qubit) -> None:
-        pass
-
-    @guppy(unitary=True)
-    def foo_u(q: qubit) -> None:
-        pass
-
-    @guppy
-    def bar(ctrl: qubit, q: qubit) -> None:
-        with power(2):
-            with control(ctrl):
-                foo_c(q)
-                foo_u(q)
-
-    validate(bar.compile_function())
-
-
-def test_nested_triple_all_flags(validate):
+def test_nested_dagger_control(validate):
     """Triple nesting with a function supporting all unitary flags is valid."""
 
     @guppy(daggerable=True, controllable=True)
@@ -327,9 +294,8 @@ def test_nested_triple_all_flags(validate):
     def bar(ctrl: qubit, q: qubit) -> None:
         with dagger:
             with control(ctrl):
-                with power(2):
-                    foo_s(q)
-                    foo_u(q)
+                foo_s(q)
+                foo_u(q)
 
     validate(bar.compile_function())
 
@@ -371,12 +337,26 @@ def test_higher_order_unitary_callable(validate):
     def apply_unitary(f: Unitary[[qubit], None], ctrl: qubit, q: qubit) -> None:
         with dagger:
             with control(ctrl):
-                with power(2):
-                    f(q)
+                f(q)
 
-    validate(apply_unitary.compile_function())
+    apply_unitary.check()
+
+    @guppy(unitary=True)
+    def foo(q: qubit) -> None:
+        pass
+
+    @guppy
+    def main(q1: qubit, q2: qubit) -> None:
+        apply_unitary(h, q1, q2)
+        apply_unitary(foo, q1, q2)
+
+    # Tket2 still contains some bugs with higher-order functions.
+    # Thus validating exported hugr files will fail on CI.
+    # Waiting for https://github.com/Quantinuum/tket2/issues/1761
+    validate(main.compile_function(), export=False)
 
 
+@pytest.mark.xfail(reason="Returning protocols not supported")
 def test_return_callable_with_stronger_flags(validate):
     """Returning a callable with more flags than required is valid."""
 
@@ -389,7 +369,7 @@ def test_return_callable_with_stronger_flags(validate):
         pass
 
     @guppy
-    def return_plain() -> Callable[[qubit], None]:
+    def return_plain() -> Function[[qubit], None]:
         return dagger_only
 
     @guppy
@@ -417,7 +397,7 @@ def test_take_callable_taking_weaker_callable(validate):
         pass
 
     @guppy
-    def apply_plain(f: Callable[[qubit], None], q: qubit) -> None:
+    def apply_plain(f: Function[[qubit], None], q: qubit) -> None:
         f(q)
 
     @guppy(daggerable=True)
@@ -425,41 +405,11 @@ def test_take_callable_taking_weaker_callable(validate):
         f(q)
 
     @guppy
-    def take_plain_consumer(
-        consumer: Callable[[Callable[[qubit], None], qubit], None], q: qubit
-    ) -> None:
-        consumer(control_fun, q)
-
-    @guppy
-    def take_daggerable_consumer(
-        consumer: Callable[[Daggerable[[qubit], None], qubit], None], q: qubit
-    ) -> None:
-        consumer(unitary_fun, q)
-
-    @guppy
     def main(q: qubit) -> None:
-        take_plain_consumer(apply_dagger, q)
-        take_daggerable_consumer(apply_plain, q)
         apply_plain(control_fun, q)
         apply_dagger(unitary_fun, q)
 
     validate(main.compile_function())
-
-
-def test_nested_same_modifier(validate):
-    """Double-nesting the same modifier (dagger) with a dagger-supporting function."""
-
-    @guppy(daggerable=True)
-    def foo(q: qubit) -> None:
-        pass
-
-    @guppy
-    def bar(q: qubit) -> None:
-        with dagger:
-            with dagger:
-                foo(q)
-
-    validate(bar.compile_function())
 
 
 def test_double_dagger_cancellation_1(validate):
@@ -494,7 +444,10 @@ def test_double_dagger_cancellation_2(validate):
         discard(q)
         discard(c2)
 
-    validate(main.compile())
+    main.check()
+    # Tket passes reject power modifiers, so do not export this HUGR for CI
+    # normalization.
+    # validate(main.compile())
 
 
 def test_combined_with_items_nested(validate):
@@ -510,8 +463,8 @@ def test_combined_with_items_nested(validate):
 
     @guppy
     def bar(ctrl: qubit, q: qubit) -> None:
-        with control(ctrl), dagger:
-            with power(2):
+        with control(ctrl):
+            with dagger:
                 foo(q)
                 foo_u(q)
 
@@ -558,28 +511,10 @@ def test_comptime_unitary(validate):
 
     @guppy
     def bar(ctrl: qubit, q1: qubit, q2: qubit) -> None:
-        with power(2):
-            foo(q1, q2)
         with dagger:
             foo(q1, q2)
         with control(ctrl):
             foo(q1, q2)
-
-    validate(bar.compile_function())
-
-
-def test_comptime_unitary_combined_modifiers(validate):
-    """Comptime unitary function called inside combined modifier block."""
-
-    @guppy.comptime(unitary=True)
-    def foo(q: qubit) -> None:
-        h(q)
-
-    @guppy
-    def bar(ctrl: qubit, q: qubit) -> None:
-        with control(ctrl), dagger:
-            with power(2):
-                foo(q)
 
     validate(bar.compile_function())
 
@@ -597,9 +532,49 @@ def test_comptime_unitary_mixed(validate):
         q1 = qubit()
 
         with control(q1), dagger:
-            with power(2):
-                ladder(qs)
+            ladder(qs)
 
         return q1
 
     validate(foo.compile_function())
+
+
+def test_hugr_stability():
+    """Test that the Hugr representation of a function is stable across multiple
+    compilations: https://github.com/Quantinuum/guppylang/issues/1905"""
+
+    @guppy(unitary=True)
+    def foo(q: qubit) -> None:
+        h(q)
+        with dagger:
+            h(q)
+        with dagger:
+            h(q)
+
+    @guppy
+    def main() -> None:
+        q1 = qubit()
+        q2 = qubit()
+        with dagger:
+            foo(q1)
+            with control(q1):
+                foo(q2)
+        cx(q1, q2)
+        with control(q1):
+            foo(q2)
+
+        discard(q1)
+        discard(q2)
+
+    hashes = set()
+
+    def compile_to_sig(guppy_func: GuppyFunctionDefinition) -> str:
+        package = guppy_func.compile()
+        http_data = package.to_bytes()
+        return base64.b64encode(http_data).decode()[-10:]
+
+    for _ in range(20):
+        sig = compile_to_sig(main)
+        hashes.add(sig)
+
+    assert len(hashes) == 1

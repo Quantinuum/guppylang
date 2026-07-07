@@ -32,7 +32,9 @@ def test_guppy_normalization() -> None:
         t(q1)
         cx(q0, q1)
 
-    unnormalized_hugr: Hugr = pauli_zz_rotation.compile_function().modules[0]
+    unnormalized_hugr: Hugr = (
+        pauli_zz_rotation.with_minimal_opt().compile_function().modules[0]
+    )
 
     # Count ops prior to normalization
     assert _count_ops(unnormalized_hugr, "DataflowBlock") == 1

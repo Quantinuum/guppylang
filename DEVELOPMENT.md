@@ -62,8 +62,7 @@ Run `just` to see all available commands.
 
 The benchmarks are disabled (not skipped) in local test runs using `--benchmark-disable`, which means that
 the tests that use the `benchmark` fixture are executed when doing `just test` or `uv run pytest`,
-but they are not run multiple times or with CPU instrumentation, and no no metrics are collected
-or uploaded.
+but they are not run multiple times or with CPU instrumentation, and no metrics are collected or uploaded.
 
 ### codspeed benchmarks
 
@@ -127,7 +126,7 @@ The general format of a contribution title should be:
 <type>(<scope>)!: <description>
 ```
 
-Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major version bump.
+Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major version bump *to the `guppylang` package*.
 
 We accept the following contribution types:
 
@@ -144,44 +143,155 @@ We accept the following contribution types:
 
 ## :shipit: Releasing new versions
 
-We use automation to bump the version number and generate changelog entries
-based on the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) labels. Release PRs are created automatically
-for each package when new changes are merged into the `main` branch. Once the PR is
-approved by someone in the [release team](.github/CODEOWNERS) and is merged, the new package
-is published on PyPI.
+Releases are managed by a custom set of workflows under `.github/workflows`
+(`release-pr.yml`, `release-branch-cut.yml`, `release-pr-changelog-preview.yml`,
+`release-version-guard.yml`, and `release-publish.yml`), driven by
+[conventional commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-The changelog can be manually edited before merging the release PR. Note however
-that modifying the diff before other changes are merged will cause the
-automation to close the release PR and create a new one to avoid conflicts.
+`guppylang` and `guppylang-internals` always share the **exact same version**:
+they are bumped together and enter/leave pre-releases together. The version
+follows semantic versioning with an optional pre-release suffix (`-a<N>` alpha,
+`-b<N>` beta, `-rc<N>`; e.g. `1.2.3-b5`).
 
-Releases are managed by `release-please`. This tool always bumps the
-minor version (or the pre-release version if the previous version was a
-pre-release).
+### Branching model
 
-To override the version getting released, you must merge a PR to `main` containing
-`Release-As: 0.1.0` in the description.
-Python pre-release versions should be formatted as `0.1.0a1` (or `b1`, `rc1`).
+We use Rust-style release branches, one per minor series:
 
-Before merging a release PR, make sure to update the uv lock file by running `uv
-lock` and pushing to the release branch.
-When releasing `guppylang-internals`, also update the dependency version in `guppylang/pyproject.toml`.
+- `main` develops the **next minor** as an alpha series (e.g. `1.6.0-a0`,
+  `1.6.0-a1`, …).
+- When a minor is ready to stabilise (feature-freeze), a long-lived
+  `release/<major>.<minor>` branch is cut from `main` (e.g. `release/1.6`). The
+  `rc → stable → patch` lifecycle then happens **on that branch** (`1.6.0-rc0`,
+  …, `1.6.0`, `1.6.1`, …).
+- The minor on a release branch is *frozen*: a release PR that would move the
+  major or minor is blocked by `release-version-guard.yml` (see below). `auto` still
+  proposes whatever the commits imply (including a minor/major) — this is
+  deliberate, so an unwanted change is surfaced by the guard rather than silently
+  downgraded.
+
+#### Cutting a release branch
+
+Dispatch the `release-branch-cut.yml` workflow (optionally pointing it at a ref
+other than `main`). It derives the series from the current version and creates
+`release/<major>.<minor>`. Bumping `main` to the next minor alpha afterwards is a
+separate, manual step — dispatch `release-pr.yml` on `main` with e.g.
+`alpha-minor`.
+
+### The release PR
+
+On every push to `main` **or** to a `release/<major>.<minor>` branch,
+`release-pr.yml` opens or updates a single release PR per base branch, on the
+`release-pr--<base>` branch (e.g. `release-pr--main`, `release-pr--release/1.6`).
+A PR is only opened when there are releasable commits (or when dispatched with
+`force_open`). It:
+
+1. computes the next version (see [Choosing the version
+   bump](#choosing-the-version-bump) below),
+2. sets the same version on both `guppylang` and `guppylang-internals`,
+3. pins `guppylang-internals==<version>` in `guppylang/pyproject.toml`,
+4. runs `uv lock`, and
+5. seeds a draft changelog for each package with `git-cliff`.
+
+Each step lands as its own commit, and the PR is opened in **draft**. You can also
+trigger the workflow manually via *workflow_dispatch* to force a PR open
+(`force_open`) and to override the bump (see below).
+
+### Choosing the version bump
+
+The version math lives in `scripts/release/compute_versions.py`. By default the
+workflow uses the `auto` mode; you can override it through the `bump` input of the
+`release-pr.yml` *workflow_dispatch*.
+
+Once a release PR is open, the version committed on its `release-pr--<base>`
+branch becomes the source of truth: automatic syncs **reuse** it rather than
+recomputing, so a version you picked earlier (e.g. a manual `force_open` with an
+explicit `bump`) is not silently reverted when new commits land. To change it,
+dispatch the workflow again with an explicit `bump` — a non-`auto` bump always
+overrides the in-flight version. (A version that has already been tagged is
+treated as released, so a stale branch falls back to a fresh recompute.)
+
+The available bump modes are:
+
+| mode          | example                  | notes                                          |
+|---------------|--------------------------|------------------------------------------------|
+| `auto`        | `1.0.0-a5` → `1.0.0-a6`  | default; see below                             |
+| `alpha`       | `1.0.0-a5` → `1.0.0-a6`  | increment the alpha counter                    |
+| `alpha-patch` | `1.2.3` → `1.2.4-a0`     | start a new alpha series for a patch           |
+| `alpha-minor` | `1.2.3` → `1.3.0-a0`     | start a new alpha series for a minor           |
+| `alpha-major` | `1.2.3` → `2.0.0-a0`     | start a new alpha series for a major           |
+| `beta`        | `1.0.0-a5` → `1.0.0-b0`  | promote alpha → beta (`b1` → `b2`)             |
+| `rc`          | `1.0.0-b2` → `1.0.0-rc0` | promote to a release candidate (`rc1` → `rc2`) |
+| `stable`      | `1.0.0-rc1` → `1.0.0`    | drop the pre-release suffix                    |
+| `patch`       | `1.0.1` → `1.0.2`        | stable patch bump                              |
+| `minor`       | `1.2.1` → `1.3.0`        | stable minor bump                              |
+| `major`       | `1.3.0` → `2.0.0`        | stable major bump                              |
+
+In `auto` mode the script asks `git-cliff` what the conventional commits imply and
+expresses that in the current pre-release scheme: a `fix`/`feat`/breaking change
+that would bump the release core maps to `alpha-patch`/`alpha-minor`/`alpha-major`,
+while an unchanged core — the usual case while iterating on a pre-release — simply
+increments the alpha counter. Use an explicit mode to promote out of the alpha
+series (e.g. `beta`, `rc`, or `stable`).
+
+On a `release/<major>.<minor>` branch `auto` still proposes a minor/major when the
+commits imply it; that bump is then rejected by `release-version-guard.yml` (the line
+is frozen), which surfaces the unexpected change for review.
+
+### Curating the changelog
+
+`git-cliff` only seeds a *draft*; the committed `CHANGELOG.md` files are the
+single source of truth. The release PR body shows a verbatim preview of the
+release notes (refreshed on every push by `release-pr-changelog-preview.yml`),
+which is exactly what gets published in the GitHub release.
+
+While the `X-regen-changelog` label is set (added by default), the draft is
+regenerated on every push to the base branch. **Remove the label** to take manual
+control: subsequent pushes then leave the committed changelogs untouched, and your
+edits to the `release-pr--<base>` branch stick.
+
+A change that would escalate the version is blocked by `release-version-guard.yml`:
+on `main` a `guppylang` *major* bump is blocked, and on a `release/<major>.<minor>`
+branch any change to the major *or* minor (the line is frozen) is blocked. Opt out
+per escalation kind by labelling the release PR: `X-allow-major-bump` permits a
+major bump and `X-allow-minor-bump` permits a minor bump. The two are checked
+independently, so a major bump needs the major label even if the minor label is
+present, and vice versa.
+
+### Publishing
+
+Release creation is **driven by tags**. When the release PR is merged (into `main`
+or a release branch), the `tag-release-line` job in `release-publish.yml` tags both
+packages (`guppylang-v<version>` and `guppylang-internals-v<version>`) and pushes
+the tags. Each tag push then triggers the `create-release` job, which creates a
+**draft** GitHub release for the matching package, with notes sliced verbatim from
+the committed changelog at that tag.
+
+Review each draft release and **publish** it when ready: publishing triggers
+`python-wheels.yml`, which uploads the wheels to PyPI. Wheels are only published
+once you publish the draft release, not when the tag first creates it.
+
+### After-release chores
+
+After a release is made, the main branch needs to be updated to reflect the newest version and changelog.
+Create a PR that updates version references and the changelog on the main branch (by cherry-picking the release commit).
+You should not update the version (i.e. only update the changelog) if the main branch already tracks the alpha of the next version!
+
+## :back: Backports & Patch releases
+
+TLDR: Patches for a shipped minor series live on its `release/<major>.<minor>` branch.
+Fixes should land on the main branch (unless provably inapplicable) and be backported to the release branch.
+
+### Backports
+
+A new commit should always land on the main branch (there may be exceptions to this if a bug can be proven to not be present on the main branch but in a released version to be patched).
+The corresponding PR may then be labelled with `B-backport-nominated`, and if accepted by *another* Guppy team member, it will also be labelled with `B-backport-accepted`.
+
+Regularly, a Guppy team member backports pending fixes (identified via a [`nominated+accepted`](https://github.com/Quantinuum/guppylang/issues?q=label%3AB-backport-nominated%20label%3AB-backport-accepted) query) onto the release branch of the last minor version (or earlier versions as well if applicable) and documents the backport status in the original PR.
+Backporting fixes should be done by opening a PR against the release branch with the cherry-picked commit, and labelling the backport PR with `C-backport`.
+Once the backport is complete (the backport PR is merged), the `B-backport-nominated` label on the original PR should be removed.
 
 ### Patch releases
 
-Sometimes we need to release a patch version to fix a critical bug, but we don't want
-to include all the changes that have been merged into the main branch. In this case,
-you can create a new branch from the latest release tag and cherry-pick the commits
-you want to include in the patch release.
-
-You will need to modify the version and changelog manually in this case. Check
-the existing release PRs for examples on how to do this. Once the branch is
-ready, create a draft PR so that the release team can review it.
-
-The wheel building process and publication to PyPI is handled by the CI. Just
-create a [github release](https://github.com/quantinuum/guppylang/releases/new) from
-the **unmerged** branch, and the CI will take care of the rest. The release tag
-should follow the format used in the previous releases, e.g. `v0.1.1`.
-
-After the release is published, make sure to merge the changes to the CHANGELOG
-and versions back into the `main` branch. This may be done by cherry-picking the
-PR used to create the release.
+Once the backport is complete, `release-pr.yml` then opens/updates the release PR on `release-pr--release/<major>.<minor>` with the next patch version. Merge it, and `release-publish.yml` tags and drafts the releases as usual.
+After the release is published, make sure the version and changelog changes are
+reflected on `main` so the history stays consistent.

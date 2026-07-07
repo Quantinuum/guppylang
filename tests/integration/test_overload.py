@@ -1,5 +1,6 @@
 from guppylang import qubit, array
 from guppylang.decorator import guppy
+from guppylang.std.quantum import discard
 from guppylang_internals.decorator import custom_function, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.std._internal.util import int_op
@@ -188,5 +189,29 @@ def test_everything_can_be_overloaded(validate):
         combined_circ(1, 2, 3, 4)
         combined_circ(q)
         combined_circ(qs)
+
+    validate(main.compile_function())
+
+
+def test_comptime_linearity_check(validate):
+
+    @guppy.declare
+    def op1(q: qubit) -> None: ...
+
+    @guppy.declare
+    def op2(q: qubit, x: int) -> None: ...
+
+    @guppy.overload(op1, op2)
+    def op() -> None: ...
+
+    @guppy.comptime
+    def main() -> None:
+        qs = array(qubit() for _ in range(2))
+
+        for i in range(2):
+            op(qs[i])
+
+        for q in qs:
+            discard(q)
 
     validate(main.compile_function())

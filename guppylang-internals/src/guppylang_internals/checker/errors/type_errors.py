@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.util import CheckedField
     from guppylang_internals.tys.const import Const
     from guppylang_internals.tys.param import TypeParam
+    from guppylang_internals.tys.protocol import ProtocolInst
     from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags
 
 
@@ -57,6 +58,32 @@ class UnitaryFlagMismatchError(Error):
     @property
     def rendered_actual(self) -> str:
         return self.actual.hint_rendering()
+
+
+@dataclass(frozen=True)
+class UnitaryFlagMismatchHint(Note):
+    expected: UnitaryFlags
+    actual: UnitaryFlags
+    name: str
+
+    @property
+    def rendered_message(self) -> str:
+        from guppylang_internals.tys.ty import UnitaryFlags
+
+        if self.actual == UnitaryFlags.NoFlags:
+            return (
+                f"Function `{self.name}` is not declared as "
+                f"`{self.expected.hint_rendering()}`"
+            )
+        return (
+            f"Function `{self.name}` is only declared as "
+            f"`{self.actual.hint_rendering()}`"
+        )
+
+
+@dataclass(frozen=True)
+class FunctionPointerNotModifiableHint(Note):
+    message: ClassVar[str] = "Only statically known functions can be modified"
 
 
 @dataclass(frozen=True)
@@ -460,3 +487,34 @@ class SignatureDoesntMatchProto(Error):
         "Type signature of method `{method}` differs from that required by protocol"
     )
     method: str
+
+    @dataclass(frozen=True)
+    class SigMismatch(Note):
+        message: ClassVar[str] = (
+            "Protocol `{protocol}` requires method `{method}` to have type signature:"
+            "\n    `{required_sig}`"
+            "\nbut got actual type signature:"
+            "\n    `{actual_sig}`"
+        )
+        protocol: ProtocolInst
+        required_sig: FunctionType
+        actual_sig: FunctionType
+
+
+@dataclass(frozen=True)
+class DontUseProtocolSugar(Error):
+    title: ClassVar[str] = "Protocol not allowed to be used as a type"
+    span_label: ClassVar[str] = (
+        "Protocols are not allowed to be used as types in struct fields. Consider"
+        " adding a parameter to the struct definition, with `{proto}` as a bound."
+    )
+    proto: str
+
+
+@dataclass(frozen=True)
+class DontReturnProtocol(Error):
+    title: ClassVar[str] = "Protocols are not allowed as return types"
+    span_label: ClassVar[str] = (
+        "`{proto}` is a protocol, which is not allowed as a return type"
+    )
+    proto: str

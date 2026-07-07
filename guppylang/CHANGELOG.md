@@ -14,6 +14,73 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a7...guppylang-v1.0.0-a8) (2026-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add `@expected_qubits` decorator and remove `max_qubits` kwarg (#1942)
+* Bump `hugr` and `tket` dependencies to 0.18 and 0.15 resp. (#1963)
+* Add `@link_name` decorator and remove `link_name` kwarg (#1941)
+* Add `@metadata` decorator (#1937)
+
+
+### Features
+
+* Runtime entrypoint arguments for the emulator (#1890)([cbd603c](https://github.com/Quantinuum/guppylang/commit/cbd603cae008d3c60ff8a47469ffebdeb22caf2c))
+* Add `@expected_qubits` decorator and remove `max_qubits` kwarg (#1942)([a50e5fb](https://github.com/Quantinuum/guppylang/commit/a50e5fb8f6a347a17425738ceeb6e1101a7c47cc))
+* Bump `hugr` and `tket` dependencies to 0.18 and 0.15 resp. (#1963)([bb90943](https://github.com/Quantinuum/guppylang/commit/bb9094333158b52f717acf7a24c998e389e59756))
+* Add hint to error when passing `Measurement` values to `output` (#1955)([85d3b94](https://github.com/Quantinuum/guppylang/commit/85d3b944782946580814d873eb2653a71cb03d2b))
+* Add `@link_name` decorator and remove `link_name` kwarg (#1941)([728baed](https://github.com/Quantinuum/guppylang/commit/728baedac4c80336249c91f25b1ff1174ad8641a))
+* Add `@metadata` decorator (#1937)([206d309](https://github.com/Quantinuum/guppylang/commit/206d309b01798ea9cb3feae37bc03aa94efb88bb))
+
+## [1.0.0-a7](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a6...guppylang-v1.0.0-a7) (2026-06-25)
+
+Note that this release raises the minimum compatible version of `pytket` to `2.7.0`.
+
+### ⚠ BREAKING CHANGES
+
+* Move libraries into their own module (#1930)
+* Mark unitary callable interfaces as experimental (#1927)
+
+
+### Bug Fixes
+
+* Mark unitary callable interfaces as experimental (#1927)([ac12917](https://github.com/Quantinuum/guppylang/commit/ac1291792704e53b0a6dfdac9b94fd2dac4389e3))
+
+
+### Code Refactoring
+
+* Move libraries into their own module (#1930)([dd5ca00](https://github.com/Quantinuum/guppylang/commit/dd5ca00a6a911ec54c3f3a5bc1b7c92ad665a84a))
+
+### Features
+
+* Render diagnostics when stringifying `GuppyError` (#1936)([9d3d36f](https://github.com/Quantinuum/guppylang/commit/9d3d36f6e600591def66358d117688593d58f9de))
+* Infer unitary flags when loading `pytket` circuits (#1897)([0b57ad9](https://github.com/Quantinuum/guppylang/commit/0b57ad9e8e36e336c4b75cc653aff1afdafad602))
+
+## [1.0.0-a6](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a5...guppylang-v1.0.0-a6) (2026-06-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Return `Measurement` from `guppylang.quantum.project_z` (#1896)
+* Remove deprecated reexports and leave custom import errors (#1886)
+* Remove deprecated decorators, functions, and sync dummy interface (#1855)
+
+
+### Code Refactoring
+
+* Return `Measurement` from `guppylang.quantum.project_z` (#1896)([1d67161](https://github.com/Quantinuum/guppylang/commit/1d671613e8d084e9a37c1b69a3731c74649ead52))
+* Remove deprecated reexports and leave custom import errors (#1886)([3c19192](https://github.com/Quantinuum/guppylang/commit/3c1919266b82e039017394f23bccf9381fda5a6b))
+* Remove deprecated decorators, functions, and sync dummy interface (#1855)([68b217c](https://github.com/Quantinuum/guppylang/commit/68b217c92350b3e3ebe40779b7d97e0955f945f9))
+* Rename result and state_result to output and state_output (#1871)([a6a6ff6](https://github.com/Quantinuum/guppylang/commit/a6a6ff6ce3220fec258b22cb412cb8314d661302))
+
+
+### Features
+
+* Add type aliases (#1645)([5a3554a](https://github.com/Quantinuum/guppylang/commit/5a3554a649a8b1c3a45d8818d5f28c845f7758bf))
+* Add bounded random int to PCG32 (#1877)([01004a8](https://github.com/Quantinuum/guppylang/commit/01004a84714564549595954b045b927bb4bfb7b9))
+
 ## [1.0.0-a5](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a4...guppylang-v1.0.0-a5) (2026-06-15)
 
 

@@ -1,8 +1,7 @@
 import ast
 import copy
-from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import ClassVar, NamedTuple, NoReturn
+from typing import Any, ClassVar, NamedTuple, NoReturn
 
 from hugr import Wire
 from typing_extensions import override
@@ -21,7 +20,11 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
 )
 from guppylang_internals.diagnostic import Error, Note
-from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.error import (
+    BypassOverloadError,
+    GuppyError,
+    InternalGuppyError,
+)
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.printing import signature_to_str
 from guppylang_internals.tys.subst import Subst
@@ -98,37 +101,93 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def check_call(
         self, args: list[ast.expr], ty: Type, node: ast.Call, ctx: Context
     ) -> tuple[ast.expr, Subst]:
-        available_sigs: list[OverloadVariant] = []
-        for def_id in self.func_ids:
-            defn = ctx.globals[def_id]
-            assert isinstance(defn, CallableDef)
-            has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
-            available_sigs.append(OverloadVariant(defn.ty, has_var_args))
-            with suppress(GuppyError):
-                # check_call may modify args and node,
-                # thus we deepcopy them before passing in the function
-                node_copy = copy.deepcopy(node)
-                args_copy = copy.deepcopy(args)
-                return defn.check_call(args_copy, ty, node_copy, ctx)
-        return self._call_error(args, node, ctx, available_sigs, ty)
+        new_node, subst = self._try_overloads(
+            args,
+            node,
+            ctx,
+            checking=True,
+            ty=ty,
+        )
+        return new_node, subst
 
     @override
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
-        available_sigs: list[OverloadVariant] = []
+        new_node, ty = self._try_overloads(
+            args,
+            node,
+            ctx,
+            checking=False,
+        )
+        return new_node, ty
+
+    def resolve_overload(
+        self, args: list[ast.expr], node: AstNode, ctx: "Context"
+    ) -> CallableDef | None:
+        """Resolves an overload usage to a specific function definition based on the
+        provided arguments. Returns None if no matching overload can be synthesized."""
         for def_id in self.func_ids:
             defn = ctx.globals[def_id]
             assert isinstance(defn, CallableDef)
-            has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
-            available_sigs.append(OverloadVariant(defn.ty, has_var_args))
-            with suppress(GuppyError):
+            try:
                 # synthesize_call may modify args and node,
                 # thus we deepcopy them before passing in the function
                 node_copy = copy.deepcopy(node)
                 args_copy = copy.deepcopy(args)
+                defn.synthesize_call(args_copy, node_copy, ctx)
+            except GuppyError:
+                continue
+            else:
+                return defn
+        return None
+
+    def _try_overloads(
+        self,
+        args: list[ast.expr],
+        node: AstNode,
+        ctx: Context,
+        checking: bool,
+        ty: Type | None = None,
+    ) -> tuple[ast.expr, Any]:
+        available_sigs: list[OverloadVariant] = []
+        bypass_error: BypassOverloadError | None = None
+        for def_id in self.func_ids:
+            defn = ctx.globals[def_id]
+            assert isinstance(defn, CallableDef)
+            has_var_args = isinstance(defn, CustomFunctionDef) and defn.has_var_args
+            hidden_from_hints = isinstance(defn, CustomFunctionDef) and getattr(
+                defn.call_checker, "exclude_from_overload_hints", False
+            )
+            if not hidden_from_hints:
+                available_sigs.append(OverloadVariant(defn.ty, has_var_args))
+            try:
+                # synthesize_call may modify args and node,
+                # thus we deepcopy them before passing in the function
+                node_copy = copy.deepcopy(node)
+                args_copy = copy.deepcopy(args)
+                if checking:
+                    assert ty is not None
+                    return defn.check_call(args_copy, ty, node_copy, ctx)
                 return defn.synthesize_call(args_copy, node_copy, ctx)
-        return self._call_error(args, node, ctx, available_sigs)
+            except BypassOverloadError as e:
+                bypass_error = e
+                continue
+            except GuppyError:
+                continue
+        if bypass_error is not None:
+            return self._call_bypass_error(bypass_error, available_sigs)
+        return self._call_error(args, node, ctx, available_sigs, ty)
+
+    def _call_bypass_error(
+        self,
+        err: BypassOverloadError,
+        available_sigs: list[OverloadVariant],
+    ) -> NoReturn:
+        err.error.add_sub_diagnostic(
+            AvailableOverloadsHint(None, self.name, available_sigs)
+        )
+        raise err
 
     def _call_error(
         self,

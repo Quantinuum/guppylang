@@ -2,13 +2,12 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from hugr.debug_info import DebugRecord
-from hugr.hugr.node_port import ToNode
 from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
 from hugr.utils import JsonType
 
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.max_qubits import MetadataMaxQubits
+from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 
 
 class MetadataUnitaryFlags(Metadata[int]):
@@ -30,11 +29,22 @@ class MetadataAlreadySetError(Fatal):
 @dataclass(frozen=True)
 class ReservedMetadataKeysError(Fatal):
     title: ClassVar[str] = "Metadata key is reserved"
-    message: ClassVar[str] = (
-        "The following metadata keys are reserved by Guppy but also provided in "
-        "additional metadata: `{keys}`"
-    )
+    message: ClassVar[str] = "{rendered_message}"
     keys: set[str]
+
+    @property
+    def rendered_message(self) -> str:
+        assert len(self.keys) > 0
+        if len(self.keys) == 1:
+            return (
+                f"The metadata key `{next(iter(self.keys))}` cannot be used because "
+                f"it is reserved by Guppy."
+            )
+        else:
+            return (
+                f"The metadata keys `{self.keys}` cannot be used because they are "
+                f"reserved by Guppy."
+            )
 
 
 @dataclass
@@ -44,7 +54,7 @@ class FunctionMetadata:
     _node_metadata: NodeMetadata = field(default_factory=NodeMetadata)
     _RESERVED_KEYS: ClassVar[set[str]] = {
         HugrDebugInfo.KEY,
-        MetadataMaxQubits.KEY,
+        MetadataExpectedQubitsHint.KEY,
         MetadataUnitaryFlags.KEY,
     }
 
@@ -54,19 +64,24 @@ class FunctionMetadata:
     def set_debug_info(self, debug_info: DebugRecord) -> None:
         self._node_metadata[HugrDebugInfo] = debug_info
 
-    def set_max_qubits(self, max_qubits: int) -> None:
-        self._node_metadata[MetadataMaxQubits] = max_qubits
+    def set_expected_qubits(self, expected_qubits: int) -> None:
+        self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
 
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value
+
+    def set_generic_metadata(self, key: str, value: JsonType) -> None:
+        if key in FunctionMetadata.reserved_keys():
+            raise GuppyError(ReservedMetadataKeysError(None, keys={key}))
+        self._node_metadata[key] = value
 
     def get_debug_info(self) -> DebugRecord | None:
         debug_record = self._node_metadata.get(HugrDebugInfo, None)
         assert debug_record is None or isinstance(debug_record, DebugRecord)
         return debug_record
 
-    def get_max_qubits(self) -> int | None:
-        qubits = self._node_metadata.get(MetadataMaxQubits, None)
+    def get_expected_qubits(self) -> int | None:
+        qubits = self._node_metadata.get(MetadataExpectedQubitsHint, None)
         assert qubits is None or isinstance(qubits, int)
         return qubits
 
@@ -76,7 +91,7 @@ class FunctionMetadata:
 
 
 def add_metadata(
-    node: ToNode,
+    node_metadata: NodeMetadata,
     metadata: FunctionMetadata | None = None,
     *,
     additional_metadata: dict[str, Any] | None = None,
@@ -85,10 +100,10 @@ def add_metadata(
     if metadata is not None:
         metadata_dict = metadata.as_dict()
         for key in metadata_dict:
-            if key in node.metadata:
+            if key in node_metadata:
                 raise GuppyError(MetadataAlreadySetError(None, key))
             if metadata_dict[key] is not None:
-                node.metadata[key] = metadata_dict[key]
+                node_metadata[key] = metadata_dict[key]
 
     if additional_metadata is not None:
         reserved_keys = FunctionMetadata.reserved_keys()
@@ -97,17 +112,17 @@ def add_metadata(
             raise GuppyError(ReservedMetadataKeysError(None, keys=used_reserved_keys))
 
         for key, value in additional_metadata.items():
-            if key in node.metadata:
+            if key in node_metadata:
                 raise GuppyError(MetadataAlreadySetError(None, key))
-            node.metadata[key] = value
+            node_metadata[key] = value
 
 
 def add_unitary_metadata(
-    node: ToNode,
+    node_metadata: NodeMetadata,
     unitary_flag: int,
 ) -> None:
     """Adds unitary flag to the metadata of a node, ensuring reserved keys aren't
     overwritten."""
-    if MetadataUnitaryFlags.KEY in node.metadata:
+    if MetadataUnitaryFlags.KEY in node_metadata:
         raise GuppyError(MetadataAlreadySetError(None, MetadataUnitaryFlags.KEY))
-    node.metadata[MetadataUnitaryFlags.KEY] = unitary_flag
+    node_metadata[MetadataUnitaryFlags.KEY] = unitary_flag

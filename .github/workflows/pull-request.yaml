@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - "release/**"
   pull_request:
     branches:
       - "**"
@@ -21,10 +22,10 @@ jobs:
     name: Check lock files
     runs-on: ubuntu-latest
     env:
-      PYTHON_VERSION: 3.10
+      PYTHON_VERSION: 3.12
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -48,10 +49,10 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.12"]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain
@@ -94,7 +95,7 @@ jobs:
       PYTHON_VERSION: "3.14"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.10
       - name: Install rust toolchain

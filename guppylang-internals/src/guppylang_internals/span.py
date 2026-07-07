@@ -5,7 +5,7 @@ import linecache
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from guppylang_internals.ast_util import get_file, get_line_offset
+from guppylang_internals.ast_util import get_file, get_line_offset, get_source
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.ipython_inspect import normalize_ipython_dummy_files
 
@@ -126,6 +126,34 @@ def to_span(x: ToSpan) -> Span:
     return Span(start, end)
 
 
+def function_header_span(func_def: ast.FunctionDef) -> Span:
+    """Returns a span covering only the function header up to and including `:`."""
+    start = to_span(func_def).start
+    source = get_source(func_def)
+    file = get_file(func_def)
+    line_offset = get_line_offset(func_def)
+    # `check_signature` is only called on AST nodes that have been processed by
+    # `annotate_location`, so source metadata is always available.
+    assert source is not None
+    assert file is not None
+    assert line_offset is not None
+
+    lines = source.splitlines()
+    line_idx = func_def.lineno - 1
+    paren_depth = 0
+    for i, line in enumerate(lines[line_idx:], start=line_idx):
+        col_begin = func_def.col_offset if i == line_idx else 0
+        for col, char in enumerate(line[col_begin:], start=col_begin):
+            if char == "(":
+                paren_depth += 1
+            elif char == ")":
+                paren_depth -= 1
+            elif char == ":" and paren_depth == 0:
+                return Span(start, Loc(file, i + line_offset, col + 1))
+
+    raise InternalGuppyError("function_header_span: Could not find header colon")
+
+
 #: List of source lines in a file
 SourceLines: TypeAlias = list[str]
 
@@ -152,3 +180,6 @@ class SourceMap:
         return self.sources[span.file][
             span.start.line - prefix_lines - 1 : span.end.line
         ]
+
+
+DUMMY_SPAN = Span(Loc("", 0, 0), Loc("", 0, 0))

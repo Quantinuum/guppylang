@@ -47,7 +47,7 @@ def export_test_cases_dir(request):
     r = request.config.getoption("--export-test-cases")
     if r is not None:
         if not r.exists():
-            r.mkdir(parents=True)
+            r.mkdir(parents=True, exist_ok=True)
         return Path(r).absolute()
 
 
@@ -65,7 +65,9 @@ def h2_wasm_file(request) -> str:
 
 @pytest.fixture
 def validate(request, export_test_cases_dir: Path):
-    def validate_impl(package: Package | PackagePointer | Hugr, name=None):
+    def validate_impl(
+        package: Package | PackagePointer | Hugr, name=None, *, export: bool = True
+    ):
         if isinstance(package, PackagePointer):
             package = package.package
         if isinstance(package, Hugr):
@@ -73,7 +75,7 @@ def validate(request, export_test_cases_dir: Path):
         # Validate via the json encoding
         package_bytes = package.to_bytes()
 
-        if export_test_cases_dir:
+        if export_test_cases_dir and export:
             module_name = request.module.__name__
             function_name = request.node.originalname
             file_name = (
