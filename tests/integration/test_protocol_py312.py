@@ -355,14 +355,14 @@ def test_run_int(validate, run_int_fn):
             return 9
 
     @guppy
-    def get_fav_num(a: Animal) -> nat:
-        return a.fav_num()
+    def sum_fav_num(a: Animal, b: Animal) -> nat:
+        x = a.fav_num()
+        x += b.fav_num()
+        return x
 
     @guppy
     def main() -> nat:
-        a = get_fav_num(Dog())
-        b = get_fav_num(Duck())
-        return a + b
+        return sum_fav_num(Dog(), Duck())
 
     validate(main.compile())
     run_int_fn(main, 13)
@@ -454,3 +454,32 @@ def test_unitary(validate):
         discard(c)
 
     validate(main.compile())
+
+
+def test_double_fn(validate):
+    from collections.abc import Callable
+    from guppylang.std.builtins import qubit
+
+    @guppy
+    def take_two(
+        a: Callable[[qubit], None], b: Callable[[qubit], None], q: qubit
+    ) -> None:
+        a(q)
+        b(q)
+
+    @guppy
+    def fn(q: qubit) -> None:
+        return
+
+    @guppy
+    def fn2(q: qubit) -> None:
+        return
+
+    @guppy
+    def call_two() -> None:
+        q = qubit()
+        take_two(fn, fn2, q)
+        take_two(fn, fn, q)
+        q.discard()
+
+    validate(call_two.compile())
