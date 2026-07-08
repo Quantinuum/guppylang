@@ -98,8 +98,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
 
     @property
     def call_effects(self) -> Iterable[Effect]:
-        # ALAN
-        raise InternalGuppyError("Not yet implemented")
+        raise InternalGuppyError("Should have been resolved to one overload")
 
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         raise GuppyError(OverloadHigherOrderError(node, self.name))
