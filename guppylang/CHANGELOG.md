@@ -17,6 +17,11 @@ As of August 2025, The Guppy language is undergoing rapid development and is cur
 ## [1.0.0-rc1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc0...guppylang-v1.0.0-rc1) (2026-07-07)
 
 
+### Bug Fixes
+
+* Remove dagger flags cancellation inside `daggerable` functions (#2020)([e515ab5](https://github.com/Quantinuum/guppylang/commit/e515ab5c45356185d8c8c4002aaa7033783622bb))
+* Make auto type params for protocol bounds unique (#2012)([b2c4e96](https://github.com/Quantinuum/guppylang/commit/b2c4e96275a4b8f576802752ee3ac1ddd50a2772))
+
 ### Documentation
 
 * Correct formatting in docstrings for GuppyLibrary and EmulatorBuilder (#2019)([29ef921](https://github.com/Quantinuum/guppylang/commit/29ef92190afc06a7fd5873bfef509c54acfc4b30))
