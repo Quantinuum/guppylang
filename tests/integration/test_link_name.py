@@ -318,7 +318,7 @@ def test_struct_staticmethod_annotated(qualifier):
         @link_name("totally_qualified_override_name")
         @staticmethod
         def some_name_that_is_crazy() -> None:
-            panic("help")
+            pass
 
         @guppy.declare
         @link_name("superbly_qualified_override_name")
@@ -331,7 +331,7 @@ def test_struct_staticmethod_annotated(qualifier):
         MySuperbStruct.some_name_that_is_crazy()
         MySuperbStruct.some_other_name_that_is_crazy()
 
-    assert _func_names_excluding_main(main.compile(), qualifier) == {
+    assert _func_names_excluding_main(main.with_minimal_opt().compile(), qualifier) == {
         "totally_qualified_override_name",
         "superbly_qualified_override_name",
     }
