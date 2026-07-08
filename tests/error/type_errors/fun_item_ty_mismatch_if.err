@@ -1,0 +1,17 @@
+Error: Different types (at $FILE:14:10)
+   | 
+12 | @guppy
+13 | def main(b: bool) -> int:
+14 |     baz = foo if b else bar
+   |           ^^^^^^^^^^^^^^^^^ Expression may refer to different types
+
+Notes:
+   | 
+13 | def main(b: bool) -> int:
+14 |     baz = foo if b else bar
+   |           --- This is of type `def foo() -> int`
+   | 
+14 |     baz = foo if b else bar
+   |                         --- This is of type `def bar() -> int`
+
+Guppy compilation failed due to 1 previous error

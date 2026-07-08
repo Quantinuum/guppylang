@@ -13,6 +13,7 @@ from typing import ClassVar, Generic, TypeVar
 
 from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
+from guppylang_internals.cfg.builder import is_tmp_var
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
     Context,
@@ -427,6 +428,8 @@ def maybe_coerce_hint(v1: Variable, v2: Variable) -> Help | None:
     coercions that fix a type mismatch across different control-flow paths."""
     assert v1.name == v2.name
     assert v1.ty != v2.ty
+    if is_tmp_var(v1.name):
+        return None
     if coerces_to(v1.ty, v2.ty):
         return BranchTypeError.CoerceOneHint(v1.defined_at, v1.name, v2.ty)
     if coerces_to(v2.ty, v1.ty):
