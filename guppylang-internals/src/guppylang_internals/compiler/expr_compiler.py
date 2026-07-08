@@ -358,18 +358,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             func_ty = get_type(func)
             if isinstance(func_ty, FunctionDefType):
                 return get_def_effects(func_ty.def_id, func_ty.args)
-            if isinstance(func, TypeApply) and isinstance(func.value, GlobalName):
+            if isinstance(func, TypeApply):
+                assert isinstance(func.value, GlobalName)
                 return get_def_effects(func.value.def_id, func.inst)
-            if isinstance(func, PlaceNode):
-                # A conservative approximation. We may need to improve this...somehow.
-                return [Effect.ANY]
-            # if isinstance(func, TypeApply):
-            # Type applications cannot change effects as there are no effect variables.
-            # (ALAN unless we can TypeApply with a Protocol instance?)
-            # return get_effects(func.value)
-            raise InternalGuppyError(
-                f"Function {func} does not have effects information"
-            )
+            # A conservative approximation. We may need to improve this...somehow.
+            return [Effect.ANY]
 
         args = self._compile_call_args(node.args, func_ty)
         effects = get_effects(node.func)
