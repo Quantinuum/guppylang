@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0-rc1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc0...guppylang-internals-v1.0.0-rc1) (2026-07-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove dagger flags cancellation inside `daggerable` functions (#2020)
+
+
+### Bug Fixes
+
+* Remove dagger flags cancellation inside `daggerable` functions (#2020)([e515ab5](https://github.com/Quantinuum/guppylang/commit/e515ab5c45356185d8c8c4002aaa7033783622bb))
+* Make auto type params for protocol bounds unique (#2012)([b2c4e96](https://github.com/Quantinuum/guppylang/commit/b2c4e96275a4b8f576802752ee3ac1ddd50a2772))
+
 ## [1.0.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a8...guppylang-internals-v1.0.0-rc0) (2026-07-02)
 
 
