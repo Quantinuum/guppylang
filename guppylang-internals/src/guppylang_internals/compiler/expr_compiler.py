@@ -30,7 +30,10 @@ from guppylang_internals.compiler.core import (
     DFContainer,
 )
 from guppylang_internals.compiler.hugr_extension import PartialOp
-from guppylang_internals.definition.common import CheckableGenericDef, CompiledDef
+from guppylang_internals.definition.common import (
+    CheckableGenericDef,
+    DefId,
+)
 from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.value import (
     CallReturnWires,
@@ -345,7 +348,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         assert isinstance(func_ty, FunctionType)
         num_returns = len(type_to_row(func_ty.output))
 
-        def get_def_effects(defn: CompiledDef) -> Iterable[Effect]:
+        def get_def_effects(def_id: DefId, args: Inst) -> Iterable[Effect]:
+            defn = self.ctx.build_compiled_def(def_id, args)
             assert isinstance(defn, CompiledCallableDef)
             return defn.call_effects
 
@@ -353,14 +357,12 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             """Get the effects of a function call."""
             func_ty = get_type(func)
             if isinstance(func_ty, FunctionDefType):
-                defn = self.ctx.build_compiled_def(func_ty.def_id, func_ty.args)
-                return get_def_effects(defn)
-            # if isinstance(func, GlobalName):
-            #    defn = ENGINE.get_checked(func.def_id, ())
-            #    return get_def_effects(defn)
+                return get_def_effects(func_ty.def_id, func_ty.args)
             if isinstance(func, TypeApply) and isinstance(func.value, GlobalName):
-                defn = self.ctx.build_compiled_def(func.value.def_id, func.inst)
-                return get_def_effects(defn)
+                return get_def_effects(func.value.def_id, func.inst)
+            if isinstance(func, PlaceNode):
+                # A conservative approximation. We may need to improve this...somehow.
+                return [Effect.ANY]
             # if isinstance(func, TypeApply):
             # Type applications cannot change effects as there are no effect variables.
             # (ALAN unless we can TypeApply with a Protocol instance?)
