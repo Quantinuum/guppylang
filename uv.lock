@@ -825,7 +825,7 @@ dependencies = [
 requires-dist = [
     { name = "hugr", specifier = "~=0.18.0" },
     { name = "pytket", specifier = ">=2.18.1" },
-    { name = "tket", extras = ["pytket"], git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=7a3a613c5d326fede080823ae1fe7759f809d2a2" },
+    { name = "tket", extras = ["pytket"], git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=cdb47dd" },
     { name = "tket-exts", specifier = "~=0.14.0" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "wasmtime", specifier = ">=38.0,<46.1" },
@@ -3005,7 +3005,7 @@ wheels = [
 [[package]]
 name = "tket"
 version = "0.15.1"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=7a3a613c5d326fede080823ae1fe7759f809d2a2#7a3a613c5d326fede080823ae1fe7759f809d2a2" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=cdb47dd#cdb47ddf413f1b6eeaecb3eb39417111fbdf42b5" }
 dependencies = [
     { name = "hugr" },
     { name = "tket-eccs" },
@@ -3020,12 +3020,12 @@ pytket = [
 [[package]]
 name = "tket-eccs"
 version = "0.6.0"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-eccs&rev=7a3a613c5d326fede080823ae1fe7759f809d2a2#7a3a613c5d326fede080823ae1fe7759f809d2a2" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-eccs&rev=cdb47dd#cdb47ddf413f1b6eeaecb3eb39417111fbdf42b5" }
 
 [[package]]
 name = "tket-exts"
 version = "0.14.0"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-exts&rev=7a3a613c5d326fede080823ae1fe7759f809d2a2#7a3a613c5d326fede080823ae1fe7759f809d2a2" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-exts&rev=cdb47dd#cdb47ddf413f1b6eeaecb3eb39417111fbdf42b5" }
 dependencies = [
     { name = "hugr" },
 ]
