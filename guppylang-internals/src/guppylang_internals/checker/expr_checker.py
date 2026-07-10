@@ -122,7 +122,6 @@ from guppylang_internals.nodes import (
     MakeIter,
     PartialApply,
     PlaceNode,
-    ProtocolCall,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
@@ -381,24 +380,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
 
-            from guppylang_internals.definition.protocol import (
-                ParsedProtocolDef,
-            )
+            from guppylang_internals.definition.protocol import ParsedProtocolDef
 
-            # Protocol methods don't have their own definition, we have to look up the
-            # protocol definition itself first.
-            if isinstance(defn, ParsedProtocolDef):
-                assert isinstance(func_ty, FunctionType)
-                args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
-                return with_loc(
-                    node,
-                    ProtocolCall(
-                        member=node.func.id,
-                        proto_id=node.func.def_id,
-                        args=args,
-                        type_args=inst,
-                    ),
-                ), subst
+            # This would correspond to something like:
+            #   Callable(x,y)
+            # ...but even picking a protocol which it might make sense to call,
+            # that still doesn't.
+            assert not isinstance(defn, ParsedProtocolDef)
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1008,20 +996,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
             from guppylang_internals.definition.protocol import ParsedProtocolDef
 
-            # Protocol methods don't have their own definition, we have to look up the
-            # protocol definition itself first.
-            if isinstance(defn, ParsedProtocolDef):
-                assert isinstance(ty, FunctionType)
-                args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
-                return with_loc(
-                    node,
-                    ProtocolCall(
-                        member=node.func.id,
-                        proto_id=node.func.def_id,
-                        args=args,
-                        type_args=inst,
-                    ),
-                ), return_ty
+            # This would correspond to some source code like
+            #   Callable(x)
+            # but even picking a protocol which supports some notion of calling,
+            # this still makes no sense.
+            assert not isinstance(defn, ParsedProtocolDef)
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
