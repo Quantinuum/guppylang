@@ -397,14 +397,12 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType, a generic parameter with a `Callable`
-        # bound, or a Tuple of FunctionTypes
+        # bound, or a Tuple of FunctionTypes. Try each in turn...
+        effects: Iterable[Effect]
         if isinstance(func_ty, FunctionType):
-            # ALAN "a generic parameter with a Callable bound", how does this relate
-            # to the case below for Protocols now that Callable is a Protocol?
-            # For the other cases, described above, [Effect.ANY] would be ok.
-            alan_callee: DefId = f"ALAN call to {node.func}"  # type: ignore[assignment]
+            effects = [Effect.ANY]  # worst-case/conservative assumption
             args, subst, inst = check_call(
-                func_ty, node.args, ty, node, self.ctx, alan_callee
+                func_ty, node.args, ty, node, self.ctx, effects
             )
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
@@ -415,7 +413,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 if isinstance(protocol, CallableProtocolInst):
                     # Not a real instantiation; type-checking only, no compilation.
                     assert self.ctx.current_caller is None
-                    effects: Iterable[Effect] = []
+                    effects = []
                     args, subst, inst = check_call(
                         protocol.sig, node.args, ty, node, self.ctx, effects
                     )
