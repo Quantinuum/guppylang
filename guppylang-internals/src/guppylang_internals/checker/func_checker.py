@@ -138,7 +138,7 @@ def check_global_func_def(
     type_args: Inst,
     globals: Globals,
     link_name: str,
-    def_id: DefId,  # ALAN | None = None,
+    def_id: DefId,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -292,7 +292,7 @@ def check_nested_func_def(
     from guppylang_internals.definition.function import CheckedFunctionDef
 
     mono_args: Inst = ()
-    ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
+    ENGINE.checked[(def_id, mono_args)] = CheckedFunctionDef(
         def_id,
         func_def.name,
         func_def,
@@ -302,6 +302,7 @@ def check_nested_func_def(
         mono_args,
         checked_cfg,
     )
+    ENGINE.call_graph[(def_id, mono_args)] = CallGraphData()
     return with_loc(func_def, checked_def)
 
 
