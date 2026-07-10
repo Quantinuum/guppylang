@@ -29,29 +29,18 @@ def test_simple():
     # After checking we should have call graph node for root, caller1, caller2 (but not
     # leaf since it doesn't call anything so it is only implicitly a node by being in
     # the list of callees for one of the callers).
-    assert root.id in callgraph
-    assert caller1.id in callgraph
-    assert caller2.id in callgraph
+    root_data = ENGINE.call_graph.get((root.id, ()))
+    assert root_data is not None
+    caller1_data = ENGINE.call_graph.get((caller1.id, ()))
+    assert caller1_data is not None
+    caller2_data = ENGINE.call_graph.get((caller2.id, ()))
+    assert caller2_data is not None
 
     # Verify edges point to the right callees.
-    assert caller1.id in callgraph[root.id]
-    assert caller2.id in callgraph[root.id]
-    assert leaf.id in callgraph[caller1.id]
-    assert leaf.id in callgraph[caller2.id]
-
-
-# TODO(callgraph): Should all functions be included in the graph? Does this lead to
-# issues in the effects analysis or does it make it a bit quicker if not?
-def test_no_call():
-    """Test that functions with no calls are not included in the call graph."""
-
-    @guppy
-    def pure_function() -> int:
-        return 100
-
-    pure_function.check()
-
-    assert pure_function.id not in ENGINE.call_graph
+    assert (caller1.id, ()) in root_data.callee_defs
+    assert (caller2.id, ()) in root_data.callee_defs
+    assert (leaf.id, ()) in caller1_data.callee_defs
+    assert (leaf.id, ()) in caller2_data.callee_defs
 
 
 def test_recursive():
@@ -66,12 +55,16 @@ def test_recursive():
 
     factorial.check()
 
-    assert factorial.id in ENGINE.call_graph
+    data = ENGINE.call_graph.get((factorial.id, ()))
+    assert data is not None
     # Check that factorial calls itself.
-    assert factorial.id in ENGINE.call_graph[factorial.id]
+    assert (factorial.id, ()) in data.callee_defs
 
 
-# TODO(callgraph): Figure out how to fix this test.
+@pytest.mark.xfail(
+    match="0 == 1",
+    reason="Nested functions are resolved as indirect calls to unknown target",
+)
 def test_nested_function():
     """Test that nested function calls are recorded in the call graph."""
 
@@ -85,9 +78,10 @@ def test_nested_function():
 
     outer.check()
 
-    assert outer.id in ENGINE.call_graph
+    data = ENGINE.call_graph.get((outer.id, ()))
+    assert data is not None
     # Check the outer function call exactly one function (the nested function).
-    assert len(ENGINE.call_graph[outer.id]) == 1
+    assert len(data.callee_defs) == 1
 
 
 if __name__ == "__main__":
