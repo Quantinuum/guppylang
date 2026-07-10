@@ -38,7 +38,6 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - uses: quantinuum/hugrverse-env/install-hugrenv-action@main
       - name: Set up Just
         uses: extractions/setup-just@v4
       - name: Install Python ${{ matrix.target.python }}
@@ -76,7 +75,6 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - uses: quantinuum/hugrverse-env/install-hugrenv-action@main
       - name: Set up Just
         uses: extractions/setup-just@v4
       - name: Install a develop wheel of guppylang

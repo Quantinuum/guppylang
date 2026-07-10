@@ -36,7 +36,6 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - uses: quantinuum/hugrverse-env/install-hugrenv-action@main
 
       - name: Set up bencher
         uses: bencherdev/bencher@main
