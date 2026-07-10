@@ -54,7 +54,7 @@ def compile_local_func_def(
 
     # If we have captured variables and the body contains a recursive occurrence of
     # the function itself, then we provide the partially applied function as a local
-    # variable
+    # variable.
     if len(captured) > 0 and recursive:
         call_args: list[Wire] = list(func_builder.inputs())
         check_partial_functions_enabled()
@@ -87,6 +87,7 @@ def compile_local_func_def(
             mono_args,
             func.cfg,
             func_builder,
+            effects=ctx.effects[(func.def_id, mono_args)],
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 

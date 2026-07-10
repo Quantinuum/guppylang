@@ -456,11 +456,6 @@ class CompilationEngine:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
                 self.checked[id, mono_args] = self.get_checked(id, mono_args)
 
-        from guppylang_internals.checker.effects_checker import check_compute_effects
-
-        # Run effects checking based on call graph analysis.
-        check_compute_effects()
-
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
         """Top-level function to begin compilation of a definition into a Hugr module.
@@ -494,6 +489,11 @@ class CompilationEngine:
     ) -> tuple[ModulePointer, list[CompiledDef]]:
         self.check(def_ids, reset=reset)
 
+        from guppylang_internals.checker.effects_checker import compute_effects
+
+        # Run effects checking based on call graph analysis.
+        effects = compute_effects()
+
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
@@ -506,7 +506,7 @@ class CompilationEngine:
         frame = get_calling_frame()
         filename = frame.f_code.co_filename
 
-        ctx = CompilerContext(graph, set(def_ids), StringTable())
+        ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))

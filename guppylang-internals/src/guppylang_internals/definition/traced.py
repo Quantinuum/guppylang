@@ -177,7 +177,9 @@ class CompiledTracedFunctionDef(
     def call_effects(self) -> frozenset[Effect]:
         """The maximum set of effects that may occur when calling the function."""
         # For now, an approximation. (We said, may occur.)
-        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
+        # Unfortunately we can't compute this at callgraph time because we don't
+        # trace the function until late in compilation :(. IOW we need the big
+        # tracing refactor (issue link...???) # ALAN
         return frozenset([Effect.ANY])
 
     @property

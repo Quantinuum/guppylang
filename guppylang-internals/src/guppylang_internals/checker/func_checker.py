@@ -158,14 +158,10 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
-    # if def_id is not None:
-    ENGINE.call_graph[(def_id, type_args)] = CallGraphData(
-        EffectLimitDecl.for_def(ty, func_def)
-    )
+
     current_caller = (def_id, type_args)
-    # else:
-    # TODO(callgraph) ALAN
-    #    raise ValueError("No def_id ?!")
+    assert current_caller not in ENGINE.call_graph
+    ENGINE.call_graph[current_caller] = CallGraphData()
 
     return check_cfg(
         cfg,

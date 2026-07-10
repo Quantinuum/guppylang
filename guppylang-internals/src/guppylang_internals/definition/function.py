@@ -283,6 +283,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.cfg,
             FunctionBuilder(func_def),
             metadata=self.metadata,
+            effects=ctx.effects[(self.id, self.mono_args)],
         )
 
 
@@ -303,16 +304,17 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         cfg: The type- and linearity-checked CFG for the function body.
         _func_bldr: used to build the function body in `compile_inner`; clients
                    should use `hugr_node`
+        effects: effects of calling the function, computed after checking
+                but before compilation begins
     """
 
     _func_bldr: FunctionBuilder
+    effects: frozenset[Effect]
 
     @override
     @property
     def call_effects(self) -> frozenset[Effect]:
-        # For now, an approximation. (We said, may occur.)
-        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
-        return frozenset([Effect.ANY])
+        return self.effects
 
     @property
     def hugr_node(self) -> Node:

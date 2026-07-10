@@ -120,6 +120,8 @@ def check_cfg(
         return_ty,
         generic_args,
         globals,
+        modified_block_name_base,
+        modified_block_counter,
         current_caller=current_caller,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
