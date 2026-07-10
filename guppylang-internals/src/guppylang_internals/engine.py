@@ -18,6 +18,7 @@ from semver import Version
 from typing_extensions import assert_never
 
 import guppylang_internals
+from guppylang_internals.checker.effects_checker import CallGraphData
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -210,6 +211,10 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
+    #: Call graph mapping from caller to list of callees. Populated during type checking
+    # as calls are checked, to be then used for effects checking.
+    call_graph: dict[MonoDefId, CallGraphData]
+
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
@@ -248,6 +253,7 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
+        self.call_graph = {}
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
@@ -449,6 +455,11 @@ class CompilationEngine:
             else:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
                 self.checked[id, mono_args] = self.get_checked(id, mono_args)
+
+        from guppylang_internals.checker.effects_checker import check_compute_effects
+
+        # Run effects checking based on call graph analysis.
+        check_compute_effects()
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:

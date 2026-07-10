@@ -91,7 +91,7 @@ from guppylang_internals.checker.errors.type_errors import (
     UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
@@ -398,7 +398,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # whose type is either a FunctionType, a generic parameter with a `Callable`
         # bound, or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
-            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+            tgt_name = _identify_callee(node.func)
+            args, subst, inst = check_call(
+                func_ty, node.args, ty, node, self.ctx, tgt_name
+            )
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
@@ -425,7 +428,14 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             tensor_ty = function_tensor_signature(function_elements)
 
             processed_args, subst, inst = check_call(
-                tensor_ty, node.args, ty, node, self.ctx
+                # Doing better here would require major refactor to provide
+                # names/ids for each tensor element and identify the offender
+                tensor_ty,
+                node.args,
+                ty,
+                node,
+                self.ctx,
+                "<function tensor>",
             )
             assert len(inst) == 0
             return with_loc(
@@ -1010,7 +1020,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Otherwise, it must be a function as a higher-order value, or a tensor
         if isinstance(ty, FunctionType):
-            args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
+            tgt_name = _identify_callee(node.func)
+            args, return_ty, inst = synthesize_call(
+                ty, node.args, node, self.ctx, tgt_name
+            )
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
 
@@ -1036,7 +1049,13 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
             tensor_ty = function_tensor_signature(function_elems)
             args, return_ty, inst = synthesize_call(
-                tensor_ty, node.args, node, self.ctx
+                # Doing better here would require major refactor to provide
+                # names/ids for each tensor element and identify the offender
+                tensor_ty,
+                node.args,
+                node,
+                self.ctx,
+                "<function tensor>",
             )
             assert len(inst) == 0
 
@@ -1481,8 +1500,38 @@ def check_comptime_arg(
     return subst
 
 
+def _identify_callee(node: ast.expr) -> str | None:
+    match node:
+        case PlaceNode(place=Variable(name=n)):
+            return n
+        case _:
+            return None
+
+
+def _register_callee(
+    ctx: Context,
+    callee_id: DefId | str | None,
+    inst: Inst,
+    func_ty: FunctionType,
+    node: AstNode,
+) -> None:
+    """Registers a function call in the call graph."""
+    assert (
+        ctx.current_caller is not None
+    )  # Not set for e.g. comptime but should be here
+    data = ENGINE.call_graph[ctx.current_caller]
+    if isinstance(callee_id, DefId):
+        data.callee_defs.append(((callee_id, inst), node))
+    else:
+        data.other_callees.append((callee_id, func_ty, node))
+
+
 def synthesize_call(
-    func_ty: FunctionType, args: list[ast.expr], node: AstNode, ctx: Context
+    func_ty: FunctionType,
+    args: list[ast.expr],
+    node: AstNode,
+    ctx: Context,
+    callee: DefId | str | None,
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1513,6 +1562,9 @@ def synthesize_call(
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
 
+    # Register this call in the callgraph.
+    _register_callee(ctx, callee, inst, func_ty, node)
+
     return args, unquantified.output.substitute(subst), inst
 
 
@@ -1522,6 +1574,8 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
+    callee: DefId | str | None,
+    *,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
     """Checks the return type of a function call against a given type.
@@ -1557,7 +1611,7 @@ def check_call(
     inputs_copy = copy.deepcopy(inputs)
 
     try:
-        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx)
+        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx, callee)
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
@@ -1608,6 +1662,9 @@ def check_call(
 
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
+
+    # Register this call in the callgraph.
+    _register_callee(ctx, callee, inst, func_ty, node)
 
     return inputs, subst, inst
 
@@ -1729,7 +1786,12 @@ def check_generator(
     # The rest is checked in a new nested context to ensure that variables don't escape
     # their scope
     inner_locals: Locals[str, Variable] = Locals({}, parent_scope=ctx.locals)
-    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_param_inst)
+    inner_ctx = Context(
+        ctx.globals,
+        inner_locals,
+        ctx.generic_param_inst,
+        current_caller=ctx.current_caller,
+    )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
     gen.iter = with_type(iter_ty, gen.iter)

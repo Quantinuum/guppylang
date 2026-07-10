@@ -7,6 +7,7 @@ from guppylang_internals.cfg.bb import BB
 from guppylang_internals.checker.cfg_checker import check_cfg
 from guppylang_internals.checker.core import Context, Variable
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
+from guppylang_internals.engine import MonoDefId
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
 from guppylang_internals.tys.ty import (
     FuncInput,
@@ -18,7 +19,10 @@ from guppylang_internals.tys.ty import (
 
 
 def check_modified_block(
-    modified_block: ModifiedBlock, bb: BB, ctx: Context
+    modified_block: ModifiedBlock,
+    bb: BB,
+    ctx: Context,
+    current_caller: MonoDefId,
 ) -> CheckedModifiedBlock:
     """Type checks a modifier definition."""
     cfg = modified_block.cfg
@@ -56,6 +60,7 @@ def check_modified_block(
         {},
         "__modified__()",
         globals,
+        current_caller=current_caller,
         # We pass the first modifier node for better error messages in the cfg checker
         first_modifier_node=modified_block.first_modifier_node,
         modified_block_name_base=ctx.modified_block_name_base,

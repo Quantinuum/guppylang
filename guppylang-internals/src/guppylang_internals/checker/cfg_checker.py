@@ -29,6 +29,7 @@ from guppylang_internals.checker.expr_checker import (
 )
 from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import FunctionDefType, InputFlags, Type
@@ -81,6 +82,7 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
+    current_caller: MonoDefId,
     first_modifier_node: ast.expr | None = None,
     modified_block_name_base: str | None = None,
     modified_block_counter: Iterator[int] | None = None,
@@ -118,8 +120,7 @@ def check_cfg(
         return_ty,
         generic_args,
         globals,
-        modified_block_name_base,
-        modified_block_counter,
+        current_caller=current_caller,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -154,6 +155,7 @@ def check_cfg(
                 globals,
                 modified_block_name_base,
                 modified_block_counter,
+                current_caller=current_caller,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -282,6 +284,7 @@ def check_bb(
     globals: Globals,
     modified_block_name_base: str,
     modified_block_counter: Iterator[int],
+    current_caller: MonoDefId,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -312,6 +315,7 @@ def check_bb(
         generic_args,
         modified_block_name_base=modified_block_name_base,
         modified_block_counter=modified_block_counter,
+        current_caller=current_caller,
     )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 

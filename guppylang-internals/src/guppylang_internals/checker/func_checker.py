@@ -15,6 +15,7 @@ from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.builder import CFGBuilder
 from guppylang_internals.checker.cfg_checker import CheckedCFG, check_cfg
 from guppylang_internals.checker.core import Context, Globals, Place, Variable
+from guppylang_internals.checker.effects_checker import CallGraphData
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
@@ -137,6 +138,7 @@ def check_global_func_def(
     type_args: Inst,
     globals: Globals,
     link_name: str,
+    def_id: DefId,  # ALAN | None = None,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -156,6 +158,15 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
+    # if def_id is not None:
+    ENGINE.call_graph[(def_id, type_args)] = CallGraphData(
+        EffectLimitDecl.for_def(ty, func_def)
+    )
+    current_caller = (def_id, type_args)
+    # else:
+    # TODO(callgraph) ALAN
+    #    raise ValueError("No def_id ?!")
+
     return check_cfg(
         cfg,
         inputs,
@@ -164,6 +175,7 @@ def check_global_func_def(
         func_def.name,
         globals,
         modified_block_name_base=link_name,
+        current_caller=current_caller,
     )
 
 
@@ -220,6 +232,8 @@ def check_nested_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     def_id = DefId.fresh()
+    # There is no way to declare max effects for nested func
+    ENGINE.call_graph[(def_id, ())] = CallGraphData(None)
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,
@@ -252,7 +266,15 @@ def check_nested_func_def(
             # Otherwise, we treat it like a local name
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
-    checked_cfg = check_cfg(cfg, inputs, func_ty.output, {}, func_def.name, globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        current_caller=(def_id, ()),
+    )
     checked_def = CheckedNestedFunctionDef(
         def_id,
         checked_cfg,
