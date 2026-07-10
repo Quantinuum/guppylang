@@ -412,6 +412,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             for protocol in func_ty.implements:
                 if isinstance(protocol, CallableProtocolInst):
                     # Not a real instantiation; type-checking only, no compilation.
+                    # ALAN This assertion fails in 6 tests (test_callable(_py312).py),
+                    # the current caller is an instantiation with type args being
+                    # BoundTypeVar's...should we just drop it?
                     assert self.ctx.current_caller is None
                     effects = []
                     args, subst, inst = check_call(
