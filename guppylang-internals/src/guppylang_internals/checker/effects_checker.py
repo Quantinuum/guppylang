@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-from guppylang_internals.ast_util import AstNode
 from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
@@ -17,7 +16,7 @@ class CallGraphData:
     declaration."""
 
     # calls to definitions, each with AST of the call
-    callee_defs: list[tuple["MonoDefId", AstNode]] = field(default_factory=list)
+    callee_defs: list["MonoDefId"] = field(default_factory=list)
     other_callee_effects: list[Effect] = field(default_factory=list)
 
 
