@@ -177,7 +177,7 @@ class ArrayCopyChecker(CustomCallChecker):
                     )
                     raise GuppyTypeError(err)
         [array_arg], _, inst = synthesize_call(
-            self.func.ty, args, self.node, self.ctx, self.func.id
+            self.func.ty, args, self.node, self.ctx, self.func.effects
         )
         node = GlobalCall(def_id=self.func.id, args=[array_arg], type_args=inst)
         return with_loc(self.node, node), get_type(array_arg)
@@ -267,7 +267,7 @@ class ArrayIndexChecker(CustomCallChecker):
 
         # Run regular type checking for the arguments
         args, subs, type_args = check_call(
-            self.func.ty, args, ty, self.node, self.ctx, self.func.id
+            self.func.ty, args, ty, self.node, self.ctx, self.func.effects
         )
 
         # Check the index bounds (first:index expression, second: length_arg)
@@ -283,7 +283,7 @@ class ArrayIndexChecker(CustomCallChecker):
         """Synthesize-mode: infer return type and perform bounds check."""
         # Run regular type synthesis for the arguments
         args, ty, type_args = synthesize_call(
-            self.func.ty, args, self.node, self.ctx, self.func.id
+            self.func.ty, args, self.node, self.ctx, self.func.effects
         )
 
         # Check the index bounds (first:index expression, second: length_arg)
@@ -499,7 +499,7 @@ class BarrierChecker(CustomCallChecker):
             NoneType(),
         )
         args, ret_ty, inst = synthesize_call(
-            func_ty, args, self.node, self.ctx, self.func.id
+            func_ty, args, self.node, self.ctx, self.func.effects
         )
         assert len(inst) == 0, "func_ty is not generic"
         node = BarrierExpr(args=args, func_ty=func_ty)
@@ -520,6 +520,6 @@ class WasmCallChecker(CustomCallChecker):
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(
-            self.func.ty, args, self.node, self.ctx, self.func.id
+            self.func.ty, args, self.node, self.ctx, self.func.effects
         )
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), ty

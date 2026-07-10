@@ -419,6 +419,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                     args, subst, inst = check_call(
                         protocol.sig, node.args, ty, node, self.ctx, effects
                     )
+                    assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
                     return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
@@ -1032,13 +1033,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if isinstance(
                     protocol, CallableProtocolInst | ModifiableFunctionProtocolInst
                 ):
-                    breakpoint()
+                    effects = []  # Not yet monomorphized, so not to be compiled
                     args, return_ty, inst = synthesize_call(
-                        protocol.sig,
-                        node.args,
-                        node,
-                        self.ctx,
-                        [],  # ALAN
+                        protocol.sig, node.args, node, self.ctx, effects
                     )
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
