@@ -228,8 +228,10 @@ def check_nested_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     def_id = DefId.fresh()
-    # There is no way to declare max effects for nested func
-    ENGINE.call_graph[(def_id, ())] = CallGraphData(None)
+    # We'll store nested functions in the call graph under their own DefIDs,
+    # but calls to them are likely to be via local variables (that can be reassigned)
+    # so will be assigned all effects rather than that of the actual target.
+    ENGINE.call_graph[(def_id, ())] = CallGraphData()
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,

@@ -24,11 +24,11 @@ import ast
 import copy
 import sys
 import traceback
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -95,7 +95,7 @@ from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
-from guppylang_internals.engine import DEF_STORE, ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -128,6 +128,7 @@ from guppylang_internals.nodes import (
     TypeApply,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableProtocolInst,
@@ -398,9 +399,12 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # whose type is either a FunctionType, a generic parameter with a `Callable`
         # bound, or a Tuple of FunctionTypes
         if isinstance(func_ty, FunctionType):
-            tgt_name = _identify_callee(node.func)
+            # ALAN "a generic parameter with a Callable bound", how does this relate
+            # to the case below for Protocols now that Callable is a Protocol?
+            # For the other cases, described above, [Effect.ANY] would be ok.
+            alan_callee: DefId = f"ALAN call to {node.func}"  # type: ignore[assignment]
             args, subst, inst = check_call(
-                func_ty, node.args, ty, node, self.ctx, tgt_name
+                func_ty, node.args, ty, node, self.ctx, alan_callee
             )
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
@@ -409,10 +413,12 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if isinstance(func_ty, BoundTypeVar):
             for protocol in func_ty.implements:
                 if isinstance(protocol, CallableProtocolInst):
+                    # Not a real instantiation; type-checking only, no compilation.
+                    assert self.ctx.current_caller is None
+                    effects: Iterable[Effect] = []
                     args, subst, inst = check_call(
-                        protocol.sig, node.args, ty, node, self.ctx
+                        protocol.sig, node.args, ty, node, self.ctx, effects
                     )
-                    assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
                     return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
@@ -426,16 +432,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 )
 
             tensor_ty = function_tensor_signature(function_elements)
-
+            effects = [Effect.ANY]  # worst-case/conservative assumption
+            # (We will probably need to do better if tensors become non-experimental)
             processed_args, subst, inst = check_call(
-                # Doing better here would require major refactor to provide
-                # names/ids for each tensor element and identify the offender
-                tensor_ty,
-                node.args,
-                ty,
-                node,
-                self.ctx,
-                "<function tensor>",
+                tensor_ty, node.args, ty, node, self.ctx, effects
             )
             assert len(inst) == 0
             return with_loc(
@@ -1020,9 +1020,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Otherwise, it must be a function as a higher-order value, or a tensor
         if isinstance(ty, FunctionType):
-            tgt_name = _identify_callee(node.func)
+            effects = [Effect.ANY]  # worst-case/conservative assumption
             args, return_ty, inst = synthesize_call(
-                ty, node.args, node, self.ctx, tgt_name
+                ty, node.args, node, self.ctx, effects
             )
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
@@ -1032,8 +1032,13 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if isinstance(
                     protocol, CallableProtocolInst | ModifiableFunctionProtocolInst
                 ):
+                    breakpoint()
                     args, return_ty, inst = synthesize_call(
-                        protocol.sig, node.args, node, self.ctx
+                        protocol.sig,
+                        node.args,
+                        node,
+                        self.ctx,
+                        [],  # ALAN
                     )
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
@@ -1048,14 +1053,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 )
 
             tensor_ty = function_tensor_signature(function_elems)
+            # This is terrible - we'll need to do better if tensored functions
+            # become non-experimental:
+            effects = [Effect.ANY]
             args, return_ty, inst = synthesize_call(
-                # Doing better here would require major refactor to provide
-                # names/ids for each tensor element and identify the offender
-                tensor_ty,
-                node.args,
-                node,
-                self.ctx,
-                "<function tensor>",
+                tensor_ty, node.args, node, self.ctx, effects
             )
             assert len(inst) == 0
 
@@ -1510,20 +1512,17 @@ def _identify_callee(node: ast.expr) -> str | None:
 
 def _register_callee(
     ctx: Context,
-    callee_id: DefId | str | None,
-    inst: Inst,
-    func_ty: FunctionType,
-    node: AstNode,
+    callee: MonoDefId | Iterable[Effect],
 ) -> None:
     """Registers a function call in the call graph."""
     assert (
         ctx.current_caller is not None
     )  # Not set for e.g. comptime but should be here
     data = ENGINE.call_graph[ctx.current_caller]
-    if isinstance(callee_id, DefId):
-        data.callee_defs.append(((callee_id, inst), node))
+    if isinstance(callee, tuple) and len(callee) == 2 and isinstance(callee[0], DefId):
+        data.callee_defs.append(callee)
     else:
-        data.other_callees.append((callee_id, func_ty, node))
+        data.other_callee_effects.extend(cast("Iterable[Effect]", callee))
 
 
 def synthesize_call(
@@ -1531,7 +1530,7 @@ def synthesize_call(
     args: list[ast.expr],
     node: AstNode,
     ctx: Context,
-    callee: DefId | str | None,
+    callee: DefId | Iterable[Effect],
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1563,7 +1562,7 @@ def synthesize_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, callee, inst, func_ty, node)
+    _register_callee(ctx, (callee, inst) if isinstance(callee, DefId) else callee)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1574,7 +1573,7 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
-    callee: DefId | str | None,
+    callee: DefId | Iterable[Effect],
     *,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
@@ -1664,7 +1663,7 @@ def check_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, callee, inst, func_ty, node)
+    _register_callee(ctx, (callee, inst) if isinstance(callee, DefId) else callee)
 
     return inputs, subst, inst
 
