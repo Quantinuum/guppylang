@@ -271,6 +271,7 @@ def check_nested_func_def(
 
     from guppylang_internals.definition.function import CheckedFunctionDef
 
+    mono_args: Inst = ()
     ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
         def_id,
         func_def.name,
@@ -278,6 +279,7 @@ def check_nested_func_def(
         func_ty,
         func_def.docstring,
         link_name,
+        mono_args,
         checked_cfg,
     )
     return with_loc(func_def, checked_def)

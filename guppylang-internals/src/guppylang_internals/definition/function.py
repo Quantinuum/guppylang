@@ -185,6 +185,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_ty,
             self.docstring,
             mono_link_name,
+            type_args,
             cfg,
             metadata=self.metadata,
         )
@@ -228,9 +229,11 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         link_name: The external name for this function (applied to the Hugr node, and
             other representations, regardless of whether the function is actually
             visible for linking)
+        mono_args: Type arguments used to produce this monomorphization.
         cfg: The type- and linearity-checked CFG for the function body.
     """
 
+    mono_args: Inst
     cfg: CheckedCFG[Place]
 
     def __post_init__(self) -> None:
@@ -271,6 +274,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.ty,
             self.docstring,
             self.link_name,
+            self.mono_args,
             self.cfg,
             FunctionBuilder(func_def),
             metadata=self.metadata,
@@ -285,12 +289,12 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         id: The unique definition identifier.
         name: The name of the function.
         defined_at: The AST node where the function was defined.
-        mono_args: Partial monomorphization of the generic type parameters.
         ty: The type of the function after partial monomorphization.
         docstring: The docstring of the function.
         link_name: The external name for this function (applied to the Hugr node, and
             other representations, regardless of whether the function is actually
             visible for linking)
+        mono_args: Partial monomorphization of the generic type parameters.
         cfg: The type- and linearity-checked CFG for the function body.
         _func_bldr: used to build the function body in `compile_inner`; clients
                    should use `hugr_node`
