@@ -84,6 +84,7 @@ def compile_local_func_def(
             # Even though global, this function will be private to the built hugr,
             # so the hugr name does not really matter.
             func.name,
+            mono_args,
             func.cfg,
             func_builder,
         )
