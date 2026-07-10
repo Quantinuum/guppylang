@@ -1,6 +1,5 @@
 import itertools
 from abc import ABC
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -56,7 +55,6 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.compiler.builder import DFBuilder
-    from guppylang_internals.tys import Effect
 
 CompiledLocals = dict[PlaceId, Wire]
 
@@ -109,14 +107,10 @@ class CompilerContext(ToHugrContext):
 
     metadata_file_table: StringTable
 
-    # Info computed from callgraph before compilation begins
-    effects: Mapping[MonoDefId, frozenset["Effect"]]
-
     def __init__(
         self,
         module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
-        effects: Mapping[MonoDefId, frozenset["Effect"]],
         file_table: StringTable | None = None,
     ) -> None:
         self.module = module
@@ -124,7 +118,6 @@ class CompilerContext(ToHugrContext):
         self.compiled = {}
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
-        self.effects = effects
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )

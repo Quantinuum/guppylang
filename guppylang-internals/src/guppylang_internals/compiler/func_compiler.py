@@ -7,6 +7,7 @@ from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.hugr_extension import PartialOp
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef
 
@@ -87,7 +88,7 @@ def compile_local_func_def(
             mono_args,
             func.cfg,
             func_builder,
-            effects=ctx.effects[(func.def_id, mono_args)],
+            effects=ENGINE.get_effects(func.def_id, mono_args),
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 

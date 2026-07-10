@@ -4,7 +4,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 import hugr
 import hugr.build.function as hf
@@ -86,6 +86,9 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
 )
+
+if TYPE_CHECKING:
+    from guppylang_internals.tys import Effect
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
@@ -492,7 +495,7 @@ class CompilationEngine:
         from guppylang_internals.checker.effects_checker import compute_effects
 
         # Run effects checking based on call graph analysis.
-        effects = compute_effects()
+        compute_effects()
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -506,7 +509,7 @@ class CompilationEngine:
         frame = get_calling_frame()
         filename = frame.f_code.co_filename
 
-        ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
+        ctx = CompilerContext(graph, set(def_ids), StringTable())
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
@@ -576,6 +579,14 @@ class CompilationEngine:
             ),
             requested_defs,
         )
+
+    def get_effects(self, def_id: DefId, mono_args: Inst) -> frozenset["Effect"]:
+        """Get the effects of a monomorphized definition.
+
+        Includes effects of any callees that were registered before
+        the last `compute_effects`.
+        """
+        return frozenset(self.call_graph[def_id, mono_args].effects)
 
 
 @dataclass(frozen=True)

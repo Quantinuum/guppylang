@@ -1517,7 +1517,7 @@ def _register_callee(
     if isinstance(callee, tuple) and len(callee) == 2 and isinstance(callee[0], DefId):
         data.callee_defs.append(callee)
     else:
-        data.other_callee_effects.extend(cast("Iterable[Effect]", callee))
+        data.effects.update(cast("Iterable[Effect]", callee))
 
 
 def synthesize_call(
