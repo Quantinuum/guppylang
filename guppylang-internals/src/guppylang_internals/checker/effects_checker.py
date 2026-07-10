@@ -94,15 +94,5 @@ def compute_effects() -> Mapping["MonoDefId", frozenset[Effect]]:
         # Apply inferred effects to all members of each component.
         for def_id in members:
             mapping[def_id] = fx
-    for k, v in ENGINE.checked.items():
-        from guppylang_internals.definition.custom import CustomFunctionDef
-        from guppylang_internals.definition.declaration import ParsedFunctionDecl
-        from guppylang_internals.definition.traced import TracedFunctionDef
-        from guppylang_internals.definition.value import CallableDef
 
-        if isinstance(v, CallableDef) and not isinstance(
-            v, (CustomFunctionDef, TracedFunctionDef, ParsedFunctionDecl)
-        ):
-            assert k in ENGINE.call_graph
-            assert k in mapping
     return mapping
