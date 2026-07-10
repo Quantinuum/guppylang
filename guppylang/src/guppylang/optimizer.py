@@ -56,33 +56,7 @@ class OptimizationLevel(Enum):
             case OptimizationLevel.Default | OptimizationLevel.Classical:
                 from tket import passes
 
-                # TODO: Partially disabled due to tket2 issues. Re-enable these
-                # flags as the corresponding tket bugs are fixed.
-                return [
-                    passes.NormalizeGuppy(
-                        remove_tuple_untuple=True,
-                        remove_dead_funcs=True,
-                        remove_redundant_order_edges=True,
-                        squash_borrows=True,
-                        inline_funcs=True,
-                        # Tket reports invalid constructed HUGRs
-                        # / "cannot modify indirect call" errors.
-                        resolve_modifiers=True,
-                        # Causes errors in the notebook examples;
-                        # Emulation succeeds but shots lose expected result entries
-                        # (`eigenvalue` / `attempts`), producing `KeyError` in the
-                        # plotting cells.
-                        simplify_cfgs=True,
-                        # fails `test_arithmetic.py::test_float_to_int`
-                        # Selene reports package validation error:
-                        # `Node(...) has an unconnected port Port(Outgoing, 0)`
-                        constant_folding=True,
-                        # when combined with `inline_funcs=True` fails
-                        # `test_qsystem_sol_functional`: tket/portgraph panic
-                        # with `Outgoing port count exceeds maximum`
-                        inline_dfgs=True,
-                    )
-                ]
+                return [passes.NormalizeGuppy()]
             case OptimizationLevel.Minimal:
                 return []
 
