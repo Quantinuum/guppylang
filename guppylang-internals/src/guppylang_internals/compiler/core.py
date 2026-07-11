@@ -55,6 +55,7 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.compiler.builder import DFBuilder
+    from guppylang_internals.tys import Effect
 
 CompiledLocals = dict[PlaceId, Wire]
 
@@ -189,6 +190,12 @@ class CompilerContext(ToHugrContext):
         )
         self.global_funcs[const_id, mono_args] = func
         return func, False
+
+    def get_effects(self, id: DefId, mono_args: Inst) -> frozenset["Effect"]:
+        """Returns the effects of the given definition."""
+        # ALAN think that call-graph may have had new edges added
+        # without re-calling compute_effects, so this is probably stale.
+        return frozenset(ENGINE.call_graph[id, mono_args].effects)
 
 
 @dataclass

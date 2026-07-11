@@ -4,7 +4,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import ClassVar, cast
 
 import hugr
 import hugr.build.function as hf
@@ -86,9 +86,6 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
 )
-
-if TYPE_CHECKING:
-    from guppylang_internals.tys import Effect
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
@@ -579,14 +576,6 @@ class CompilationEngine:
             ),
             requested_defs,
         )
-
-    def get_effects(self, def_id: DefId, mono_args: Inst) -> frozenset["Effect"]:
-        """Get the effects of a monomorphized definition.
-
-        Includes effects of any callees that were registered before
-        the last `compute_effects`.
-        """
-        return frozenset(self.call_graph[def_id, mono_args].effects)
 
 
 @dataclass(frozen=True)

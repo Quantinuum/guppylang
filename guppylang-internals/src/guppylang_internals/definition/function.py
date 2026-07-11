@@ -283,7 +283,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.cfg,
             FunctionBuilder(func_def),
             metadata=self.metadata,
-            effects=ENGINE.get_effects(self.id, self.mono_args),
+            effects=ctx.get_effects(self.id, self.mono_args),
         )
 
 
