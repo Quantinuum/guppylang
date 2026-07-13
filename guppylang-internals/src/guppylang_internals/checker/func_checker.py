@@ -137,6 +137,7 @@ def check_global_func_def(
     type_args: Inst,
     globals: Globals,
     link_name: str,
+    def_id: DefId,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -156,6 +157,10 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
+
+    current_caller = (def_id, type_args)
+    ENGINE.register_call_graph_node(current_caller)
+
     return check_cfg(
         cfg,
         inputs,
@@ -164,6 +169,7 @@ def check_global_func_def(
         func_def.name,
         globals,
         modified_block_name_base=link_name,
+        current_caller=current_caller,
     )
 
 
@@ -220,6 +226,12 @@ def check_nested_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     def_id = DefId.fresh()
+    mono_args: Inst = ()
+
+    # Store nested functions in the call graph under their own DefIDs,
+    # although calls to them will be via local variables until we solve
+    # https://github.com/Quantinuum/guppylang/issues/2038
+    ENGINE.register_call_graph_node((def_id, mono_args))
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,
@@ -252,7 +264,15 @@ def check_nested_func_def(
             # Otherwise, we treat it like a local name
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
-    checked_cfg = check_cfg(cfg, inputs, func_ty.output, {}, func_def.name, globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        current_caller=(def_id, ()),
+    )
     checked_def = CheckedNestedFunctionDef(
         def_id,
         checked_cfg,
@@ -268,13 +288,14 @@ def check_nested_func_def(
 
     from guppylang_internals.definition.function import CheckedFunctionDef
 
-    ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
+    ENGINE.checked[(def_id, mono_args)] = CheckedFunctionDef(
         def_id,
         func_def.name,
         func_def,
         func_ty,
         func_def.docstring,
         link_name,
+        mono_args,
         checked_cfg,
     )
     return with_loc(func_def, checked_def)

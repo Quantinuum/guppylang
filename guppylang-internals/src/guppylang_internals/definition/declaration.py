@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
 
@@ -141,6 +141,12 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property
+    def call_effects(self) -> Iterable[Effect]:
+        # Assume all external function calls are side-effecting; we could improve
+        # by allowing explicit annotation on declarations, but this is a safe default.
+        return [Effect.ANY]
+
+    @property
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
@@ -165,7 +171,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.ty, args, ty, node, ctx)
+        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         ENGINE.register_generic_use(self, inst)
         return node, subst
@@ -176,7 +182,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     ) -> tuple[GlobalCall, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.ty, args, node, ctx)
+        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         ENGINE.register_generic_use(self, inst)
         return with_type(ty, node), ty
@@ -247,13 +253,6 @@ class CompiledFunctionDecl(
     """
 
     declaration: Node
-
-    @override
-    @property
-    def call_effects(self) -> frozenset[Effect]:
-        # Assume all external function calls are side-effecting; we could improve
-        # by allowing explicit annotation on declarations, but this is a safe default.
-        return frozenset([Effect.ANY])
 
     @property
     def hugr_node(self) -> Node:

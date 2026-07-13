@@ -4,10 +4,11 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, cast
+from typing import ClassVar, TypedDict, cast
 
 import hugr
 import hugr.build.function as hf
+import networkx as nx
 from hugr import ops
 from hugr.debug_info import DICompileUnit
 from hugr.envelope import ExtensionDesc, GeneratorDesc
@@ -46,6 +47,7 @@ from guppylang_internals.metadata.debug_info_util import (
     StringTable,
 )
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
@@ -189,6 +191,20 @@ class MonoArgsNote(Note):
         )
 
 
+@dataclass
+class CallGraphData(TypedDict):
+    """Data for a node in the call graph. Calls to other definitions that are nodes
+    are represented by edges."""
+
+    """Effects of calls to definitions that are not nodes in the call graph,
+    e.g. external functions; and perhaps other effects from callees.
+    Completely captures all the latter if `computed` is True."""
+    effects: set[Effect]
+    """ True if the effects for this node have been computed to include
+    all outgoing edges."""
+    computed: bool
+
+
 class CompilationEngine:
     """Main compiler driver handling checking and compiling of definitions.
 
@@ -209,6 +225,11 @@ class CompilationEngine:
     to_check_worklist: dict[MonoDefId, ParsedDef]
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
+
+    # Call graph. Each node (a MonoDefId) mapping from caller to list of callees.
+    # Populated during checking and tracing as calls are found, the effects are then
+    # computed by analysing the graph structure when required.
+    call_graph: nx.DiGraph[MonoDefId, CallGraphData]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -248,6 +269,7 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
+        self.call_graph = nx.DiGraph()
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
@@ -329,6 +351,15 @@ class CompilationEngine:
             arg.visit(finder)
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
+
+    def register_call_graph_node(self, mono_id: MonoDefId) -> None:
+        """Ensures a monomorphized definition is registered in the call graph.
+        Required before edges can be added from the node, but not to it.
+        """
+        if mono_id not in self.call_graph:
+            self.call_graph.add_node(mono_id)
+            self.call_graph.nodes[mono_id]["effects"] = set()
+            self.call_graph.nodes[mono_id]["computed"] = False
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.

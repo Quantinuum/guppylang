@@ -55,6 +55,7 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.compiler.builder import DFBuilder
+    from guppylang_internals.tys import Effect
 
 CompiledLocals = dict[PlaceId, Wire]
 
@@ -189,6 +190,15 @@ class CompilerContext(ToHugrContext):
         )
         self.global_funcs[const_id, mono_args] = func
         return func, False
+
+    def get_effects(self, id: DefId, inst: Inst) -> frozenset["Effect"]:
+        from guppylang_internals.checker.effects_checker import compute_effects
+        from guppylang_internals.engine import ENGINE
+
+        data = ENGINE.call_graph.nodes[(id, inst)]
+        if not data["computed"]:
+            compute_effects()
+        return frozenset(data["effects"])
 
 
 @dataclass

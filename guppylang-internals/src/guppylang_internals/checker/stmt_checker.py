@@ -415,9 +415,12 @@ class StmtChecker(AstVisitor[BBStatement]):
 
         if not self.bb:
             raise InternalGuppyError("BB required to check with block!")
-
+        if not self.ctx.current_caller:
+            raise InternalGuppyError("current_caller required to check with block!")
         # check the body of the modified block
-        checked_modified_block = check_modified_block(node, self.bb, self.ctx)
+        checked_modified_block = check_modified_block(
+            node, self.bb, self.ctx, current_caller=self.ctx.current_caller
+        )
 
         # check the arguments of the control and power.
         for control in checked_modified_block.control:

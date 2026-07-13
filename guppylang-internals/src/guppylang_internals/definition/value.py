@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from hugr import Node, Wire
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.definition.common import CompiledDef, Definition
+from guppylang_internals.definition.common import CompiledDef, DefId, Definition
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
 
@@ -37,9 +37,18 @@ class CompiledValueDef(ValueDef, CompiledDef):
 
 @dataclass(frozen=True)
 class CallableDef(ValueDef):
-    """Abstract base class for definitions that represent functions."""
+    """Abstract base class for definitions that represent functions and to which
+    calls can be type-checked."""
 
     ty: FunctionType
+
+    @abstractproperty
+    def call_effects(self) -> Iterable["Effect"] | DefId:
+        """Return either
+        * the maximum set of effects that may occur when calling the function with
+          the given instantiation; or
+        * the DefId for which (along with the instantiation) the effects should be
+          computed"""
 
     @abstractmethod
     def check_call(
@@ -57,8 +66,11 @@ class CallableDef(ValueDef):
         raise RuntimeError("Guppy functions can only be called in a Guppy context")
 
 
-class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, unused-ignore]
-    """Abstract base class a global module-level function."""
+class CompiledCallableDef(CompiledValueDef):
+    """Abstract base class for anything that compiles to a Hugr function (necessarily)
+    at module-level)."""
+
+    ty: FunctionType
 
     @abstractproperty
     def call_effects(self) -> Iterable["Effect"]:
