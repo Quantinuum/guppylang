@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -81,6 +81,14 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     defined_at: ast.FunctionDef
 
     @property
+    def call_effects(self) -> Iterable[Effect]:
+        # We can't compute the effects until after we've done tracing, which until the
+        # the big tracing refactor https://github.com/Quantinuum/guppylang/issues/1592
+        # is in compilation. That's too late to help during checking, so for now
+        # we just return the most conservative approximation.
+        return [Effect.ANY]
+
+    @property
     def params(self) -> Sequence[Parameter]:
         """Generic parameters of this function."""
         return self.ty.params
@@ -112,7 +120,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self.id)
+        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, subst
 
@@ -122,7 +130,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     ) -> tuple[ast.expr, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self.id)
+        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, ty
 
@@ -171,16 +179,6 @@ class CompiledTracedFunctionDef(
     TracedMonoFunctionDef, CompiledCallableDef, CompiledHugrNodeDef
 ):
     func_def: hf.Function
-
-    @override
-    @property
-    def call_effects(self) -> frozenset[Effect]:
-        """The maximum set of effects that may occur when calling the function."""
-        # For now, an approximation. (We said, may occur.)
-        # Unfortunately we can't compute this at callgraph time because we don't
-        # trace the function until late in compilation :(. IOW we need the big
-        # tracing refactor (issue link...???) # ALAN
-        return frozenset([Effect.ANY])
 
     @property
     def hugr_node(self) -> Node:

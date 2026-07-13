@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
@@ -33,39 +32,8 @@ def compute_effects() -> Mapping["MonoDefId", frozenset[Effect]]:
     for mono_def_id, data in ENGINE.call_graph.items():
         effects = set(data.other_callee_effects)
         for tgt in data.callee_defs:
-            if tgt in call_graph:
-                call_graph.add_edge(mono_def_id, tgt)
-            else:
-                # ALAN TODO we should probably pass in a CallableDef, or similar,
-                # rather than DefId, and give that a get-effects method that returns
-                # either a set of effects or a MonoDefId "callgraph node" to compute.
-                from guppylang_internals.definition.declaration import (
-                    ParsedFunctionDecl,
-                )
-                from guppylang_internals.definition.function import ParsedFunctionDef
-                from guppylang_internals.definition.pytket_circuits import (
-                    ParsedPytketDef,
-                )
-                from guppylang_internals.definition.traced import RawTracedFunctionDef
-
-                (def_id, _inst) = tgt
-                match ENGINE.get_parsed(def_id):
-                    case RawTracedFunctionDef():
-                        # ALAN effect info not available yet...would be good to use
-                        # CompiledTracedFunctionDef.call_effects
-                        effects.update([Effect.ANY])
-                    case ParsedFunctionDef(ty=ty):
-                        assert len(ty.params) > 0
-                        # Comptime params - ALAN are instantiations recorded?
-                        # In principle it's same as previous and we have to:
-                        effects.update([Effect.ANY])
-                    case ParsedFunctionDecl():
-                        # No effect annotations on decls yet
-                        effects.update([Effect.ANY])
-                    case ParsedPytketDef():
-                        pass  # Pure!
-                    case x:
-                        raise InternalGuppyError(f"Unknown function defn {type(x)}")
+            assert tgt in call_graph
+            call_graph.add_edge(mono_def_id, tgt)
         call_graph.nodes[mono_def_id]["effects"] = effects
 
     # Then compute strongly components to find cycles in the call graph. Every node

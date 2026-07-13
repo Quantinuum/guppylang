@@ -28,7 +28,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, NoReturn, cast
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -95,7 +95,7 @@ from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
-from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -1511,17 +1511,25 @@ def _identify_callee(node: ast.expr) -> str | None:
 
 def _register_callee(
     ctx: Context,
-    callee: MonoDefId | Iterable[Effect],
+    callee: CallableDef | Iterable[Effect],
+    # Used only if callee is a CallableDef whose call_effects gives a DefId
+    inst: Inst,
 ) -> None:
     """Registers a function call in the call graph."""
-    assert (
-        ctx.current_caller is not None
-    )  # Not set for e.g. comptime but should be here
+    # current_caller is not set for e.g. comptime but should be here:
+    assert ctx.current_caller is not None
     data = ENGINE.call_graph[ctx.current_caller]
-    if isinstance(callee, tuple) and len(callee) == 2 and isinstance(callee[0], DefId):
-        data.callee_defs.append(callee)
+    effects: Iterable[Effect]
+    if isinstance(callee, CallableDef):
+        match callee.call_effects:
+            case DefId() as id:
+                data.callee_defs.append((id, inst))
+                return
+            case fx:
+                effects = fx
     else:
-        data.other_callee_effects.extend(cast("Iterable[Effect]", callee))
+        effects = callee
+    data.other_callee_effects.extend(effects)
 
 
 def synthesize_call(
@@ -1529,7 +1537,7 @@ def synthesize_call(
     args: list[ast.expr],
     node: AstNode,
     ctx: Context,
-    callee: DefId | Iterable[Effect],
+    callee: CallableDef | Iterable[Effect],
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1561,7 +1569,7 @@ def synthesize_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, (callee, inst) if isinstance(callee, DefId) else callee)
+    _register_callee(ctx, callee, inst)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1572,7 +1580,7 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
-    callee: DefId | Iterable[Effect],
+    callee: CallableDef | Iterable[Effect],
     *,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
@@ -1662,7 +1670,7 @@ def check_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, (callee, inst) if isinstance(callee, DefId) else callee)
+    _register_callee(ctx, callee, inst)
 
     return inputs, subst, inst
 

@@ -186,6 +186,12 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
     description: str = field(default="pytket circuit", init=False)
 
+    @property
+    def call_effects(self) -> Iterable[Effect]:
+        # Pytket circuits never have side-effects as they contain only pure quantum
+        # gates (no qalloc, no panic).
+        return []
+
     @override
     def compile_outer(
         self, module: DefinitionBuilder[OpVar], ctx: CompilerContext
@@ -364,7 +370,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self.id)
+        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, subst
 
@@ -374,7 +380,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     ) -> tuple[ast.expr, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self.id)
+        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self)
         node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
         return node, ty
 
@@ -396,12 +402,6 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
     """
 
     func_def: hf.Function
-
-    @property
-    def call_effects(self) -> Iterable[Effect]:
-        # Pytket circuits never have side-effects as they contain only pure quantum
-        # gates (no qalloc, no panic).
-        return []
 
     @property
     def hugr_node(self) -> Node:
