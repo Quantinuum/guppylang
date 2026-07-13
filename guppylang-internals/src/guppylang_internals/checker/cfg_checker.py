@@ -240,9 +240,6 @@ class BranchTypeError(Error):
 
     @dataclass(frozen=True)
     class CoerceOneHint(Help):
-        span_label: ClassVar[str] = (
-            "Consider adding a type annotation: `{var}: {ty} = ...`"
-        )
         var: str
         ty: Type
 
@@ -254,9 +251,6 @@ class BranchTypeError(Error):
 
     @dataclass(frozen=True)
     class CoerceBothHint(Help):
-        message: ClassVar[str] = (
-            "Consider adding type annotations{extra}: `{var}: {ty} = ...`"
-        )
         var: str
         ty: str
         extra: str = ""
