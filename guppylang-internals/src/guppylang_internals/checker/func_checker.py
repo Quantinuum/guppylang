@@ -228,10 +228,12 @@ def check_nested_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     def_id = DefId.fresh()
+    mono_args: Inst = ()
+
     # We'll store nested functions in the call graph under their own DefIDs,
     # but calls to them are likely to be via local variables (that can be reassigned)
     # so will be assigned all effects rather than that of the actual target.
-    ENGINE.call_graph[(def_id, ())] = CallGraphData()
+    ENGINE.call_graph[(def_id, mono_args)] = CallGraphData()
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,
@@ -288,7 +290,6 @@ def check_nested_func_def(
 
     from guppylang_internals.definition.function import CheckedFunctionDef
 
-    mono_args: Inst = ()
     ENGINE.checked[(def_id, mono_args)] = CheckedFunctionDef(
         def_id,
         func_def.name,
@@ -299,7 +300,6 @@ def check_nested_func_def(
         mono_args,
         checked_cfg,
     )
-    ENGINE.call_graph[(def_id, mono_args)] = CallGraphData()
     return with_loc(func_def, checked_def)
 
 
