@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -15,18 +16,12 @@ class CallGraphData:
     """Node in the call graph representing a function with its effect limit
     declaration."""
 
-    # calls to other definitions whose effects will, or at least may, be computed
-    # by the analysis (ALAN TODO: restrict to defs which are nodes, just take effects
-    # from rest)
+    # calls to definitions, each with AST of the call
     callee_defs: list["MonoDefId"] = field(default_factory=list)
-    # effects of other callees; and callee_defs which have been analysed by
-    # compute_effects
-    effects: set[Effect] = field(default_factory=set)
-
-    computed: bool = field(init=False, default=False)
+    other_callee_effects: list[Effect] = field(default_factory=list)
 
 
-def compute_effects() -> None:
+def compute_effects() -> Mapping["MonoDefId", frozenset[Effect]]:
     """Computes the effects of functions in the program, checking that they
     respect the declared effect limits. This should be called after a call graph
     has been constructed during checking."""
@@ -36,6 +31,7 @@ def compute_effects() -> None:
     call_graph: nx.DiGraph[MonoDefId] = nx.DiGraph()
     call_graph.add_nodes_from(ENGINE.call_graph.keys())
     for mono_def_id, data in ENGINE.call_graph.items():
+        effects = set(data.other_callee_effects)
         for tgt in data.callee_defs:
             if tgt in call_graph:
                 call_graph.add_edge(mono_def_id, tgt)
@@ -57,20 +53,20 @@ def compute_effects() -> None:
                     case RawTracedFunctionDef():
                         # ALAN effect info not available yet...would be good to use
                         # CompiledTracedFunctionDef.call_effects
-                        data.effects.update([Effect.ANY])
+                        effects.update([Effect.ANY])
                     case ParsedFunctionDef(ty=ty):
                         assert len(ty.params) > 0
                         # Comptime params - ALAN are instantiations recorded?
                         # In principle it's same as previous and we have to:
-                        data.effects.update([Effect.ANY])
+                        effects.update([Effect.ANY])
                     case ParsedFunctionDecl():
                         # No effect annotations on decls yet
-                        data.effects.update([Effect.ANY])
+                        effects.update([Effect.ANY])
                     case ParsedPytketDef():
                         pass  # Pure!
                     case x:
                         raise InternalGuppyError(f"Unknown function defn {type(x)}")
-        call_graph.nodes[mono_def_id]["effects"] = data.effects
+        call_graph.nodes[mono_def_id]["effects"] = effects
 
     # Then compute strongly components to find cycles in the call graph. Every node
     # in a component must have the same effects.
@@ -80,6 +76,7 @@ def compute_effects() -> None:
     # These two store the same info but for access during SCC traversal
     # and for compilation later
     component_effects: dict[int, frozenset[Effect]] = {}
+    mapping: dict[MonoDefId, frozenset[Effect]] = {}
 
     # Start in the leaves of the condensed graph and work up to the roots, so that we
     # can compute the effects of a component based on the effects of its callees.
@@ -91,17 +88,11 @@ def compute_effects() -> None:
         for succ in condensed.successors(component):
             effects.update(component_effects[succ])
 
-        component_effects[component] = frozenset(effects)
+        fx = frozenset(effects)
+        component_effects[component] = fx
 
         # Apply inferred effects to all members of each component.
-        # Storing in the callgraph is not wrong (repeating the analysis
-        # would produce the same result) - and means that adding more edges
-        # to ENGINE.call_graph merely needs another call to compute_effects()
-        # to update taking those edges into account.
         for def_id in members:
-            data = ENGINE.call_graph[def_id]
-            if data.computed:
-                assert data.effects == effects
-            else:
-                data.effects = set(effects)
-                data.computed = True
+            mapping[def_id] = fx
+
+    return mapping

@@ -492,7 +492,7 @@ class CompilationEngine:
         from guppylang_internals.checker.effects_checker import compute_effects
 
         # Run effects checking based on call graph analysis.
-        compute_effects()
+        effects = compute_effects()
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -506,7 +506,7 @@ class CompilationEngine:
         frame = get_calling_frame()
         filename = frame.f_code.co_filename
 
-        ctx = CompilerContext(graph, set(def_ids), StringTable())
+        ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))

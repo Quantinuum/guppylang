@@ -87,7 +87,7 @@ def compile_local_func_def(
             mono_args,
             func.cfg,
             func_builder,
-            effects=ctx.get_effects(func.def_id, mono_args),
+            effects=ctx.effects[(func.def_id, mono_args)],
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 

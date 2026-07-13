@@ -1,5 +1,6 @@
 import itertools
 from abc import ABC
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -20,7 +21,6 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import compute_effects
 from guppylang_internals.compiler.builder import ops
 from guppylang_internals.definition.common import (
     CompilableDef,
@@ -109,10 +109,14 @@ class CompilerContext(ToHugrContext):
 
     metadata_file_table: StringTable
 
+    # Info computed from callgraph before compilation begins
+    effects: Mapping[MonoDefId, frozenset["Effect"]]
+
     def __init__(
         self,
         module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
+        effects: Mapping[MonoDefId, frozenset["Effect"]],
         file_table: StringTable | None = None,
     ) -> None:
         self.module = module
@@ -120,6 +124,7 @@ class CompilerContext(ToHugrContext):
         self.compiled = {}
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
+        self.effects = effects
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )
@@ -191,13 +196,6 @@ class CompilerContext(ToHugrContext):
         )
         self.global_funcs[const_id, mono_args] = func
         return func, False
-
-    def get_effects(self, id: DefId, mono_args: Inst) -> frozenset["Effect"]:
-        """Returns the effects of the given definition."""
-        data = ENGINE.call_graph[id, mono_args]
-        if not data.computed:
-            compute_effects()
-        return frozenset(data.effects)
 
 
 @dataclass
