@@ -35,7 +35,8 @@ class CompiledValueDef(ValueDef, CompiledDef):
 
 @dataclass(frozen=True)
 class CallableDef(ValueDef):
-    """Abstract base class for definitions that represent functions."""
+    """Abstract base class for definitions that represent functions and to which
+    calls can be type-checked."""
 
     ty: FunctionType
 
@@ -55,8 +56,11 @@ class CallableDef(ValueDef):
         raise RuntimeError("Guppy functions can only be called in a Guppy context")
 
 
-class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, unused-ignore]
-    """Abstract base class a global module-level function."""
+class CompiledCallableDef(CompiledValueDef):  # type: ignore[misc, unused-ignore]
+    """Abstract base class for anything that compiles to a Hugr function (necessarily)
+    at module-level)."""
+
+    ty: FunctionType
 
     @abstractmethod
     def compile_call(
