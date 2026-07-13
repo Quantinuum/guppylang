@@ -56,7 +56,7 @@ class CallableDef(ValueDef):
         raise RuntimeError("Guppy functions can only be called in a Guppy context")
 
 
-class CompiledCallableDef(CompiledValueDef):  # type: ignore[misc, unused-ignore]
+class CompiledCallableDef(CompiledValueDef):
     """Abstract base class for anything that compiles to a Hugr function (necessarily)
     at module-level)."""
 
