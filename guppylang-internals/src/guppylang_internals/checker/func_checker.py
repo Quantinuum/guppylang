@@ -15,7 +15,6 @@ from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.builder import CFGBuilder
 from guppylang_internals.checker.cfg_checker import CheckedCFG, check_cfg
 from guppylang_internals.checker.core import Context, Globals, Place, Variable
-from guppylang_internals.checker.effects_checker import CallGraphData
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.definition.common import DefId
@@ -160,8 +159,8 @@ def check_global_func_def(
     }
 
     current_caller = (def_id, type_args)
-    assert current_caller not in ENGINE.call_graph
-    ENGINE.call_graph[current_caller] = CallGraphData()
+    # if current_caller not in ENGINE.call_graph:
+    ENGINE.register_call_graph_node(current_caller)
 
     return check_cfg(
         cfg,
@@ -230,10 +229,10 @@ def check_nested_func_def(
     def_id = DefId.fresh()
     mono_args: Inst = ()
 
-    # We'll store nested functions in the call graph under their own DefIDs,
-    # but calls to them are likely to be via local variables (that can be reassigned)
-    # so will be assigned all effects rather than that of the actual target.
-    ENGINE.call_graph[(def_id, mono_args)] = CallGraphData()
+    # Store nested functions in the call graph under their own DefIDs,
+    # although calls to them will be via local variables until we solve
+    # https://github.com/Quantinuum/guppylang/issues/2038
+    ENGINE.register_call_graph_node((def_id, mono_args))
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,

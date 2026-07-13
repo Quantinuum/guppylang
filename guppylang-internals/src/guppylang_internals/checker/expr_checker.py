@@ -95,7 +95,7 @@ from guppylang_internals.definition.common import DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, ValueDef
-from guppylang_internals.engine import DEF_STORE, ENGINE
+from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -637,8 +637,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_Attribute(self, node: ast.Attribute) -> tuple[ast.expr, Type]:
         from guppylang.defs import GuppyDefinition
-
-        from guppylang_internals.engine import ENGINE
 
         # A `value.attr` attribute access. Unfortunately, the `attr` is just a string,
         # not an AST node, so we have to compute its span by hand. This is fine since
@@ -1509,6 +1507,14 @@ def _identify_callee(node: ast.expr) -> str | None:
             return None
 
 
+def _mark_stale(node: MonoDefId) -> None:
+    data = ENGINE.call_graph.nodes[node]
+    if data["computed"]:
+        data["computed"] = False
+        for pred in ENGINE.call_graph.predecessors(node):
+            _mark_stale(pred)
+
+
 def _register_callee(
     ctx: Context,
     callee: CallableDef | Iterable[Effect],
@@ -1516,20 +1522,29 @@ def _register_callee(
     inst: Inst,
 ) -> None:
     """Registers a function call in the call graph."""
+
     # current_caller is not set for e.g. comptime but should be here:
     assert ctx.current_caller is not None
-    data = ENGINE.call_graph[ctx.current_caller]
+    data = ENGINE.call_graph.nodes[ctx.current_caller]
     effects: Iterable[Effect]
     if isinstance(callee, CallableDef):
         match callee.call_effects:
             case DefId() as id:
-                data.callee_defs.append((id, inst))
+                tgt = (id, inst)
+                if tgt not in ENGINE.call_graph:
+                    # ALAN should be on worklist somewhere or something
+                    ENGINE.register_call_graph_node(tgt)
+                if not ENGINE.call_graph.has_edge(ctx.current_caller, tgt):
+                    ENGINE.call_graph.add_edge(ctx.current_caller, tgt)
+                    _mark_stale(ctx.current_caller)
                 return
             case fx:
                 effects = fx
     else:
         effects = callee
-    data.other_callee_effects.extend(effects)
+    if not data["effects"].issuperset(effects):
+        data["effects"].update(effects)
+        _mark_stale(ctx.current_caller)
 
 
 def synthesize_call(

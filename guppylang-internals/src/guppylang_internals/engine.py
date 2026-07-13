@@ -4,10 +4,11 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, cast
+from typing import ClassVar, TypedDict, cast
 
 import hugr
 import hugr.build.function as hf
+import networkx as nx
 from hugr import ops
 from hugr.debug_info import DICompileUnit
 from hugr.envelope import ExtensionDesc, GeneratorDesc
@@ -18,7 +19,6 @@ from semver import Version
 from typing_extensions import assert_never
 
 import guppylang_internals
-from guppylang_internals.checker.effects_checker import CallGraphData
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -47,6 +47,7 @@ from guppylang_internals.metadata.debug_info_util import (
     StringTable,
 )
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
@@ -190,6 +191,20 @@ class MonoArgsNote(Note):
         )
 
 
+@dataclass
+class CallGraphData(TypedDict):
+    """Data for a node in the call graph. Calls to other definitions that are nodes
+    are represented by edges."""
+
+    """Effects of calls to definitions that are not nodes in the call graph,
+    e.g. external functions; and perhaps other effects from callees.
+    Completely captures all the latter if `computed` is True."""
+    effects: set[Effect]
+    """ True if the effects for this node have been computed to include
+    all outgoing edges."""
+    computed: bool
+
+
 class CompilationEngine:
     """Main compiler driver handling checking and compiling of definitions.
 
@@ -211,9 +226,10 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
-    #: Call graph mapping from caller to list of callees. Populated during type checking
-    # as calls are checked, to be then used for effects checking.
-    call_graph: dict[MonoDefId, CallGraphData]
+    # Call graph. Each node (a MonoDefId) mapping from caller to list of callees.
+    # Populated during checking and tracing as calls are found, the effects are then
+    # computed by analysing the graph structure when required.
+    call_graph: nx.DiGraph[MonoDefId, CallGraphData]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -253,7 +269,7 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
-        self.call_graph = {}
+        self.call_graph = nx.DiGraph()
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
@@ -335,6 +351,23 @@ class CompilationEngine:
             arg.visit(finder)
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
+        if isinstance(defn, CallableDef):
+            id_or_effects = defn.call_effects
+            if isinstance(id_or_effects, DefId):
+                tgt = (id_or_effects, type_args)
+                if tgt not in self.call_graph:
+                    self.register_call_graph_node(tgt)
+
+    def register_call_graph_node(self, mono_id: MonoDefId) -> None:
+        """Registers a node in the call graph for a monomorphized definition.
+
+        This is used to ensure that the call graph contains all nodes, even if they
+        don't have any edges (e.g. for functions that don't call any other functions).
+        """
+        assert mono_id not in self.call_graph
+        self.call_graph.add_node(mono_id)
+        self.call_graph.nodes[mono_id]["effects"] = set()
+        self.call_graph.nodes[mono_id]["computed"] = False
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.
@@ -489,11 +522,6 @@ class CompilationEngine:
     ) -> tuple[ModulePointer, list[CompiledDef]]:
         self.check(def_ids, reset=reset)
 
-        from guppylang_internals.checker.effects_checker import compute_effects
-
-        # Run effects checking based on call graph analysis.
-        effects = compute_effects()
-
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
@@ -506,7 +534,7 @@ class CompilationEngine:
         frame = get_calling_frame()
         filename = frame.f_code.co_filename
 
-        ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
+        ctx = CompilerContext(graph, set(def_ids), StringTable())
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
