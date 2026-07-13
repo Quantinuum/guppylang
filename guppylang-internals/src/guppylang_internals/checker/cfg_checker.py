@@ -246,6 +246,12 @@ class BranchTypeError(Error):
         var: str
         ty: Type
 
+        @property
+        def rendered_span_label(self) -> str:
+            if is_tmp_var(self.var):
+                return f"Consider coercing this value to `{self.ty}`"
+            return f"Consider adding a type annotation: `{self.var}: {self.ty} = ...`"
+
     @dataclass(frozen=True)
     class CoerceBothHint(Help):
         message: ClassVar[str] = (
@@ -254,6 +260,15 @@ class BranchTypeError(Error):
         var: str
         ty: str
         extra: str = ""
+
+        @property
+        def rendered_message(self) -> str:
+            if is_tmp_var(self.var):
+                return f"Consider coercing both values to `{self.ty}`"
+            return (
+                f"Consider adding type annotations{self.extra}: "
+                f"`{self.var}: {self.ty} = ...`"
+            )
 
 
 @dataclass(frozen=True)
@@ -428,8 +443,6 @@ def maybe_coerce_hint(v1: Variable, v2: Variable) -> Help | None:
     coercions that fix a type mismatch across different control-flow paths."""
     assert v1.name == v2.name
     assert v1.ty != v2.ty
-    if is_tmp_var(v1.name):
-        return None
     if coerces_to(v1.ty, v2.ty):
         return BranchTypeError.CoerceOneHint(v1.defined_at, v1.name, v2.ty)
     if coerces_to(v2.ty, v1.ty):

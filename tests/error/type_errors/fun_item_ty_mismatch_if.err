@@ -14,4 +14,6 @@ Notes:
 14 |     baz = foo if b else bar
    |                         --- This is of type `def bar() -> int`
 
+Help: Consider coercing both values to `Function[[], int]`
+
 Guppy compilation failed due to 1 previous error
