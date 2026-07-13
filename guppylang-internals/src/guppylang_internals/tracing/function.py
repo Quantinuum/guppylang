@@ -81,8 +81,8 @@ def trace_function(
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
-    # ALAN need an Inst here?
-    mono_id = (func_def.id, ())
+    inst = tuple(generic_args.values())  # Relying on deterministic ordering of dicts
+    mono_id = (func_def.id, inst)
     ENGINE.register_call_graph_node(mono_id)
     state = TracingState(
         ctx, DFContainer(builder, ctx, {}), node, func_def, current_caller=mono_id
