@@ -351,23 +351,15 @@ class CompilationEngine:
             arg.visit(finder)
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
-        if isinstance(defn, CallableDef):
-            id_or_effects = defn.call_effects
-            if isinstance(id_or_effects, DefId):
-                tgt = (id_or_effects, type_args)
-                if tgt not in self.call_graph:
-                    self.register_call_graph_node(tgt)
 
     def register_call_graph_node(self, mono_id: MonoDefId) -> None:
-        """Registers a node in the call graph for a monomorphized definition.
-
-        This is used to ensure that the call graph contains all nodes, even if they
-        don't have any edges (e.g. for functions that don't call any other functions).
+        """Ensures a monomorphized definition is registered in the call graph.
+        Required before edges can be added from the node, but not to it.
         """
-        assert mono_id not in self.call_graph
-        self.call_graph.add_node(mono_id)
-        self.call_graph.nodes[mono_id]["effects"] = set()
-        self.call_graph.nodes[mono_id]["computed"] = False
+        if mono_id not in self.call_graph:
+            self.call_graph.add_node(mono_id)
+            self.call_graph.nodes[mono_id]["effects"] = set()
+            self.call_graph.nodes[mono_id]["computed"] = False
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.

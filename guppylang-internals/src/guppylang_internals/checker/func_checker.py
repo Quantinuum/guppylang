@@ -159,7 +159,6 @@ def check_global_func_def(
     }
 
     current_caller = (def_id, type_args)
-    # if current_caller not in ENGINE.call_graph:
     ENGINE.register_call_graph_node(current_caller)
 
     return check_cfg(

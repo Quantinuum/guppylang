@@ -1525,15 +1525,14 @@ def _register_callee(
 
     # current_caller is not set for e.g. comptime but should be here:
     assert ctx.current_caller is not None
+    assert ENGINE.call_graph.has_node(ctx.current_caller)
     data = ENGINE.call_graph.nodes[ctx.current_caller]
     effects: Iterable[Effect]
     if isinstance(callee, CallableDef):
         match callee.call_effects:
             case DefId() as id:
                 tgt = (id, inst)
-                if tgt not in ENGINE.call_graph:
-                    # ALAN should be on worklist somewhere or something
-                    ENGINE.register_call_graph_node(tgt)
+                ENGINE.register_call_graph_node(tgt)
                 if not ENGINE.call_graph.has_edge(ctx.current_caller, tgt):
                     ENGINE.call_graph.add_edge(ctx.current_caller, tgt)
                     _mark_stale(ctx.current_caller)

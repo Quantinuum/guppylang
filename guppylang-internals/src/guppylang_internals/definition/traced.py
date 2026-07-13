@@ -82,9 +82,9 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
 
     @property
     def call_effects(self) -> Iterable[Effect]:
-        # We can't compute the effects until after we've done tracing, which until the
+        # We can't compute the effects until after we've finished tracing, which until
         # the big tracing refactor https://github.com/Quantinuum/guppylang/issues/1592
-        # is in compilation. That's too late to help during checking, so for now
+        # is during compilation. That's too late to help during checking, so for now
         # we just return the most conservative approximation.
         return [Effect.ANY]
 
