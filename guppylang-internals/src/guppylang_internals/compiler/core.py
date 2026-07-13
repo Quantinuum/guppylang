@@ -20,6 +20,7 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
+from guppylang_internals.checker.effects_checker import compute_effects
 from guppylang_internals.compiler.builder import ops
 from guppylang_internals.definition.common import (
     CompilableDef,
@@ -193,9 +194,10 @@ class CompilerContext(ToHugrContext):
 
     def get_effects(self, id: DefId, mono_args: Inst) -> frozenset["Effect"]:
         """Returns the effects of the given definition."""
-        # ALAN think that call-graph may have had new edges added
-        # without re-calling compute_effects, so this is probably stale.
-        return frozenset(ENGINE.call_graph[id, mono_args].effects)
+        data = ENGINE.call_graph[id, mono_args]
+        if not data.computed:
+            compute_effects()
+        return frozenset(data.effects)
 
 
 @dataclass

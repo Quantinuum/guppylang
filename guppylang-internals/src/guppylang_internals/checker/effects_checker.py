@@ -23,6 +23,8 @@ class CallGraphData:
     # compute_effects
     effects: set[Effect] = field(default_factory=set)
 
+    computed: bool = field(init=False, default=False)
+
 
 def compute_effects() -> None:
     """Computes the effects of functions in the program, checking that they
@@ -97,4 +99,9 @@ def compute_effects() -> None:
         # to ENGINE.call_graph merely needs another call to compute_effects()
         # to update taking those edges into account.
         for def_id in members:
-            ENGINE.call_graph[def_id].effects = set(effects)
+            data = ENGINE.call_graph[def_id]
+            if data.computed:
+                assert data.effects == effects
+            else:
+                data.effects = set(effects)
+                data.computed = True

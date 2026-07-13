@@ -1518,6 +1518,12 @@ def _register_callee(
         ctx.current_caller is not None
     )  # Not set for e.g. comptime but should be here
     data = ENGINE.call_graph[ctx.current_caller]
+    # We could *almost* just mark the node as dirty and recompute -
+    # but we'd also need to mark every caller of this function as dirty,
+    # so probably the whole call_graph... however, we believe new edges should
+    # not be added to existing nodes after computation, only new nodes+edges
+    # to existing ones, so this is just to check that.
+    assert not data.computed, "No new edges after computation"
     if isinstance(callee, tuple) and len(callee) == 2 and isinstance(callee[0], DefId):
         data.callee_defs.append(callee)
     else:
