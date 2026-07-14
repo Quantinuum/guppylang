@@ -380,14 +380,6 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
 
-            from guppylang_internals.definition.protocol import ParsedProtocolDef
-
-            # This would correspond to something like:
-            #   Callable(x,y)
-            # ...but even picking a protocol which it might make sense to call,
-            # that still doesn't.
-            assert not isinstance(defn, ParsedProtocolDef)
-
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
             node.args = [*node.func.args, *node.args]
@@ -993,14 +985,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
                 return defn.synthesize_call(node.args, node, self.ctx)
-
-            from guppylang_internals.definition.protocol import ParsedProtocolDef
-
-            # This would correspond to some source code like
-            #   Callable(x)
-            # but even picking a protocol which supports some notion of calling,
-            # this still makes no sense.
-            assert not isinstance(defn, ParsedProtocolDef)
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
