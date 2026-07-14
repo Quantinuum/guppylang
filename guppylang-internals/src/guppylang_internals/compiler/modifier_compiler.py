@@ -21,6 +21,7 @@ from guppylang_internals.std._internal.compiler.array import (
     unpack_array,
 )
 from guppylang_internals.std._internal.compiler.tket_exts import MODIFIER_EXTENSION
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import int_type, is_array_type
 from guppylang_internals.tys.ty import InputFlags
 
@@ -68,7 +69,9 @@ def compile_modified_block(
     # compile body
     cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
     func_builder.set_outputs(*cfg)
-    effects = func_builder._last_side_effect.keys()
+    # EFFECTS we should pull out the actual effects from func_builder,
+    # e.g. func_builder._last_side_effect.keys(), but preserving previous behaviour
+    effects = [Effect.ANY]
 
     # Add the LoadFunc node
     call = dfg.builder.load_function(func_builder, hugr_ty)

@@ -12,7 +12,6 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     WASM_EXTENSION,
     ConstWasmModule,
 )
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import (
     wasm_module_name,
 )
@@ -38,7 +37,8 @@ class WasmModuleInitCompiler(CustomInoutCallCompiler):
             WASM_EXTENSION.get_op("get_context"),
             ht.FunctionType([ht.USize()], [ht.Option(ctx_ty)]),
         )
-        node = self.builder.add_op((get_ctx_op, [Effect.ANY]), ctx_wire)
+        # Should get_context / dispose_context have effects here?
+        node = self.builder.add_op(pure(get_ctx_op), ctx_wire)
         opt_w: Wire = node[0]
         err = "Failed to spawn WASM context"
         out_node = build_unwrap(self.builder, opt_w, err)
@@ -52,7 +52,8 @@ class WasmModuleDiscardCompiler(CustomInoutCallCompiler):
         assert len(args) == 1
         ctx = args[0]
         op = WASM_EXTENSION.get_op("dispose_context").instantiate([])
-        self.builder.add_op((op, [Effect.ANY]), ctx)
+        # Should get_context / dispose_context have effects here?
+        self.builder.add_op(pure(op), ctx)
         return CallReturnWires(regular_returns=[], inout_returns=[])
 
 

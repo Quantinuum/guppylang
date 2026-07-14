@@ -19,7 +19,6 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QUANTUM_EXTENSION,
     ROTATION_EXTENSION,
 )
-from guppylang_internals.tys import Effect
 
 # ----------------------------------------------
 # --------- tket.* extensions -----------------
@@ -34,14 +33,11 @@ ROTATION_T = ht.ExtType(ROTATION_T_DEF)
 
 
 def from_halfturns_unchecked() -> OpWithEffects:
-    """Return an operation that converts a float to a rotation,
-    panicking if the angle is not finite."""
-    return (
+    return pure(
         ops.ExtOp(
             ROTATION_EXTENSION.get_op("from_halfturns_unchecked"),
             ht.FunctionType([FLOAT_T], [ROTATION_T]),
         ),
-        [Effect.ANY],
     )
 
 
