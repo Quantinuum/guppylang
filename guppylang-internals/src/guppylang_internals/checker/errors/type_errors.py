@@ -518,3 +518,7 @@ class DontReturnProtocol(Error):
         "`{proto}` is a protocol, which is not allowed as a return type"
     )
     proto: str
+
+    @dataclass(frozen=True)
+    class FunctionInsteadOfCallable(Help):
+        message: ClassVar[str] = "Consider returning a `Function` type instead"
