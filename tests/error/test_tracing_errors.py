@@ -31,9 +31,4 @@ def test_tracing_errors(file: str, needs_experimental_features: bool, capsys, sn
     # Reset the tracing state by hand since the previous test catches the exception so
     # it's not reset
     reset_state()
-
-    if needs_experimental_features:
-        with experimental_features_enabled():
-            run_error_test(file, capsys, snapshot)
-    else:
-        run_error_test(file, capsys, snapshot)
+    run_error_test(file, capsys, snapshot, needs_experimental_features)

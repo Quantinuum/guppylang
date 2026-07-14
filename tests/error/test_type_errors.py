@@ -28,8 +28,4 @@ files_with_experimental_flag = [
 
 @pytest.mark.parametrize("file,needs_experimental_features", files_with_experimental_flag)
 def test_type_errors(file: str, needs_experimental_features: bool, capsys, snapshot):
-    if needs_experimental_features:
-        with experimental_features_enabled():
-            run_error_test(file, capsys, snapshot)
-    else:
-        run_error_test(file, capsys, snapshot)
+    run_error_test(file, capsys, snapshot, needs_experimental_features)
