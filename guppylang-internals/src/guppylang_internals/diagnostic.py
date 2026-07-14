@@ -10,11 +10,10 @@ from typing import (
     Final,
     Literal,
     Protocol,
+    Self,
     overload,
     runtime_checkable,
 )
-
-from typing_extensions import Self
 
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.span import Loc, SourceMap, Span, ToSpan, to_span

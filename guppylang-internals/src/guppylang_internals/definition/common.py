@@ -3,7 +3,7 @@ import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, ClassVar
 
 from hugr.build.dfg import DefinitionBuilder, OpVar
 
@@ -17,9 +17,9 @@ if TYPE_CHECKING:
     from guppylang_internals.tys.subst import Inst
 
 
-RawDef: TypeAlias = "ParsableDef | ParsedDef"
-ParsedDef: TypeAlias = "CheckableDef | CheckableGenericDef | CheckedDef"
-CheckedDef: TypeAlias = "CompilableDef | CompiledDef"
+type RawDef = "ParsableDef | ParsedDef"
+type ParsedDef = "CheckableDef | CheckableGenericDef | CheckedDef"
+type CheckedDef = "CompilableDef | CompiledDef"
 
 
 @dataclass(frozen=True)

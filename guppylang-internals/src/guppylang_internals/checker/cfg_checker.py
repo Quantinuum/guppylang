@@ -9,7 +9,7 @@ import collections
 import itertools
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic, TypeVar
+from typing import ClassVar
 
 from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
@@ -20,7 +20,6 @@ from guppylang_internals.checker.core import (
     Globals,
     Locals,
     Place,
-    V,
     Variable,
 )
 from guppylang_internals.checker.expr_checker import (
@@ -34,11 +33,11 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.ty import FunctionDefType, InputFlags, Type
 
-Row = Sequence[V]
+type Row[V] = Sequence[V]
 
 
 @dataclass(frozen=True)
-class Signature(Generic[V]):
+class Signature[V]:
     """The signature of a basic block.
 
     Stores the input/output variables with their types. Generic over the representation
@@ -56,7 +55,7 @@ class Signature(Generic[V]):
 
 
 @dataclass(eq=False)  # Disable equality to recover hash from `object`
-class CheckedBB(BB, Generic[V]):
+class CheckedBB[V](BB):
     """Basic block annotated with an input and output type signature.
 
     The signature is generic over the representation of program variables.
@@ -65,7 +64,7 @@ class CheckedBB(BB, Generic[V]):
     sig: Signature[V] = field(default_factory=Signature.empty)
 
 
-class CheckedCFG(BaseCFG[CheckedBB[V]], Generic[V]):
+class CheckedCFG[V](BaseCFG[CheckedBB[V]]):
     input_tys: list[Type]
     output_ty: Type
 
@@ -483,10 +482,7 @@ def diagnose_maybe_undefined(
     return None
 
 
-T = TypeVar("T")
-
-
-def reverse_enumerate(xs: list[T]) -> Iterator[tuple[int, T]]:
+def reverse_enumerate[T](xs: list[T]) -> Iterator[tuple[int, T]]:
     """Enumerates a list in reverse order.
 
     Equivalent to `reversed(list(enumerate(data)))` without creating an intermediate

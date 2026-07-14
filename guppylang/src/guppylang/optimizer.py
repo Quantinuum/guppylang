@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
-    Generic,
     ParamSpec,
     TypeVar,
 )
@@ -75,7 +74,7 @@ def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package
 
 
 @dataclass(frozen=True)
-class OptimizerInstance(Generic[P, Out]):
+class OptimizerInstance[**P, Out]:
     """Builder used to configure optimizations for compiling a Guppy program."""
 
     definition: GuppyFunctionDefinition[P, Out]

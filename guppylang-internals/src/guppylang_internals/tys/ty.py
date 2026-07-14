@@ -3,12 +3,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, assert_never, cast
 
 import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
-from typing_extensions import assert_never
 
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import GuppyError, InternalGuppyError
@@ -949,9 +948,7 @@ class EnumType(ParametrizedTypeBase):
 
 
 #: The type of parametrized Guppy types.
-ParametrizedType: TypeAlias = (
-    FunctionType | TupleType | OpaqueType | StructType | EnumType
-)
+type ParametrizedType = FunctionType | TupleType | OpaqueType | StructType | EnumType
 
 
 #: The type of Guppy types.
@@ -963,7 +960,7 @@ ParametrizedType: TypeAlias = (
 #: This might become obsolete in case the @sealed decorator is added:
 #:   * https://peps.python.org/pep-0622/#sealed-classes-as-algebraic-data-types
 #:   * https://github.com/johnthagen/sealed-typing-pep
-Type: TypeAlias = (
+type Type = (
     BoundTypeVar
     | ExistentialTypeVar
     | NumericType
@@ -973,7 +970,7 @@ Type: TypeAlias = (
 )
 
 #: An immutable row of Guppy types.
-TypeRow: TypeAlias = Sequence[Type]
+type TypeRow = Sequence[Type]
 
 
 def row_to_type(row: TypeRow) -> Type:
@@ -1018,13 +1015,13 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
     match s, t:
         case ExistentialVar(id=s_id), ExistentialVar(id=t_id) if s_id == t_id:
             return subst
-        case ExistentialTypeVar() as s_var, t if isinstance(t, Type):
+        case ExistentialTypeVar() as s_var, t if isinstance(t, Type.__value__):
             return _unify_type_var(s_var, t, subst)
-        case ExistentialConstVar() as s_var, t if isinstance(t, Const):
+        case ExistentialConstVar() as s_var, t if isinstance(t, Const.__value__):
             return _unify_const_var(s_var, t, subst)
-        case s, ExistentialTypeVar() as t_var if isinstance(s, Type):
+        case s, ExistentialTypeVar() as t_var if isinstance(s, Type.__value__):
             return _unify_type_var(t_var, s, subst)
-        case s, ExistentialConstVar() as t_var if isinstance(s, Const):
+        case s, ExistentialConstVar() as t_var if isinstance(s, Const.__value__):
             return _unify_const_var(t_var, s, subst)
         case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
             return subst
@@ -1068,7 +1065,7 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
                 loc = DUMMY_SPAN  # We catch the error later so the span doesn't matter
                 _, proto_subst = proto.check_implemented_by(t, loc)
                 subst |= proto_subst
-            except GuppyError:  # noqa: PERF203
+            except GuppyError:
                 # At this point, we only use protocol checking to infer types. If the
                 # protocol is not satisfied, we still keep going. The error will be
                 # raised later when we check the inferred instantiation.
