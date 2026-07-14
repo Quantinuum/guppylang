@@ -8,8 +8,6 @@ from guppylang.experimental import (
     enable_experimental_features,
 )
 
-# guppylang.enable_experimental_features()
-
 
 def pytest_addoption(parser):
     def dir_path(s):
