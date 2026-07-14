@@ -174,7 +174,7 @@ def test_control_subscript_nested(validate):
     validate(main.compile())
 
 
-def test_power_simple(validate):
+def test_power_simple(validate, use_experimental_features):
     @guppy
     def bar(n: nat) -> None:
         with power(n):
@@ -421,7 +421,7 @@ def test_double_dagger_cancellation_1(validate):
     validate(bar.compile_function())
 
 
-def test_double_dagger_cancellation_2(validate):
+def test_double_dagger_cancellation_2(validate, use_experimental_features):
     @guppy(controllable=True)
     def not_dagger_func(q: qubit) -> None:
         pass

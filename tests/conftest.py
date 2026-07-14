@@ -1,9 +1,14 @@
 import argparse
+from contextlib import contextmanager
 from pathlib import Path
 
-import guppylang
+import pytest
+from guppylang.experimental import (
+    disable_experimental_features,
+    enable_experimental_features,
+)
 
-guppylang.enable_experimental_features()
+# guppylang.enable_experimental_features()
 
 
 def pytest_addoption(parser):
@@ -41,3 +46,18 @@ def pytest_addoption(parser):
         default="helios",
         help="Target qsystem platform for integration emulation tests",
     )
+
+
+@contextmanager
+def experimental_features_enabled():
+    """Enable experimental features and yield"""
+    enable_experimental_features()
+    yield
+    disable_experimental_features()
+
+
+@pytest.fixture
+def use_experimental_features():
+    """Fixture for enabling experimental features."""
+    with experimental_features_enabled():
+        yield

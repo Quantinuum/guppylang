@@ -438,7 +438,7 @@ def test_while_move_back(validate):
     validate(test.compile_function())
 
 
-def test_for(validate):
+def test_for(validate, use_experimental_features):
     @guppy
     def test(qs: list[tuple[qubit, qubit]] @ owned) -> list[qubit]:
         rs: list[qubit] = []
@@ -451,7 +451,7 @@ def test_for(validate):
     validate(test.compile_function())
 
 
-def test_for_measure(validate):
+def test_for_measure(validate, use_experimental_features):
     @guppy
     def test(qs: list[qubit] @ owned) -> bool:
         parity = False
@@ -462,7 +462,7 @@ def test_for_measure(validate):
     validate(test.compile_function())
 
 
-def test_for_continue(validate):
+def test_for_continue(validate, use_experimental_features):
     @guppy
     def test(qs: list[qubit] @ owned) -> int:
         x = 0
@@ -475,7 +475,7 @@ def test_for_continue(validate):
     validate(test.compile_function())
 
 
-def test_for_nonlinear_break(validate):
+def test_for_nonlinear_break(validate, use_experimental_features):
     @custom_type(lambda _, ctx: NoneType().to_hugr(ctx))
     class MyIter:
         """An iterator that yields linear values but is not linear itself."""
@@ -516,7 +516,7 @@ def test_rus(validate):
     validate(repeat_until_success.compile_function())
 
 
-def test_list_iter_arg(validate):
+def test_list_iter_arg(validate, use_experimental_features):
     @guppy
     def owned_arg(qs: list[qubit] @ owned) -> list[qubit]:
         qs = [h(q) for q in qs]
@@ -525,7 +525,7 @@ def test_list_iter_arg(validate):
     validate(owned_arg.compile_function())
 
 
-def test_list_iter(validate):
+def test_list_iter(validate, use_experimental_features):
     @guppy
     def owned_arg() -> list[qubit]:
         qs = [qubit() for _ in [0, 1, 2]]
