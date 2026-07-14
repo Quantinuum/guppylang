@@ -78,11 +78,13 @@ def test_add_metadata_metadata_already_set():
         add_metadata(node_metadata, additional_metadata={"preset-key": "preset-value"})
 
 
-def test_add_metadata_property_expected_qubits():
+def test_add_metadata_property_inline():
+    from tket.metadata import InlineAnnotation
+
     node_metadata = NodeMetadata({})
 
     guppy_metadata = FunctionMetadata()
-    guppy_metadata.set_expected_qubits(5)
+    guppy_metadata.set_inline("best_effort")
     add_metadata(node_metadata, guppy_metadata)
 
-    assert node_metadata.as_dict() == {"tket.hint.expected_qubits": 5}
+    assert node_metadata.as_dict() == {InlineAnnotation.KEY: "best_effort"}
