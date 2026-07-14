@@ -4,7 +4,7 @@ from guppylang.std.builtins import power
 @guppy
 def main(b: bool) -> None:
     x = 3
-    
+
     if b:
         y = 2
     a = i
@@ -13,5 +13,4 @@ def main(b: bool) -> None:
     a = y
 
 
-                
 main.check()

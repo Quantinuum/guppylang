@@ -1,15 +1,15 @@
-Error: Variable assigned in modifier block (at $FILE:10:8)
-   | 
- 8 |     with power(3):
- 9 |         i = 3
-10 |     u = i
-   |         ^ `i` cannot be used...
+Error: Variable assigned in modifier block (at $FILE:8:8)
+  | 
+6 |     with power(3):
+7 |         i = 3
+8 |     u = i
+  |         ^ `i` cannot be used...
 
 Note:
-   | 
- 8 |     with power(3):
- 9 |         i = 3
-   |         ----- ... since it was assigned in a modifier block
+  | 
+6 |     with power(3):
+7 |         i = 3
+  |         ----- ... since it was assigned in a modifier block
 
 Help: Variables assigned inside a modifier block are not available outside the
 block
