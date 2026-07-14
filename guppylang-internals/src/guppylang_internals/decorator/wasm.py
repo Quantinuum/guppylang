@@ -4,6 +4,7 @@ import pathlib
 from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
 
 from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.custom import MarkAsOwnedChecker
 from guppylang_internals.definition.wasm import RawWasmFunctionDef
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
 from guppylang_internals.engine import DEF_STORE
@@ -111,6 +112,7 @@ def _wasm_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinitio
         f,
         WasmCallChecker(),
         WasmModuleCallCompiler(f.__name__, fn_id),
+        MarkAsOwnedChecker(),
         True,
         signature=None,
         wasm_index=fn_id,

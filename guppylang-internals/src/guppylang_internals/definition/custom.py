@@ -109,6 +109,10 @@ class RawCustomFunctionDef(ParsableDef):
     call_checker: "CustomCallChecker"
     call_compiler: "CustomInoutCallCompiler"
 
+    # Provides functions to help with linearity checking if the function signature is
+    # missing.
+    linearity_checker: "CustomLinearityChecker"
+
     # Whether the function may be used as a higher-order value. This is only possible
     # if a static type for the function is provided.
     higher_order_value: bool
@@ -152,6 +156,7 @@ class RawCustomFunctionDef(ParsableDef):
             ty,
             self.call_checker,
             self.call_compiler,
+            self.linearity_checker,
             self.higher_order_value,
             GlobalConstId.fresh(self.name),
             sig is not None,
@@ -209,6 +214,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     defined_at: AstNode | None
     call_checker: "CustomCallChecker"
     call_compiler: "CustomInoutCallCompiler"
+    linearity_checker: "CustomLinearityChecker"
     higher_order_value: bool
     higher_order_func_id: GlobalConstId
     has_signature: bool
@@ -230,6 +236,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             mono_ty,
             self.call_checker,
             self.call_compiler,
+            self.linearity_checker,
             self.higher_order_value,
             self.higher_order_func_id,
             self.has_signature,
@@ -392,6 +399,53 @@ class CustomCallChecker(ABC):
 
         Also returns a (possibly) transformed and annotated argument list.
         """
+
+
+class CustomLinearityChecker(ABC):
+    """Provides helper functions for linearity checking of custom functions."""
+
+    @abstractmethod
+    def compute_input_flags(self, args: list[ast.expr]) -> list[InputFlags]:
+        """Computes input flags for a custom call's arguments."""
+
+
+class DefaultLinearityChecker(CustomLinearityChecker):
+    """Computes flags for non-linear arguments and else raises an error."""
+
+    @override
+    def compute_input_flags(self, args: list[ast.expr]) -> list[InputFlags]:
+        flags: list[InputFlags] = []
+        for arg in args:
+            ty = get_type(arg)
+            if ty.linear:
+                raise InternalGuppyError(
+                    "Tried to use default linearity checker for a linear argument "
+                    f"of type `{ty}`. Use a custom linearity checker instead."
+                )
+            flags.append(InputFlags.NoFlags)
+        return flags
+
+
+class MarkAsInoutChecker(CustomLinearityChecker):
+    """Computes inout flags for all linear arguments of a function call."""
+
+    @override
+    def compute_input_flags(self, args: list[ast.expr]) -> list[InputFlags]:
+        return [
+            InputFlags.Inout if get_type(arg).linear else InputFlags.NoFlags
+            for arg in args
+        ]
+
+
+class MarkAsOwnedChecker(CustomLinearityChecker):
+    """Computes owned flags for all linear arguments of a function call."""
+
+    @override
+    def compute_input_flags(self, args: list[ast.expr]) -> list[InputFlags]:
+        return [
+            InputFlags.Owned if get_type(arg).linear else InputFlags.NoFlags
+            for arg in args
+        ]
 
 
 class CustomInoutCallCompiler(ABC):

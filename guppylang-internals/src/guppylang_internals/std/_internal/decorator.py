@@ -13,6 +13,7 @@ from guppylang_internals.definition.custom import (
     CustomFunctionDef,
     CustomInoutCallCompiler,
     DefaultCallChecker,
+    MarkAsOwnedChecker,
 )
 from guppylang_internals.definition.ty import OpaqueTypeDef
 from guppylang_internals.definition.wasm import RawWasmFunctionDef
@@ -133,6 +134,7 @@ def ext_module_decorator(
                 init_fn_ty,
                 DefaultCallChecker(),
                 init_compiler,
+                MarkAsOwnedChecker(),
                 True,
                 GlobalConstId.fresh(f"{cls.__name__}.__new__"),
                 has_signature=True,
@@ -145,6 +147,7 @@ def ext_module_decorator(
                 FunctionType([FuncInput(ext_module_ty, InputFlags.Owned)], NoneType()),
                 DefaultCallChecker(),
                 discard_compiler,
+                MarkAsOwnedChecker(),
                 False,
                 GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
                 has_signature=True,

@@ -19,6 +19,7 @@ from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
+from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
@@ -220,8 +221,6 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)
 
     # Update inouts
-    # If the input types of the function aren't known, we can't check this.
-    # This is the case for functions with a custom checker and no type annotations.
     # For overloaded functions, we first need to get the signature for the specific
     # overload that was used.
     resolved_func = func
@@ -229,29 +228,42 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         result = func.resolve_overload(arg_exprs, state.node, ctx)
         # Since we already type checked the call, this should always succeed.
         assert result is not None
-        # Custom checkers with varargs that are overloaded can still not be updated.
-        # See https://github.com/Quantinuum/guppylang/issues/1980.
-        if len(result.ty.inputs) == len(args):
-            resolved_func = result
+        resolved_func = result
 
-    if len(resolved_func.ty.inputs) != 0:
-        for inp, arg, var in zip(resolved_func.ty.inputs, args, arg_vars, strict=True):
-            if InputFlags.Inout in inp.flags:
-                # Note that `inp.ty` could refer to bound variables in the function
-                # signature. Instead, make sure to use `var.ty` which will always be a
-                # concrete type and type checking has ensured that they unify.
-                ty = var.ty
-                inout_wire = state.dfg[var]
-                success = update_packed_value(
-                    arg, GuppyObject(ty, inout_wire), state.dfg.builder
+    input_flags: list[InputFlags] | None = None
+    if len(resolved_func.ty.inputs) == len(args):
+        input_flags = [inp.flags for inp in resolved_func.ty.inputs]
+
+    # Custom functions without a signature or incomplete signature (e.g. varargs)
+    # need to provide a linearity checker to compute the input flags.
+    elif (
+        isinstance(resolved_func, CustomFunctionDef)
+        and resolved_func.linearity_checker is not None
+    ):
+        input_flags = resolved_func.linearity_checker.compute_input_flags(arg_exprs)
+
+    if input_flags is None or len(input_flags) != len(args):
+        raise InternalGuppyError(
+            f"Couldn't compute signature for `{resolved_func.name}` during tracing. Add"
+            " a signature to the function definition or provide a custom linearity "
+            "checker."
+        )
+
+    for flags, arg, var in zip(input_flags, args, arg_vars, strict=True):
+        if InputFlags.Inout in flags:
+            # Use `var.ty` as a concrete type when updating borrowed values.
+            ty = var.ty
+            inout_wire = state.dfg[var]
+            success = update_packed_value(
+                arg, GuppyObject(ty, inout_wire), state.dfg.builder
+            )
+            if not success:
+                # This means the user has passed an object that we cannot update,
+                # e.g. calling `mem_swap(x, y)` where the inputs are plain Python
+                # objects
+                raise GuppyComptimeError(
+                    f"Cannot borrow Python object of type `{ty}` at comptime"
                 )
-                if not success:
-                    # This means the user has passed an object that we cannot update,
-                    # e.g. calling `mem_swap(x, y)` where the inputs are plain Python
-                    # objects
-                    raise GuppyComptimeError(
-                        f"Cannot borrow Python object of type `{ty}` at comptime"
-                    )
 
     ret_obj = GuppyObject(ret_ty, ret_wire)
     return unpack_guppy_object(ret_obj, state.dfg.builder)

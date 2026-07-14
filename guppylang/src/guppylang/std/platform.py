@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, no_type_check
 
 from guppylang_internals.decorator import custom_function
+from guppylang_internals.definition.custom import MarkAsInoutChecker, MarkAsOwnedChecker
 from guppylang_internals.nodes import AbortKind
 from guppylang_internals.std._internal.checker import (
     AbortChecker,
@@ -105,6 +106,7 @@ result = output
 
 @custom_function(
     checker=AbortChecker(AbortKind.Panic),
+    linearity_checker=MarkAsOwnedChecker(),
     higher_order_value=False,
     # We need to define a signature manually here for error reporting purposes. This is
     # because we are using a custom checker due to the arbitrary extra inputs that
@@ -122,6 +124,7 @@ def _panic(msg: str, *args) -> None: ...
 
 @custom_function(
     checker=AbortChecker(AbortKind.Panic),
+    linearity_checker=MarkAsOwnedChecker(),
     higher_order_value=False,
     signature=FunctionType(
         [
@@ -159,6 +162,7 @@ def panic(msg: str, signal: int = 1, *args):
 
 @custom_function(
     checker=AbortChecker(AbortKind.ExitShot),
+    linearity_checker=MarkAsOwnedChecker(),
     higher_order_value=False,
     # We need to define a signature manually here for error reporting purposes. This is
     # because we are using a custom checker due to the arbitrary extra inputs that
@@ -176,6 +180,7 @@ def _exit(msg: str, *args) -> None: ...
 
 @custom_function(
     checker=AbortChecker(AbortKind.ExitShot),
+    linearity_checker=MarkAsOwnedChecker(),
     higher_order_value=False,
     signature=FunctionType(
         [
@@ -211,7 +216,12 @@ def exit(msg: str, signal: int = 1, *args):
     """
 
 
-@custom_function(checker=BarrierChecker(), higher_order_value=False)
+@custom_function(
+    checker=BarrierChecker(),
+    linearity_checker=MarkAsInoutChecker(),
+    higher_order_value=False,
+    has_var_args=True,
+)
 @no_type_check
 def barrier(*args) -> None:
     """Barrier to guarantee that all operations before the barrier are completed before
