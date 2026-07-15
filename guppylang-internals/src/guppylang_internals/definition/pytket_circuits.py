@@ -295,10 +295,11 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 rotation = outer_func.add_op(from_halfturns_unchecked(), halfturns)
                 param_wires.append(rotation)
 
-        # Pass all arguments to call node. We assume that the target function has no
-        # side-effects, since it came from a circuit.
+        # Pass all arguments to call node.
+        # Pytket circuits can contain `unwrap` operations which can panic.
+        # (This should match `def call_effects` in `CompiledPytketDef` below.)
         call_node = outer_func.call(
-            hugr_func, *(input_list + bool_wires + param_wires), effects=[]
+            hugr_func, *(input_list + bool_wires + param_wires), effects=[Effect.ANY]
         )
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
@@ -399,9 +400,8 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
 
     @property
     def call_effects(self) -> Iterable[Effect]:
-        # Pytket circuits never have side-effects as they contain only pure quantum
-        # gates (no qalloc, no panic).
-        return []
+        # Pytket circuits may contain borrow-array unpacks, which can panic.
+        return [Effect.ANY]
 
     @property
     def hugr_node(self) -> Node:
