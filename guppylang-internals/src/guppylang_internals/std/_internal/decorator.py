@@ -136,7 +136,7 @@ def ext_module_decorator(
                 init_compiler,
                 True,
                 GlobalConstId.fresh(f"{cls.__name__}.__new__"),
-                effects=[Effect.ANY],  # ALAN does DefaultCallChecker even use this?
+                effects=[Effect.ANY],
                 has_signature=True,
                 has_var_args=False,
             )
@@ -149,7 +149,7 @@ def ext_module_decorator(
                 discard_compiler,
                 False,
                 GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
-                effects=[Effect.ANY],  # ALAN does DefaultCallChecker even use this?
+                effects=[Effect.ANY],
                 has_signature=True,
                 has_var_args=False,
             )
