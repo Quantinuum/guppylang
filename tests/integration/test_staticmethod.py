@@ -1,9 +1,10 @@
 from guppylang.library import GuppyLibrary, link_name
-from guppylang.std.builtins import result
+from guppylang.std.builtins import result, output
 from typing import Generic
 import pytest
 from guppylang.decorator import guppy
 from collections.abc import Callable
+from typing import Self
 
 
 def test_staticmethod_struct_generic(validate):
@@ -109,7 +110,7 @@ def test_staticmethod_self(validate):
     class Test:
         @guppy
         @staticmethod
-        def foo() -> "Self":
+        def foo() -> Self:
             return Test()
 
     @guppy
@@ -117,7 +118,6 @@ def test_staticmethod_self(validate):
         t = Test()
         t.foo()
         Test.foo()
-
 
     validate(main.compile())
 
@@ -211,23 +211,23 @@ def test_staticmethod_protocol_basic(validate):
 
 def test_staticmethod_protocol_generic(validate):
 
-    # T = guppy.type_var("T")
+    T = guppy.type_var("T")
 
     @guppy.protocol
-    class MyProto[T]:
+    class MyProto(Generic[T]):
         @guppy.require
         @staticmethod
-        def foo[T](arg: T) -> str: ...
+        def foo(arg: T) -> str: ...
 
     @guppy.struct(frozen=True)
-    class Test[T]:
+    class Test(Generic[T]):
         @guppy
         @staticmethod
-        def foo[T](arg: T) -> str:
+        def foo(arg: T) -> str:
             return "help"
 
     @guppy
-    def hasmyproto[T](ty: MyProto[T], arg: T) -> None:
+    def hasmyproto(ty: MyProto[T], arg: T) -> None:
         # ty.foo()
         MyProto.foo(arg)
 
@@ -247,19 +247,19 @@ def test_staticmethod_protocol_self(validate):
     class Default:
         @guppy.require
         @staticmethod
-        def foo() -> "Self": ...
+        def foo() -> Self: ...
 
     @guppy.struct(frozen=True)
     class Test:
         @guppy
         @staticmethod
-        def foo() -> "Self":
+        def foo() -> Self:
             return Test()
 
     @guppy
-    def hasmyproto[D: Default](t: D) -> None:
+    def hasmyproto(t: Default) -> None:
         t.foo()
-        D.foo()
+        Default.foo()
 
     @guppy
     def main() -> None:

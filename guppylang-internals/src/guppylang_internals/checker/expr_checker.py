@@ -818,26 +818,19 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return valid_proto_impls
 
     def _check_bound_type_method(
-            self, ty: BoundTypeVar, node: ast.Attribute
-        ) -> tuple[ast.expr, FunctionType] | None:
+        self, ty: BoundTypeVar, node: ast.Attribute
+    ) -> tuple[ast.expr, FunctionType]:
         from guppylang_internals.definition.protocol import (
             CheckedProtocolDef,
         )
+
         # check for protocol methods called on the type
-        valid_proto_impls = self._protos_with_method_impl_by_ty(
-            ty, node.attr
-        )
+        valid_proto_impls = self._protos_with_method_impl_by_ty(ty, node.attr)
         match valid_proto_impls:
             case []:
-                raise GuppyError(
-                    AttributeNotFoundError(
-                        node, ty, node.attr
-                    )
-                )
+                raise GuppyError(AttributeNotFoundError(node, ty, node.attr))
             case [proto_impl]:
-                proto_def = ENGINE.get_checked(
-                    proto_impl.def_id, proto_impl.type_args
-                )
+                proto_def = ENGINE.get_checked(proto_impl.def_id, proto_impl.type_args)
                 assert isinstance(proto_def, CheckedProtocolDef)
                 member_ty = proto_def.member_sig(node.attr)
                 return with_loc(

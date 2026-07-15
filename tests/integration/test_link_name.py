@@ -1,4 +1,3 @@
-from guppylang.std.builtins import panic
 import re
 
 import pytest
