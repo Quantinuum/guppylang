@@ -91,3 +91,12 @@ def check_power_modifier_enabled(loc: AstNode | None = None) -> None:
         raise GuppyError(
             ExperimentalFeatureError(loc, "`power` modifier", singular_things=True)
         )
+
+
+def check_platform_config_enabled(node: expr | None = None) -> None:
+    if not EXPERIMENTAL_FEATURES_ENABLED:
+        raise GuppyError(
+            ExperimentalFeatureError(
+                node, "`set_platform_config`", singular_things=True
+            )
+        )

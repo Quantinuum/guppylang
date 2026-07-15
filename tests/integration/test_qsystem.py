@@ -494,3 +494,27 @@ def test_set_platform_config_custom(validate):  # type: ignore[no-untyped-def]
             "squash_rxys": False,
             "enable_dd": True,
         }
+
+
+def test_set_platform_config_requires_experimental():  # type: ignore[no-untyped-def]
+    """set_platform_config is rejected unless experimental features are enabled."""
+    from guppylang.experimental import (
+        are_experimental_features_enabled,
+        set_experimental_features_enabled,
+    )
+    from guppylang.std.qsystem.helios.config import set_platform_config
+    from guppylang_internals.error import GuppyError
+
+    @guppy
+    def test() -> bool:
+        return True
+
+    package = test.compile_function()
+
+    original = are_experimental_features_enabled()
+    set_experimental_features_enabled(False)
+    try:
+        with pytest.raises(GuppyError, match=r"(?i)experimental feature"):
+            set_platform_config(package)
+    finally:
+        set_experimental_features_enabled(original)

@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from guppylang_internals.experimental import check_platform_config_enabled
 from hugr.hugr.base import Hugr
 from hugr.package import Package
 
@@ -28,6 +29,7 @@ def set_platform_config(
                         (independent of any compile-time squashing). Defaults to True.
         enable_dd: Enable dynamical decoupling. Defaults to False.
     """
+    check_platform_config_enabled()
     config = {
         "squash_rxys": squash_rxys,
         "enable_dd": enable_dd,
