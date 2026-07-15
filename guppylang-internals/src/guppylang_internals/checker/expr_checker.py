@@ -122,7 +122,6 @@ from guppylang_internals.nodes import (
     MakeIter,
     PartialApply,
     PlaceNode,
-    ProtocolCall,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
@@ -380,25 +379,6 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
-
-            from guppylang_internals.definition.protocol import (
-                ParsedProtocolDef,
-            )
-
-            # Protocol methods don't have their own definition, we have to look up the
-            # protocol definition itself first.
-            if isinstance(defn, ParsedProtocolDef):
-                assert isinstance(func_ty, FunctionType)
-                args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
-                return with_loc(
-                    node,
-                    ProtocolCall(
-                        member=node.func.id,
-                        proto_id=node.func.def_id,
-                        args=args,
-                        type_args=inst,
-                    ),
-                ), subst
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1005,23 +985,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
                 return defn.synthesize_call(node.args, node, self.ctx)
-
-            from guppylang_internals.definition.protocol import ParsedProtocolDef
-
-            # Protocol methods don't have their own definition, we have to look up the
-            # protocol definition itself first.
-            if isinstance(defn, ParsedProtocolDef):
-                assert isinstance(ty, FunctionType)
-                args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
-                return with_loc(
-                    node,
-                    ProtocolCall(
-                        member=node.func.id,
-                        proto_id=node.func.def_id,
-                        args=args,
-                        type_args=inst,
-                    ),
-                ), return_ty
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):

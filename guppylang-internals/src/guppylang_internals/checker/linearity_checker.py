@@ -48,7 +48,6 @@ from guppylang_internals.checker.errors.linearity import (
     UnnamedTupleNotUsedError,
 )
 from guppylang_internals.definition.custom import CustomFunctionDef
-from guppylang_internals.definition.protocol import CheckedProtocolDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
@@ -66,7 +65,6 @@ from guppylang_internals.nodes import (
     LocalCall,
     PartialApply,
     PlaceNode,
-    ProtocolCall,
     StateOutputExpr,
     SubscriptAccessAndDrop,
     TensorCall,
@@ -498,13 +496,6 @@ class BBLinearityChecker(ast.NodeVisitor):
         func_ty = get_type(node.func)
         assert isinstance(func_ty, FunctionType)
         self.visit(node.func)
-        self._visit_call_args(func_ty, node)
-        self._reassign_inout_args(func_ty, node)
-
-    def visit_ProtocolCall(self, node: ProtocolCall) -> None:
-        proto = ENGINE.get_checked(node.proto_id, node.type_args)
-        assert isinstance(proto, CheckedProtocolDef)
-        func_ty = proto.member_sig(node.member)
         self._visit_call_args(func_ty, node)
         self._reassign_inout_args(func_ty, node)
 
