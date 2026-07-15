@@ -103,6 +103,25 @@ def test_staticmethod_enum_instantiated(validate):
     validate(main.compile())
 
 
+def test_staticmethod_self(validate):
+
+    @guppy.struct(frozen=True)
+    class Test:
+        @guppy
+        @staticmethod
+        def foo() -> "Self":
+            return Test()
+
+    @guppy
+    def main() -> None:
+        t = Test()
+        t.foo()
+        Test.foo()
+
+
+    validate(main.compile())
+
+
 def test_staticmethod_overload(validate):
     @guppy.struct
     class Test:
@@ -153,7 +172,9 @@ def test_library_staticmethod():
         m.super_func(2)
         result("result", MyStructInterface.super_func(1))
 
-    results = main.emulator(n_qubits=1, libs=[lib]).run().results[0].entries
+    results = (
+        main.emulator(n_qubits=1, libs=[lib]).coinflip_sim().run().results[0].entries
+    )
     assert results == [("result", 5)]
 
 
@@ -170,12 +191,13 @@ def test_staticmethod_protocol_basic(validate):
         @guppy
         @staticmethod
         def foo(x: int) -> str:
+            output("out", x)
             return "help"
 
     @guppy
     def hasmyproto(t: MyProto) -> None:
         t.foo(3)
-        MyProto.foo(3)
+        MyProto.foo(4)
 
     @guppy
     def main() -> None:
@@ -183,6 +205,8 @@ def test_staticmethod_protocol_basic(validate):
         hasmyproto(t)
 
     validate(main.compile())
+    res = main.emulator(1).coinflip_sim().run().results[0].entries
+    assert res == [("out", 3), ("out", 4)]
 
 
 def test_staticmethod_protocol_generic(validate):
