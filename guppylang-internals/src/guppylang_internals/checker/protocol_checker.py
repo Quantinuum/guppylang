@@ -145,7 +145,7 @@ def check_protocol(
         proto_sig = protocol_def.member_sig(name)
         if (
             len(proto_sig.inputs) > 0 and not protocol_def.member_defs[name].is_static
-        ):  # HACK
+        ):  # staticmethods assumed not to have a self arg
             if isinstance(proto_sig.inputs[0].ty, BoundTypeVar):
                 proto_sig = _instantiate_self(proto_sig, protocol, ty)
             else:

@@ -333,11 +333,8 @@ class CompilationEngine:
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
 
-    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
-        """Looks up an instance function with a given name for a type.
-
-        Returns `None` if the name doesn't exist or isn't a function.
-        """
+    def get_type_defn(self, ty: Type | TypeDef) -> TypeDef | None:
+        """Convert a Type | TypeDef to a TypeDef."""
         type_defn: TypeDef
         match ty:
             case TypeDef() as type_defn:
@@ -372,6 +369,16 @@ class CompilationEngine:
                 return assert_never(ty)
 
         type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
+        return type_defn
+
+    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
+        """Looks up an instance function with a given name for a type.
+
+        Returns `None` if the name doesn't exist or isn't a function.
+        """
+        type_defn = self.get_type_defn(ty)
+        if type_defn is None:
+            return None
         if (
             type_defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[type_defn.id]
@@ -380,6 +387,21 @@ class CompilationEngine:
             defn = ENGINE.get_parsed(def_id)
             if isinstance(defn, CallableDef):
                 return defn
+        return None
+
+    def get_type_member(self, ty: Type | TypeDef, name: str) -> TypeMember | None:
+        """Looks up a TypeMember with a given name for a type.
+
+        Returns `None` if the name doesn't exist
+        """
+        type_defn = self.get_type_defn(ty)
+        if type_defn is None:
+            return None
+        if (
+            type_defn.id in DEF_STORE.type_members
+            and name in DEF_STORE.type_members[type_defn.id]
+        ):
+            return DEF_STORE.type_members[type_defn.id][name]
         return None
 
     @pretty_errors

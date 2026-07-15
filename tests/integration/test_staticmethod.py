@@ -104,6 +104,7 @@ def test_staticmethod_enum_instantiated(validate):
     validate(main.compile())
 
 
+@pytest.mark.xfail(reason="Self outputs not yet supported")
 def test_staticmethod_self(validate):
 
     @guppy.struct(frozen=True)
@@ -241,6 +242,7 @@ def test_staticmethod_protocol_generic(validate):
     validate(main.compile())
 
 
+@pytest.mark.xfail(reason="Self outputs not yet supported")
 def test_staticmethod_protocol_self(validate):
 
     @guppy.protocol

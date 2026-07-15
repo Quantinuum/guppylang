@@ -648,6 +648,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # manually need to call the helper instead of relying on the standard
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
+
             if node.value.id in self.ctx.generic_param_inst:
                 typearg = self.ctx.generic_param_inst[node.value.id]
                 if isinstance(typearg, TypeArg):
@@ -666,17 +667,16 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                                 ), func.ty
 
             if node.value.id in self.ctx.globals:
-                defn_or_python_object = self.ctx.globals[node.value.id]
-                if isinstance(defn_or_python_object, TypeDef):
-                    ty_def = ENGINE.parsed[defn_or_python_object.id]
-                    if (
-                        node.attr in DEF_STORE.type_members[ty_def.id]
-                        and isinstance(ty_def, TypeDef)
-                        and (func := ENGINE.get_instance_func(ty_def, node.attr))
-                    ):
-                        return with_loc(
-                            node, GlobalName(id=node.attr, def_id=func.id)
-                        ), func.ty
+                defn = self.ctx.globals[node.value.id]
+                if (
+                    isinstance(defn, TypeDef)
+                    and node.attr in DEF_STORE.type_members[defn.id]
+                    and (func := ENGINE.get_instance_func(defn, node.attr)) is not None
+                ):
+                    return with_loc(
+                        node, GlobalName(id=node.attr, def_id=func.id)
+                    ), func.ty
+
             if ty is None:
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
@@ -785,11 +785,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             name = with_type(
                 func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
             )
-            # Make a closure by partially applying the `self` argument
             # TODO: Try to infer some type args based on `self`
-            if DEF_STORE.type_members[DEF_STORE.type_member_parents[func.id]][
-                node.attr
-            ].is_static:
+            type_member = ENGINE.get_type_member(ty, node.attr)
+            if type_member and type_member.is_static:
                 # if this is a staticmethod do not partially apply `self`
                 return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
             else:
