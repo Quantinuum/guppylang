@@ -1247,6 +1247,25 @@ def try_coerce_to(
     return None
 
 
+def coerces_to(act: Type, exp: Type) -> bool:
+    """Checks whether `act` implicitly coerces to `exp`.
+
+    Unlike `try_coerce_to`, this function just performs the check but does not emit any
+    code to actually perform the coercion.
+    """
+    function_coercion = (
+        isinstance(act, FunctionDefType)
+        and isinstance(exp, FunctionType)
+        and act.sig == exp
+    )
+    numeric_coercion = (
+        isinstance(act, NumericType)
+        and isinstance(exp, NumericType)
+        and act.kind < exp.kind
+    )
+    return function_coercion or numeric_coercion
+
+
 def function_def_value_to_global_name(expr: AstNode, ty: FunctionDefType) -> GlobalName:
     """Turns an expressions with a `FunctionDefType` into the corresponding
     `GlobalName`.

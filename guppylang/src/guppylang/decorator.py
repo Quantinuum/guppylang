@@ -1,6 +1,7 @@
 import ast
 import builtins
 import inspect
+import linecache
 from collections.abc import Callable
 from types import FrameType
 from typing import (
@@ -734,8 +735,13 @@ def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.e
     if caller_frame := get_calling_frame():
         info = inspect.getframeinfo(caller_frame)
         if caller_module := inspect.getmodule(caller_frame):
-            sources.add_file(info.filename)
             source_lines, _ = inspect.getsourcelines(caller_module)
+        else:
+            # inspect.getmodule can fail, for example if we are running in IPython. Fall
+            # back to linecache in that case
+            source_lines = linecache.getlines(info.filename)
+        if source_lines:
+            sources.add_file(info.filename)
             source = "".join(source_lines)
             annotate_location(expr_ast, source, info.filename, 1)
             # Modify the AST so that all sub-nodes span the entire line. We
