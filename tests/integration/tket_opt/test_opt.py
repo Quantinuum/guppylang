@@ -6,7 +6,7 @@ from guppylang.std.builtins import array
 
 from pytket.passes import RemoveRedundancies, CliffordSimp, SquashRzPhasedX
 
-from tket.passes import NormalizeGuppy, PytketHugrPass, PassResult
+from tket.passes import NormalizeGuppy, PytketHugrPass, PassResult, PlatformTarget
 
 from hugr.hugr.base import Hugr
 
@@ -116,7 +116,7 @@ def test_1q_rz_squashing2() -> None:
     # rz(q0, angle(1))
 
     hugr_graph: Hugr = normalize(rz_phased_x_func.compile_function().modules[0])
-    opt_pass = PytketHugrPass(SquashRzPhasedX())
+    opt_pass = PytketHugrPass(SquashRzPhasedX(), target=PlatformTarget.Helios)
     new_hugr = opt_pass(hugr_graph)
     assert _count_ops(new_hugr, "Rz") == 1
     assert _count_ops(new_hugr, "PhasedX") == 1
