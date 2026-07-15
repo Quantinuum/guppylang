@@ -1,12 +1,10 @@
-import guppylang
 from guppylang import guppy
 from guppylang.std.builtins import power
-guppylang.enable_experimental_features()
 
 @guppy
 def main(b: bool) -> None:
     x = 3
-    
+
     if b:
         y = 2
     a = i
@@ -15,5 +13,4 @@ def main(b: bool) -> None:
     a = y
 
 
-                
 main.check()

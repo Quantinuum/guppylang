@@ -2,6 +2,7 @@ import pathlib
 import pytest
 
 from tests.error.util import run_error_test
+from tests.conftest import experimental_features_enabled
 
 path = pathlib.Path(__file__).parent.resolve() / "comprehension_errors"
 files = [
@@ -16,4 +17,5 @@ files = [str(f) for f in files]
 
 @pytest.mark.parametrize("file", files)
 def test_comprehension_errors(file, capsys, snapshot):
-    run_error_test(file, capsys, snapshot)
+    with experimental_features_enabled():
+        run_error_test(file, capsys, snapshot)

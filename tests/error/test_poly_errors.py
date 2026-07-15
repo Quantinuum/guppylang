@@ -2,6 +2,7 @@ import pathlib
 import pytest
 
 from tests.error.util import run_error_test
+from tests.conftest import experimental_features_enabled
 
 path = pathlib.Path(__file__).parent.resolve() / "poly_errors"
 files = [
@@ -13,7 +14,15 @@ files = [
 # Turn paths into strings, otherwise pytest doesn't display the names
 files = [str(f) for f in files]
 
+# Snapshot tests that require experimental features.
+tests_that_require_experimental_features = [
+        "arg_mismatch5.py",
+]
+files_with_experimental_flag = [
+    (file, any(case in file for case in tests_that_require_experimental_features))
+    for file in files
+]
 
-@pytest.mark.parametrize("file", files)
-def test_type_errors(file, capsys, snapshot):
-    run_error_test(file, capsys, snapshot)
+@pytest.mark.parametrize("file,needs_experimental_features", files_with_experimental_flag)
+def test_type_errors(file: str, needs_experimental_features: bool, capsys, snapshot):
+    run_error_test(file, capsys, snapshot, needs_experimental_features)

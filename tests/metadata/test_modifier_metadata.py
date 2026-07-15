@@ -1,6 +1,5 @@
 """Tests that modifier blocks have the correct `unitary` metadata attached."""
 
-import guppylang as _guppylang
 from guppylang import guppy
 from guppylang.std.angles import angle
 from guppylang.std.builtins import control, dagger, power, qubit
@@ -9,8 +8,6 @@ from guppylang_internals.tys.ty import UnitaryFlags
 from hugr.hugr.base import Hugr
 from hugr.ops import FuncDecl, FuncDefn
 from tket.metadata import UnitaryFlags as TketUnitaryFlags
-
-_guppylang.enable_experimental_features()
 
 
 def _check_block_metadata(hugr_module: Hugr, unitary_values: list[int]) -> list:
@@ -57,7 +54,7 @@ def test_unitary_metadata_control_only():
 
 
 # Tests nested modifiers metadata
-def test_unitary_metadata_power_dagger_control():
+def test_unitary_metadata_power_dagger_control(use_experimental_features):
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -81,7 +78,7 @@ def test_unitary_metadata_power_dagger_control():
     )
 
 
-def test_unitary_metadata_dagger_power_control():
+def test_unitary_metadata_dagger_power_control(use_experimental_features):
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -105,7 +102,7 @@ def test_unitary_metadata_dagger_power_control():
     )
 
 
-def test_unitary_metadata_control_dagger_power():
+def test_unitary_metadata_control_dagger_power(use_experimental_features):
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -129,7 +126,7 @@ def test_unitary_metadata_control_dagger_power():
     )
 
 
-def test_unitary_metadata_power_control_dagger():
+def test_unitary_metadata_power_control_dagger(use_experimental_features):
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -153,7 +150,7 @@ def test_unitary_metadata_power_control_dagger():
     )
 
 
-def test_unitary_metadata_dagger_control_power():
+def test_unitary_metadata_dagger_control_power(use_experimental_features):
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -177,7 +174,7 @@ def test_unitary_metadata_dagger_control_power():
     )
 
 
-def test_unitary_metadata_control_power_dagger():
+def test_unitary_metadata_control_power_dagger(use_experimental_features):
     @guppy
     def main() -> None:
         c1 = qubit()
@@ -201,7 +198,7 @@ def test_unitary_metadata_control_power_dagger():
     )
 
 
-def test_unitary_metadata_function_definition():
+def test_unitary_metadata_function_definition(use_experimental_features):
     @guppy(daggerable=True)
     def dag() -> None:
         pass
