@@ -71,6 +71,6 @@ class FrozenarrayGetitemCompiler(CustomCallCompiler):
                 *args,
                 instantiation=inst,
                 type_args=type_args,
-                effects=[],
+                effects=self.func.effects,
             )
         return unpack_wire(out, ty_arg.ty, self.builder, self.ctx)
