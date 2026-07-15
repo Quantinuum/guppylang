@@ -13,6 +13,7 @@ from typing import ClassVar, Generic, TypeVar
 
 from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
+from guppylang_internals.cfg.builder import is_tmp_var
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
     Context,
@@ -232,6 +233,32 @@ class BranchTypeError(Error):
     class TypeHint(Note):
         span_label: ClassVar[str] = "This is of type `{ty}`"
         ty: Type
+
+    @dataclass(frozen=True)
+    class CoerceOneHint(Help):
+        var: str
+        ty: Type
+
+        @property
+        def rendered_span_label(self) -> str:
+            if is_tmp_var(self.var):
+                return f"Consider coercing this value to `{self.ty}`"
+            return f"Consider adding a type annotation: `{self.var}: {self.ty} = ...`"
+
+    @dataclass(frozen=True)
+    class CoerceBothHint(Help):
+        var: str
+        ty: str
+        extra: str = ""
+
+        @property
+        def rendered_message(self) -> str:
+            if is_tmp_var(self.var):
+                return f"Consider coercing both values to `{self.ty}`"
+            return (
+                f"Consider adding type annotations{self.extra}: "
+                f"`{self.var}: {self.ty} = ...`"
+            )
 
 
 @dataclass(frozen=True)
