@@ -110,12 +110,10 @@ class BBUnitaryChecker(ast.NodeVisitor):
             err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
             raise GuppyError(err)
 
-        # todo: output and state_output must be forbidde under dagger
-
         # If the function is has quantum i/o, the flags must be compatible with the
         # function's unitary flags. Otherwise, if the function is classical, we only
-        # need to check that if we are under a dagger modifier, the function must also
-        # be daggered.
+        # need to check that if we are in dagger (or unitary) context, the function
+        # is daggerable.
         is_classic_fun = self._check_classical_args(node.args)
         is_a_valid_call = (
             self.flags in call_ty.unitary_flags
@@ -214,6 +212,10 @@ class BBUnitaryChecker(ast.NodeVisitor):
                     missing_keyword_hint=True,
                 )
             )
+        self.visit(node.signal)
+        self.visit(node.msg)
+        for value in node.values:
+            self.visit(value)
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
         # Nested modified blocks are checked separately by the CFG checker
