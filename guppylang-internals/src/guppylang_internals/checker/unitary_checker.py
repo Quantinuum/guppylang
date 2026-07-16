@@ -9,6 +9,7 @@ from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
+    AbortExpr,
     AnyCall,
     BarrierExpr,
     CheckedModifiedBlock,
@@ -96,15 +97,35 @@ class BBUnitaryChecker(ast.NodeVisitor):
         return True
 
     def _check_call(
-        self, node: AnyCall, ty: FunctionType, func: CallableDef | None = None
+        self, node: AnyCall, call_ty: FunctionType, func: CallableDef | None = None
     ) -> None:
         """
         `func`: it's only used for a better error message when the call is a GlobalCall.
         Is None for LocalCall and TensorCall.
         """
-        classic_args = self._check_classical_args(node.args)
-        flag_ok = self.flags in ty.unitary_flags
-        if not classic_args and not flag_ok:
+
+        # If we are under any modifier, we cannot allocate qubits
+        if contain_qubit_ty(call_ty.output) and self.flags != UnitaryFlags.NoFlags:
+            err = UnitaryCallError(node, self.flags, missing_keyword_hint=False)
+            err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
+            raise GuppyError(err)
+
+        # If the function has quantum i/o, the flags must be compatible with the
+        # function's unitary flags. Otherwise, if the function is classical, we only
+        # need to check that if we are in dagger (or unitary) context, the function
+        # is daggerable.
+        is_classic_fun = self._check_classical_args(node.args)
+        is_a_valid_call = (
+            self.flags in call_ty.unitary_flags
+            if not is_classic_fun
+            else (
+                True
+                if UnitaryFlags.Dagger not in self.flags
+                else UnitaryFlags.Dagger in call_ty.unitary_flags
+            )
+        )
+
+        if not is_a_valid_call:
             from guppylang_internals.definition.custom import CustomFunctionDef
 
             # We want the hint only for non-custom functions, since custom
@@ -112,14 +133,14 @@ class BBUnitaryChecker(ast.NodeVisitor):
             if isinstance(func, CustomFunctionDef):
                 err = UnitaryCallError(
                     node,
-                    self.flags & (~ty.unitary_flags),
+                    self.flags & (~call_ty.unitary_flags),
                     missing_keyword_hint=True,
                 )
             else:
                 if func is not None:
                     err = UnitaryCallError(
                         node,
-                        self.flags & (~ty.unitary_flags),
+                        self.flags & (~call_ty.unitary_flags),
                         missing_keyword_hint=False,
                     )
                     from guppylang_internals.definition.pytket_circuits import (
@@ -134,7 +155,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
                         err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
                 else:
                     # If func is None, we are checking a higher-order call
-                    missing_flags = self.flags & (~ty.unitary_flags)
+                    missing_flags = self.flags & (~call_ty.unitary_flags)
                     err = UnitaryCallError(
                         node,
                         missing_flags,
@@ -145,17 +166,11 @@ class BBUnitaryChecker(ast.NodeVisitor):
                             None,
                             missing_flags.callable_name(),
                             "higher-order"
-                            if ty.unitary_flags == UnitaryFlags.NoFlags
-                            else ty.unitary_flags.callable_name(),
+                            if call_ty.unitary_flags == UnitaryFlags.NoFlags
+                            else call_ty.unitary_flags.callable_name(),
                         )
                     )
             raise GuppyTypeError(err)
-
-        # If we are under any modifier, we cannot allocate qubits
-        if contain_qubit_ty(ty.output) and self.flags != UnitaryFlags.NoFlags:
-            err = UnitaryCallError(node, self.flags, missing_keyword_hint=False)
-            err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
-            raise GuppyError(err)
 
     def visit_GlobalCall(self, node: GlobalCall) -> None:
         func = ENGINE.get_parsed(node.def_id)
@@ -175,8 +190,32 @@ class BBUnitaryChecker(ast.NodeVisitor):
         pass
 
     def visit_StateOutputExpr(self, node: StateOutputExpr) -> None:
-        # StateOutput is always allowed
-        pass
+        # State output is not allowed under dagger, since the execution order
+        # is not guaranteed
+        if UnitaryFlags.Dagger in self.flags:
+            raise GuppyTypeError(
+                UnitaryCallError(
+                    node,
+                    self.flags,
+                    missing_keyword_hint=True,
+                )
+            )
+
+    def visit_AbortExpr(self, node: AbortExpr) -> None:
+        # panics and exits are not allowed under dagger, since the execution order
+        # is not guaranteed
+        if UnitaryFlags.Dagger in self.flags:
+            raise GuppyTypeError(
+                UnitaryCallError(
+                    node,
+                    self.flags,
+                    missing_keyword_hint=True,
+                )
+            )
+        self.visit(node.signal)
+        self.visit(node.msg)
+        for value in node.values:
+            self.visit(value)
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
         # Nested modified blocks are checked separately by the CFG checker
