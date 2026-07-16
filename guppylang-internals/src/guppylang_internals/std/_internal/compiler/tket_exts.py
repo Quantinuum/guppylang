@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from hugr import val
+from hugr import ext, val
 from tket_exts import (
     debug,
     futures,
@@ -66,3 +66,10 @@ class ConstWasmModule(val.ExtensionValue):
 
     def __str__(self) -> str:
         return f"tket.wasm.module(module_filename={self.wasm_file})"
+
+    def _resolve_used_extensions_inplace(
+        self,
+        resolver: ext.UsedExtensionResolver,
+        registry: ext.ExtensionRegistry | None = None,
+    ) -> None:
+        resolver.register(WASM_EXTENSION)
