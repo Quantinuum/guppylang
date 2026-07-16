@@ -9,6 +9,7 @@ from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
+    AbortExpr,
     AnyCall,
     BarrierExpr,
     CheckedModifiedBlock,
@@ -192,6 +193,18 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
     def visit_StateOutputExpr(self, node: StateOutputExpr) -> None:
         # State output is not allowed under dagger, since the execution order
+        # is not guaranteed
+        if UnitaryFlags.Dagger in self.flags:
+            raise GuppyTypeError(
+                UnitaryCallError(
+                    node,
+                    self.flags,
+                    missing_keyword_hint=True,
+                )
+            )
+
+    def visit_AbortExpr(self, node: AbortExpr) -> None:
+        # panics and exits are not allowed under dagger, since the execution order
         # is not guaranteed
         if UnitaryFlags.Dagger in self.flags:
             raise GuppyTypeError(
