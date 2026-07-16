@@ -32,10 +32,10 @@ classifiers = [
 dependencies = [
     "typing-extensions >=4.9.0,<5",
     "tket-exts ~= 0.14.0",
-    "hugr ~= 0.18.0",
+    "hugr ~= 0.18.2",
     "wasmtime>=38.0,<46.1",
     "pytket>=2.18.1",
-    "tket[pytket]~=0.15.1",
+    "tket[pytket]~=0.15.2",
 ]
 
 [build-system]

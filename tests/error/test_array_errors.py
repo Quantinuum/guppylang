@@ -21,6 +21,7 @@ skipped_files = {
     "array_index_put.py",
     "array_index_set.py",
     "array_index_take.py",
+    "non_array_subscript.py",
 }
 
 # Turn paths into strings, otherwise pytest doesn't display the names

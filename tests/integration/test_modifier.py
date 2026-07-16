@@ -63,10 +63,7 @@ def test_assignment_in_dagger(validate):
         discard(q)
         discard(c)
 
-    # TODO: Tket's full ModifierResolution pass constructs a cyclic DFG.
-    # Export disabled while we fix the issue.
-    # See <https://github.com/Quantinuum/tket2/issues/1774>
-    validate(main.compile_function(), export=False)
+    validate(main.compile_function())
 
 
 def test_control_simple(validate):
@@ -177,7 +174,7 @@ def test_control_subscript_nested(validate):
     validate(main.compile())
 
 
-def test_power_simple(validate):
+def test_power_simple(validate, use_experimental_features):
     @guppy
     def bar(n: nat) -> None:
         with power(n):
@@ -246,8 +243,9 @@ def test_free_linear_variable_in_modifier(validate):
 def test_free_copyable_variable_in_modifier(validate):
     T = guppy.type_var("T", copyable=True, droppable=True)
 
-    @guppy.declare
-    def use(a: T) -> None: ...
+    @guppy
+    def use(a: T) -> None:
+        pass
 
     @guppy
     def bar(q: array[qubit, 3]) -> None:
@@ -350,10 +348,7 @@ def test_higher_order_unitary_callable(validate):
         apply_unitary(h, q1, q2)
         apply_unitary(foo, q1, q2)
 
-    # Tket2 still contains some bugs with higher-order functions.
-    # Thus validating exported hugr files will fail on CI.
-    # Waiting for https://github.com/Quantinuum/tket2/issues/1761
-    validate(main.compile_function(), export=False)
+    validate(main.compile_function())
 
 
 @pytest.mark.xfail(reason="Returning protocols not supported")
@@ -426,7 +421,7 @@ def test_double_dagger_cancellation_1(validate):
     validate(bar.compile_function())
 
 
-def test_double_dagger_cancellation_2(validate):
+def test_double_dagger_cancellation_2(validate, use_experimental_features):
     @guppy(controllable=True)
     def not_dagger_func(q: qubit) -> None:
         pass

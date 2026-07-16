@@ -1,4 +1,10 @@
+import pytest
 from tests.util import compile_guppy
+
+
+@pytest.fixture(autouse=True)
+def enable_experimental_features_for_suite(use_experimental_features):
+    pass
 
 
 def test_basic(validate):

@@ -483,3 +483,36 @@ def test_double_fn(validate):
         q.discard()
 
     validate(call_two.compile())
+
+
+def test_comptime(validate, run_int_fn):
+    @guppy.protocol
+    class Animal[T]:
+        @guppy.require
+        def fav_num(self: Self, x: T) -> int: ...
+
+    @guppy.struct(frozen=True)
+    class Dog:
+        @guppy.comptime
+        def fav_num(self: Self, n: nat) -> int:
+            return n + 1
+
+    @guppy.struct(frozen=True)
+    class Duck:
+        @guppy.comptime
+        def fav_num(self: Self, x: int) -> int:
+            return x + 2
+
+    V = guppy.type_var("V")
+    W = guppy.type_var("W")
+
+    @guppy.comptime
+    def sum_fav_num(a: Animal[V], b: Animal[W], x: V, y: W) -> int:
+        return a.fav_num(x) + b.fav_num(y)
+
+    @guppy.comptime
+    def main() -> int:
+        return sum_fav_num(Dog(), Duck(), nat(1), 2)
+
+    validate(main.compile())
+    run_int_fn(main, 6)

@@ -108,13 +108,9 @@ class TypeParsingCtx:
 def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
     """Turns an AST expression into an argument."""
     from guppylang_internals.checker.cfg_checker import VarNotDefinedError
-    from guppylang_internals.definition.protocol import ParsedProtocolDef
 
     # A single (possibly qualified) identifier
     if defn := try_parse_defn(node, ctx):
-        if ctx.is_output and isinstance(defn, ParsedProtocolDef):
-            raise GuppyError(DontReturnProtocol(node, defn.name))
-
         return _arg_from_instantiated_defn(defn, [], node, ctx)
 
     # An identifier referring to a quantified variable
@@ -229,7 +225,13 @@ def _arg_from_instantiated_defn(
     defn: Definition, arg_nodes: list[ast.expr], node: AstNode, ctx: TypeParsingCtx
 ) -> Argument:
     """Parses a globals definition with type args into an argument."""
-    from guppylang_internals.definition.protocol import ParsedProtocolDef
+    from guppylang_internals.definition.protocol import ParsedProtocolDef, ProtocolDef
+
+    if ctx.is_output and isinstance(defn, ProtocolDef):
+        err = DontReturnProtocol(node, defn.name)
+        if isinstance(defn, CallableProtocolDef):
+            err.add_sub_diagnostic(DontReturnProtocol.FunctionInsteadOfCallable(None))
+        raise GuppyError(err)
 
     match defn:
         # Special cases for the `Function` type

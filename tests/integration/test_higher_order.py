@@ -65,7 +65,7 @@ def test_conditional(validate):
     validate(main.compile_function())
 
 
-def test_method(validate):
+def test_method(validate, use_experimental_features):
     @guppy
     def foo(x: int) -> tuple[int, Function[[int], int]]:
         f = x.__add__
@@ -74,7 +74,7 @@ def test_method(validate):
     validate(foo.compile_function())
 
 
-def test_nested(validate):
+def test_nested(validate, use_experimental_features):
     @compile_guppy
     def foo(x: int) -> Function[[int], bool]:
         def bar(y: int) -> bool:
@@ -85,7 +85,7 @@ def test_nested(validate):
     validate(foo)
 
 
-def test_nested_capture_struct(validate):
+def test_nested_capture_struct(validate, use_experimental_features):
     @guppy.struct(frozen=True)
     class MyStruct:
         x: int
@@ -100,7 +100,7 @@ def test_nested_capture_struct(validate):
     validate(foo.compile_function())
 
 
-def test_nested_capture_enum(validate):
+def test_nested_capture_enum(validate, use_experimental_features):
     @guppy.enum
     class MyEnum:
         VariantA = {}
@@ -119,7 +119,7 @@ def test_nested_capture_enum(validate):
     validate(foo.compile_function())
 
 
-def test_curry(validate):
+def test_curry(validate, use_experimental_features):
     @guppy
     def curry(f: Function[[int, int], bool]) -> Function[[int], Function[[int], bool]]:
         def g(x: int) -> Function[[int], bool]:
@@ -154,7 +154,7 @@ def test_curry(validate):
     validate(main.compile_function())
 
 
-def test_y_combinator(validate):
+def test_y_combinator(validate, use_experimental_features):
     @guppy
     def fac_(f: Function[[int], int], n: int) -> int:
         if n == 0:
