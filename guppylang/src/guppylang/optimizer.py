@@ -54,6 +54,9 @@ class OptimizationLevel(Enum):
         """Return the HUGR passes that implement this optimization level."""
         match self:
             case OptimizationLevel.Default:
+                # The pytket dependency could be bypassed by using the json
+                # encoding of the passes rather than the pytket objects
+                # themselves.
                 from pytket.passes import RemoveRedundancies
                 from tket import passes
 
