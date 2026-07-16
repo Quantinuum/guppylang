@@ -142,17 +142,7 @@ def test_per_shot_args() -> None:
     )
 
 
-@pytest.mark.xfail(
-    raises=ValueError,
-    reason=(
-        "selene's ArgProvider rejects empty lists with 'List for key ... cannot be "
-        "empty'. Expected to be fixed in https://github.com/Quantinuum/selene/pull/187."
-    ),
-    strict=True,
-)
 def test_empty_array_arg() -> None:
-    # TODO: Once https://github.com/Quantinuum/selene/pull/187 is merged and
-    # released, remove the xfail mark above.
     @guppy
     def main(xs: array[int, 0]) -> None:
         output("done", 1)
