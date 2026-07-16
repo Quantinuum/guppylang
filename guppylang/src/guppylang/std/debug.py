@@ -3,13 +3,11 @@
 # mypy: disable-error-code="empty-body, no-untyped-def"
 
 from guppylang_internals.decorator import custom_function
-from guppylang_internals.definition.custom import MarkAsInoutChecker
 from guppylang_internals.std._internal.debug import StateOutputChecker
 
 
 @custom_function(
     checker=StateOutputChecker(),
-    linearity_checker=MarkAsInoutChecker(),
     higher_order_value=False,
     has_var_args=True,
 )

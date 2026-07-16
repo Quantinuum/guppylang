@@ -22,6 +22,7 @@ from guppylang_internals.checker.expr_checker import (
 )
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
+    InputFlagDefaultMode,
 )
 from guppylang_internals.definition.overloaded import InternalExpectOverloadError
 from guppylang_internals.diagnostic import Error, Note
@@ -424,6 +425,8 @@ class NewArrayChecker(CustomCallChecker):
 class AbortChecker(CustomCallChecker):
     """Call checker for the `panic` and `exit` functions."""
 
+    input_flag_default_mode = InputFlagDefaultMode.OWNED
+
     def __init__(self, exit_kind: AbortKind):
         self.exit_kind = exit_kind
 
@@ -499,6 +502,8 @@ class BarrierChecker(CustomCallChecker):
 
 
 class WasmCallChecker(CustomCallChecker):
+    input_flag_default_mode = InputFlagDefaultMode.OWNED
+
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker

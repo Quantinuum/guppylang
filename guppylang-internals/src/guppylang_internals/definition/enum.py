@@ -21,10 +21,9 @@ from guppylang_internals.definition.common import (
     UserProvidedLinkName,
 )
 from guppylang_internals.definition.custom import (
+    ConstructorCallChecker,
     CustomCallCompiler,
     CustomFunctionDef,
-    DefaultCallChecker,
-    MarkAsOwnedChecker,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
@@ -314,9 +313,8 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 name=variant_name,
                 defined_at=self.defined_at,
                 ty=constructor_sig,
-                call_checker=DefaultCallChecker(),
+                call_checker=ConstructorCallChecker(),
                 call_compiler=ConstructorCompiler(variant.index, enum_type),
-                linearity_checker=MarkAsOwnedChecker(),
                 higher_order_value=True,
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,

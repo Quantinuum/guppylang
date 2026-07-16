@@ -236,11 +236,11 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
     # Custom functions without a signature or incomplete signature (e.g. varargs)
     # need to provide a linearity checker to compute the input flags.
-    elif (
-        isinstance(resolved_func, CustomFunctionDef)
-        and resolved_func.linearity_checker is not None
+    elif isinstance(resolved_func, CustomFunctionDef) and (
+        not resolved_func.has_signature
+        or (resolved_func.has_signature and resolved_func.has_var_args)
     ):
-        input_flags = resolved_func.linearity_checker.compute_input_flags(arg_exprs)
+        input_flags = resolved_func.call_checker.compute_input_flags(arg_exprs)
 
     if input_flags is None or len(input_flags) != len(args):
         raise InternalGuppyError(

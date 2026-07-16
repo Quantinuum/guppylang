@@ -9,9 +9,7 @@ from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
     CustomInoutCallCompiler,
-    CustomLinearityChecker,
     DefaultCallChecker,
-    DefaultLinearityChecker,
     NotImplementedCallCompiler,
     OpCompiler,
     RawCustomFunctionDef,
@@ -39,7 +37,6 @@ P = ParamSpec("P")
 def custom_function(
     compiler: CustomInoutCallCompiler | None = None,
     checker: CustomCallChecker | None = None,
-    linearity_checker: CustomLinearityChecker | None = None,
     higher_order_value: bool = True,
     name: str = "",
     signature: FunctionType | None = None,
@@ -65,7 +62,6 @@ def custom_function(
             python_func=f,
             call_checker=call_checker,
             call_compiler=compiler or NotImplementedCallCompiler(),
-            linearity_checker=linearity_checker or DefaultLinearityChecker(),
             higher_order_value=higher_order_value,
             signature=signature,
             unitary_flags=unitary_flags,
@@ -128,7 +124,6 @@ def custom_type(
 def hugr_op(
     op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp],
     checker: CustomCallChecker | None = None,
-    linearity_checker: CustomLinearityChecker | None = None,
     higher_order_value: bool = True,
     name: str = "",
     signature: FunctionType | None = None,
@@ -147,7 +142,6 @@ def hugr_op(
     return custom_function(
         OpCompiler(op),
         checker,
-        linearity_checker,
         higher_order_value,
         name,
         signature,
