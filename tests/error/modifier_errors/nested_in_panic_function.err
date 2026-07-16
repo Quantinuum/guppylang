@@ -1,0 +1,11 @@
+Error: Control constraint violation (at $FILE:14:19)
+   | 
+12 |     qq = qubit()
+13 |     with control(q):
+14 |         panic("a", test(qq))
+   |                    ^^^^^^^^ This function cannot be called in a controllable context
+
+Help: Consider adding the flag `(controllable=True)` to the decorator of the
+function `test`
+
+Guppy compilation failed due to 1 previous error
