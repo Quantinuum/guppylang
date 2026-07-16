@@ -13,6 +13,7 @@ from guppylang.std.builtins import (
     control,
     dagger,
     owned,
+    panic,
     power,
 )
 from guppylang.std.num import nat
@@ -189,7 +190,7 @@ def test_power_simple(validate):
 
 
 def test_call_in_modifier(validate):
-    @guppy
+    @guppy(daggerable=True)
     def foo() -> None:
         pass
 
@@ -216,6 +217,15 @@ def test_nested_modifiers(validate):
         with control(q):
             with dagger:
                 pass
+
+    validate(bar.compile_function())
+
+
+def test_panic_in_control(validate):
+    @guppy
+    def bar(q: qubit) -> None:
+        with control(q):
+            panic("a")
 
     validate(bar.compile_function())
 
