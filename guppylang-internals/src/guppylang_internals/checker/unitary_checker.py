@@ -110,7 +110,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
             err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
             raise GuppyError(err)
 
-        # If the function is has quantum i/o, the flags must be compatible with the
+        # If the function has quantum i/o, the flags must be compatible with the
         # function's unitary flags. Otherwise, if the function is classical, we only
         # need to check that if we are in dagger (or unitary) context, the function
         # is daggerable.
