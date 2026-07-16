@@ -189,7 +189,7 @@ def test_power_simple(validate, use_experimental_features):
 
 
 def test_call_in_modifier(validate):
-    @guppy
+    @guppy(daggerable=True)
     def foo() -> None:
         pass
 
