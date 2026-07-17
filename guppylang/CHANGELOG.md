@@ -14,6 +14,19 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0-rc2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc1...guppylang-v1.0.0-rc2) (2026-07-17)
+
+
+### Bug Fixes
+
+* Fix diagnostics rendering for type aliases in Jupyter notebooks (#2056)([f5d87fc](https://github.com/Quantinuum/guppylang/commit/f5d87fc468a0fec364a032a8e5147b58aad39451))
+
+
+### Features
+
+* Revert "feat: Add quantum pass to default opt level" but keep tket dependency bump (#2072)([f34cf4b](https://github.com/Quantinuum/guppylang/commit/f34cf4bf8513159038faa9594c2477bac355d877))
+* Add quantum pass to default opt level (#2068)([1e84e30](https://github.com/Quantinuum/guppylang/commit/1e84e3094c3d0cc42c9ce12ece5179799029b06d))
+
 ## [1.0.0-rc1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc0...guppylang-v1.0.0-rc1) (2026-07-07)
 
 
