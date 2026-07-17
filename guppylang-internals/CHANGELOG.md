@@ -20,7 +20,6 @@
 
 ### Features
 
-* Add quantum pass to default opt level (#2068)([1e84e30](https://github.com/Quantinuum/guppylang/commit/1e84e3094c3d0cc42c9ce12ece5179799029b06d))
 * Update hugr to `0.18.2`, implement value ext resolution (#2064)([a3e80a5](https://github.com/Quantinuum/guppylang/commit/a3e80a5b0245b89eae10bda3170d6a7011a30344))
 * Raise an error if non daggerable classical functions are used in dagger cotext (#2066)([61044cb](https://github.com/Quantinuum/guppylang/commit/61044cb9d55e0e2c82b51b0abd44682dc0d6b5df))
 * Emit hint when branch type mismatch can be fixed via coercions (#2055)([86d5814](https://github.com/Quantinuum/guppylang/commit/86d5814af5aad411100acd8405d59b697bf8b90c))
