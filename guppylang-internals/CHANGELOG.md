@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.0.0-rc2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc1...guppylang-internals-v1.0.0-rc2) (2026-07-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)
+
+
+### Bug Fixes
+
+* Disallow Callable as return type (#2054)([d531d95](https://github.com/Quantinuum/guppylang/commit/d531d95faadfcd407830c78dc0fb4ce5e4497bbd))
+
+
+### Code Refactoring
+
+* Remove deprecated qsystem extension usage (#2032)([91e1254](https://github.com/Quantinuum/guppylang/commit/91e125475d0de3d0be953cfc65a90605d6c8804f))
+
+
+### Features
+
+* Update hugr to `0.18.2`, implement value ext resolution (#2064)([a3e80a5](https://github.com/Quantinuum/guppylang/commit/a3e80a5b0245b89eae10bda3170d6a7011a30344))
+* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)([61044cb](https://github.com/Quantinuum/guppylang/commit/61044cb9d55e0e2c82b51b0abd44682dc0d6b5df))
+* Emit hint when branch type mismatch can be fixed via coercions (#2055)([86d5814](https://github.com/Quantinuum/guppylang/commit/86d5814af5aad411100acd8405d59b697bf8b90c))
+
 ## [1.0.0-rc1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc0...guppylang-internals-v1.0.0-rc1) (2026-07-07)
 
 
