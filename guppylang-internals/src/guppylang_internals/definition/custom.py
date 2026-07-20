@@ -420,7 +420,8 @@ class CustomCallChecker(ABC):
                         raise InternalGuppyError(
                             "Missing implementation of `compute_input_flags` for linear"
                             f" argument of type `{ty}` for custom function "
-                            f"`{self.func.name}`."
+                            f"`{self.func.name}`. Add an implementation or a signature"
+                            " to the function definition."
                         )
             else:
                 flags.append(InputFlags.NoFlags)
@@ -531,7 +532,7 @@ class DefaultCallChecker(CustomCallChecker):
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), ty
 
 
-class ConstructorCallChecker(DefaultCallChecker):
+class OwnedArgumentsCallChecker(DefaultCallChecker):
     """Same as `DefaultCallChecker`, but assumes all input arguments are owned."""
 
     input_flag_default_mode = InputFlagDefaultMode.OWNED
