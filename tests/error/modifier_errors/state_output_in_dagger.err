@@ -1,0 +1,9 @@
+Error: Dagger constraint violation (at $FILE:12:8)
+   | 
+10 |     q = qubit()
+11 |     with dagger():
+12 |         state_output("a", q)
+   |         ^^^^^^^^^^^^^^^^^^^^ This function cannot be called in a daggerable context
+   |                              because it is not daggerable itself
+
+Guppy compilation failed due to 1 previous error

@@ -56,7 +56,7 @@ class OptimizationLevel(Enum):
             case OptimizationLevel.Default | OptimizationLevel.Classical:
                 from tket import passes
 
-                return [passes.NormalizeGuppy()]
+                return [passes.Normalize()]
             case OptimizationLevel.Minimal:
                 return []
 
