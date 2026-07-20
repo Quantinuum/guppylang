@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 class StateOutputChecker(CustomCallChecker):
     """Call checker for the `state_output` function."""
 
-    input_flag_default_mode = InputFlagDefaultMode.INOUT
+    input_flag_mode = InputFlagDefaultMode.INOUT
 
     @dataclass(frozen=True)
     class MissingQubitsError(Error):

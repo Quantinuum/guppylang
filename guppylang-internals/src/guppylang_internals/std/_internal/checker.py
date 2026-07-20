@@ -293,6 +293,8 @@ class ArrayIndexChecker(CustomCallChecker):
 class NewArrayChecker(CustomCallChecker):
     """Function call checker for the `array.__new__` function."""
 
+    input_flag_mode = InputFlagDefaultMode.OWNED
+
     @dataclass(frozen=True)
     class InferenceError(Error):
         title: ClassVar[str] = "Cannot infer type"
@@ -425,7 +427,7 @@ class NewArrayChecker(CustomCallChecker):
 class AbortChecker(CustomCallChecker):
     """Call checker for the `panic` and `exit` functions."""
 
-    input_flag_default_mode = InputFlagDefaultMode.OWNED
+    input_flag_mode = InputFlagDefaultMode.OWNED
 
     def __init__(self, exit_kind: AbortKind):
         self.exit_kind = exit_kind
@@ -502,7 +504,7 @@ class BarrierChecker(CustomCallChecker):
 
 
 class WasmCallChecker(CustomCallChecker):
-    input_flag_default_mode = InputFlagDefaultMode.OWNED
+    input_flag_mode = InputFlagDefaultMode.OWNED
 
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:

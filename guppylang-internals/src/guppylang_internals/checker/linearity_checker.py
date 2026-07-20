@@ -482,9 +482,15 @@ class BBLinearityChecker(ast.NodeVisitor):
     def visit_GlobalCall(self, node: GlobalCall) -> None:
         func = ENGINE.get_parsed(node.def_id)
         assert isinstance(func, CallableDef)
-        if isinstance(func, CustomFunctionDef) and not func.has_signature:
+        if isinstance(func, CustomFunctionDef) and (
+            not func.has_signature or func.has_var_args
+        ):
+            flags = func.call_checker.compute_input_flags(node.args)
             func_ty = FunctionType(
-                [FuncInput(get_type(arg), InputFlags.NoFlags) for arg in node.args],
+                [
+                    FuncInput(get_type(arg), flag)
+                    for arg, flag in zip(node.args, flags, strict=True)
+                ],
                 get_type(node),
             )
         else:

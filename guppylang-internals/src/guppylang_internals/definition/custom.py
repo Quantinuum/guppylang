@@ -360,7 +360,7 @@ class CustomCallChecker(ABC):
 
     # If `func` has no or an incomplete signature and `compute_input_flags` is not
     # overridden, this controls the default behaviour of `compute_input_flags`.
-    input_flag_default_mode: ClassVar[InputFlagDefaultMode] = InputFlagDefaultMode.RAISE
+    input_flag_mode: ClassVar[InputFlagDefaultMode] = InputFlagDefaultMode.RAISE
 
     _depth = 0
 
@@ -411,7 +411,7 @@ class CustomCallChecker(ABC):
         for arg in args:
             ty = get_type(arg)
             if ty.linear:
-                match self.input_flag_default_mode:
+                match self.input_flag_mode:
                     case InputFlagDefaultMode.INOUT:
                         flags.append(InputFlags.Inout)
                     case InputFlagDefaultMode.OWNED:
@@ -535,7 +535,7 @@ class DefaultCallChecker(CustomCallChecker):
 class OwnedArgumentsCallChecker(DefaultCallChecker):
     """Same as `DefaultCallChecker`, but assumes all input arguments are owned."""
 
-    input_flag_default_mode = InputFlagDefaultMode.OWNED
+    input_flag_mode = InputFlagDefaultMode.OWNED
 
 
 class NotImplementedCallCompiler(CustomCallCompiler):
