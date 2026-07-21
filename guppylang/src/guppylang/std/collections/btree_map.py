@@ -18,6 +18,14 @@ if TYPE_CHECKING:
 class _Ord:
     """Internal structural protocol for keys in :class:`BTreeMap`.
 
+    This is deliberately private: public callers are only promised ``int`` and
+    non-NaN ``float`` keys. Protocol bounds currently also make a key copyable and
+    droppable, which is what permits comparisons while the map retains its key.
+
+    Implementations must make ``__lt__`` and ``__eq__`` describe the same ordering.
+    In particular, equal keys must not be ordered, and every accepted key must equal
+    itself. The latter is checked at each public operation to reject ``NaN``.
+
     TODO: Replace this with a public standard-library ordering API once one is designed.
     """
 
@@ -63,9 +71,14 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
 
     The public API supports ``int`` and non-NaN ``float`` keys. Float infinities are
     valid and ``-0.0`` and ``0.0`` designate the same key. Keys are stored in a 2-3-4
-    tree, so lookup, insertion, and removal are logarithmic in the number of entries.
-    Values may be linear; use :meth:`discard_empty` after removing or iterating over
-    all entries.
+    tree, so lookup and insertion are logarithmic in the number of entries. Values
+    may be linear; use :meth:`discard_empty` after removing or iterating over all
+    entries.
+
+    With constant-time key comparison, ``len`` is ``O(1)`` and lookup, insertion,
+    and a leaf-key removal are ``O(log n)``. Removing an internal key and draining
+    iteration currently rebuild the surviving tree, so their worst-case costs are
+    ``O(n log n)``; this is temporary until in-place internal-key rebalancing lands.
     """
 
     # A fixed pool keeps the whole data structure statically allocated. Nodes are
@@ -77,13 +90,16 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     _free_count: int
     _root: int
     _size: int
+    # These transient slots bridge public operations and helpers that need to move a
+    # key or value through the map without copying it. They are always `nothing` at
+    # API boundaries, which `discard_empty` verifies.
     _pending: Option[tuple[K, V]]
     _query: Option[K]
 
     @guppy
     @no_type_check
     def __len__(self) -> int:
-        """Returns the number of entries in the map."""
+        """Returns the number of entries in the map in ``O(1)`` time."""
         return self._size
 
     @guppy
@@ -91,7 +107,10 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     def __iter__[K: _Ord, V, MAX_SIZE: nat](
         self: BTreeMap[K, V, MAX_SIZE] @ owned,
     ) -> BTreeMap[K, V, MAX_SIZE]:
-        """Consumes the map, yielding entries in ascending key order."""
+        """Consumes the map, yielding entries in ascending key order.
+
+        Complexity: ``O(n log n)`` overall until internal-key deletion is in place.
+        """
         return self
 
     @guppy
@@ -119,7 +138,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     def contains_key[K: _Ord, V, MAX_SIZE: nat](
         self: BTreeMap[K, V, MAX_SIZE], key: K
     ) -> bool:
-        """Returns whether the map contains ``key``."""
+        """Returns whether the map contains ``key`` in ``O(log n)`` time."""
         _validate_key(key)
         self._query.swap(some(key)).unwrap_nothing()
         return _contains_key(self)
@@ -129,7 +148,13 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     def get[K: _Ord, V: Copy, MAX_SIZE: nat](
         self: BTreeMap[K, V, MAX_SIZE], key: K
     ) -> Option[V]:
-        """Returns a copy of the value stored for ``key``, if present."""
+        """Returns a copy of the value stored for ``key``, if present.
+
+        The ``Copy`` bound is essential: the map retains its value, so a linear value
+        can only be obtained by ``remove`` or consuming iteration.
+
+        Complexity: ``O(log n)``.
+        """
         _validate_key(key)
         self._query.swap(some(key)).unwrap_nothing()
         return _get(self)
@@ -139,7 +164,10 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     def insert[K: _Ord, V, MAX_SIZE: nat](
         self: BTreeMap[K, V, MAX_SIZE], key: K, value: V @ owned
     ) -> Option[V]:
-        """Stores ``value`` for ``key`` and returns a displaced value, if any."""
+        """Stores ``value`` for ``key`` and returns a displaced value, if any.
+
+        Complexity: ``O(log n)``.
+        """
         _validate_key(key)
         self._pending.swap(some((key, value))).unwrap_nothing()
         return _insert_pending(self)
@@ -149,7 +177,11 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     def remove[K: _Ord, V, MAX_SIZE: nat](
         self: BTreeMap[K, V, MAX_SIZE], key: K
     ) -> Option[V]:
-        """Removes and returns the value stored for ``key``, if present."""
+        """Removes and returns the value stored for ``key``, if present.
+
+        Complexity: ``O(log n)`` for a leaf key; ``O(n log n)`` worst case while
+        internal-key deletion uses its temporary rebuild path.
+        """
         _validate_key(key)
         location = _find(self, key)
         if location.is_nothing():
@@ -181,6 +213,10 @@ def _empty_node[K, V]() -> _Node[K, V]:
 @guppy
 @no_type_check
 def _validate_key[K: _Ord](key: K) -> None:
+    # Comparisons are dispatched explicitly rather than using operators because the
+    # private protocol is the source of these methods. This guard is shared by every
+    # public key operation, preventing a non-reflexive value (notably NaN) from
+    # entering the tree and making a later search path ambiguous.
     if not key.__eq__(key):
         panic("BTreeMap: key must be reflexive")
 
@@ -593,6 +629,8 @@ def _drain_except[K: _Ord, V, MAX_SIZE: nat](
 @guppy
 @no_type_check
 def _node_entry_index[K: _Ord, V](node: _Node[K, V], key: K) -> int:
+    # Lower-bound search: it returns either the matching entry or the child interval
+    # that can contain the key. Equality must stop the scan, not advance past it.
     entry_i = 0
     while entry_i < node._size:
         stored_key = _node_key(node, entry_i)
