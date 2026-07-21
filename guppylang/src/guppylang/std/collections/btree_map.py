@@ -83,6 +83,9 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
 
     With constant-time key comparison, ``len`` is ``O(1)``; lookup, insertion, and
     removal are ``O(log n)``; and consuming iteration drains the map in ``O(n)``.
+    Static storage is ``O(MAX_SIZE)`` nodes plus an ``O(MAX_SIZE)`` iterator stack;
+    node fan-out and the separate key index trade additional fixed storage for support
+    of linear values.
     """
 
     # A fixed pool keeps the whole data structure statically allocated. Nodes are
@@ -98,7 +101,12 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     # key or value through the map without copying it. They are always `nothing` at
     # API boundaries, which `discard_empty` verifies.
     _pending: Option[tuple[K, V]]
-    _query: Option[K]
+    # Iteration keeps an explicit root-to-leaf path. The arrays are statically sized
+    # by `MAX_SIZE`, though only `O(log n)` frames are live in a balanced tree.
+    _iter_nodes: array[int, MAX_SIZE]
+    _iter_entries: array[int, MAX_SIZE]
+    _iter_depth: int
+    _iter_active: bool
 
     @guppy
     @no_type_check
@@ -113,8 +121,10 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     ) -> BTreeMap[K, V, MAX_SIZE]:
         """Consumes the map, yielding entries in ascending key order.
 
-        Complexity: ``O(n)`` overall.
+        Complexity: ``O(n)`` overall, using ``O(MAX_SIZE)`` static traversal
+        storage (only ``O(log n)`` frames are live).
         """
+        _start_iteration(self)
         return self
 
     @guppy
@@ -133,7 +143,6 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
         if self._size != 0:
             panic("BTreeMap.discard_empty: map is not empty")
         self._pending.unwrap_nothing()
-        self._query.unwrap_nothing()
         for node in self._nodes:
             node.discard_empty()
 
@@ -144,8 +153,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     ) -> bool:
         """Returns whether the map contains ``key`` in ``O(log n)`` time."""
         _validate_key(key)
-        self._query.swap(some(key)).unwrap_nothing()
-        return _contains_key(self)
+        return _find(self, key).is_some()
 
     @guppy
     @no_type_check
@@ -160,8 +168,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
         Complexity: ``O(log n)``.
         """
         _validate_key(key)
-        self._query.swap(some(key)).unwrap_nothing()
-        return _get(self)
+        return _get(self, key)
 
     @guppy
     @no_type_check
@@ -186,21 +193,12 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
         Complexity: ``O(log n)``.
         """
         _validate_key(key)
-        location = _find(self, key)
-        if location.is_nothing():
+        if self._root < 0:
             return nothing()
-        node_i, entry_i = location.unwrap()
-        node = self._nodes.take(node_i)
-        is_leaf = node._leaf
-        self._nodes.put(node, node_i)
-        if is_leaf:
-            root_i = self._root
-            value = _remove_leaf_descending(self, root_i, key)
-            _collapse_root(self)
-            return some(value)
-        value = _remove_internal_entry(self, node_i, entry_i)
+        root_i = self._root
+        value = _remove_descending(self, root_i, key)
         _collapse_root(self)
-        return some(value)
+        return value
 
 
 @guppy
@@ -254,19 +252,9 @@ def _find[K: _Ord, V, MAX_SIZE: nat](
 
 @guppy
 @no_type_check
-def _contains_key[K: _Ord, V, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE],
-) -> bool:
-    key = btree_map._query.take().unwrap()
-    return _find(btree_map, key).is_some()
-
-
-@guppy
-@no_type_check
 def _get[K: _Ord, V: Copy, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE],
+    btree_map: BTreeMap[K, V, MAX_SIZE], key: K
 ) -> Option[V]:
-    key = btree_map._query.take().unwrap()
     location = _find(btree_map, key)
     if location.is_nothing():
         return nothing()
@@ -368,6 +356,29 @@ def _remove_leaf_descending[K: _Ord, V, MAX_SIZE: nat](
     # from its subtree cannot leave it below the 2-3-4-tree minimum occupancy.
     child_i = _prepare_child(btree_map, node_i, entry_i)
     return _remove_leaf_descending(btree_map, child_i, key)
+
+
+@guppy
+@no_type_check
+def _remove_descending[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], node_i: int, key: K
+) -> Option[V]:
+    """Finds and removes ``key`` in one top-down traversal."""
+    node = btree_map._nodes.take(node_i)
+    entry_i = _node_entry_index(node, key)
+    found = entry_i < node._size and key.__eq__(_node_key(node, entry_i))
+    is_leaf = node._leaf
+    btree_map._nodes.put(node, node_i)
+    if found:
+        if is_leaf:
+            return some(_remove_leaf_entry(btree_map, node_i, entry_i))
+        return some(_remove_internal_entry(btree_map, node_i, entry_i))
+    if is_leaf:
+        return nothing()
+    # Repair a minimal child before descent. The returned index accounts for a
+    # merge with its left sibling, so it still identifies the key's subtree.
+    child_i = _prepare_child(btree_map, node_i, entry_i)
+    return _remove_descending(btree_map, child_i, key)
 
 
 @guppy
@@ -685,22 +696,97 @@ def _borrow_from_right[K: _Ord, V, MAX_SIZE: nat](
 def _next_entry[K: _Ord, V, MAX_SIZE: nat](
     btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
 ) -> Option[tuple[tuple[K, V], BTreeMap[K, V, MAX_SIZE]]]:
+    if not btree_map._iter_active:
+        _start_iteration(btree_map)
     if btree_map._size == 0:
+        _finish_iteration(btree_map)
         btree_map.discard_empty()
         return nothing()
-    node_i = btree_map._root
-    while True:
+    while btree_map._iter_depth > 0:
+        frame_i = btree_map._iter_depth - 1
+        node_i = btree_map._iter_nodes[frame_i]
+        entry_i = btree_map._iter_entries[frame_i]
         node = btree_map._nodes.take(node_i)
-        is_leaf = node._leaf
-        if is_leaf:
-            first_key = _node_key(node, 0)
+        if entry_i >= node._size:
+            node._size = 0
+            node._leaf = True
             btree_map._nodes.put(node, node_i)
-            break
-        next_i = _node_child(node, 0)
+            _release_node(btree_map, node_i)
+            btree_map._iter_depth -= 1
+            continue
+        is_leaf = node._leaf
+        key, value = node._entries[entry_i].take().unwrap()
+        node._keys[entry_i].take().unwrap()
+        btree_map._iter_entries[frame_i] = entry_i + 1
+        child_i = -1
+        if not is_leaf:
+            child_i = node._children[entry_i + 1].take().unwrap()
         btree_map._nodes.put(node, node_i)
-        node_i = next_i
-    value = btree_map.remove(first_key).unwrap()
-    return some(((first_key, value), btree_map))
+        btree_map._size -= 1
+        if not is_leaf:
+            _push_left_path(btree_map, child_i)
+        return some(((key, value), btree_map))
+    panic("BTreeMap: iteration state corrupt")
+    # `panic` is not modelled as non-returning by the Guppy checker. This path is
+    # unreachable, but consuming the map keeps the fallback type-correct.
+    _finish_iteration(btree_map)
+    btree_map.discard_empty()
+    return nothing()
+
+
+@guppy
+@no_type_check
+def _start_iteration[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE],
+) -> None:
+    if btree_map._iter_active:
+        return
+    btree_map._iter_active = True
+    btree_map._iter_depth = 0
+    root_i = btree_map._root
+    if root_i >= 0:
+        _push_left_path(btree_map, root_i)
+
+
+@guppy
+@no_type_check
+def _push_left_path[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], node_i: int
+) -> None:
+    """Pushes the unvisited left spine rooted at ``node_i`` onto the iterator."""
+    current_i = node_i
+    while current_i >= 0:
+        frame_i = btree_map._iter_depth
+        btree_map._iter_nodes[frame_i] = current_i
+        btree_map._iter_entries[frame_i] = 0
+        btree_map._iter_depth += 1
+        node = btree_map._nodes.take(current_i)
+        is_leaf = node._leaf
+        next_i = -1
+        if not is_leaf:
+            next_i = node._children[0].take().unwrap()
+        btree_map._nodes.put(node, current_i)
+        if is_leaf:
+            return
+        current_i = next_i
+
+
+@guppy
+@no_type_check
+def _finish_iteration[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE],
+) -> None:
+    """Releases the completed frames still retained by the iterator stack."""
+    while btree_map._iter_depth > 0:
+        btree_map._iter_depth -= 1
+        node_i = btree_map._iter_nodes[btree_map._iter_depth]
+        node = btree_map._nodes.take(node_i)
+        node._size = 0
+        node._leaf = True
+        btree_map._nodes.put(node, node_i)
+        _release_node(btree_map, node_i)
+    btree_map._root = -1
+    btree_map._iter_active = False
 
 
 @guppy
@@ -742,15 +828,17 @@ def _insert_pending[K: _Ord, V, MAX_SIZE: nat](
     btree_map: BTreeMap[K, V, MAX_SIZE],
 ) -> Option[V]:
     key, value = btree_map._pending.take().unwrap()
-    location = _find(btree_map, key)
-    if location.is_some():
-        node_i, entry_i = location.unwrap()
-        node = btree_map._nodes.take(node_i)
-        stored_key, old_value = node._entries[entry_i].take().unwrap()
-        node._entries[entry_i].swap(some((stored_key, value))).unwrap_nothing()
-        btree_map._nodes.put(node, node_i)
-        return some(old_value)
     if btree_map._size >= MAX_SIZE:
+        # A full map may still replace an existing value. Do this bounded lookup
+        # before any split so a rejected distinct key leaves the tree untouched.
+        location = _find(btree_map, key)
+        if location.is_some():
+            node_i, entry_i = location.unwrap()
+            node = btree_map._nodes.take(node_i)
+            stored_key, old_value = node._entries[entry_i].take().unwrap()
+            node._entries[entry_i].swap(some((stored_key, value))).unwrap_nothing()
+            btree_map._nodes.put(node, node_i)
+            return some(old_value)
         panic("BTreeMap.insert: max size reached")
     if btree_map._root < 0:
         root_i = _allocate_node(btree_map)
@@ -779,49 +867,50 @@ def _insert_pending[K: _Ord, V, MAX_SIZE: nat](
         _split_child(btree_map, new_root_i, 0)
 
     node_i = btree_map._root
-    is_leaf = False
-    while not is_leaf:
+    while True:
         node = btree_map._nodes.take(node_i)
-        is_leaf = node._leaf
-        child_i = 0
-        next_i = -1
-        if not is_leaf:
-            child_i = _node_entry_index(node, key)
-            next_i = _node_child(node, child_i)
+        entry_i = _node_entry_index(node, key)
+        found = entry_i < node._size and key.__eq__(_node_key(node, entry_i))
+        if found:
+            stored_key, old_value = node._entries[entry_i].take().unwrap()
+            node._entries[entry_i].swap(some((stored_key, value))).unwrap_nothing()
+            btree_map._nodes.put(node, node_i)
+            return some(old_value)
+        if node._leaf:
+            insert_i = node._size
+            while insert_i > entry_i:
+                node._keys[insert_i].swap(
+                    node._keys[insert_i - 1].take()
+                ).unwrap_nothing()
+                entry = node._entries[insert_i - 1].take().unwrap()
+                node._entries[insert_i].swap(some(entry)).unwrap_nothing()
+                insert_i -= 1
+            node._keys[entry_i].swap(some(key)).unwrap_nothing()
+            node._entries[entry_i].swap(some((key, value))).unwrap_nothing()
+            node._size += 1
+            btree_map._nodes.put(node, node_i)
+            btree_map._size += 1
+            return nothing()
+
+        next_i = _node_child(node, entry_i)
         btree_map._nodes.put(node, node_i)
-        if is_leaf:
-            break
         child = btree_map._nodes.take(next_i)
         child_is_full = child._size == 3
         btree_map._nodes.put(child, next_i)
         if child_is_full:
             # A split inserts a new separator into the current node; choose the
             # appropriate half only after observing that separator.
-            _split_child(btree_map, node_i, child_i)
+            _split_child(btree_map, node_i, entry_i)
             node = btree_map._nodes.take(node_i)
-            split_key = _node_key(node, child_i)
-            if key.__lt__(split_key):
-                next_i = _node_child(node, child_i)
-            else:
-                next_i = _node_child(node, child_i + 1)
+            entry_i = _node_entry_index(node, key)
+            if entry_i < node._size and key.__eq__(_node_key(node, entry_i)):
+                stored_key, old_value = node._entries[entry_i].take().unwrap()
+                node._entries[entry_i].swap(some((stored_key, value))).unwrap_nothing()
+                btree_map._nodes.put(node, node_i)
+                return some(old_value)
+            next_i = _node_child(node, entry_i)
             btree_map._nodes.put(node, node_i)
         node_i = next_i
-
-    node = btree_map._nodes.take(node_i)
-    entry_i = node._size
-    while entry_i > 0:
-        if _node_key(node, entry_i - 1).__lt__(key):
-            break
-        node._keys[entry_i].swap(node._keys[entry_i - 1].take()).unwrap_nothing()
-        entry = node._entries[entry_i - 1].take().unwrap()
-        node._entries[entry_i].swap(some(entry)).unwrap_nothing()
-        entry_i -= 1
-    node._keys[entry_i].swap(some(key)).unwrap_nothing()
-    node._entries[entry_i].swap(some((key, value))).unwrap_nothing()
-    node._size += 1
-    btree_map._nodes.put(node, node_i)
-    btree_map._size += 1
-    return nothing()
 
 
 @guppy
@@ -829,6 +918,9 @@ def _insert_pending[K: _Ord, V, MAX_SIZE: nat](
 def _allocate_node[K, V, MAX_SIZE: nat](
     btree_map: BTreeMap[K, V, MAX_SIZE],
 ) -> int:
+    # This is defensive: a 2-3-4 tree with at most `MAX_SIZE` entries has no
+    # more than `MAX_SIZE` live nodes, so correct insert/rebalance logic cannot
+    # exhaust the statically sized pool.
     if btree_map._free_count <= 0:
         panic("BTreeMap: node pool exhausted")
     btree_map._free_count -= 1
@@ -895,5 +987,8 @@ def empty_btree_map[K: _Ord, V, MAX_SIZE: nat]() -> BTreeMap[K, V, MAX_SIZE]:
         -1,
         0,
         nothing[tuple[K, V]](),
-        nothing[K](),
+        array(0 for _ in range(MAX_SIZE)),
+        array(0 for _ in range(MAX_SIZE)),
+        0,
+        False,
     )
