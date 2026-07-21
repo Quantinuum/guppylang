@@ -76,7 +76,7 @@ def test_btree_map_get_rejects_linear_values() -> None:
         btree_map.get(0).unwrap().measure()
 
     with pytest.raises(GuppyError, match="copyable type"):
-        main.compile_function()
+        main.check()
 
 
 def test_btree_map_replaces_at_capacity(run_int_fn) -> None:
