@@ -1,6 +1,8 @@
 from guppylang import guppy
 from guppylang.std.collections import (
+    BTreeMap,
     Stack,
+    empty_btree_map,
     empty_stack,
     PriorityQueue,
     empty_priority_queue,
@@ -9,6 +11,17 @@ from guppylang.std.collections import (
 )
 import pytest
 from guppylang.emulator import EmulatorError
+
+
+def test_btree_map_empty(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 3] = empty_btree_map()
+        size = len(btree_map)
+        btree_map.discard_empty()
+        return size
+
+    run_int_fn(main, 0)
 
 
 def test_stack(run_int_fn) -> None:

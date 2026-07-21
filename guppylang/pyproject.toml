@@ -41,6 +41,9 @@ dependencies = [
 homepage = "https://github.com/quantinuum/guppylang"
 repository = "https://github.com/quantinuum/guppylang"
 
+[tool.ruff]
+target-version = "py312"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
