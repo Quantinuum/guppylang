@@ -1,3 +1,5 @@
+from typing import Self
+
 from guppylang import guppy
 from guppylang.std.collections import (
     BTreeMap,
@@ -11,6 +13,34 @@ from guppylang.std.collections import (
 )
 import pytest
 from guppylang.emulator import EmulatorError
+
+
+# `_Ord` is intentionally private. These structs exercise its current structural
+# compatibility only; exposing a public ordering protocol remains a TODO.
+@guppy.struct(frozen=True)
+class _CustomOrdKey:
+    value: int
+
+    @guppy
+    def __lt__(self, other: Self) -> bool:
+        return self.value < other.value
+
+    @guppy
+    def __eq__(self, other: Self) -> bool:
+        return self.value == other.value
+
+
+@guppy.struct(frozen=True)
+class _NonReflexiveKey:
+    value: int
+
+    @guppy
+    def __lt__(self, other: Self) -> bool:
+        return self.value < other.value
+
+    @guppy
+    def __eq__(self, other: Self) -> bool:
+        return self.value < other.value
 
 
 def test_btree_map_empty(run_int_fn) -> None:
@@ -116,6 +146,28 @@ def test_btree_map_iterates_in_ascending_key_order(run_int_fn) -> None:
         return result
 
     run_int_fn(main, sum((i + 1) * (10 * i + 9 - i) for i in range(10)))
+
+
+def test_btree_map_supports_private_structural_ordering(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[_CustomOrdKey, int, 3] = empty_btree_map()
+        btree_map.insert(_CustomOrdKey(2), 20).unwrap_nothing()
+        btree_map.insert(_CustomOrdKey(1), 10).unwrap_nothing()
+        return btree_map.get(_CustomOrdKey(1)).unwrap()
+
+    run_int_fn(main, 10)
+
+
+def test_btree_map_rejects_non_reflexive_private_key(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[_NonReflexiveKey, int, 1] = empty_btree_map()
+        btree_map.insert(_NonReflexiveKey(1), 1).unwrap_nothing()
+        return 0
+
+    with pytest.raises(EmulatorError, match="key must be reflexive"):
+        run_int_fn(main, 0)
 
 
 def test_stack(run_int_fn) -> None:
