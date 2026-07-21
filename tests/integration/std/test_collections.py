@@ -24,6 +24,53 @@ def test_btree_map_empty(run_int_fn) -> None:
     run_int_fn(main, 0)
 
 
+def test_btree_map_insert_and_lookup(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 10] = empty_btree_map()
+        for i in range(10):
+            btree_map.insert(i, i * 2).unwrap_nothing()
+        btree_map.get(10).unwrap_nothing()
+        return btree_map.get(7).unwrap() + 100 * len(btree_map)
+
+    run_int_fn(main, 1014)
+
+
+def test_btree_map_replaces_at_capacity(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 4] = empty_btree_map()
+        for i in range(4):
+            btree_map.insert(i, i).unwrap_nothing()
+        displaced = btree_map.insert(2, 10).unwrap()
+        return 100 * len(btree_map) + 10 * displaced + btree_map.get(2).unwrap()
+
+    run_int_fn(main, 430)
+
+
+def test_btree_map_float_keys_and_signed_zero(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[float, int, 3] = empty_btree_map()
+        btree_map.insert(-0.0, 1).unwrap_nothing()
+        displaced = btree_map.insert(0.0, 2).unwrap()
+        btree_map.insert(1.0 / 0.0, 3).unwrap_nothing()
+        return 100 * len(btree_map) + 10 * displaced + btree_map.get(-0.0).unwrap()
+
+    run_int_fn(main, 212)
+
+
+def test_btree_map_rejects_nan_key(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[float, int, 1] = empty_btree_map()
+        btree_map.insert(0.0 / 0.0, 1).unwrap_nothing()
+        return 0
+
+    with pytest.raises(EmulatorError, match="key must be reflexive"):
+        run_int_fn(main, 0)
+
+
 def test_stack(run_int_fn) -> None:
     @guppy
     def main() -> int:
