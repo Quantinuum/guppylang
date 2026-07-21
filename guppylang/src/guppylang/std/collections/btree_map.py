@@ -78,6 +78,21 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
 
     @guppy
     @no_type_check
+    def __iter__[K: _Ord, V, MAX_SIZE: nat](
+        self: BTreeMap[K, V, MAX_SIZE] @ owned,
+    ) -> BTreeMap[K, V, MAX_SIZE]:
+        """Consumes the map, yielding entries in ascending key order."""
+        return self
+
+    @guppy
+    @no_type_check
+    def __next__[K: _Ord, V, MAX_SIZE: nat](
+        self: BTreeMap[K, V, MAX_SIZE] @ owned,
+    ) -> Option[tuple[tuple[K, V], BTreeMap[K, V, MAX_SIZE]]]:
+        return _next_entry(self)
+
+    @guppy
+    @no_type_check
     def discard_empty[K: _Ord, V, MAX_SIZE: nat](
         self: BTreeMap[K, V, MAX_SIZE] @ owned,
     ) -> None:
@@ -126,8 +141,17 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     ) -> Option[V]:
         """Removes and returns the value stored for ``key``, if present."""
         _validate_key(key)
+        location = _find(self, key)
+        if location.is_nothing():
+            return nothing()
+        node_i, entry_i = location.unwrap()
+        node = self._nodes.take(node_i)
+        is_leaf = node._leaf
+        self._nodes.put(node, node_i)
+        if is_leaf:
+            return some(_remove_leaf_entry(self, node_i, entry_i))
         self._query.swap(some(key)).unwrap_nothing()
-        return with_owned(self, _remove)
+        return with_owned(self, _rebuild_remove)
 
 
 @guppy
@@ -198,7 +222,7 @@ def _get[K: _Ord, V, MAX_SIZE: nat](
 
 @guppy
 @no_type_check
-def _remove[K: _Ord, V, MAX_SIZE: nat](
+def _rebuild_remove[K: _Ord, V, MAX_SIZE: nat](
     btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
 ) -> tuple[Option[V], BTreeMap[K, V, MAX_SIZE]]:
     key = btree_map._query.take().unwrap()
@@ -209,6 +233,56 @@ def _remove[K: _Ord, V, MAX_SIZE: nat](
     btree_map._size = 0
     btree_map.discard_empty()
     return removed, rebuilt
+
+
+@guppy
+@no_type_check
+def _remove_leaf_entry[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], node_i: int, entry_i: int
+) -> V:
+    node = btree_map._nodes.take(node_i)
+    _key, value = node._entries[entry_i].take().unwrap()
+    next_i = entry_i
+    while next_i < node._size - 1:
+        entry = node._entries[next_i + 1].take().unwrap()
+        node._entries[next_i].swap(some(entry)).unwrap_nothing()
+        next_i += 1
+    node._size -= 1
+    is_empty_root = node_i == btree_map._root and node._size == 0
+    btree_map._nodes.put(node, node_i)
+    btree_map._size -= 1
+    if is_empty_root:
+        btree_map._root = -1
+        btree_map._free_nodes[btree_map._free_count] = node_i
+        btree_map._free_count += 1
+    return value
+
+
+@guppy
+@no_type_check
+def _next_entry[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
+) -> Option[tuple[tuple[K, V], BTreeMap[K, V, MAX_SIZE]]]:
+    if btree_map._size == 0:
+        btree_map.discard_empty()
+        return nothing()
+    node_i = btree_map._root
+    while True:
+        node = btree_map._nodes.take(node_i)
+        is_leaf = node._leaf
+        if is_leaf:
+            first_key = _node_key(node, 0)
+            can_remove_in_place = node._size > 1
+            btree_map._nodes.put(node, node_i)
+            break
+        next_i = _node_child(node, 0)
+        btree_map._nodes.put(node, node_i)
+        node_i = next_i
+    if can_remove_in_place:
+        return some(((first_key, _remove_leaf_entry(btree_map, node_i, 0)), btree_map))
+    btree_map._query.swap(some(first_key)).unwrap_nothing()
+    value, btree_map = _rebuild_remove(btree_map)
+    return some(((first_key, value.unwrap()), btree_map))
 
 
 @guppy

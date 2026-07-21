@@ -102,6 +102,22 @@ def test_btree_map_remove_all_and_discard_empty(run_int_fn) -> None:
     run_int_fn(main, 0)
 
 
+def test_btree_map_iterates_in_ascending_key_order(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 10] = empty_btree_map()
+        for i in range(10):
+            btree_map.insert(9 - i, i).unwrap_nothing()
+        result = 0
+        multiplier = 1
+        for key, value in btree_map:
+            result += multiplier * (10 * key + value)
+            multiplier += 1
+        return result
+
+    run_int_fn(main, sum((i + 1) * (10 * i + 9 - i) for i in range(10)))
+
+
 def test_stack(run_int_fn) -> None:
     @guppy
     def main() -> int:
