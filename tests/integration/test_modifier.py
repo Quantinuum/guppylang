@@ -48,13 +48,17 @@ def test_subscript_dagger(validate):
 
 
 def test_assignment_in_dagger(validate):
+    @guppy(daggerable=True)
+    def foo(x: int) -> int:
+        return x
+
     @guppy
     def main() -> None:
         q = qubit()
         c = qubit()
         y = 1
         with dagger:
-            x = 5
+            x = foo(y)
             h(q)
         with dagger:
             y = 2
