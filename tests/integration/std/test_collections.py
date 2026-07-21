@@ -56,6 +56,18 @@ def test_btree_map_empty(run_int_fn) -> None:
     run_int_fn(main, 0)
 
 
+def test_btree_map_iterates_empty(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 3] = empty_btree_map()
+        result = 0
+        for _key, _value in btree_map:
+            result += 1
+        return result
+
+    run_int_fn(main, 0)
+
+
 def test_btree_map_insert_and_lookup(run_int_fn) -> None:
     @guppy
     def main() -> int:
@@ -89,6 +101,19 @@ def test_btree_map_replaces_at_capacity(run_int_fn) -> None:
         return 100 * len(btree_map) + 10 * displaced + btree_map.get(2).unwrap()
 
     run_int_fn(main, 430)
+
+
+def test_btree_map_rejects_distinct_key_at_capacity(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 3] = empty_btree_map()
+        for i in range(3):
+            btree_map.insert(i, i).unwrap_nothing()
+        btree_map.insert(3, 3).unwrap_nothing()
+        return 0
+
+    with pytest.raises(EmulatorError, match=r"BTreeMap.insert: max size reached"):
+        run_int_fn(main, 0)
 
 
 def test_btree_map_float_keys_and_signed_zero(run_int_fn) -> None:
