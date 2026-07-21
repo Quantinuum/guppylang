@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Self, no_type_check
 from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.mem import with_owned
+from guppylang.std.lang import Copy
 from guppylang.std.option import Option, nothing, some
 from guppylang.std.num import nat
 from guppylang.std.platform import panic
@@ -116,7 +117,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
 
     @guppy
     @no_type_check
-    def get[K: _Ord, V, MAX_SIZE: nat](
+    def get[K: _Ord, V: Copy, MAX_SIZE: nat](
         self: BTreeMap[K, V, MAX_SIZE], key: K
     ) -> Option[V]:
         """Returns a copy of the value stored for ``key``, if present."""
@@ -206,7 +207,7 @@ def _contains_key[K: _Ord, V, MAX_SIZE: nat](
 
 @guppy
 @no_type_check
-def _get[K: _Ord, V, MAX_SIZE: nat](
+def _get[K: _Ord, V: Copy, MAX_SIZE: nat](
     btree_map: BTreeMap[K, V, MAX_SIZE],
 ) -> Option[V]:
     key = btree_map._query.take().unwrap()
@@ -356,7 +357,7 @@ def _node_key[K: _Ord, V](node: _Node[K, V], entry_i: int) -> K:
 
 @guppy
 @no_type_check
-def _node_value[K: _Ord, V](node: _Node[K, V], entry_i: int) -> V:
+def _node_value[K: _Ord, V: Copy](node: _Node[K, V], entry_i: int) -> V:
     _key, value = node._entries[entry_i].unwrap()
     return value
 
