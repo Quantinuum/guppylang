@@ -13,7 +13,7 @@ from guppylang.std.collections import (
 )
 import pytest
 from guppylang.emulator import EmulatorError
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import qubit, x as x_gate
 from guppylang_internals.error import GuppyError
 
 
@@ -145,6 +145,51 @@ def test_btree_map_remove_all_and_discard_empty(run_int_fn) -> None:
     run_int_fn(main, 0)
 
 
+def test_btree_map_deletion_rebalances_and_collapses_root(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 20] = empty_btree_map()
+        for i in range(20):
+            btree_map.insert(i, i).unwrap_nothing()
+
+        total = 0
+        # Deleting from both outer ranges makes top-down deletion borrow from both
+        # sides where possible, then merge minimum-sized siblings as they empty.
+        for i in range(7):
+            total += btree_map.remove(i).unwrap()
+        for i in range(7):
+            total += btree_map.remove(19 - i).unwrap()
+        for i in range(7, 13):
+            total += btree_map.remove(i).unwrap()
+
+        btree_map.discard_empty()
+        return total
+
+    run_int_fn(main, sum(range(20)))
+
+
+def test_btree_map_reuses_nodes_after_deletion(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 10] = empty_btree_map()
+        for i in range(10):
+            btree_map.insert(i, i).unwrap_nothing()
+        for i in range(10):
+            btree_map.remove(i).unwrap()
+
+        # A second full tree must be able to allocate every slot released by the
+        # first tree, including nodes released by merges and root collapse.
+        for i in range(10):
+            btree_map.insert(10 + i, 10 + i).unwrap_nothing()
+        total = 0
+        for i in range(10):
+            total += btree_map.remove(10 + i).unwrap()
+        btree_map.discard_empty()
+        return total
+
+    run_int_fn(main, sum(range(10, 20)))
+
+
 def test_btree_map_iterates_in_ascending_key_order(run_int_fn) -> None:
     @guppy
     def main() -> int:
@@ -159,6 +204,28 @@ def test_btree_map_iterates_in_ascending_key_order(run_int_fn) -> None:
         return result
 
     run_int_fn(main, sum((i + 1) * (10 * i + 9 - i) for i in range(10)))
+
+
+def test_btree_map_iteration_consumes_linear_values(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, qubit, 3] = empty_btree_map()
+        marked = qubit()
+        x_gate(marked)
+        btree_map.insert(2, qubit()).unwrap_nothing()
+        btree_map.insert(0, qubit()).unwrap_nothing()
+        btree_map.insert(1, marked).unwrap_nothing()
+
+        result = 0
+        position = 1
+        for _key, value in btree_map:
+            if value.measure():
+                result += position
+            position += 1
+        return result
+
+    # The marked linear value has key 1, so ordered draining measures it second.
+    run_int_fn(main, 2, num_qubits=3)
 
 
 def test_btree_map_supports_private_structural_ordering(run_int_fn) -> None:
