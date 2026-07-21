@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Self, no_type_check
 
 from guppylang.decorator import guppy
 from guppylang.std.array import array
-from guppylang.std.mem import with_owned
 from guppylang.std.lang import Copy
 from guppylang.std.option import Option, nothing, some
 from guppylang.std.num import nat
@@ -75,10 +74,8 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     may be linear; use :meth:`discard_empty` after removing or iterating over all
     entries.
 
-    With constant-time key comparison, ``len`` is ``O(1)`` and lookup, insertion,
-    and a leaf-key removal are ``O(log n)``. Removing an internal key and draining
-    iteration currently rebuild the surviving tree, so their worst-case costs are
-    ``O(n log n)``; this is temporary until in-place internal-key rebalancing lands.
+    With constant-time key comparison, ``len`` is ``O(1)``; lookup, insertion, and
+    removal are ``O(log n)``; and consuming iteration drains the map in ``O(n)``.
     """
 
     # A fixed pool keeps the whole data structure statically allocated. Nodes are
@@ -109,7 +106,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     ) -> BTreeMap[K, V, MAX_SIZE]:
         """Consumes the map, yielding entries in ascending key order.
 
-        Complexity: ``O(n log n)`` overall until internal-key deletion is in place.
+        Complexity: ``O(n)`` overall.
         """
         return self
 
@@ -179,8 +176,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
     ) -> Option[V]:
         """Removes and returns the value stored for ``key``, if present.
 
-        Complexity: ``O(log n)`` for a leaf key; ``O(n log n)`` worst case while
-        internal-key deletion uses its temporary rebuild path.
+        Complexity: ``O(log n)``.
         """
         _validate_key(key)
         location = _find(self, key)
@@ -195,16 +191,9 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
             value = _remove_leaf_descending(self, root_i, key)
             _collapse_root(self)
             return some(value)
-        removed = _remove_internal_from_left(self, node_i, entry_i)
-        if removed.is_some():
-            _collapse_root(self)
-            return removed
-        removed = _remove_internal_from_right(self, node_i, entry_i)
-        if removed.is_some():
-            _collapse_root(self)
-            return removed
-        self._query.swap(some(key)).unwrap_nothing()
-        return with_owned(self, _rebuild_remove)
+        value = _remove_internal_entry(self, node_i, entry_i)
+        _collapse_root(self)
+        return some(value)
 
 
 @guppy
@@ -278,21 +267,6 @@ def _get[K: _Ord, V: Copy, MAX_SIZE: nat](
     value = _node_value(node, entry_i)
     btree_map._nodes.put(node, node_i)
     return some(value)
-
-
-@guppy
-@no_type_check
-def _rebuild_remove[K: _Ord, V, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
-) -> tuple[Option[V], BTreeMap[K, V, MAX_SIZE]]:
-    key = btree_map._query.take().unwrap()
-    rebuilt = empty_btree_map[K, V, MAX_SIZE]()
-    root_i = btree_map._root
-    removed, btree_map, rebuilt = _drain_except(btree_map, rebuilt, root_i, key)
-    btree_map._root = -1
-    btree_map._size = 0
-    btree_map.discard_empty()
-    return removed, rebuilt
 
 
 @guppy
@@ -409,6 +383,34 @@ def _remove_internal_from_left[K: _Ord, V, MAX_SIZE: nat](
     ).unwrap_nothing()
     btree_map._nodes.put(parent, parent_i)
     return some(old_value)
+
+
+@guppy
+@no_type_check
+def _remove_internal_entry[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], node_i: int, entry_i: int
+) -> V:
+    """Deletes an internal entry by borrowing, or recursively merging, its children."""
+    removed = _remove_internal_from_left(btree_map, node_i, entry_i)
+    if removed.is_some():
+        return removed.unwrap()
+    removed = _remove_internal_from_right(btree_map, node_i, entry_i)
+    if removed.is_some():
+        return removed.unwrap()
+
+    parent = btree_map._nodes.take(node_i)
+    left_i = parent._children[entry_i].unwrap()
+    left = btree_map._nodes.take(left_i)
+    left_size = left._size
+    btree_map._nodes.put(left, left_i)
+    btree_map._nodes.put(parent, node_i)
+    merged_i = _merge_children(btree_map, node_i, entry_i)
+    merged = btree_map._nodes.take(merged_i)
+    is_leaf = merged._leaf
+    btree_map._nodes.put(merged, merged_i)
+    if is_leaf:
+        return _remove_leaf_entry(btree_map, merged_i, left_size)
+    return _remove_internal_entry(btree_map, merged_i, left_size)
 
 
 @guppy
@@ -662,67 +664,13 @@ def _next_entry[K: _Ord, V, MAX_SIZE: nat](
         is_leaf = node._leaf
         if is_leaf:
             first_key = _node_key(node, 0)
-            can_remove_in_place = node._size > 1
             btree_map._nodes.put(node, node_i)
             break
         next_i = _node_child(node, 0)
         btree_map._nodes.put(node, node_i)
         node_i = next_i
-    if can_remove_in_place:
-        return some(((first_key, _remove_leaf_entry(btree_map, node_i, 0)), btree_map))
-    btree_map._query.swap(some(first_key)).unwrap_nothing()
-    value, btree_map = _rebuild_remove(btree_map)
-    return some(((first_key, value.unwrap()), btree_map))
-
-
-@guppy
-@no_type_check
-def _drain_except[K: _Ord, V, MAX_SIZE: nat](
-    old_map: BTreeMap[K, V, MAX_SIZE] @ owned,
-    new_map: BTreeMap[K, V, MAX_SIZE] @ owned,
-    node_i: int,
-    key: K,
-) -> tuple[Option[V], BTreeMap[K, V, MAX_SIZE], BTreeMap[K, V, MAX_SIZE]]:
-    if node_i < 0:
-        return nothing(), old_map, new_map
-    node = old_map._nodes.take(node_i)
-    removed = nothing[V]()
-    entry_i = 0
-    while entry_i < node._size:
-        if not node._leaf:
-            child_i = node._children[entry_i].take().unwrap()
-            child_removed, old_map, new_map = _drain_except(
-                old_map, new_map, child_i, key
-            )
-            if child_removed.is_some():
-                if removed.is_some():
-                    panic("BTreeMap: duplicate key")
-                removed = child_removed
-            else:
-                child_removed.unwrap_nothing()
-        entry_key, entry_value = node._entries[entry_i].take().unwrap()
-        if entry_key.__eq__(key):
-            if removed.is_some():
-                panic("BTreeMap: duplicate key")
-            removed = some(entry_value)
-        else:
-            new_map._pending.swap(some((entry_key, entry_value))).unwrap_nothing()
-            displaced = _insert_pending(new_map)
-            displaced.unwrap_nothing()
-        entry_i += 1
-    if not node._leaf:
-        child_i = node._children[node._size].take().unwrap()
-        child_removed, old_map, new_map = _drain_except(old_map, new_map, child_i, key)
-        if child_removed.is_some():
-            if removed.is_some():
-                panic("BTreeMap: duplicate key")
-            removed = child_removed
-        else:
-            child_removed.unwrap_nothing()
-    node._size = 0
-    node._leaf = True
-    old_map._nodes.put(node, node_i)
-    return removed, old_map, new_map
+    value = btree_map.remove(first_key).unwrap()
+    return some(((first_key, value), btree_map))
 
 
 @guppy
