@@ -13,6 +13,8 @@ from guppylang.std.collections import (
 )
 import pytest
 from guppylang.emulator import EmulatorError
+from guppylang.std.quantum import qubit
+from guppylang_internals.error import GuppyError
 
 
 # `_Ord` is intentionally private. These structs exercise its current structural
@@ -64,6 +66,17 @@ def test_btree_map_insert_and_lookup(run_int_fn) -> None:
         return btree_map.get(7).unwrap() + 100 * len(btree_map)
 
     run_int_fn(main, 1014)
+
+
+def test_btree_map_get_rejects_linear_values() -> None:
+    @guppy
+    def main() -> None:
+        btree_map: BTreeMap[int, qubit, 1] = empty_btree_map()
+        btree_map.insert(0, qubit()).unwrap_nothing()
+        btree_map.get(0).unwrap().measure()
+
+    with pytest.raises(GuppyError, match="copyable type"):
+        main.compile_function()
 
 
 def test_btree_map_replaces_at_capacity(run_int_fn) -> None:
