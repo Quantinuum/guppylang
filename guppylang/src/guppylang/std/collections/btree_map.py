@@ -97,7 +97,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
         """Returns whether the map contains ``key``."""
         _validate_key(key)
         self._query.swap(some(key)).unwrap_nothing()
-        return with_owned(self, _contains_key)
+        return _contains_key(self)
 
     @guppy
     @no_type_check
@@ -107,7 +107,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
         """Returns a copy of the value stored for ``key``, if present."""
         _validate_key(key)
         self._query.swap(some(key)).unwrap_nothing()
-        return with_owned(self, _get)
+        return _get(self)
 
     @guppy
     @no_type_check
@@ -117,7 +117,17 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
         """Stores ``value`` for ``key`` and returns a displaced value, if any."""
         _validate_key(key)
         self._pending.swap(some((key, value))).unwrap_nothing()
-        return with_owned(self, _insert_pending)
+        return _insert_pending(self)
+
+    @guppy
+    @no_type_check
+    def remove[K: _Ord, V, MAX_SIZE: nat](
+        self: BTreeMap[K, V, MAX_SIZE], key: K
+    ) -> Option[V]:
+        """Removes and returns the value stored for ``key``, if present."""
+        _validate_key(key)
+        self._query.swap(some(key)).unwrap_nothing()
+        return with_owned(self, _remove)
 
 
 @guppy
@@ -140,9 +150,9 @@ def _validate_key[K: _Ord](key: K) -> None:
 
 @guppy
 @no_type_check
-def _find_owned[K: _Ord, V, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned, key: K
-) -> tuple[Option[tuple[int, int]], BTreeMap[K, V, MAX_SIZE]]:
+def _find[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], key: K
+) -> Option[tuple[int, int]]:
     node_i = btree_map._root
     while node_i >= 0:
         node = btree_map._nodes.take(node_i)
@@ -154,37 +164,101 @@ def _find_owned[K: _Ord, V, MAX_SIZE: nat](
             next_i = _node_child(node, entry_i)
         btree_map._nodes.put(node, node_i)
         if found:
-            return some((node_i, entry_i)), btree_map
+            return some((node_i, entry_i))
         if is_leaf:
-            return nothing(), btree_map
+            return nothing()
         node_i = next_i
-    return nothing(), btree_map
+    return nothing()
 
 
 @guppy
 @no_type_check
 def _contains_key[K: _Ord, V, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
-) -> tuple[bool, BTreeMap[K, V, MAX_SIZE]]:
+    btree_map: BTreeMap[K, V, MAX_SIZE],
+) -> bool:
     key = btree_map._query.take().unwrap()
-    location, btree_map = _find_owned(btree_map, key)
-    return location.is_some(), btree_map
+    return _find(btree_map, key).is_some()
 
 
 @guppy
 @no_type_check
 def _get[K: _Ord, V, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
-) -> tuple[Option[V], BTreeMap[K, V, MAX_SIZE]]:
+    btree_map: BTreeMap[K, V, MAX_SIZE],
+) -> Option[V]:
     key = btree_map._query.take().unwrap()
-    location, btree_map = _find_owned(btree_map, key)
+    location = _find(btree_map, key)
     if location.is_nothing():
-        return nothing(), btree_map
+        return nothing()
     node_i, entry_i = location.unwrap()
     node = btree_map._nodes.take(node_i)
     value = _node_value(node, entry_i)
     btree_map._nodes.put(node, node_i)
-    return some(value), btree_map
+    return some(value)
+
+
+@guppy
+@no_type_check
+def _remove[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
+) -> tuple[Option[V], BTreeMap[K, V, MAX_SIZE]]:
+    key = btree_map._query.take().unwrap()
+    rebuilt = empty_btree_map[K, V, MAX_SIZE]()
+    root_i = btree_map._root
+    removed, btree_map, rebuilt = _drain_except(btree_map, rebuilt, root_i, key)
+    btree_map._root = -1
+    btree_map._size = 0
+    btree_map.discard_empty()
+    return removed, rebuilt
+
+
+@guppy
+@no_type_check
+def _drain_except[K: _Ord, V, MAX_SIZE: nat](
+    old_map: BTreeMap[K, V, MAX_SIZE] @ owned,
+    new_map: BTreeMap[K, V, MAX_SIZE] @ owned,
+    node_i: int,
+    key: K,
+) -> tuple[Option[V], BTreeMap[K, V, MAX_SIZE], BTreeMap[K, V, MAX_SIZE]]:
+    if node_i < 0:
+        return nothing(), old_map, new_map
+    node = old_map._nodes.take(node_i)
+    removed = nothing[V]()
+    entry_i = 0
+    while entry_i < node._size:
+        if not node._leaf:
+            child_i = node._children[entry_i].take().unwrap()
+            child_removed, old_map, new_map = _drain_except(
+                old_map, new_map, child_i, key
+            )
+            if child_removed.is_some():
+                if removed.is_some():
+                    panic("BTreeMap: duplicate key")
+                removed = child_removed
+            else:
+                child_removed.unwrap_nothing()
+        entry_key, entry_value = node._entries[entry_i].take().unwrap()
+        if entry_key.__eq__(key):
+            if removed.is_some():
+                panic("BTreeMap: duplicate key")
+            removed = some(entry_value)
+        else:
+            new_map._pending.swap(some((entry_key, entry_value))).unwrap_nothing()
+            displaced = _insert_pending(new_map)
+            displaced.unwrap_nothing()
+        entry_i += 1
+    if not node._leaf:
+        child_i = node._children[node._size].take().unwrap()
+        child_removed, old_map, new_map = _drain_except(old_map, new_map, child_i, key)
+        if child_removed.is_some():
+            if removed.is_some():
+                panic("BTreeMap: duplicate key")
+            removed = child_removed
+        else:
+            child_removed.unwrap_nothing()
+    node._size = 0
+    node._leaf = True
+    old_map._nodes.put(node, node_i)
+    return removed, old_map, new_map
 
 
 @guppy
@@ -222,41 +296,41 @@ def _node_child[K, V](node: _Node[K, V], child_i: int) -> int:
 @guppy
 @no_type_check
 def _insert_pending[K: _Ord, V, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
-) -> tuple[Option[V], BTreeMap[K, V, MAX_SIZE]]:
+    btree_map: BTreeMap[K, V, MAX_SIZE],
+) -> Option[V]:
     key, value = btree_map._pending.take().unwrap()
-    location, btree_map = _find_owned(btree_map, key)
+    location = _find(btree_map, key)
     if location.is_some():
         node_i, entry_i = location.unwrap()
         node = btree_map._nodes.take(node_i)
         stored_key, old_value = node._entries[entry_i].take().unwrap()
         node._entries[entry_i].swap(some((stored_key, value))).unwrap_nothing()
         btree_map._nodes.put(node, node_i)
-        return some(old_value), btree_map
+        return some(old_value)
     if btree_map._size >= MAX_SIZE:
         panic("BTreeMap.insert: max size reached")
     if btree_map._root < 0:
-        root_i, btree_map = _allocate_node(btree_map)
+        root_i = _allocate_node(btree_map)
         root = btree_map._nodes.take(root_i)
         root._entries[0].swap(some((key, value))).unwrap_nothing()
         root._size = 1
         btree_map._nodes.put(root, root_i)
         btree_map._root = root_i
         btree_map._size = 1
-        return nothing(), btree_map
+        return nothing()
 
     root_i = btree_map._root
     root = btree_map._nodes.take(root_i)
     root_is_full = root._size == 3
     btree_map._nodes.put(root, root_i)
     if root_is_full:
-        new_root_i, btree_map = _allocate_node(btree_map)
+        new_root_i = _allocate_node(btree_map)
         new_root = btree_map._nodes.take(new_root_i)
         new_root._leaf = False
         new_root._children[0].swap(some(root_i)).unwrap_nothing()
         btree_map._nodes.put(new_root, new_root_i)
         btree_map._root = new_root_i
-        btree_map = _split_child(btree_map, new_root_i, 0)
+        _split_child(btree_map, new_root_i, 0)
 
     node_i = btree_map._root
     is_leaf = False
@@ -275,7 +349,7 @@ def _insert_pending[K: _Ord, V, MAX_SIZE: nat](
         child_is_full = child._size == 3
         btree_map._nodes.put(child, next_i)
         if child_is_full:
-            btree_map = _split_child(btree_map, node_i, child_i)
+            _split_child(btree_map, node_i, child_i)
             node = btree_map._nodes.take(node_i)
             split_key = _node_key(node, child_i)
             if key.__lt__(split_key):
@@ -297,29 +371,29 @@ def _insert_pending[K: _Ord, V, MAX_SIZE: nat](
     node._size += 1
     btree_map._nodes.put(node, node_i)
     btree_map._size += 1
-    return nothing(), btree_map
+    return nothing()
 
 
 @guppy
 @no_type_check
 def _allocate_node[K, V, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned,
-) -> tuple[int, BTreeMap[K, V, MAX_SIZE]]:
+    btree_map: BTreeMap[K, V, MAX_SIZE],
+) -> int:
     if btree_map._free_count <= 0:
         panic("BTreeMap: node pool exhausted")
     btree_map._free_count -= 1
-    return btree_map._free_nodes[btree_map._free_count], btree_map
+    return btree_map._free_nodes[btree_map._free_count]
 
 
 @guppy
 @no_type_check
 def _split_child[K: _Ord, V, MAX_SIZE: nat](
-    btree_map: BTreeMap[K, V, MAX_SIZE] @ owned, parent_i: int, child_i: int
-) -> BTreeMap[K, V, MAX_SIZE]:
+    btree_map: BTreeMap[K, V, MAX_SIZE], parent_i: int, child_i: int
+) -> None:
     parent = btree_map._nodes.take(parent_i)
     old_child_i = parent._children[child_i].unwrap()
     child = btree_map._nodes.take(old_child_i)
-    sibling_i, btree_map = _allocate_node(btree_map)
+    sibling_i = _allocate_node(btree_map)
     sibling = btree_map._nodes.take(sibling_i)
 
     sibling._leaf = child._leaf
@@ -353,7 +427,6 @@ def _split_child[K: _Ord, V, MAX_SIZE: nat](
     btree_map._nodes.put(parent, parent_i)
     btree_map._nodes.put(child, old_child_i)
     btree_map._nodes.put(sibling, sibling_i)
-    return btree_map
 
 
 @guppy

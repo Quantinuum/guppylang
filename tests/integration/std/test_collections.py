@@ -71,6 +71,37 @@ def test_btree_map_rejects_nan_key(run_int_fn) -> None:
         run_int_fn(main, 0)
 
 
+def test_btree_map_remove_and_reinsert(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 10] = empty_btree_map()
+        for i in range(10):
+            btree_map.insert(i, i).unwrap_nothing()
+        removed = btree_map.remove(5).unwrap()
+        btree_map.remove(10).unwrap_nothing()
+        for i in range(5):
+            btree_map.remove(i).unwrap()
+        btree_map.insert(10, 20).unwrap_nothing()
+        return 100 * len(btree_map) + 10 * removed + btree_map.get(10).unwrap()
+
+    run_int_fn(main, 570)
+
+
+def test_btree_map_remove_all_and_discard_empty(run_int_fn) -> None:
+    @guppy
+    def main() -> int:
+        btree_map: BTreeMap[int, int, 10] = empty_btree_map()
+        for i in range(10):
+            btree_map.insert(i, i).unwrap_nothing()
+        for i in range(10):
+            btree_map.remove(i).unwrap()
+        size = len(btree_map)
+        btree_map.discard_empty()
+        return size
+
+    run_int_fn(main, 0)
+
+
 def test_stack(run_int_fn) -> None:
     @guppy
     def main() -> int:
