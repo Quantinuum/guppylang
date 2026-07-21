@@ -195,6 +195,14 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
             value = _remove_leaf_descending(self, root_i, key)
             _collapse_root(self)
             return some(value)
+        removed = _remove_internal_from_left(self, node_i, entry_i)
+        if removed.is_some():
+            _collapse_root(self)
+            return removed
+        removed = _remove_internal_from_right(self, node_i, entry_i)
+        if removed.is_some():
+            _collapse_root(self)
+            return removed
         self._query.swap(some(key)).unwrap_nothing()
         return with_owned(self, _rebuild_remove)
 
@@ -375,6 +383,97 @@ def _remove_leaf_descending[K: _Ord, V, MAX_SIZE: nat](
     # from its subtree cannot leave it below the 2-3-4-tree minimum occupancy.
     child_i = _prepare_child(btree_map, node_i, entry_i)
     return _remove_leaf_descending(btree_map, child_i, key)
+
+
+@guppy
+@no_type_check
+def _remove_internal_from_left[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], parent_i: int, entry_i: int
+) -> Option[V]:
+    """Replaces an internal entry with its predecessor when its child can spare one."""
+    parent = btree_map._nodes.take(parent_i)
+    left_i = parent._children[entry_i].unwrap()
+    left = btree_map._nodes.take(left_i)
+    left_size = left._size
+    btree_map._nodes.put(left, left_i)
+    btree_map._nodes.put(parent, parent_i)
+    if left_size <= 1:
+        return nothing()
+
+    predecessor_key = _rightmost_key(btree_map, left_i)
+    predecessor_value = _remove_leaf_descending(btree_map, left_i, predecessor_key)
+    parent = btree_map._nodes.take(parent_i)
+    _old_key, old_value = parent._entries[entry_i].take().unwrap()
+    parent._entries[entry_i].swap(
+        some((predecessor_key, predecessor_value))
+    ).unwrap_nothing()
+    btree_map._nodes.put(parent, parent_i)
+    return some(old_value)
+
+
+@guppy
+@no_type_check
+def _rightmost_key[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], node_i: int
+) -> K:
+    current_i = node_i
+    while True:
+        node = btree_map._nodes.take(current_i)
+        size = node._size
+        key = _node_key(node, size - 1)
+        is_leaf = node._leaf
+        next_i = -1
+        if not is_leaf:
+            next_i = _node_child(node, size)
+        btree_map._nodes.put(node, current_i)
+        if is_leaf:
+            return key
+        current_i = next_i
+
+
+@guppy
+@no_type_check
+def _remove_internal_from_right[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], parent_i: int, entry_i: int
+) -> Option[V]:
+    """Replaces an internal entry with its successor when its child can spare one."""
+    parent = btree_map._nodes.take(parent_i)
+    right_i = parent._children[entry_i + 1].unwrap()
+    right = btree_map._nodes.take(right_i)
+    right_size = right._size
+    btree_map._nodes.put(right, right_i)
+    btree_map._nodes.put(parent, parent_i)
+    if right_size <= 1:
+        return nothing()
+
+    successor_key = _leftmost_key(btree_map, right_i)
+    successor_value = _remove_leaf_descending(btree_map, right_i, successor_key)
+    parent = btree_map._nodes.take(parent_i)
+    _old_key, old_value = parent._entries[entry_i].take().unwrap()
+    parent._entries[entry_i].swap(
+        some((successor_key, successor_value))
+    ).unwrap_nothing()
+    btree_map._nodes.put(parent, parent_i)
+    return some(old_value)
+
+
+@guppy
+@no_type_check
+def _leftmost_key[K: _Ord, V, MAX_SIZE: nat](
+    btree_map: BTreeMap[K, V, MAX_SIZE], node_i: int
+) -> K:
+    current_i = node_i
+    while True:
+        node = btree_map._nodes.take(current_i)
+        key = _node_key(node, 0)
+        is_leaf = node._leaf
+        next_i = -1
+        if not is_leaf:
+            next_i = _node_child(node, 0)
+        btree_map._nodes.put(node, current_i)
+        if is_leaf:
+            return key
+        current_i = next_i
 
 
 @guppy
