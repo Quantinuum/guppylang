@@ -209,12 +209,12 @@ def test_btree_map_iterates_in_ascending_key_order(run_int_fn) -> None:
 def test_btree_map_iteration_consumes_linear_values(run_int_fn) -> None:
     @guppy
     def main() -> int:
-        btree_map: BTreeMap[int, qubit, 3] = empty_btree_map()
-        marked = qubit()
-        x_gate(marked)
-        btree_map.insert(2, qubit()).unwrap_nothing()
-        btree_map.insert(0, qubit()).unwrap_nothing()
-        btree_map.insert(1, marked).unwrap_nothing()
+        btree_map: BTreeMap[int, qubit, 10] = empty_btree_map()
+        for i in range(10):
+            value = qubit()
+            if i == 4:
+                x_gate(value)
+            btree_map.insert(9 - i, value).unwrap_nothing()
 
         result = 0
         position = 1
@@ -224,8 +224,8 @@ def test_btree_map_iteration_consumes_linear_values(run_int_fn) -> None:
             position += 1
         return result
 
-    # The marked linear value has key 1, so ordered draining measures it second.
-    run_int_fn(main, 2, num_qubits=3)
+    # The marked linear value has key 5, so ordered draining measures it sixth.
+    run_int_fn(main, 6, num_qubits=10)
 
 
 def test_btree_map_supports_private_structural_ordering(run_int_fn) -> None:

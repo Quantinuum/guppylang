@@ -39,15 +39,20 @@ class _Ord:
 class _Node[K, V]:
     """A 2-3-4 tree node.
 
-    Live entries occupy the prefix ``[0, _size)`` in sorted order. An internal
-    node has exactly ``_size + 1`` live child indices; every remaining slot is
-    ``nothing``. This representation lets entries and child links be moved without
-    cloning a potentially linear value.
+    Live keys and entries occupy the prefix ``[0, _size)`` in sorted order. Keys
+    are deliberately stored separately from their values: comparison can then
+    borrow a copyable key without inspecting an entry that may contain a linear
+    value. An internal node has exactly ``_size + 1`` live child indices; every
+    remaining slot is ``nothing``. This representation lets entries and child
+    links be moved without cloning a potentially linear value.
 
     TODO: Make this fan-out configurable when Guppy supports type-level arithmetic
     for derived array sizes.
     """
 
+    # `_keys[i]` mirrors the key in `_entries[i]`. Keeping this copyable index
+    # separate is what makes lookup and rebalancing valid for linear `V`.
+    _keys: array[Option[K], 3]
     _entries: array[Option[tuple[K, V]], 3]
     _children: array[Option[int], 4]
     _size: int
@@ -58,6 +63,8 @@ class _Node[K, V]:
     def discard_empty[K, V](self: _Node[K, V] @ owned) -> None:
         if self._size != 0:
             panic("BTreeMap._Node.discard_empty: node is not empty")
+        for key in self._keys:
+            key.unwrap_nothing()
         for entry in self._entries:
             entry.unwrap_nothing()
         for child in self._children:
@@ -200,6 +207,7 @@ class BTreeMap[K, V, MAX_SIZE: nat]:
 @no_type_check
 def _empty_node[K, V]() -> _Node[K, V]:
     return _Node(
+        array(nothing[K]() for _ in range(3)),
         array(nothing[tuple[K, V]]() for _ in range(3)),
         array(nothing[int]() for _ in range(4)),
         0,
@@ -276,10 +284,13 @@ def _remove_leaf_entry[K: _Ord, V, MAX_SIZE: nat](
 ) -> V:
     node = btree_map._nodes.take(node_i)
     _key, value = node._entries[entry_i].take().unwrap()
+    node._keys[entry_i].take().unwrap()
     next_i = entry_i
     while next_i < node._size - 1:
         entry = node._entries[next_i + 1].take().unwrap()
+        key = node._keys[next_i + 1].take().unwrap()
         node._entries[next_i].swap(some(entry)).unwrap_nothing()
+        node._keys[next_i].swap(some(key)).unwrap_nothing()
         next_i += 1
     node._size -= 1
     is_empty_root = node_i == btree_map._root and node._size == 0
@@ -378,9 +389,11 @@ def _remove_internal_from_left[K: _Ord, V, MAX_SIZE: nat](
     predecessor_value = _remove_leaf_descending(btree_map, left_i, predecessor_key)
     parent = btree_map._nodes.take(parent_i)
     _old_key, old_value = parent._entries[entry_i].take().unwrap()
+    parent._keys[entry_i].take().unwrap()
     parent._entries[entry_i].swap(
         some((predecessor_key, predecessor_value))
     ).unwrap_nothing()
+    parent._keys[entry_i].swap(some(predecessor_key)).unwrap_nothing()
     btree_map._nodes.put(parent, parent_i)
     return some(old_value)
 
@@ -394,9 +407,11 @@ def _remove_internal_entry[K: _Ord, V, MAX_SIZE: nat](
     removed = _remove_internal_from_left(btree_map, node_i, entry_i)
     if removed.is_some():
         return removed.unwrap()
+    removed.unwrap_nothing()
     removed = _remove_internal_from_right(btree_map, node_i, entry_i)
     if removed.is_some():
         return removed.unwrap()
+    removed.unwrap_nothing()
 
     parent = btree_map._nodes.take(node_i)
     left_i = parent._children[entry_i].unwrap()
@@ -452,9 +467,11 @@ def _remove_internal_from_right[K: _Ord, V, MAX_SIZE: nat](
     successor_value = _remove_leaf_descending(btree_map, right_i, successor_key)
     parent = btree_map._nodes.take(parent_i)
     _old_key, old_value = parent._entries[entry_i].take().unwrap()
+    parent._keys[entry_i].take().unwrap()
     parent._entries[entry_i].swap(
         some((successor_key, successor_value))
     ).unwrap_nothing()
+    parent._keys[entry_i].swap(some(successor_key)).unwrap_nothing()
     btree_map._nodes.put(parent, parent_i)
     return some(old_value)
 
@@ -518,12 +535,14 @@ def _merge_children[K: _Ord, V, MAX_SIZE: nat](
 
     # Concatenate `left`, the separating parent entry, then `right`. Since both
     # children have one entry, the result fits exactly in a three-entry node.
+    left._keys[left._size].swap(parent._keys[entry_i].take()).unwrap_nothing()
     left._entries[left._size].swap(
         some(parent._entries[entry_i].take().unwrap())
     ).unwrap_nothing()
     left._size += 1
     right_entry_i = 0
     while right_entry_i < right._size:
+        left._keys[left._size].swap(right._keys[right_entry_i].take()).unwrap_nothing()
         left._entries[left._size].swap(
             some(right._entries[right_entry_i].take().unwrap())
         ).unwrap_nothing()
@@ -541,6 +560,9 @@ def _merge_children[K: _Ord, V, MAX_SIZE: nat](
     # parent prefixes to preserve the node representation invariant.
     parent_entry_i = entry_i
     while parent_entry_i < parent._size - 1:
+        parent._keys[parent_entry_i].swap(
+            parent._keys[parent_entry_i + 1].take()
+        ).unwrap_nothing()
         parent._entries[parent_entry_i].swap(
             some(parent._entries[parent_entry_i + 1].take().unwrap())
         ).unwrap_nothing()
@@ -578,6 +600,7 @@ def _borrow_from_left[K: _Ord, V, MAX_SIZE: nat](
     # separator down, and promote the left sibling's largest entry to the parent.
     entry_i = target._size
     while entry_i > 0:
+        target._keys[entry_i].swap(target._keys[entry_i - 1].take()).unwrap_nothing()
         target._entries[entry_i].swap(
             some(target._entries[entry_i - 1].take().unwrap())
         ).unwrap_nothing()
@@ -592,9 +615,11 @@ def _borrow_from_left[K: _Ord, V, MAX_SIZE: nat](
         target._children[0].swap(
             some(left._children[left._size].take().unwrap())
         ).unwrap_nothing()
+    target._keys[0].swap(parent._keys[child_i - 1].take()).unwrap_nothing()
     target._entries[0].swap(
         some(parent._entries[child_i - 1].take().unwrap())
     ).unwrap_nothing()
+    parent._keys[child_i - 1].swap(left._keys[left._size - 1].take()).unwrap_nothing()
     parent._entries[child_i - 1].swap(
         some(left._entries[left._size - 1].take().unwrap())
     ).unwrap_nothing()
@@ -620,6 +645,7 @@ def _borrow_from_right[K: _Ord, V, MAX_SIZE: nat](
 
     # Mirror image of `_borrow_from_left`: append the parent's separator and
     # promote the right sibling's smallest entry after compacting that sibling.
+    target._keys[target._size].swap(parent._keys[child_i].take()).unwrap_nothing()
     target._entries[target._size].swap(
         some(parent._entries[child_i].take().unwrap())
     ).unwrap_nothing()
@@ -633,11 +659,15 @@ def _borrow_from_right[K: _Ord, V, MAX_SIZE: nat](
                 some(right._children[right_child_i + 1].take().unwrap())
             ).unwrap_nothing()
             right_child_i += 1
+    parent._keys[child_i].swap(right._keys[0].take()).unwrap_nothing()
     parent._entries[child_i].swap(
         some(right._entries[0].take().unwrap())
     ).unwrap_nothing()
     right_entry_i = 0
     while right_entry_i < right._size - 1:
+        right._keys[right_entry_i].swap(
+            right._keys[right_entry_i + 1].take()
+        ).unwrap_nothing()
         right._entries[right_entry_i].swap(
             some(right._entries[right_entry_i + 1].take().unwrap())
         ).unwrap_nothing()
@@ -690,8 +720,7 @@ def _node_entry_index[K: _Ord, V](node: _Node[K, V], key: K) -> int:
 @guppy
 @no_type_check
 def _node_key[K: _Ord, V](node: _Node[K, V], entry_i: int) -> K:
-    key, _value = node._entries[entry_i].unwrap()
-    return key
+    return node._keys[entry_i].unwrap()
 
 
 @guppy
@@ -726,6 +755,7 @@ def _insert_pending[K: _Ord, V, MAX_SIZE: nat](
     if btree_map._root < 0:
         root_i = _allocate_node(btree_map)
         root = btree_map._nodes.take(root_i)
+        root._keys[0].swap(some(key)).unwrap_nothing()
         root._entries[0].swap(some((key, value))).unwrap_nothing()
         root._size = 1
         btree_map._nodes.put(root, root_i)
@@ -782,9 +812,11 @@ def _insert_pending[K: _Ord, V, MAX_SIZE: nat](
     while entry_i > 0:
         if _node_key(node, entry_i - 1).__lt__(key):
             break
+        node._keys[entry_i].swap(node._keys[entry_i - 1].take()).unwrap_nothing()
         entry = node._entries[entry_i - 1].take().unwrap()
         node._entries[entry_i].swap(some(entry)).unwrap_nothing()
         entry_i -= 1
+    node._keys[entry_i].swap(some(key)).unwrap_nothing()
     node._entries[entry_i].swap(some((key, value))).unwrap_nothing()
     node._size += 1
     btree_map._nodes.put(node, node_i)
@@ -815,6 +847,7 @@ def _split_child[K: _Ord, V, MAX_SIZE: nat](
     sibling = btree_map._nodes.take(sibling_i)
 
     sibling._leaf = child._leaf
+    sibling._keys[0].swap(child._keys[2].take()).unwrap_nothing()
     sibling._entries[0].swap(some(child._entries[2].take().unwrap())).unwrap_nothing()
     sibling._size = 1
     child._size = 1
@@ -828,9 +861,13 @@ def _split_child[K: _Ord, V, MAX_SIZE: nat](
 
     parent_entry_i = parent._size
     while parent_entry_i > child_i:
+        parent._keys[parent_entry_i].swap(
+            parent._keys[parent_entry_i - 1].take()
+        ).unwrap_nothing()
         entry = parent._entries[parent_entry_i - 1].take().unwrap()
         parent._entries[parent_entry_i].swap(some(entry)).unwrap_nothing()
         parent_entry_i -= 1
+    parent._keys[child_i].swap(child._keys[1].take()).unwrap_nothing()
     parent._entries[child_i].swap(
         some(child._entries[1].take().unwrap())
     ).unwrap_nothing()
