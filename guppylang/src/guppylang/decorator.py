@@ -317,9 +317,11 @@ class _Guppy:
 
         guppy_def = _get_unitary_call_def(cls)
         raw_func = cast("RawFunctionDef", guppy_def.wrapped)
-        call_daggered = _get_unitary_method(cls, CALL_DAGGERED_METHOD)
-        call_controlled = _get_unitary_method(cls, CALL_CONTROLLED_METHOD)
-        call_ctrl_daggered = _get_unitary_method(cls, CALL_CTRL_DAGGERED_METHOD)
+        call_daggered = _get_unitary_method(cls, raw_func, CALL_DAGGERED_METHOD)
+        call_controlled = _get_unitary_method(cls, raw_func, CALL_CONTROLLED_METHOD)
+        call_ctrl_daggered = _get_unitary_method(
+            cls, raw_func, CALL_CTRL_DAGGERED_METHOD
+        )
         # object.__setattr__(
         #     raw_func,
         #     "modified_defs",
@@ -327,7 +329,7 @@ class _Guppy:
         # )
         object.__setattr__(raw_func, "name", cls.__name__)
 
-        # NICOLA TODO :
+        # NICOLA: TODO :
         # -> Set the unitary flags and check minimun requirement are satisfied:
         #   -> cannot be daggarable and controllable without being unitary:
         #       -> only `daggar` is fine
@@ -335,8 +337,11 @@ class _Guppy:
         #      -> if we have `CTRL_DAGGERED` at least `CONTROLLED` is required (or
         #         controllable=true) on __call__ for default implementation
         assert raw_func.metadata is not None
-        raw_func.metadata.set_unitary_flags(raw_func.unitary_flags.value)
-
+        # raw_func.metadata.set_unitary_flags(raw_func.unitary_flags.value)
+        _set_unitary_metadata(
+            raw_func.metadata, [call_daggered, call_controlled, call_ctrl_daggered]
+        )
+        print(raw_func.metadata)
         return guppy_def  # type: ignore[return-value]
 
     def require(
@@ -746,12 +751,17 @@ def _get_unitary_call_def(
     )
 
 
-def _get_unitary_method(cls: builtins.type[T], name: str) -> RawFunctionDef | None:
+# NICOLA: TODO: maybe rename this
+def _get_unitary_method(
+    cls: builtins.type[T], parent: RawFunctionDef, name: str
+) -> RawFunctionDef | None:
     """Returns an optional `@guppy`-annotated unitary modifier method.
     Raises a `TypeError` if the method is not properly annotated with @guppy."""
     val = cls.__dict__.get(name)
     if val is not None:
         if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
+            DEF_STORE.register_custom_def(parent.id, val.id)
+
             return val.wrapped
 
         raise TypeError(
@@ -760,6 +770,57 @@ def _get_unitary_method(cls: builtins.type[T], name: str) -> RawFunctionDef | No
         )
 
     return None
+
+
+@hide_trace
+def _set_unitary_metadata(
+    metadata: FunctionMetadata, custom_defs: list[RawFunctionDef | None]
+):
+    """Set unitary metadata based on the available custom implementations.
+
+    :param custom_defs: List of optional unitary modifier methods, where the first
+        element is the `daggered` method, the second is the `controlled` method, and
+        the third is the `ctrl_daggered` method.
+    :raises TypeError:
+        - If a custom `ctrl_daggered` implementation is provided without
+        controllable and daggerable support or `unitary=True` on `__call__`.
+        - If both custom `daggered` and `controlled` implementations are provided
+        without either a custom `ctrl_daggered` implementation or `unitary=True` on
+        `__call__`.
+    """
+
+    assert len(custom_defs) == 3
+    daggered, controlled, ctrl_daggered = custom_defs
+    flags = UnitaryFlags(metadata.get_unitary_flags() or UnitaryFlags.NoFlags.value)
+    has_default_unitary = flags == UnitaryFlags.Unitary
+
+    if (
+        daggered is not None
+        and controlled is not None
+        and ctrl_daggered is None
+        and not has_default_unitary
+    ):
+        raise TypeError(
+            f"Custom `{CALL_DAGGERED_METHOD}` and `{CALL_CONTROLLED_METHOD}` "
+            f"implementations require either a custom `{CALL_CTRL_DAGGERED_METHOD}` "
+            "implementation or `unitary=True` on `__call__`"
+        )
+
+    if daggered is not None:
+        flags |= UnitaryFlags.Dagger
+    if controlled is not None:
+        flags |= UnitaryFlags.Control
+
+    if ctrl_daggered is not None:
+        if flags != UnitaryFlags.Unitary:
+            raise TypeError(
+                f"A custom `{CALL_CTRL_DAGGERED_METHOD}` implementation requires "
+                "both controllable and daggerable support, or `unitary=True` on "
+                "`__call__`"
+            )
+        flags = UnitaryFlags.Unitary
+
+    metadata.set_unitary_flags(flags.value)
 
 
 def _get_unitary_methods(cls: builtins.type[T]) -> list[RawFunctionDef | None]:

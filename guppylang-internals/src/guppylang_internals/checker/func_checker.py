@@ -151,7 +151,7 @@ def check_global_func_def(
     if not has_custom_modifier:
         # if the function has custom modifiers, we don't check for invalid under dagger
         # since we don't need the default dagger implementation
-        # NICOLA TODO: ensure that if the function is daggerable from the flag applied
+        # NICOLA: TODO: ensure that if the function is daggerable from the flag applied
         # to __call__ we need to check this. A personalized error would be nice here
         check_invalid_under_dagger(parsed_func_def.defined_at, ty.unitary_flags)
 
@@ -399,9 +399,9 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
     # If the user has provided an annotation for `self`, then we go ahead and parse it.
     # However, in the annotation the user is also allowed to use `Self`, so we have to
     # specify a `self_ty` in the context.
-    self_ty_head = self_defn.check_instantiate(
-        [param.to_existential()[0] for param in self_defn.params]
-    )
+    self_ty_head = self_defn.check_instantiate([
+        param.to_existential()[0] for param in self_defn.params
+    ])
     self_ty_placeholder = ExistentialTypeVar.fresh(
         "Self", copyable=self_ty_head.copyable, droppable=self_ty_head.droppable
     )
@@ -444,9 +444,9 @@ def parse_self_arg_proto(
     # If the user has provided an annotation for `self`, then we go ahead and parse it.
     # However, in the annotation the user is also allowed to use `Self`, so we have to
     # specify a `self_ty` in the context.
-    self_ty_head = self_defn.check_instantiate(
-        [param.to_existential()[0] for param in self_defn.params]
-    )
+    self_ty_head = self_defn.check_instantiate([
+        param.to_existential()[0] for param in self_defn.params
+    ])
     self_ty_placeholder = ExistentialTypeVar.fresh(
         "Self",
         copyable=True,

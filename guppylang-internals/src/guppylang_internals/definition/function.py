@@ -197,6 +197,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    # TODO: delete this
     modified_defs: RawModifiedDefs | None = field(
         default=None, kw_only=True, compare=False, repr=False
     )
@@ -206,15 +207,8 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
         # NICOLA: TODO unitary are set according to the presence of custom
-        # implementations (see decorator.py), but we also see if default implementations
-        # are possible
-        # To infer from the body, use the BBUnitaryChecker, but with different settings:
-        # -> no raising errors but inferring the flags
-        # IDEA 1: We cannot use the BBUnitaryChecker here, thus when we are checking
-        # the function call in BBUnitaryChecker.visit_GlobalCall if we found a @unitary
-        # definition we try to infer the flags from the body of the function (we should
-        # use some cache to avoid re-checking the body of the function all the time)
-        # We may have to do the same in expr_checker.py::check_unitary_flags
+        # implementations (see decorator.py), if not present set from the flags.
+        # Save somewhere if the flags come from the implementations or from the decorator.  # noqa: E501
 
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags

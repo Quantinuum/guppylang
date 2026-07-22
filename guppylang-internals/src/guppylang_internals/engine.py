@@ -122,13 +122,13 @@ class DefinitionStore:
     See `DEF_STORE` for the singleton instance of this class.
     """
 
-    # NICOLA TODO add a new mapping from function to custom definition
     raw_defs: dict[DefId, RawDef]
     type_members: defaultdict[DefId, dict[str, DefId]]
     type_member_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
     sources: SourceMap
+    # NICOLA: DONE? add a new mapping from function to custom definition
     custom_defs: dict[DefId, DefId]
 
     def __init__(self) -> None:
@@ -168,9 +168,10 @@ class DefinitionStore:
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
 
-    # NICOLA TODO use this to register custom definitions
-    def register_custom_def(self, def_id: DefId, custom_def_id: DefId) -> None:
-        self.custom_defs[def_id] = custom_def_id
+    # NICOLA: DONE? use this to register custom definitions
+    def register_custom_def(self, parent_def_id: DefId, custom_def_id: DefId) -> None:
+        assert custom_def_id not in self.custom_defs, "Already a custom definition"
+        self.custom_defs[parent_def_id] = custom_def_id
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()
@@ -534,15 +535,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         graph.hugr.module_root.metadata[HugrUsedExtensions] = used_exts_meta
         graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
             name="guppylang", version=Version.parse(guppylang_internals.__version__)

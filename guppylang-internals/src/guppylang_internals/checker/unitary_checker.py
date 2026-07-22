@@ -141,7 +141,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
                     isinstance(func, ParsedFunctionDef)
                     and func.parsed_modified_defs is not None
                 ):
-                    # NICOLA TODO: this error must be improved
+                    # NICOLA: TODO: this error must be improved
                     err.add_sub_diagnostic(
                         UnitaryCallError.CustomModifiedHint(None, func.name)
                     )
