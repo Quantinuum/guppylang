@@ -89,12 +89,12 @@ class BBUnitaryChecker(ast.NodeVisitor):
         for stmt in statements:
             self.visit(stmt)
 
-    def _check_classical_args(self, args: list[ast.expr]) -> bool:
+    def _check_args(self, args: list[ast.expr]) -> bool:
+        """Recursively checks the arguments of a call.
+        Returns True if the call is classical"""
         for arg in args:
             self.visit(arg)
-            if contain_qubit_ty(get_type(arg)):
-                return False
-        return True
+        return all(not contain_qubit_ty(get_type(arg)) for arg in args)
 
     def _check_call(
         self, node: AnyCall, call_ty: FunctionType, func: CallableDef | None = None
@@ -114,7 +114,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
         # function's unitary flags. Otherwise, if the function is classical, we only
         # need to check that if we are in dagger (or unitary) context, the function
         # is daggerable.
-        is_classic_fun = self._check_classical_args(node.args)
+        is_classic_fun = self._check_args(node.args)
         is_a_valid_call = (
             self.flags in call_ty.unitary_flags
             if not is_classic_fun
