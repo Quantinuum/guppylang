@@ -17,7 +17,7 @@ from guppylang.std.builtins import (
     power,
 )
 from guppylang.std.num import nat
-from guppylang.std.quantum import angle, cx, discard, h, qubit, rx, discard_array
+from guppylang.std.quantum import cx, discard, discard_array, h, qubit
 
 
 def test_dagger_simple(validate):
@@ -48,18 +48,22 @@ def test_subscript_dagger(validate):
 
 
 def test_assignment_in_dagger(validate):
+    @guppy(daggerable=True)
+    def foo(x: int) -> int:
+        return x
+
     @guppy
     def main() -> None:
         q = qubit()
         c = qubit()
         y = 1
         with dagger:
-            x = 5
-            rx(q, angle(1 / x))
+            x = foo(y)
+            h(q)
         with dagger:
             y = 2
             with control(c):
-                rx(q, angle(1 / y))
+                h(q)
 
         discard(q)
         discard(c)

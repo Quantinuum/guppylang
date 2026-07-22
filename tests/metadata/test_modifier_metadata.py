@@ -30,8 +30,9 @@ def test_unitary_metadata_dagger_only():
     @guppy
     def main() -> None:
         t = qubit()
+        a = angle(1 / 3)
         with dagger:
-            rx(t, angle(1 / 3))
+            rx(t, a)
         discard(t)
 
     # For test sake we need the original unmodified HUGR
@@ -59,10 +60,11 @@ def test_unitary_metadata_power_dagger_control(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
-        with power(3):  # noqa: SIM117
-            with dagger:
+        with power(3):
+            a = angle(1 / 3)
+            with dagger:  # noqa: SIM117
                 with control(c1):
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -83,10 +85,11 @@ def test_unitary_metadata_dagger_power_control(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with dagger:  # noqa: SIM117
             with power(3):
                 with control(c1):
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -107,10 +110,11 @@ def test_unitary_metadata_control_dagger_power(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with control(c1):  # noqa: SIM117
             with dagger:
                 with power(3):
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -131,10 +135,11 @@ def test_unitary_metadata_power_control_dagger(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with power(3):  # noqa: SIM117
             with control(c1):
                 with dagger:
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -155,10 +160,11 @@ def test_unitary_metadata_dagger_control_power(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with dagger:  # noqa: SIM117
             with control(c1):
                 with power(3):
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -179,10 +185,11 @@ def test_unitary_metadata_control_power_dagger(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with control(c1):  # noqa: SIM117
             with power(3):
                 with dagger:
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
