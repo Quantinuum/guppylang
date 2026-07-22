@@ -235,7 +235,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         input_flags = [inp.flags for inp in resolved_func.ty.inputs]
 
     # Custom functions without a signature or incomplete signature (e.g. varargs)
-    # need to provide a linearity checker to compute the input flags.
+    # need to use `compute_input_flags` to determine the input flags.
     elif isinstance(resolved_func, CustomFunctionDef) and (
         not resolved_func.has_signature or resolved_func.has_var_args
     ):
