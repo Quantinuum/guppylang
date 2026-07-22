@@ -13,7 +13,10 @@ from guppylang_internals.checker.expr_checker import (
     ExprSynthesizer,
     synthesize_call,
 )
-from guppylang_internals.definition.custom import CustomCallChecker
+from guppylang_internals.definition.custom import (
+    CustomCallChecker,
+    InputFlagDefaultMode,
+)
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyTypeError
 from guppylang_internals.nodes import DummyGenericParamValue, PlaceNode, StateOutputExpr
@@ -38,6 +41,8 @@ if TYPE_CHECKING:
 
 class StateOutputChecker(CustomCallChecker):
     """Call checker for the `state_output` function."""
+
+    input_flag_mode = InputFlagDefaultMode.INOUT
 
     @dataclass(frozen=True)
     class MissingQubitsError(Error):
