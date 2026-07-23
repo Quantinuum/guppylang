@@ -23,6 +23,7 @@ from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.builder import (
     DFBuilder,
     FunctionBuilder,
+    Pure,
 )
 from guppylang_internals.compiler.core import (
     CompilerContext,
@@ -592,9 +593,8 @@ class CopyInoutCompiler(CustomInoutCallCompiler):
                         type_args,
                         ht.FunctionType(self.ty.input, self.ty.output),
                     )
-                    # ALAN assume panics if any borrowed?
-                    clone_op = (clone_op, [Effect.ANY])
-                    return list(self.builder.add_op(clone_op, arg))
+                    # We never borrow copyable elements, so this never panics
+                    return list(self.builder.add_op(Pure(clone_op), arg))
             case _:
                 pass
         raise InternalGuppyError(
