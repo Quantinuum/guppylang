@@ -9,7 +9,7 @@ from hugr import Wire, ops
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
-from guppylang_internals.compiler.builder import OpWithEffects, Pure
+from guppylang_internals.compiler.builder import OpWithEffects, pure
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -122,7 +122,7 @@ def array_pop(elem_ty: ht.Type, length: int, from_left: bool) -> OpWithEffects:
 def array_discard_empty(elem_ty: ht.Type) -> OpWithEffects:
     """Returns an operation that discards an array of length zero."""
     arr_ty = array_type(elem_ty, ht.BoundedNatArg(0))
-    return Pure(
+    return pure(
         EXTENSION.get_op("discard_empty").instantiate(
             [ht.TypeTypeArg(elem_ty)], ht.FunctionType([arr_ty], [])
         )

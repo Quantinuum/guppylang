@@ -199,7 +199,7 @@ def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> Non
 
     Mutates ``package`` in place.
     """
-    # For now we mark this Pure, as this is fine for a global *constant*,
+    # For now we mark this pure, as this is fine for a global *constant*,
     # but we may need to revisit for multithreading.
     read_arg_effects: Iterable[Effect] = []
 

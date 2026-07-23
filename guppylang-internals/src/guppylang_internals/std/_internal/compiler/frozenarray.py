@@ -8,7 +8,7 @@ from hugr import Wire
 from hugr import tys as ht
 from hugr.std.collections.static_array import EXTENSION, StaticArray
 
-from guppylang_internals.compiler.builder import FunctionBuilder, OpWithEffects, Pure
+from guppylang_internals.compiler.builder import FunctionBuilder, OpWithEffects, pure
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import CustomCallCompiler
@@ -29,7 +29,7 @@ def static_array_get(elem_ty: ht.Type) -> OpWithEffects:
     """Returns the static array `get` operation."""
     assert elem_ty.type_bound() == ht.TypeBound.Copyable
     arr_ty = StaticArray(elem_ty)
-    return Pure(
+    return pure(
         EXTENSION.get_op("get").instantiate(
             [ht.TypeTypeArg(elem_ty)],
             ht.FunctionType([arr_ty, ht.USize()], [ht.Option(elem_ty)]),

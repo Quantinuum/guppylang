@@ -20,8 +20,8 @@ from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.builder import (
     CondBuilder,
     DFBuilder,
-    Pure,
     ops,
+    pure,
 )
 from guppylang_internals.compiler.core import (
     DEBUG_EXTENSION,
@@ -513,7 +513,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         # since it is not implemented via a dunder method
         if isinstance(node.op, ast.Not):
             arg = self.visit(node.operand)
-            return self.builder.add_op(Pure(hugr.std.logic.Not), arg)
+            return self.builder.add_op(pure(hugr.std.logic.Not), arg)
 
         raise InternalGuppyError("Node should have been removed during type checking.")
 

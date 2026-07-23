@@ -12,7 +12,7 @@ from hugr import tys as ht
 from hugr.ops import DfParentOp, ExtOp
 from hugr.std.collections.list import List, ListVal
 
-from guppylang_internals.compiler.builder import OpWithEffects, Pure, ops
+from guppylang_internals.compiler.builder import OpWithEffects, ops, pure
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
@@ -40,7 +40,7 @@ def _instantiate_list_op(
     name: str, elem_type: ht.Type, inp: list[ht.Type], out: list[ht.Type]
 ) -> OpWithEffects:
     op_def = hugr.std.collections.list.EXTENSION.get_op(name)
-    return Pure(
+    return pure(
         ExtOp(
             op_def,
             ht.FunctionType(inp, out),

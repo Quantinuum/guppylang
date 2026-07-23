@@ -8,7 +8,7 @@ from hugr import model, ops, val
 from hugr import tys as ht
 from hugr.std.int import int_t
 
-from guppylang_internals.compiler.builder import OpWithEffects, Pure
+from guppylang_internals.compiler.builder import OpWithEffects, pure
 from guppylang_internals.std._internal.compiler.prelude import error_type
 from guppylang_internals.tys.ty import NumericType
 
@@ -51,7 +51,7 @@ def _instantiate_int_op(
 ) -> OpWithEffects:
     op_def = hugr.std.int.INT_OPS_EXTENSION.get_op(name)
     int_width = [int_width] if isinstance(int_width, int) else int_width
-    return Pure(
+    return pure(
         ops.ExtOp(
             op_def,
             ht.FunctionType(inp, out),
@@ -116,7 +116,7 @@ def _instantiate_convert_op(
     args: list[ht.TypeArg] | None = None,
 ) -> OpWithEffects:
     op_def = hugr.std.int.CONVERSIONS_EXTENSION.get_op(name)
-    return Pure(ops.ExtOp(op_def, ht.FunctionType(inp, out), args or []))
+    return pure(ops.ExtOp(op_def, ht.FunctionType(inp, out), args or []))
 
 
 def convert_ifromusize() -> OpWithEffects:

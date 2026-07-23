@@ -9,7 +9,7 @@ from hugr import ext as he
 from hugr import tys as ht
 from hugr.std.float import FLOAT_T
 
-from guppylang_internals.compiler.builder import OpWithEffects, Pure
+from guppylang_internals.compiler.builder import OpWithEffects, pure
 from guppylang_internals.compiler.builder.ops import unpack_tuple
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
@@ -87,7 +87,7 @@ class InoutMeasureCompiler(CustomInoutCallCompiler):
         )
         [q] = args
         [q, bit] = self.builder.add_op(
-            Pure(
+            pure(
                 quantum_op(self.opname, ext=self.ext)(
                     ht.FunctionType([ht.Qubit], [ht.Qubit, return_ty]), (), self.ctx
                 )
@@ -111,7 +111,7 @@ class RotationCompiler(CustomInoutCallCompiler):
         [rotation] = self.builder.add_op(from_halfturns_unchecked(), halfturns)
 
         qs = self.builder.add_op(
-            Pure(
+            pure(
                 quantum_op(self.opname)(
                     ht.FunctionType(
                         [ht.Qubit for _ in qs] + [ROTATION_T], [ht.Qubit for _ in qs]

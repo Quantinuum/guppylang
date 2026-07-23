@@ -7,7 +7,7 @@ from hugr.ops import CallIndirect, ExtOp
 from guppylang_internals.ast_util import get_type
 from guppylang_internals.checker.core import SubscriptAccess, contains_subscript
 from guppylang_internals.checker.modifier_checker import non_copyable_front_others_back
-from guppylang_internals.compiler.builder import Pure
+from guppylang_internals.compiler.builder import pure
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import ExprCompiler
@@ -81,7 +81,7 @@ def compile_modified_block(
     if modified_block.has_dagger():
         dagger_ty = ht.FunctionType([hugr_ty], [hugr_ty])
         call = dfg.builder.add_op(
-            Pure(  # This is generation of the daggered version, not calling it (below)
+            pure(  # This is generation of the daggered version, not calling it (below)
                 ExtOp(
                     dagger_op_def,
                     dagger_ty,
@@ -96,7 +96,7 @@ def compile_modified_block(
             num = expr_compiler.compile(power.iter, dfg)
             call = dfg.builder.add_op(
                 # This is generation of the powered version, not calling it (below)
-                Pure(
+                pure(
                     ExtOp(
                         power_op_def,
                         power_ty,
@@ -124,7 +124,7 @@ def compile_modified_block(
                 [std_array, *hugr_ty.input], [std_array, *hugr_ty.output]
             )
             # Compilation of the controlled version is pure, not calling it (below)
-            op = Pure(
+            op = pure(
                 ExtOp(
                     control_op_def,
                     ht.FunctionType([input_fn_ty], [output_fn_ty]),

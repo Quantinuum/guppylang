@@ -16,7 +16,7 @@ from guppylang_internals.compiler.builder import (
     DFBuilder,
     FunctionBuilder,
     OpWithEffects,
-    Pure,
+    pure,
 )
 from guppylang_internals.compiler.core import CompilerContext, GlobalConstId
 from guppylang_internals.definition.custom import (
@@ -81,7 +81,7 @@ def make_error() -> OpWithEffects:
     op_def = hugr.std.PRELUDE.get_op("MakeError")
     args: list[ht.TypeArg] = []
     sig = ht.FunctionType([ht.USize(), hugr.std.prelude.STRING_T], [error_type()])
-    return Pure(ops.ExtOp(op_def, sig, args))
+    return pure(ops.ExtOp(op_def, sig, args))
 
 
 # ------------------------------------------------------
@@ -320,7 +320,7 @@ def barrier_op(tys: ht.TypeRow) -> OpWithEffects:
     """Returns an operation that represents a barrier on the given types."""
     op_def = hugr.std.prelude.PRELUDE_EXTENSION.get_op("Barrier")
     args = [ht.ListArg([ht.TypeTypeArg(ty) for ty in tys])]
-    return Pure(op_def.instantiate(args, ht.FunctionType.endo(tys)))
+    return pure(op_def.instantiate(args, ht.FunctionType.endo(tys)))
 
 
 class BarrierCompiler(CustomCallCompiler):

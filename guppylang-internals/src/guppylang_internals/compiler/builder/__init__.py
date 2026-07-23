@@ -21,13 +21,11 @@ from guppylang_internals.metadata.debug_info_util import (
 )
 from guppylang_internals.tys import Effect
 
-
-@dataclass(frozen=True)
-class Pure:
-    op: DataflowOp
+OpWithEffects: TypeAlias = tuple[DataflowOp, Iterable[Effect]]
 
 
-OpWithEffects: TypeAlias = Pure | tuple[DataflowOp, Iterable[Effect]]
+def pure(op: DataflowOp) -> OpWithEffects:
+    return (op, [])
 
 
 @dataclass
@@ -100,7 +98,7 @@ class DFBuilder(ABC, ToNode):
         """Adds an op to the dataflow graph builder. Set `set_debug_info=False` to
         avoid automatic debug information attachment.
         """
-        op, effects = (op.op, []) if isinstance(op, Pure) else op
+        op, effects = op
         op_node = self._raw.add_op(op, *args)
         self._handle_side_effects(op_node, effects)
 
