@@ -858,6 +858,11 @@ def test_swap_borrowed(run_int_fn):
         run_int_fn(main, expected=0)
 
 
+# This should panic, but the borrow's are optimized away
+# as effect-less. (With OptimizationLevel.Minimal, this
+# happens at the beginning of QSystemPass.)
+# https://github.com/Quantinuum/guppylang/issues/1747
+@pytest.mark.xfail(match="DID NOT RAISE")
 @pytest.mark.parametrize(
     "level", [OptimizationLevel.Minimal, OptimizationLevel.Default]
 )
@@ -873,11 +878,8 @@ def test_take_panic(level: OptimizationLevel, run_int_fn):
         arr.take(0)  # This should panic
         return 17  # Do not use array
 
-    # This should panic, but the borrow's are optimized away
-    # as effect-less. (With OptimizationLevel.Minimal, this
-    # happens at the beginning of QSystemPass.)
-    # https://github.com/Quantinuum/guppylang/issues/1747
-    main.with_opt_level(level).emulator(n_qubits=1).run()
+    with pytest.raises(EmulatorError, match="Array element is already borrowed"):
+        main.with_opt_level(level).emulator(n_qubits=1).run()
 
 
 def test_dynamic_index_subscript(validate):
