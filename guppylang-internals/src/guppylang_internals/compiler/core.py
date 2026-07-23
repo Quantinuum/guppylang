@@ -4,12 +4,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from hugr import Hugr, Wire
-from hugr import ops as hops
 from hugr import tys as ht
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder
 from hugr.hugr.base import OpVarCov
-from hugr.std import PRELUDE
+from hugr.ops import Module
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
@@ -87,7 +86,7 @@ class CompilerContext(ToHugrContext):
     themselves (i.e. `compile_inner` has not yet been called).
     """
 
-    module: DefinitionBuilder[hops.Module]
+    module: DefinitionBuilder[Module]
 
     #: The definitions compiled so far. For generic definitions, their id can occur
     #: multiple times here with respectively different monomorphizations. See
@@ -109,7 +108,7 @@ class CompilerContext(ToHugrContext):
 
     def __init__(
         self,
-        module: DefinitionBuilder[hops.Module],
+        module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
         file_table: StringTable | None = None,
     ) -> None:
@@ -305,44 +304,6 @@ def get_parent_type(defn: Definition) -> "RawDef | None":
 QUANTUM_EXTENSION = TKET_QUANTUM_EXTENSION
 RESULT_EXTENSION = TKET_RESULT_EXTENSION
 DEBUG_EXTENSION = TKET_DEBUG_EXTENSION
-
-#: List of extension ops that have side-effects, identified by their qualified name
-EXTENSION_OPS_WITH_SIDE_EFFECTS: list[str] = [
-    # Outputs should be ordered w.r.t. each other but also w.r.t. panics
-    *(op_def.qualified_name() for op_def in RESULT_EXTENSION.operations.values()),
-    PRELUDE.get_op("panic").qualified_name(),
-    PRELUDE.get_op("exit").qualified_name(),
-    DEBUG_EXTENSION.get_op("StateResult").qualified_name(),
-    # Qubit allocation and deallocation have the side-effect of changing the number of
-    # available free qubits
-    QUANTUM_EXTENSION.get_op("QAlloc").qualified_name(),
-    QUANTUM_EXTENSION.get_op("QFree").qualified_name(),
-    QUANTUM_EXTENSION.get_op("MeasureFree").qualified_name(),
-]
-
-
-def may_have_side_effect(op: hops.Op) -> bool:
-    """Checks whether an operation could have a side-effect.
-
-    We need to insert implicit state order edges between these kinds of nodes to ensure
-    they are executed in the correct order, even if there is no data dependency.
-    """
-    match op:
-        case hops.ExtOp() as ext_op:
-            return ext_op.op_def().qualified_name() in EXTENSION_OPS_WITH_SIDE_EFFECTS
-        case hops.Custom(op_name=op_name, extension=extension):
-            qualified_name = f"{extension}.{op_name}" if extension else op_name
-            return qualified_name in EXTENSION_OPS_WITH_SIDE_EFFECTS
-        case hops.Call() | hops.CallIndirect():
-            # Conservative choice is to assume that all calls could have side effects.
-            # In the future we could inspect the call graph to figure out a more
-            # precise answer
-            return True
-        case _:
-            # There is no need to handle TailLoop (in case of non-termination) since
-            # TailLoops are only generated for array comprehensions which must have
-            # statically-guaranteed (finite) size. TODO revisit this for lists.
-            return False
 
 
 #: List of linear extension types that correspond to affine Guppy types and thus require

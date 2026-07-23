@@ -11,7 +11,7 @@ from hugr.build import Block, Case, Cfg, Conditional, TailLoop
 from hugr.build import function as hf
 from hugr.hugr.node_port import ToNode
 from hugr.metadata import HugrDebugInfo
-from hugr.ops import CallIndirect, DataflowOp, Output
+from hugr.ops import DataflowOp, Output
 from typing_extensions import Self, override
 
 from guppylang_internals.ast_util import AstNode
@@ -98,13 +98,7 @@ class DFBuilder(ABC, ToNode):
         """Adds an op to the dataflow graph builder. Set `set_debug_info=False` to
         avoid automatic debug information attachment.
         """
-        from guppylang_internals.compiler.core import may_have_side_effect
-
         op, effects = op
-
-        assert frozenset(effects) == frozenset(
-            [Effect.ANY] if may_have_side_effect(op) else []
-        )
         op_node = self._raw.add_op(op, *args)
         self._handle_side_effects(op_node, effects)
 
