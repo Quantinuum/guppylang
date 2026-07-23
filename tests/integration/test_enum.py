@@ -176,7 +176,7 @@ def test_methods(validate):
     validate(main.compile_function())
 
 
-def test_generic_explicit(validate):
+def test_generic_explicit(validate, use_experimental_features):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
 
@@ -211,7 +211,7 @@ def test_generic_explicit(validate):
     validate(main.compile_function())
 
 
-def test_generic_infer(validate):
+def test_generic_infer(validate, use_experimental_features):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
 

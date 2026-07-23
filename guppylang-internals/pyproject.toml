@@ -21,8 +21,6 @@ classifiers = [
     "Topic :: Software Development :: Compilers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -32,10 +30,10 @@ classifiers = [
 dependencies = [
     "typing-extensions >=4.9.0,<5",
     "tket-exts ~= 0.14.0",
-    "hugr ~= 0.18.0",
-    "wasmtime>=38.0,<46.1",
+    "hugr ~= 0.18.2",
+    "wasmtime>=47.0.1,<47.1",
     "pytket>=2.18.1",
-    "tket[pytket]~=0.15.1",
+    "tket[pytket]~=0.15.4",
 ]
 
 [build-system]

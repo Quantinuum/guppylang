@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Final, TypeVar
 import hugr.std.collections
 import hugr.std.int
 import hugr.std.prelude
-from hugr import Node, Wire, ops
+from hugr import Node, Wire, ext, ops
 from hugr import tys as ht
 from hugr import val as hv
 
@@ -59,6 +59,13 @@ class ErrorVal(hv.ExtensionValue):
 
     def __str__(self) -> str:
         return f"Error({self.signal}): {self.message}"
+
+    def _resolve_used_extensions_inplace(
+        self,
+        resolver: ext.UsedExtensionResolver,
+        registry: ext.ExtensionRegistry | None = None,
+    ) -> None:
+        resolver.register(hugr.std.prelude.PRELUDE_EXTENSION)
 
 
 def panic(

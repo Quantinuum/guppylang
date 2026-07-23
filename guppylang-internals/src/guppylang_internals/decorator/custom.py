@@ -58,17 +58,17 @@ def custom_function(
         if signature is not None:
             object.__setattr__(signature, "unitary_flags", unitary_flags)
         func = RawCustomFunctionDef(
-            DefId.fresh(),
-            name or f.__name__,
-            None,
-            f,
-            call_checker,
-            compiler or NotImplementedCallCompiler(),
-            higher_order_value,
-            signature,
-            effects,
-            unitary_flags,
-            has_var_args,
+            id=DefId.fresh(),
+            name=name or f.__name__,
+            defined_at=None,
+            python_func=f,
+            call_checker=call_checker,
+            call_compiler=compiler or NotImplementedCallCompiler(),
+            higher_order_value=higher_order_value,
+            signature=signature,
+            effects=effects,
+            unitary_flags=unitary_flags,
+            has_var_args=has_var_args,
         )
         # Decorators in this file may be called inside the main language (e.g. stdlib)
         DEF_STORE.register_def(func, get_calling_frame(skip_main_lang=False))

@@ -4,7 +4,7 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import Function
 
 
-def test_check_callable(validate):
+def test_check_callable(validate, use_experimental_features):
     @guppy
     def bar(f: Function[[int], bool]) -> Function[[int], bool]:
         return f
@@ -34,7 +34,7 @@ def test_check_callable(validate):
     validate(baz2.compile_function())
 
 
-def test_call(validate):
+def test_call(validate, use_experimental_features):
     @guppy
     def foo() -> int:
         return 42
@@ -70,7 +70,7 @@ def test_call(validate):
     validate(call_var.compile_function())
 
 
-def test_call_inplace(validate):
+def test_call_inplace(validate, use_experimental_features):
     @guppy
     def local(f: Function[[int], bool], g: Function[[bool], int]) -> tuple[bool, int]:
         return (f, g)(42, True)
@@ -78,7 +78,7 @@ def test_call_inplace(validate):
     validate(local.compile_function())
 
 
-def test_singleton(validate):
+def test_singleton(validate, use_experimental_features):
     @guppy
     def foo(x: int, y: int) -> tuple[int, int]:
         return y, x
@@ -90,7 +90,7 @@ def test_singleton(validate):
     validate(baz.compile_function())
 
 
-def test_call_back(validate):
+def test_call_back(validate, use_experimental_features):
     @guppy
     def foo(x: int) -> int:
         return x
@@ -154,7 +154,7 @@ def test_higher_order(validate):
     validate(baz.compile_function())
 
 
-def test_nesting(validate):
+def test_nesting(validate, use_experimental_features):
     @guppy
     def foo(x: int, y: int) -> int:
         return x + y

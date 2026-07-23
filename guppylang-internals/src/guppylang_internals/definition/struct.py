@@ -24,7 +24,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomFunctionDef,
-    DefaultCallChecker,
+    OwnedArgumentsCallChecker,
 )
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
@@ -238,7 +238,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             name="__new__",
             defined_at=self.defined_at,
             ty=constructor_sig,
-            call_checker=DefaultCallChecker(),
+            call_checker=OwnedArgumentsCallChecker(),
             call_compiler=ConstructorCompiler(),
             higher_order_value=True,
             higher_order_func_id=GlobalConstId.fresh(f"{self.name}.__new__"),

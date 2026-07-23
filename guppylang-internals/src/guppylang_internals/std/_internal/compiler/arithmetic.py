@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import hugr.std.int
-from hugr import model, ops, val
+from hugr import ext, model, ops, val
 from hugr import tys as ht
 from hugr.std.int import int_t
 
@@ -31,6 +31,13 @@ class UnsignedIntVal(val.ExtensionValue):  # TODO: Upstream this to hugr-py?
 
     def __str__(self) -> str:
         return f"{self.v}"
+
+    def _resolve_used_extensions_inplace(
+        self,
+        resolver: ext.UsedExtensionResolver,
+        registry: ext.ExtensionRegistry | None = None,
+    ) -> None:
+        resolver.register(hugr.std.int.INT_TYPES_EXTENSION)
 
     def to_model(self) -> model.Term:
         return model.Apply(

@@ -1,0 +1,23 @@
+Error: Different types (at $FILE:6:8)
+  | 
+4 | @compile_guppy
+5 | def foo(x: bool) -> float:
+6 |     y = 1 if x else 1.0
+  |         ^^^^^^^^^^^^^^^ Expression may refer to different types
+
+Notes:
+  | 
+5 | def foo(x: bool) -> float:
+6 |     y = 1 if x else 1.0
+  |         - This is of type `int`
+  | 
+6 |     y = 1 if x else 1.0
+  |                     --- This is of type `float`
+
+Help:
+  | 
+5 | def foo(x: bool) -> float:
+6 |     y = 1 if x else 1.0
+  |         - Consider coercing this value to `float`
+
+Guppy compilation failed due to 1 previous error
