@@ -11,6 +11,7 @@ from guppylang.std.platform import output
 from guppylang_internals.std._internal.compiler.arithmetic import UnsignedIntVal
 from tests.util import compile_guppy
 
+from guppylang.optimizer import OptimizationLevel
 from guppylang.std.quantum import (
     qubit,
     discard,
@@ -855,6 +856,28 @@ def test_swap_borrowed(run_int_fn):
 
     with pytest.raises(EmulatorError, match="Array element is already borrowed"):
         run_int_fn(main, expected=0)
+
+
+@pytest.mark.parametrize(
+    "level", [OptimizationLevel.Minimal, OptimizationLevel.Default]
+)
+def test_take_panic(level: OptimizationLevel, run_int_fn):
+    @guppy.struct
+    class MyStruct:
+        i: int
+
+    @guppy
+    def main() -> int:
+        arr = array(MyStruct(1), MyStruct(2), MyStruct(3))
+        arr.take(0)
+        arr.take(0)  # This should panic
+        return 17  # Do not use array
+
+    # This should panic, but the borrow's are optimized away
+    # as effect-less. (With OptimizationLevel.Minimal, this
+    # happens at the beginning of QSystemPass.)
+    # https://github.com/Quantinuum/guppylang/issues/1747
+    main.with_opt_level(level).emulator(n_qubits=1).run()
 
 
 def test_dynamic_index_subscript(validate):
