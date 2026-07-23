@@ -839,6 +839,24 @@ def test_field_access_after_subscript(validate):
     validate(main.compile_function())
 
 
+def test_swap_borrowed(run_int_fn):
+    from guppylang.std.array import array_swap
+
+    @guppy.struct
+    class MyStruct:
+        i: int
+
+    @guppy
+    def main() -> int:
+        arr = array(MyStruct(1), MyStruct(2), MyStruct(3))
+        m = arr.take(1)
+        array_swap(arr, 0, 1)
+        return 0
+
+    with pytest.raises(EmulatorError, match="Array element is already borrowed"):
+        run_int_fn(main, expected=0)
+
+
 def test_dynamic_index_subscript(validate):
     """Smoketest for checking duplicate subscript accesses:
     Asserts that dynamic accesses with duplicate subscripts

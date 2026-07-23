@@ -271,7 +271,6 @@ def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [arr_ty, ht.USize(), ht.USize()],
         [ht.Either([arr_ty], [arr_ty])],
-        effects=[],  # ALAN TODO CHECK: Do we swap borrowedness?
     )
 
 
