@@ -115,7 +115,11 @@ class DFBuilder(ABC, ToNode):
         node = op_node.to_node()
         to_propagate = set()  # Effects newly added to our container
 
-        def get_last_node(e: Effect) -> Node:
+        def get_prev_node(e: Effect) -> Node:
+            """Gets the previous node that had the given effect,
+            or Input (marking this container as having that effect) if none.
+            Then records the current `node` as the last node, for any later call."""
+
             last = self._last_side_effect.get(e)
             if last is None:
                 to_propagate.add(e)
@@ -125,9 +129,9 @@ class DFBuilder(ABC, ToNode):
             self._last_side_effect[e] = node
             return last
 
-        prev_nodes = {get_last_node(e) for e in effects}
-        # Avoid cycles and duplicate edges:
-        prev_nodes.discard(node)
+        prev_nodes = {get_prev_node(e) for e in effects}
+        prev_nodes.discard(node)  # Avoid cycles
+        # Avoid duplicate Order edges when two nodes share multiple effects:
         for prev in self._raw.hugr.incoming_order_links(node):
             prev_nodes.discard(prev)
 
@@ -140,7 +144,7 @@ class DFBuilder(ABC, ToNode):
     @abstractmethod
     def _propagate_side_effects(self, effects: Iterable[Effect]) -> None:
         """Subclasses must implement to mark the container node
-        as side-effecting within any parent/ancestor builder"""
+        as having the given Effects within any parent/ancestor builder."""
 
     def call(
         self,
