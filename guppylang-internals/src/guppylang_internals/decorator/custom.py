@@ -42,7 +42,7 @@ def custom_function(
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    effects: Iterable[Effect] = (),  # ALAN TODO remove default?
+    effects: Iterable[Effect] = (),
     has_var_args: bool = False,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
@@ -131,7 +131,7 @@ def hugr_op(
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    effects: Iterable[Effect] = (),  # ALAN TODO remove default?
+    effects: Iterable[Effect] = (),
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to annotate function declarations as HUGR ops.
 
