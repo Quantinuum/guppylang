@@ -134,7 +134,7 @@ def array_scan(
     length: ht.TypeArg,
     new_elem_ty: ht.Type,
     accumulators: list[ht.Type],
-) -> OpWithEffects:
+) -> ops.ExtOp:
     """Returns an operation that maps and folds a function across an array."""
     ty_args = [
         length,
@@ -148,15 +148,12 @@ def array_scan(
         *accumulators,
     ]
     outs = [array_type(new_elem_ty, length), *accumulators]
-    return (
-        EXTENSION.get_op("scan").instantiate(ty_args, ht.FunctionType(ins, outs)),
-        [Effect.ANY],  # can panic if any element is borrowed
-    )
+    # EFFECTS: this can panic if any element is borrowed, so we should mark that here.
+    # (We also need to allow for callee effects.) Preserving behaviour for now.
+    return EXTENSION.get_op("scan").instantiate(ty_args, ht.FunctionType(ins, outs))
 
 
-def array_map(
-    elem_ty: ht.Type, length: ht.TypeArg, new_elem_ty: ht.Type
-) -> OpWithEffects:
+def array_map(elem_ty: ht.Type, length: ht.TypeArg, new_elem_ty: ht.Type) -> ops.ExtOp:
     """Returns an operation that maps a function across an array."""
     return array_scan(elem_ty, length, new_elem_ty, accumulators=[])
 
