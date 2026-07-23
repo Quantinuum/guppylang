@@ -3,12 +3,12 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from hugr import Hugr, Wire, ops
+from hugr import Hugr, Wire
 from hugr import tys as ht
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder
 from hugr.hugr.base import OpVarCov
-from hugr.std import PRELUDE
+from hugr.ops import Module
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
@@ -19,6 +19,7 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
+from guppylang_internals.compiler.builder import ops
 from guppylang_internals.definition.common import (
     CompilableDef,
     CompiledDef,
@@ -85,7 +86,7 @@ class CompilerContext(ToHugrContext):
     themselves (i.e. `compile_inner` has not yet been called).
     """
 
-    module: DefinitionBuilder[ops.Module]
+    module: DefinitionBuilder[Module]
 
     #: The definitions compiled so far. For generic definitions, their id can occur
     #: multiple times here with respectively different monomorphizations. See
@@ -107,7 +108,7 @@ class CompilerContext(ToHugrContext):
 
     def __init__(
         self,
-        module: DefinitionBuilder[ops.Module],
+        module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
         file_table: StringTable | None = None,
     ) -> None:
@@ -227,7 +228,7 @@ class DFContainer:
             raise InternalGuppyError(f"Couldn't obtain a port for `{place}`")
         child_types = [child.ty.to_hugr(self.ctx) for child in children]
         child_wires = [self[child] for child in children]
-        wire = self.builder.add_op(ops.MakeTuple(child_types), *child_wires)[0]
+        wire = self.builder.add_op(ops.make_tuple(child_types), *child_wires)[0]
         for child in children:
             if child.ty.linear:
                 self.locals.pop(child.id)
@@ -240,7 +241,7 @@ class DFContainer:
         is_return = isinstance(place, Variable) and is_return_var(place.name)
         if isinstance(place.ty, StructType) and not is_return:
             hugr_fields_ty = [t.ty.to_hugr(self.ctx) for t in place.ty.fields]
-            unpack = self.builder.add_op(ops.UnpackTuple(hugr_fields_ty), port)
+            unpack = self.builder.add_op(ops.unpack_tuple(hugr_fields_ty), port)
             for field, field_port in zip(place.ty.fields, unpack, strict=True):
                 self[FieldAccess(place, field, None)] = field_port
             # If we had a previous wire assigned to this place, we need forget about it.
@@ -249,7 +250,7 @@ class DFContainer:
         # Same for tuples.
         elif isinstance(place.ty, TupleType) and not is_return:
             hugr_elem_tys = [ty.to_hugr(self.ctx) for ty in place.ty.element_types]
-            unpack = self.builder.add_op(ops.UnpackTuple(hugr_elem_tys), port)
+            unpack = self.builder.add_op(ops.unpack_tuple(hugr_elem_tys), port)
             for idx, (elem, elem_port) in enumerate(
                 zip(place.ty.element_types, unpack, strict=True)
             ):
@@ -304,44 +305,6 @@ QUANTUM_EXTENSION = TKET_QUANTUM_EXTENSION
 RESULT_EXTENSION = TKET_RESULT_EXTENSION
 DEBUG_EXTENSION = TKET_DEBUG_EXTENSION
 
-#: List of extension ops that have side-effects, identified by their qualified name
-EXTENSION_OPS_WITH_SIDE_EFFECTS: list[str] = [
-    # Outputs should be ordered w.r.t. each other but also w.r.t. panics
-    *(op_def.qualified_name() for op_def in RESULT_EXTENSION.operations.values()),
-    PRELUDE.get_op("panic").qualified_name(),
-    PRELUDE.get_op("exit").qualified_name(),
-    DEBUG_EXTENSION.get_op("StateResult").qualified_name(),
-    # Qubit allocation and deallocation have the side-effect of changing the number of
-    # available free qubits
-    QUANTUM_EXTENSION.get_op("QAlloc").qualified_name(),
-    QUANTUM_EXTENSION.get_op("QFree").qualified_name(),
-    QUANTUM_EXTENSION.get_op("MeasureFree").qualified_name(),
-]
-
-
-def may_have_side_effect(op: ops.Op) -> bool:
-    """Checks whether an operation could have a side-effect.
-
-    We need to insert implicit state order edges between these kinds of nodes to ensure
-    they are executed in the correct order, even if there is no data dependency.
-    """
-    match op:
-        case ops.ExtOp() as ext_op:
-            return ext_op.op_def().qualified_name() in EXTENSION_OPS_WITH_SIDE_EFFECTS
-        case ops.Custom(op_name=op_name, extension=extension):
-            qualified_name = f"{extension}.{op_name}" if extension else op_name
-            return qualified_name in EXTENSION_OPS_WITH_SIDE_EFFECTS
-        case ops.Call() | ops.CallIndirect():
-            # Conservative choice is to assume that all calls could have side effects.
-            # In the future we could inspect the call graph to figure out a more
-            # precise answer
-            return True
-        case _:
-            # There is no need to handle TailLoop (in case of non-termination) since
-            # TailLoops are only generated for array comprehensions which must have
-            # statically-guaranteed (finite) size. TODO revisit this for lists.
-            return False
-
 
 #: List of linear extension types that correspond to affine Guppy types and thus require
 #: insertion of an explicit drop operation.
@@ -378,13 +341,6 @@ def requires_drop(ty: ht.Type) -> bool:
             return False
 
 
-def drop_op(ty: ht.Type) -> ops.ExtOp:
-    """Returns the operation to drop affine values."""
-    return GUPPY_EXTENSION.get_op("drop").instantiate(
-        [ht.TypeTypeArg(ty)], ht.FunctionType([ty], [])
-    )
-
-
 def insert_drops(hugr: Hugr[OpVarCov]) -> None:
     """Inserts explicit drop ops for unconnected ports into the Hugr.
     TODO: This is a quick workaround until we can properly insert these drops during
@@ -403,5 +359,8 @@ def insert_drops(hugr: Hugr[OpVarCov]) -> None:
                 and isinstance(kind, ht.ValueKind)
                 and requires_drop(kind.ty)
             ):
-                drop = hugr.add_node(drop_op(kind.ty), parent=data.parent)
+                drop_op = GUPPY_EXTENSION.get_op("drop").instantiate(
+                    [ht.TypeTypeArg(kind.ty)], ht.FunctionType([kind.ty], [])
+                )
+                drop = hugr.add_node(drop_op, parent=data.parent)
                 hugr.add_link(port, drop.inp(0))

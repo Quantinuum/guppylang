@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import tket_exts
+from guppylang_internals.compiler.builder import FunctionBuilder, OpWithEffects
 from guppylang_internals.std._internal.compiler.array import (
     standard_array_type,
     std_array_to_array,
@@ -27,6 +28,7 @@ from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXT
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from guppylang_internals.tys import Effect
     from guppylang_internals.tys.ty import Type
     from hugr.hugr import Hugr
     from hugr.package import Package
@@ -197,8 +199,11 @@ def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> Non
 
     Mutates ``package`` in place.
     """
+    # For now we mark this pure, as this is fine for a global *constant*,
+    # but we may need to revisit for multithreading.
+    read_arg_effects: Iterable[Effect] = []
 
-    def read_arg_wire(wrapper: Function, name: str, ty: ht.Type) -> Wire:
+    def read_arg_wire(wrapper: FunctionBuilder, name: str, ty: ht.Type) -> Wire:
         """Read a single runtime argument, bridging array representations.
 
         Entrypoint array parameters are lowered to ``borrow_array``, but the
@@ -207,14 +212,18 @@ def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> Non
         expects (the mirror of how the result compiler converts the other way).
         """
         borrow_array_def = BORROW_ARRAY_EXT.types["borrow_array"]
+
+        def mk_read_arg(ty: ht.Type) -> OpWithEffects:
+            return (tket_exts.argument.read_arg(name, ty), read_arg_effects)
+
         if isinstance(ty, ht.ExtType) and ty.type_def is borrow_array_def:
             length_arg, elem_arg = ty.args
             assert isinstance(elem_arg, ht.TypeTypeArg)
             elem_ty = elem_arg.ty
             std_ty = standard_array_type(elem_ty, length_arg)
-            std_wire = wrapper.add_op(tket_exts.argument.read_arg(name, std_ty))[0]
+            std_wire = wrapper.add_op(mk_read_arg(std_ty))[0]
             return wrapper.add_op(std_array_to_array(elem_ty, length_arg), std_wire)[0]
-        return wrapper.add_op(tket_exts.argument.read_arg(name, ty))[0]
+        return wrapper.add_op(mk_read_arg(ty))[0]
 
     def _has_inputs(module: Hugr[Any]) -> bool:
         op = module[module.entrypoint].op
@@ -241,15 +250,17 @@ def wrap_entrypoint_with_args(package: Package, arg_names: Sequence[str]) -> Non
     # entrypoint to be called as a library function.
     # Name of the no-input wrapper generated around the original entrypoint.
     wrapper_name = f"__{op.f_name}_with_args"
-    wrapper = Function.new_nested(
+    func = Function.new_nested(
         ops.FuncDefn(wrapper_name, [], visibility="Public"),
         module,
         module.module_root,
     )
+    wrapper = FunctionBuilder(func)
+
     arg_wires = [
         read_arg_wire(wrapper, name, ty)
         for name, ty in zip(arg_names, input_types, strict=True)
     ]
-    call_node = wrapper.call(entrypoint, *arg_wires)
+    call_node = wrapper.call(entrypoint, *arg_wires, effects=read_arg_effects)
     wrapper.set_outputs(*(call_node[i] for i in range(len(output_types))))
-    module.entrypoint = wrapper.parent_node
+    module.entrypoint = func.parent_node
