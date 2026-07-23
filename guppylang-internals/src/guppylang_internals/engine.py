@@ -8,11 +8,11 @@ from typing import ClassVar, cast
 
 import hugr
 import hugr.build.function as hf
-from hugr import ops
 from hugr.debug_info import DICompileUnit
 from hugr.envelope import ExtensionDesc, GeneratorDesc
 from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
+from hugr.ops import FuncDecl
 from hugr.package import ModulePointer, Package
 from semver import Version
 from typing_extensions import assert_never
@@ -461,7 +461,7 @@ class CompilationEngine:
         if (
             isinstance(compiled_def, CompiledHugrNodeDef)
             and isinstance(compiled_def, CompiledCallableDef)
-            and not isinstance(pointer.module[compiled_def.hugr_node].op, ops.FuncDecl)
+            and not isinstance(pointer.module[compiled_def.hugr_node].op, FuncDecl)
         ):
             # if compiling a region set it as the HUGR entrypoint can be
             # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed

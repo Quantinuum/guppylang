@@ -1,7 +1,8 @@
 """Hugr generation for modifiers."""
 
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
+from hugr.ops import CallIndirect, ExtOp
 
 from guppylang_internals.ast_util import get_type
 from guppylang_internals.checker.core import SubscriptAccess, contains_subscript
@@ -81,7 +82,7 @@ def compile_modified_block(
         dagger_ty = ht.FunctionType([hugr_ty], [hugr_ty])
         call = dfg.builder.add_op(
             Pure(  # This is generation of the daggered version, not calling it (below)
-                ops.ExtOp(
+                ExtOp(
                     dagger_op_def,
                     dagger_ty,
                     [in_out_arg, other_in_arg],
@@ -96,7 +97,7 @@ def compile_modified_block(
             call = dfg.builder.add_op(
                 # This is generation of the powered version, not calling it (below)
                 Pure(
-                    ops.ExtOp(
+                    ExtOp(
                         power_op_def,
                         power_ty,
                         [in_out_arg, other_in_arg],
@@ -124,7 +125,7 @@ def compile_modified_block(
             )
             # Compilation of the controlled version is pure, not calling it (below)
             op = Pure(
-                ops.ExtOp(
+                ExtOp(
                     control_op_def,
                     ht.FunctionType([input_fn_ty], [output_fn_ty]),
                     [qubit_num, in_out_arg, other_in_arg],
@@ -159,7 +160,7 @@ def compile_modified_block(
 
     # Call the modified block.
     call = dfg.builder.add_op(
-        (ops.CallIndirect(), effects),
+        (CallIndirect(), effects),
         call,
         *ctrl_args,
         *args,

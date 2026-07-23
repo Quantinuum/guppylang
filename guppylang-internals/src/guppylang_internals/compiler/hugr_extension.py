@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import hugr.ext as he
 import hugr.tys as ht
-from hugr import ops
+from hugr.ops import AsExtOp, ExtOp
 
 from guppylang_internals.compiler.builder import OpWithEffects, Pure
 
@@ -58,7 +58,7 @@ PARTIAL_OP_DEF: he.OpDef = EXTENSION.add_op_def(
 
 
 @dataclass
-class PartialOp(ops.AsExtOp):
+class PartialOp(AsExtOp):
     """An operation that partially evaluates a function.
 
     args:
@@ -127,11 +127,9 @@ class PartialOp(ops.AsExtOp):
         return ht.FunctionType([closure_ty, *self.captured_inputs], [partial_fn_ty])
 
     @classmethod
-    def from_ext(cls, custom: ops.ExtOp) -> PartialOp:
+    def from_ext(cls, custom: ExtOp) -> PartialOp:
         match custom:
-            case ops.ExtOp(
-                _op_def=op_def, args=[captured_args, other_args, output_args]
-            ):
+            case ExtOp(_op_def=op_def, args=[captured_args, other_args, output_args]):
                 if op_def.qualified_name() == PARTIAL_OP_DEF.qualified_name():
                     return cls(
                         captured_inputs=[*_arg_seq_to_types(captured_args)],
@@ -139,7 +137,7 @@ class PartialOp(ops.AsExtOp):
                         outputs=[*_arg_seq_to_types(output_args)],
                     )
         msg = f"Invalid custom op: {custom}"
-        raise ops.AsExtOp.InvalidExtOp(msg)
+        raise AsExtOp.InvalidExtOp(msg)
 
     @property
     def num_out(self) -> int:
@@ -171,7 +169,7 @@ UNSUPPORTED_OP_DEF: he.OpDef = EXTENSION.add_op_def(
 
 
 @dataclass
-class UnsupportedOp(ops.AsExtOp):
+class UnsupportedOp(AsExtOp):
     """An unsupported operation stub emitted by Guppy.
 
     args:
@@ -197,9 +195,9 @@ class UnsupportedOp(ops.AsExtOp):
         return ht.FunctionType(self.inputs, self.outputs)
 
     @classmethod
-    def from_ext(cls, custom: ops.ExtOp) -> UnsupportedOp:
+    def from_ext(cls, custom: ExtOp) -> UnsupportedOp:
         match custom:
-            case ops.ExtOp(_op_def=op_def, args=args):
+            case ExtOp(_op_def=op_def, args=args):
                 if op_def.qualified_name() == UNSUPPORTED_OP_DEF.qualified_name():
                     [op_name, input_args, output_args] = args
                     assert isinstance(op_name, ht.StringArg), (
@@ -213,7 +211,7 @@ class UnsupportedOp(ops.AsExtOp):
                         outputs=[*_arg_seq_to_types(output_args)],
                     )
         msg = f"Invalid custom op: {custom}"
-        raise ops.AsExtOp.InvalidExtOp(msg)
+        raise AsExtOp.InvalidExtOp(msg)
 
     @property
     def num_out(self) -> int:

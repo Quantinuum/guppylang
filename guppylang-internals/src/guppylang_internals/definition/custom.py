@@ -5,8 +5,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
+from hugr.ops import DataflowOp
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from typing_extensions import override
 
@@ -533,10 +534,10 @@ class OpCompiler(CustomInoutCallCompiler):
             the monomorphic function type, and returns a concrete HUGR op.
     """
 
-    op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp]
+    op: Callable[[ht.FunctionType, Inst, CompilerContext], DataflowOp]
 
     def __init__(
-        self, op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp]
+        self, op: Callable[[ht.FunctionType, Inst, CompilerContext], DataflowOp]
     ) -> None:
         self.op = op
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
-from hugr import ops
 from hugr import tys as ht
 
 from guppylang_internals.definition.common import DefId
@@ -24,6 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
     from guppylang.defs import GuppyFunctionDefinition
+    from hugr.ops import DataflowOp
 
     from guppylang_internals.compiler.core import CompilerContext
     from guppylang_internals.tys import Effect
@@ -125,7 +125,7 @@ def custom_type(
 
 
 def hugr_op(
-    op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp],
+    op: Callable[[ht.FunctionType, Inst, CompilerContext], DataflowOp],
     checker: CustomCallChecker | None = None,
     higher_order_value: bool = True,
     name: str = "",
