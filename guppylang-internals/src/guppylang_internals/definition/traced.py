@@ -1,14 +1,14 @@
 import ast
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import hugr.build.function as hf
 import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.metadata import HugrDebugInfo
-from typing_extensions import override
+from typing_extensions import assert_never, override
 
 from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals
@@ -20,6 +20,12 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.tracing.builder import (
+            TraceCall,
+            TraceFunctionLoad,
+            TraceLoad,
+            TraceOperation, TraceWire
+        )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -44,9 +50,12 @@ from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import Type, UnitaryFlags, type_to_row
+from guppylang_internals.tys.ty import Type, UnitaryFlags, type_to_row, InputFlags
 
 PyFunc = Callable[..., Any]
+
+if TYPE_CHECKING:
+    from guppylang_internals.tracing.builder import Trace
 
 
 @dataclass(frozen=True)
@@ -88,13 +97,27 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     def check(self, type_args: Inst, globals: Globals) -> "TracedMonoFunctionDef":
         """Monomorphizes the function for the given type arg instantiation.
 
-        The actual checking happens during tracing while constructing the HUGR.
+        Executes the Python body while recording a replayable HUGR trace.
         """
         mono_ty = self.ty.instantiate_partial(type_args)
         generic_args = {
             param.name: arg
             for param, arg in zip(self.ty.params, type_args, strict=True)
         }
+        from guppylang_internals.tracing.builder import TraceBuilder
+        from guppylang_internals.tracing.function import trace_function
+
+        builder = TraceBuilder(
+            sum(InputFlags.Comptime not in inp.flags for inp in mono_ty.inputs)
+        )
+        trace = trace_function(
+            self.python_func,
+            mono_ty,
+            builder,
+            generic_args,
+            self.defined_at,
+            self,
+        )
         return TracedMonoFunctionDef(
             self.id,
             self.name,
@@ -102,6 +125,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             mono_ty,
             self.python_func,
             generic_args,
+            trace,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
         )
@@ -130,6 +154,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
 @dataclass(frozen=True)
 class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
     generic_args: Mapping[str, Argument]
+    trace: "Trace"
 
     @override
     def compile_outer(
@@ -160,6 +185,7 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.ty,
             self.python_func,
             self.generic_args,
+            self.trace,
             func_def,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
@@ -212,15 +238,45 @@ class CompiledTracedFunctionDef(
 
     @override
     def compile_inner(self, ctx: CompilerContext) -> None:
-        """Compiles the body of the function by tracing it."""
-        from guppylang_internals.tracing.function import trace_function
+        """Replays the trace recorded while the function was checked."""
+        builder = FunctionBuilder(self.func_def)
+        wires: dict[tuple[int, int], Wire] = {
+            (-1, port): wire for port, wire in enumerate(builder.inputs())
+        }
 
-        trace_function(
-            self.python_func,
-            self.ty,
-            FunctionBuilder(self.func_def),
-            ctx,
-            self.generic_args,
-            self.defined_at,
-            self,
-        )
+        def get_wire(ref: TraceWire) -> Wire:
+            return wires[ref.entry, ref.port]
+
+        for entry_index, entry in enumerate(self.trace.operations):
+            match entry:
+                case TraceOperation(op, inputs, output_count, effects, node):
+                    with builder.set_ast_context(node):
+                        outputs = builder.add_op(
+                            (op, effects), *(get_wire(i) for i in inputs)
+                        )
+                case TraceLoad(value, _node):
+                    outputs = builder.load(value)
+                    output_count = 1
+                case TraceFunctionLoad(def_id, type_args, node):
+                    defn = ctx.build_compiled_def(def_id, type_args)
+                    #assert isinstance(defn, CompiledValueDef)
+                    outputs = defn.load(DFContainer(builder, ctx), ctx, node)
+                    output_count = 1
+                case TraceCall(def_id, type_args, inputs, output_count, node):
+                    func = ctx.build_compiled_def(def_id, type_args)
+                    assert isinstance(func, CompiledCallableDef)
+                    returns = func.compile_call(
+                        [get_wire(i) for i in inputs],
+                        DFContainer(builder, ctx),
+                        ctx,
+                        node,
+                    )
+                    outputs = [*returns.regular_returns, *returns.inout_returns]
+                case _:
+                    assert_never(entry)
+
+            assert len(outputs) == output_count
+            for port, wire in enumerate(outputs):
+                wires[entry_index, port] = wire
+
+        builder.set_outputs(*(get_wire(output) for output in self.trace.outputs))

@@ -6,12 +6,14 @@ from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.comptime_errors import (
     UnsupportedPythonValueError,
 )
+from guppylang_internals.tracing.builder import TraceBuilder
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
 from guppylang_internals.compiler.builder import DFBuilder, ops
-from guppylang_internals.compiler.core import CompilerContext
+from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.error import GuppyComptimeError, GuppyError
 from guppylang_internals.std._internal.compiler.array import array_new, unpack_array
+from guppylang_internals.tracing.builder import TraceBuilder
 from guppylang_internals.tracing.frozenlist import frozenlist
 from guppylang_internals.tracing.object import (
     GuppyEnumObject,
@@ -33,7 +35,7 @@ P = TypeVar("P", bound=DfParentOp)
 
 
 def unpack_guppy_object(
-    obj: GuppyObject, builder: DFBuilder, frozen: bool = False
+    obj: GuppyObject, builder: TraceBuilder, frozen: bool = False
 ) -> Any:
     """Tries to turn as much of the structure of a GuppyObject into Python objects.
 
@@ -49,13 +51,19 @@ def unpack_guppy_object(
         case NoneType():
             return None
         case TupleType(element_types=tys):
-            unpack = builder.add_op(ops.unpack_tuple(), obj._use_wire(None))
+            unpack = builder.add_op(
+                ops.unpack_tuple([ty.to_hugr(ctx=None) for ty in tys]),
+                obj._use_wire(None),
+            )
             return tuple(
                 unpack_guppy_object(GuppyObject(ty, wire), builder, frozen)
                 for ty, wire in zip(tys, unpack.outputs(), strict=True)
             )
         case StructType() as ty:
-            unpack = builder.add_op(ops.unpack_tuple(), obj._use_wire(None))
+            unpack = builder.add_op(
+                ops.unpack_tuple([field.ty.to_hugr(ctx=None) for field in ty.fields]),
+                obj._use_wire(None),
+            )
             field_values = [
                 unpack_guppy_object(GuppyObject(field.ty, wire), builder, frozen)
                 for field, wire in zip(ty.fields, unpack.outputs(), strict=True)
@@ -86,7 +94,7 @@ def unpack_guppy_object(
 
 
 def guppy_object_from_py(
-    v: Any, builder: DFBuilder, node: AstNode, ctx: CompilerContext
+    v: Any, builder: TraceBuilder, node: AstNode, ctx: ToHugrContext
 ) -> GuppyObject:
     """Constructs a Guppy object from a Python value.
 
@@ -150,7 +158,7 @@ def guppy_object_from_py(
             return GuppyObject(ty, builder.load(hugr_val))
 
 
-def update_packed_value(v: Any, obj: "GuppyObject", builder: DFBuilder) -> bool:
+def update_packed_value(v: Any, obj: "GuppyObject", builder: TraceBuilder) -> bool:
     """Given a Python value `v` and a `GuppyObject` `obj` that was constructed from `v`
     using `guppy_object_from_py`, tries to update the wires of any `GuppyObjects`
     contained in `v` to the new wires specified by `obj`.
@@ -173,7 +181,10 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: DFBuilder) -> bool:
         case tuple(vs):
             assert isinstance(obj._ty, TupleType)
             wire_iterator = builder.add_op(
-                ops.unpack_tuple(), obj._use_wire(None)
+                ops.unpack_tuple(
+                    [ty.to_hugr(ctx=None) for ty in obj._ty.element_types]
+                ),
+                obj._use_wire(None),
             ).outputs()
             for v, ty, out_wire in zip(
                 vs, obj._ty.element_types, wire_iterator, strict=True
@@ -184,7 +195,8 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: DFBuilder) -> bool:
         case GuppyStructObject(_ty=ty, _field_values=values):
             assert obj._ty == ty
             wire_iterator = builder.add_op(
-                ops.unpack_tuple(), obj._use_wire(None)
+                ops.unpack_tuple([field.ty.to_hugr(ctx=None) for field in ty.fields]),
+                obj._use_wire(None),
             ).outputs()
             for field, out_wire in zip(ty.fields, wire_iterator, strict=True):
                 v = values[field.name]

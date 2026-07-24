@@ -1,7 +1,10 @@
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
+
+from hugr import val
+from hugr.ops import DataflowOp
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -14,10 +17,9 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
-from guppylang_internals.compiler.builder import FunctionBuilder
-from guppylang_internals.compiler.builder.ops import unpack_tuple
-from guppylang_internals.compiler.core import CompilerContext, DFContainer
-from guppylang_internals.compiler.expr_compiler import ExprCompiler
+from guppylang_internals.compiler.builder import OpWithEffects
+from guppylang_internals.compiler.builder.ops import make_tuple, unpack_tuple
+from guppylang_internals.compiler.core import DFContainer
 from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
@@ -29,7 +31,8 @@ from guppylang_internals.error import (
     InternalGuppyError,
     exception_hook,
 )
-from guppylang_internals.nodes import PlaceNode
+from guppylang_internals.nodes import GlobalCall, PlaceNode
+from guppylang_internals.tracing.builder import TraceBuilder, Trace
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
 from guppylang_internals.tracing.state import (
@@ -48,6 +51,8 @@ from guppylang_internals.tys.const import BoundConstVar, ConstValue, Existential
 from guppylang_internals.tys.ty import (
     FunctionType,
     InputFlags,
+    NoneType,
+    TupleType,
     UnitaryFlags,
     type_to_row,
     unify,
@@ -56,9 +61,10 @@ from guppylang_internals.tys.ty import (
 if TYPE_CHECKING:
     import ast
 
-    from hugr import Wire
-
-    from guppylang_internals.definition.traced import CompiledTracedFunctionDef
+    from guppylang_internals.definition.common import DefId
+    from guppylang_internals.definition.traced import TracedFunctionDef
+    from guppylang_internals.tys import Effect
+    from guppylang_internals.tys.subst import Inst
 
 
 @dataclass(frozen=True)
@@ -71,17 +77,18 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
-    builder: FunctionBuilder,
-    ctx: CompilerContext,
+    #ALAN surely we can create the builder inside here
+    builder: TraceBuilder,
     generic_args: Mapping[str, Argument],
     node: AstNode,
-    func_def: "CompiledTracedFunctionDef",
-) -> None:
+    func_def: "TracedFunctionDef",
+) -> Trace:
     """Kicks off tracing of a function.
 
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
+    ctx = None
     state = TracingState(ctx, DFContainer(builder, ctx, {}), node, func_def)
     with set_tracing_state(state):
         generic_values = {
@@ -134,8 +141,11 @@ def trace_function(
         # Unpack regular returns
         out_tys = type_to_row(out_obj._ty)
         if len(out_tys) > 1:
-            regular_returns: list[Wire] = list(
-                builder.add_op(unpack_tuple(), out_obj._use_wire(None)).outputs()
+            regular_returns = list(
+                builder.add_op(
+                    unpack_tuple([out_ty.to_hugr(None) for out_ty in out_tys]),
+                    out_obj._use_wire(None),
+                ).outputs()
             )
         elif len(out_tys) > 0:
             regular_returns = [out_obj._use_wire(None)]
@@ -177,6 +187,7 @@ def trace_function(
         raise GuppyError(TracingReturnError(node, msg)) from None
 
     builder.set_outputs(*regular_returns, *inout_returns)
+    return builder.finish()
 
 
 def trace_call(func: CallableDef, *args: Any) -> Any:
@@ -190,7 +201,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     with capture_guppy_errors():
         # Try to turn args into `GuppyObjects`
         args_objs = [
-            guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
+            guppy_object_from_py(arg, state.builder, state.node, state.ctx)
             for arg in args
         ]
 
@@ -215,9 +226,6 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         if unitary_flag != UnitaryFlags.NoFlags:
             unitary_checker = BBUnitaryChecker()
             unitary_checker.check([call_node], unitary_flag)
-
-    # Compile call
-    ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)
 
     # Update inouts
     # For overloaded functions, we first need to get the signature for the specific
@@ -248,13 +256,34 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             "`compute_input_flags` in the call checker."
         )
 
+    assert isinstance(call_node, GlobalCall)
+    input_wires = [state.dfg[var] for var in arg_vars]
+    runtime_inputs = [
+        wire
+        for wire, flags in zip(input_wires, input_flags, strict=True)
+        if InputFlags.Comptime not in flags
+    ]
+    output_count = len(type_to_row(ret_ty)) + sum(
+        InputFlags.Inout in flags for flags in input_flags
+    )
+    call = state.builder.call(
+        call_node.def_id,
+        call_node.type_args,
+        output_count,
+        *runtime_inputs,
+        node=call_node,
+    )
+
+    inout_port = len(type_to_row(ret_ty))
     for flags, arg, var in zip(input_flags, args, arg_vars, strict=True):
         if InputFlags.Inout in flags:
             # Use `var.ty` as a concrete type when updating borrowed values.
             ty = var.ty
-            inout_wire = state.dfg[var]
+            inout_wire = call[inout_port]
+            inout_port += 1
+            state.dfg[var] = inout_wire
             success = update_packed_value(
-                arg, GuppyObject(ty, inout_wire), state.dfg.builder
+                arg, GuppyObject(ty, inout_wire), state.builder
             )
             if not success:
                 # This means the user has passed an object that we cannot update,
@@ -264,8 +293,16 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                     f"Cannot borrow Python object of type `{ty}` at comptime"
                 )
 
-    ret_obj = GuppyObject(ret_ty, ret_wire)
-    return unpack_guppy_object(ret_obj, state.dfg.builder)
+    regular_returns = list(call[: len(type_to_row(ret_ty))])
+    if isinstance(ret_ty, TupleType | NoneType):
+        ret_wire = state.builder.add_op(
+            make_tuple(), *regular_returns
+        )
+    else:
+        assert len(regular_returns) == 1
+        ret_wire = regular_returns[0]
+    ret_obj = GuppyObject(ret_ty, ret_wire.as_trace_wire())
+    return unpack_guppy_object(ret_obj, state.builder)
 
 
 def const_argument_to_python_value(arg: ConstArg) -> Any:

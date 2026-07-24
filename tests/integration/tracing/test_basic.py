@@ -9,6 +9,19 @@ from hugr.std.int import IntVal
 from guppylang_internals.tracing.object import GuppyObject
 
 
+def test_check_traces() -> None:
+    trace_events = []
+
+    @guppy.comptime
+    def foo() -> int:
+        trace_events.append("traced")
+        return 1
+
+    foo.check()
+
+    assert trace_events == ["traced"]
+
+
 def test_flat(validate):
     @guppy.comptime
     def foo() -> int:
