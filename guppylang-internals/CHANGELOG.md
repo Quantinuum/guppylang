@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.1.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc2...guppylang-internals-v1.1.0-a0) (2026-07-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Raise an error if non daggerable classical functions are used in dagger cotext (#2061)
+* Dagger flags cancelation inside `daggarable` functions (#2003)
+* Drop support for Python 3.10 and 3.11 (#1971)
+
+
+### Bug Fixes
+
+* Unitary checker skips invalid function calls in arguments (#2081)([ad5709c](https://github.com/Quantinuum/guppylang/commit/ad5709c5fbfd372839b1aba865435f52bf6b4ffd))
+* Fix comptime inout updates for `state_output` (and other custom) functions (#2046)([5903c94](https://github.com/Quantinuum/guppylang/commit/5903c946b43058e28f0d267c56901e39c464b6c5))
+* Disallow Callable as return type (#2045)([f544171](https://github.com/Quantinuum/guppylang/commit/f5441710e83c44fccce9ec3beb411f04ec40b5de))
+* Don't emit coercion hint for temporary variables (#2025)([75ed748](https://github.com/Quantinuum/guppylang/commit/75ed748103d984f9f756567161bf43121fc3c02c))
+* Dagger flags cancelation inside `daggarable` functions (#2003)([f83c410](https://github.com/Quantinuum/guppylang/commit/f83c410873731aac71f1edd51bc8623638d88ecd))
+* Make auto type params for protocol bounds unique (#1997)([f711512](https://github.com/Quantinuum/guppylang/commit/f7115120fddb498876f5138a8272836181f452d1))
+* Fix inout updates for overloaded functions in a comptime context (#1981)([bcd97b6](https://github.com/Quantinuum/guppylang/commit/bcd97b60ae29ea7b245d7592e1ffa5e98e0e364d))
+
+
+### Code Refactoring
+
+* Remove inheritance of CompiledCallableDef from CallableDef (#2037)([c8fa3b4](https://github.com/Quantinuum/guppylang/commit/c8fa3b436a002962b037e122105a6420feb05939))
+* Remove ProtocolCall (#2034)([218651f](https://github.com/Quantinuum/guppylang/commit/218651f0e33ab9dc0e742fb80155ef3ef0c0821d))
+* Remove deprecated qsystem extension usage (#2023)([41e16b7](https://github.com/Quantinuum/guppylang/commit/41e16b7b9dcd39fc8d84404445b8c18f81d7a8f3))
+* Remove version guards for Python 3.12 lower bound (#1973)([5f3212e](https://github.com/Quantinuum/guppylang/commit/5f3212e605e2e43c7451bdcdb9558a853debf04b))
+
+
+### Features
+
+* Add quantum pass to default opt level (#2063)([2970cb5](https://github.com/Quantinuum/guppylang/commit/2970cb5ce9445896c12e3cbc84d76368dd7f4d7d))
+* Raise an error if non daggerable classical functions are used in dagger cotext (#2061)([15215d1](https://github.com/Quantinuum/guppylang/commit/15215d1e13984573ca86db0fd07b51e90f0a6748))
+* Update hugr to `0.18.2`, implement value ext resolution (#2058)([0bae264](https://github.com/Quantinuum/guppylang/commit/0bae264982341ecbc61b19c365ba4af05bc2114c))
+* Emit hint when branch type mismatch can be fixed via coercions (#2013)([5b0f2c8](https://github.com/Quantinuum/guppylang/commit/5b0f2c89a2f60439a239ddf06d795a1bddab68c0))
+* Drop support for Python 3.10 and 3.11 (#1971)([ac2209c](https://github.com/Quantinuum/guppylang/commit/ac2209cb6675de74deb357d965fc22c473a7732e))
+
 ## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1...guppylang-internals-v1.0.0-a8) (2026-06-30)
 
 
