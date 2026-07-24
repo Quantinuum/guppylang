@@ -27,10 +27,11 @@ from guppylang_internals.error import (
     exception_hook,
 )
 from guppylang_internals.nodes import GlobalCall, PlaceNode
-from guppylang_internals.tracing.builder import Trace, TraceBuilder
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
 from guppylang_internals.tracing.state import (
+    Trace,
+    TraceBuilder,
     TracingState,
     get_tracing_state,
     set_tracing_state,

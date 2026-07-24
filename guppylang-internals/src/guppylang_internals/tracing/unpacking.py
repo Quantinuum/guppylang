@@ -11,7 +11,6 @@ from guppylang_internals.compiler.builder import ops
 from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.error import GuppyComptimeError, GuppyError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.array import array_new, array_unpack
-from guppylang_internals.tracing.builder import TraceBuilder, TraceWire
 from guppylang_internals.tracing.frozenlist import frozenlist
 from guppylang_internals.tracing.object import (
     GuppyEnumObject,
@@ -19,7 +18,7 @@ from guppylang_internals.tracing.object import (
     GuppyStructObject,
     TracingDefMixin,
 )
-from guppylang_internals.tracing.state import get_tracing_state
+from guppylang_internals.tracing.state import TraceBuilder, TraceWire, get_tracing_state
 from guppylang_internals.tys.builtin import (
     array_type,
     get_array_length,

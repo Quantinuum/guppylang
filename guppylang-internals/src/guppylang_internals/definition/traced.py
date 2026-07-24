@@ -44,7 +44,7 @@ from guppylang_internals.error import GuppyComptimeError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
-from guppylang_internals.tracing.builder import (
+from guppylang_internals.tracing.state import (
     TraceCall,
     TraceFunctionLoad,
     TraceLoad,
@@ -60,7 +60,7 @@ from guppylang_internals.tys.ty import InputFlags, Type, UnitaryFlags, type_to_r
 PyFunc = Callable[..., Any]
 
 if TYPE_CHECKING:
-    from guppylang_internals.tracing.builder import Trace
+    from guppylang_internals.tracing.state import Trace
 
 
 @dataclass(frozen=True)
