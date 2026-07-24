@@ -682,16 +682,14 @@ class BBLinearityChecker(ast.NodeVisitor):
             # Recursively check the remaining generators
             self._check_comprehension(gens, elt)
 
-            # Look for any variables that are used from the outer scope. This is so we
-            # can feed them through the loop. Note that we could also use non-local
-            # edges, but we can't handle them in lower parts of the stack yet :/
-            # TODO: Reinstate use of non-local edges.
-            #  See https://github.com/quantinuum/guppylang/issues/963
+            # Look for any variables that are *borrowed* from the outer scope. These
+            # must be fed through the loop since we mutate them. Copyable values that
+            # are merely used rely on non-local edges instead of being threaded in.
             gen.used_outer_places = []
             for x, use in inner_scope.used_parent.items():
-                place = inner_scope[x]
-                gen.used_outer_places.append(place)
                 if use.kind == UseKind.BORROW:
+                    place = inner_scope[x]
+                    gen.used_outer_places.append(place)
                     # Since `x` was borrowed, we know that is now also assigned in the
                     # inner scope since it gets reassigned in the local scope after the
                     # borrow expires.

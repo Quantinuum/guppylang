@@ -194,18 +194,24 @@ def choose_vars_for_tuple_sum(
         [[v.ty.to_hugr(dfg.ctx) for v in var_row] for var_row in output_vars]
     )
 
-    # We pass all values into the conditional instead of relying on non-local edges.
-    # This is because we can't handle them in lower parts of the stack yet :/
-    # TODO: Reinstate use of non-local edges.
-    #  See https://github.com/quantinuum/guppylang/issues/963
-    all_vars = {v.id: dfg[v] for var_row in output_vars for v in var_row}
-    all_vars_wires = list(all_vars.values())
-    all_vars_idxs = {x: i for i, x in enumerate(all_vars.keys())}
+    # Non-copyable types must be passed into the conditional since we can't use
+    # inter-graph (non-local) edges to feed them in implicitly. Copyable values are
+    # read directly from the enclosing DFG via non-local edges instead of being
+    # threaded through the conditional's input signature.
+    non_copyable = {
+        v.id: dfg[v] for var_row in output_vars for v in var_row if not v.ty.copyable
+    }
+    non_copyable_wires = list(non_copyable.values())
+    non_copyable_idxs = {x: i for i, x in enumerate(non_copyable.keys())}
 
-    with dfg.builder.add_conditional(unit_sum, *all_vars_wires) as conditional:
+    with dfg.builder.add_conditional(unit_sum, *non_copyable_wires) as conditional:
         for i, var_row in enumerate(output_vars):
             case = conditional.add_case(i)
-            outputs = [case.inputs()[all_vars_idxs[v.id]] for v in var_row]
+            case_inputs = case.inputs()
+            outputs = [
+                dfg[v] if v.ty.copyable else case_inputs[non_copyable_idxs[v.id]]
+                for v in var_row
+            ]
             tag = case.add_op(ops.Tag(i, sum_type), *outputs)
             case.set_outputs(tag)
         return conditional
