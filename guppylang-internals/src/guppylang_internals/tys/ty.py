@@ -842,6 +842,9 @@ class StructType(ParametrizedTypeBase):
 
     defn: "CheckedStructDef"
 
+    intrinsically_copyable: bool = field(default=True, init=False)
+    intrinsically_droppable: bool = field(default=True, init=False)
+
     @cached_property
     def fields(self) -> list["CheckedField"]:
         """The fields of this struct type."""
@@ -857,12 +860,12 @@ class StructType(ParametrizedTypeBase):
         return {field.name: field for field in self.fields}
 
     @cached_property
-    def intrinsically_copyable(self) -> bool:
+    def copyable(self) -> bool:
         """Whether objects of this type can be implicitly copied."""
         return self.frozen and all(f.ty.copyable for f in self.fields)
 
     @cached_property
-    def intrinsically_droppable(self) -> bool:
+    def droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
         return all(f.ty.droppable for f in self.fields)
 
