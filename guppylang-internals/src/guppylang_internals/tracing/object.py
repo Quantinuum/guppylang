@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, NamedTuple, TypeAlias
 
-from hugr import Wire
-
 import guppylang_internals.checker.expr_checker as expr_checker
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.errors.type_errors import (
@@ -20,7 +18,7 @@ from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
-    CompiledValueDef,
+    ValueDef,
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyComptimeError, GuppyError, GuppyTypeError
@@ -603,30 +601,12 @@ class TracingDefMixin(DunderMixin):
         #  will require some more plumbing of type inference information through the
         #  comptime logic. For now, let's just bail on generic functions.
         #  See https://github.com/quantinuum/guppylang/issues/1336
-        if isinstance(defn, CallableDef) and defn.ty.parametrized:
-            raise GuppyComptimeError(
-                f"Cannot infer type parameters of generic function `{defn.name}`"
-            )
-        if state.ctx is None and isinstance(defn, CallableDef):
-            breakpoint()
-            from guppylang_internals.tracing.builder import TraceBuilder
-
-            assert isinstance(state.builder, TraceBuilder)
+        if isinstance(defn, CallableDef):
+            if defn.ty.parametrized:
+                raise GuppyComptimeError(
+                    f"Cannot infer type parameters of generic function `{defn.name}`"
+                )
             wire = state.builder.load_function(defn.id, ())
             return GuppyObject(defn.ty, wire, None)
-        defn = state.ctx.build_compiled_def(self.id, type_args=())
-        if isinstance(defn, CompiledValueDef):
-            # ALAN should we pass state.node into load? Was:
-            #   wire = defn.load(state.dfg, state.ctx, state.node)
-            return GuppyObject(defn.ty, state.builder.load(defn), None)
-        elif isinstance(defn, TypeDef):
-            if (
-                defn.id in DEF_STORE.type_members
-                and "__new__" in DEF_STORE.type_members[defn.id]
-            ):
-                constructor = DEF_STORE.raw_defs[
-                    DEF_STORE.type_members[defn.id]["__new__"]
-                ]
-                return TracingDefMixin(constructor).to_guppy_object()
-        err = f"{defn.description.capitalize()} `{defn.name}` is not a value"
-        raise GuppyComptimeError(err)
+        assert isinstance(defn, ValueDef)
+        return GuppyObject(defn.ty, state.builder.load(self.id, type_args=()))

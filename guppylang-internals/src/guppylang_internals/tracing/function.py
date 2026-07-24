@@ -15,9 +15,7 @@ from guppylang_internals.checker.core import (
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.compiler.builder.ops import make_tuple, unpack_tuple
-from guppylang_internals.compiler.core import DFContainer
 from guppylang_internals.definition.custom import CustomFunctionDef
-from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
@@ -59,6 +57,7 @@ if TYPE_CHECKING:
     import ast
 
     from guppylang_internals.definition.traced import TracedFunctionDef
+    from guppylang_internals.tys.common import ToHugrContext
 
 
 @dataclass(frozen=True)
@@ -205,11 +204,11 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             for (obj, arg) in zip(args_objs, args, strict=True)
         ]
         locals = Locals({var.name: var for var in arg_vars})
-        
-        #ALAN
+
+        # ALAN
         input_wires = [obj._use_wire(func) for obj in args_objs]
         # instead of:
-        #for obj, var in zip(args_objs, arg_vars, strict=True):
+        # for obj, var in zip(args_objs, arg_vars, strict=True):
         #    state.dfg[var] = obj._use_wire(func)
 
         # Check call
@@ -279,7 +278,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             ty = var.ty
             inout_wire = call[inout_port]
             inout_port += 1
-            #state.dfg[var] = inout_wire # ALAN dead assign?
+            # state.dfg[var] = inout_wire # ALAN dead assign?
             success = update_packed_value(
                 arg, GuppyObject(ty, inout_wire), state.builder
             )

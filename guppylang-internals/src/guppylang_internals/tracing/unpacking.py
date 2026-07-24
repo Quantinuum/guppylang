@@ -1,4 +1,4 @@
-from typing import Any, TypeVar
+from typing import Any
 
 from hugr import tys as ht
 
@@ -30,9 +30,9 @@ from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.ty import EnumType, NoneType, StructType, TupleType, Type
 
+
 def unpack_array(
-    builder: TraceBuilder, array_ty: Type, 
-    array: TraceWire
+    builder: TraceBuilder, array_ty: Type, array: TraceWire
 ) -> list[TraceWire]:
     """Unpacks a wire of type array into separate wires for each element."""
     assert isinstance(array_ty, ht.ExtType)
@@ -116,7 +116,9 @@ def guppy_object_from_py(
         case TracingDefMixin() as defn:
             return defn.to_guppy_object()
         case None:
-            return GuppyObject(NoneType(), builder.add_op(ops.make_tuple()).as_trace_wire())
+            return GuppyObject(
+                NoneType(), builder.add_op(ops.make_tuple()).as_trace_wire()
+            )
         case tuple(vs):
             objs = [guppy_object_from_py(v, builder, node, ctx) for v in vs]
             return GuppyObject(
@@ -137,7 +139,9 @@ def guppy_object_from_py(
                         f"unexpected type. Expected `{f.ty}`, got `{obj._ty}`."
                     )
                 wires.append(obj._use_wire(None))
-            return GuppyObject(struct_ty, builder.add_op(ops.make_tuple(), *wires).as_trace_wire())
+            return GuppyObject(
+                struct_ty, builder.add_op(ops.make_tuple(), *wires).as_trace_wire()
+            )
         case GuppyEnumObject(_ty=enum_ty, _wire=wire):
             return GuppyObject(enum_ty, wire)
         case list(vs) if len(vs) > 0:
@@ -153,7 +157,9 @@ def guppy_object_from_py(
             wires = [obj._use_wire(None) for obj in objs]
             return GuppyObject(
                 array_type(elem_ty, len(vs)),
-                builder.add_op(array_new(hugr_elem_ty, len(vs)), *wires).as_trace_wire(),
+                builder.add_op(
+                    array_new(hugr_elem_ty, len(vs)), *wires
+                ).as_trace_wire(),
             )
         case []:
             # Empty lists are tricky since we can't infer the element type here

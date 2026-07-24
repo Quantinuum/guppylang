@@ -8,13 +8,12 @@ from hugr.ops import DataflowOp
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.compiler.builder import OpWithEffects
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import (
     InternalGuppyError,
 )
 
 if TYPE_CHECKING:
-
-    from guppylang_internals.definition.common import DefId
     from guppylang_internals.tys import Effect
     from guppylang_internals.tys.subst import Inst
 
@@ -49,8 +48,8 @@ class TraceOperation:
 class TraceLoad:
     """A HUGR value loaded while tracing."""
 
-    value: val.Value
-    node: AstNode | None
+    value: val.Value | DefId
+    node: AstNode
 
 
 @dataclass(frozen=True)
@@ -150,12 +149,15 @@ class TraceBuilder:
             )
         )
 
-    def load(self, value: val.Value, *_: Any, **__: Any) -> TraceWire:
+    def load(self, value: val.Value | DefId, *_: Any, **__: Any) -> TraceWire:
+        assert self.current_ast_node is not None
         return self._add(TraceLoad(value, self.current_ast_node)).as_trace_wire()
 
-    def load_function(self, def_id: "DefId", type_args: "Inst") -> TraceNode:
+    def load_function(self, def_id: "DefId", type_args: "Inst") -> TraceWire:
         assert self.current_ast_node is not None
-        return self._add(TraceFunctionLoad(def_id, type_args, self.current_ast_node))
+        return self._add(
+            TraceFunctionLoad(def_id, type_args, self.current_ast_node)
+        ).as_trace_wire()
 
     def call(
         self,
