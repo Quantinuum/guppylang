@@ -25,7 +25,7 @@ class TracingState:
     """Internal state that is used during the tracing phase of comptime functions."""
 
     #: Context used to translate Guppy types into HUGR types.
-    ctx: ToHugrContext | None
+    ctx: ToHugrContext
 
     #: The trace of operations performed during the comptime execution of a function.
     builder: "TraceBuilder"
@@ -117,7 +117,7 @@ class TraceFunctionLoad:
 
     def_id: "DefId"
     type_args: "Inst"
-    node: AstNode  # | None
+    node: AstNode
 
 
 @dataclass(frozen=True)
@@ -247,10 +247,10 @@ def _operation_output_count(op: DataflowOp) -> int:
         case hops.MakeTuple() | hops.LoadConst():
             return 1
         case hops.UnpackTuple(types=types):
-            return len(types or ())
+            return len(types)
         case _:
             signature = getattr(op, "signature", None)
-            if signature is not None and hasattr(signature, "output"):
+            if signature is not None:
                 return len(signature.output)
             raise InternalGuppyError(
                 f"Cannot record operation `{type(op).__name__}` during comptime tracing"
