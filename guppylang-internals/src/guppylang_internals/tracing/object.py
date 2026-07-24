@@ -333,7 +333,9 @@ class GuppyObject(DunderMixin):
     #: Unique id for this object
     _id: GuppyObjectId
 
-    def __init__(self, ty: Type, wire: TraceWire, used: ObjectUse | None = None) -> None:
+    def __init__(
+        self, ty: Type, wire: TraceWire, used: ObjectUse | None = None
+    ) -> None:
         self._ty = ty
         self._wire = wire
         self._used = used
@@ -387,7 +389,7 @@ class GuppyObject(DunderMixin):
             f"Expression of type `{self._ty}` is not iterable at comptime"
         )
 
-    def _use_wire(self, called_func: CallableDef | None) -> Wire:
+    def _use_wire(self, called_func: CallableDef | None) -> TraceWire:
         # Panic if the value has already been used
         if self._used and not self._ty.copyable:
             use = self._used
@@ -499,10 +501,10 @@ class GuppyEnumObject(DunderMixin):
 
     #: The enum type
     _ty: EnumType
-    #: The Hugr wire holding this enum object
-    _wire: Wire
+    #: The wire holding this enum object
+    _wire: TraceWire
 
-    def __init__(self, ty: EnumType, wire: Wire) -> None:
+    def __init__(self, ty: EnumType, wire: TraceWire) -> None:
         # Can't use regular assignment for class attributes since we override
         # `__setattr__` below
         object.__setattr__(self, "_ty", ty)
@@ -614,8 +616,9 @@ class TracingDefMixin(DunderMixin):
             return GuppyObject(defn.ty, wire, None)
         defn = state.ctx.build_compiled_def(self.id, type_args=())
         if isinstance(defn, CompiledValueDef):
-            wire = defn.load(state.dfg, state.ctx, state.node)
-            return GuppyObject(defn.ty, wire, None)
+            # ALAN should we pass state.node into load? Was:
+            #   wire = defn.load(state.dfg, state.ctx, state.node)
+            return GuppyObject(defn.ty, state.builder.load(defn), None)
         elif isinstance(defn, TypeDef):
             if (
                 defn.id in DEF_STORE.type_members

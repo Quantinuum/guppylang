@@ -1,10 +1,7 @@
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
-
-from hugr import val
-from hugr.ops import DataflowOp
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -17,10 +14,10 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
-from guppylang_internals.compiler.builder import OpWithEffects
 from guppylang_internals.compiler.builder.ops import make_tuple, unpack_tuple
 from guppylang_internals.compiler.core import DFContainer
 from guppylang_internals.definition.custom import CustomFunctionDef
+from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
@@ -32,7 +29,7 @@ from guppylang_internals.error import (
     exception_hook,
 )
 from guppylang_internals.nodes import GlobalCall, PlaceNode
-from guppylang_internals.tracing.builder import TraceBuilder, Trace
+from guppylang_internals.tracing.builder import Trace, TraceBuilder
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
 from guppylang_internals.tracing.state import (
@@ -61,10 +58,7 @@ from guppylang_internals.tys.ty import (
 if TYPE_CHECKING:
     import ast
 
-    from guppylang_internals.definition.common import DefId
     from guppylang_internals.definition.traced import TracedFunctionDef
-    from guppylang_internals.tys import Effect
-    from guppylang_internals.tys.subst import Inst
 
 
 @dataclass(frozen=True)
@@ -77,8 +71,7 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
-    #ALAN surely we can create the builder inside here
-    builder: TraceBuilder,
+    input_count: int,
     generic_args: Mapping[str, Argument],
     node: AstNode,
     func_def: "TracedFunctionDef",
@@ -88,8 +81,9 @@ def trace_function(
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
-    ctx = None
-    state = TracingState(ctx, DFContainer(builder, ctx, {}), node, func_def)
+    builder = TraceBuilder(input_count)
+    ctx: ToHugrContext = None
+    state = TracingState(ctx, builder, node, func_def)
     with set_tracing_state(state):
         generic_values = {
             x: const_argument_to_python_value(arg)
@@ -211,8 +205,12 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             for (obj, arg) in zip(args_objs, args, strict=True)
         ]
         locals = Locals({var.name: var for var in arg_vars})
-        for obj, var in zip(args_objs, arg_vars, strict=True):
-            state.dfg[var] = obj._use_wire(func)
+        
+        #ALAN
+        input_wires = [obj._use_wire(func) for obj in args_objs]
+        # instead of:
+        #for obj, var in zip(args_objs, arg_vars, strict=True):
+        #    state.dfg[var] = obj._use_wire(func)
 
         # Check call
         arg_exprs: list[ast.expr] = [
@@ -257,7 +255,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         )
 
     assert isinstance(call_node, GlobalCall)
-    input_wires = [state.dfg[var] for var in arg_vars]
+    # ALAN #input_wires = [state.dfg[var] for var in arg_vars]
     runtime_inputs = [
         wire
         for wire, flags in zip(input_wires, input_flags, strict=True)
@@ -281,7 +279,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             ty = var.ty
             inout_wire = call[inout_port]
             inout_port += 1
-            state.dfg[var] = inout_wire
+            #state.dfg[var] = inout_wire # ALAN dead assign?
             success = update_packed_value(
                 arg, GuppyObject(ty, inout_wire), state.builder
             )
@@ -295,9 +293,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
     regular_returns = list(call[: len(type_to_row(ret_ty))])
     if isinstance(ret_ty, TupleType | NoneType):
-        ret_wire = state.builder.add_op(
-            make_tuple(), *regular_returns
-        )
+        ret_wire = state.builder.add_op(make_tuple(), *regular_returns)
     else:
         assert len(regular_returns) == 1
         ret_wire = regular_returns[0]

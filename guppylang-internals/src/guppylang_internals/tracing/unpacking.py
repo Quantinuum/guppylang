@@ -1,19 +1,17 @@
 from typing import Any, TypeVar
 
-from hugr.ops import DfParentOp
+from hugr import tys as ht
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.comptime_errors import (
     UnsupportedPythonValueError,
 )
-from guppylang_internals.tracing.builder import TraceBuilder
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
-from guppylang_internals.compiler.builder import DFBuilder, ops
-from guppylang_internals.tys.common import ToHugrContext
+from guppylang_internals.compiler.builder import ops
 from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
-from guppylang_internals.error import GuppyComptimeError, GuppyError
-from guppylang_internals.std._internal.compiler.array import array_new, unpack_array
-from guppylang_internals.tracing.builder import TraceBuilder
+from guppylang_internals.error import GuppyComptimeError, GuppyError, InternalGuppyError
+from guppylang_internals.std._internal.compiler.array import array_new, array_unpack
+from guppylang_internals.tracing.builder import TraceBuilder, TraceWire
 from guppylang_internals.tracing.frozenlist import frozenlist
 from guppylang_internals.tracing.object import (
     GuppyEnumObject,
@@ -28,10 +26,22 @@ from guppylang_internals.tys.builtin import (
     get_element_type,
     is_array_type,
 )
+from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import ConstValue
-from guppylang_internals.tys.ty import EnumType, NoneType, StructType, TupleType
+from guppylang_internals.tys.ty import EnumType, NoneType, StructType, TupleType, Type
 
-P = TypeVar("P", bound=DfParentOp)
+def unpack_array(
+    builder: TraceBuilder, array_ty: Type, 
+    array: TraceWire
+) -> list[TraceWire]:
+    """Unpacks a wire of type array into separate wires for each element."""
+    assert isinstance(array_ty, ht.ExtType)
+    match array_ty.args:
+        case [ht.BoundedNatArg(length), ht.TypeTypeArg(elem_ty)]:
+            res = builder.add_op(array_unpack(elem_ty, length), array)
+            return [res[i] for i in range(length)]
+        case _:
+            raise InternalGuppyError("Invalid array type args")
 
 
 def unpack_guppy_object(
@@ -80,7 +90,7 @@ def unpack_guppy_object(
                     # them as Guppy objects here
                     return obj
                 elem_ty = get_element_type(ty)
-                elems = unpack_array(builder, obj._use_wire(None))
+                elems = unpack_array(builder, elem_ty, obj._use_wire(None))
                 obj_list = [
                     unpack_guppy_object(GuppyObject(elem_ty, wire), builder, frozen)
                     for wire in elems
@@ -106,14 +116,14 @@ def guppy_object_from_py(
         case TracingDefMixin() as defn:
             return defn.to_guppy_object()
         case None:
-            return GuppyObject(NoneType(), builder.add_op(ops.make_tuple()))
+            return GuppyObject(NoneType(), builder.add_op(ops.make_tuple()).as_trace_wire())
         case tuple(vs):
             objs = [guppy_object_from_py(v, builder, node, ctx) for v in vs]
             return GuppyObject(
                 TupleType([obj._ty for obj in objs]),
                 builder.add_op(
                     ops.make_tuple(), *(obj._use_wire(None) for obj in objs)
-                ),
+                ).as_trace_wire(),
             )
         case GuppyStructObject(_ty=struct_ty, _field_values=values):
             wires = []
@@ -127,7 +137,7 @@ def guppy_object_from_py(
                         f"unexpected type. Expected `{f.ty}`, got `{obj._ty}`."
                     )
                 wires.append(obj._use_wire(None))
-            return GuppyObject(struct_ty, builder.add_op(ops.make_tuple(), *wires))
+            return GuppyObject(struct_ty, builder.add_op(ops.make_tuple(), *wires).as_trace_wire())
         case GuppyEnumObject(_ty=enum_ty, _wire=wire):
             return GuppyObject(enum_ty, wire)
         case list(vs) if len(vs) > 0:
@@ -143,7 +153,7 @@ def guppy_object_from_py(
             wires = [obj._use_wire(None) for obj in objs]
             return GuppyObject(
                 array_type(elem_ty, len(vs)),
-                builder.add_op(array_new(hugr_elem_ty, len(vs)), *wires),
+                builder.add_op(array_new(hugr_elem_ty, len(vs)), *wires).as_trace_wire(),
             )
         case []:
             # Empty lists are tricky since we can't infer the element type here
@@ -208,7 +218,7 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: TraceBuilder) -> bo
         case list(vs) if len(vs) > 0:
             assert is_array_type(obj._ty)
             elem_ty = get_element_type(obj._ty)
-            wires = unpack_array(builder, obj._use_wire(None))
+            wires = unpack_array(builder, elem_ty, obj._use_wire(None))
             for i, (v, wire) in enumerate(zip(vs, wires, strict=True)):
                 success = update_packed_value(v, GuppyObject(elem_ty, wire), builder)
                 if not success:

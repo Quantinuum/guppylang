@@ -1,56 +1,23 @@
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from hugr import val
 from hugr.ops import DataflowOp
 
-from guppylang_internals.ast_util import AstNode, with_loc, with_type
-from guppylang_internals.cfg.builder import tmp_vars
-from guppylang_internals.checker.core import (
-    ComptimeVariable,
-    Context,
-    Globals,
-    Locals,
-    Variable,
-)
-from guppylang_internals.checker.errors.type_errors import TypeMismatchError
-from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
+from guppylang_internals.ast_util import AstNode
 from guppylang_internals.compiler.builder import OpWithEffects
-from guppylang_internals.compiler.builder.ops import make_tuple, unpack_tuple
-from guppylang_internals.compiler.core import DFContainer
-from guppylang_internals.definition.custom import CustomFunctionDef
-from guppylang_internals.definition.overloaded import OverloadedFunctionDef
-from guppylang_internals.definition.value import CallableDef
-from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import (
-    GuppyComptimeError,
-    GuppyError,
     InternalGuppyError,
-    exception_hook,
-)
-from guppylang_internals.nodes import GlobalCall, PlaceNode
-from guppylang_internals.tys.arg import Argument, ConstArg
-from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
-from guppylang_internals.tys.ty import (
-    FunctionType,
-    InputFlags,
-    NoneType,
-    TupleType,
-    UnitaryFlags,
-    type_to_row,
-    unify,
 )
 
 if TYPE_CHECKING:
-    import ast
 
     from guppylang_internals.definition.common import DefId
-    from guppylang_internals.definition.traced import TracedFunctionDef
     from guppylang_internals.tys import Effect
     from guppylang_internals.tys.subst import Inst
+
 
 @dataclass(frozen=True)
 class TraceWire:
@@ -92,7 +59,7 @@ class TraceFunctionLoad:
 
     def_id: "DefId"
     type_args: "Inst"
-    node: AstNode | None
+    node: AstNode  # | None
 
 
 @dataclass(frozen=True)
@@ -136,7 +103,7 @@ class TraceNode(Sequence[TraceWire]):
 
     def outputs(self) -> tuple[TraceWire, ...]:
         return self._wires
-    
+
     def as_trace_wire(self) -> TraceWire:
         if len(self._wires) != 1:
             raise InternalGuppyError(
@@ -183,10 +150,11 @@ class TraceBuilder:
             )
         )
 
-    def load(self, value: val.Value, *_: Any, **__: Any) -> TraceNode:
-        return self._add(TraceLoad(value, self.current_ast_node))
+    def load(self, value: val.Value, *_: Any, **__: Any) -> TraceWire:
+        return self._add(TraceLoad(value, self.current_ast_node)).as_trace_wire()
 
     def load_function(self, def_id: "DefId", type_args: "Inst") -> TraceNode:
+        assert self.current_ast_node is not None
         return self._add(TraceFunctionLoad(def_id, type_args, self.current_ast_node))
 
     def call(
@@ -239,4 +207,3 @@ def _operation_output_count(op: DataflowOp) -> int:
             raise InternalGuppyError(
                 f"Cannot record operation `{type(op).__name__}` during comptime tracing"
             )
-

@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
 import hugr.tys as ht
@@ -20,12 +20,6 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.builder import FunctionBuilder
-from guppylang_internals.tracing.builder import (
-            TraceCall,
-            TraceFunctionLoad,
-            TraceLoad,
-            TraceOperation, TraceWire
-        )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -42,15 +36,23 @@ from guppylang_internals.definition.value import (
     CallReturnWires,
     CompiledCallableDef,
     CompiledHugrNodeDef,
+    CompiledValueDef,
 )
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tracing.builder import (
+    TraceCall,
+    TraceFunctionLoad,
+    TraceLoad,
+    TraceOperation,
+    TraceWire,
+)
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import Type, UnitaryFlags, type_to_row, InputFlags
+from guppylang_internals.tys.ty import InputFlags, Type, UnitaryFlags, type_to_row
 
 PyFunc = Callable[..., Any]
 
@@ -104,16 +106,12 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             param.name: arg
             for param, arg in zip(self.ty.params, type_args, strict=True)
         }
-        from guppylang_internals.tracing.builder import TraceBuilder
         from guppylang_internals.tracing.function import trace_function
 
-        builder = TraceBuilder(
-            sum(InputFlags.Comptime not in inp.flags for inp in mono_ty.inputs)
-        )
         trace = trace_function(
             self.python_func,
             mono_ty,
-            builder,
+            sum(InputFlags.Comptime not in inp.flags for inp in mono_ty.inputs),
             generic_args,
             self.defined_at,
             self,
@@ -248,19 +246,21 @@ class CompiledTracedFunctionDef(
             return wires[ref.entry, ref.port]
 
         for entry_index, entry in enumerate(self.trace.operations):
+            outputs: Sequence[Wire]
             match entry:
                 case TraceOperation(op, inputs, output_count, effects, node):
                     with builder.set_ast_context(node):
-                        outputs = builder.add_op(
+                        node = builder.add_op(
                             (op, effects), *(get_wire(i) for i in inputs)
                         )
+                        outputs = [node[i] for i in range(output_count)]
                 case TraceLoad(value, _node):
-                    outputs = builder.load(value)
+                    outputs = [builder.load(value)[0]]
                     output_count = 1
                 case TraceFunctionLoad(def_id, type_args, node):
                     defn = ctx.build_compiled_def(def_id, type_args)
-                    #assert isinstance(defn, CompiledValueDef)
-                    outputs = defn.load(DFContainer(builder, ctx), ctx, node)
+                    assert isinstance(defn, CompiledValueDef)
+                    outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
                     output_count = 1
                 case TraceCall(def_id, type_args, inputs, output_count, node):
                     func = ctx.build_compiled_def(def_id, type_args)

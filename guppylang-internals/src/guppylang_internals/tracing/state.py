@@ -3,11 +3,11 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
-from guppylang_internals.tracing.builder import TraceBuilder
+
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.compiler.core import DFContainer
 from guppylang_internals.definition.traced import TracedFunctionDef
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.tracing.builder import TraceBuilder
 from guppylang_internals.tys.common import ToHugrContext
 
 if TYPE_CHECKING:
