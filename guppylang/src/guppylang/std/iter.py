@@ -73,6 +73,35 @@ class Range:
         self._next += self._step
         return some((actual_next, self))
 
+    @guppy
+    @no_type_check
+    def reverse_in_place(self: Self) -> None:
+        if self._step == 0:
+            panic("range.reverse_in_place: step is zero")
+        if self._step > 0:
+            diff = self._stop - self._next
+            if diff > 0:
+                count = (diff + self._step - 1) // self._step
+                last = self._next + (count - 1) * self._step
+                self._stop = self._next - self._step
+            else:
+                self._stop = self._next
+                last = self._next
+            self._next = last
+            self._step = -self._step
+        else:
+            diff = self._next - self._stop
+            if diff > 0:
+                neg = -self._step
+                count = (diff + neg - 1) // neg
+                last = self._next + (count - 1) * self._step
+                self._stop = self._next - self._step
+            else:
+                self._stop = self._next
+                last = self._next
+            self._next = last
+            self._step = -self._step
+
 
 @guppy
 @no_type_check
@@ -89,6 +118,8 @@ def _range2(start: int, stop: int) -> Range:
 @guppy
 @no_type_check
 def _range3(start: int, stop: int, step: int) -> Range:
+    if step == 0:
+        panic("range() arg 3 must not be zero")
     return Range(start, stop, step)
 
 
@@ -111,4 +142,12 @@ def range(start: int, stop: int = 0, step: int = 1) -> Range:
     ``start`` defaults to ``0`` and ``step`` defaults to ``1``. If the provided ``stop``
     value is comptime known, then the returned iterator will have a static size
     annotation and may for example be used inside array comprehensions.
+
+    Iterating with a ``step`` of ``0`` raises a runtime panic. The
+    ``Range.reverse_in_place`` method reverses the iteration direction in place.
     """
+
+
+# Delayed import to avoid cyclic import since `iter` is loaded very early via
+# `builtins`/`array` (which import `SizedIter` from this module).
+from guppylang.std.platform import panic  # noqa: E402
