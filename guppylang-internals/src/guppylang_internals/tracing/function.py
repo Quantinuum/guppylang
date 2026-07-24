@@ -24,6 +24,7 @@ from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
     exception_hook,
 )
 from guppylang_internals.nodes import GlobalCall, PlaceNode
@@ -307,8 +308,9 @@ def const_argument_to_python_value(arg: ConstArg) -> Any:
         case ConstValue(value=v):
             return v
         case BoundConstVar() | ExistentialConstVar():
-            # By this point, everything should be monomorphized!
-            raise InternalGuppyError("Unexpected const variable")
+            # This means we are building the arguments with which to trace
+            # an uninstantiated generic function. So, avoid tracing such...
+            raise RequiresMonomorphizationError
 
 
 @contextmanager
