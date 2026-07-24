@@ -858,11 +858,6 @@ def test_swap_borrowed(run_int_fn):
         run_int_fn(main, expected=0)
 
 
-# This should panic, but the borrow's are optimized away
-# as effect-less. (With OptimizationLevel.Minimal, this
-# happens at the beginning of QSystemPass.)
-# https://github.com/Quantinuum/guppylang/issues/1747
-@pytest.mark.xfail(match="DID NOT RAISE")
 @pytest.mark.parametrize(
     "level", [OptimizationLevel.Minimal, OptimizationLevel.Default]
 )

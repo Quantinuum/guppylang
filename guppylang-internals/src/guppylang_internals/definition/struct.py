@@ -41,7 +41,6 @@ from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -244,7 +243,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             higher_order_func_id=GlobalConstId.fresh(f"{self.name}.__new__"),
             has_signature=True,
             has_var_args=False,
-            effects=[Effect.ANY],
+            effects=[],
         )
         return [constructor_def]
 

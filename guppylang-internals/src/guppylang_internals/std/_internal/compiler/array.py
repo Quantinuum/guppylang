@@ -15,6 +15,7 @@ from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
 from guppylang_internals.std._internal.compiler.prelude import build_unwrap_right
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 
 if TYPE_CHECKING:
@@ -22,7 +23,6 @@ if TYPE_CHECKING:
 
     from guppylang_internals.ast_util import AstNode
     from guppylang_internals.compiler.builder import DFBuilder
-    from guppylang_internals.tys import Effect
 
 
 # ------------------------------------------------------
@@ -36,8 +36,10 @@ def _instantiate_array_op(
     length: ht.TypeArg,
     inp: list[ht.Type],
     out: list[ht.Type],
+    # Almost all (borrow-)array operations can panic if relevant element(s) are
+    # borrowed. Allow overriding for the minority that do not.
     # Usual warning about mutable default arguments applies, but Sequence is read-only.
-    effects: Sequence[Effect] = [],
+    effects: Sequence[Effect] = [Effect.ANY],
 ) -> OpWithEffects:
     return (
         EXTENSION.get_op(name).instantiate(
@@ -71,7 +73,7 @@ def array_new(elem_ty: ht.Type, length: int) -> OpWithEffects:
     length_arg = ht.BoundedNatArg(length)
     arr_ty = array_type(elem_ty, length_arg)
     return _instantiate_array_op(
-        "new_array", elem_ty, length_arg, [elem_ty] * length, [arr_ty]
+        "new_array", elem_ty, length_arg, [elem_ty] * length, [arr_ty], effects=[]
     )  # never panics
 
 
@@ -197,6 +199,7 @@ def std_array_to_array(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [standard_array_type(elem_ty, length)],
         [array_type(elem_ty, length)],
+        effects=[],  # Cannot panic: a standard array always has every element
     )
 
 
@@ -225,7 +228,9 @@ def barray_discard_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithE
 def barray_new_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     """Returns an array `new_all_borrowed` operation."""
     arr_ty = array_type(elem_ty, length)
-    return _instantiate_array_op("new_all_borrowed", elem_ty, length, [], [arr_ty])
+    return _instantiate_array_op(
+        "new_all_borrowed", elem_ty, length, [], [arr_ty], effects=[]
+    )
 
 
 def barray_is_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
@@ -237,6 +242,7 @@ def barray_is_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [arr_ty, ht.USize()],
         [arr_ty, ht.Bool],
+        effects=[],
     )
 
 
