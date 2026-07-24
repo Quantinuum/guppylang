@@ -1,0 +1,10 @@
+Error: Cannot infer type (at $FILE:11:3)
+   | 
+ 9 | @guppy
+10 | def main() -> None:
+11 |    array(foo())
+   |    ^^^^^^^^^^^^ Cannot infer the type of this array
+
+Note: Consider adding a type annotation: `x: array[???] = ...`
+
+Guppy compilation failed due to 1 previous error

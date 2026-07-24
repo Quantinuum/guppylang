@@ -5,6 +5,7 @@ from guppylang import comptime
 from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
 from guppylang.std.builtins import array, owned
+from guppylang.std.lang import Function
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.platform import output
@@ -908,3 +909,25 @@ def test_array_reverse_linear(validate) -> None:
     validate(main.compile())
     results = main.emulator(4).run().results[0].entries
     assert results == [("result", True)]
+
+
+def test_array_constructor_coercion(validate) -> None:
+    """See https://github.com/Quantinuum/guppylang/issues/2036"""
+
+    @guppy.declare
+    def foo(x: int) -> int: ...
+
+    @guppy.declare
+    def bar(x: int) -> int: ...
+
+    @guppy.declare
+    def baz(x: int) -> int: ...
+
+    @guppy
+    def main() -> tuple[array[int, 2], array[float, 5], array[Function[[int], int], 3]]:
+        xs = array(1, nat(2))
+        ys = array(1, 1.5, nat(2), 3.5, 4)
+        fs = array(foo, bar, baz)
+        return xs, ys, fs
+
+    validate(main.compile_function())
