@@ -7,6 +7,9 @@ from guppylang_internals.cfg.bb import BB, VariableStats, VId
 # Type variable for the lattice domain
 T = TypeVar("T")
 
+# Type variable for basic blocks (used by the structural analyses below)
+BBT = TypeVar("BBT", bound=BB)
+
 # Analysis result is a mapping from basic blocks to lattice values
 Result = dict[BB, T]
 
@@ -230,3 +233,89 @@ class AssignmentAnalysis(ForwardAnalysis[AssignmentDomain[VId]], Generic[VId]):
         """Runs the analysis and unpacks the definite- and maybe-assignment results."""
         res = self.run(bbs)
         return {bb: res[bb][0] for bb in res}, {bb: res[bb][1] for bb in res}
+
+
+def reverse_postorder(entry: BBT) -> list[BBT]:
+    """Returns the basic blocks reachable from `entry` in reverse postorder.
+
+    In reverse postorder every block appears before all blocks it strictly
+    dominates, which makes it a convenient order for propagating values from a
+    definition to its (dominated) uses.
+    """
+    visited: set[BBT] = {entry}
+    postorder: list[BBT] = []
+    stack: list[tuple[BBT, Iterable[BBT]]] = [(entry, iter(entry.successors))]
+    while stack:
+        bb, succs = stack[-1]
+        for succ in succs:
+            if succ not in visited:
+                visited.add(succ)
+                stack.append((succ, iter(succ.successors)))
+                break
+        else:
+            postorder.append(bb)
+            stack.pop()
+    postorder.reverse()
+    return postorder
+
+
+def compute_dominators(entry: BBT) -> dict[BBT, frozenset[BBT]]:
+    """Computes the dominator set of every basic block reachable from `entry`.
+
+    A block `d` *dominates* a block `b` if every path from the entry to `b` goes
+    through `d` (every block dominates itself). Uses the standard iterative
+    data-flow fixpoint:
+
+        dom(entry) = {entry}
+        dom(b)     = {b} | intersection(dom(p) for p in preds(b))
+    """
+    rpo = reverse_postorder(entry)
+    all_bbs: set[BBT] = set(rpo)
+    dom: dict[BBT, set[BBT]] = {bb: set(all_bbs) for bb in rpo}
+    dom[entry] = {entry}
+    changed = True
+    while changed:
+        changed = False
+        for bb in rpo:
+            if bb is entry:
+                continue
+            preds = [p for p in bb.predecessors if p in all_bbs]
+            new_dom = set(all_bbs)
+            for pred in preds:
+                new_dom &= dom[pred]
+            new_dom.add(bb)
+            if new_dom != dom[bb]:
+                dom[bb] = new_dom
+                changed = True
+    return {bb: frozenset(doms) for bb, doms in dom.items()}
+
+
+def loop_blocks(entry: BBT) -> set[BBT]:
+    """Returns the basic blocks that lie within a natural loop.
+
+    A block is in a loop if it belongs to the body of some back-edge `n -> h`
+    (an edge whose head `h` dominates its tail `n`). Such blocks may execute more
+    than once per execution of a dominating definition, which matters for
+    analyses that deliver a value along a non-local edge.
+    """
+    dominators = compute_dominators(entry)
+    result: set[BBT] = set()
+    for bb in dominators:
+        for succ in bb.successors:
+            # `bb -> succ` is a back-edge iff its head `succ` dominates `bb`.
+            if succ in dominators and succ in dominators[bb]:
+                result |= _natural_loop_body(succ, bb)
+    return result
+
+
+def _natural_loop_body(header: BBT, tail: BBT) -> set[BBT]:
+    """The body of the natural loop of back-edge `tail -> header`."""
+    body: set[BBT] = {header, tail}
+    stack: list[BBT] = [tail]
+    while stack:
+        bb = stack.pop()
+        for pred in bb.predecessors:
+            if pred not in body:
+                body.add(pred)
+                stack.append(pred)
+    return body
