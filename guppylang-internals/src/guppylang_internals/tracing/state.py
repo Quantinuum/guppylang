@@ -197,7 +197,7 @@ class TraceBuilder:
             )
         )
 
-    def load(self, value: val.Value | DefId, *_: Any, **__: Any) -> TraceWire:
+    def load(self, value: val.Value | DefId) -> TraceWire:
         node = get_tracing_state().node
         return self._add(TraceLoad(value, node)).as_trace_wire()
 

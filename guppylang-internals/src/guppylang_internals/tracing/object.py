@@ -611,5 +611,15 @@ class TracingDefMixin(DunderMixin):
                 )
             wire = state.builder.load_function(defn.id, ())
             return GuppyObject(defn.ty, wire, None)
-        assert isinstance(defn, ValueDef)
-        return GuppyObject(defn.ty, state.builder.load(self.id, type_args=()))
+        if isinstance(defn, ValueDef):
+            return GuppyObject(defn.ty, state.builder.load(self.id))
+        assert isinstance(defn, TypeDef)
+        # ALAN  TypeDef's we'll compile as loading the constructor,
+        # but we don't know if that exists yet (TODO can we check?)
+        raise AssertionError("Need to find type of __new__")
+        # We'd also need to do type inference to get the type args...
+        checked = defn.check(state.globals)  # but these don't exist
+        return GuppyObject(
+            DEF_STORE.type_members[checked.id]["__new__"].ty,
+            state.builder.load(self.id),
+        )
