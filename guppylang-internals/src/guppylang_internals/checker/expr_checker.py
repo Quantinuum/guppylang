@@ -77,6 +77,7 @@ from guppylang_internals.checker.errors.type_errors import (
     BinaryOperatorNotDefinedError,
     ConstMismatchError,
     IllegalConstant,
+    InstanceMethodOnClassError,
     IntOverflowError,
     KindMismatch,
     ModuleMemberNotFoundError,
@@ -669,6 +670,31 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
             if ty is None:
+                from guppylang_internals.definition.enum import (
+                    CheckedEnumDef,
+                    ParsedEnumDef,
+                )
+
+                name_id = node.value.id
+                if (
+                    name_id not in self.ctx.locals
+                    and name_id not in self.ctx.generic_param_inst
+                    and name_id in self.ctx.globals
+                ):
+                    defn = self.ctx.globals[name_id]
+                    if (
+                        isinstance(defn, TypeDef)
+                        and not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
+                        and node.attr != "__new__"
+                        and ENGINE.get_instance_func(defn, node.attr) is not None
+                    ):
+                        self._raise_instance_method_on_class(
+                            attr_span,
+                            defn.name,
+                            node.attr,
+                            f"{defn.name}(...).{node.attr}(...)",
+                        )
+
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
                 )
@@ -745,13 +771,21 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 else:
                     # Not a global name, thus node.value is a instantiated variant
                     is_enum_class = False
-            elif (method_w_ty := self._check_method(ty, node)) and not isinstance(
-                node.value, GlobalName
-            ):
+            elif method_w_ty := self._check_method(ty, node):
+                if isinstance(node.value, GlobalName):
+                    # `EnumClass.method` — the method exists, but was looked up on the
+                    # enum class itself rather than on an instance/variant of it. Raise
+                    # a specific error instead of falling through to the generic
+                    # "no variant" message below, which would be misleading here since
+                    # the method does in fact exist.
+                    example_variant = next(iter(ty.variants_as_dict))
+                    self._raise_instance_method_on_class(
+                        attr_span,
+                        str(ty),
+                        node.attr,
+                        f"{ty}.{example_variant}(...).{node.attr}(...)",
+                    )
                 # Otherwise, we may try to access a method from the enum class
-                # If the method exists, we also need to check that node.value is not a
-                # GlobalName, i.e. it does not correspond to the enum class definition:
-                # we cannot write `MyEnum.method`.
                 return method_w_ty[0], method_w_ty[1]
             else:
                 # If node.value is a GlobalName it corresponds to the enum class
@@ -779,6 +813,17 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             return with_loc(node, PartialApply(func=name, args=[node.value])), result_ty
         else:
             return None
+
+    def _raise_instance_method_on_class(
+        self, span: Span, ty_name: str, attribute: str, example: str
+    ) -> NoReturn:
+        """Raises an `InstanceMethodOnClassError` for an instance method that was
+        looked up on the class/enum itself rather than on an instance of it."""
+        err = InstanceMethodOnClassError(span, ty_name, attribute)
+        err.add_sub_diagnostic(
+            InstanceMethodOnClassError.CallOnInstanceHelp(None, example)
+        )
+        raise GuppyTypeError(err)
 
     def _is_python_module(self, node: ast.expr) -> ModuleType | None:
         """Checks whether an AST node corresponds to a Python module in scope."""
