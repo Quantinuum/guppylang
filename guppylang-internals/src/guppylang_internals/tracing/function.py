@@ -207,11 +207,10 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         ]
         locals = Locals({var.name: var for var in arg_vars})
 
-        # ALAN
-        input_wires = [obj._use_wire(func) for obj in args_objs]
-        # instead of:
-        # for obj, var in zip(args_objs, arg_vars, strict=True):
-        #    state.dfg[var] = obj._use_wire(func)
+        input_places = [
+            (var, obj._use_wire(func))
+            for obj, var in zip(args_objs, arg_vars, strict=True)
+        ]
 
         # Check call
         arg_exprs: list[ast.expr] = [
@@ -226,7 +225,6 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             unitary_checker = BBUnitaryChecker()
             unitary_checker.check([call_node], unitary_flag)
 
-    # Update inouts
     # For overloaded functions, we first need to get the signature for the specific
     # overload that was used.
     resolved_func = func
@@ -255,24 +253,15 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             "`compute_input_flags` in the call checker."
         )
 
+    # Compile call
     assert isinstance(call_node, GlobalCall)
-    # ALAN #input_wires = [state.dfg[var] for var in arg_vars]
-    runtime_inputs = [
-        wire
-        for wire, flags in zip(input_wires, input_flags, strict=True)
-        if InputFlags.Comptime not in flags
-    ]
+
     output_count = len(type_to_row(ret_ty)) + sum(
         InputFlags.Inout in flags for flags in input_flags
     )
-    call = state.builder.call(
-        call_node.def_id,
-        call_node.type_args,
-        output_count,
-        *runtime_inputs,
-        node=call_node,
-    )
+    call = state.builder.call(call_node, input_places, output_count)
 
+    # Update inouts
     inout_port = len(type_to_row(ret_ty))
     for flags, arg, var in zip(input_flags, args, arg_vars, strict=True):
         if InputFlags.Inout in flags:
@@ -280,7 +269,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             ty = var.ty
             inout_wire = call[inout_port]
             inout_port += 1
-            # state.dfg[var] = inout_wire # ALAN dead assign?
+            # state.dfg[var] = inout_wire # ALAN dead assign (right?), from AI
             success = update_packed_value(
                 arg, GuppyObject(ty, inout_wire), state.builder
             )

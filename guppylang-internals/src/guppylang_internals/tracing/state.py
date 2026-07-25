@@ -8,9 +8,11 @@ from hugr import val
 from hugr.ops import DataflowOp
 
 from guppylang_internals.ast_util import AstNode
+from guppylang_internals.checker.core import Place
 from guppylang_internals.compiler.builder import OpWithEffects
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.tys.common import ToHugrContext
 
 if TYPE_CHECKING:
@@ -124,11 +126,9 @@ class TraceFunctionLoad:
 class TraceCall:
     """A resolved Guppy function call emitted while tracing."""
 
-    def_id: "DefId"
-    type_args: "Inst"
-    inputs: tuple[TraceWire, ...]
+    call_node: GlobalCall
+    input_places: Sequence[tuple[Place, TraceWire]]
     output_count: int
-    node: AstNode
 
 
 TraceEntry = TraceOperation | TraceLoad | TraceFunctionLoad | TraceCall
@@ -207,21 +207,11 @@ class TraceBuilder:
 
     def call(
         self,
-        def_id: "DefId",
-        type_args: "Inst",
+        node: GlobalCall,
+        input_places: Sequence[tuple[Place, TraceWire]],
         output_count: int,
-        *args: TraceWire | TraceNode,
-        node: AstNode,
     ) -> TraceNode:
-        return self._add(
-            TraceCall(
-                def_id,
-                type_args,
-                tuple(arg.as_trace_wire() for arg in args),
-                output_count,
-                node,
-            )
-        )
+        return self._add(TraceCall(node, input_places, output_count))
 
     def set_outputs(self, *outputs: TraceWire | TraceNode) -> None:
         self._outputs = tuple(output.as_trace_wire() for output in outputs)

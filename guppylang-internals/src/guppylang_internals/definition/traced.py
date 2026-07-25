@@ -5,9 +5,10 @@ from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
 import hugr.tys as ht
-from hugr import Node, Wire, val
+from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.metadata import HugrDebugInfo
+from hugr.val import Value
 from typing_extensions import assert_never, override
 
 from guppylang_internals.ast_util import AstNode, with_loc
@@ -256,7 +257,7 @@ class CompiledTracedFunctionDef(
                         )
                         outputs = [node[i] for i in range(output_count)]
                 case TraceLoad(value, node):
-                    if isinstance(value, val.Value):
+                    if isinstance(value, Value):
                         outputs = [builder.load(value)[0]]
                     else:
                         defn = ctx.build_compiled_def(value, type_args=())
@@ -273,16 +274,19 @@ class CompiledTracedFunctionDef(
                     assert isinstance(defn, CompiledValueDef)
                     outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
                     output_count = 1
-                case TraceCall(def_id, type_args, inputs, output_count, node):
-                    func = ctx.build_compiled_def(def_id, type_args)
-                    assert isinstance(func, CompiledCallableDef)
-                    returns = func.compile_call(
-                        [get_wire(i) for i in inputs],
-                        DFContainer(builder, ctx),
-                        ctx,
-                        node,
-                    )
-                    outputs = [*returns.regular_returns, *returns.inout_returns]
+                case TraceCall(call_node, input_places, output_count):
+                    from guppylang_internals.compiler.expr_compiler import ExprCompiler
+
+                    dfg = DFContainer(builder, ctx)
+                    for arg, val in input_places:
+                        dfg[arg] = get_wire(val)
+                    comp = ExprCompiler(ctx)
+                    comp.dfg = dfg
+                    _, rets = comp.compile_global_call(call_node)
+                    # Unpacking and handling inouts was done at tracing time,
+                    # so just have all the outputs ready for that here.
+                    outputs = rets.regular_returns + rets.inout_returns
+                    assert len(outputs) == output_count
                 case _:
                     assert_never(entry)
 
