@@ -785,9 +785,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     is_enum_class = False
             elif method_w_ty := self._check_method(ty, node):
                 if isinstance(node.value, GlobalName):
-                    # Method exists, but was looked up on the enum class itself
-                    # rather than an instance/variant. Fail with a helpful error
-                    # instead of the generic "no variant" message below.
+                    # Method exists, but on enum instances (since class methods are
+                    # currently unsupported). Fail with a helpful error instead of
+                    # the generic "no variant" message below.
                     example_variant = next(iter(ty.variants_as_dict))
                     err = InstanceMethodOnClassError(attr_span, str(ty), node.attr)
                     err.add_sub_diagnostic(
