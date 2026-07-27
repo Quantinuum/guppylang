@@ -37,8 +37,8 @@ Calling ``.run()`` on the instance runs the emulation, returning an
 
 .. hint::
 
-    You can omit `n_qubits` from the `.emulator` call if you add the `@expected_qubits`
-    decorator to `foo`:
+    You can omit ``n_qubits`` from the ``.emulator()`` call if you add the
+    ``@expected_qubits`` decorator to ``foo``:
 
     .. code-block:: python
 
