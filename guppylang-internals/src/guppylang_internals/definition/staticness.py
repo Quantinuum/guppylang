@@ -16,6 +16,10 @@ def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
     from guppylang_internals.definition.declaration import RawFunctionDecl
     from guppylang_internals.definition.function import RawFunctionDef
     from guppylang_internals.definition.overloaded import OverloadedFunctionDef
+    from guppylang_internals.definition.pytket_circuits import (
+        RawLoadPytketDef,
+        RawPytketDef,
+    )
     from guppylang_internals.definition.traced import RawTracedFunctionDef
     from guppylang_internals.engine import DEF_STORE
 
@@ -55,6 +59,8 @@ def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
                     f"static: {[func_defs[i].name for i in static_indices]} "
                     f"non-static: {[func_defs[i].name for i in non_static_indices]}"
                 )
+        case RawPytketDef() | RawLoadPytketDef():
+            return False, None
         case _:
             raise InternalGuppyError(
                 f"Cannot determine staticness of Definition of type {type(defn)}"

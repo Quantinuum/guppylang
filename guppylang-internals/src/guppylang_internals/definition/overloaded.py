@@ -15,6 +15,7 @@ from guppylang_internals.definition.common import (
     DefId,
 )
 from guppylang_internals.definition.custom import CustomFunctionDef
+from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -120,6 +121,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
+        determine_static(self)
         new_node, ty = self._try_overloads(
             args,
             node,

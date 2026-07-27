@@ -219,6 +219,26 @@ def test_comptime_linearity_check(validate):
 
 
 def test_mixed_static_overload():
+
+    @guppy.struct
+    class OverloadErrStruct:
+        @guppy
+        def func1(self, x: int) -> int:
+            return x + 1
+
+        @guppy
+        @staticmethod
+        def func2(x: str) -> int:
+            return 3
+
+        @guppy.overload(func1, func2)
+        def overloaded() -> None: ...
+
+    @guppy
+    def main() -> None:
+        o = OverloadErrStruct()
+        o.overloaded("a")
+
     with pytest.raises(
         TypeError,
         match="Some implementations of overloaded method are static whereas "
@@ -226,17 +246,4 @@ def test_mixed_static_overload():
         r"static: \['func2'\] "
         r"non-static: \['func1'\]",
     ):
-
-        @guppy.struct
-        class MyClass:
-            @guppy
-            def func1(x: int) -> int:
-                return x + 1
-
-            @guppy
-            @staticmethod
-            def func2(x: int) -> int:
-                return x + 2
-
-            @guppy.overload(func1, func2)
-            def overloaded() -> None: ...
+        main.compile()
