@@ -127,40 +127,6 @@ class ParametrizedTypeBase(TypeBase, ABC):
                         "Tried to construct a higher-rank polymorphic type!"
                     )
 
-    @property
-    @abstractmethod
-    def intrinsically_copyable(self) -> bool:
-        """Whether this type is copyable, independent of the arguments.
-
-        For example, a parametrized struct containing a qubit is never copyable, even if
-        all its arguments are.
-        """
-
-    @cached_property
-    def copyable(self) -> bool:
-        """Whether this type should be treated as copyable."""
-        # Either an argument isn't a type argument, or it must be copyable.
-        return self.intrinsically_copyable and all(
-            not isinstance(arg, TypeArg) or arg.ty.copyable for arg in self.args
-        )
-
-    @property
-    @abstractmethod
-    def intrinsically_droppable(self) -> bool:
-        """Whether this type is droppable, independent of the arguments.
-
-        For example, a parametrized struct containing a qubit is never droppable, even
-        if all its arguments are.
-        """
-
-    @cached_property
-    def droppable(self) -> bool:
-        """Whether this type should be treated as copyable."""
-        # Either an argument isn't a type argument, or it must be droppable.
-        return self.intrinsically_droppable and all(
-            not isinstance(arg, TypeArg) or arg.ty.droppable for arg in self.args
-        )
-
     @cached_property
     def unsolved_vars(self) -> set[ExistentialVar]:
         """The existential type variables contained in this type."""
@@ -482,8 +448,6 @@ class FunctionType(ParametrizedTypeBase):
     args: Sequence[Argument] = field(init=False)
     copyable: bool = field(default=True, init=True)
     droppable: bool = field(default=True, init=True)
-    intrinsically_copyable: bool = field(default=True, init=True)
-    intrinsically_droppable: bool = field(default=True, init=True)
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
@@ -770,14 +734,14 @@ class TupleType(ParametrizedTypeBase):
         object.__setattr__(self, "element_types", element_types)
 
     @property
-    def intrinsically_copyable(self) -> bool:
+    def copyable(self) -> bool:
         """Whether objects of this type can be implicitly copied."""
-        return True
+        return all(ty.copyable for ty in self.element_types)
 
     @property
-    def intrinsically_droppable(self) -> bool:
+    def droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
-        return True
+        return all(ty.droppable for ty in self.element_types)
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
@@ -805,14 +769,18 @@ class OpaqueType(ParametrizedTypeBase):
     defn: "OpaqueTypeDef"
 
     @property
-    def intrinsically_copyable(self) -> bool:
+    def copyable(self) -> bool:
         """Whether objects of this type can be implicitly copied."""
-        return not self.defn.never_copyable
+        return not self.defn.never_copyable and all(
+            arg.ty.copyable for arg in self.args if isinstance(arg, TypeArg)
+        )
 
     @property
-    def intrinsically_droppable(self) -> bool:
+    def droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
-        return not self.defn.never_droppable
+        return not self.defn.never_droppable and all(
+            arg.ty.droppable for arg in self.args if isinstance(arg, TypeArg)
+        )
 
     @property
     def hugr_bound(self) -> ht.TypeBound:
@@ -921,7 +889,7 @@ class EnumType(ParametrizedTypeBase):
         return self.defn.variants
 
     @cached_property
-    def intrinsically_copyable(self) -> bool:
+    def copyable(self) -> bool:
         """Whether objects of this type can be implicitly copied.
 
         An enum is copyable only if ALL payload types in ALL variants are copyable.
@@ -929,7 +897,7 @@ class EnumType(ParametrizedTypeBase):
         return all(all(f.ty.copyable for f in v.fields) for v in self.variants_as_list)
 
     @cached_property
-    def intrinsically_droppable(self) -> bool:
+    def droppable(self) -> bool:
         """Whether objects of this type can be dropped.
 
         An enum is droppable only if ALL payload types in ALL variants are droppable.
