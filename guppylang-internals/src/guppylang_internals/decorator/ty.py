@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
+from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import InternalGuppyError
 
 if TYPE_CHECKING:
@@ -23,17 +24,10 @@ def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], t
     """
     from guppylang.defs import GuppyDefinition
 
-    from guppylang_internals.engine import DEF_STORE
-
     def dec(c: type) -> type:
         for val in c.__dict__.values():
             if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_type_member(
-                    defn.id,
-                    val.wrapped.name,
-                    val.id,
-                    is_static=determine_static(val.wrapped),
-                )
+                DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
         return c if return_class else GuppyDefinition(defn)  # type: ignore[return-value]
 
     return dec

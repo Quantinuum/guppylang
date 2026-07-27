@@ -49,10 +49,7 @@ class GuppyLibrary:
         for def_id in self.members:
             # TODO automatic member inclusion should be based on the automatic
             # collection when available
-            members.extend(
-                type_member.id
-                for type_member in DEF_STORE.type_members[def_id].values()
-            )
+            members.extend(DEF_STORE.type_members[def_id].values())
 
         return members
 

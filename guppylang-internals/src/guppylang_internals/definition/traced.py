@@ -1,4 +1,3 @@
-from guppylang_internals.decorator.ty import determine_static
 import ast
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -23,6 +22,7 @@ from guppylang_internals.checker.func_checker import (
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
+from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,

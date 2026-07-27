@@ -28,7 +28,6 @@ from guppylang_internals.definition.common import (
     ParsableDef,
     ParsedDef,
     RawDef,
-    TypeMember,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
@@ -129,7 +128,7 @@ class DefinitionStore:
     """
 
     raw_defs: dict[DefId, RawDef]
-    type_members: defaultdict[DefId, dict[str, TypeMember]]
+    type_members: defaultdict[DefId, dict[str, DefId]]
     type_member_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
@@ -147,11 +146,9 @@ class DefinitionStore:
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
 
-    def register_type_member(
-        self, ty_id: DefId, name: str, member_id: DefId, *, is_static: bool = False
-    ) -> None:
+    def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
-        self.type_members[ty_id][name] = TypeMember(member_id, is_static)
+        self.type_members[ty_id][name] = member_id
         self.type_member_parents[member_id] = ty_id
         # Update the frame of the definition to the frame of the defining class
         if member_id in self.frames:
@@ -383,14 +380,14 @@ class CompilationEngine:
             type_defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[type_defn.id]
         ):
-            def_id = DEF_STORE.type_members[type_defn.id][name].id
+            def_id = DEF_STORE.type_members[type_defn.id][name]
             defn = ENGINE.get_parsed(def_id)
             if isinstance(defn, CallableDef):
                 return defn
         return None
 
-    def get_type_member(self, ty: Type | TypeDef, name: str) -> TypeMember | None:
-        """Looks up a TypeMember with a given name for a type.
+    def get_type_member(self, ty: Type | TypeDef, name: str) -> DefId | None:
+        """Looks up a type member with a given name for a type.
 
         Returns `None` if the name doesn't exist
         """
@@ -403,6 +400,18 @@ class CompilationEngine:
         ):
             return DEF_STORE.type_members[type_defn.id][name]
         return None
+
+    def is_def_static(self, func_id: DefId) -> bool:
+        """Get staticness of parsed definition if it can be static."""
+        from guppylang_internals.definition.declaration import ParsedFunctionDecl
+        from guppylang_internals.definition.function import ParsedFunctionDef
+        from guppylang_internals.definition.traced import TracedFunctionDef
+        parsed = self.get_parsed(func_id)
+        match parsed:
+            case ParsedFunctionDef() | ParsedFunctionDecl() | TracedFunctionDef():
+                return parsed.is_static
+            case _:
+                return False
 
     @pretty_errors
     def check_single(self, id: DefId) -> None:

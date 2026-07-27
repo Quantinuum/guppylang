@@ -143,8 +143,8 @@ def check_protocol(
     member_impls: dict[str, tuple[DefId, Inst]] = {}
     for name in protocol_def.member_defs:
         proto_sig = protocol_def.member_sig(name)
-        if (
-            len(proto_sig.inputs) > 0 and not protocol_def.member_defs[name].is_static
+        if len(proto_sig.inputs) > 0 and not ENGINE.is_def_static(
+            protocol_def.member_defs[name]
         ):  # staticmethods assumed not to have a self arg
             if isinstance(proto_sig.inputs[0].ty, BoundTypeVar):
                 proto_sig = _instantiate_self(proto_sig, protocol, ty)
@@ -152,7 +152,7 @@ def check_protocol(
                 raise GuppyError(FirstArgNotProtocol(None, protocol_def.name))
         func = ENGINE.get_instance_func(ty, name)
         if not func:
-            loc = loc or ENGINE.get_parsed(protocol_def.member_defs[name].id).defined_at
+            loc = loc or ENGINE.get_parsed(protocol_def.member_defs[name]).defined_at
             raise GuppyError(
                 ProtocolMemberMissing(
                     loc,

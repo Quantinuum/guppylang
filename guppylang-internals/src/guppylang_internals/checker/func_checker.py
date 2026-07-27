@@ -332,13 +332,7 @@ def check_signature(
     self_defn: ProtocolDef | TypeDef | None = None
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
-    has_parent = False
-    if def_id is not None and def_id in DEF_STORE.type_member_parents:
-        has_parent = True
-        is_static = DEF_STORE.type_members[DEF_STORE.type_member_parents[def_id]][
-            func_def.name
-        ].is_static
-
+    has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
     for i, inp in enumerate(func_def.args.args):
         # Special handling for `self` arguments. Note that `__new__` and staticmethods
         # are excluded here since they do not take `self`.

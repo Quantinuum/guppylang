@@ -8,13 +8,12 @@ from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
-from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import (
     CheckableDef,
     CompiledDef,
+    DefId,
     Definition,
     ParsableDef,
-    TypeMember,
 )
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.error import GuppyError
@@ -128,9 +127,7 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
                             )
                         )
                     assert isinstance(py_func, GuppyDefinition)
-                    func_defs[name] = TypeMember(
-                        py_func.id, determine_static(py_func.wrapped)
-                    )
+                    func_defs[name] = py_func.id
                 # Fields are not allowed in protocols.
                 case _, ast.AnnAssign(target=ast.Name(_)) as node:
                     err = UnsupportedError(
@@ -152,7 +149,7 @@ class ParsedProtocolDef(ProtocolDef, CheckableDef):
 
     defined_at: ast.ClassDef
     params: Sequence[Parameter]
-    members: Mapping[str, TypeMember]
+    members: Mapping[str, DefId]
 
     def check(self, globals: "Globals") -> "CheckedProtocolDef":
         """Checks the member function types and returns a checked definition."""
@@ -176,7 +173,7 @@ class CheckedProtocolDef(ProtocolDef, CompiledDef):
 
     defined_at: ast.ClassDef | None
     params: Sequence[Parameter]
-    member_defs: Mapping[str, TypeMember]
+    member_defs: Mapping[str, DefId]
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None
@@ -189,7 +186,7 @@ class CheckedProtocolDef(ProtocolDef, CompiledDef):
         from guppylang_internals.definition.declaration import ParsedFunctionDecl
         from guppylang_internals.engine import ENGINE
 
-        def_ = ENGINE.get_parsed(self.member_defs[name].id)
+        def_ = ENGINE.get_parsed(self.member_defs[name])
         if not isinstance(def_, ParsedFunctionDecl):
             raise GuppyError(MethodNotRequire(def_.defined_at))
         return def_.ty

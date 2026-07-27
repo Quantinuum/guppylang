@@ -16,7 +16,6 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import annotate_location
-from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.alias import RawTypeAliasDef
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.const import RawConstDef
@@ -240,12 +239,7 @@ class _Guppy:
             DEF_STORE.register_def(defn, frame)
             for val in cls.__dict__.values():
                 if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_type_member(
-                        defn.id,
-                        val.wrapped.name,
-                        val.id,
-                        is_static=determine_static(val.wrapped),
-                    )
+                    DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:
@@ -289,12 +283,7 @@ class _Guppy:
             DEF_STORE.register_def(defn, frame)
             for val in cls.__dict__.values():
                 if isinstance(val, GuppyDefinition):
-                    DEF_STORE.register_type_member(
-                        defn.id,
-                        val.wrapped.name,
-                        val.id,
-                        is_static=determine_static(val.wrapped),
-                    )
+                    DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:
@@ -324,12 +313,7 @@ class _Guppy:
         DEF_STORE.register_def(defn, frame)
         for val in cls.__dict__.values():
             if isinstance(val, GuppyDefinition):
-                DEF_STORE.register_type_member(
-                    defn.id,
-                    val.wrapped.name,
-                    val.id,
-                    is_static=determine_static(val.wrapped),
-                )
+                DEF_STORE.register_type_member(defn.id, val.wrapped.name, val.id)
         # We need the `__firstlineno__` attribute to look up the source later.
         cls = _set_firstlineno(cls, frame)
         # We're pretending to return the class unchanged, but in fact we return

@@ -14,7 +14,7 @@ from guppylang_internals.checker.errors.type_errors import (
     FunctionPointerNotModifiableHint,
     UnitaryFlagMismatchHint,
 )
-from guppylang_internals.definition.common import CompiledDef, DefId, TypeMember
+from guppylang_internals.definition.common import CompiledDef, DefId
 from guppylang_internals.definition.protocol import CheckedProtocolDef
 from guppylang_internals.definition.ty import OpaqueTypeDef, TypeDef
 from guppylang_internals.error import GuppyError, InternalGuppyError
@@ -189,7 +189,7 @@ class CallableProtocolDef(CheckedProtocolDef):
 
     name: Literal["Callable"] = field(default="Callable", init=False)
     params: Sequence[Parameter] = ()
-    member_defs: Mapping[str, TypeMember] = field(default_factory=dict)
+    member_defs: Mapping[str, DefId] = field(default_factory=dict)
 
     def check_instantiate(
         self, args: Sequence[Argument], loc: AstNode | None = None

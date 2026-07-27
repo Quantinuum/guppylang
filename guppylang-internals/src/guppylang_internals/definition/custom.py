@@ -1,4 +1,3 @@
-from guppylang_internals.decorator.ty import determine_static
 import ast
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator, Iterable, Sequence
@@ -33,6 +32,7 @@ from guppylang_internals.compiler.core import (
     DFContainer,
     GlobalConstId,
 )
+from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -147,6 +147,7 @@ class RawCustomFunctionDef(ParsableDef):
         that there are no unsolved existential vars.
         """
         from guppylang_internals.definition.function import parse_py_func
+
         is_static = determine_static(self)
         py_func = self.python_func.__func__ if is_static else self.python_func
         func_ast, _docstring = parse_py_func(py_func, sources)

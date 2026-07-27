@@ -715,11 +715,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     assert isinstance(proto_def, CheckedProtocolDef)
                     member_ty = proto_def.member_sig(node.attr)
 
-                    if proto_def.member_defs[node.attr].is_static:
+                    if ENGINE.is_def_static(proto_def.member_defs[node.attr]):
                         return with_loc(
                             node,
                             GlobalName(
-                                id=node.attr, def_id=proto_def.member_defs[node.attr].id
+                                id=node.attr, def_id=proto_def.member_defs[node.attr]
                             ),
                         ), member_ty
                     else:
@@ -729,7 +729,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                                 node,
                                 GlobalName(
                                     id=node.attr,
-                                    def_id=proto_def.member_defs[node.attr].id,
+                                    def_id=proto_def.member_defs[node.attr],
                                 ),
                             ),
                         )
@@ -787,7 +787,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             )
             # TODO: Try to infer some type args based on `self`
             type_member = ENGINE.get_type_member(ty, node.attr)
-            if type_member and type_member.is_static:
+            if type_member and ENGINE.is_def_static(type_member):
                 # if this is a staticmethod do not partially apply `self`
                 return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
             else:
@@ -835,7 +835,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     node,
                     GlobalName(
                         id=node.attr,
-                        def_id=proto_def.member_defs[node.attr].id,
+                        def_id=proto_def.member_defs[node.attr],
                     ),
                 ), member_ty
             case _:
