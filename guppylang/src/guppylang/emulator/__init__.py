@@ -14,7 +14,7 @@ outputs.
 Basic emulation
 -----------------
 
-Calling ``.emulator`` on a Guppy function compiles it into an
+Calling ``.emulator()`` on a Guppy function compiles it into an
 :py:class:`EmulatorInstance`. The method has a required parameter
 for the number of qubits to allocate. This cannot be inferred from the program
 fully automatically as it can request an arbitrary number of qubits at runtime.
