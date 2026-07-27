@@ -1,3 +1,4 @@
+from guppylang_internals.decorator.ty import determine_static
 import ast
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator, Iterable, Sequence
@@ -146,8 +147,9 @@ class RawCustomFunctionDef(ParsableDef):
         that there are no unsolved existential vars.
         """
         from guppylang_internals.definition.function import parse_py_func
-
-        func_ast, _docstring = parse_py_func(self.python_func, sources)
+        is_static = determine_static(self)
+        py_func = self.python_func.__func__ if is_static else self.python_func
+        func_ast, _docstring = parse_py_func(py_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         sig = self.signature or self._get_signature(func_ast, globals)

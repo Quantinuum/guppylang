@@ -1,3 +1,4 @@
+from guppylang_internals.decorator.ty import determine_static
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -97,7 +98,9 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        is_static = determine_static(self)
+        py_func = self.python_func.__func__ if is_static else self.python_func
+        func_ast, docstring = parse_py_func(py_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
@@ -115,6 +118,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
             ty=ty,
             docstring=docstring,
             link_name=link_name,
+            is_static=is_static,
             metadata=self.metadata,
         )
 
@@ -138,6 +142,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     defined_at: ast.FunctionDef
     docstring: str | None
     link_name: str
+    is_static: bool = field(default=False, kw_only=True)
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property
@@ -156,6 +161,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
             docstring=self.docstring,
             link_name=mono_link_name,
             type_args=type_args,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -225,6 +231,7 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
             link_name=self.link_name,
             type_args=self.type_args,
             declaration=node,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 

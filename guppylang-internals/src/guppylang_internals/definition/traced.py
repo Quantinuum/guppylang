@@ -1,3 +1,4 @@
+from guppylang_internals.decorator.ty import determine_static
 import ast
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -61,7 +62,9 @@ class RawTracedFunctionDef(ParsableDef):
 
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, _docstring = parse_py_func(self.python_func, sources)
+        is_static = determine_static(self)
+        py_func = self.python_func.__func__ if is_static else self.python_func
+        func_ast, _docstring = parse_py_func(py_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )

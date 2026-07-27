@@ -34,6 +34,7 @@ from guppylang_internals.compiler.core import (
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
 from guppylang_internals.debug_mode import debug_mode_enabled
+from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
@@ -122,7 +123,9 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        is_static = determine_static(self)
+        py_func = self.python_func.__func__ if is_static else self.python_func
+        func_ast, docstring = parse_py_func(py_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
@@ -135,6 +138,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             ty,
             docstring,
             link_name,
+            is_static=is_static,
             metadata=self.metadata,
         )
 
@@ -165,6 +169,8 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    is_static: bool = field(default=False, kw_only=True)
+
     @property
     def params(self) -> "Sequence[Parameter]":
         """Generic parameters of this function."""
@@ -186,6 +192,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             self.docstring,
             mono_link_name,
             cfg,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -273,6 +280,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.link_name,
             self.cfg,
             FunctionBuilder(func_def),
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -359,8 +367,6 @@ def compile_call(
 
 
 def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str | None]:
-    if isinstance(f, staticmethod):
-        f = f.__func__
     source_lines, line_offset = inspect.getsourcelines(f)
     source, func_ast, line_offset = parse_source(source_lines, line_offset)
     file = inspect.getsourcefile(f)
