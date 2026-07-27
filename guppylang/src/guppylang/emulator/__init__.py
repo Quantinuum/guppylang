@@ -45,7 +45,7 @@ Calling ``.run()`` on the instance runs the emulation, returning an
         from guppylang.decorator import expected_qubits
 
         @guppy
-        @expected_qubits
+        @expected_qubits(1)
         def foo() -> None:
             pass # ...
 
