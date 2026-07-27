@@ -1,0 +1,49 @@
+from guppylang_internals.definition.common import Definition
+from guppylang_internals.error import InternalGuppyError
+
+
+def determine_static(defn: Definition) -> bool:
+    """Check if a Definition corresponds to a static method."""
+    from guppylang_internals.definition.custom import RawCustomFunctionDef
+    from guppylang_internals.definition.declaration import RawFunctionDecl
+    from guppylang_internals.definition.function import RawFunctionDef
+    from guppylang_internals.definition.overloaded import OverloadedFunctionDef
+    from guppylang_internals.definition.traced import RawTracedFunctionDef
+    from guppylang_internals.engine import DEF_STORE
+
+    match defn:
+        case RawFunctionDef() | RawCustomFunctionDef() | RawFunctionDecl():
+            return isinstance(defn.python_func, staticmethod)
+        # comptime methods not yet supported
+        case RawTracedFunctionDef():
+            if isinstance(defn.python_func, staticmethod):
+                raise TypeError(
+                    f"Unsupported: static method `{defn.name}`"
+                    " comptime static methods not supported"
+                )
+            else:
+                return False
+        case OverloadedFunctionDef():
+            # check all the methods in the overload are also static
+            num_overloads = len(defn.func_ids)
+            func_defs = [DEF_STORE.raw_defs[func_id] for func_id in defn.func_ids]
+            is_static = [determine_static(func_def) for func_def in func_defs]
+            if all(is_static):
+                return True
+            elif not any(is_static):
+                return False
+            else:
+                static_indices = [i for i, static in enumerate(is_static) if static]
+                non_static_indices = [
+                    i for i in range(num_overloads) if i not in static_indices
+                ]
+                raise TypeError(
+                    "Some implementations of overloaded method are static whereas "
+                    "others are not "
+                    f"static: {[func_defs[i].name for i in static_indices]} "
+                    f"non-static: {[func_defs[i].name for i in non_static_indices]}"
+                )
+        case _:
+            raise InternalGuppyError(
+                f"Cannot determine staticness of Definition of type {type(defn)}"
+            )

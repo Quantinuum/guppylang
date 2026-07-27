@@ -34,7 +34,6 @@ from guppylang_internals.compiler.core import (
 )
 from guppylang_internals.compiler.func_compiler import compile_global_func_def
 from guppylang_internals.debug_mode import debug_mode_enabled
-from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
@@ -43,6 +42,7 @@ from guppylang_internals.definition.common import (
     UserProvidedLinkName,
 )
 from guppylang_internals.definition.enum import ParsedEnumDef
+from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,

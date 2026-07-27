@@ -32,8 +32,8 @@ from guppylang_internals.compiler.core import (
     DFContainer,
     GlobalConstId,
 )
-from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
+from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,

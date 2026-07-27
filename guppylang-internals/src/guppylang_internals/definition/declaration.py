@@ -20,7 +20,6 @@ from guppylang_internals.checker.expr_checker import check_call, synthesize_call
 from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
-from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
@@ -36,6 +35,7 @@ from guppylang_internals.definition.function import (
     monomorphized_link_name,
     parse_py_func,
 )
+from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,

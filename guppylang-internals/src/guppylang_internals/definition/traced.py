@@ -22,7 +22,6 @@ from guppylang_internals.checker.func_checker import (
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
-from guppylang_internals.decorator.ty import determine_static
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
@@ -32,6 +31,7 @@ from guppylang_internals.definition.function import (
     make_subprogram_record,
     parse_py_func,
 )
+from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
