@@ -92,11 +92,17 @@ def test_range_reverse(run_int_fn):
         r = range(start, stop, step)
         r.reverse_in_place()
         for x in r:
-            total += x + 100  # Make the initial 0 obvious
+            total = total * 100 + x + 50
+        return total
+
+    def encode(xs) -> int:
+        total = 0
+        for x in xs:
+            total = total * 100 + x + 50
         return total
 
     def expected(a: int, b: int, s: int) -> int:
-        return sum(x + 100 for x in reversed(builtins.range(a, b, s)))
+        return encode(reversed(builtins.range(a, b, s)))
 
     # Positive steps (including one that doesn't divide the span evenly)
     run_int_fn(main, args=[0, 5, 1], expected=expected(0, 5, 1))
@@ -146,11 +152,17 @@ def test_range_reverse_twice(run_int_fn):
         r.reverse_in_place()
         r.reverse_in_place()
         for x in r:
-            total += x + 100
+            total = total * 100 + x + 50
+        return total
+
+    def encode(xs) -> int:
+        total = 0
+        for x in xs:
+            total = total * 100 + x + 50
         return total
 
     def expected(a: int, b: int, s: int) -> int:
-        return sum(x + 100 for x in builtins.range(a, b, s))
+        return encode(builtins.range(a, b, s))
 
     run_int_fn(main, args=[1, 5, 2], expected=expected(1, 5, 2))
     run_int_fn(main, args=[5, 0, -1], expected=expected(5, 0, -1))
