@@ -676,24 +676,36 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 )
 
                 name_id = node.value.id
+                # Only treat `name_id` as a reference to the global class/enum if it
+                # isn't shadowed by a local variable or generic parameter of the same
+                # name (locals take priority, matching `_check_name_id` below).
                 if (
                     name_id not in self.ctx.locals
                     and name_id not in self.ctx.generic_param_inst
                     and name_id in self.ctx.globals
                 ):
                     defn = self.ctx.globals[name_id]
+                    # `defn` is a type (struct, alias, ...), excluding enums since
+                    # `get_instance_func` can't tell an instance method apart from a
+                    # variant constructor there; that case is handled separately
+                    # below, once we know the accessed name isn't a variant. We also
+                    # exclude `__new__`, since `MyStruct(...)` is a legal call, and
+                    # only fire if `node.attr` actually names an instance method.
                     if (
                         isinstance(defn, TypeDef)
                         and not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
                         and node.attr != "__new__"
                         and ENGINE.get_instance_func(defn, node.attr) is not None
                     ):
-                        self._raise_instance_method_on_class(
-                            attr_span,
-                            defn.name,
-                            node.attr,
-                            f"{defn.name}(...).{node.attr}(...)",
+                        err = InstanceMethodOnClassError(
+                            attr_span, defn.name, node.attr
                         )
+                        err.add_sub_diagnostic(
+                            InstanceMethodOnClassError.CallOnInstanceHelp(
+                                None, f"{defn.name}(...).{node.attr}(...)"
+                            )
+                        )
+                        raise GuppyTypeError(err)
 
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
@@ -773,18 +785,17 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     is_enum_class = False
             elif method_w_ty := self._check_method(ty, node):
                 if isinstance(node.value, GlobalName):
-                    # `EnumClass.method` — the method exists, but was looked up on the
-                    # enum class itself rather than on an instance/variant of it. Raise
-                    # a specific error instead of falling through to the generic
-                    # "no variant" message below, which would be misleading here since
-                    # the method does in fact exist.
+                    # Method exists, but was looked up on the enum class itself
+                    # rather than an instance/variant. Fail with a helpful error
+                    # instead of the generic "no variant" message below.
                     example_variant = next(iter(ty.variants_as_dict))
-                    self._raise_instance_method_on_class(
-                        attr_span,
-                        str(ty),
-                        node.attr,
-                        f"{ty}.{example_variant}(...).{node.attr}(...)",
+                    err = InstanceMethodOnClassError(attr_span, str(ty), node.attr)
+                    err.add_sub_diagnostic(
+                        InstanceMethodOnClassError.CallOnInstanceHelp(
+                            None, f"{ty}.{example_variant}(...).{node.attr}(...)"
+                        )
                     )
+                    raise GuppyTypeError(err)
                 # Otherwise, we may try to access a method from the enum class
                 return method_w_ty[0], method_w_ty[1]
             else:
@@ -813,17 +824,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             return with_loc(node, PartialApply(func=name, args=[node.value])), result_ty
         else:
             return None
-
-    def _raise_instance_method_on_class(
-        self, span: Span, ty_name: str, attribute: str, example: str
-    ) -> NoReturn:
-        """Raises an `InstanceMethodOnClassError` for an instance method that was
-        looked up on the class/enum itself rather than on an instance of it."""
-        err = InstanceMethodOnClassError(span, ty_name, attribute)
-        err.add_sub_diagnostic(
-            InstanceMethodOnClassError.CallOnInstanceHelp(None, example)
-        )
-        raise GuppyTypeError(err)
 
     def _is_python_module(self, node: ast.expr) -> ModuleType | None:
         """Checks whether an AST node corresponds to a Python module in scope."""
