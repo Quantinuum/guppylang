@@ -286,6 +286,7 @@ def check_signature(
     def_id: DefId | None = None,
     param_var_mapping: dict[str, Parameter] | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    is_static: bool = False,
 ) -> FunctionType:
     """Checks the signature of a function definition and returns the corresponding
     Guppy type.
@@ -327,7 +328,6 @@ def check_signature(
         param = parse_parameter(param_node, i, globals, param_var_mapping)
         param_var_mapping[param.name] = param
 
-    is_static = False
     # Figure out if this is a method
     self_defn: ProtocolDef | TypeDef | None = None
     inputs = []

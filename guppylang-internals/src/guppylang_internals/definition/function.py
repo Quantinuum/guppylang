@@ -130,7 +130,11 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             py_func = self.python_func
         func_ast, docstring = parse_py_func(py_func, sources)
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
 

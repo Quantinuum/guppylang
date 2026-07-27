@@ -69,7 +69,11 @@ class RawTracedFunctionDef(ParsableDef):
             py_func = self.python_func
         func_ast, _docstring = parse_py_func(py_func, sources)
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
         )
         return TracedFunctionDef(
             self.id,
