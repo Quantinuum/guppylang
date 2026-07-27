@@ -865,7 +865,15 @@ def immediate_child_places(place: Place) -> list[Place]:
 
 def is_inout_var(place: Place) -> TypeGuard[Variable]:
     """Checks whether a place is a borrowed variable."""
-    return isinstance(place, Variable) and InputFlags.Inout in place.flags
+    return (
+        isinstance(place, Variable)
+        and InputFlags.Inout in place.flags
+        # Only affine types are considered for inout. Normally, copyable types wouldn't
+        # have an inout flag, however it can show up when generic functions are
+        # instantiated with protocol instances that are copyable. In those cases, we
+        # just consider the variable as not inout.
+        and not place.ty.copyable
+    )
 
 
 def has_explicit_copy(ty: Type) -> bool:
