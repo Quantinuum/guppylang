@@ -676,25 +676,27 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 )
 
                 name_id = node.value.id
-                # Only treat `name_id` as a reference to the global class/enum if it
-                # isn't shadowed by a local variable or generic parameter of the same
-                # name (locals take priority, matching `_check_name_id` below).
                 if (
+                    # A local variable of the same name shadows the global (e.g.
+                    # `def f(MyStruct: Other)`), matching `_check_name_id` below.
                     name_id not in self.ctx.locals
+                    # Same shadowing rule, for generic type/const parameters.
                     and name_id not in self.ctx.generic_param_inst
+                    # Only relevant if `name_id` does resolve to a global.
                     and name_id in self.ctx.globals
                 ):
                     defn = self.ctx.globals[name_id]
-                    # `defn` is a type (struct, alias, ...), excluding enums since
-                    # `get_instance_func` can't tell an instance method apart from a
-                    # variant constructor there; that case is handled separately
-                    # below, once we know the accessed name isn't a variant. We also
-                    # exclude `__new__`, since `MyStruct(...)` is a legal call, and
-                    # only fire if `node.attr` actually names an instance method.
                     if (
+                        # Only types (structs, aliases, ...) can have this problem.
                         isinstance(defn, TypeDef)
+                        # Enums are excluded and handled separately below:
+                        # `get_instance_func` can't tell an instance method apart
+                        # from a variant constructor, so this would misfire on
+                        # legal variant construction like `MyEnum.Left()`.
                         and not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
+                        # `MyStruct(...)` desugars to a legal `__new__` call.
                         and node.attr != "__new__"
+                        # Only fire if `node.attr` really names an instance method.
                         and ENGINE.get_instance_func(defn, node.attr) is not None
                     ):
                         err = InstanceMethodOnClassError(
