@@ -532,10 +532,16 @@ def parse_bound(
         arg_nodes = (
             bound.slice.elts if isinstance(bound.slice, ast.Tuple) else [bound.slice]
         )
-        # Special case for the `Callable` protocol
+        # Special case for the `Callable` and modifiable function protocols
         if isinstance(proto_defn, CallableProtocolDef):
             sig = _parse_function_type(arg_nodes, bound, ctx, "Callable")
             return CallableProtocolInst(sig)
+        if isinstance(proto_defn, ModifiableFunctionProtocolDef):
+            sig = _parse_function_type(
+                arg_nodes, bound, ctx, proto_defn.flags.callable_name()
+            )
+            sig = sig.with_unitary_flags(proto_defn.flags)
+            return ModifiableFunctionProtocolInst(sig)
         proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
     else:
         proto_defn = try_parse_defn(bound, ctx)
