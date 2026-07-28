@@ -6,11 +6,12 @@ including measurement, reset, and single qubit and two qubit gates.
 
 For operations in this module, a `qubit` value maps to a specific ion,
 a guarantee not provided by the more abstract `std.quantum` module.
-For example, the function :py:func:`guppylang.std.quantum.project_z` lowers
+For example, the function :py:func:`guppylang.std.quantum.project_z` may lower
 to a destructive measurement followed by a fresh ion allocation
 and conditional `X` flip to achieve "projective measurement" semantics.
 At the end of this process, the qubit may no longer map to the same
- ion as the original qubit.
+ ion as the original qubit. Such a guarantee can be achieved by using
+the functions in this module.
 """
 
 from typing import no_type_check
@@ -208,7 +209,6 @@ def reset(q: qubit) -> None:
 @no_type_check
 def qfree(q: qubit @ owned) -> None:
     """Free a qubit, returning the ion to the pool of available ions.
-
 
     The qubit value is consumed.
     """
