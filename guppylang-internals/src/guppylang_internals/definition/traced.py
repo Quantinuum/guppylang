@@ -250,11 +250,9 @@ class CompiledTracedFunctionDef(
         for entry_index, entry in enumerate(self.trace.operations):
             outputs: Sequence[Wire]
             match entry:
-                case TraceOperation(op, inputs, output_count, effects, node):
+                case TraceOperation(op, inputs, output_count, node):
                     with builder.set_ast_context(node):
-                        node = builder.add_op(
-                            (op, effects), *(get_wire(i) for i in inputs)
-                        )
+                        node = builder.add_op(op, *(get_wire(i) for i in inputs))
                         outputs = [node[i] for i in range(output_count)]
                 case TraceLoad(value, node):
                     if isinstance(value, Value):

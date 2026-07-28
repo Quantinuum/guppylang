@@ -18,7 +18,6 @@ from guppylang_internals.tys.common import ToHugrContext
 if TYPE_CHECKING:
     from guppylang_internals.definition.traced import TracedFunctionDef
     from guppylang_internals.tracing.object import GuppyObject, GuppyObjectId
-    from guppylang_internals.tys import Effect
     from guppylang_internals.tys.subst import Inst
 
 
@@ -101,10 +100,9 @@ class TraceWire:
 class TraceOperation:
     """A primitive dataflow operation emitted while tracing."""
 
-    op: DataflowOp
+    op: OpWithEffects
     inputs: tuple[TraceWire, ...]
     output_count: int
-    effects: tuple["Effect", ...]
     node: AstNode | None
 
 
@@ -187,15 +185,14 @@ class TraceBuilder:
     def add_op(
         self, op: OpWithEffects, /, *args: TraceWire | TraceNode, **_: Any
     ) -> TraceNode:
-        dataflow_op, effects = op
+        (dataflow_op, _effects) = op
         output_count = _operation_output_count(dataflow_op)
         node = get_tracing_state().node
         return self._add(
             TraceOperation(
-                dataflow_op,
+                op,
                 tuple(arg.as_trace_wire() for arg in args),
                 output_count,
-                tuple(effects),
                 node,
             )
         )
