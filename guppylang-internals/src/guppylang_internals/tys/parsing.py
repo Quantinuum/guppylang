@@ -317,8 +317,8 @@ def _arg_from_proto(
         param = TypeParam(
             len(ctx.param_var_mapping),
             proto_defn.name,
-            must_be_copyable=True,
-            must_be_droppable=True,
+            must_be_copyable=False,
+            must_be_droppable=False,
             must_implement=[inst],
         )
         # Create a fresh parameter to represent this protocol bound. If we see another
@@ -469,12 +469,14 @@ def parse_parameter(
         # TODO: Should we also allow `T: Copy + Drop`? Mypy would complain about it
         case ast.Tuple(elts=elts):
             bounds: list[ProtocolInst] = []
+            must_be_copyable = False
+            must_be_droppable = False
             for elt in elts:
                 match elt:
                     case ast.Name(id="Copy"):
-                        continue
+                        must_be_copyable = True
                     case ast.Name(id="Drop"):
-                        continue
+                        must_be_droppable = True
                     case _:
                         if proto_inst := parse_bound(
                             elt, globals, param_var_mapping, allow_free_vars
@@ -485,8 +487,8 @@ def parse_parameter(
             return TypeParam(
                 idx,
                 node.name,
-                must_be_copyable=True,
-                must_be_droppable=True,
+                must_be_copyable=must_be_copyable,
+                must_be_droppable=must_be_droppable,
                 must_implement=bounds,
             )
 
@@ -498,8 +500,8 @@ def parse_parameter(
                 return TypeParam(
                     idx,
                     node.name,
-                    must_be_copyable=True,
-                    must_be_droppable=True,
+                    must_be_copyable=False,
+                    must_be_droppable=False,
                     must_implement=[proto_inst],
                 )
             else:

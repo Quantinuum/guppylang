@@ -1229,6 +1229,26 @@ def coerces_to(act: Type, exp: Type) -> bool:
     return function_coercion or numeric_coercion
 
 
+def coerce_to_common(ty1: Type, ty2: Type) -> Type | None:
+    """Checks whether two types implicitly coerce to a common type.
+
+    Returns the resulting type or `None` if there is no such type.
+    """
+    # First, check if one coerces to the other or vice versa
+    if coerces_to(ty1, ty2):
+        return ty2
+    if coerces_to(ty2, ty1):
+        return ty1
+    # The only other supported case at the moment is coercing both to an opaque function
+    if (
+        isinstance(ty1, FunctionDefType)
+        and isinstance(ty2, FunctionDefType)
+        and ty1.sig == ty2.sig
+    ):
+        return ty1.sig
+    return None
+
+
 def function_def_value_to_global_name(expr: AstNode, ty: FunctionDefType) -> GlobalName:
     """Turns an expressions with a `FunctionDefType` into the corresponding
     `GlobalName`.

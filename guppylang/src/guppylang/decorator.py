@@ -707,7 +707,7 @@ def expected_qubits(num: int) -> Any:
     .. code-block:: python
 
         from guppylang import guppy
-        from guppylang.decorator import expected_qubit
+        from guppylang.decorator import expected_qubits
 
         @guppy.declare
         @expected_qubits(2)

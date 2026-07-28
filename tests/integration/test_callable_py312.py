@@ -1,11 +1,12 @@
 from collections.abc import Callable
 
 from guppylang.decorator import guppy
+from guppylang.std.lang import Copy, Drop
 
 
 def test_struct(validate):
     @guppy.struct
-    class MyStruct[F: Callable[[int], int]]:
+    class MyStruct[F: (Callable[[int], int], Copy, Drop)]:
         f: F
 
         @guppy
@@ -30,7 +31,7 @@ def test_struct(validate):
 
 def test_struct_generic(validate):
     @guppy.struct
-    class MyStruct[S, T, F: Callable[[S], T]]:
+    class MyStruct[S, T, F: (Callable[[S], T], Copy, Drop)]:
         f: F
         x: S
 
