@@ -31,3 +31,7 @@ pytket_bar_load = guppy.load_pytket(  # MARKER:def_pytket_bar_load
 
 @guppy.pytket(circ)
 def pytket_bar_stub(q1: qubit) -> None: ...  # MARKER:def_pytket_bar_stub
+
+
+def non_guppy_function() -> None:
+    pass
