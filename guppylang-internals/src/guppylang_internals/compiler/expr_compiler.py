@@ -451,19 +451,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Tensor element wasn't function or tuple")
 
     def visit_GlobalCall(self, node: GlobalCall) -> Wire:
-        func = self.ctx.build_compiled_def(node.def_id, node.type_args)
-        assert isinstance(func, CompiledCallableDef)
-
-        if isinstance(func, CustomFunctionDef) and not func.has_signature:
-            func_ty = FunctionType(
-                [FuncInput(get_type(arg), InputFlags.NoFlags) for arg in node.args],
-                get_type(node),
-            )
-        else:
-            func_ty = func.ty
-
-        args = self._compile_call_args(node.args, func_ty)
-        rets = func.compile_call(args, self.dfg, self.ctx, node)
+        func_ty, rets = self.compile_global_call(node)
         self._update_inout_ports(node.args, iter(rets.inout_returns), func_ty)
         return self._pack_returns(rets.regular_returns, func_ty.output)
 
@@ -750,6 +738,24 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_Compare(self, node: ast.Compare) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")
+
+    def compile_global_call(
+        self, node: GlobalCall
+    ) -> tuple[FunctionType, CallReturnWires]:
+        func = self.ctx.build_compiled_def(node.def_id, node.type_args)
+        assert isinstance(func, CompiledCallableDef)
+
+        if isinstance(func, CustomFunctionDef) and not func.has_signature:
+            func_ty = FunctionType(
+                [FuncInput(get_type(arg), InputFlags.NoFlags) for arg in node.args],
+                get_type(node),
+            )
+        else:
+            func_ty = func.ty
+
+        args = self._compile_call_args(node.args, func_ty)
+        rets = func.compile_call(args, self.dfg, self.ctx, node)
+        return (func_ty, rets)
 
 
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:
