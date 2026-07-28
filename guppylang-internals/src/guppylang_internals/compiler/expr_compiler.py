@@ -548,6 +548,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return tag_value
 
     def visit_AbortExpr(self, node: AbortExpr) -> Wire:
+        returns = self.compile_abort(node)
+        return self._pack_returns(returns, get_type(node))
+
+    def compile_abort(self, node: AbortExpr) -> list[Wire]:
         signal = self.visit(node.signal)
         signal_usize = self.builder.add_op(convert_itousize(), signal)
         msg = self.visit(node.msg)
@@ -561,7 +565,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             case AbortKind.ExitShot:
                 op = panic(in_tys, out_tys, AbortKind.ExitShot)
                 h_node = self.builder.add_op(op, err, *args)
-        return self._pack_returns(list(h_node.outputs()), get_type(node))
+        return list(h_node.outputs())
 
     def visit_BarrierExpr(self, node: BarrierExpr) -> Wire:
         hugr_tys = [get_type(e).to_hugr(self.ctx) for e in node.args]
@@ -574,6 +578,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return self._pack_returns([], NoneType())
 
     def visit_StateOutputExpr(self, node: StateOutputExpr) -> Wire:
+        qubits_out = self.compile_state_output(node)
+        self._update_inout_ports(node.args, iter(qubits_out), node.func_ty)
+        return self._pack_returns([], NoneType())
+
+    def compile_state_output(self, node: StateOutputExpr) -> Node | list[Wire]:
         tag_value = self._visit_output_tag(node.tag_value, node.tag_expr)
         num_qubits_arg = (
             node.array_len.to_arg().to_hugr(self.ctx)
@@ -620,8 +629,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         else:
             qubits_out = qubit_arr_out
 
-        self._update_inout_ports(node.args, iter(qubits_out), node.func_ty)
-        return self._pack_returns([], NoneType())
+        return qubits_out
 
     def visit_DesugaredListComp(self, node: DesugaredListComp) -> Wire:
         # Make up a name for the list under construction and bind it to an empty list

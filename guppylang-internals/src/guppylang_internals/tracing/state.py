@@ -2,7 +2,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, TypeAlias, overload
 
 from hugr import val
 from hugr.ops import DataflowOp
@@ -12,7 +12,7 @@ from guppylang_internals.checker.core import Place
 from guppylang_internals.compiler.builder import OpWithEffects
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.nodes import GlobalCall
+from guppylang_internals.nodes import AbortExpr, GlobalCall, StateOutputExpr
 from guppylang_internals.tys.common import ToHugrContext
 
 if TYPE_CHECKING:
@@ -79,6 +79,9 @@ def set_tracing_state(state: TracingState) -> Iterator[None]:
         _STATE.reset(token)
 
 
+TraceableCall: TypeAlias = GlobalCall | AbortExpr | StateOutputExpr
+
+
 @dataclass(frozen=True)
 class TraceWire:
     """Reference to an output port in a comptime trace.
@@ -126,7 +129,7 @@ class TraceFunctionLoad:
 class TraceCall:
     """A resolved Guppy function call emitted while tracing."""
 
-    call_node: GlobalCall
+    call_node: TraceableCall
     input_places: Sequence[tuple[Place, TraceWire]]
     output_count: int
 
@@ -207,7 +210,7 @@ class TraceBuilder:
 
     def call(
         self,
-        node: GlobalCall,
+        node: TraceableCall,
         input_places: Sequence[tuple[Place, TraceWire]],
         output_count: int,
     ) -> TraceNode:

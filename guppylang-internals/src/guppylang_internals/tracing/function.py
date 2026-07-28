@@ -27,11 +27,12 @@ from guppylang_internals.error import (
     RequiresMonomorphizationError,
     exception_hook,
 )
-from guppylang_internals.nodes import GlobalCall, PlaceNode
+from guppylang_internals.nodes import PlaceNode
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
 from guppylang_internals.tracing.state import (
     Trace,
+    TraceableCall,
     TraceBuilder,
     TracingState,
     get_tracing_state,
@@ -276,11 +277,10 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         )
 
     # Compile call
-    assert isinstance(call_node, GlobalCall)
-
     output_count = len(type_to_row(ret_ty)) + sum(
         InputFlags.Inout in flags for flags in input_flags
     )
+    assert isinstance(call_node, TraceableCall)
     call = state.builder.call(call_node, input_places, output_count)
 
     # Update inouts

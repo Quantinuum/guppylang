@@ -41,7 +41,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.error import GuppyComptimeError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
-from guppylang_internals.nodes import GlobalCall
+from guppylang_internals.nodes import AbortExpr, GlobalCall, StateOutputExpr
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tracing.state import (
     TraceCall,
@@ -280,13 +280,24 @@ class CompiledTracedFunctionDef(
                     dfg = DFContainer(builder, ctx)
                     for arg, val in input_places:
                         dfg[arg] = get_wire(val)
+                    # Unpacking and handling inouts was done at tracing time,
+                    # so just make all the outputs ready for that here.
                     comp = ExprCompiler(ctx)
                     comp.dfg = dfg
-                    _, rets = comp.compile_global_call(call_node)
-                    # Unpacking and handling inouts was done at tracing time,
-                    # so just have all the outputs ready for that here.
-                    outputs = rets.regular_returns + rets.inout_returns
-                    assert len(outputs) == output_count
+                    match call_node:
+                        case GlobalCall():
+                            _, rets = comp.compile_global_call(call_node)
+                            outputs = rets.regular_returns + rets.inout_returns
+                        case AbortExpr():
+                            outputs = comp.compile_abort(call_node)
+                        case StateOutputExpr():
+                            match comp.compile_state_output(call_node):
+                                case list() as qubits_out:
+                                    outputs = qubits_out
+                                case Node() as node:
+                                    outputs = list(node[:])
+                        case _:
+                            assert_never(call_node)
                 case _:
                     assert_never(entry)
 
