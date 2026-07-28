@@ -148,8 +148,11 @@ class RawCustomFunctionDef(ParsableDef):
         """
         from guppylang_internals.definition.function import parse_py_func
 
-        is_static = determine_static(self)
-        py_func = self.python_func.__func__ if is_static else self.python_func
+        _is_static, unwrapped_if_static = determine_static(self)
+        if unwrapped_if_static is not None:
+            py_func = unwrapped_if_static
+        else:
+            py_func = self.python_func
         func_ast, _docstring = parse_py_func(py_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))

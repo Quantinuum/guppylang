@@ -1,9 +1,17 @@
+from collections.abc import Callable
+from typing import Any
+
 from guppylang_internals.definition.common import Definition
 from guppylang_internals.error import InternalGuppyError
 
+PyFunc = Callable[..., Any]
 
-def determine_static(defn: Definition) -> bool:
-    """Check if a Definition corresponds to a static method."""
+
+def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
+    """Check if a Definition corresponds to a static method.
+
+    Also returns the wrapped method if applicable.
+    """
     from guppylang_internals.definition.custom import RawCustomFunctionDef
     from guppylang_internals.definition.declaration import RawFunctionDecl
     from guppylang_internals.definition.function import RawFunctionDef
@@ -13,7 +21,10 @@ def determine_static(defn: Definition) -> bool:
 
     match defn:
         case RawFunctionDef() | RawCustomFunctionDef() | RawFunctionDecl():
-            return isinstance(defn.python_func, staticmethod)
+            if isinstance(defn.python_func, staticmethod):
+                return True, defn.python_func.__func__
+            else:
+                return False, None
         # comptime methods not yet supported
         case RawTracedFunctionDef():
             if isinstance(defn.python_func, staticmethod):
@@ -22,16 +33,17 @@ def determine_static(defn: Definition) -> bool:
                     " comptime static methods not supported"
                 )
             else:
-                return False
+                return False, None
         case OverloadedFunctionDef():
-            # check all the methods in the overload are also static
+            # check all the methods in the overload are also static and error if not
+            # returns None regardless of staticness as there is nothing to unwrap
             num_overloads = len(defn.func_ids)
             func_defs = [DEF_STORE.raw_defs[func_id] for func_id in defn.func_ids]
-            is_static = [determine_static(func_def) for func_def in func_defs]
+            is_static = [determine_static(func_def)[0] for func_def in func_defs]
             if all(is_static):
-                return True
+                return True, None
             elif not any(is_static):
-                return False
+                return False, None
             else:
                 static_indices = [i for i, static in enumerate(is_static) if static]
                 non_static_indices = [

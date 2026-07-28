@@ -123,8 +123,11 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        is_static = determine_static(self)
-        py_func = self.python_func.__func__ if is_static else self.python_func
+        is_static, unwrapped_if_static = determine_static(self)
+        if unwrapped_if_static is not None:
+            py_func = unwrapped_if_static
+        else:
+            py_func = self.python_func
         func_ast, docstring = parse_py_func(py_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
