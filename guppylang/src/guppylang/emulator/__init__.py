@@ -14,11 +14,10 @@ outputs.
 Basic emulation
 -----------------
 
-Calling ``.emulator`` on a Guppy function compiles it into an
+Calling ``.emulator()`` on a Guppy function compiles it into an
 :py:class:`EmulatorInstance`. The method has a required parameter
-for the number of qubits to allocate. This cannot be
-inferred from the program automatically as it can request an arbitrary number of qubits
-at runtime.
+for the number of qubits to allocate. This cannot be inferred from the program
+fully automatically as it can request an arbitrary number of qubits at runtime.
 
 Calling ``.run()`` on the instance runs the emulation, returning an
 :py:class:`EmulatorResult` object containing the results.
@@ -35,6 +34,22 @@ Calling ``.run()`` on the instance runs the emulation, returning an
         output("q", measure(q))
 
     foo.emulator(n_qubits=1).run()
+
+.. hint::
+
+    You can omit ``n_qubits`` from the ``.emulator()`` call if you add the
+    ``@expected_qubits`` decorator to ``foo``:
+
+    .. code-block:: python
+
+        from guppylang.decorator import expected_qubits
+
+        @guppy
+        @expected_qubits(1)
+        def foo() -> None:
+            pass # ...
+
+        foo.emulator().run()
 
 Change simulation method
 --------------------------
