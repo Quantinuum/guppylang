@@ -31,7 +31,6 @@ from guppylang_internals.definition.function import (
     make_subprogram_record,
     parse_py_func,
 )
-from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -39,7 +38,6 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
     CompiledValueDef,
 )
-from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyComptimeError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
@@ -262,17 +260,9 @@ class CompiledTracedFunctionDef(
                         outputs = [builder.load(value)[0]]
                     else:
                         defn = ctx.build_compiled_def(value, type_args=())
-                        if (
-                            isinstance(defn, TypeDef)
-                            and defn.id in DEF_STORE.type_members
-                            and "__new__" in DEF_STORE.type_members[defn.id]
-                        ):
-                            constructor = DEF_STORE.raw_defs[
-                                DEF_STORE.type_members[defn.id]["__new__"]
-                            ]
-                            assert isinstance(constructor, CompiledCallableDef)
-                            defn = constructor
-                        elif not isinstance(defn, CompiledValueDef):
+                        # TypeDefs should already have been converted to LoadFunctions
+                        # of their *constructors* during checking/tracing.
+                        if not isinstance(defn, CompiledValueDef):
                             def_kind = defn.description.capitalize()
                             err = f"{def_kind} `{defn.name}` is not a value"
                             raise GuppyComptimeError(err)

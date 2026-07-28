@@ -599,6 +599,16 @@ class TracingDefMixin(DunderMixin):
     def to_guppy_object(self) -> GuppyObject:
         state = get_tracing_state()
         defn = ENGINE.get_parsed(self.id)
+        if isinstance(defn, TypeDef):
+            # If this is a type definition, then we want to return the constructor.
+            # As below, we don't handle generic types yet.
+            ctor = ENGINE.get_instance_func(defn, "__new__")
+            if ctor is None:
+                raise GuppyComptimeError(
+                    f"Type `{defn.name}` has no constructor and cannot be instantiated"
+                )
+            defn = ctor
+
         # TODO: For generic functions, we need to know an instantiation for their type
         #  parameters. Maybe we should pass them to `to_guppy_object`? Either way, this
         #  will require some more plumbing of type inference information through the
@@ -613,13 +623,6 @@ class TracingDefMixin(DunderMixin):
             return GuppyObject(defn.ty, wire, None)
         if isinstance(defn, ValueDef):
             return GuppyObject(defn.ty, state.builder.load(self.id))
-        assert isinstance(defn, TypeDef)
-        # ALAN  TypeDef's we'll compile as loading the constructor,
-        # but we don't know if that exists yet (TODO can we check?)
-        raise AssertionError("Need to find type of __new__")
-        # We'd also need to do type inference to get the type args...
-        checked = defn.check(state.globals)  # but these don't exist
-        return GuppyObject(
-            DEF_STORE.type_members[checked.id]["__new__"].ty,
-            state.builder.load(self.id),
+        raise GuppyComptimeError(
+            f"Cannot convert {defn.description} `{defn.name}` to a Guppy object"
         )
