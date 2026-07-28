@@ -283,7 +283,8 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     assert isinstance(call_node, TraceableCall)
     call = state.builder.call(call_node, input_places, output_count)
 
-    # Update inouts
+    # Update inouts (normally done by ExprCompiler, but we need to do it here
+    # so we can return meaningful GuppyObjects).
     inout_port = len(type_to_row(ret_ty))
     for flags, arg, var in zip(input_flags, args, arg_vars, strict=True):
         if InputFlags.Inout in flags:
@@ -291,7 +292,6 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             ty = var.ty
             inout_wire = call[inout_port]
             inout_port += 1
-            # state.dfg[var] = inout_wire # ALAN dead assign (right?), from AI
             success = update_packed_value(
                 arg, GuppyObject(ty, inout_wire), state.builder
             )
@@ -303,6 +303,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                     f"Cannot borrow Python object of type `{ty}` at comptime"
                 )
 
+    # Packing/unpacking, again paralleling ExprCompiler.
     regular_returns = list(call[: len(type_to_row(ret_ty))])
     if isinstance(ret_ty, TupleType | NoneType):
         ret_wire = state.builder.add_op(make_tuple(), *regular_returns)

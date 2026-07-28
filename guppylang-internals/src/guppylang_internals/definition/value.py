@@ -68,10 +68,6 @@ class CompiledCallableDef(CompiledValueDef):
     def call_effects(self) -> Iterable["Effect"]:
         """The maximum set of effects that may occur when calling the function."""
 
-    @abstractproperty
-    def call_effects(self) -> Iterable["Effect"]:
-        """The maximum set of effects that may occur when calling the function."""
-
     @abstractmethod
     def compile_call(
         self,
