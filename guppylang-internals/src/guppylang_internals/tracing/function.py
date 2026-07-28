@@ -43,9 +43,11 @@ from guppylang_internals.tracing.unpacking import (
     update_packed_value,
 )
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
-from guppylang_internals.tys.arg import Argument, ConstArg
+from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.ty import (
+    BoundTypeVar,
+    ExistentialTypeVar,
     FunctionType,
     InputFlags,
     NoneType,
@@ -82,17 +84,37 @@ def trace_function(
     Invokes the passed Python callable and constructs the corresponding Hugr using the
     passed builder.
     """
+
+    def const_argument_to_python_value(arg: Argument) -> Any:
+        """Extracts a Python value from the given generic argument."""
+        match arg:
+            case ConstArg(ConstValue(value=v)):
+                assert v is not None
+                return v
+            case (
+                ConstArg(BoundConstVar())
+                | ConstArg(ExistentialConstVar())
+                | TypeArg(ty=BoundTypeVar())
+            ):
+                # This means we are building the arguments with which to trace
+                # an uninstantiated generic function. So, avoid tracing such...
+                raise RequiresMonomorphizationError
+            case TypeArg(ty=ExistentialTypeVar()):
+                raise InternalGuppyError("Shouldn't happen?!")
+            case _:
+                # TODO: We don't have a comptime representation of types yet, so we can
+                #  only translate const arguments into Python values for now. In the
+                #  future, drop this restriction and support all kinds of arguments.
+                return None
+
     builder = TraceBuilder(input_count)
     ctx: ToHugrContext = None
     state = TracingState(ctx, builder, node, func_def)
     with set_tracing_state(state):
         generic_values = {
-            x: const_argument_to_python_value(arg)
+            x: val
             for x, arg in generic_args.items()
-            # TODO: We don't have a comptime representation of types yet, so we can only
-            #  translate const arguments into Python values for now. In the future, drop
-            #  this restriction and support all kinds of arguments.
-            if isinstance(arg, ConstArg)
+            if (val := const_argument_to_python_value(arg)) is not None
         }
 
         input_wires = iter(builder.inputs())
@@ -289,17 +311,6 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         ret_wire = regular_returns[0]
     ret_obj = GuppyObject(ret_ty, ret_wire.as_trace_wire())
     return unpack_guppy_object(ret_obj, state.builder)
-
-
-def const_argument_to_python_value(arg: ConstArg) -> Any:
-    """Extracts a Python value from the given generic argument."""
-    match arg.const:
-        case ConstValue(value=v):
-            return v
-        case BoundConstVar() | ExistentialConstVar():
-            # This means we are building the arguments with which to trace
-            # an uninstantiated generic function. So, avoid tracing such...
-            raise RequiresMonomorphizationError
 
 
 @contextmanager
