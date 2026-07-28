@@ -1,5 +1,6 @@
 import ast
 import copy
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, NamedTuple, NoReturn
 
@@ -26,6 +27,7 @@ from guppylang_internals.error import (
     InternalGuppyError,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.printing import signature_to_str
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
@@ -93,6 +95,10 @@ class InternalExpectOverloadError(Error):
 class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
     description: str = field(default="overloaded function", init=False)
+
+    @property
+    def call_effects(self) -> Iterable[Effect]:
+        raise InternalGuppyError("Should have been resolved to one overload")
 
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         raise GuppyError(OverloadHigherOrderError(node, self.name))

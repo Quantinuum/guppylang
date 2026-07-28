@@ -1,6 +1,6 @@
 import ast
 import inspect
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -54,6 +54,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
@@ -297,6 +298,13 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
 
     _func_bldr: FunctionBuilder
 
+    @override
+    @property
+    def call_effects(self) -> frozenset[Effect]:
+        # For now, an approximation. (We said, may occur.)
+        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
+        return frozenset([Effect.ANY])
+
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
@@ -316,7 +324,9 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, dfg, self.ty, self.hugr_node, node)
+        return compile_call(
+            args, dfg, self.ty, self.hugr_node, node, effects=self.call_effects
+        )
 
     @override
     def compile_inner(self, globals: CompilerContext) -> None:
@@ -335,11 +345,13 @@ def compile_call(
     ty: FunctionType,
     func: ToNode,
     call_ast: AstNode,
+    *,
+    effects: Iterable[Effect],
 ) -> CallReturnWires:
     """Compiles a call to the function."""
     num_returns = len(type_to_row(ty.output))
     with dfg.builder.set_ast_context(call_ast):
-        call = dfg.builder.call(func, *args)
+        call = dfg.builder.call(func, *args, effects=effects)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),

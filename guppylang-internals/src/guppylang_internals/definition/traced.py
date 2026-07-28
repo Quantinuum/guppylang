@@ -40,6 +40,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
@@ -171,6 +172,14 @@ class CompiledTracedFunctionDef(
 ):
     func_def: hf.Function
 
+    @override
+    @property
+    def call_effects(self) -> frozenset[Effect]:
+        """The maximum set of effects that may occur when calling the function."""
+        # For now, an approximation. (We said, may occur.)
+        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
+        return frozenset([Effect.ANY])
+
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
@@ -195,7 +204,7 @@ class CompiledTracedFunctionDef(
         """Compiles a call to the function."""
         num_returns = len(type_to_row(self.ty.output))
         with dfg.builder.set_ast_context(node):
-            call = dfg.builder.call(self.func_def, *args)
+            call = dfg.builder.call(self.func_def, *args, effects=self.call_effects)
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
             inout_returns=list(call[num_returns:]),
