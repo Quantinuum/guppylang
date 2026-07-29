@@ -1,4 +1,3 @@
-import pytest
 from guppylang import qubit, array
 from guppylang.decorator import guppy
 from guppylang.std.quantum import discard

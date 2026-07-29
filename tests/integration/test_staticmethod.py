@@ -51,7 +51,6 @@ def test_staticmethod_higher_order(validate):
     validate(main.compile())
 
 
-@pytest.mark.xfail(reason="Static comptime functions not yet supported")
 def test_staticmethod_comptime(validate):
 
     @guppy.struct
@@ -64,6 +63,26 @@ def test_staticmethod_comptime(validate):
     @guppy
     def main() -> None:
         a = Test.gives_int()
+        Test().gives_int()
+
+    validate(main.compile())
+
+
+def test_staticmethod_comptime_generic(validate):
+
+    T = guppy.type_var("T")
+
+    @guppy.struct
+    class Test:
+        @guppy.comptime
+        @staticmethod
+        def gives_type(a: T) -> T:
+            return a
+
+    @guppy
+    def main() -> None:
+        a = Test.gives_type(3)
+        Test().gives_type(2.0)
 
     validate(main.compile())
 

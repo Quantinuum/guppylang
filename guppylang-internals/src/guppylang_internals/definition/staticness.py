@@ -2,7 +2,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.definition.common import Definition
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError, InternalGuppyError
@@ -42,13 +41,12 @@ def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
     from guppylang_internals.engine import DEF_STORE
 
     match defn:
-        case RawFunctionDef() | RawCustomFunctionDef() | RawFunctionDecl():
-            if isinstance(defn.python_func, staticmethod):
-                return True, defn.python_func.__func__
-            else:
-                return False, None
-        # comptime methods not yet supported
-        case RawTracedFunctionDef():
+        case (
+            RawFunctionDef()
+            | RawCustomFunctionDef()
+            | RawFunctionDecl()
+            | RawTracedFunctionDef()
+        ):
             if isinstance(defn.python_func, staticmethod):
                 return True, defn.python_func.__func__
             else:

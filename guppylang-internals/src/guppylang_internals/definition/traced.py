@@ -80,8 +80,9 @@ class RawTracedFunctionDef(ParsableDef):
             self.name,
             func_ast,
             ty,
-            self.python_func,
+            py_func,
             unitary_flags=self.unitary_flags,
+            is_static=is_static,
             metadata=self.metadata,
         )
 
@@ -89,6 +90,7 @@ class RawTracedFunctionDef(ParsableDef):
 @dataclass(frozen=True)
 class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     defined_at: ast.FunctionDef
+    is_static: bool = field(default=False, kw_only=True)
 
     @property
     def params(self) -> Sequence[Parameter]:
@@ -113,6 +115,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             self.python_func,
             generic_args,
             unitary_flags=self.unitary_flags,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -172,6 +175,7 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.generic_args,
             func_def,
             unitary_flags=self.unitary_flags,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 

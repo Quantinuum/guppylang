@@ -406,6 +406,7 @@ class CompilationEngine:
         from guppylang_internals.definition.declaration import ParsedFunctionDecl
         from guppylang_internals.definition.function import ParsedFunctionDef
         from guppylang_internals.definition.traced import TracedFunctionDef
+
         parsed = self.get_parsed(func_id)
         match parsed:
             case ParsedFunctionDef() | ParsedFunctionDecl() | TracedFunctionDef():
