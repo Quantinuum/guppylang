@@ -497,11 +497,18 @@ def parse_parameter(
             if proto_inst := parse_bound(
                 bound, globals, param_var_mapping, allow_free_vars
             ):
+                # TODO: Copyability and droppablity should be specified by the protocol.
+                #  See https://github.com/Quantinuum/guppylang/issues/2097
+                #  For now, treat everything as linear *except* for Callable and
+                #  modifier protocols to avoid breakage.
+                must_be_copyable = must_be_droppable = isinstance(
+                    proto_inst, CallableProtocolInst | ModifiableFunctionProtocolInst
+                )
                 return TypeParam(
                     idx,
                     node.name,
-                    must_be_copyable=False,
-                    must_be_droppable=False,
+                    must_be_copyable=must_be_copyable,
+                    must_be_droppable=must_be_droppable,
                     must_implement=[proto_inst],
                 )
             else:
