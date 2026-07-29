@@ -34,6 +34,9 @@ miette-py = { workspace = true }
 # hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
 # tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", rev = "cdb47dd" }
 
+[tool.ruff]
+target-version = "py312"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
