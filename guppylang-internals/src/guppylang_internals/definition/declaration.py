@@ -47,6 +47,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import Type, UnitaryFlags
@@ -247,6 +248,13 @@ class CompiledFunctionDecl(
 
     declaration: Node
 
+    @override
+    @property
+    def call_effects(self) -> frozenset[Effect]:
+        # Assume all external function calls are side-effecting; we could improve
+        # by allowing explicit annotation on declarations, but this is a safe default.
+        return frozenset([Effect.ANY])
+
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
@@ -268,4 +276,6 @@ class CompiledFunctionDecl(
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, dfg, self.ty, self.declaration, node)
+        return compile_call(
+            args, dfg, self.ty, self.declaration, node, effects=self.call_effects
+        )

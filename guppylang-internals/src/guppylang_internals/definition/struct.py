@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from hugr import Wire, ops
+from hugr import Wire
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
@@ -12,6 +12,7 @@ from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
+from guppylang_internals.compiler.builder.ops import make_tuple
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -40,6 +41,7 @@ from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -215,7 +217,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             """Compiler for the `__new__` constructor method of a struct."""
 
             def compile(self, args: list[Wire]) -> list[Wire]:
-                return list(self.builder.add_op(ops.MakeTuple(), *args))
+                return list(self.builder.add_op(make_tuple(), *args))
 
         constructor_sig = FunctionType(
             inputs=[
@@ -242,6 +244,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             higher_order_func_id=GlobalConstId.fresh(f"{self.name}.__new__"),
             has_signature=True,
             has_var_args=False,
+            effects=[Effect.ANY],
         )
         return [constructor_def]
 
