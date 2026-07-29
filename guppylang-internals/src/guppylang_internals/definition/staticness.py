@@ -1,10 +1,28 @@
 from collections.abc import Callable
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, ClassVar
 
+from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.definition.common import Definition
-from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.diagnostic import Error
+from guppylang_internals.error import GuppyError, InternalGuppyError
 
 PyFunc = Callable[..., Any]
+
+
+@dataclass(frozen=True)
+class OverloadInvalidStaticError(Error):
+    title: ClassVar[str] = "Invalid static overloads"
+    func: str
+    static_overloads: list[str]
+    non_static_overloads: list[str]
+
+    @property
+    def rendered_span_label(self) -> str:
+        stem = f"""Some overloads of method `{self.func}` are static but others are not
+        static: {", ".join(f"`{n}`" for n in self.static_overloads)}
+        non-static: {", ".join(f"`{n}`" for n in self.non_static_overloads)}"""
+        return stem
 
 
 def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
@@ -32,16 +50,12 @@ def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
         # comptime methods not yet supported
         case RawTracedFunctionDef():
             if isinstance(defn.python_func, staticmethod):
-                raise TypeError(
-                    f"Unsupported: static method `{defn.name}`"
-                    " comptime static methods not supported"
-                )
+                return True, defn.python_func.__func__
             else:
                 return False, None
         case OverloadedFunctionDef():
             # check all the methods in the overload are also static and error if not
             # returns None regardless of staticness as there is nothing to unwrap
-            num_overloads = len(defn.func_ids)
             func_defs = [DEF_STORE.raw_defs[func_id] for func_id in defn.func_ids]
             is_static = [determine_static(func_def)[0] for func_def in func_defs]
             if all(is_static):
@@ -49,15 +63,21 @@ def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
             elif not any(is_static):
                 return False, None
             else:
-                static_indices = [i for i, static in enumerate(is_static) if static]
-                non_static_indices = [
-                    i for i in range(num_overloads) if i not in static_indices
+                static_func_names = [
+                    func_defs[i].name for i, static in enumerate(is_static) if static
                 ]
-                raise TypeError(
-                    "Some implementations of overloaded method are static whereas "
-                    "others are not "
-                    f"static: {[func_defs[i].name for i in static_indices]} "
-                    f"non-static: {[func_defs[i].name for i in non_static_indices]}"
+                non_static_func_names = [
+                    func_defs[i].name
+                    for i, static in enumerate(is_static)
+                    if not static
+                ]
+                raise GuppyError(
+                    OverloadInvalidStaticError(
+                        defn.defined_at,
+                        defn.name,
+                        static_func_names,
+                        non_static_func_names,
+                    )
                 )
         case RawPytketDef() | RawLoadPytketDef():
             return False, None

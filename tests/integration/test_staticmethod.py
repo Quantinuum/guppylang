@@ -137,7 +137,6 @@ def test_staticmethod_overload(validate):
             pass
 
         @guppy.overload(func1, func2)
-        @staticmethod
         def overloaded() -> None: ...
 
     @guppy
