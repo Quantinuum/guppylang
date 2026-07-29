@@ -1,18 +1,18 @@
+import ast
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeAlias, overload
+from typing import TYPE_CHECKING, overload
 
 from hugr import val
 from hugr.ops import DataflowOp
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.core import Place
+from guppylang_internals.checker.core import ComptimeVariable, Place
 from guppylang_internals.compiler.builder import OpWithEffects
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.nodes import AbortExpr, GlobalCall, StateOutputExpr
 from guppylang_internals.tys.common import ToHugrContext
 
 if TYPE_CHECKING:
@@ -78,9 +78,6 @@ def set_tracing_state(state: TracingState) -> Iterator[None]:
         _STATE.reset(token)
 
 
-TraceableCall: TypeAlias = GlobalCall | AbortExpr | StateOutputExpr
-
-
 @dataclass(frozen=True)
 class TraceWire:
     """Reference to an output port in a comptime trace.
@@ -101,7 +98,7 @@ class TraceOperation:
     """A primitive dataflow operation emitted while tracing."""
 
     op: OpWithEffects
-    inputs: tuple[TraceWire, ...]
+    inputs: tuple[TraceWire | ComptimeVariable, ...]
     output_count: int
     node: AstNode | None
 
@@ -127,9 +124,8 @@ class TraceFunctionLoad:
 class TraceCall:
     """A resolved Guppy function call emitted while tracing."""
 
-    call_node: TraceableCall
+    call_node: ast.expr
     input_places: Sequence[tuple[Place, TraceWire]]
-    output_count: int
 
 
 TraceEntry = TraceOperation | TraceLoad | TraceFunctionLoad | TraceCall
@@ -140,7 +136,7 @@ class Trace:
     """Replayable dataflow trace of a monomorphic comptime function."""
 
     operations: tuple[TraceEntry, ...]
-    outputs: tuple[TraceWire, ...]
+    outputs: tuple[TraceWire | ComptimeVariable, ...]
 
 
 class TraceNode(Sequence[TraceWire]):
@@ -177,13 +173,13 @@ class TraceBuilder:
     def __init__(self, input_count: int) -> None:
         self._inputs = tuple(TraceWire(-1, port) for port in range(input_count))
         self._operations: list[TraceEntry] = []
-        self._outputs: tuple[TraceWire, ...] | None = None
+        self._outputs: tuple[TraceWire | ComptimeVariable, ...] | None = None
 
     def inputs(self) -> tuple[TraceWire, ...]:
         return self._inputs
 
     def add_op(
-        self, op: OpWithEffects, /, *args: TraceWire | TraceNode, **_: Any
+        self, op: OpWithEffects, /, *args: TraceWire | ComptimeVariable
     ) -> TraceNode:
         (dataflow_op, _effects) = op
         output_count = _operation_output_count(dataflow_op)
@@ -191,7 +187,7 @@ class TraceBuilder:
         return self._add(
             TraceOperation(
                 op,
-                tuple(arg.as_trace_wire() for arg in args),
+                tuple(args),
                 output_count,
                 node,
             )
@@ -207,14 +203,13 @@ class TraceBuilder:
 
     def call(
         self,
-        node: TraceableCall,
+        node: ast.expr,
         input_places: Sequence[tuple[Place, TraceWire]],
-        output_count: int,
-    ) -> TraceNode:
-        return self._add(TraceCall(node, input_places, output_count))
+    ) -> TraceWire:
+        return self._add(TraceCall(node, input_places)).as_trace_wire()
 
-    def set_outputs(self, *outputs: TraceWire | TraceNode) -> None:
-        self._outputs = tuple(output.as_trace_wire() for output in outputs)
+    def set_outputs(self, *outputs: TraceWire | ComptimeVariable) -> None:
+        self._outputs = tuple(outputs)
 
     def finish(self) -> Trace:
         assert self._outputs is not None, "Traced function did not set outputs"
@@ -223,9 +218,7 @@ class TraceBuilder:
     def _add(self, entry: TraceEntry) -> TraceNode:
         entry_index = len(self._operations)
         self._operations.append(entry)
-        output_count = (
-            entry.output_count if isinstance(entry, TraceOperation | TraceCall) else 1
-        )
+        output_count = entry.output_count if isinstance(entry, TraceOperation) else 1
         return TraceNode([TraceWire(entry_index, port) for port in range(output_count)])
 
 

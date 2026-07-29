@@ -1,6 +1,7 @@
 from typing import Any
 
 from guppylang_internals.ast_util import AstNode
+from guppylang_internals.checker.core import ComptimeVariable
 from guppylang_internals.checker.errors.comptime_errors import (
     UnsupportedPythonValueError,
 )
@@ -37,7 +38,7 @@ from guppylang_internals.tys.ty import (
 
 
 def unpack_array(
-    builder: TraceBuilder, array_ty: Type, array: TraceWire
+    builder: TraceBuilder, array_ty: Type, array: TraceWire | ComptimeVariable
 ) -> list[TraceWire]:
     """Unpacks a wire of type array into separate wires for each element."""
     assert isinstance(array_ty, OpaqueType)

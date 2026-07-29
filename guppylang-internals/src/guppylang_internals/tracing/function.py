@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
@@ -32,8 +32,8 @@ from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
 from guppylang_internals.tracing.state import (
     Trace,
-    TraceableCall,
     TraceBuilder,
+    TraceWire,
     TracingState,
     get_tracing_state,
     set_tracing_state,
@@ -220,18 +220,23 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             guppy_object_from_py(arg, state.builder, state.node, state.ctx)
             for arg in args
         ]
+        new_input_places: list[tuple[ComptimeVariable, TraceWire]] = []
 
-        # Create dummy variables and bind the objects to them
+        def assign_var(obj: GuppyObject, arg: Any) -> ComptimeVariable:
+            w = obj._use_wire(func)
+            if isinstance(w, ComptimeVariable):
+                # GuppyObject refers to an already-existing Place i.e. local variable.
+                var = replace(w, static_value=arg)
+            else:
+                var = ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
+                new_input_places.append((var, w))
+            obj._wire = var
+            return var
+
         arg_vars: list[Variable] = [
-            ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
-            for (obj, arg) in zip(args_objs, args, strict=True)
+            assign_var(obj, arg) for obj, arg in zip(args_objs, args, strict=True)
         ]
         locals = Locals({var.name: var for var in arg_vars})
-
-        input_places = [
-            (var, obj._use_wire(func))
-            for obj, var in zip(args_objs, arg_vars, strict=True)
-        ]
 
         # Check call
         arg_exprs: list[ast.expr] = [
@@ -274,25 +279,18 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             "`compute_input_flags` in the call checker."
         )
 
-    # Compile call
-    output_count = len(type_to_row(ret_ty)) + sum(
-        InputFlags.Inout in flags for flags in input_flags
-    )
-    assert isinstance(call_node, TraceableCall)
-    call = state.builder.call(call_node, input_places, output_count)
+    # Record call to compile later
+    call = state.builder.call(call_node, new_input_places)
 
-    # Update inouts (normally done by ExprCompiler, but we need to do it here
-    # so we can return meaningful GuppyObjects).
-    inout_port = len(type_to_row(ret_ty))
-    for flags, arg, var in zip(input_flags, args, arg_vars, strict=True):
+    # Since all inputs are GuppyObjects identifying ComptimeVariables (varieties
+    # of Place), ExprCompiler will update the Places to map to the output wires
+    # of the call. Here we just write the GuppyObjects with those Places back to
+    # the Python objects that were passed in as arguments.
+    for flags, arg, obj in zip(input_flags, args, args_objs, strict=True):
         if InputFlags.Inout in flags:
-            # Use `var.ty` as a concrete type when updating borrowed values.
-            ty = var.ty
-            inout_wire = call[inout_port]
-            inout_port += 1
-            success = update_packed_value(
-                arg, GuppyObject(ty, inout_wire), state.builder
-            )
+            ty = obj._ty
+            success = update_packed_value(arg, obj, state.builder)
+
             if not success:
                 # This means the user has passed an object that we cannot update,
                 # e.g. calling `mem_swap(x, y)` where the inputs are plain Python
@@ -301,17 +299,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                     f"Cannot borrow Python object of type `{ty}` at comptime"
                 )
 
-    # Packing/unpacking, again paralleling ExprCompiler.
-    regular_returns = list(call[: len(type_to_row(ret_ty))])
-    if len(regular_returns) == 0:
-        return None
-    if len(regular_returns) == 1:
-        r = GuppyObject(ret_ty, regular_returns[0])
-        return unpack_guppy_object(r, state.builder)
-    return tuple(
-        unpack_guppy_object(GuppyObject(ty, ret), state.builder)
-        for ret, ty in zip(regular_returns, type_to_row(ret_ty), strict=True)
-    )
+    return unpack_guppy_object(GuppyObject(ret_ty, call), state.builder)
 
 
 @contextmanager

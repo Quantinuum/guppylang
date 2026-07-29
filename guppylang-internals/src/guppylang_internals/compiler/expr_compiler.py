@@ -451,7 +451,19 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Tensor element wasn't function or tuple")
 
     def visit_GlobalCall(self, node: GlobalCall) -> Wire:
-        func_ty, rets = self.compile_global_call(node)
+        func = self.ctx.build_compiled_def(node.def_id, node.type_args)
+        assert isinstance(func, CompiledCallableDef)
+
+        if isinstance(func, CustomFunctionDef) and not func.has_signature:
+            func_ty = FunctionType(
+                [FuncInput(get_type(arg), InputFlags.NoFlags) for arg in node.args],
+                get_type(node),
+            )
+        else:
+            func_ty = func.ty
+
+        args = self._compile_call_args(node.args, func_ty)
+        rets = func.compile_call(args, self.dfg, self.ctx, node)
         self._update_inout_ports(node.args, iter(rets.inout_returns), func_ty)
         return self._pack_returns(rets.regular_returns, func_ty.output)
 
@@ -548,10 +560,6 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return tag_value
 
     def visit_AbortExpr(self, node: AbortExpr) -> Wire:
-        returns = self.compile_abort(node)
-        return self._pack_returns(returns, get_type(node))
-
-    def compile_abort(self, node: AbortExpr) -> list[Wire]:
         signal = self.visit(node.signal)
         signal_usize = self.builder.add_op(convert_itousize(), signal)
         msg = self.visit(node.msg)
@@ -565,7 +573,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             case AbortKind.ExitShot:
                 op = panic(in_tys, out_tys, AbortKind.ExitShot)
                 h_node = self.builder.add_op(op, err, *args)
-        return list(h_node.outputs())
+        return self._pack_returns(list(h_node.outputs()), get_type(node))
 
     def visit_BarrierExpr(self, node: BarrierExpr) -> Wire:
         hugr_tys = [get_type(e).to_hugr(self.ctx) for e in node.args]
@@ -578,11 +586,6 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         return self._pack_returns([], NoneType())
 
     def visit_StateOutputExpr(self, node: StateOutputExpr) -> Wire:
-        qubits_out = self.compile_state_output(node)
-        self._update_inout_ports(node.args, iter(qubits_out), node.func_ty)
-        return self._pack_returns([], NoneType())
-
-    def compile_state_output(self, node: StateOutputExpr) -> Node | list[Wire]:
         tag_value = self._visit_output_tag(node.tag_value, node.tag_expr)
         num_qubits_arg = (
             node.array_len.to_arg().to_hugr(self.ctx)
@@ -629,7 +632,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         else:
             qubits_out = qubit_arr_out
 
-        return qubits_out
+        self._update_inout_ports(node.args, iter(qubits_out), node.func_ty)
+        return self._pack_returns([], NoneType())
 
     def visit_DesugaredListComp(self, node: DesugaredListComp) -> Wire:
         # Make up a name for the list under construction and bind it to an empty list
@@ -746,24 +750,6 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_Compare(self, node: ast.Compare) -> Wire:
         raise InternalGuppyError("Node should have been removed during type checking.")
-
-    def compile_global_call(
-        self, node: GlobalCall
-    ) -> tuple[FunctionType, CallReturnWires]:
-        func = self.ctx.build_compiled_def(node.def_id, node.type_args)
-        assert isinstance(func, CompiledCallableDef)
-
-        if isinstance(func, CustomFunctionDef) and not func.has_signature:
-            func_ty = FunctionType(
-                [FuncInput(get_type(arg), InputFlags.NoFlags) for arg in node.args],
-                get_type(node),
-            )
-        else:
-            func_ty = func.ty
-
-        args = self._compile_call_args(node.args, func_ty)
-        rets = func.compile_call(args, self.dfg, self.ctx, node)
-        return (func_ty, rets)
 
 
 def expr_to_row(expr: ast.expr) -> list[ast.expr]:

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, ClassVar, NamedTuple, TypeAlias
 
 import guppylang_internals.checker.expr_checker as expr_checker
+from guppylang_internals.checker.core import ComptimeVariable
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.errors.type_errors import (
     BinaryOperatorNotDefinedError,
@@ -326,7 +327,7 @@ class GuppyObject(DunderMixin):
     _ty: Type
 
     #: The Hugr wire holding this object
-    _wire: TraceWire
+    _wire: TraceWire | ComptimeVariable
 
     #: Whether this object has been used
     _used: ObjectUse | None
@@ -335,7 +336,10 @@ class GuppyObject(DunderMixin):
     _id: GuppyObjectId
 
     def __init__(
-        self, ty: Type, wire: TraceWire, used: ObjectUse | None = None
+        self,
+        ty: Type,
+        wire: TraceWire | ComptimeVariable,
+        used: ObjectUse | None = None,
     ) -> None:
         self._ty = ty
         self._wire = wire
@@ -390,7 +394,9 @@ class GuppyObject(DunderMixin):
             f"Expression of type `{self._ty}` is not iterable at comptime"
         )
 
-    def _use_wire(self, called_func: CallableDef | None) -> TraceWire:
+    def _use_wire(
+        self, called_func: CallableDef | None
+    ) -> TraceWire | ComptimeVariable:
         # Panic if the value has already been used
         if self._used and not self._ty.copyable:
             use = self._used
@@ -503,9 +509,9 @@ class GuppyEnumObject(DunderMixin):
     #: The enum type
     _ty: EnumType
     #: The wire holding this enum object
-    _wire: TraceWire
+    _wire: TraceWire | ComptimeVariable
 
-    def __init__(self, ty: EnumType, wire: TraceWire) -> None:
+    def __init__(self, ty: EnumType, wire: TraceWire | ComptimeVariable) -> None:
         # Can't use regular assignment for class attributes since we override
         # `__setattr__` below
         object.__setattr__(self, "_ty", ty)

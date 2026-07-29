@@ -12,7 +12,7 @@ from hugr.val import Value
 from typing_extensions import assert_never, override
 
 from guppylang_internals.ast_util import AstNode, with_loc
-from guppylang_internals.checker.core import Context, Globals
+from guppylang_internals.checker.core import ComptimeVariable, Context, Globals
 from guppylang_internals.checker.expr_checker import (
     check_call,
     synthesize_call,
@@ -41,7 +41,7 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.error import GuppyComptimeError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
-from guppylang_internals.nodes import AbortExpr, GlobalCall, StateOutputExpr
+from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tracing.state import (
     TraceCall,
@@ -239,13 +239,22 @@ class CompiledTracedFunctionDef(
     @override
     def compile_inner(self, ctx: CompilerContext) -> None:
         """Replays the trace recorded while the function was checked."""
+        from guppylang_internals.compiler.expr_compiler import ExprCompiler
+
         builder = FunctionBuilder(self.func_def)
+        dfg = DFContainer(builder, ctx)
+        comp = ExprCompiler(ctx)
+
         wires: dict[tuple[int, int], Wire] = {
             (-1, port): wire for port, wire in enumerate(builder.inputs())
         }
 
-        def get_wire(ref: TraceWire) -> Wire:
-            return wires[ref.entry, ref.port]
+        def get_wire(ref: TraceWire | ComptimeVariable) -> Wire:
+            return (
+                dfg[ref]
+                if isinstance(ref, ComptimeVariable)
+                else wires[ref.entry, ref.port]
+            )
 
         for entry_index, entry in enumerate(self.trace.operations):
             outputs: Sequence[Wire]
@@ -272,30 +281,12 @@ class CompiledTracedFunctionDef(
                     assert isinstance(defn, CompiledValueDef)
                     outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
                     output_count = 1
-                case TraceCall(call_node, input_places, output_count):
-                    from guppylang_internals.compiler.expr_compiler import ExprCompiler
-
-                    dfg = DFContainer(builder, ctx)
+                case TraceCall(call_node, input_places):
+                    # but keep this:
                     for arg, val in input_places:
                         dfg[arg] = get_wire(val)
-                    # Unpacking and handling inouts was done at tracing time,
-                    # so just make all the outputs ready for that here.
-                    comp = ExprCompiler(ctx)
-                    comp.dfg = dfg
-                    match call_node:
-                        case GlobalCall():
-                            _, rets = comp.compile_global_call(call_node)
-                            outputs = rets.regular_returns + rets.inout_returns
-                        case AbortExpr():
-                            outputs = comp.compile_abort(call_node)
-                        case StateOutputExpr():
-                            match comp.compile_state_output(call_node):
-                                case list() as qubits_out:
-                                    outputs = qubits_out
-                                case Node() as node:
-                                    outputs = list(node[:])
-                        case _:
-                            assert_never(call_node)
+                    outputs = [comp.compile(call_node, dfg)]
+                    output_count = 1
                 case _:
                     assert_never(entry)
 
