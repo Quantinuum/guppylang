@@ -1,7 +1,7 @@
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -216,25 +216,30 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
     with capture_guppy_errors():
         # Try to turn args into `GuppyObjects`
-        args_objs = [
-            guppy_object_from_py(arg, state.builder, state.node, state.ctx)
-            for arg in args
-        ]
-        new_input_places: list[tuple[ComptimeVariable, TraceWire]] = []
+        new_vars: list[tuple[ComptimeVariable, TraceWire]] = []
 
-        def assign_var(obj: GuppyObject, arg: Any) -> ComptimeVariable:
+        def assign_var(obj: GuppyObject, arg: Any) -> GuppyObject:
+            # We can get into trace_call more than once for e.g. __radd__.
+            # If the first call fails, we still mark GuppyObjects as used,
+            # but thankfully such methods only happen for Copyable types (ATM).
             w = obj._use_wire(func)
             if isinstance(w, ComptimeVariable):
                 # GuppyObject refers to an already-existing Place i.e. local variable.
                 var = replace(w, static_value=arg)
             else:
                 var = ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
-                new_input_places.append((var, w))
-            obj._wire = var
-            return var
+                new_vars.append((var, w))
+            return GuppyObject(obj._ty, var, obj._used)
+
+        args_objs = [
+            assign_var(
+                guppy_object_from_py(arg, state.builder, state.node, state.ctx), arg
+            )
+            for arg in args
+        ]
 
         arg_vars: list[Variable] = [
-            assign_var(obj, arg) for obj, arg in zip(args_objs, args, strict=True)
+            cast("ComptimeVariable", obj._wire) for obj in args_objs
         ]
         locals = Locals({var.name: var for var in arg_vars})
 
@@ -280,7 +285,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         )
 
     # Record call to compile later
-    call = state.builder.call(call_node, new_input_places)
+    call = state.builder.call(call_node, new_vars)
 
     # Since all inputs are GuppyObjects identifying ComptimeVariables (varieties
     # of Place), ExprCompiler will update the Places to map to the output wires
