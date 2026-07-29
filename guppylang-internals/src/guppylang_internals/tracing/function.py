@@ -14,7 +14,7 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
-from guppylang_internals.compiler.builder.ops import make_tuple, unpack_tuple
+from guppylang_internals.compiler.builder.ops import unpack_tuple
 from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
@@ -51,8 +51,6 @@ from guppylang_internals.tys.ty import (
     ExistentialTypeVar,
     FunctionType,
     InputFlags,
-    NoneType,
-    TupleType,
     UnitaryFlags,
     type_to_row,
     unify,
@@ -305,13 +303,15 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
     # Packing/unpacking, again paralleling ExprCompiler.
     regular_returns = list(call[: len(type_to_row(ret_ty))])
-    if isinstance(ret_ty, TupleType | NoneType):
-        ret_wire = state.builder.add_op(make_tuple(), *regular_returns)
-    else:
-        assert len(regular_returns) == 1
-        ret_wire = regular_returns[0]
-    ret_obj = GuppyObject(ret_ty, ret_wire.as_trace_wire())
-    return unpack_guppy_object(ret_obj, state.builder)
+    if len(regular_returns) == 0:
+        return None
+    if len(regular_returns) == 1:
+        r = GuppyObject(ret_ty, regular_returns[0])
+        return unpack_guppy_object(r, state.builder)
+    return tuple(
+        unpack_guppy_object(GuppyObject(ty, ret), state.builder)
+        for ret, ty in zip(regular_returns, type_to_row(ret_ty), strict=True)
+    )
 
 
 @contextmanager
