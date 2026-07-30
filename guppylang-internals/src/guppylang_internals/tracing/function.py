@@ -215,7 +215,10 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     state = get_tracing_state()
 
     with capture_guppy_errors():
-        # Try to turn args into `GuppyObjects`
+        # Try to turn args into `GuppyObjects`, each containing a `ComptimeVariable`.
+        # (We only really need the variables for arguments that turn out to be inout,
+        # so that we can update the variable with the new port after the call,
+        # but we do it for all arguments for simplicity.)
         new_vars: list[tuple[ComptimeVariable, TraceWire]] = []
 
         def assign_var(obj: GuppyObject, arg: Any) -> GuppyObject:
@@ -229,7 +232,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             else:
                 var = ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
                 new_vars.append((var, w))
-            return GuppyObject(obj._ty, var, obj._used)
+            return GuppyObject(obj._ty, var)  # Will mark used after call
 
         args_objs = [
             assign_var(
@@ -291,10 +294,11 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     # of Place), ExprCompiler will update the Places to map to the output wires
     # of the call. Here we just write the GuppyObjects with those Places back to
     # the Python objects that were passed in as arguments.
-    for flags, arg, obj in zip(input_flags, args, args_objs, strict=True):
+    for flags, val, arg_obj in zip(input_flags, args, args_objs, strict=True):
         if InputFlags.Inout in flags:
-            ty = obj._ty
-            success = update_packed_value(arg, obj, state.builder)
+            ty = arg_obj._ty
+            # This marks `arg_obj` as used, but clears usedness of `val`, as desired:
+            success = update_packed_value(val, arg_obj, state.builder)
 
             if not success:
                 # This means the user has passed an object that we cannot update,
@@ -303,6 +307,9 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
                 raise GuppyComptimeError(
                     f"Cannot borrow Python object of type `{ty}` at comptime"
                 )
+        else:
+            # Mark the arg as used, since it is consumed by the call
+            arg_obj._use_wire(func)
 
     return unpack_guppy_object(GuppyObject(ret_ty, call), state.builder)
 
