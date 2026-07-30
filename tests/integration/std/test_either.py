@@ -22,8 +22,7 @@ def test_left(run_int_fn):
 def test_right(run_int_fn):
     @guppy
     def main() -> int:
-        # Note the type args to `right` are reversed relative to `left`
-        x: Either[qubit, int] = right[int, qubit](100)
+        x: Either[qubit, int] = right[qubit, int](100)
         is_left = 1 if x.is_left() else 0
         is_right = 10 if x.is_right() else 0
         return is_left + is_right + x.unwrap_right()
@@ -92,8 +91,7 @@ def test_either_comprehension(validate):
 def test_comptime_unwrap_left(run_int_fn):
     @guppy
     def max(i: int, f: float) -> Either[int, float]:
-        # Note the type args to `right` are reversed relative to `left`
-        return left[int, float](i) if float(i) > f else right[float, int](f)
+        return left[int, float](i) if float(i) > f else right[int, float](f)
 
     @guppy.comptime
     def main(i: int) -> int:
@@ -111,7 +109,7 @@ def test_comptime_into_right(run_int_fn):
 
     @guppy
     def main(i: int) -> int:
-        r: Either[float, int] = right[int, float](i)  # type args reversed
+        r: Either[float, int] = right[float, int](i)
         e = left[float, int](3.14) if i < 0 else r
         return foo(e)
 
