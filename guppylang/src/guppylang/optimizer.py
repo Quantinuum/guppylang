@@ -18,11 +18,20 @@ Pass a member of :py:class:`OptimizationLevel` to ``with_opt_level()``:
 .. code-block:: python
 
     from guppylang import OptimizationLevel, guppy
+    from guppylang.std.builtins import output
+    from guppylang.std.quantum import h, measure, qubit
 
     @guppy
     def main() -> None:
-        _x = 2 + 2
+        q = qubit()
+        h(q)
+        h(q)
+        if measure(q):
+            output("result", 2 + 2)
+        else:
+            output("result", 3 + 3)
 
+    # Classical optimization will keep the self-inverse Hadamard gates.
     package = main.with_opt_level(OptimizationLevel.Classical).compile()
 
 The available levels are:
@@ -47,7 +56,7 @@ It disables optional optimizations on the program.
 
 .. code-block:: python
 
-    emulator = main.with_minimal_opt().emulator(n_qubits=0)
+    emulator = main.with_minimal_opt().emulator(n_qubits=1)
 
 
 Running custom passes
