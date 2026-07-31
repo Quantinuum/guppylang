@@ -139,7 +139,7 @@ class OptimizationLevel(Enum):
     """
 
     def passes(self) -> list[ComposablePass]:
-        """Return the HUGR passes that implement this optimization level."""
+        """Return the list of HUGR passes ran by this optimization level."""
         match self:
             case OptimizationLevel.Default | OptimizationLevel.Classical:
                 from tket import passes
