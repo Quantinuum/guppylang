@@ -60,13 +60,7 @@ class EitherConstructor(EitherCompiler, CustomCallCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         ty = self.either_ty
-        if self.tag == 1:
-            # In the `right` case, the type args are swapped around since `R` occurs
-            # first in the signature :(
-            ty.variant_rows = [ty.variant_rows[1], ty.variant_rows[0]]
-        # For the same reason, the type of the input corresponds to the first type
-        # variable
-        inp_arg = self.type_args[0]
+        inp_arg = self.type_args[self.tag]
         assert isinstance(inp_arg, TypeArg)
         [inp] = args
         # Unpack the single input into a row
