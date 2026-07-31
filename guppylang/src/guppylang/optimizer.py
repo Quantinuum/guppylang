@@ -1,6 +1,8 @@
 """Optimization configuration for Guppy compilation.
 
-Guppy applies a predefined set of optimization passes when compiling a program.
+Guppy applies a predefined set of optimization passes when compiling a program
+using the TKET compiler.
+
 These passes clean up artifacts introduced by the compiler and may simplify both
 classical and quantum operations when calling ``compile()``,
 ``compile_function()``, or ``emulator()``.
