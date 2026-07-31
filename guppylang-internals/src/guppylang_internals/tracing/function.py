@@ -30,10 +30,12 @@ from guppylang_internals.error import (
 from guppylang_internals.nodes import PlaceNode
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
-from guppylang_internals.tracing.state import (
+from guppylang_internals.tracing.recorder import (
     Trace,
     TraceRecorder,
     TraceWire,
+)
+from guppylang_internals.tracing.state import (
     TracingState,
     get_tracing_state,
     set_tracing_state,

@@ -17,11 +17,8 @@ from guppylang_internals.tracing.object import (
     GuppyStructObject,
     TracingDefMixin,
 )
-from guppylang_internals.tracing.state import (
-    TraceRecorder,
-    TraceWire,
-    get_tracing_state,
-)
+from guppylang_internals.tracing.recorder import TraceRecorder, TraceWire
+from guppylang_internals.tracing.state import get_tracing_state
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type,
