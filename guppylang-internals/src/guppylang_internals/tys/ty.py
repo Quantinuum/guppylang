@@ -729,8 +729,10 @@ class FunctionDefType(TypeBase):
 class NestedFunctionDefType(FunctionDefType):
     """Definition-specific type of a nested function materialised at runtime.
 
-    Unlike global function items, nested functions need a runtime function value so
-    they can carry a captured closure.
+    Unlike global function items, we cannot compile nested function items into
+    trivial Hugr types, thus we need a specific `to_hugr` implementation.
+
+
     """
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
