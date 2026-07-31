@@ -17,7 +17,11 @@ from guppylang_internals.tracing.object import (
     GuppyStructObject,
     TracingDefMixin,
 )
-from guppylang_internals.tracing.state import TraceBuilder, TraceWire, get_tracing_state
+from guppylang_internals.tracing.state import (
+    TraceRecorder,
+    TraceWire,
+    get_tracing_state,
+)
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type,
@@ -38,7 +42,7 @@ from guppylang_internals.tys.ty import (
 
 
 def unpack_array(
-    builder: TraceBuilder, array_ty: Type, array: TraceWire | ComptimeVariable
+    builder: TraceRecorder, array_ty: Type, array: TraceWire | ComptimeVariable
 ) -> list[TraceWire]:
     """Unpacks a wire of type array into separate wires for each element."""
     assert isinstance(array_ty, OpaqueType)
@@ -52,7 +56,7 @@ def unpack_array(
 
 
 def unpack_guppy_object(
-    obj: GuppyObject, builder: TraceBuilder, frozen: bool = False
+    obj: GuppyObject, builder: TraceRecorder, frozen: bool = False
 ) -> Any:
     """Tries to turn as much of the structure of a GuppyObject into Python objects.
 
@@ -111,7 +115,7 @@ def unpack_guppy_object(
 
 
 def guppy_object_from_py(
-    v: Any, builder: TraceBuilder, node: AstNode, ctx: ToHugrContext
+    v: Any, builder: TraceRecorder, node: AstNode, ctx: ToHugrContext
 ) -> GuppyObject:
     """Constructs a Guppy object from a Python value.
 
@@ -181,7 +185,7 @@ def guppy_object_from_py(
             return GuppyObject(ty, builder.load(hugr_val))
 
 
-def update_packed_value(v: Any, obj: "GuppyObject", builder: TraceBuilder) -> bool:
+def update_packed_value(v: Any, obj: "GuppyObject", builder: TraceRecorder) -> bool:
     """Given a Python value `v` and a `GuppyObject` `obj` that was constructed from `v`
     using `guppy_object_from_py`, tries to update the wires of any `GuppyObjects`
     contained in `v` to the new wires specified by `obj`.

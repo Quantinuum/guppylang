@@ -32,7 +32,7 @@ from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
 from guppylang_internals.tracing.state import (
     Trace,
-    TraceBuilder,
+    TraceRecorder,
     TraceWire,
     TracingState,
     get_tracing_state,
@@ -106,7 +106,7 @@ def trace_function(
                 #  future, drop this restriction and support all kinds of arguments.
                 return None
 
-    builder = TraceBuilder(input_count)
+    builder = TraceRecorder(input_count)
     ctx: ToHugrContext = None
     state = TracingState(ctx, builder, node, func_def)
     with set_tracing_state(state):

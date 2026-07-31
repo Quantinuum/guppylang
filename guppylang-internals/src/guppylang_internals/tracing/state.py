@@ -29,7 +29,7 @@ class TracingState:
     ctx: ToHugrContext
 
     #: The trace of operations performed during the comptime execution of a function.
-    builder: "TraceBuilder"
+    builder: "TraceRecorder"
 
     #: An AST node capturing the code block that is currently being traced
     node: AstNode
@@ -140,7 +140,7 @@ class Trace:
 
 
 class TraceNode(Sequence[TraceWire]):
-    """Virtual node returned by :class:`TraceBuilder`."""
+    """Virtual node returned by :class:`TraceRecorder`."""
 
     def __init__(self, wires: Sequence[TraceWire]) -> None:
         self._wires = tuple(wires)
@@ -167,7 +167,7 @@ class TraceNode(Sequence[TraceWire]):
         return self._wires[0]
 
 
-class TraceBuilder:
+class TraceRecorder:
     """Records the builder actions performed by a comptime function."""
 
     def __init__(self, input_count: int) -> None:
