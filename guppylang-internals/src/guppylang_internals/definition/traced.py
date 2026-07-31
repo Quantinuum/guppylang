@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -51,7 +51,6 @@ from guppylang_internals.tracing.recorder import (
     TraceOutput,
 )
 from guppylang_internals.tys import Effect
-from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import InputFlags, Type, UnitaryFlags, type_to_row
@@ -124,7 +123,6 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             self.defined_at,
             mono_ty,
             self.python_func,
-            generic_args,
             trace,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
@@ -153,7 +151,6 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
 
 @dataclass(frozen=True)
 class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
-    generic_args: Mapping[str, Argument]
     trace: "Trace"
 
     @override
@@ -184,7 +181,6 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.python_func,
-            self.generic_args,
             self.trace,
             func_def,
             unitary_flags=self.unitary_flags,
