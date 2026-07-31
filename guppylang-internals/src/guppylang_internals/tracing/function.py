@@ -158,7 +158,7 @@ def trace_function(
         out_tys = type_to_row(out_obj._ty)
         if len(out_tys) > 1:
             regular_returns = list(
-                builder.add_op(
+                builder.record_op(
                     unpack_tuple([out_ty.to_hugr(None) for out_ty in out_tys]),
                     out_obj._use_wire(None),
                 ).outputs()
@@ -288,7 +288,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         )
 
     # Record call to compile later
-    call = state.builder.call(call_node, new_vars)
+    call = state.builder.record_call(call_node, new_vars)
 
     # Since all inputs are GuppyObjects identifying ComptimeVariables (varieties
     # of Place), ExprCompiler will update the Places to map to the output wires

@@ -625,10 +625,10 @@ class TracingDefMixin(DunderMixin):
                 raise GuppyComptimeError(
                     f"Cannot infer type parameters of generic function `{defn.name}`"
                 )
-            wire = state.builder.load_function(defn.id, ())
+            wire = state.builder.record_load_func(defn.id, ())
             return GuppyObject(defn.ty, wire, None)
         if isinstance(defn, ValueDef):
-            return GuppyObject(defn.ty, state.builder.load(self.id))
+            return GuppyObject(defn.ty, state.builder.record_load(self.id))
         raise GuppyComptimeError(
             f"Cannot convert {defn.description} `{defn.name}` to a Guppy object"
         )

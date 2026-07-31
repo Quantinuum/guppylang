@@ -178,9 +178,10 @@ class TraceRecorder:
     def inputs(self) -> tuple[TraceWire, ...]:
         return self._inputs
 
-    def add_op(
+    def record_op(
         self, op: OpWithEffects, /, *args: TraceWire | ComptimeVariable
     ) -> TraceNode:
+        """Records a dataflow operation to replay into the Hugr during compilation"""
         (dataflow_op, _effects) = op
         output_count = _operation_output_count(dataflow_op)
         node = get_tracing_state().node
@@ -193,19 +194,22 @@ class TraceRecorder:
             )
         )
 
-    def load(self, value: val.Value | DefId) -> TraceWire:
+    def record_load(self, value: val.Value | DefId) -> TraceWire:
+        """Records a load to replay into the Hugr during compilation"""
         node = get_tracing_state().node
         return self._add(TraceLoad(value, node)).as_trace_wire()
 
-    def load_function(self, def_id: "DefId", type_args: "Inst") -> TraceWire:
+    def record_load_func(self, def_id: "DefId", type_args: "Inst") -> TraceWire:
+        """Records a load_function to replay into the Hugr during compilation"""
         node = get_tracing_state().node
         return self._add(TraceFunctionLoad(def_id, type_args, node)).as_trace_wire()
 
-    def call(
+    def record_call(
         self,
         node: ast.expr,
         input_places: Sequence[tuple[Place, TraceWire]],
     ) -> TraceWire:
+        """Records a function call to be compiled into the Hugr during replay"""
         return self._add(TraceCall(node, input_places)).as_trace_wire()
 
     def set_outputs(self, *outputs: TraceWire | ComptimeVariable) -> None:
