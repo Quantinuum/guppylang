@@ -59,7 +59,10 @@ starts with minimal optimization and then runs tket's function-inlining pass:
 
 .. code-block:: python
 
-    from tket import passes
+    from tket.passes import InlineFunctions
+
+    # Apply a tket pass to inline Guppy functions
+    package = main.with_minimal_opt().with_optimization(InlineFunctions()).compile()    
 
     package = (
         main.with_minimal_opt().with_optimization(passes.InlineFunctions())
