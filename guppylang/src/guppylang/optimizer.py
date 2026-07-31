@@ -1,4 +1,84 @@
-"""Optimization configuration for Guppy compilation."""
+"""Optimization configuration for Guppy compilation.
+
+Guppy applies a predefined set of optimization passes when compiling a program.
+These passes clean up artifacts introduced by the compiler and may simplify both
+classical and quantum operations when calling ``compile()``,
+``compile_function()``, or ``emulator()``.
+
+Use ``with_opt_level()`` before compiling or creating an emulator to select a
+different :py:class:`OptimizationLevel`. The method can be chained before
+compiling or creating an emulator.
+
+
+Choosing an optimization level
+------------------------------
+
+Pass a member of :py:class:`OptimizationLevel` to ``with_opt_level()``:
+
+.. code-block:: python
+
+    from guppylang import OptimizationLevel, guppy
+
+    @guppy
+    def main() -> None:
+        _x = 2 + 2
+
+    package = main.with_opt_level(OptimizationLevel.Classical).compile()
+
+The available levels are:
+
+* :py:attr:`OptimizationLevel.Default` applies Guppy's standard optimization
+  level. This may include both classical and quantum optimizations that do
+  not alter the program's gateset. Calling ``main.compile()`` or
+  ``main.emulator(...)`` directly uses this level.
+* :py:attr:`OptimizationLevel.Classical` restricts optimization to classical
+  operations. The program will execute the same quantum operations as the original
+  source, but may have a simplified control flow structure.
+* :py:attr:`OptimizationLevel.Minimal` applies only structural rewrites needed
+  to produce executable output. This is useful for low-level program analysis or
+  when more control over the optimization passes is desired.
+
+Note that gate rebasing or other program transformations may still be performed
+further down the compilation pipeline where required. For example, emulators may
+require a specific gateset when targeting a particular architecture.
+
+``with_minimal_opt()`` is shorthand for selecting :py:attr:`OptimizationLevel.Minimal`.
+It disables optional optimizations on the program.
+
+.. code-block:: python
+
+    emulator = main.with_minimal_opt().emulator(n_qubits=0)
+
+
+Running custom passes
+---------------------
+
+Use :py:meth:`OptimizerInstance.with_optimization` to append any HUGR
+``ComposablePass`` to an optimization pipeline. For example, the following
+starts with minimal optimization and then runs tket's function-inlining pass:
+
+.. code-block:: python
+
+    from tket import passes
+
+    package = (
+        main.with_minimal_opt().with_optimization(passes.InlineFunctions())
+        .compile()
+    )
+
+Multiple custom passes can be added by chaining ``with_optimization()`` calls.
+They run in the order they are added, after the passes supplied by the selected
+optimization level:
+
+.. code-block:: python
+
+    package = (
+        main.with_opt_level(OptimizationLevel.Classical)
+        .with_optimization(first_pass)
+        .with_optimization(second_pass)
+        .compile()
+    )
+"""
 
 from __future__ import annotations
 
@@ -35,19 +115,27 @@ class OptimizationLevel(Enum):
 
     Default = "default"
     """
-    Optimization set used by default for all Guppy program compilations.
+    Guppy's standard optimization level.
+
+    This may include both classical and quantum optimizations that do not alter
+    the program's gateset. Calling ``main.compile()`` or ``main.emulator(...)``
+    directly uses this level.
     """
 
     Classical = "classical"
     """
-    Only apply classical optimizations.
+    Restricts optimization to classical operations.
 
-    Some gate rebasing/dead quantum code elimination may be applied as needed.
+    The program will execute the same quantum operations as the original source,
+    but may have a simplified control flow structure.
     """
 
     Minimal = "minimal"
     """
-    Only apply structural rewrites required for execution.
+    Applies only structural rewrites needed to produce executable output.
+
+    This is useful for low-level program analysis or when more control over
+    the optimization passes is desired.
     """
 
     def passes(self) -> list[ComposablePass]:
