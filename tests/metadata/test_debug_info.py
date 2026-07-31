@@ -77,6 +77,9 @@ def test_subprogram():
         pytket_bar_stub(q)
         discard(q)
 
+        def nested_func() -> None:  # MARKER:def_nested_subprogram
+            nested_func()  # MARKER:scope_nested_subprogram
+
     # Avoid inlining the called functions so we can check their debug info.
     hugr = foo.with_minimal_opt().compile().modules[0]
     meta = hugr[hugr.module_root].metadata
@@ -151,6 +154,17 @@ def test_subprogram():
     inner_func = func_map.pop("")
     # No metadata on the inner circuit function.
     assert HugrDebugInfo not in hugr[inner_func].metadata
+
+    nested_func = func_map.pop("nested_func")
+    nested_func_metadata = hugr[nested_func].metadata
+    assert HugrDebugInfo in nested_func_metadata
+    debug_info = DISubprogram.from_json(nested_func_metadata[HugrDebugInfo.KEY])
+    assert debug_info.file == 0
+    assert debug_info.line_no == _marker_loc(Path(__file__), "def_nested_subprogram")[0]
+    assert (
+        debug_info.scope_line
+        == _marker_loc(Path(__file__), "scope_nested_subprogram")[0]
+    )
 
     assert len(func_map) == 0
 
