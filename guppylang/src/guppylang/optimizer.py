@@ -164,7 +164,13 @@ def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package
 
 @dataclass(frozen=True)
 class OptimizerInstance(Generic[P, Out]):
-    """Builder used to configure optimizations for compiling a Guppy program."""
+    """Builder used to configure optimizations for compiling a Guppy program.
+
+    Obtained by calling :py:meth:`GuppyFunctionDefinition.with_opt_level` or
+    :py:meth:`GuppyFunctionDefinition.with_minimal_opt`.
+
+    See :py:mod:`guppylang.optimizer` for usage examples.
+    """
 
     definition: GuppyFunctionDefinition[P, Out]
     passes: list[ComposablePass] = field(default_factory=list)
