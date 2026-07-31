@@ -47,6 +47,8 @@ The available levels are:
   to produce executable output. This is useful for low-level program analysis or
   when more control over the optimization passes is desired.
 
+See :py:class:`OptimizationLevel` for more details.
+
 Note that gate rebasing or other program transformations may still be performed
 further down the compilation pipeline where required. For example, emulators may
 require a specific gateset when targeting a particular architecture.
@@ -71,7 +73,7 @@ starts with minimal optimization and then runs tket's function-inlining pass:
     from tket.passes import InlineFunctions
 
     # Apply a tket pass to inline Guppy functions
-    package = main.with_minimal_opt().with_optimization(InlineFunctions()).compile()    
+    package = main.with_minimal_opt().with_optimization(InlineFunctions()).compile()
 
     package = (
         main.with_minimal_opt().with_optimization(passes.InlineFunctions())
@@ -132,6 +134,9 @@ class OptimizationLevel(Enum):
     This may include both classical and quantum optimizations that do not alter
     the program's gateset. Calling ``main.compile()`` or ``main.emulator(...)``
     directly uses this level.
+
+    Currently, this is equivalent to :py:attr:`OptimizationLevel.Classical`, but
+    may be modified in future versions.
     """
 
     Classical = "classical"
@@ -140,6 +145,11 @@ class OptimizationLevel(Enum):
 
     The program will execute the same quantum operations as the original source,
     but may have a simplified control flow structure.
+
+    Currently, this runs tket's `Normalize
+    <https://quantinuum.github.io/tket2/generated/tket.passes.Normalize.html#tket.passes.Normalize>`_
+    pass to simplify classical control flow and remove redundant classical
+    operations. This set may be modified in future versions.
     """
 
     Minimal = "minimal"
