@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, TypeAlias, overload
 
 from hugr import val
 from hugr.ops import DataflowOp
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class TraceWire:
-    """Reference to an output port in a comptime trace.
+    """Reference to an output port of an op explicitly recorded in a comptime trace.
 
     Entry ``-1`` denotes an input of the traced function;
      all other entries index `TraceEntry`s.
@@ -31,12 +31,18 @@ class TraceWire:
         return self
 
 
+#: A value usable as an input to an op/call in a trace, i.e. that will be resolved
+#: to a Hugr `Wire` during compilation. (`ComptimeVariable`s are resolved via the
+#: state held in the DFContainer.)
+TraceOutput: TypeAlias = TraceWire | ComptimeVariable
+
+
 @dataclass(frozen=True)
 class TraceOperation:
     """A primitive dataflow operation emitted while tracing."""
 
     op: OpWithEffects
-    inputs: tuple[TraceWire | ComptimeVariable, ...]
+    inputs: tuple[TraceOutput, ...]
     output_count: int
     node: AstNode | None
 
@@ -74,7 +80,7 @@ class Trace:
     """Replayable dataflow trace of a monomorphic comptime function."""
 
     operations: tuple[TraceEntry, ...]
-    outputs: tuple[TraceWire | ComptimeVariable, ...]
+    outputs: tuple[TraceOutput, ...]
 
 
 class TraceNode(Sequence[TraceWire]):
@@ -111,14 +117,12 @@ class TraceRecorder:
     def __init__(self, input_count: int) -> None:
         self._inputs = tuple(TraceWire(-1, port) for port in range(input_count))
         self._operations: list[TraceEntry] = []
-        self._outputs: tuple[TraceWire | ComptimeVariable, ...] | None = None
+        self._outputs: tuple[TraceOutput, ...] | None = None
 
     def inputs(self) -> tuple[TraceWire, ...]:
         return self._inputs
 
-    def record_op(
-        self, op: OpWithEffects, /, *args: TraceWire | ComptimeVariable
-    ) -> TraceNode:
+    def record_op(self, op: OpWithEffects, /, *args: TraceOutput) -> TraceNode:
         """Records a dataflow operation to replay into the Hugr during compilation"""
         from guppylang_internals.tracing.state import get_tracing_state
 
@@ -156,7 +160,7 @@ class TraceRecorder:
         """Records a function call to be compiled into the Hugr during replay"""
         return self._add(TraceCall(node, input_places)).as_trace_wire()
 
-    def set_outputs(self, *outputs: TraceWire | ComptimeVariable) -> None:
+    def set_outputs(self, *outputs: TraceOutput) -> None:
         self._outputs = tuple(outputs)
 
     def finish(self) -> Trace:

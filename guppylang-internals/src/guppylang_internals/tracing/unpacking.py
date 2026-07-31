@@ -1,7 +1,6 @@
 from typing import Any
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.core import ComptimeVariable
 from guppylang_internals.checker.errors.comptime_errors import (
     UnsupportedPythonValueError,
 )
@@ -17,7 +16,7 @@ from guppylang_internals.tracing.object import (
     GuppyStructObject,
     TracingDefMixin,
 )
-from guppylang_internals.tracing.recorder import TraceRecorder, TraceWire
+from guppylang_internals.tracing.recorder import TraceOutput, TraceRecorder, TraceWire
 from guppylang_internals.tracing.state import get_tracing_state
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
@@ -39,7 +38,7 @@ from guppylang_internals.tys.ty import (
 
 
 def unpack_array(
-    builder: TraceRecorder, array_ty: Type, array: TraceWire | ComptimeVariable
+    builder: TraceRecorder, array_ty: Type, array: TraceOutput
 ) -> list[TraceWire]:
     """Unpacks a wire of type array into separate wires for each element."""
     assert isinstance(array_ty, OpaqueType)

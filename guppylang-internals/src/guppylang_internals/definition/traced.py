@@ -48,7 +48,7 @@ from guppylang_internals.tracing.recorder import (
     TraceFunctionLoad,
     TraceLoad,
     TraceOperation,
-    TraceWire,
+    TraceOutput,
 )
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
@@ -249,7 +249,7 @@ class CompiledTracedFunctionDef(
             (-1, port): wire for port, wire in enumerate(builder.inputs())
         }
 
-        def get_wire(ref: TraceWire | ComptimeVariable) -> Wire:
+        def get_wire(ref: TraceOutput) -> Wire:
             return (
                 dfg[ref]
                 if isinstance(ref, ComptimeVariable)
