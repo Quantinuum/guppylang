@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 from guppylang_internals.definition.common import DefId
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class ProtocolInst:
-    type_args: tuple[Argument, ...]
+    type_args: tuple[Argument, ...] = field(hash=False, compare=False)
     def_id: DefId
 
     def transform(self, transformer: Transformer) -> "ProtocolInst":

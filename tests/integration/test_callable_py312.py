@@ -49,3 +49,26 @@ def test_struct_generic(validate):
         return MyStruct(foo, 42).call() + MyStruct(bar[bool], False).call()
 
     validate(main.compile_function())
+
+
+def test_higher_order(validate):
+    from guppylang.std.builtins import array, nat
+    from guppylang.std.quantum import qubit, discard_array
+
+    @guppy
+    def higher_order[n: nat](
+        qs: array[qubit, n], func: Callable[[array[qubit, n]], None]
+    ) -> None:
+        pass
+
+    @guppy
+    def generic[n: nat](qs: array[qubit, n]) -> None:
+        pass
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit() for _ in range(3))
+        higher_order(qs, generic[3])
+        discard_array(qs)
+
+    main.compile()
