@@ -1,4 +1,100 @@
-"""Optimization configuration for Guppy compilation."""
+"""Optimization configuration for Guppy compilation.
+
+Guppy applies a predefined set of optimization passes when compiling a program
+using the TKET compiler.
+
+These passes clean up artifacts introduced by the compiler and may simplify both
+classical and quantum operations when calling ``compile()``,
+``compile_function()``, or ``emulator()``.
+
+Use ``with_opt_level()`` before compiling or creating an emulator to select a
+different :py:class:`OptimizationLevel`. The method can be chained before
+compiling or creating an emulator.
+
+
+Choosing an optimization level
+------------------------------
+
+Pass a member of :py:class:`OptimizationLevel` to ``with_opt_level()``:
+
+.. code-block:: python
+
+    from guppylang import OptimizationLevel, guppy
+    from guppylang.std.builtins import output
+    from guppylang.std.quantum import h, measure, qubit
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        h(q)
+        h(q)
+        if measure(q):
+            output("result", 2 + 2)
+        else:
+            output("result", 3 + 3)
+
+    # Classical optimization will keep the self-inverse Hadamard gates.
+    package = main.with_opt_level(OptimizationLevel.Classical).compile()
+
+The available levels are:
+
+* :py:attr:`OptimizationLevel.Default` applies Guppy's standard optimization
+  level. This may include both classical and quantum optimizations that do
+  not alter the program's gateset. Calling ``main.compile()`` or
+  ``main.emulator(...)`` directly uses this level.
+* :py:attr:`OptimizationLevel.Classical` restricts optimization to classical
+  operations. The program will execute the same quantum operations as the original
+  source, but may have a simplified control flow structure.
+* :py:attr:`OptimizationLevel.Minimal` applies only structural rewrites needed
+  to produce executable output. This is useful for low-level program analysis or
+  when more control over the optimization passes is desired.
+
+See :py:class:`OptimizationLevel` for more details.
+
+Note that gate rebasing or other program transformations may still be performed
+further down the compilation pipeline where required. For example, emulators may
+require a specific gateset when targeting a particular architecture.
+
+``with_minimal_opt()`` is shorthand for selecting :py:attr:`OptimizationLevel.Minimal`.
+It disables optional optimizations on the program.
+
+.. code-block:: python
+
+    emulator = main.with_minimal_opt().emulator(n_qubits=1)
+
+
+Running custom passes
+---------------------
+
+Use :py:meth:`OptimizerInstance.with_optimization` to append any HUGR
+``ComposablePass`` to an optimization pipeline. For example, the following
+starts with minimal optimization and then runs tket's function-inlining pass:
+
+.. code-block:: python
+
+    from tket.passes import InlineFunctions
+
+    # Apply a tket pass to inline Guppy functions
+    package = main.with_minimal_opt().with_optimization(InlineFunctions()).compile()
+
+    package = (
+        main.with_minimal_opt().with_optimization(passes.InlineFunctions())
+        .compile()
+    )
+
+Multiple custom passes can be added by chaining ``with_optimization()`` calls.
+They run in the order they are added, after the passes supplied by the selected
+optimization level:
+
+.. code-block:: python
+
+    package = (
+        main.with_opt_level(OptimizationLevel.Classical)
+        .with_optimization(first_pass)
+        .with_optimization(second_pass)
+        .compile()
+    )
+"""
 
 from __future__ import annotations
 
@@ -35,23 +131,39 @@ class OptimizationLevel(Enum):
 
     Default = "default"
     """
-    Optimization set used by default for all Guppy program compilations.
+    Guppy's standard optimization level.
+
+    This may include both classical and quantum optimizations that do not alter
+    the program's gateset. Calling ``main.compile()`` or ``main.emulator(...)``
+    directly uses this level.
+
+    Currently, this is equivalent to :py:attr:`OptimizationLevel.Classical`, but
+    may be modified in future versions.
     """
 
     Classical = "classical"
     """
-    Only apply classical optimizations.
+    Restricts optimization to classical operations.
 
-    Some gate rebasing/dead quantum code elimination may be applied as needed.
+    The program will execute the same quantum operations as the original source,
+    but may have a simplified control flow structure.
+
+    Currently, this runs tket's `Normalize
+    <https://quantinuum.github.io/tket2/generated/tket.passes.Normalize.html#tket.passes.Normalize>`_
+    pass to simplify classical control flow and remove redundant classical
+    operations. This set may be modified in future versions.
     """
 
     Minimal = "minimal"
     """
-    Only apply structural rewrites required for execution.
+    Applies only structural rewrites needed to produce executable output.
+
+    This is useful for low-level program analysis or when more control over
+    the optimization passes is desired.
     """
 
     def passes(self) -> list[ComposablePass]:
-        """Return the HUGR passes that implement this optimization level."""
+        """Return the list of HUGR passes ran by this optimization level."""
         match self:
             case OptimizationLevel.Default | OptimizationLevel.Classical:
                 from tket import passes
@@ -76,7 +188,13 @@ def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package
 
 @dataclass(frozen=True)
 class OptimizerInstance(Generic[P, Out]):
-    """Builder used to configure optimizations for compiling a Guppy program."""
+    """Builder used to configure optimizations for compiling a Guppy program.
+
+    Obtained by calling :py:meth:`GuppyFunctionDefinition.with_opt_level` or
+    :py:meth:`GuppyFunctionDefinition.with_minimal_opt`.
+
+    See :py:mod:`guppylang.optimizer` for usage examples.
+    """
 
     definition: GuppyFunctionDefinition[P, Out]
     passes: list[ComposablePass] = field(default_factory=list)

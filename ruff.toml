@@ -85,6 +85,8 @@ ignore = [
 
 [per-file-target-version]
 "tests/*/*_py312.py" = "py312"
+"guppylang/src/guppylang/std/either.py" = "py312"
+"guppylang/src/guppylang/std/err.py" = "py312"
 
 # [pydocstyle]
 # convention = "google"
