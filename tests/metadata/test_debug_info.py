@@ -264,7 +264,6 @@ def test_global_debug_mode():
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
 
-    # TODO: Clearing metadata between compilation calls.
     turn_off_debug_mode()
 
     hugr = foo.compile().modules[0]
