@@ -731,8 +731,6 @@ class NestedFunctionDefType(FunctionDefType):
 
     Unlike global function items, we cannot compile nested function items into
     trivial Hugr types, thus we need a specific `to_hugr` implementation.
-
-
     """
 
     def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
