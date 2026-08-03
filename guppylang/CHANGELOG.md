@@ -22,7 +22,7 @@ While new features will still be added in subsequent minor versions and there ma
 
 This extended changelog intends to provide a convenient overview of major new features for Guppy v1. The standard detailed changelog for this specific release can be found at the end of it, and you may also be interested in the changelog for the release candidates and alpha releases. See the [language guide](https://docs.quantinuum.com/language_guide/language_guide_index.html) for detailed feature documentation.
 
-> To see just the breaking changes and instructions on how to update existing code, please see the [migration guide](v1_migration.md).
+> To see just the breaking changes and instructions on how to update existing code, please see the [migration guide](https://docs.quantinuum.com/guppy/v1_migration.html).
 
 ---
 
