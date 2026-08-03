@@ -589,7 +589,7 @@ def test_hugr_stability():
     assert len(hashes) == 1
 
 
-def test_arith(validate):
+def test_std(validate):
     from guppylang.std.err import Result, ok
     from guppylang.std.option import Option
 
