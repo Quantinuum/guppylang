@@ -137,8 +137,9 @@ class OptimizationLevel(Enum):
     the program's gateset. Calling ``main.compile()`` or ``main.emulator(...)``
     directly uses this level.
 
-    Currently, this is equivalent to :py:attr:`OptimizationLevel.Classical`, but
-    may be modified in future versions.
+    Currently, this applies pytket's `RemoveRedundancies` after the
+    optimizations in :py:attr:`OptimizationLevel.Classical`. This may be
+    modified in future versions.
     """
 
     Classical = "classical"
