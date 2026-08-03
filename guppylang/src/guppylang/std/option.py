@@ -9,6 +9,7 @@ from guppylang_internals.std._internal.compiler.option import (
     OptionUnwrapCompiler,
     OptionUnwrapNothingCompiler,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import option_type_def
 
 from guppylang import guppy
@@ -62,13 +63,15 @@ class Option(Generic[L]):  # type: ignore[misc]
         return self.swap(nothing())
 
 
-@custom_function(OptionConstructor(0))
+# EFFECTS this can + probably should be pure, but preserving behaviour for now
+@custom_function(OptionConstructor(0), effects=[Effect.ANY])
 @no_type_check
 def nothing() -> Option[L]:
     """Constructs a `nothing` optional value."""
 
 
-@custom_function(OptionConstructor(1))
+# EFFECTS this can + probably should be pure, but preserving behaviour for now
+@custom_function(OptionConstructor(1), effects=[Effect.ANY])
 @no_type_check
 def some(value: L @ owned) -> Option[L]:
     """Constructs a `some` optional value."""

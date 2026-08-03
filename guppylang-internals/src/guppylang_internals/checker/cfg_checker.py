@@ -13,6 +13,7 @@ from typing import ClassVar, Generic, TypeVar
 
 from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
+from guppylang_internals.cfg.builder import is_tmp_var
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
     Context,
@@ -22,12 +23,16 @@ from guppylang_internals.checker.core import (
     V,
     Variable,
 )
-from guppylang_internals.checker.expr_checker import ExprSynthesizer, to_bool
+from guppylang_internals.checker.expr_checker import (
+    ExprSynthesizer,
+    coerces_to,
+    to_bool,
+)
 from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.ty import InputFlags, Type
+from guppylang_internals.tys.ty import FunctionDefType, InputFlags, Type
 
 Row = Sequence[V]
 
@@ -233,6 +238,32 @@ class BranchTypeError(Error):
         span_label: ClassVar[str] = "This is of type `{ty}`"
         ty: Type
 
+    @dataclass(frozen=True)
+    class CoerceOneHint(Help):
+        var: str
+        ty: Type
+
+        @property
+        def rendered_span_label(self) -> str:
+            if is_tmp_var(self.var):
+                return f"Consider coercing this value to `{self.ty}`"
+            return f"Consider adding a type annotation: `{self.var}: {self.ty} = ...`"
+
+    @dataclass(frozen=True)
+    class CoerceBothHint(Help):
+        var: str
+        ty: str
+        extra: str = ""
+
+        @property
+        def rendered_message(self) -> str:
+            if is_tmp_var(self.var):
+                return f"Consider coercing both values to `{self.ty}`"
+            return (
+                f"Consider adding type annotations{self.extra}: "
+                f"`{self.var}: {self.ty} = ...`"
+            )
+
 
 @dataclass(frozen=True)
 class AssignedInModifierError(Error):
@@ -396,7 +427,32 @@ def check_rows_match(row1: Row[Variable], row2: Row[Variable], bb: BB) -> None:
             # supported) or refer to long function definitions.
             err.add_sub_diagnostic(BranchTypeError.TypeHint(v1.defined_at, v1.ty))
             err.add_sub_diagnostic(BranchTypeError.TypeHint(v2.defined_at, v2.ty))
+            if hint := maybe_coerce_hint(v1, v2):
+                err.add_sub_diagnostic(hint)
             raise GuppyError(err)
+
+
+def maybe_coerce_hint(v1: Variable, v2: Variable) -> Help | None:
+    """Generates a help message telling the user to add type annotations to trigger
+    coercions that fix a type mismatch across different control-flow paths."""
+    assert v1.name == v2.name
+    assert v1.ty != v2.ty
+    if coerces_to(v1.ty, v2.ty):
+        return BranchTypeError.CoerceOneHint(v1.defined_at, v1.name, v2.ty)
+    if coerces_to(v2.ty, v1.ty):
+        return BranchTypeError.CoerceOneHint(v2.defined_at, v2.name, v1.ty)
+    # Suggest to coerce function definition types into opaque function types
+    if (
+        isinstance(v1.ty, FunctionDefType)
+        and isinstance(v2.ty, FunctionDefType)
+        and v1.ty.sig == v2.ty.sig
+    ):
+        unquantified, _ = v1.ty.sig.unquantified()
+        args = ", ".join(str(inp.ty) for inp in unquantified.inputs)
+        fn_str = f"Function[[{args}], {unquantified.output}]"
+        extra = " to coerce them into opaque function values"
+        return BranchTypeError.CoerceBothHint(None, v1.name, fn_str, extra)
+    return None
 
 
 def diagnose_maybe_undefined(

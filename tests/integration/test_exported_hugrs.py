@@ -1,9 +1,9 @@
 import pytest
-from tket.passes import NormalizeGuppy
+from tket.passes import Normalize
 from hugr.package import Package
 from pathlib import Path
 
-normalize = NormalizeGuppy()
+normalize = Normalize()
 
 
 @pytest.mark.test_exported_hugrs

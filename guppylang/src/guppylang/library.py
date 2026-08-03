@@ -25,6 +25,7 @@ class GuppyLibrary:
     methods on this class.
 
     .. code-block:: python
+
         from guppylang.library import GuppyLibrary
 
         @guppy

@@ -14,4 +14,7 @@ Notes:
 17 |         baz = bar
    |         --- This is of type `def bar() -> int`
 
+Help: Consider adding type annotations to coerce them into opaque function
+values: `baz: Function[[], int] = ...`
+
 Guppy compilation failed due to 1 previous error

@@ -30,6 +30,7 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.frozenarray import (
     FrozenarrayGetitemCompiler,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 
 from guppylang import guppy
@@ -320,7 +321,8 @@ def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
 class frozenarray(Generic[T, n]):
     """An immutable array of fixed static size."""
 
-    @custom_function(FrozenarrayGetitemCompiler())
+    # Panics on out-of-range.
+    @custom_function(FrozenarrayGetitemCompiler(), effects=[Effect.ANY])
     def __getitem__(self: frozenarray[T, n], item: int) -> T: ...  # type: ignore[type-arg]
 
     @guppy

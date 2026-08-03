@@ -226,6 +226,20 @@ def check_nested_func_def(
     # so the link name does not really matter.
     link_name = func_def.name
 
+    # We need to register nested functions in the engine so that FunctionDefType.sig and
+    # FunctionDefType.defn can be used properly.
+    from guppylang_internals.definition.function import ParsedFunctionDef
+
+    func = ParsedFunctionDef(
+        def_id,
+        func_def.name,
+        func_def,
+        func_ty,
+        func_def.docstring,
+        link_name,
+    )
+    ENGINE.parsed[def_id] = func
+
     # Check if the body contains a free (recursive) occurrence of the function name.
     # By checking if the name is free at the entry BB, we avoid false positives when
     # a user shadows the name with a local variable
@@ -234,19 +248,8 @@ def check_nested_func_def(
             # If there are no captured vars, we treat the function like a global name
             from guppylang.defs import GuppyDefinition
 
-            from guppylang_internals.definition.function import ParsedFunctionDef
-
             parent_frame = ctx.globals.frame
-            func = ParsedFunctionDef(
-                def_id,
-                func_def.name,
-                func_def,
-                func_ty,
-                None,
-                link_name,
-            )
             DEF_STORE.register_def(func, parent_frame)
-            ENGINE.parsed[def_id] = func
             globals.f_locals[func_def.name] = GuppyDefinition(func)
         else:
             # Otherwise, we treat it like a local name
@@ -435,8 +438,8 @@ def parse_self_arg_proto(
     )
     self_ty_placeholder = ExistentialTypeVar.fresh(
         "Self",
-        copyable=True,
-        droppable=True,
+        copyable=False,
+        droppable=False,
     )
     assert ctx.self_ty is None
     ctx = replace(ctx, self_ty=self_ty_placeholder)
@@ -445,7 +448,7 @@ def parse_self_arg_proto(
     # If the user just annotates `self: Self` then we can fall back to the case where
     # no annotation is provided at all
     if user_ty == self_ty_placeholder:
-        return handle_implicit_self_arg_proto(arg, self_defn, ctx)
+        return handle_implicit_self_arg_proto(arg, self_defn, ctx, user_flags)
 
     # Annotations like `self: Foo[Self]` are not allowed (would be an infinite type)
     if self_ty_placeholder in user_ty.unsolved_vars:
@@ -478,7 +481,7 @@ def handle_implicit_self_arg_proto(
     arg: ast.arg,
     self_defn: "CheckedProtocolDef",
     ctx: TypeParsingCtx,
-    flags: InputFlags = InputFlags.NoFlags,
+    flags: InputFlags | None = None,
 ) -> FuncInput:
     """Handle the case of a protocol method that leaves the protocol type implicit.
     Add a type parameter to the function which implements the protocol, and the self
@@ -497,15 +500,15 @@ def handle_implicit_self_arg_proto(
     ctx.param_var_mapping.update({param.name: param for param in self_defn.params})
     self_args = [param.to_bound() for param in self_defn.params]
     proto_inst = self_defn.check_instantiate(self_args, loc=arg)
-    self_arg = BoundTypeVar("self", len(self_args), True, True, (proto_inst,))
+    self_arg = BoundTypeVar("self", len(self_args), False, False, (proto_inst,))
     ctx.param_var_mapping["self"] = TypeParam(
         idx=len(self_defn.params),
         name="self",
-        must_be_copyable=True,
-        must_be_droppable=True,
+        must_be_copyable=False,
+        must_be_droppable=False,
         must_implement=[proto_inst],
     )
-    return FuncInput(self_arg, InputFlags.NoFlags)
+    return FuncInput(self_arg, flags or InputFlags.Inout)
 
 
 def handle_implicit_self_arg(

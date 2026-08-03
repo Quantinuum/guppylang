@@ -1,6 +1,6 @@
 """Error handling with the `Result` type."""
 
-from typing import Generic, no_type_check
+from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.definition.custom import NoopCompiler
@@ -23,7 +23,7 @@ _params = [TypeParam(0, "T", False, False), TypeParam(1, "E", False, False)]
 
 
 @custom_type(either_to_hugr, params=_params)
-class Result(Generic[T, E]):  # type: ignore[misc]
+class Result[T, E]:
     """Represents a union of either an `ok(T)` or an `err(E)` value."""
 
     @custom_function(EitherTestCompiler(0))
@@ -66,5 +66,5 @@ def ok(val: T @ owned) -> Result[T, E]:
 
 @custom_function(EitherConstructor(1))
 @no_type_check
-def err(err: E @ owned) -> Result[T, E]:
+def err[T, E](err: E @ owned) -> Result[T, E]:
     """Constructs an `err` result value."""

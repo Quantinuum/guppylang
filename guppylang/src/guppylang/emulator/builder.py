@@ -141,9 +141,14 @@ class EmulatorBuilder:
         """Build an EmulatorInstance from a compiled package.
 
         Args:
-            package: The compiled HUGR package to build the emulator from.
-            n_qubits: The number of qubits to allocate for the emulator instance.
-            arg_specs: The runtime argument schema of the (wrapped) entrypoint, if
+            package:
+                The compiled HUGR package to build the emulator from.
+
+            n_qubits:
+                The number of qubits to allocate for the emulator instance.
+
+            arg_specs:
+                The runtime argument schema of the (wrapped) entrypoint, if
                 it takes arguments. Used to validate values passed to ``run``.
 
         Returns:

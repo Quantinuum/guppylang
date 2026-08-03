@@ -14,11 +14,10 @@ outputs.
 Basic emulation
 -----------------
 
-Calling ``.emulator`` on a Guppy function compiles it into an
+Calling ``.emulator()`` on a Guppy function compiles it into an
 :py:class:`EmulatorInstance`. The method has a required parameter
-for the number of qubits to allocate. This cannot be
-inferred from the program automatically as it can request an arbitrary number of qubits
-at runtime.
+for the number of qubits to allocate. This cannot be inferred from the program
+fully automatically as it can request an arbitrary number of qubits at runtime.
 
 Calling ``.run()`` on the instance runs the emulation, returning an
 :py:class:`EmulatorResult` object containing the results.
@@ -32,9 +31,25 @@ Calling ``.run()`` on the instance runs the emulation, returning an
     @guppy
     def foo() -> None:
         q = qubit()
-        output("q", measure(q))
+        output("q", measure(q).read())
 
     foo.emulator(n_qubits=1).run()
+
+.. hint::
+
+    You can omit ``n_qubits`` from the ``.emulator()`` call if you add the
+    ``@expected_qubits`` decorator to ``foo``:
+
+    .. code-block:: python
+
+        from guppylang.decorator import expected_qubits
+
+        @guppy
+        @expected_qubits(1)
+        def foo() -> None:
+            pass # ...
+
+        foo.emulator().run()
 
 Change simulation method
 --------------------------
@@ -115,7 +130,7 @@ The two methods :py:meth:`EmulatorResult.partial_states` and
 :meth:`EmulatorResult.partial_state_dicts` extract state results
 from the emulator output as :py:class:`PartialVector` objects.
 
-.. code-block:: ipython
+.. code-block:: python
 
     from guppylang import guppy
     from guppylang.std.debug import state_output
@@ -142,6 +157,105 @@ Output is a uniform distribution over the two basis states of the qubit:
 
     [TracedState(probability=0.5, state=array([1.+0.j, 0.+0.j])),
     TracedState(probability=0.5, state=array([0.+0.j, 1.+0.j]))]
+
+
+
+Emulator Entrypoint Arguments
+-----------------------------
+
+Guppy functions taking parameters of certain types can be called with arguments when
+emulating. This capability is not supported when submitting programs to hardware. The
+following types are supported: `int`, `float`, `bool`, and `array` of these types.
+
+The main benefit of this approach as opposed to hardcoding values in the function or
+using Python value capture is that the program is compiled once, meaning large parameter
+sweeps can be done without recompiling the program each time - often significantly
+improving performance. Emulations of variational algorithms in particular can
+benefit from this.
+
+For an example of entrypoint arguments in practice, see the `QAOA MaxCut example
+<https://docs.quantinuum.com/guppy/guppylang/examples/qaoa_maxcut_example.html>`_.
+
+Bind parameter values using keyword arguments to :py:meth:`EmulatorInstance.run`:
+
+.. code-block:: python
+
+    from guppylang import guppy
+    from guppylang.std.array import array
+
+    @guppy
+    def entry_args(theta: float, k: array[int, 1]) -> None:
+        output("doubled", theta * 2.0)
+        output("k1", k[0] + 1)
+
+
+    entry_args.emulator(n_qubits=1).run(theta=1.5, k=[3])
+
+.. code-block:: python
+    # output
+    EmulatorResult(results=[QsysShot(entries=[('doubled', 3.0), ('k1', 4)])])
+
+Given Guppy emulation is also faster over shots than multiple separate `run` calls,
+parameter sweeps over shots are also supported via the
+:py:meth:`EmulatorInstance.run_per_shot` method, which takes a sequence of argument
+mappings to run the program with for each shot:
+
+.. code-block:: python
+
+    entry_args.emulator(n_qubits=1).run_per_shot([
+        {"theta": 1.5, "k": [3]},
+        {"theta": 2.0, "k": [4]}
+    ])
+
+.. code-block:: python
+    # output
+    EmulatorResult(results=[
+        QsysShot(entries=[('doubled', 3.0), ('k1', 4)]),
+        QsysShot(entries=[('doubled', 4.0), ('k1', 5)])
+    ])
+
+The number of shots is inferred from the length of the argument sequence, if it
+conflicts with the value set with :py:meth:`EmulatorInstance.with_shots` an error is
+raised.
+
+
+Target Quantinuum Platform
+--------------------------
+
+By default the emulator compiler targets the Quantinuum Helios platform. By specifying
+the `platform` keyword argument to :py:meth:`GuppyCompilableProgram.emulator`
+you can target other Quantinuum platforms, which may have different gate sets and
+native gate decompositions, for example to target the upcoming Sol platform:
+
+.. code-block:: python
+
+    foo.emulator(n_qubits=1, platform="sol").run()
+
+When submitting to hardware through Nexus the target platform is automatically
+inferred from the Nexus backend, so this option is only relevant for local emulation.
+
+This compilation target is also independent of the platform-specific standard libraries,
+like `guppylang.std.qsystem.helios` or `guppylang.std.qsystem.sol`, which can be used to
+program using platform-specific gates and features. The compiler supports automatic
+retargeting of these gates to the specified platform. So to run platform-specific
+code with the same compilation target, make sure the `platform` argument matches the
+standard library used:
+
+.. code-block:: python
+    from guppylang.std.qsystem.sol import phased_xx
+    from guppylang.std.angles import pi
+
+    @guppy
+    def foo() -> None:
+        q0 = qubit()
+        q1 = qubit()
+        # use Sol primitive gates
+        phased_xx(q0, q1, pi, pi)
+        measure(q0)
+        measure(q1)
+
+    # run on Sol platform
+    foo.emulator(n_qubits=2, platform="sol").run()
 """
 
 from .builder import EmulatorBuilder, Platform

@@ -17,6 +17,7 @@ from guppylang_internals.std._internal.compiler.platform import (
     MeasurementOutputChecker,
     OutputCompiler,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import int_type, string_type
 from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags, NoneType
 
@@ -116,6 +117,7 @@ result = output
         NoneType(),
     ),
     has_var_args=True,
+    effects=[Effect.ANY],
 )
 def _panic(msg: str, *args) -> None: ...
 
@@ -131,6 +133,7 @@ def _panic(msg: str, *args) -> None: ...
         NoneType(),
     ),
     has_var_args=True,
+    effects=[Effect.ANY],
 )
 def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
 
@@ -211,7 +214,11 @@ def exit(msg: str, signal: int = 1, *args):
     """
 
 
-@custom_function(checker=BarrierChecker(), higher_order_value=False)
+@custom_function(
+    checker=BarrierChecker(),
+    higher_order_value=False,
+    has_var_args=True,
+)
 @no_type_check
 def barrier(*args) -> None:
     """Barrier to guarantee that all operations before the barrier are completed before
