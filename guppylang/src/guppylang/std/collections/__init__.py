@@ -1,4 +1,4 @@
-"""Guppy standard library for queues."""
+"""Guppy standard library for collections."""
 
 from guppylang.std.collections.priority_queue import PriorityQueue, empty_priority_queue
 from guppylang.std.collections.queue import Queue, empty_queue
