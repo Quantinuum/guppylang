@@ -164,14 +164,17 @@ Emulator Entrypoint Arguments
 -----------------------------
 
 Guppy functions taking parameters of certain types can be called with arguments when
-emulating. The following types are supported: `int`, `float`, `bool`, and `array` of
-these types.
+emulating. This capability is not supported when submitting programs to hardware. The
+following types are supported: `int`, `float`, `bool`, and `array` of these types.
 
 The main benefit of this approach as opposed to hardcoding values in the function or
-using python value capture is that the program is compiled once, meaning large parameter
+using Python value capture is that the program is compiled once, meaning large parameter
 sweeps can be done without recompiling the program each time - often significantly
 improving performance. Emulations of variational algorithms in particular can
 benefit from this.
+
+For an example of entrypoint arguments in practice, see the `QAOA MaxCut example
+<https://docs.quantinuum.com/guppy/guppylang/examples/qaoa_maxcut_example.html>`_.
 
 Bind parameter values using keyword arguments to :py:meth:`EmulatorInstance.run`:
 
