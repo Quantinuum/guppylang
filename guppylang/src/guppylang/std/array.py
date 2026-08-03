@@ -65,14 +65,12 @@ class array(builtins.list[_T], Generic[_T, _n]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        unitary_flags=UnitaryFlags.Dagger,
     )
     def __getitem__(self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        unitary_flags=UnitaryFlags.Dagger,
     )
     def __setitem__(self: array[L, n], idx: int, value: L @ owned) -> None: ...
 
@@ -130,7 +128,6 @@ class array(builtins.list[_T], Generic[_T, _n]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        unitary_flags=UnitaryFlags.Dagger,
     )
     def take(self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
@@ -193,7 +190,6 @@ class array(builtins.list[_T], Generic[_T, _n]):
     @custom_function(
         ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
-        unitary_flags=UnitaryFlags.Dagger,
     )
     def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
@@ -319,7 +315,7 @@ class ArrayIter(Generic[L, n]):
         return nothing()
 
 
-@custom_function(ArraySwapCompiler(), unitary_flags=UnitaryFlags.Dagger)
+@custom_function(ArraySwapCompiler())
 def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
@@ -351,7 +347,6 @@ class frozenarray(Generic[T, n]):
     @custom_function(
         FrozenarrayGetitemCompiler(),
         effects=[Effect.ANY],
-        unitary_flags=UnitaryFlags.Dagger,
     )
     def __getitem__(self: frozenarray[T, n], item: int) -> T: ...  # type: ignore[type-arg]
 
