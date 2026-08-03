@@ -16,7 +16,9 @@ class _DummyGuppy:
         return f
 
     def struct(self, *args: Any, **kwargs: Any) -> Any:
-        return self
+        if args:
+            return args[0]
+        return lambda cls: cls
 
     def enum(self, cls: Any) -> Any:
         return cls
