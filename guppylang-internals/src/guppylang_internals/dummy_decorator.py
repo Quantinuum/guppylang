@@ -9,7 +9,7 @@ class _DummyGuppy:
     functions are recognised as regular functions and included in docs.
     """
 
-    def __call__(self, f: Any) -> Any:
+    def __call__(self, f: Any, **kwargs: Any) -> Any:
         return f
 
     def comptime(self, f: Any) -> Any:
