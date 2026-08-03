@@ -107,7 +107,7 @@ Besides the additions and changes mentioned below, there are some deprecations a
 
 #### `std.qsystem` is now split into `helios` and `sol`
 
-Guppy v1 splits previous `std.qsystem` functionality into `std.qsystem.helios` and `std.qsystem.sol` modules, as well as adding platform configuration support. Read about the differences between the modules and how platform configuration affects emulator and compilation workflows in the [relevant documentation](https://docs.quantinuum.com/guppy/api/generated/guppylang.std.qsystem.html).
+Guppy v1 splits previous `std.qsystem` functionality into `std.qsystem.helios` and `std.qsystem.sol` modules, as well as adding compilation target platform configuration support. Read about the differences between the modules and how platform configuration affects emulator and compilation workflows in the [relevant documentation](https://docs.quantinuum.com/guppy/api/emulator.html).
 
 
 #### A new `std.random` module
