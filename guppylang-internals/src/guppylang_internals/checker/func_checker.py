@@ -7,7 +7,6 @@ node straight from the Python AST. We build a CFG, check it, and return a
 
 import ast
 import copy
-import sys
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, ClassVar, cast
 
@@ -31,6 +30,7 @@ from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
     check_function_arg,
     parse_function_arg_annotation,
+    parse_parameter,
     type_from_ast,
     type_with_flags_from_ast,
 )
@@ -48,9 +48,6 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.protocol import CheckedProtocolDef
-
-if sys.version_info >= (3, 12):
-    from guppylang_internals.tys.parsing import parse_parameter
 
 
 @dataclass(frozen=True)
@@ -326,10 +323,9 @@ def check_signature(
     # Prepopulate parameter mapping when using Python 3.12 style generic syntax
     if param_var_mapping is None:
         param_var_mapping = {}
-    if sys.version_info >= (3, 12):
-        for i, param_node in enumerate(func_def.type_params):
-            param = parse_parameter(param_node, i, globals, param_var_mapping)
-            param_var_mapping[param.name] = param
+    for i, param_node in enumerate(func_def.type_params):
+        param = parse_parameter(param_node, i, globals, param_var_mapping)
+        param_var_mapping[param.name] = param
 
     # Figure out if this is a method
     self_defn: ProtocolDef | TypeDef | None = None

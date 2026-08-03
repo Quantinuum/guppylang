@@ -1,5 +1,4 @@
 import ast
-import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
@@ -77,19 +76,16 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
         # Look for generic parameters from Python 3.12 style syntax.
         params = []
         params_span: Span | None = None
-        if sys.version_info >= (3, 12):
-            from guppylang_internals.tys.parsing import parse_parameter
+        from guppylang_internals.tys.parsing import parse_parameter
 
-            if cls_def.type_params:
-                first, last = cls_def.type_params[0], cls_def.type_params[-1]
-                params_span = Span(to_span(first).start, to_span(last).end)
-                param_vars_mapping: dict[str, Parameter] = {}
-                for idx, param_node in enumerate(cls_def.type_params):
-                    param = parse_parameter(
-                        param_node, idx, globals, param_vars_mapping
-                    )
-                    param_vars_mapping[param.name] = param
-                    params.append(param)
+        if cls_def.type_params:
+            first, last = cls_def.type_params[0], cls_def.type_params[-1]
+            params_span = Span(to_span(first).start, to_span(last).end)
+            param_vars_mapping: dict[str, Parameter] = {}
+            for idx, param_node in enumerate(cls_def.type_params):
+                param = parse_parameter(param_node, idx, globals, param_vars_mapping)
+                param_vars_mapping[param.name] = param
+                params.append(param)
 
         match cls_def.bases:
             case []:
