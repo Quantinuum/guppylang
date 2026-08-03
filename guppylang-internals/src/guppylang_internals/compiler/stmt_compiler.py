@@ -218,7 +218,7 @@ class StmtCompiler(CompilerBase, AstVisitor[None]):
     def visit_CheckedNestedFunctionDef(self, node: CheckedNestedFunctionDef) -> None:
         from guppylang_internals.compiler.func_compiler import compile_local_func_def
 
-        var = Variable(node.name, node.ty, node)
+        var = Variable(node.name, node.def_ty, node)
         loaded_func = compile_local_func_def(node, self.dfg, self.ctx)
         self.dfg[var] = loaded_func
 

@@ -603,7 +603,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                 )
                 raise GuppyError(err)
             self.scope.use(var, use, UseKind.COPY)
-        self.scope.assign(Variable(node.name, node.ty, node))
+        self.scope.assign(Variable(node.name, node.def_ty, node))
 
     def _check_assign_targets(self, targets: list[ast.expr]) -> None:
         """Helper function to check assignments."""
