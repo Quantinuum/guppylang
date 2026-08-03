@@ -49,6 +49,7 @@ from guppylang_internals.tys.ty import (
     InputFlags,
     StructType,
     Type,
+    UnitaryFlags,
 )
 
 
@@ -230,6 +231,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
                 defn=self, args=[p.to_bound(i) for i, p in enumerate(self.params)]
             ),
             params=self.params,
+            unitary_flags=UnitaryFlags.Dagger,
         )
         constructor_def = CustomFunctionDef(
             id=DefId.fresh(),

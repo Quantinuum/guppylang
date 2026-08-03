@@ -115,15 +115,13 @@ class BBUnitaryChecker(ast.NodeVisitor):
         # need to check that if we are in dagger (or unitary) context, the function
         # is daggerable.
         is_classic_fun = self._check_args(node.args)
-        is_a_valid_call = (
-            self.flags in call_ty.unitary_flags
-            if not is_classic_fun
-            else (
-                True
-                if UnitaryFlags.Dagger not in self.flags
-                else UnitaryFlags.Dagger in call_ty.unitary_flags
-            )
-        )
+        if is_classic_fun:
+            if UnitaryFlags.Dagger not in self.flags:
+                is_a_valid_call = True
+            else:
+                is_a_valid_call = UnitaryFlags.Dagger in call_ty.unitary_flags
+        else:
+            is_a_valid_call = self.flags in call_ty.unitary_flags
 
         if not is_a_valid_call:
             from guppylang_internals.definition.custom import CustomFunctionDef
