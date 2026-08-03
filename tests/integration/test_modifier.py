@@ -590,20 +590,32 @@ def test_hugr_stability():
 
 
 def test_arith(validate):
+    from guppylang.std.err import Result, ok
+    from guppylang.std.option import Option
+
     y = 42
 
     n = guppy.nat_var("n")
 
     @guppy.comptime(daggerable=True)
-    def test(x: int) -> int:
-        return 1 + 2 - 3 * x // y
+    def test(r: Result[int, qubit] @ owned) -> tuple[float, Option[qubit]]:
+        b = r.is_ok()
+        e = r.into_either()
+        b = e.is_right()
+        o = e.try_into_right()
+        b = o.is_some()
+        return 1 + 2.0 - 3 * 4 // y, o
 
     @guppy.comptime(daggerable=True)
     def test_arr() -> array[int, n]:
-        return array(test(i) for i in range(n))
+        x = array(y // y for i in range(n)).copy()
+        return x
 
     @guppy
     def main() -> None:
         test_arr[3]()
+        r = ok[int, qubit](42)
+        _, oq = test(r)
+        oq.unwrap_nothing()
 
     validate(main.compile())
