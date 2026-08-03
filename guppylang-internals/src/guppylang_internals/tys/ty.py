@@ -696,10 +696,14 @@ class FunctionDefType(TypeBase):
             for arg in self.args:
                 visitor.visit(arg)
 
+    def _with_args(self, args: "Inst") -> "FunctionDefType":
+        """Reconstructs this function definition type with new type arguments."""
+        return type(self)(self.def_id, args)
+
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
-        return transformer.transform(self) or FunctionDefType(
-            self.def_id, tuple(arg.transform(transformer) for arg in self.args)
+        return transformer.transform(self) or self._with_args(
+            tuple(arg.transform(transformer) for arg in self.args)
         )
 
     def unquantified(self) -> tuple["FunctionDefType", Sequence[ExistentialVar]]:
@@ -718,7 +722,20 @@ class FunctionDefType(TypeBase):
             exes.append(ex.transform(inst))
             args.append(arg.transform(inst))
 
-        return FunctionDefType(self.def_id, tuple(args)), exes
+        return self._with_args(tuple(args)), exes
+
+
+@dataclass(frozen=True)
+class NestedFunctionDefType(FunctionDefType):
+    """Definition-specific type of a nested function materialised at runtime.
+
+    Unlike global function items, we cannot compile nested function items into
+    trivial Hugr types, thus we need a specific `to_hugr` implementation.
+    """
+
+    def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
+        """Uses the callable signature as the runtime representation."""
+        return self.sig.to_hugr(ctx)
 
 
 @dataclass(frozen=True, init=False)
