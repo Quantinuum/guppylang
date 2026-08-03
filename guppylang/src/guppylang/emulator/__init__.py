@@ -192,6 +192,7 @@ Bind parameter values using keyword arguments to :py:meth:`EmulatorInstance.run`
     entry_args.emulator(n_qubits=1).run(theta=1.5, k=[3])
 
 .. code-block:: python
+
     # output
     EmulatorResult(results=[QsysShot(entries=[('doubled', 3.0), ('k1', 4)])])
 
@@ -208,6 +209,7 @@ mappings to run the program with for each shot:
     ])
 
 .. code-block:: python
+
     # output
     EmulatorResult(results=[
         QsysShot(entries=[('doubled', 3.0), ('k1', 4)]),
@@ -242,6 +244,7 @@ code with the same compilation target, make sure the `platform` argument matches
 standard library used:
 
 .. code-block:: python
+
     from guppylang.std.qsystem.sol import phased_xx
     from guppylang.std.angles import pi
 
