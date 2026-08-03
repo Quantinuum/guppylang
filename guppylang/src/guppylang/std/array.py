@@ -32,6 +32,7 @@ from guppylang_internals.std._internal.compiler.frozenarray import (
 )
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
@@ -61,10 +62,18 @@ _n = TypeVar("_n")
 class array(builtins.list[_T], Generic[_T, _n]):
     """Sequence of homogeneous values with statically known fixed length."""
 
-    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
+    @custom_function(
+        ArrayGetitemCompiler(),
+        checker=ArrayIndexChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def __getitem__(self: array[L, n], idx: int) -> L: ...
 
-    @custom_function(ArraySetitemCompiler(), checker=ArrayIndexChecker())
+    @custom_function(
+        ArraySetitemCompiler(),
+        checker=ArrayIndexChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def __setitem__(self: array[L, n], idx: int, value: L @ owned) -> None: ...
 
     @guppy
@@ -72,7 +81,12 @@ class array(builtins.list[_T], Generic[_T, _n]):
     def __len__(self: array[L, n]) -> int:
         return n
 
-    @custom_function(NewArrayCompiler(), NewArrayChecker(), higher_order_value=False)
+    @custom_function(
+        NewArrayCompiler(),
+        NewArrayChecker(),
+        higher_order_value=False,
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def __new__(): ...
 
     # `__new__` will be overwritten below to provide actual runtime behaviour for
@@ -85,11 +99,17 @@ class array(builtins.list[_T], Generic[_T, _n]):
     def __iter__(self: array[L, n] @ owned) -> SizedIter[ArrayIter[L, n], n]:
         return SizedIter(ArrayIter(self, 0))
 
-    @custom_function(CopyInoutCompiler(), ArrayCopyChecker())
+    @custom_function(
+        CopyInoutCompiler(), ArrayCopyChecker(), unitary_flags=UnitaryFlags.Dagger
+    )
     def copy(self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
 
-    @custom_function(ArrayIsBorrowedCompiler(), checker=ArrayIndexChecker())
+    @custom_function(
+        ArrayIsBorrowedCompiler(),
+        checker=ArrayIndexChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def is_borrowed(self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
 
@@ -107,7 +127,11 @@ class array(builtins.list[_T], Generic[_T, _n]):
             output("a", qs.is_borrowed(3))  # False
         """
 
-    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
+    @custom_function(
+        ArrayGetitemCompiler(),
+        checker=ArrayIndexChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def take(self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
 
@@ -167,7 +191,9 @@ class array(builtins.list[_T], Generic[_T, _n]):
         return some(self.take(idx))
 
     @custom_function(
-        ArraySetitemCompiler(elem_first=True), checker=ArrayIndexChecker(expr_index=2)
+        ArraySetitemCompiler(elem_first=True),
+        checker=ArrayIndexChecker(expr_index=2),
+        unitary_flags=UnitaryFlags.Dagger,
     )
     def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
@@ -219,7 +245,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler())
+    @custom_function(ArrayDiscardAllUsedCompiler(), unitary_flags=UnitaryFlags.Dagger)
     def discard_all_taken(self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
@@ -293,7 +319,7 @@ class ArrayIter(Generic[L, n]):
         return nothing()
 
 
-@custom_function(ArraySwapCompiler())
+@custom_function(ArraySwapCompiler(), unitary_flags=UnitaryFlags.Dagger)
 def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
@@ -322,7 +348,11 @@ class frozenarray(Generic[T, n]):
     """An immutable array of fixed static size."""
 
     # Panics on out-of-range.
-    @custom_function(FrozenarrayGetitemCompiler(), effects=[Effect.ANY])
+    @custom_function(
+        FrozenarrayGetitemCompiler(),
+        effects=[Effect.ANY],
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def __getitem__(self: frozenarray[T, n], item: int) -> T: ...  # type: ignore[type-arg]
 
     @guppy

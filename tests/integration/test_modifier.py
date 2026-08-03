@@ -587,3 +587,23 @@ def test_hugr_stability():
         hashes.add(sig)
 
     assert len(hashes) == 1
+
+
+def test_arith(validate):
+    y = 42
+
+    n = guppy.nat_var("n")
+
+    @guppy.comptime(daggerable=True)
+    def test(x: int) -> int:
+        return 1 + 2 - 3 * x // y
+
+    @guppy.comptime(daggerable=True)
+    def test_arr() -> array[int, n]:
+        return array(test(i) for i in range(n))
+
+    @guppy
+    def main() -> None:
+        test_arr[3]()
+
+    validate(main.compile())
