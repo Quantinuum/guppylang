@@ -34,7 +34,7 @@ class Option(Generic[L]):  # type: ignore[misc]
     def is_some(self: "Option[L]") -> bool:
         """Returns `True` if the option is a `some` value."""
 
-    @custom_function(OptionUnwrapCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(OptionUnwrapCompiler())
     @no_type_check
     def unwrap(self: "Option[L]" @ owned) -> L:
         """Returns the contained `some` value, consuming `self`.
@@ -42,7 +42,7 @@ class Option(Generic[L]):  # type: ignore[misc]
         Panics if the option is a `nothing` value.
         """
 
-    @custom_function(OptionUnwrapNothingCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(OptionUnwrapNothingCompiler())
     @no_type_check
     def unwrap_nothing(self: "Option[L]" @ owned) -> None:
         """Returns `None` if the option is a `nothing` value, consuming `self`.

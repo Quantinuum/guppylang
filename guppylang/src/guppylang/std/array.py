@@ -245,7 +245,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(ArrayDiscardAllUsedCompiler())
     def discard_all_taken(self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
