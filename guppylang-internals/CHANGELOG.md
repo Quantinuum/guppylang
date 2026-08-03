@@ -6,7 +6,7 @@
 ### ⚠ BREAKING CHANGES
 
 * Stop treating protocol bounds as always copyable and droppable (#2142)
-* Type args to Either/Result factory methods `right`/`err` same way round (#2139)
+* Type args to Either/Result factory methods `right`/`err` are now the same way round (#2139)
 
 
 ### Bug Fixes
