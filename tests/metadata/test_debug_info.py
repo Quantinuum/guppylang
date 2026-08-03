@@ -23,8 +23,6 @@ from tests.resources.debug_info_example import (
 if TYPE_CHECKING:
     from hugr import Node
 
-turn_on_debug_mode()
-
 
 RESOURCE_PATH = Path(__file__).parents[1] / "resources" / "debug_info_example.py"
 
@@ -57,7 +55,7 @@ def test_compile_unit():
     def foo() -> None:
         pass
 
-    hugr = foo.compile().modules[0]
+    hugr = foo.compile(debug_mode=True).modules[0]
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
     debug_info = DICompileUnit.from_json(meta[HugrDebugInfo.KEY])
@@ -81,7 +79,7 @@ def test_subprogram():
             nested_func()  # MARKER:scope_nested_subprogram
 
     # Avoid inlining the called functions so we can check their debug info.
-    hugr = foo.with_minimal_opt().compile().modules[0]
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
     debug_info = DICompileUnit.from_json(meta[HugrDebugInfo.KEY])
@@ -181,7 +179,7 @@ def test_call_location():
         discard(q)  # compiles to extension op (see test below)
 
     # Compile with minimal optimization to preserve call ordering in the graph.
-    hugr = foo.with_minimal_opt().compile().modules[0]
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
     calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
     assert len(calls) == 4
 
@@ -232,7 +230,7 @@ def test_ext_op_location():
                     output("tag", bools)  # Check output usage
 
     # Compile with minimal optimization to preserve all annotated ops.
-    hugr = foo.with_minimal_opt().compile().modules[0]
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
 
     known_exceptions = [
         "tket.guppy.drop",
@@ -252,14 +250,21 @@ def test_ext_op_location():
     assert _marker_loc(Path(__file__), "ext_op_mystruct")[0] in found_annotated_tuples
 
 
-def test_turn_off_debug_mode():
-    turn_off_debug_mode()
+def test_global_debug_mode():
+    turn_on_debug_mode()
 
     @guppy
     def foo() -> None:
         q = qubit()
         state_output("tag", q)
         discard(q)
+
+    # Not turning on debug_mode should not override global state.
+    hugr = foo.compile().modules[0]
+    meta = hugr[hugr.module_root].metadata
+    assert HugrDebugInfo in meta
+
+    turn_off_debug_mode()
 
     hugr = foo.compile().modules[0]
     for _, node_data in hugr.nodes():

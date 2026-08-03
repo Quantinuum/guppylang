@@ -137,8 +137,9 @@ class OptimizationLevel(Enum):
     the program's gateset. Calling ``main.compile()`` or ``main.emulator(...)``
     directly uses this level.
 
-    Currently, this is equivalent to :py:attr:`OptimizationLevel.Classical`, but
-    may be modified in future versions.
+    Currently, this applies pytket's `RemoveRedundancies` after the
+    optimizations in :py:attr:`OptimizationLevel.Classical`. This may be
+    modified in future versions.
     """
 
     Classical = "classical"
@@ -165,7 +166,15 @@ class OptimizationLevel(Enum):
     def passes(self) -> list[ComposablePass]:
         """Return the list of HUGR passes ran by this optimization level."""
         match self:
-            case OptimizationLevel.Default | OptimizationLevel.Classical:
+            case OptimizationLevel.Default:
+                # The pytket dependency could be bypassed by using the json
+                # encoding of the passes rather than the pytket objects
+                # themselves.
+                from pytket.passes import RemoveRedundancies
+                from tket import passes
+
+                return [passes.Normalize(), passes.PytketHugrPass(RemoveRedundancies())]
+            case OptimizationLevel.Classical:
                 from tket import passes
 
                 return [passes.Normalize()]
@@ -211,23 +220,26 @@ class OptimizerInstance(Generic[P, Out]):
         builder: EmulatorBuilder | None = None,
         libs: list[Package] | None = None,
         platform: Platform = "helios",
+        debug_mode: bool = False,
     ) -> EmulatorInstance:
         """Compile this function for emulation with the configured optimizations."""
         return self.definition._emulator(
-            self.compile_function(), n_qubits, builder, libs, platform
+            self.compile_function(debug_mode), n_qubits, builder, libs, platform
         )
 
-    def compile(self) -> Package:
+    def compile(self, debug_mode: bool = False) -> Package:
         """Compile an execution entrypoint with the configured optimizations.
 
         Alias for :py:meth:`compile_entrypoint`.
         """
-        return self.compile_entrypoint()
+        return self.compile_entrypoint(debug_mode)
 
-    def compile_entrypoint(self) -> Package:
+    def compile_entrypoint(self, debug_mode: bool = False) -> Package:
         """Compile an entrypoint with the configured optimizations."""
-        return _apply_passes(self.definition._compile_entrypoint(), self.passes)
+        return _apply_passes(
+            self.definition._compile_entrypoint(debug_mode), self.passes
+        )
 
-    def compile_function(self) -> Package:
+    def compile_function(self, debug_mode: bool = False) -> Package:
         """Compile a function with the configured optimizations."""
-        return _apply_passes(self.definition._compile_function(), self.passes)
+        return _apply_passes(self.definition._compile_function(debug_mode), self.passes)
