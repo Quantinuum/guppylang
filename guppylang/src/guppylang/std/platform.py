@@ -211,7 +211,11 @@ def exit(msg: str, signal: int = 1, *args):
     """
 
 
-@custom_function(checker=BarrierChecker(), higher_order_value=False)
+@custom_function(
+    checker=BarrierChecker(),
+    higher_order_value=False,
+    has_var_args=True,
+)
 @no_type_check
 def barrier(*args) -> None:
     """Barrier to guarantee that all operations before the barrier are completed before

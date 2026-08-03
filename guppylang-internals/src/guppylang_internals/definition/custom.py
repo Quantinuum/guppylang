@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from enum import Enum, auto
 from typing import TYPE_CHECKING, ClassVar
 
 from hugr import Wire, ops
@@ -342,12 +343,24 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
             return compiler.compile_with_inouts(args)
 
 
+class InputFlagDefaultMode(Enum):
+    """Controls the default behaviour of `compute_input_flags` for linear arguments."""
+
+    RAISE = auto()  # raise InternalGuppyError (current default)
+    INOUT = auto()  # borrow all linear args
+    OWNED = auto()  # consume all linear args
+
+
 class CustomCallChecker(ABC):
     """Abstract base class for custom function call type checkers."""
 
     ctx: Context
     node: AstNode
     func: CustomFunctionDef
+
+    # If `func` has no or an incomplete signature and `compute_input_flags` is not
+    # overridden, this controls the default behaviour of `compute_input_flags`.
+    input_flag_mode: ClassVar[InputFlagDefaultMode] = InputFlagDefaultMode.RAISE
 
     _depth = 0
 
@@ -392,6 +405,27 @@ class CustomCallChecker(ABC):
 
         Also returns a (possibly) transformed and annotated argument list.
         """
+
+    def compute_input_flags(self, args: list[ast.expr]) -> list[InputFlags]:
+        flags: list[InputFlags] = []
+        for arg in args:
+            ty = get_type(arg)
+            if ty.linear:
+                match self.input_flag_mode:
+                    case InputFlagDefaultMode.INOUT:
+                        flags.append(InputFlags.Inout)
+                    case InputFlagDefaultMode.OWNED:
+                        flags.append(InputFlags.Owned)
+                    case InputFlagDefaultMode.RAISE:
+                        raise InternalGuppyError(
+                            "Missing implementation of `compute_input_flags` for linear"
+                            f" argument of type `{ty}` for custom function "
+                            f"`{self.func.name}`. Add an implementation or a signature"
+                            " to the function definition."
+                        )
+            else:
+                flags.append(InputFlags.NoFlags)
+        return flags
 
 
 class CustomInoutCallCompiler(ABC):
@@ -496,6 +530,12 @@ class DefaultCallChecker(CustomCallChecker):
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), ty
+
+
+class OwnedArgumentsCallChecker(DefaultCallChecker):
+    """Same as `DefaultCallChecker`, but assumes all input arguments are owned."""
+
+    input_flag_mode = InputFlagDefaultMode.OWNED
 
 
 class NotImplementedCallCompiler(CustomCallCompiler):
