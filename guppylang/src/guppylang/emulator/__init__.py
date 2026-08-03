@@ -176,7 +176,6 @@ Bind parameter values using keyword arguments to :py:meth:`EmulatorInstance.run`
 
     entry_args.emulator(n_qubits=1).run(theta=1.5, k=[3])
 
-.. code-block:: python
     # output
     EmulatorResult(results=[QsysShot(entries=[('doubled', 3.0), ('k1', 4)])])
 
