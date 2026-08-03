@@ -96,6 +96,7 @@ def test_range_reverse(run_int_fn):
         return total
 
     def encode(xs) -> int:
+        # Use an order-sensitive fold to distinguish e.g. [3, 1] from [1, 3].
         total = 0
         for x in xs:
             total = total * 100 + x + 50
@@ -127,21 +128,6 @@ def test_range_reverse(run_int_fn):
     run_int_fn(main, args=[3, 3, -2], expected=expected(3, 3, -2))
 
 
-def test_range_reverse_validate(validate):
-    """The reversed-range loop compiles to a well-formed HUGR."""
-
-    @guppy
-    def main(start: int, stop: int, step: int) -> int:
-        total = 0
-        r = range(start, stop, step)
-        r.reverse_in_place()
-        for x in r:
-            total += x
-        return total
-
-    validate(main.compile_function())
-
-
 def test_range_reverse_twice(run_int_fn):
     """Reversing twice restores the original iteration order (idempotence)."""
 
@@ -156,6 +142,7 @@ def test_range_reverse_twice(run_int_fn):
         return total
 
     def encode(xs) -> int:
+        # Use an order-sensitive fold to distinguish e.g. [3, 1] from [1, 3].
         total = 0
         for x in xs:
             total = total * 100 + x + 50

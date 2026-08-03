@@ -78,29 +78,23 @@ class Range:
     def reverse_in_place(self: Self) -> None:
         if self._step == 0:
             panic("range.reverse_in_place: step is zero")
-        if self._step > 0:
-            diff = self._stop - self._next
-            if diff > 0:
-                count = (diff + self._step - 1) // self._step
-                last = self._next + (count - 1) * self._step
-                self._stop = self._next - self._step
-            else:
-                self._stop = self._next
-                last = self._next
-            self._next = last
-            self._step = -self._step
+
+        diff = self._stop - self._next
+
+        # The range is empty when diff and step have different signs,
+        # or when the difference is zero.
+        if diff == 0 or (diff < 0) != (self._step < 0):
+            last = self._next
+            self._stop = self._next
         else:
-            diff = self._next - self._stop
-            if diff > 0:
-                neg = -self._step
-                count = (diff + neg - 1) // neg
-                last = self._next + (count - 1) * self._step
-                self._stop = self._next - self._step
-            else:
-                self._stop = self._next
-                last = self._next
-            self._next = last
-            self._step = -self._step
+            distance = diff if diff >= 0 else -diff
+            step = self._step if self._step >= 0 else -self._step
+            count = (distance + step - 1) // step
+            last = self._next + (count - 1) * self._step
+            self._stop = self._next - self._step
+
+        self._next = last
+        self._step = -self._step
 
 
 @guppy
@@ -143,8 +137,10 @@ def range(start: int, stop: int = 0, step: int = 1) -> Range:
     value is comptime known, then the returned iterator will have a static size
     annotation and may for example be used inside array comprehensions.
 
-    Iterating with a ``step`` of ``0`` raises a runtime panic. The
-    ``Range.reverse_in_place`` method reverses the iteration direction in place.
+    Iterating with a ``step`` of ``0`` raises a runtime panic.
+
+    Use the ``Range.reverse_in_place`` method to reverse the iteration direction
+    in place.
     """
 
 
