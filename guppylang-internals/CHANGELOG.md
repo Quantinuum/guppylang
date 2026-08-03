@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.0.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc2...guppylang-internals-v1.0.0) (2026-08-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Stop treating protocol bounds as always copyable and droppable (#2142)
+* Type args to Either/Result factory methods `right`/`err` same way round (#2139)
+
+
+### Bug Fixes
+
+* (Don't) Handle kwargs in dummy decorator  (#2156)([6213723](https://github.com/Quantinuum/guppylang/commit/62137233b4769ebddca879fa1239a6293f1099e5))
+* Make most builtin functions + struct constructors daggerable (#2151)([e7fbacb](https://github.com/Quantinuum/guppylang/commit/e7fbacb77aebd3f7fdc3276748caa77bf6602e9d))
+* Assign a `FunctionDefType` to nested functions (#2116) (#2147)([b38ab14](https://github.com/Quantinuum/guppylang/commit/b38ab14234fced20603e557cdcc1150edca0f9e2))
+* Preserve generic parameters in modifier blocks  (#2146)([cfa9b98](https://github.com/Quantinuum/guppylang/commit/cfa9b98f8318f340cdaca42bd5193e91d9580b3c))
+* Address missing API docs members from the std.collections module (#2145)([ef7fed9](https://github.com/Quantinuum/guppylang/commit/ef7fed93ed30e484878ffea486ff69d7e6a9d6e4))
+* Correctly parse modifier protocol bounds  (#2144)([c49798b](https://github.com/Quantinuum/guppylang/commit/c49798b9cfaeca7e61010f5a82f47457687c4d10))
+* Stop treating protocol bounds as always copyable and droppable (#2142)([6f4fbab](https://github.com/Quantinuum/guppylang/commit/6f4fbab85106f73132c8cad72ff1cb6975f0cb3e))
+* Type args to Either/Result factory methods `right`/`err` same way round (#2139)([09f6baf](https://github.com/Quantinuum/guppylang/commit/09f6bafe3d1ca8e77ea33cd583a7c3455ab7c042))
+* False type error when checking `Callable` protocol  (#2138)([e719ceb](https://github.com/Quantinuum/guppylang/commit/e719cebf1898157c764c8ecf35ba0383cf3cc3bc))
+* Correctly derive linearity of structs from their fields  (#2135)([ccd42a9](https://github.com/Quantinuum/guppylang/commit/ccd42a957a41890e2000cfea107c9e8ec721cfd4))
+* Fix comptime inout updates for `state_output` (and other custom) functions (#2132)([4fbd07a](https://github.com/Quantinuum/guppylang/commit/4fbd07a47a3274a841ad29df30c9fe369d7a6a9f))
+* Unitary checker skips invalid function calls in arguments (#2131)([524a11c](https://github.com/Quantinuum/guppylang/commit/524a11c734d812bb3503c6e84b715dca3f65f3d6))
+
+
+### Code Refactoring
+
+* Remove version guards for Python 3.12 lower bound (#2141)([04f3b26](https://github.com/Quantinuum/guppylang/commit/04f3b2660db2a4561672acdc3790219082d8dc00))
+
+
+### Features
+
+* Add RemoveRedundancies pass to default compilation (#2148)([8f29b43](https://github.com/Quantinuum/guppylang/commit/8f29b43a714f87879ed841bd4d34de244bc6eff7))
+* Smarter coercions in array constructor (#2134)([5342e74](https://github.com/Quantinuum/guppylang/commit/5342e74992161c71dfe17bf7cb3e298411d26633))
+
 ## [1.0.0-rc2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc1...guppylang-internals-v1.0.0-rc2) (2026-07-17)
 
 

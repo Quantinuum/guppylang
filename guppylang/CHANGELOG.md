@@ -14,6 +14,33 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
 
+## [1.0.0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc2...guppylang-v1.0.0) (2026-08-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Type args to Either/Result factory methods `right`/`err` same way round (#2139)
+
+
+### Bug Fixes
+
+* Make most builtin functions + struct constructors daggerable (#2151)([e7fbacb](https://github.com/Quantinuum/guppylang/commit/e7fbacb77aebd3f7fdc3276748caa77bf6602e9d))
+* Address missing API docs members from the std.collections module (#2145)([ef7fed9](https://github.com/Quantinuum/guppylang/commit/ef7fed93ed30e484878ffea486ff69d7e6a9d6e4))
+* Type args to Either/Result factory methods `right`/`err` same way round (#2139)([09f6baf](https://github.com/Quantinuum/guppylang/commit/09f6bafe3d1ca8e77ea33cd583a7c3455ab7c042))
+* Fix comptime inout updates for `state_output` (and other custom) functions (#2132)([4fbd07a](https://github.com/Quantinuum/guppylang/commit/4fbd07a47a3274a841ad29df30c9fe369d7a6a9f))
+
+
+### Documentation
+
+* Fix broken code blocks in emulator docs (#2150)([b559728](https://github.com/Quantinuum/guppylang/commit/b559728de34affc4f71912acc656d9e03fea196b))
+* Add entrypoint arguments and target platform to emulator docs (#2143)([8b4994f](https://github.com/Quantinuum/guppylang/commit/8b4994f77235fa4cde766f0db85b46bb37539c45))
+* Optimization module docs  (#2136)([2e93541](https://github.com/Quantinuum/guppylang/commit/2e93541126306c6248f3a3ddaabf1cf06a87cbef))
+
+
+### Features
+
+* Add RemoveRedundancies pass to default compilation (#2148)([8f29b43](https://github.com/Quantinuum/guppylang/commit/8f29b43a714f87879ed841bd4d34de244bc6eff7))
+
 ## [1.0.0-rc2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc1...guppylang-v1.0.0-rc2) (2026-07-17)
 
 
