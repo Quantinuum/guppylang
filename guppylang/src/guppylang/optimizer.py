@@ -137,8 +137,9 @@ class OptimizationLevel(Enum):
     the program's gateset. Calling ``main.compile()`` or ``main.emulator(...)``
     directly uses this level.
 
-    Currently, this is equivalent to :py:attr:`OptimizationLevel.Classical`, but
-    may be modified in future versions.
+    Currently, this applies pytket's `RemoveRedundancies` after the
+    optimizations in :py:attr:`OptimizationLevel.Classical`. This may be
+    modified in future versions.
     """
 
     Classical = "classical"
@@ -165,7 +166,15 @@ class OptimizationLevel(Enum):
     def passes(self) -> list[ComposablePass]:
         """Return the list of HUGR passes ran by this optimization level."""
         match self:
-            case OptimizationLevel.Default | OptimizationLevel.Classical:
+            case OptimizationLevel.Default:
+                # The pytket dependency could be bypassed by using the json
+                # encoding of the passes rather than the pytket objects
+                # themselves.
+                from pytket.passes import RemoveRedundancies
+                from tket import passes
+
+                return [passes.Normalize(), passes.PytketHugrPass(RemoveRedundancies())]
+            case OptimizationLevel.Classical:
                 from tket import passes
 
                 return [passes.Normalize()]
