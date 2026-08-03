@@ -14,7 +14,7 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
-## [1.0.0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc2...guppylang-v1.0.0) (2026-08-03)
+## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.16...guppylang-v1.0.1) (2026-08-03)
 
 Guppy v1 is the first stable release of the Guppy quantum programming language. It introduces several major new features alongside a number of breaking changes and new behaviours.
 
