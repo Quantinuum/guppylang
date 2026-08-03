@@ -83,7 +83,7 @@ def test_static_generic_size(validate):
     validate(main.compile_function())
 
 
-def test_range_reverse(run_int_fn):
+def test_range_reverse(run_int_fn, validate):
     """Reversing a range iterates the same elements as `reversed(range(...))`."""
 
     @guppy
@@ -104,6 +104,8 @@ def test_range_reverse(run_int_fn):
 
     def expected(a: int, b: int, s: int) -> int:
         return encode(reversed(builtins.range(a, b, s)))
+
+    validate(main.compile_function())
 
     # Positive steps (including one that doesn't divide the span evenly)
     run_int_fn(main, args=[0, 5, 1], expected=expected(0, 5, 1))
