@@ -213,7 +213,8 @@ class GuppyCompilableProgram(Protocol):
 
         Args:
             debug_mode: Whether to add debug information to the compiled package. This
-            may be useful for debugging, but will increase the size of the HUGR package.
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         Raises:
@@ -226,7 +227,8 @@ class GuppyCompilableProgram(Protocol):
 
         Args:
             debug_mode: Whether to add debug information to the compiled package. This
-            may be useful for debugging, but will increase the size of the HUGR package.
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         Raises:
@@ -403,7 +405,8 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
 
         Args:
             debug_mode: Whether to add debug information to the compiled package. This
-            may be useful for debugging, but will increase the size of the HUGR package.
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         Raises:
@@ -419,7 +422,8 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
 
         Args:
             debug_mode: Whether to add debug information to the compiled package. This
-            may be useful for debugging, but will increase the size of the HUGR package.
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         Raises:
@@ -456,7 +460,8 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
 
         Args:
             debug_mode: Whether to add debug information to the compiled package. This
-            may be useful for debugging, but will increase the size of the HUGR package.
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         """

@@ -20,7 +20,7 @@ def state_output(tag, *args) -> None:
     Args:
         tag: A string literal representing the tag of the state output.
         args: The qubits whose quantum state is to be reported. The order they are given
-        in corresponds to the order in which the state will be reported.
+            in corresponds to the order in which the state will be reported.
     """
 
 
