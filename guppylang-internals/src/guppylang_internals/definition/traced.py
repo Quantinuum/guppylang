@@ -53,7 +53,7 @@ from guppylang_internals.tracing.recorder import (
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import InputFlags, Type, UnitaryFlags, type_to_row
+from guppylang_internals.tys.ty import Type, UnitaryFlags, type_to_row
 
 PyFunc = Callable[..., Any]
 
@@ -112,7 +112,6 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         trace = trace_function(
             self.python_func,
             mono_ty,
-            sum(InputFlags.Comptime not in inp.flags for inp in mono_ty.inputs),
             generic_args,
             self.defined_at,
             self,

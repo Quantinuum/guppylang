@@ -75,7 +75,6 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
-    input_count: int,
     generic_args: Mapping[str, Argument],
     node: AstNode,
     func_def: "TracedFunctionDef",
@@ -108,6 +107,7 @@ def trace_function(
                 #  future, drop this restriction and support all kinds of arguments.
                 return None
 
+    input_count = sum(InputFlags.Comptime not in inp.flags for inp in ty.inputs)
     recorder = TraceRecorder(input_count)
     ctx: ToHugrContext = None
     state = TracingState(ctx, recorder, node, func_def)
