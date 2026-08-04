@@ -85,11 +85,10 @@ def trace_function(
     to form a Trace.
     """
 
-    def const_argument_to_python_value(arg: Argument) -> Any:
+    def find_const_value(arg: Argument) -> ConstValue | None:
         """Extracts a Python value from the given generic argument."""
         match arg:
-            case ConstArg(ConstValue(value=v)):
-                assert v is not None
+            case ConstArg(ConstValue() as v):
                 return v
             case ConstArg(BoundConstVar()) | TypeArg(ty=BoundTypeVar()):
                 # This means we are building the arguments with which to trace
@@ -109,9 +108,9 @@ def trace_function(
     state = TracingState(ctx, recorder, node, func_def)
     with set_tracing_state(state):
         generic_values = {
-            x: val
+            x: val.value
             for x, arg in generic_args.items()
-            if (val := const_argument_to_python_value(arg)) is not None
+            if (val := find_const_value(arg)) is not None
         }
 
         input_wires = iter(recorder.inputs())
