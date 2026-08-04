@@ -49,6 +49,14 @@ class TraceOperation:
 
 
 @dataclass(frozen=True)
+class TraceUntuple:
+    """A tuple unpack operation emitted while tracing."""
+
+    types: Sequence[Type]
+    input: TraceOutput
+
+
+@dataclass(frozen=True)
 class TraceLoadVal:
     """A python value loaded while tracing."""
 
@@ -82,7 +90,14 @@ class TraceCall:
     input_places: Sequence[tuple[Place, TraceWire]]
 
 
-TraceEntry = TraceOperation | TraceLoad | TraceLoadVal | TraceFunctionLoad | TraceCall
+TraceEntry = (
+    TraceOperation
+    | TraceUntuple
+    | TraceLoad
+    | TraceLoadVal
+    | TraceFunctionLoad
+    | TraceCall
+)
 
 
 @dataclass(frozen=True)
@@ -148,6 +163,10 @@ class TraceRecorder:
             )
         )
 
+    def record_untuple(self, types: Sequence[Type], input: TraceOutput) -> TraceNode:
+        """Records a tuple unpack to replay into the Hugr during compilation."""
+        return self._add(TraceUntuple(types, input))
+
     def record_load_val(self, value: Any, ty: Type, node: AstNode) -> TraceWire:
         """Records a load to replay into the Hugr during compilation"""
         return self._add(TraceLoadVal(value, ty, node)).as_trace_wire()
@@ -184,7 +203,13 @@ class TraceRecorder:
     def _add(self, entry: TraceEntry) -> TraceNode:
         entry_index = len(self._operations)
         self._operations.append(entry)
-        output_count = entry.output_count if isinstance(entry, TraceOperation) else 1
+        match entry:
+            case TraceOperation(output_count=output_count):
+                pass
+            case TraceUntuple(types=types):
+                output_count = len(types)
+            case _:
+                output_count = 1
         return TraceNode([TraceWire(entry_index, port) for port in range(output_count)])
 
 

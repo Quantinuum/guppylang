@@ -67,18 +67,14 @@ def unpack_guppy_object(
         case NoneType():
             return None
         case TupleType(element_types=tys):
-            unpack = recorder.record_op(
-                ops.unpack_tuple([ty.to_hugr(ctx=None) for ty in tys]),
-                obj._use_wire(None),
-            )
+            unpack = recorder.record_untuple(tys, obj._use_wire(None))
             return tuple(
                 unpack_guppy_object(GuppyObject(ty, wire), recorder, frozen)
                 for ty, wire in zip(tys, unpack.outputs(), strict=True)
             )
         case StructType() as ty:
-            unpack = recorder.record_op(
-                ops.unpack_tuple([field.ty.to_hugr(ctx=None) for field in ty.fields]),
-                obj._use_wire(None),
+            unpack = recorder.record_untuple(
+                [field.ty for field in ty.fields], obj._use_wire(None)
             )
             field_values = [
                 unpack_guppy_object(GuppyObject(field.ty, wire), recorder, frozen)
@@ -200,11 +196,8 @@ def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> 
             assert isinstance(obj._ty, NoneType)
         case tuple(vs):
             assert isinstance(obj._ty, TupleType)
-            wire_iterator = recorder.record_op(
-                ops.unpack_tuple(
-                    [ty.to_hugr(ctx=None) for ty in obj._ty.element_types]
-                ),
-                obj._use_wire(None),
+            wire_iterator = recorder.record_untuple(
+                obj._ty.element_types, obj._use_wire(None)
             ).outputs()
             for v, ty, out_wire in zip(
                 vs, obj._ty.element_types, wire_iterator, strict=True
@@ -214,9 +207,8 @@ def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> 
                     return False
         case GuppyStructObject(_ty=ty, _field_values=values):
             assert obj._ty == ty
-            wire_iterator = recorder.record_op(
-                ops.unpack_tuple([field.ty.to_hugr(ctx=None) for field in ty.fields]),
-                obj._use_wire(None),
+            wire_iterator = recorder.record_untuple(
+                [field.ty for field in ty.fields], obj._use_wire(None)
             ).outputs()
             for field, out_wire in zip(ty.fields, wire_iterator, strict=True):
                 v = values[field.name]

@@ -14,7 +14,6 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
-from guppylang_internals.compiler.builder.ops import unpack_tuple
 from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
@@ -155,10 +154,7 @@ def trace_function(
         out_tys = type_to_row(out_obj._ty)
         if len(out_tys) > 1:
             regular_returns = list(
-                recorder.record_op(
-                    unpack_tuple([out_ty.to_hugr(None) for out_ty in out_tys]),
-                    out_obj._use_wire(None),
-                ).outputs()
+                recorder.record_untuple(out_tys, out_obj._use_wire(None)).outputs()
             )
         elif len(out_tys) > 0:
             regular_returns = [out_obj._use_wire(None)]

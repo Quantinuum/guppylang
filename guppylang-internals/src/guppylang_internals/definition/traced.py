@@ -19,7 +19,7 @@ from guppylang_internals.checker.expr_checker import (
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
-from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.compiler.builder import FunctionBuilder, ops
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.debug_mode import debug_mode_enabled
@@ -50,6 +50,7 @@ from guppylang_internals.tracing.recorder import (
     TraceLoadVal,
     TraceOperation,
     TraceOutput,
+    TraceUntuple,
 )
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import Parameter
@@ -259,6 +260,11 @@ class CompiledTracedFunctionDef(
                     with builder.set_ast_context(node):
                         node = builder.add_op(op, *(get_wire(i) for i in inputs))
                         outputs = [node[i] for i in range(output_count)]
+                case TraceUntuple(types, input):
+                    hugr_types = [ty.to_hugr(ctx) for ty in types]
+                    node = builder.add_op(ops.unpack_tuple(hugr_types), get_wire(input))
+                    output_count = len(types)
+                    outputs = [node[i] for i in range(output_count)]
                 case TraceLoadVal(value, ty, node):
                     hugr_val = python_value_to_hugr(value, ty, ctx)
                     assert hugr_val is not None
