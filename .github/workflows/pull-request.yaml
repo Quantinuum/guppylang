@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      - uses: mozilla-actions/sccache-action@v0.0.10
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - name: Install stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Set up uv
@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.10
+        uses: mozilla-actions/sccache-action@v0.0.11
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -97,7 +97,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.10
+        uses: mozilla-actions/sccache-action@v0.0.11
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
