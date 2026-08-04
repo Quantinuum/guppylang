@@ -1,18 +1,19 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, TypeAlias, overload
 
-from hugr import val
 from hugr.ops import DataflowOp
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import ComptimeVariable, Place
 from guppylang_internals.compiler.builder import OpWithEffects
-from guppylang_internals.definition.common import DefId
+from guppylang_internals.definition.value import ValueDef
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.tys.ty import Type
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.common import DefId
     from guppylang_internals.tys.subst import Inst
 
 
@@ -48,10 +49,19 @@ class TraceOperation:
 
 
 @dataclass(frozen=True)
-class TraceLoad:
-    """A HUGR value loaded while tracing."""
+class TraceLoadVal:
+    """A python value loaded while tracing."""
 
-    value: val.Value | DefId
+    value: Any
+    ty: Type
+    node: AstNode
+
+
+@dataclass(frozen=True)
+class TraceLoad:
+    """A comptime value loaded while tracing."""
+
+    value: ValueDef
     node: AstNode
 
 
@@ -72,7 +82,7 @@ class TraceCall:
     input_places: Sequence[tuple[Place, TraceWire]]
 
 
-TraceEntry = TraceOperation | TraceLoad | TraceFunctionLoad | TraceCall
+TraceEntry = TraceOperation | TraceLoad | TraceLoadVal | TraceFunctionLoad | TraceCall
 
 
 @dataclass(frozen=True)
@@ -138,7 +148,11 @@ class TraceRecorder:
             )
         )
 
-    def record_load(self, value: val.Value | DefId) -> TraceWire:
+    def record_load_val(self, value: Any, ty: Type, node: AstNode) -> TraceWire:
+        """Records a load to replay into the Hugr during compilation"""
+        return self._add(TraceLoadVal(value, ty, node)).as_trace_wire()
+
+    def record_load(self, value: ValueDef) -> TraceWire:
         """Records a load to replay into the Hugr during compilation"""
         from guppylang_internals.tracing.state import get_tracing_state
 

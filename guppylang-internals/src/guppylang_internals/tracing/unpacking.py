@@ -6,7 +6,6 @@ from guppylang_internals.checker.errors.comptime_errors import (
 )
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
 from guppylang_internals.compiler.builder import ops
-from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.error import GuppyComptimeError, GuppyError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.array import array_new, array_unpack
 from guppylang_internals.tracing.frozenlist import frozenlist
@@ -176,9 +175,7 @@ def guppy_object_from_py(
             ty = python_value_to_guppy_type(v, node)
             if ty is None:
                 raise GuppyError(UnsupportedPythonValueError(node, type(v)))
-            hugr_val = python_value_to_hugr(v, ty, ctx)
-            assert hugr_val is not None
-            return GuppyObject(ty, recorder.record_load(hugr_val))
+            return GuppyObject(ty, recorder.record_load_val(v, ty, node))
 
 
 def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> bool:

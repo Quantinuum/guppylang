@@ -8,7 +8,6 @@ import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.metadata import HugrDebugInfo
-from hugr.val import Value
 from typing_extensions import assert_never, override
 
 from guppylang_internals.ast_util import AstNode, with_loc
@@ -22,6 +21,7 @@ from guppylang_internals.checker.func_checker import (
 )
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
+from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
@@ -47,6 +47,7 @@ from guppylang_internals.tracing.recorder import (
     TraceCall,
     TraceFunctionLoad,
     TraceLoad,
+    TraceLoadVal,
     TraceOperation,
     TraceOutput,
 )
@@ -258,18 +259,20 @@ class CompiledTracedFunctionDef(
                     with builder.set_ast_context(node):
                         node = builder.add_op(op, *(get_wire(i) for i in inputs))
                         outputs = [node[i] for i in range(output_count)]
-                case TraceLoad(value, node):
-                    if isinstance(value, Value):
-                        outputs = [builder.load(value)[0]]
-                    else:
-                        defn = ctx.build_compiled_def(value, type_args=())
-                        # TypeDefs should already have been converted to LoadFunctions
-                        # of their *constructors* during checking/tracing.
-                        if not isinstance(defn, CompiledValueDef):
-                            def_kind = defn.description.capitalize()
-                            err = f"{def_kind} `{defn.name}` is not a value"
-                            raise GuppyComptimeError(err)
-                        outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
+                case TraceLoadVal(value, ty, node):
+                    hugr_val = python_value_to_hugr(value, ty, ctx)
+                    assert hugr_val is not None
+                    outputs = [builder.load(hugr_val)[0]]
+                    output_count = 1
+                case TraceLoad(v_def, node):
+                    defn = ctx.build_compiled_def(v_def.id, type_args=())
+                    # TypeDefs should already have been converted to LoadFunctions
+                    # of their *constructors* during checking/tracing.
+                    if not isinstance(defn, CompiledValueDef):
+                        def_kind = defn.description.capitalize()
+                        err = f"{def_kind} `{defn.name}` is not a value"
+                        raise GuppyComptimeError(err)
+                    outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
                     output_count = 1
                 case TraceFunctionLoad(def_id, type_args, node):
                     defn = ctx.build_compiled_def(def_id, type_args)

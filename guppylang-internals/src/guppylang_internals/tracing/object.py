@@ -622,7 +622,7 @@ class TracingDefMixin(DunderMixin):
             wire = state.recorder.record_load_func(defn.id, ())
             return GuppyObject(defn.ty, wire, None)
         if isinstance(defn, ValueDef):
-            return GuppyObject(defn.ty, state.recorder.record_load(self.id))
+            return GuppyObject(defn.ty, state.recorder.record_load(defn))
         raise GuppyComptimeError(
             f"Cannot convert {defn.description} `{defn.name}` to a Guppy object"
         )
