@@ -51,7 +51,6 @@ from guppylang_internals.tracing.recorder import (
     TraceLoadVal,
     TraceMakeTuple,
     TraceNewArray,
-    TraceOperation,
     TraceOutput,
     TraceUnpackArray,
     TraceUntuple,
@@ -260,10 +259,6 @@ class CompiledTracedFunctionDef(
         for entry_index, entry in enumerate(self.trace.operations):
             outputs: Sequence[Wire]
             match entry:
-                case TraceOperation(op, inputs, output_count, node):
-                    with builder.set_ast_context(node):
-                        node = builder.add_op(op, *(get_wire(i) for i in inputs))
-                        outputs = [node[i] for i in range(output_count)]
                 case TraceUntuple(types, input):
                     hugr_types = [ty.to_hugr(ctx) for ty in types]
                     node = builder.add_op(ops.unpack_tuple(hugr_types), get_wire(input))

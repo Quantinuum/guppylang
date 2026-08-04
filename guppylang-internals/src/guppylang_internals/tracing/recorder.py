@@ -3,11 +3,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeAlias, overload
 
-from hugr.ops import DataflowOp
-
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import ComptimeVariable, Place
-from guppylang_internals.compiler.builder import OpWithEffects
 from guppylang_internals.definition.value import ValueDef
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.ty import Type
@@ -36,16 +33,6 @@ class TraceWire:
 #: to a Hugr `Wire` during compilation. (`ComptimeVariable`s are resolved via the
 #: state held in the DFContainer.)
 TraceOutput: TypeAlias = TraceWire | ComptimeVariable
-
-
-@dataclass(frozen=True)
-class TraceOperation:
-    """A primitive dataflow operation emitted while tracing."""
-
-    op: OpWithEffects
-    inputs: tuple[TraceOutput, ...]
-    output_count: int
-    node: AstNode | None
 
 
 @dataclass(frozen=True)
@@ -115,8 +102,7 @@ class TraceCall:
 
 
 TraceEntry = (
-    TraceOperation
-    | TraceUntuple
+    TraceUntuple
     | TraceMakeTuple
     | TraceUnpackArray
     | TraceNewArray
@@ -174,22 +160,6 @@ class TraceRecorder:
     def inputs(self) -> tuple[TraceWire, ...]:
         return self._inputs
 
-    def record_op(self, op: OpWithEffects, /, *args: TraceOutput) -> TraceNode:
-        """Records a dataflow operation to replay into the Hugr during compilation"""
-        from guppylang_internals.tracing.state import get_tracing_state
-
-        (dataflow_op, _effects) = op
-        output_count = _operation_output_count(dataflow_op)
-        node = get_tracing_state().node
-        return self._add(
-            TraceOperation(
-                op,
-                tuple(args),
-                output_count,
-                node,
-            )
-        )
-
     def record_untuple(self, types: Sequence[Type], input: TraceOutput) -> TraceNode:
         """Records a tuple unpack to replay into the Hugr during compilation."""
         return self._add(TraceUntuple(types, input))
@@ -245,31 +215,10 @@ class TraceRecorder:
         entry_index = len(self._operations)
         self._operations.append(entry)
         match entry:
-            case (
-                TraceOperation(output_count=output_count)
-                | TraceUnpackArray(length=output_count)
-            ):
+            case TraceUnpackArray(length=output_count):
                 pass
             case TraceUntuple(types=types):
                 output_count = len(types)
             case _:
                 output_count = 1
         return TraceNode([TraceWire(entry_index, port) for port in range(output_count)])
-
-
-def _operation_output_count(op: DataflowOp) -> int:
-    """Returns the statically known number of value outputs for traceable ops."""
-    from hugr import ops as hops
-
-    match op:
-        case hops.MakeTuple() | hops.LoadConst():
-            return 1
-        case hops.UnpackTuple(types=types):
-            return len(types)
-        case _:
-            signature = getattr(op, "signature", None)
-            if signature is not None:
-                return len(signature.output)
-            raise InternalGuppyError(
-                f"Cannot record operation `{type(op).__name__}` during comptime tracing"
-            )
