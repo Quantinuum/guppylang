@@ -64,18 +64,18 @@ def unpack_guppy_object(
         case NoneType():
             return None
         case TupleType(element_types=tys):
-            unpack = recorder.record_untuple(tys, obj._use_wire(None))
+            elems = recorder.record_untuple(tys, obj._use_wire(None))
             return tuple(
                 unpack_guppy_object(GuppyObject(ty, wire), recorder, frozen)
-                for ty, wire in zip(tys, unpack.outputs(), strict=True)
+                for ty, wire in zip(tys, elems, strict=True)
             )
         case StructType() as ty:
-            unpack = recorder.record_untuple(
+            tuple_elems = recorder.record_untuple(
                 [field.ty for field in ty.fields], obj._use_wire(None)
             )
             field_values = [
                 unpack_guppy_object(GuppyObject(field.ty, wire), recorder, frozen)
-                for field, wire in zip(ty.fields, unpack.outputs(), strict=True)
+                for field, wire in zip(ty.fields, tuple_elems, strict=True)
             ]
             return GuppyStructObject(ty, field_values, frozen)
         case EnumType() as ty:
@@ -183,21 +183,17 @@ def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> 
             assert isinstance(obj._ty, NoneType)
         case tuple(vs):
             assert isinstance(obj._ty, TupleType)
-            wire_iterator = recorder.record_untuple(
-                obj._ty.element_types, obj._use_wire(None)
-            ).outputs()
-            for v, ty, out_wire in zip(
-                vs, obj._ty.element_types, wire_iterator, strict=True
-            ):
+            wires = recorder.record_untuple(obj._ty.element_types, obj._use_wire(None))
+            for v, ty, out_wire in zip(vs, obj._ty.element_types, wires, strict=True):
                 success = update_packed_value(v, GuppyObject(ty, out_wire), recorder)
                 if not success:
                     return False
         case GuppyStructObject(_ty=ty, _field_values=values):
             assert obj._ty == ty
-            wire_iterator = recorder.record_untuple(
+            wires = recorder.record_untuple(
                 [field.ty for field in ty.fields], obj._use_wire(None)
-            ).outputs()
-            for field, out_wire in zip(ty.fields, wire_iterator, strict=True):
+            )
+            for field, out_wire in zip(ty.fields, wires, strict=True):
                 v = values[field.name]
                 success = update_packed_value(
                     v, GuppyObject(field.ty, out_wire), recorder

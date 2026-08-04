@@ -154,7 +154,7 @@ def trace_function(
         out_tys = type_to_row(out_obj._ty)
         if len(out_tys) > 1:
             regular_returns = list(
-                recorder.record_untuple(out_tys, out_obj._use_wire(None)).outputs()
+                recorder.record_untuple(out_tys, out_obj._use_wire(None))
             )
         elif len(out_tys) > 0:
             regular_returns = [out_obj._use_wire(None)]

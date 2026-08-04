@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, TypeAlias, overload
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import ComptimeVariable, Place
 from guppylang_internals.definition.value import ValueDef
-from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.ty import Type
 
 if TYPE_CHECKING:
@@ -24,9 +23,6 @@ class TraceWire:
 
     entry: int
     port: int
-
-    def as_trace_wire(self) -> "TraceWire":
-        return self
 
 
 #: A value usable as an input to an op/call in a trace, i.e. that will be resolved
@@ -121,34 +117,6 @@ class Trace:
     outputs: tuple[TraceOutput, ...]
 
 
-class TraceNode(Sequence[TraceWire]):
-    """Virtual node returned by :class:`TraceRecorder`."""
-
-    def __init__(self, wires: Sequence[TraceWire]) -> None:
-        self._wires = tuple(wires)
-
-    @overload
-    def __getitem__(self, index: int) -> TraceWire: ...
-    @overload
-    def __getitem__(self, index: slice) -> tuple[TraceWire, ...]: ...
-
-    def __getitem__(self, index: int | slice) -> TraceWire | tuple[TraceWire, ...]:
-        return self._wires[index]
-
-    def __len__(self) -> int:
-        return len(self._wires)
-
-    def outputs(self) -> tuple[TraceWire, ...]:
-        return self._wires
-
-    def as_trace_wire(self) -> TraceWire:
-        if len(self._wires) != 1:
-            raise InternalGuppyError(
-                "Cannot convert TraceNode with multiple outputs to a single TraceWire"
-            )
-        return self._wires[0]
-
-
 class TraceRecorder:
     """Records the actions performed by a comptime function."""
 
@@ -160,41 +128,43 @@ class TraceRecorder:
     def inputs(self) -> tuple[TraceWire, ...]:
         return self._inputs
 
-    def record_untuple(self, types: Sequence[Type], input: TraceOutput) -> TraceNode:
+    def record_untuple(
+        self, types: Sequence[Type], input: TraceOutput
+    ) -> Sequence[TraceWire]:
         """Records a tuple unpack to replay into the Hugr during compilation."""
         return self._add(TraceUntuple(types, input))
 
     def record_make_tuple(self, *inputs: TraceOutput) -> TraceWire:
         """Records a make-tuple to replay into the Hugr during compilation."""
-        return self._add(TraceMakeTuple(inputs)).as_trace_wire()
+        return self._add(TraceMakeTuple(inputs))
 
     def record_unpack_array(
         self, elem_ty: Type, length: int, input: TraceOutput
-    ) -> TraceNode:
+    ) -> Sequence[TraceWire]:
         """Records an array unpack to replay into the Hugr during compilation."""
         return self._add(TraceUnpackArray(elem_ty, length, input))
 
     def record_new_array(self, elem_ty: Type, *inputs: TraceOutput) -> TraceWire:
         """Records a new-array op to replay into the Hugr during compilation."""
-        return self._add(TraceNewArray(elem_ty, inputs)).as_trace_wire()
+        return self._add(TraceNewArray(elem_ty, inputs))
 
     def record_load_val(self, value: Any, ty: Type, node: AstNode) -> TraceWire:
         """Records a load to replay into the Hugr during compilation"""
-        return self._add(TraceLoadVal(value, ty, node)).as_trace_wire()
+        return self._add(TraceLoadVal(value, ty, node))
 
     def record_load(self, value: ValueDef) -> TraceWire:
         """Records a load to replay into the Hugr during compilation"""
         from guppylang_internals.tracing.state import get_tracing_state
 
         node = get_tracing_state().node
-        return self._add(TraceLoad(value, node)).as_trace_wire()
+        return self._add(TraceLoad(value, node))
 
     def record_load_func(self, def_id: "DefId", type_args: "Inst") -> TraceWire:
         """Records a load_function to replay into the Hugr during compilation"""
         from guppylang_internals.tracing.state import get_tracing_state
 
         node = get_tracing_state().node
-        return self._add(TraceFunctionLoad(def_id, type_args, node)).as_trace_wire()
+        return self._add(TraceFunctionLoad(def_id, type_args, node))
 
     def record_call(
         self,
@@ -202,7 +172,7 @@ class TraceRecorder:
         input_places: Sequence[tuple[Place, TraceWire]],
     ) -> TraceWire:
         """Records a function call to be compiled into the Hugr during replay"""
-        return self._add(TraceCall(node, input_places)).as_trace_wire()
+        return self._add(TraceCall(node, input_places))
 
     def set_outputs(self, *outputs: TraceOutput) -> None:
         self._outputs = tuple(outputs)
@@ -211,7 +181,20 @@ class TraceRecorder:
         assert self._outputs is not None, "Traced function did not set outputs"
         return Trace(tuple(self._operations), self._outputs)
 
-    def _add(self, entry: TraceEntry) -> TraceNode:
+    @overload
+    def _add(self, entry: TraceUnpackArray | TraceUntuple) -> Sequence[TraceWire]: ...
+    @overload
+    def _add(
+        self,
+        entry: TraceNewArray
+        | TraceMakeTuple
+        | TraceLoad
+        | TraceLoadVal
+        | TraceFunctionLoad
+        | TraceCall,
+    ) -> TraceWire: ...
+
+    def _add(self, entry: TraceEntry) -> TraceWire | Sequence[TraceWire]:
         entry_index = len(self._operations)
         self._operations.append(entry)
         match entry:
@@ -220,5 +203,5 @@ class TraceRecorder:
             case TraceUntuple(types=types):
                 output_count = len(types)
             case _:
-                output_count = 1
-        return TraceNode([TraceWire(entry_index, port) for port in range(output_count)])
+                return TraceWire(entry_index, 0)
+        return [TraceWire(entry_index, port) for port in range(output_count)]
