@@ -112,7 +112,7 @@ class TraceNode(Sequence[TraceWire]):
 
 
 class TraceRecorder:
-    """Records the builder actions performed by a comptime function."""
+    """Records the actions performed by a comptime function."""
 
     def __init__(self, input_count: int) -> None:
         self._inputs = tuple(TraceWire(-1, port) for port in range(input_count))

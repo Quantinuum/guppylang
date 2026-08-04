@@ -22,7 +22,7 @@ class TracingState:
     ctx: ToHugrContext
 
     #: The trace of operations performed during the comptime execution of a function.
-    builder: "TraceRecorder"
+    recorder: "TraceRecorder"
 
     #: An AST node capturing the code block that is currently being traced
     node: AstNode

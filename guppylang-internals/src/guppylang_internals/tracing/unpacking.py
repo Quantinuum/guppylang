@@ -38,21 +38,21 @@ from guppylang_internals.tys.ty import (
 
 
 def unpack_array(
-    builder: TraceRecorder, array_ty: Type, array: TraceOutput
+    recorder: TraceRecorder, array_ty: Type, array: TraceOutput
 ) -> list[TraceWire]:
     """Unpacks a wire of type array into separate wires for each element."""
     assert isinstance(array_ty, OpaqueType)
     match array_ty.args:
         case [TypeArg(ty=elem_ty), ConstArg(const=ConstValue(value=length))]:
             et = elem_ty.to_hugr(ctx=None)
-            res = builder.record_op(array_unpack(et, length), array)
+            res = recorder.record_op(array_unpack(et, length), array)
             return [res[i] for i in range(length)]
         case _:
             raise InternalGuppyError("Invalid array type args")
 
 
 def unpack_guppy_object(
-    obj: GuppyObject, builder: TraceRecorder, frozen: bool = False
+    obj: GuppyObject, recorder: TraceRecorder, frozen: bool = False
 ) -> Any:
     """Tries to turn as much of the structure of a GuppyObject into Python objects.
 
@@ -68,21 +68,21 @@ def unpack_guppy_object(
         case NoneType():
             return None
         case TupleType(element_types=tys):
-            unpack = builder.record_op(
+            unpack = recorder.record_op(
                 ops.unpack_tuple([ty.to_hugr(ctx=None) for ty in tys]),
                 obj._use_wire(None),
             )
             return tuple(
-                unpack_guppy_object(GuppyObject(ty, wire), builder, frozen)
+                unpack_guppy_object(GuppyObject(ty, wire), recorder, frozen)
                 for ty, wire in zip(tys, unpack.outputs(), strict=True)
             )
         case StructType() as ty:
-            unpack = builder.record_op(
+            unpack = recorder.record_op(
                 ops.unpack_tuple([field.ty.to_hugr(ctx=None) for field in ty.fields]),
                 obj._use_wire(None),
             )
             field_values = [
-                unpack_guppy_object(GuppyObject(field.ty, wire), builder, frozen)
+                unpack_guppy_object(GuppyObject(field.ty, wire), recorder, frozen)
                 for field, wire in zip(ty.fields, unpack.outputs(), strict=True)
             ]
             return GuppyStructObject(ty, field_values, frozen)
@@ -96,10 +96,10 @@ def unpack_guppy_object(
                     # there is no way to infer the type. Therefore, we should leave
                     # them as Guppy objects here
                     return obj
-                elems = unpack_array(builder, ty, obj._use_wire(None))
+                elems = unpack_array(recorder, ty, obj._use_wire(None))
                 elem_ty = get_element_type(ty)
                 obj_list = [
-                    unpack_guppy_object(GuppyObject(elem_ty, wire), builder, frozen)
+                    unpack_guppy_object(GuppyObject(elem_ty, wire), recorder, frozen)
                     for wire in elems
                 ]
                 return frozenlist(obj_list) if frozen else obj_list
@@ -111,7 +111,7 @@ def unpack_guppy_object(
 
 
 def guppy_object_from_py(
-    v: Any, builder: TraceRecorder, node: AstNode, ctx: ToHugrContext
+    v: Any, recorder: TraceRecorder, node: AstNode, ctx: ToHugrContext
 ) -> GuppyObject:
     """Constructs a Guppy object from a Python value.
 
@@ -124,20 +124,20 @@ def guppy_object_from_py(
             return defn.to_guppy_object()
         case None:
             return GuppyObject(
-                NoneType(), builder.record_op(ops.make_tuple()).as_trace_wire()
+                NoneType(), recorder.record_op(ops.make_tuple()).as_trace_wire()
             )
         case tuple(vs):
-            objs = [guppy_object_from_py(v, builder, node, ctx) for v in vs]
+            objs = [guppy_object_from_py(v, recorder, node, ctx) for v in vs]
             return GuppyObject(
                 TupleType([obj._ty for obj in objs]),
-                builder.record_op(
+                recorder.record_op(
                     ops.make_tuple(), *(obj._use_wire(None) for obj in objs)
                 ).as_trace_wire(),
             )
         case GuppyStructObject(_ty=struct_ty, _field_values=values):
             wires = []
             for f in struct_ty.fields:
-                obj = guppy_object_from_py(values[f.name], builder, node, ctx)
+                obj = guppy_object_from_py(values[f.name], recorder, node, ctx)
                 # Check that the field still has the correct type. Since we allow users
                 # to mutate structs unchecked, this needs to be checked here
                 if obj._ty != f.ty:
@@ -147,12 +147,12 @@ def guppy_object_from_py(
                     )
                 wires.append(obj._use_wire(None))
             return GuppyObject(
-                struct_ty, builder.record_op(ops.make_tuple(), *wires).as_trace_wire()
+                struct_ty, recorder.record_op(ops.make_tuple(), *wires).as_trace_wire()
             )
         case GuppyEnumObject(_ty=enum_ty, _wire=wire):
             return GuppyObject(enum_ty, wire)
         case list(vs) if len(vs) > 0:
-            objs = [guppy_object_from_py(v, builder, node, ctx) for v in vs]
+            objs = [guppy_object_from_py(v, recorder, node, ctx) for v in vs]
             elem_ty = objs[0]._ty
             for i, obj in enumerate(objs[1:]):
                 if obj._ty != elem_ty:
@@ -164,7 +164,7 @@ def guppy_object_from_py(
             wires = [obj._use_wire(None) for obj in objs]
             return GuppyObject(
                 array_type(elem_ty, len(vs)),
-                builder.record_op(
+                recorder.record_op(
                     array_new(hugr_elem_ty, len(vs)), *wires
                 ).as_trace_wire(),
             )
@@ -178,10 +178,10 @@ def guppy_object_from_py(
                 raise GuppyError(UnsupportedPythonValueError(node, type(v)))
             hugr_val = python_value_to_hugr(v, ty, ctx)
             assert hugr_val is not None
-            return GuppyObject(ty, builder.record_load(hugr_val))
+            return GuppyObject(ty, recorder.record_load(hugr_val))
 
 
-def update_packed_value(v: Any, obj: "GuppyObject", builder: TraceRecorder) -> bool:
+def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> bool:
     """Given a Python value `v` and a `GuppyObject` `obj` that was constructed from `v`
     using `guppy_object_from_py`, tries to update the wires of any `GuppyObjects`
     contained in `v` to the new wires specified by `obj`.
@@ -203,7 +203,7 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: TraceRecorder) -> b
             assert isinstance(obj._ty, NoneType)
         case tuple(vs):
             assert isinstance(obj._ty, TupleType)
-            wire_iterator = builder.record_op(
+            wire_iterator = recorder.record_op(
                 ops.unpack_tuple(
                     [ty.to_hugr(ctx=None) for ty in obj._ty.element_types]
                 ),
@@ -212,28 +212,28 @@ def update_packed_value(v: Any, obj: "GuppyObject", builder: TraceRecorder) -> b
             for v, ty, out_wire in zip(
                 vs, obj._ty.element_types, wire_iterator, strict=True
             ):
-                success = update_packed_value(v, GuppyObject(ty, out_wire), builder)
+                success = update_packed_value(v, GuppyObject(ty, out_wire), recorder)
                 if not success:
                     return False
         case GuppyStructObject(_ty=ty, _field_values=values):
             assert obj._ty == ty
-            wire_iterator = builder.record_op(
+            wire_iterator = recorder.record_op(
                 ops.unpack_tuple([field.ty.to_hugr(ctx=None) for field in ty.fields]),
                 obj._use_wire(None),
             ).outputs()
             for field, out_wire in zip(ty.fields, wire_iterator, strict=True):
                 v = values[field.name]
                 success = update_packed_value(
-                    v, GuppyObject(field.ty, out_wire), builder
+                    v, GuppyObject(field.ty, out_wire), recorder
                 )
                 if not success:
                     values[field.name] = obj
         case list(vs) if len(vs) > 0:
             assert is_array_type(obj._ty)
-            wires = unpack_array(builder, obj._ty, obj._use_wire(None))
+            wires = unpack_array(recorder, obj._ty, obj._use_wire(None))
             elem_ty = get_element_type(obj._ty)
             for i, (v, wire) in enumerate(zip(vs, wires, strict=True)):
-                success = update_packed_value(v, GuppyObject(elem_ty, wire), builder)
+                success = update_packed_value(v, GuppyObject(elem_ty, wire), recorder)
                 if not success:
                     vs[i] = obj
         case _:

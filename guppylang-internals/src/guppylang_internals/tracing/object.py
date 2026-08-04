@@ -62,7 +62,7 @@ def unary_operation(f: UnaryDunderMethod) -> UnaryDunderMethod:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(self, state.builder, state.node, state.ctx)
+        self = guppy_object_from_py(self, state.recorder, state.node, state.ctx)
 
         with suppress(Exception):
             return f(self)
@@ -89,8 +89,8 @@ def binary_operation(f: BinaryDunderMethod) -> BinaryDunderMethod:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(self, state.builder, state.node, state.ctx)
-        other = guppy_object_from_py(other, state.builder, state.node, state.ctx)
+        self = guppy_object_from_py(self, state.recorder, state.node, state.ctx)
+        other = guppy_object_from_py(other, state.recorder, state.node, state.ctx)
 
         # First try the method on `self`
         with suppress(Exception):
@@ -126,7 +126,7 @@ class DunderMixin:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(self, state.builder, state.node, state.ctx)
+        self = guppy_object_from_py(self, state.recorder, state.node, state.ctx)
         return self.__getattr__(name)
 
     def __abs__(self) -> Any:
@@ -619,10 +619,10 @@ class TracingDefMixin(DunderMixin):
                 raise GuppyComptimeError(
                     f"Cannot infer type parameters of generic function `{defn.name}`"
                 )
-            wire = state.builder.record_load_func(defn.id, ())
+            wire = state.recorder.record_load_func(defn.id, ())
             return GuppyObject(defn.ty, wire, None)
         if isinstance(defn, ValueDef):
-            return GuppyObject(defn.ty, state.builder.record_load(self.id))
+            return GuppyObject(defn.ty, state.recorder.record_load(self.id))
         raise GuppyComptimeError(
             f"Cannot convert {defn.description} `{defn.name}` to a Guppy object"
         )

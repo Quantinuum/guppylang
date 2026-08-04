@@ -82,8 +82,8 @@ def trace_function(
 ) -> Trace:
     """Kicks off tracing of a function.
 
-    Invokes the passed Python callable and constructs the corresponding Hugr using the
-    passed builder.
+    Invokes the passed Python callable and records all resulting `TraceEntry`s
+    to form a Trace.
     """
 
     def const_argument_to_python_value(arg: Argument) -> Any:
@@ -108,9 +108,9 @@ def trace_function(
                 #  future, drop this restriction and support all kinds of arguments.
                 return None
 
-    builder = TraceRecorder(input_count)
+    recorder = TraceRecorder(input_count)
     ctx: ToHugrContext = None
-    state = TracingState(ctx, builder, node, func_def)
+    state = TracingState(ctx, recorder, node, func_def)
     with set_tracing_state(state):
         generic_values = {
             x: val
@@ -118,7 +118,7 @@ def trace_function(
             if (val := const_argument_to_python_value(arg)) is not None
         }
 
-        input_wires = iter(builder.inputs())
+        input_wires = iter(recorder.inputs())
         inputs = []
         for inp in ty.inputs:
             if InputFlags.Comptime in inp.flags:
@@ -130,7 +130,7 @@ def trace_function(
                 # thus breaking the semantics expected from Python.
                 frozen = InputFlags.Inout not in inp.flags
                 val = unpack_guppy_object(
-                    GuppyObject(inp.ty, next(input_wires)), builder, frozen
+                    GuppyObject(inp.ty, next(input_wires)), recorder, frozen
                 )
             inputs.append(val)
         assert next(input_wires, None) is None, "All wires should be consumed"
@@ -143,7 +143,7 @@ def trace_function(
             py_out = python_func(*inputs)
 
         try:
-            out_obj = guppy_object_from_py(py_out, builder, node, ctx)
+            out_obj = guppy_object_from_py(py_out, recorder, node, ctx)
         except GuppyComptimeError as err:
             # Error in the return statement. For example, this happens if users
             # try to return a struct with invalid field values or there is a linearity
@@ -160,7 +160,7 @@ def trace_function(
         out_tys = type_to_row(out_obj._ty)
         if len(out_tys) > 1:
             regular_returns = list(
-                builder.record_op(
+                recorder.record_op(
                     unpack_tuple([out_ty.to_hugr(None) for out_ty in out_tys]),
                     out_obj._use_wire(None),
                 ).outputs()
@@ -180,7 +180,7 @@ def trace_function(
                     f"the caller. "
                 )
                 try:
-                    obj = guppy_object_from_py(inout_obj, builder, node, ctx)
+                    obj = guppy_object_from_py(inout_obj, recorder, node, ctx)
                     inout_returns.append(obj._use_wire(None))
                 except GuppyComptimeError as err:
                     msg = str(err)
@@ -204,8 +204,8 @@ def trace_function(
         msg = f"Value with non-droppable type `{unused._ty}` is leaked by this function"
         raise GuppyError(TracingReturnError(node, msg)) from None
 
-    builder.set_outputs(*regular_returns, *inout_returns)
-    return builder.finish()
+    recorder.set_outputs(*regular_returns, *inout_returns)
+    return recorder.finish()
 
 
 def trace_call(func: CallableDef, *args: Any) -> Any:
@@ -238,7 +238,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
         args_objs = [
             assign_var(
-                guppy_object_from_py(arg, state.builder, state.node, state.ctx), arg
+                guppy_object_from_py(arg, state.recorder, state.node, state.ctx), arg
             )
             for arg in args
         ]
@@ -290,7 +290,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         )
 
     # Record call to compile later
-    call = state.builder.record_call(call_node, new_vars)
+    call = state.recorder.record_call(call_node, new_vars)
 
     # Since all inputs are GuppyObjects identifying ComptimeVariables (varieties
     # of Place), ExprCompiler will update the Places to map to the output wires
@@ -300,7 +300,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         if InputFlags.Inout in flags:
             ty = arg_obj._ty
             # This marks `arg_obj` as used, but clears usedness of `val`, as desired:
-            success = update_packed_value(val, arg_obj, state.builder)
+            success = update_packed_value(val, arg_obj, state.recorder)
 
             if not success:
                 # This means the user has passed an object that we cannot update,
@@ -313,7 +313,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             # Mark the arg as used, since it is consumed by the call
             arg_obj._use_wire(func)
 
-    return unpack_guppy_object(GuppyObject(ret_ty, call), state.builder)
+    return unpack_guppy_object(GuppyObject(ret_ty, call), state.recorder)
 
 
 @contextmanager
