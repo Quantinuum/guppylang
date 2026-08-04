@@ -43,14 +43,17 @@ from guppylang_internals.error import GuppyComptimeError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.std._internal.compiler.array import array_new, array_unpack
 from guppylang_internals.tracing.recorder import (
     TraceCall,
     TraceFunctionLoad,
     TraceLoad,
     TraceLoadVal,
     TraceMakeTuple,
+    TraceNewArray,
     TraceOperation,
     TraceOutput,
+    TraceUnpackArray,
     TraceUntuple,
 )
 from guppylang_internals.tys import Effect
@@ -269,6 +272,21 @@ class CompiledTracedFunctionDef(
                 case TraceMakeTuple(inputs):
                     node = builder.add_op(
                         ops.make_tuple(), *(get_wire(i) for i in inputs)
+                    )
+                    output_count = 1
+                    outputs = [node[0]]
+                case TraceUnpackArray(elem_ty, length, input):
+                    hugr_elem_ty = elem_ty.to_hugr(ctx)
+                    node = builder.add_op(
+                        array_unpack(hugr_elem_ty, length), get_wire(input)
+                    )
+                    output_count = length
+                    outputs = [node[i] for i in range(output_count)]
+                case TraceNewArray(elem_ty, inputs):
+                    hugr_elem_ty = elem_ty.to_hugr(ctx)
+                    node = builder.add_op(
+                        array_new(hugr_elem_ty, len(inputs)),
+                        *(get_wire(i) for i in inputs),
                     )
                     output_count = 1
                     outputs = [node[0]]

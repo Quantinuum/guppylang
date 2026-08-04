@@ -64,6 +64,23 @@ class TraceMakeTuple:
 
 
 @dataclass(frozen=True)
+class TraceNewArray:
+    """A new array operation emitted while tracing."""
+
+    elem_ty: Type
+    inputs: Sequence[TraceOutput]
+
+
+@dataclass(frozen=True)
+class TraceUnpackArray:
+    """An array unpack operation emitted while tracing."""
+
+    elem_ty: Type
+    length: int
+    input: TraceOutput
+
+
+@dataclass(frozen=True)
 class TraceLoadVal:
     """A python value loaded while tracing."""
 
@@ -101,6 +118,8 @@ TraceEntry = (
     TraceOperation
     | TraceUntuple
     | TraceMakeTuple
+    | TraceUnpackArray
+    | TraceNewArray
     | TraceLoad
     | TraceLoadVal
     | TraceFunctionLoad
@@ -179,6 +198,16 @@ class TraceRecorder:
         """Records a make-tuple to replay into the Hugr during compilation."""
         return self._add(TraceMakeTuple(inputs)).as_trace_wire()
 
+    def record_unpack_array(
+        self, elem_ty: Type, length: int, input: TraceOutput
+    ) -> TraceNode:
+        """Records an array unpack to replay into the Hugr during compilation."""
+        return self._add(TraceUnpackArray(elem_ty, length, input))
+
+    def record_new_array(self, elem_ty: Type, *inputs: TraceOutput) -> TraceWire:
+        """Records a new-array op to replay into the Hugr during compilation."""
+        return self._add(TraceNewArray(elem_ty, inputs)).as_trace_wire()
+
     def record_load_val(self, value: Any, ty: Type, node: AstNode) -> TraceWire:
         """Records a load to replay into the Hugr during compilation"""
         return self._add(TraceLoadVal(value, ty, node)).as_trace_wire()
@@ -216,7 +245,10 @@ class TraceRecorder:
         entry_index = len(self._operations)
         self._operations.append(entry)
         match entry:
-            case TraceOperation(output_count=output_count):
+            case (
+                TraceOperation(output_count=output_count)
+                | TraceUnpackArray(length=output_count)
+            ):
                 pass
             case TraceUntuple(types=types):
                 output_count = len(types)

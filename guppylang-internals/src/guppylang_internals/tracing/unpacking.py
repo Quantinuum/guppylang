@@ -6,7 +6,6 @@ from guppylang_internals.checker.errors.comptime_errors import (
 )
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
 from guppylang_internals.error import GuppyComptimeError, GuppyError, InternalGuppyError
-from guppylang_internals.std._internal.compiler.array import array_new, array_unpack
 from guppylang_internals.tracing.frozenlist import frozenlist
 from guppylang_internals.tracing.object import (
     GuppyEnumObject,
@@ -42,8 +41,7 @@ def unpack_array(
     assert isinstance(array_ty, OpaqueType)
     match array_ty.args:
         case [TypeArg(ty=elem_ty), ConstArg(const=ConstValue(value=length))]:
-            et = elem_ty.to_hugr(ctx=None)
-            res = recorder.record_op(array_unpack(et, length), array)
+            res = recorder.record_unpack_array(elem_ty, length, array)
             return [res[i] for i in range(length)]
         case _:
             raise InternalGuppyError("Invalid array type args")
@@ -148,13 +146,9 @@ def guppy_object_from_py(
                         f"Element at index {i + 1} does not match the type of "
                         f"previous elements. Expected `{elem_ty}`, got `{obj._ty}`."
                     )
-            hugr_elem_ty = elem_ty.to_hugr(ctx)
             wires = [obj._use_wire(None) for obj in objs]
             return GuppyObject(
-                array_type(elem_ty, len(vs)),
-                recorder.record_op(
-                    array_new(hugr_elem_ty, len(vs)), *wires
-                ).as_trace_wire(),
+                array_type(elem_ty, len(vs)), recorder.record_new_array(elem_ty, *wires)
             )
         case []:
             # Empty lists are tricky since we can't infer the element type here
