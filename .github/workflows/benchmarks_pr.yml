@@ -56,7 +56,7 @@ jobs:
               --github-actions '${{ secrets.GITHUB_TOKEN }}'
 
       - name: Run codspeed benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@v5.0.1
         with:
           mode: simulation
           run: uv run pytest tests/ --codspeed -k "not executable" -v --durations=0
