@@ -91,15 +91,11 @@ def trace_function(
             case ConstArg(ConstValue(value=v)):
                 assert v is not None
                 return v
-            case (
-                ConstArg(BoundConstVar())
-                | ConstArg(ExistentialConstVar())
-                | TypeArg(ty=BoundTypeVar())
-            ):
+            case ConstArg(BoundConstVar()) | TypeArg(ty=BoundTypeVar()):
                 # This means we are building the arguments with which to trace
                 # an uninstantiated generic function. So, avoid tracing such...
                 raise RequiresMonomorphizationError
-            case TypeArg(ty=ExistentialTypeVar()):
+            case TypeArg(ty=ExistentialTypeVar()) | ConstArg(ExistentialConstVar()):
                 raise InternalGuppyError("Shouldn't happen?!")
             case _:
                 # TODO: We don't have a comptime representation of types yet, so we can
