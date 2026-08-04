@@ -5,7 +5,6 @@ from guppylang_internals.checker.errors.comptime_errors import (
     UnsupportedPythonValueError,
 )
 from guppylang_internals.checker.expr_checker import python_value_to_guppy_type
-from guppylang_internals.compiler.builder import ops
 from guppylang_internals.error import GuppyComptimeError, GuppyError, InternalGuppyError
 from guppylang_internals.std._internal.compiler.array import array_new, array_unpack
 from guppylang_internals.tracing.frozenlist import frozenlist
@@ -118,16 +117,12 @@ def guppy_object_from_py(
         case TracingDefMixin() as defn:
             return defn.to_guppy_object()
         case None:
-            return GuppyObject(
-                NoneType(), recorder.record_op(ops.make_tuple()).as_trace_wire()
-            )
+            return GuppyObject(NoneType(), recorder.record_make_tuple())
         case tuple(vs):
             objs = [guppy_object_from_py(v, recorder, node, ctx) for v in vs]
             return GuppyObject(
                 TupleType([obj._ty for obj in objs]),
-                recorder.record_op(
-                    ops.make_tuple(), *(obj._use_wire(None) for obj in objs)
-                ).as_trace_wire(),
+                recorder.record_make_tuple(*(obj._use_wire(None) for obj in objs)),
             )
         case GuppyStructObject(_ty=struct_ty, _field_values=values):
             wires = []
@@ -141,9 +136,7 @@ def guppy_object_from_py(
                         f"unexpected type. Expected `{f.ty}`, got `{obj._ty}`."
                     )
                 wires.append(obj._use_wire(None))
-            return GuppyObject(
-                struct_ty, recorder.record_op(ops.make_tuple(), *wires).as_trace_wire()
-            )
+            return GuppyObject(struct_ty, recorder.record_make_tuple(*wires))
         case GuppyEnumObject(_ty=enum_ty, _wire=wire):
             return GuppyObject(enum_ty, wire)
         case list(vs) if len(vs) > 0:

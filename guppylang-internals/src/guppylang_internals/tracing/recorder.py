@@ -57,6 +57,13 @@ class TraceUntuple:
 
 
 @dataclass(frozen=True)
+class TraceMakeTuple:
+    """A make-tuple operation emitted while tracing."""
+
+    inputs: Sequence[TraceOutput]
+
+
+@dataclass(frozen=True)
 class TraceLoadVal:
     """A python value loaded while tracing."""
 
@@ -93,6 +100,7 @@ class TraceCall:
 TraceEntry = (
     TraceOperation
     | TraceUntuple
+    | TraceMakeTuple
     | TraceLoad
     | TraceLoadVal
     | TraceFunctionLoad
@@ -166,6 +174,10 @@ class TraceRecorder:
     def record_untuple(self, types: Sequence[Type], input: TraceOutput) -> TraceNode:
         """Records a tuple unpack to replay into the Hugr during compilation."""
         return self._add(TraceUntuple(types, input))
+
+    def record_make_tuple(self, *inputs: TraceOutput) -> TraceWire:
+        """Records a make-tuple to replay into the Hugr during compilation."""
+        return self._add(TraceMakeTuple(inputs)).as_trace_wire()
 
     def record_load_val(self, value: Any, ty: Type, node: AstNode) -> TraceWire:
         """Records a load to replay into the Hugr during compilation"""

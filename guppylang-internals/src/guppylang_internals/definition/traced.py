@@ -48,6 +48,7 @@ from guppylang_internals.tracing.recorder import (
     TraceFunctionLoad,
     TraceLoad,
     TraceLoadVal,
+    TraceMakeTuple,
     TraceOperation,
     TraceOutput,
     TraceUntuple,
@@ -265,6 +266,12 @@ class CompiledTracedFunctionDef(
                     node = builder.add_op(ops.unpack_tuple(hugr_types), get_wire(input))
                     output_count = len(types)
                     outputs = [node[i] for i in range(output_count)]
+                case TraceMakeTuple(inputs):
+                    node = builder.add_op(
+                        ops.make_tuple(), *(get_wire(i) for i in inputs)
+                    )
+                    output_count = 1
+                    outputs = [node[0]]
                 case TraceLoadVal(value, ty, node):
                     hugr_val = python_value_to_hugr(value, ty, ctx)
                     assert hugr_val is not None
