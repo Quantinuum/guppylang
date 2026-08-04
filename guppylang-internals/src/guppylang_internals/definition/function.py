@@ -42,6 +42,7 @@ from guppylang_internals.definition.common import (
     UserProvidedLinkName,
 )
 from guppylang_internals.definition.enum import ParsedEnumDef
+from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -122,9 +123,18 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        is_static, unwrapped_if_static = determine_static(self)
+        if unwrapped_if_static is not None:
+            py_func = unwrapped_if_static
+        else:
+            py_func = self.python_func
+        func_ast, docstring = parse_py_func(py_func, sources)
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
 
@@ -135,6 +145,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             ty,
             docstring,
             link_name,
+            is_static=is_static,
             metadata=self.metadata,
         )
 
@@ -165,6 +176,8 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    is_static: bool = field(default=False, kw_only=True)
+
     @property
     def params(self) -> "Sequence[Parameter]":
         """Generic parameters of this function."""
@@ -186,6 +199,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             self.docstring,
             mono_link_name,
             cfg,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -273,6 +287,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.link_name,
             self.cfg,
             FunctionBuilder(func_def),
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 

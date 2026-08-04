@@ -88,7 +88,6 @@ from guppylang.std.unsupported import (
     setattr,
     slice,
     sorted,
-    staticmethod,
     sum,
     super,
     type,

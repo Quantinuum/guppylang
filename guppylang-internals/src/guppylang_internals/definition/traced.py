@@ -31,6 +31,7 @@ from guppylang_internals.definition.function import (
     make_subprogram_record,
     parse_py_func,
 )
+from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -61,17 +62,27 @@ class RawTracedFunctionDef(ParsableDef):
 
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, _docstring = parse_py_func(self.python_func, sources)
+        is_static, unwrapped_if_static = determine_static(self)
+        if unwrapped_if_static is not None:
+            py_func = unwrapped_if_static
+        else:
+            py_func = self.python_func
+        func_ast, _docstring = parse_py_func(py_func, sources)
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
         )
         return TracedFunctionDef(
             self.id,
             self.name,
             func_ast,
             ty,
-            self.python_func,
+            py_func,
             unitary_flags=self.unitary_flags,
+            is_static=is_static,
             metadata=self.metadata,
         )
 
@@ -79,6 +90,7 @@ class RawTracedFunctionDef(ParsableDef):
 @dataclass(frozen=True)
 class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     defined_at: ast.FunctionDef
+    is_static: bool = field(default=False, kw_only=True)
 
     @property
     def params(self) -> Sequence[Parameter]:
@@ -103,6 +115,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             self.python_func,
             generic_args,
             unitary_flags=self.unitary_flags,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -162,6 +175,7 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.generic_args,
             func_def,
             unitary_flags=self.unitary_flags,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
