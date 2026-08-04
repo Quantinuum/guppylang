@@ -20,7 +20,7 @@ Guppy v1 is the first stable release of the Guppy quantum programming language. 
 
 While new features will still be added in subsequent minor versions and there may be changes to the standard library, the core language is now considered stable, meaning there won't be any changes to the syntax and semantics of core language constructs.
 
-This extended changelog intends to provide a convenient overview of major new features for Guppy v1. The standard detailed changelog for this specific release can be found at the end of it, and you may also be interested in the changelog for the release candidates and alpha releases. See the [language guide](https://docs.quantinuum.com/language_guide/language_guide_index.html) for detailed feature documentation.
+This extended changelog intends to provide a convenient overview of major new features for Guppy v1. The standard detailed changelog for this specific release can be found at the end of it, and you may also be interested in the changelog for the release candidates and alpha releases. See the [language guide](https://docs.quantinuum.com/guppy/language_guide/language_guide_index.html) for detailed feature documentation.
 
 > To see just the breaking changes and instructions on how to update existing code, please see the [migration guide](https://docs.quantinuum.com/guppy/v1_migration.html).
 
@@ -67,7 +67,7 @@ class Measurable:
 
 Guppy v1 also introduces some special built-in protocols, namely `Callable` (see the [migration guide](https://docs.quantinuum.com/guppy/v1_migration.html#new-function-type-in-guppy-replacing-callable-in-annotations) for what this means for previous use of `Callable`).
 
-Read more about protocols in the [language guide](https://docs.quantinuum.com/guppy/language_guide/modifiers/protocols.html).
+Read more about protocols in the [language guide](https://docs.quantinuum.com/guppy/language_guide/protocols.html).
 
 
 #### Structs are now mutable
