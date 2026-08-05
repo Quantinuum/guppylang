@@ -306,7 +306,6 @@ class CompiledTracedFunctionDef(
                     outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
                     output_count = 1
                 case TraceCall(call_node, input_places):
-                    # but keep this:
                     for arg, val in input_places:
                         dfg[arg] = get_wire(val)
                     outputs = [comp.compile(call_node, dfg)]
