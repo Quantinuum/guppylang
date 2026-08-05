@@ -8,10 +8,10 @@ import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.metadata import HugrDebugInfo
-from typing_extensions import assert_never, override
+from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode, with_loc
-from guppylang_internals.checker.core import ComptimeVariable, Context, Globals
+from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import (
     check_call,
     synthesize_call,
@@ -19,9 +19,7 @@ from guppylang_internals.checker.expr_checker import (
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
-from guppylang_internals.compiler.builder import FunctionBuilder, ops
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
-from guppylang_internals.compiler.expr_compiler import python_value_to_hugr
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
@@ -37,24 +35,11 @@ from guppylang_internals.definition.value import (
     CallReturnWires,
     CompiledCallableDef,
     CompiledHugrNodeDef,
-    CompiledValueDef,
 )
-from guppylang_internals.error import GuppyComptimeError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
-from guppylang_internals.std._internal.compiler.array import array_new, array_unpack
-from guppylang_internals.tracing.recorder import (
-    TraceCall,
-    TraceFunctionLoad,
-    TraceLoad,
-    TraceLoadVal,
-    TraceMakeTuple,
-    TraceNewArray,
-    TraceOutput,
-    TraceUnpackArray,
-    TraceUntuple,
-)
+from guppylang_internals.tracing.compile import replay_trace
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
@@ -239,73 +224,4 @@ class CompiledTracedFunctionDef(
     @override
     def compile_inner(self, ctx: CompilerContext) -> None:
         """Replays the trace recorded while the function was checked."""
-        from guppylang_internals.compiler.expr_compiler import ExprCompiler
-
-        builder = FunctionBuilder(self.func_def)
-        dfg = DFContainer(builder, ctx)
-        comp = ExprCompiler(ctx)
-
-        wires: dict[tuple[int, int], Wire] = {
-            (-1, port): wire for port, wire in enumerate(builder.inputs())
-        }
-
-        def get_wire(ref: TraceOutput) -> Wire:
-            return (
-                dfg[ref]
-                if isinstance(ref, ComptimeVariable)
-                else wires[ref.entry, ref.port]
-            )
-
-        for entry_index, entry in enumerate(self.trace.operations):
-            outputs: Sequence[Wire]
-            match entry:
-                case TraceUntuple(types, input):
-                    hugr_types = [ty.to_hugr(ctx) for ty in types]
-                    node = builder.add_op(ops.unpack_tuple(hugr_types), get_wire(input))
-                    outputs = [node[i] for i in range(len(types))]
-                case TraceMakeTuple(inputs):
-                    node = builder.add_op(
-                        ops.make_tuple(), *(get_wire(i) for i in inputs)
-                    )
-                    outputs = [node[0]]
-                case TraceUnpackArray(elem_ty, length, input):
-                    hugr_elem_ty = elem_ty.to_hugr(ctx)
-                    node = builder.add_op(
-                        array_unpack(hugr_elem_ty, length), get_wire(input)
-                    )
-                    outputs = [node[i] for i in range(length)]
-                case TraceNewArray(elem_ty, inputs):
-                    hugr_elem_ty = elem_ty.to_hugr(ctx)
-                    node = builder.add_op(
-                        array_new(hugr_elem_ty, len(inputs)),
-                        *(get_wire(i) for i in inputs),
-                    )
-                    outputs = [node[0]]
-                case TraceLoadVal(value, ty, node):
-                    hugr_val = python_value_to_hugr(value, ty, ctx)
-                    assert hugr_val is not None
-                    outputs = [builder.load(hugr_val)[0]]
-                case TraceLoad(v_def, node):
-                    defn = ctx.build_compiled_def(v_def.id, type_args=())
-                    # TypeDefs should already have been converted to LoadFunctions
-                    # of their *constructors* during checking/tracing.
-                    if not isinstance(defn, CompiledValueDef):
-                        def_kind = defn.description.capitalize()
-                        err = f"{def_kind} `{defn.name}` is not a value"
-                        raise GuppyComptimeError(err)
-                    outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
-                case TraceFunctionLoad(def_id, type_args, node):
-                    defn = ctx.build_compiled_def(def_id, type_args)
-                    assert isinstance(defn, CompiledValueDef)
-                    outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
-                case TraceCall(call_node, input_places):
-                    for arg, val in input_places:
-                        dfg[arg] = get_wire(val)
-                    outputs = [comp.compile(call_node, dfg)]
-                case _:
-                    assert_never(entry)
-
-            for port, wire in enumerate(outputs):
-                wires[entry_index, port] = wire
-
-        builder.set_outputs(*(get_wire(output) for output in self.trace.outputs))
+        replay_trace(self.func_def, self.trace, ctx)
