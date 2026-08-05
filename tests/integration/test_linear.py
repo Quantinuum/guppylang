@@ -348,6 +348,44 @@ def test_mutate_classical_field5(validate):
     validate(main.compile_function())
 
 
+def test_mutate_classical_field6(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct:
+        x: int
+
+    @guppy
+    def main(s: MyStruct @ owned, b: bool) -> int:
+        if b:
+            t = s
+        # Test that linearity checker accepts reassignments
+        s = MyStruct(42)
+        s.x = 1
+        return s.x
+
+    validate(main.compile_function())
+
+
+def test_mutate_classical_field7(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct1:
+        y: int
+
+    @guppy.struct(frozen=False)
+    class MyStruct2:
+        x: MyStruct1
+
+    @guppy
+    def main(s: MyStruct2 @ owned, b: bool) -> int:
+        if b:
+            t = s.x
+        # Test that linearity checker accepts reassignments
+        s.x = MyStruct1(42)
+        s.x.y = 1
+        return s.x.y
+
+    validate(main.compile_function())
+
+
 def test_measure(validate):
     @guppy
     def test(q: qubit @ owned, x: int) -> int:
