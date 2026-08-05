@@ -160,7 +160,7 @@ class nat:
     @hugr_op(int_op("isub"), unitary_flags=UnitaryFlags.Dagger)
     def __sub__(self: nat, other: nat) -> nat: ...
 
-    @guppy
+    @guppy(daggerable=True)
     @no_type_check
     def __truediv__(self: nat, other: nat) -> float:
         return float(self) / float(other)
@@ -327,7 +327,7 @@ class int:
     @hugr_op(int_op("isub"), unitary_flags=UnitaryFlags.Dagger)
     def __sub__(self: int, other: int) -> int: ...
 
-    @guppy
+    @guppy(daggerable=True)
     @no_type_check
     def __truediv__(self: int, other: int) -> float:
         return float(self) / float(other)
