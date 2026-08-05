@@ -1,6 +1,6 @@
 [project]
 name = "guppylang"
-version = "1.0.0-a8"
+version = "1.0.1"
 requires-python = ">=3.12,<4"
 description = "Pythonic quantum-classical programming language"
 license = { file = "LICENCE" }
@@ -28,10 +28,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "guppylang-internals==1.0.0-a8",
+    "guppylang-internals==1.0.1",
     "numpy~=2.5",
     "selene-hugr-qis-compiler~=0.4.2",
-    "selene-sim~=0.3.0",
+    "selene-sim~=0.3.0a2",
     "tqdm>=4.68.4",
     "pytket>=2.7.0",
     "types-tqdm>=4.67.0.20250809",
