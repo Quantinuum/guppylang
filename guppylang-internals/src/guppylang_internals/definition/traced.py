@@ -262,34 +262,29 @@ class CompiledTracedFunctionDef(
                 case TraceUntuple(types, input):
                     hugr_types = [ty.to_hugr(ctx) for ty in types]
                     node = builder.add_op(ops.unpack_tuple(hugr_types), get_wire(input))
-                    output_count = len(types)
-                    outputs = [node[i] for i in range(output_count)]
+                    outputs = [node[i] for i in range(len(types))]
                 case TraceMakeTuple(inputs):
                     node = builder.add_op(
                         ops.make_tuple(), *(get_wire(i) for i in inputs)
                     )
-                    output_count = 1
                     outputs = [node[0]]
                 case TraceUnpackArray(elem_ty, length, input):
                     hugr_elem_ty = elem_ty.to_hugr(ctx)
                     node = builder.add_op(
                         array_unpack(hugr_elem_ty, length), get_wire(input)
                     )
-                    output_count = length
-                    outputs = [node[i] for i in range(output_count)]
+                    outputs = [node[i] for i in range(length)]
                 case TraceNewArray(elem_ty, inputs):
                     hugr_elem_ty = elem_ty.to_hugr(ctx)
                     node = builder.add_op(
                         array_new(hugr_elem_ty, len(inputs)),
                         *(get_wire(i) for i in inputs),
                     )
-                    output_count = 1
                     outputs = [node[0]]
                 case TraceLoadVal(value, ty, node):
                     hugr_val = python_value_to_hugr(value, ty, ctx)
                     assert hugr_val is not None
                     outputs = [builder.load(hugr_val)[0]]
-                    output_count = 1
                 case TraceLoad(v_def, node):
                     defn = ctx.build_compiled_def(v_def.id, type_args=())
                     # TypeDefs should already have been converted to LoadFunctions
@@ -299,21 +294,17 @@ class CompiledTracedFunctionDef(
                         err = f"{def_kind} `{defn.name}` is not a value"
                         raise GuppyComptimeError(err)
                     outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
-                    output_count = 1
                 case TraceFunctionLoad(def_id, type_args, node):
                     defn = ctx.build_compiled_def(def_id, type_args)
                     assert isinstance(defn, CompiledValueDef)
                     outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
-                    output_count = 1
                 case TraceCall(call_node, input_places):
                     for arg, val in input_places:
                         dfg[arg] = get_wire(val)
                     outputs = [comp.compile(call_node, dfg)]
-                    output_count = 1
                 case _:
                     assert_never(entry)
 
-            assert len(outputs) == output_count
             for port, wire in enumerate(outputs):
                 wires[entry_index, port] = wire
 
