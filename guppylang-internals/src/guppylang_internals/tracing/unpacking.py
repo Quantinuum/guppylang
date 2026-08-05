@@ -53,8 +53,8 @@ def unpack_guppy_object(
     """Tries to turn as much of the structure of a GuppyObject into Python objects.
 
     For example, Guppy tuples are turned into Python tuples and Guppy arrays are turned
-    into Python lists. This is achieved by inserting unpacking operations into the Hugr
-    to get individual wires to be used in those Python objects.
+    into Python lists. This is achieved by inserting unpacking operations into the
+    `TraceRecorder` to get individual wires to be used in those Python objects.
 
     Setting `frozen=True` ensures that the resulting Python objects are not mutable in-
     place. This should be set for objects that originate from function inputs that are

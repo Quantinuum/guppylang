@@ -316,13 +316,13 @@ class GuppyObjectId:
 class GuppyObject(DunderMixin):
     """The runtime representation of abstract Guppy objects during tracing.
 
-    They correspond to a single Hugr wire within the current dataflow graph.
+    They correspond to a single wire within the current dataflow graph.
     """
 
     #: The type of this object
     _ty: Type
 
-    #: The Hugr wire holding this object
+    #: The wire holding this object
     _wire: TraceOutput
 
     #: Whether this object has been used
@@ -494,7 +494,7 @@ class GuppyEnumObject(DunderMixin):
     """The runtime representation of Guppy enum objects during tracing.
 
     Enum values are tagged unions: the active variant is not known at comptime, so
-    variant fields are not accessible. This class is backed by a single Hugr wire
+    variant fields are not accessible. This class is backed by a single wire
     (like `GuppyObject`) and only exposes methods defined on the enum type.
 
     Attribute assignment is always rejected since enums have no mutable fields.

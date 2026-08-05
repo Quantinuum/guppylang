@@ -131,36 +131,36 @@ class TraceRecorder:
     def record_untuple(
         self, types: Sequence[Type], input: TraceOutput
     ) -> Sequence[TraceWire]:
-        """Records a tuple unpack to replay into the Hugr during compilation."""
+        """Records a tuple unpack to replay during compilation."""
         return self._add(TraceUntuple(types, input))
 
     def record_make_tuple(self, *inputs: TraceOutput) -> TraceWire:
-        """Records a make-tuple to replay into the Hugr during compilation."""
+        """Records a make-tuple to replay during compilation."""
         return self._add(TraceMakeTuple(inputs))
 
     def record_unpack_array(
         self, elem_ty: Type, length: int, input: TraceOutput
     ) -> Sequence[TraceWire]:
-        """Records an array unpack to replay into the Hugr during compilation."""
+        """Records an array unpack to replay during compilation."""
         return self._add(TraceUnpackArray(elem_ty, length, input))
 
     def record_new_array(self, elem_ty: Type, *inputs: TraceOutput) -> TraceWire:
-        """Records a new-array op to replay into the Hugr during compilation."""
+        """Records a new-array op to replay during compilation."""
         return self._add(TraceNewArray(elem_ty, inputs))
 
     def record_load_val(self, value: Any, ty: Type, node: AstNode) -> TraceWire:
-        """Records a load to replay into the Hugr during compilation"""
+        """Records a load of a python value to replay during compilation"""
         return self._add(TraceLoadVal(value, ty, node))
 
     def record_load(self, value: ValueDef) -> TraceWire:
-        """Records a load to replay into the Hugr during compilation"""
+        """Records a load of a guppy value to replay during compilation"""
         from guppylang_internals.tracing.state import get_tracing_state
 
         node = get_tracing_state().node
         return self._add(TraceLoad(value, node))
 
     def record_load_func(self, def_id: "DefId", type_args: "Inst") -> TraceWire:
-        """Records a load_function to replay into the Hugr during compilation"""
+        """Records a load_function to replay during compilation"""
         from guppylang_internals.tracing.state import get_tracing_state
 
         node = get_tracing_state().node
@@ -171,7 +171,7 @@ class TraceRecorder:
         node: ast.expr,
         input_places: Sequence[tuple[Place, TraceWire]],
     ) -> TraceWire:
-        """Records a function call to be compiled into the Hugr during replay"""
+        """Records a function call to be replayed during compilation"""
         return self._add(TraceCall(node, input_places))
 
     def set_outputs(self, *outputs: TraceOutput) -> None:
