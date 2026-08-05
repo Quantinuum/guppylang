@@ -145,7 +145,7 @@ class Use(NamedTuple):
 
 
 class Mutation(NamedTuple):
-    """Records data associated wih the mutation of a place."""
+    """Records data associated with the mutation of a place."""
 
     #: The AST node corresponding to mutation
     node: AstNode
