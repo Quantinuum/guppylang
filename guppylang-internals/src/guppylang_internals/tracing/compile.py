@@ -9,8 +9,7 @@ from guppylang_internals.compiler.expr_compiler import (
     ExprCompiler,
     python_value_to_hugr,
 )
-from guppylang_internals.definition.value import CompiledValueDef
-from guppylang_internals.error import GuppyComptimeError
+from guppylang_internals.definition.value import CompiledValueDef, ValueDef
 from guppylang_internals.std._internal.compiler.array import array_new, array_unpack
 from guppylang_internals.tracing.recorder import (
     Trace,
@@ -71,13 +70,9 @@ def replay_trace(func_def: hf.Function, trace: Trace, ctx: CompilerContext) -> N
                 assert hugr_val is not None
                 outputs = [builder.load(hugr_val)[0]]
             case TraceLoad(v_def, node):
+                _v: ValueDef = v_def  # TypeDefs already converted to LoadFunctions
                 defn = ctx.build_compiled_def(v_def.id, type_args=())
-                # TypeDefs should already have been converted to LoadFunctions
-                # of their *constructors* during checking/tracing.
-                if not isinstance(defn, CompiledValueDef):
-                    def_kind = defn.description.capitalize()
-                    err = f"{def_kind} `{defn.name}` is not a value"
-                    raise GuppyComptimeError(err)
+                assert isinstance(defn, CompiledValueDef)
                 outputs = [defn.load(DFContainer(builder, ctx), ctx, node)]
             case TraceFunctionLoad(def_id, type_args, node):
                 defn = ctx.build_compiled_def(def_id, type_args)
