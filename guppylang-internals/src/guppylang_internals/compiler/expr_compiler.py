@@ -92,6 +92,7 @@ from guppylang_internals.tys.builtin import (
     int_type,
     is_frozenarray_type,
 )
+from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
@@ -789,7 +790,7 @@ def unpack_wire(
     return [wire]
 
 
-def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value | None:
+def python_value_to_hugr(v: Any, exp_ty: Type, ctx: ToHugrContext) -> hv.Value | None:
     """Turns a Python value into a Hugr value.
 
     Returns None if the Python value cannot be represented in Guppy.
