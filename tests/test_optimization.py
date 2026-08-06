@@ -96,7 +96,8 @@ def test_opt_level_passes() -> None:
         _x = 2 + 2
 
     optimizer = (
-        main.with_opt_level(OptimizationLevel.Classical)
+        main
+        .with_opt_level(OptimizationLevel.Classical)
         .with_optimization(counting_pass)
         .with_optimization(counting_pass)
     )
@@ -107,3 +108,32 @@ def test_opt_level_passes() -> None:
     # Compile the program and check that the counting pass was called
     _package = optimizer.compile()
     assert counting_pass.calls == 2
+
+
+def test_target_platform_preserved_when_chaining_optimizations() -> None:
+    """Test that target platform and optimization passes compose in either order."""
+
+    first_pass = CountingPass()
+    second_pass = CountingPass()
+
+    @guppy
+    def main() -> None:
+        _x = 2 + 2
+
+    platform_then_pass = main.with_target_platform("sol").with_optimization(first_pass)
+    pass_then_platform = (
+        main
+        .with_minimal_opt()
+        .with_optimization(second_pass)
+        .with_target_platform("sol")
+    )
+
+    assert platform_then_pass.target_platform == "sol"
+    assert platform_then_pass.passes == [first_pass]
+    assert pass_then_platform.target_platform == "sol"
+    assert pass_then_platform.passes == [second_pass]
+
+    platform_then_pass.compile()
+    pass_then_platform.compile()
+    assert first_pass.calls == 1
+    assert second_pass.calls == 1

@@ -207,22 +207,37 @@ class OptimizerInstance(Generic[P, Out]):
 
     definition: GuppyFunctionDefinition[P, Out]
     passes: list[ComposablePass] = field(default_factory=list)
+    target_platform: Platform = field(default="helios")
 
     def with_optimization(
         self, optimization: ComposablePass
     ) -> OptimizerInstance[P, Out]:
         """Add an additional optimization pass to run while compiling the program."""
-        return OptimizerInstance(self.definition, [*self.passes, optimization])
+        return OptimizerInstance(
+            self.definition,
+            passes=[*self.passes, optimization],
+            target_platform=self.target_platform,
+        )
+
+    def with_target_platform(self, platform: Platform) -> OptimizerInstance[P, Out]:
+        """Set the target platform for the compiled program."""
+        return OptimizerInstance(
+            self.definition, passes=self.passes, target_platform=platform
+        )
 
     def emulator(
         self,
         n_qubits: int | None = None,
         builder: EmulatorBuilder | None = None,
         libs: list[Package] | None = None,
-        platform: Platform = "helios",
+        platform: Platform | None = None,
         debug_mode: bool = False,
     ) -> EmulatorInstance:
         """Compile this function for emulation with the configured optimizations."""
+
+        if platform is None:
+            platform = self.target_platform
+
         return self.definition._emulator(
             self.compile_function(debug_mode), n_qubits, builder, libs, platform
         )
