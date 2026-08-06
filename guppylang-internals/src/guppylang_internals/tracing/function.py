@@ -12,13 +12,14 @@ from guppylang_internals.checker.core import (
     Locals,
     Variable,
 )
+from guppylang_internals.checker.effects_checker import CallGraphData
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import DEF_STORE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -104,7 +105,13 @@ def trace_function(
     input_count = sum(InputFlags.Comptime not in inp.flags for inp in ty.inputs)
     recorder = TraceRecorder(input_count)
     ctx: ToHugrContext = None
-    state = TracingState(ctx, recorder, node, func_def)
+    # ALAN need an Inst here?
+    mono_id = (func_def.id, ())
+    ENGINE.call_graph[mono_id] = CallGraphData(
+        EffectLimitDecl.for_def(ty, func_def.defined_at)
+    )
+    state = TracingState(ctx, recorder, node, func_def, current_caller=mono_id)
+
     with set_tracing_state(state):
         generic_values = {
             x: val.value
@@ -243,7 +250,12 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         arg_exprs: list[ast.expr] = [
             with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
         ]
-        ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
+        ctx = Context(
+            Globals(DEF_STORE.frames[func.id]),
+            locals,
+            {},
+            current_caller=state.current_caller,
+        )
         call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
         # Here we check if unitary constraints are respected in the function body
