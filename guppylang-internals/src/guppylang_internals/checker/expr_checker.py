@@ -77,6 +77,7 @@ from guppylang_internals.checker.errors.type_errors import (
     BinaryOperatorNotDefinedError,
     ConstMismatchError,
     IllegalConstant,
+    InstanceMethodOnClassError,
     IntOverflowError,
     KindMismatch,
     ModuleMemberNotFoundError,
@@ -651,6 +652,45 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
             if ty is None:
+                from guppylang_internals.definition.enum import (
+                    CheckedEnumDef,
+                    ParsedEnumDef,
+                )
+
+                name_id = node.value.id
+                if (
+                    # A local variable of the same name shadows the global (e.g.
+                    # `def f(MyStruct: Other)`), matching `_check_name_id` below.
+                    name_id not in self.ctx.locals
+                    # Same shadowing rule, for generic type/const parameters.
+                    and name_id not in self.ctx.generic_param_inst
+                    # Only relevant if `name_id` does resolve to a global.
+                    and name_id in self.ctx.globals
+                ):
+                    defn = self.ctx.globals[name_id]
+                    if (
+                        # Only types (structs, aliases, ...) can have this problem.
+                        isinstance(defn, TypeDef)
+                        # Enums are excluded and handled separately below:
+                        # `get_instance_func` can't tell an instance method apart
+                        # from a variant constructor, so this would misfire on
+                        # legal variant construction like `MyEnum.Left()`.
+                        and not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
+                        # `MyStruct(...)` desugars to a legal `__new__` call.
+                        and node.attr != "__new__"
+                        # Only fire if `node.attr` really names an instance method.
+                        and ENGINE.get_instance_func(defn, node.attr) is not None
+                    ):
+                        err = InstanceMethodOnClassError(
+                            attr_span, defn.name, node.attr
+                        )
+                        err.add_sub_diagnostic(
+                            InstanceMethodOnClassError.CallOnInstanceHelp(
+                                None, f"{defn.name}(...).{node.attr}(...)"
+                            )
+                        )
+                        raise GuppyTypeError(err)
+
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
                 )
@@ -727,13 +767,20 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 else:
                     # Not a global name, thus node.value is a instantiated variant
                     is_enum_class = False
-            elif (method_w_ty := self._check_method(ty, node)) and not isinstance(
-                node.value, GlobalName
-            ):
+            elif method_w_ty := self._check_method(ty, node):
+                if isinstance(node.value, GlobalName):
+                    # Method exists, but on enum instances (since class methods are
+                    # currently unsupported). Fail with a helpful error instead of
+                    # the generic "no variant" message below.
+                    example_variant = next(iter(ty.variants_as_dict))
+                    err = InstanceMethodOnClassError(attr_span, str(ty), node.attr)
+                    err.add_sub_diagnostic(
+                        InstanceMethodOnClassError.CallOnInstanceHelp(
+                            None, f"{ty}.{example_variant}(...).{node.attr}(...)"
+                        )
+                    )
+                    raise GuppyTypeError(err)
                 # Otherwise, we may try to access a method from the enum class
-                # If the method exists, we also need to check that node.value is not a
-                # GlobalName, i.e. it does not correspond to the enum class definition:
-                # we cannot write `MyEnum.method`.
                 return method_w_ty[0], method_w_ty[1]
             else:
                 # If node.value is a GlobalName it corresponds to the enum class

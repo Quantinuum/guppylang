@@ -1,0 +1,11 @@
+Error: Instance method called on class (at $FILE:15:13)
+   | 
+13 | @guppy
+14 | def main() -> None:
+15 |     MyStruct.foo()
+   |              ^^^ `foo` is an instance method of `MyStruct`, not a static
+   |                  method
+
+Help: Call it on an instance instead, e.g. `MyStruct(...).foo(...)`
+
+Guppy compilation failed due to 1 previous error

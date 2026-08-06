@@ -203,6 +203,21 @@ class AttributeNotFoundError(Error):
 
 
 @dataclass(frozen=True)
+class InstanceMethodOnClassError(Error):
+    title: ClassVar[str] = "Instance method called on class"
+    span_label: ClassVar[str] = (
+        "`{attribute}` is an instance method of `{ty_name}`, not a static method"
+    )
+    ty_name: str
+    attribute: str
+
+    @dataclass(frozen=True)
+    class CallOnInstanceHelp(Help):
+        message: ClassVar[str] = "Call it on an instance instead, e.g. `{example}`"
+        example: str
+
+
+@dataclass(frozen=True)
 class UnaryOperatorNotDefinedError(Error):
     title: ClassVar[str] = "Operator not defined"
     span_label: ClassVar[str] = "Unary operator `{op}` not defined for `{ty}`"

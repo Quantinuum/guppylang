@@ -1,0 +1,8 @@
+Error: Attribute not found (at $FILE:18:20)
+   | 
+16 |     # the ordinary "attribute not found" error rather than being misdiagnosed as an
+17 |     # instance method called on the class.
+18 |     return MyStruct.field
+   |                     ^^^^^ `int -> MyStruct` has no attribute `field`
+
+Guppy compilation failed due to 1 previous error
