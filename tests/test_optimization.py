@@ -96,8 +96,7 @@ def test_opt_level_passes() -> None:
         _x = 2 + 2
 
     optimizer = (
-        main
-        .with_opt_level(OptimizationLevel.Classical)
+        main.with_opt_level(OptimizationLevel.Classical)
         .with_optimization(counting_pass)
         .with_optimization(counting_pass)
     )
@@ -122,8 +121,7 @@ def test_target_platform_preserved_when_chaining_optimizations() -> None:
 
     platform_then_pass = main.with_target_platform("sol").with_optimization(first_pass)
     pass_then_platform = (
-        main
-        .with_minimal_opt()
+        main.with_minimal_opt()
         .with_optimization(second_pass)
         .with_target_platform("sol")
     )
