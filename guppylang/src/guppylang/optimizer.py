@@ -94,12 +94,31 @@ optimization level:
         .with_optimization(second_pass)
         .compile()
     )
+
+
+Setting the target platform
+-----------------------------
+
+Use ``with_target_platform()`` to select the quantum platform targeted when
+compiling for emulation. The setting composes with optimization configuration,
+so the methods may be chained in either order:
+
+.. code-block:: python
+
+    emulator = (
+        main.with_opt_level(OptimizationLevel.Classical)
+        .with_target_platform("sol")
+        .emulator(n_qubits=1)
+    )
+
+Passing ``platform`` directly to ``emulator()`` overrides the configured target.
+If neither is specified, the emulator targets ``"helios"``.
 """
 
 from __future__ import annotations
 
 import functools
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -207,23 +226,17 @@ class OptimizerInstance(Generic[P, Out]):
 
     definition: GuppyFunctionDefinition[P, Out]
     passes: list[ComposablePass] = field(default_factory=list)
-    target_platform: Platform = field(default="helios")
+    target_platform: Platform | None = field(default=None)
 
     def with_optimization(
         self, optimization: ComposablePass
     ) -> OptimizerInstance[P, Out]:
         """Add an additional optimization pass to run while compiling the program."""
-        return OptimizerInstance(
-            self.definition,
-            passes=[*self.passes, optimization],
-            target_platform=self.target_platform,
-        )
+        return replace(self, passes=[*self.passes, optimization])
 
     def with_target_platform(self, platform: Platform) -> OptimizerInstance[P, Out]:
         """Set the target platform for the compiled program."""
-        return OptimizerInstance(
-            self.definition, passes=self.passes, target_platform=platform
-        )
+        return replace(self, target_platform=platform)
 
     def emulator(
         self,
@@ -235,8 +248,12 @@ class OptimizerInstance(Generic[P, Out]):
     ) -> EmulatorInstance:
         """Compile this function for emulation with the configured optimizations."""
 
+        # If platform is set, use it.
+        # Else if platform is not explicitly provided, use the target platform
+        # Otherwise, no platform is set, thus use the default: "helios".
+        platform = platform or self.target_platform
         if platform is None:
-            platform = self.target_platform
+            platform = "helios"
 
         return self.definition._emulator(
             self.compile_function(debug_mode), n_qubits, builder, libs, platform
