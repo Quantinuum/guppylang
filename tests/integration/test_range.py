@@ -187,5 +187,5 @@ def test_range_reverse_zero_step_panic() -> None:
         r.__reversed__()
         output("_test_output", 0)
 
-    with pytest.raises(EmulatorError, match=r"range.reverse_in_place: step is zero"):
+    with pytest.raises(EmulatorError, match=r"Range.__reversed__: step is zero"):
         main.emulator(n_qubits=0).stabilizer_sim().with_seed(42).run()
