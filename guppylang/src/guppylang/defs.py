@@ -289,8 +289,11 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
-        return self.with_opt_level(OptimizationLevel.Default).emulator(
-            n_qubits, builder, libs, platform, debug_mode
+        return (
+            self
+            .with_opt_level(OptimizationLevel.Default)
+            .with_target_platform(platform)
+            .emulator(n_qubits, builder, libs, debug_mode=debug_mode)
         )
 
     def _emulator(
@@ -398,8 +401,10 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         return self.with_opt_level(OptimizationLevel.Minimal)
 
     def with_target_platform(self, platform: Platform) -> "OptimizerInstance[P, Out]":
-        """Configure the target platform used when building an emulator for this function."""
-        return self.with_opt_level(OptimizationLevel.Default).with_target_platform(platform)
+        """Configure the target platform used when building the emulator."""
+        return self.with_opt_level(OptimizationLevel.Default).with_target_platform(
+            platform
+        )
 
     def compile(self, debug_mode: bool = False) -> Package:
         """
