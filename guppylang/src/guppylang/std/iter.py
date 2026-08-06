@@ -75,7 +75,7 @@ class Range:
 
     @guppy
     @no_type_check
-    def reverse_in_place(self: Self) -> None:
+    def __reversed__(self: Self) -> None:
         if self._step == 0:
             panic("range.reverse_in_place: step is zero")
 

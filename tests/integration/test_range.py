@@ -90,7 +90,7 @@ def test_range_reverse(run_int_fn, validate):
     def main(start: int, stop: int, step: int) -> int:
         total = 0
         r = range(start, stop, step)
-        r.reverse_in_place()
+        r.__reversed__()
         for x in r:
             total = total * 100 + x + 50
         return total
@@ -137,8 +137,8 @@ def test_range_reverse_twice(run_int_fn):
     def main(start: int, stop: int, step: int) -> int:
         total = 0
         r = range(start, stop, step)
-        r.reverse_in_place()
-        r.reverse_in_place()
+        r.__reversed__()
+        r.__reversed__()
         for x in r:
             total = total * 100 + x + 50
         return total
@@ -184,7 +184,7 @@ def test_range_reverse_zero_step_panic() -> None:
     @guppy
     def main() -> None:
         r = Range(1, 5, 0)
-        r.reverse_in_place()
+        r.__reversed__()
         output("_test_output", 0)
 
     with pytest.raises(EmulatorError, match=r"range.reverse_in_place: step is zero"):
