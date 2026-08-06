@@ -1,4 +1,4 @@
-"""Tests for the optimization level configuration in `.compile` and `.emulator`."""
+"""Tests for the target platform configuration in `.emulator`."""
 
 from __future__ import annotations
 

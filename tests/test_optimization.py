@@ -127,7 +127,8 @@ def test_target_platform_preserved_when_chaining_optimizations() -> None:
     )
 
     assert platform_then_pass.target_platform == "sol"
-    assert platform_then_pass.passes == [first_pass]
+    assert platform_then_pass.passes[-1] is first_pass
+    assert len(platform_then_pass.passes) == len(OptimizationLevel.Default.passes()) + 1
     assert pass_then_platform.target_platform == "sol"
     assert pass_then_platform.passes == [second_pass]
 

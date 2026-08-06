@@ -398,8 +398,8 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         return self.with_opt_level(OptimizationLevel.Minimal)
 
     def with_target_platform(self, platform: Platform) -> "OptimizerInstance[P, Out]":
-        """Configure the target platform used when compiling this function."""
-        return OptimizerInstance(self, target_platform=platform)
+        """Configure the target platform used when building an emulator for this function."""
+        return self.with_opt_level(OptimizationLevel.Default).with_target_platform(platform)
 
     def compile(self, debug_mode: bool = False) -> Package:
         """

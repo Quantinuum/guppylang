@@ -235,7 +235,7 @@ class OptimizerInstance(Generic[P, Out]):
         return replace(self, passes=[*self.passes, optimization])
 
     def with_target_platform(self, platform: Platform) -> OptimizerInstance[P, Out]:
-        """Set the target platform for the compiled program."""
+        """Set the default platform used by :py:meth:`emulator` when `platform` is not provided."""
         return replace(self, target_platform=platform)
 
     def emulator(
