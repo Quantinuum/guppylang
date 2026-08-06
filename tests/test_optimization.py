@@ -136,3 +136,29 @@ def test_target_platform_preserved_when_chaining_optimizations() -> None:
     pass_then_platform.compile()
     assert first_pass.calls == 1
     assert second_pass.calls == 1
+
+
+def test_reconfiguring_optimizer() -> None:
+    """Test that selecting a new optimization level only replaces the passes."""
+
+    custom_pass = CountingPass()
+
+    @guppy
+    def main() -> None:
+        _x = 2 + 2
+
+    default = main.with_target_platform("sol")
+    configured = default.with_optimization(custom_pass)
+    classical = configured.with_opt_level(OptimizationLevel.Classical)
+    minimal = configured.with_minimal_opt()
+
+    assert default.passes == OptimizationLevel.Default.passes()
+    assert configured.passes[-1] is custom_pass
+    assert classical.target_platform == "sol"
+    assert classical.passes == OptimizationLevel.Classical.passes()
+    assert minimal.target_platform == "sol"
+    assert minimal.passes == OptimizationLevel.Minimal.passes()
+
+    classical.compile()
+    minimal.compile()
+    assert custom_pass.calls == 0

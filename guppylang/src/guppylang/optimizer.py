@@ -228,6 +228,19 @@ class OptimizerInstance(Generic[P, Out]):
     passes: list[ComposablePass] = field(default_factory=list)
     target_platform: Platform | None = field(default=None)
 
+    def with_opt_level(self, level: OptimizationLevel) -> OptimizerInstance[P, Out]:
+        """Configure the optimization level used when compiling this function.
+
+        This overrides any previously configured optimization level or custom passes."""
+        return replace(self, passes=level.passes())
+
+    def with_minimal_opt(self) -> OptimizerInstance[P, Out]:
+        """Configure the function to use minimal optimization when compiling.
+
+        Equivalent to `with_opt_level(OptimizationLevel.Minimal)`, thus it overrides
+        any previously configured optimization level or custom passes."""
+        return self.with_opt_level(OptimizationLevel.Minimal)
+
     def with_optimization(
         self, optimization: ComposablePass
     ) -> OptimizerInstance[P, Out]:

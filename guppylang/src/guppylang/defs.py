@@ -290,8 +290,7 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
         return (
-            self
-            .with_opt_level(OptimizationLevel.Default)
+            self._with_default_opt()
             .with_target_platform(platform)
             .emulator(n_qubits, builder, libs, debug_mode=debug_mode)
         )
@@ -400,11 +399,15 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         """
         return self.with_opt_level(OptimizationLevel.Minimal)
 
+    def _with_default_opt(self) -> "OptimizerInstance[P, Out]":
+        """Configure the function to use the default optimization level.
+
+        Equivalent to `with_opt_level(OptimizationLevel.Default)`."""
+        return self.with_opt_level(OptimizationLevel.Default)
+
     def with_target_platform(self, platform: Platform) -> "OptimizerInstance[P, Out]":
         """Configure the target platform used when building the emulator."""
-        return self.with_opt_level(OptimizationLevel.Default).with_target_platform(
-            platform
-        )
+        return self._with_default_opt().with_target_platform(platform)
 
     def compile(self, debug_mode: bool = False) -> Package:
         """
@@ -422,7 +425,7 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
             GuppyError: If the entrypoint has arguments.
         """
 
-        return self.with_opt_level(OptimizationLevel.Default).compile(debug_mode)
+        return self._with_default_opt().compile(debug_mode)
 
     @pretty_errors
     def compile_entrypoint(self, debug_mode: bool = False) -> Package:
@@ -439,9 +442,7 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
             GuppyError: If the entrypoint has arguments.
         """
 
-        return self.with_opt_level(OptimizationLevel.Default).compile_entrypoint(
-            debug_mode
-        )
+        return self._with_default_opt().compile_entrypoint(debug_mode)
 
     @pretty_errors
     def _compile_entrypoint(self, debug_mode: bool = False) -> Package:
@@ -474,9 +475,7 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         Returns:
             Package: The compiled package object.
         """
-        return self.with_opt_level(OptimizationLevel.Default).compile_function(
-            debug_mode
-        )
+        return self._with_default_opt().compile_function(debug_mode)
 
     def _compile_function(self, debug_mode: bool = False) -> Package:
         """Compile a Guppy function definition without applying optimization passes."""
