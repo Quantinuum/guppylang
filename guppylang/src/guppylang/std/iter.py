@@ -77,7 +77,7 @@ class Range:
     @no_type_check
     def __reversed__(self: Self) -> None:
         if self._step == 0:
-            panic("range.reverse_in_place: step is zero")
+            panic("Range.__reversed__: step is zero")
 
         diff = self._stop - self._next
 
@@ -138,9 +138,6 @@ def range(start: int, stop: int = 0, step: int = 1) -> Range:
     annotation and may for example be used inside array comprehensions.
 
     Iterating with a ``step`` of ``0`` raises a runtime panic.
-
-    Use the ``Range.reverse_in_place`` method to reverse the iteration direction
-    in place.
     """
 
 
