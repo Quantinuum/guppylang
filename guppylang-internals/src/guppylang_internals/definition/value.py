@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from hugr import Node, Wire
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.definition.common import CompiledDef, DefId, Definition
+from guppylang_internals.definition.common import CompiledDef, Definition
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
 
@@ -35,20 +35,23 @@ class CompiledValueDef(ValueDef, CompiledDef):
         """Loads the defined value into a local Hugr dataflow graph."""
 
 
+class CallableEffects:
+    """Abstract base class for definitions that represent functions and whose
+    effects are known."""
+
+    @abstractproperty
+    def call_effects(self) -> Iterable["Effect"]:
+        """The maximum set of effects that may occur when calling the function."""
+
+
 @dataclass(frozen=True)
 class CallableDef(ValueDef):
     """Abstract base class for definitions that represent functions and to which
     calls can be type-checked."""
 
+    # Does not inherit CallableEffects as some functions do not know
+    # their effects until after checking.
     ty: FunctionType
-
-    @abstractproperty
-    def call_effects(self) -> Iterable["Effect"] | DefId:
-        """Return either
-        * the maximum set of effects that may occur when calling the function with
-          the given instantiation; or
-        * the DefId for which (along with the instantiation) the effects should be
-          computed"""
 
     @abstractmethod
     def check_call(
@@ -66,15 +69,11 @@ class CallableDef(ValueDef):
         raise RuntimeError("Guppy functions can only be called in a Guppy context")
 
 
-class CompiledCallableDef(CompiledValueDef):
+class CompiledCallableDef(CompiledValueDef, CallableEffects):
     """Abstract base class for anything that compiles to a Hugr function (necessarily)
     at module-level)."""
 
     ty: FunctionType
-
-    @abstractproperty
-    def call_effects(self) -> Iterable["Effect"]:
-        """The maximum set of effects that may occur when calling the function."""
 
     @abstractmethod
     def compile_call(

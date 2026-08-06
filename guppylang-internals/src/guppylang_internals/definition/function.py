@@ -37,7 +37,6 @@ from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableGenericDef,
     CompilableDef,
-    DefId,
     ParsableDef,
     UnknownSourceError,
     UserProvidedLinkName,
@@ -58,7 +57,6 @@ from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
-from guppylang_internals.tys.param import ConstParam
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
 
@@ -166,16 +164,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     description: str = field(default="function", init=False)
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
-
-    @property
-    def call_effects(self) -> Iterable[Effect] | DefId:
-        for param in self.params:
-            if isinstance(param, ConstParam) and param.from_comptime_arg:
-                # Compiled as comptime function. Cannot trace to compute actual effects
-                # until compilation:  https://github.com/Quantinuum/guppylang/issues/1592
-                # Hence have to be conservative for now.
-                return [Effect.ANY]
-        return self.id
 
     @property
     def params(self) -> "Sequence[Parameter]":

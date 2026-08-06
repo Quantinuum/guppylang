@@ -91,10 +91,10 @@ from guppylang_internals.checker.errors.type_errors import (
     UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import DefId, Definition
+from guppylang_internals.definition.common import Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.definition.value import CallableDef, ValueDef
+from guppylang_internals.definition.value import CallableDef, CallableEffects, ValueDef
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
@@ -1531,13 +1531,12 @@ def _register_callee(
     assert ctx.current_caller is not None
     data = ENGINE.call_graph[ctx.current_caller]
     effects: Iterable[Effect]
-    if isinstance(callee, CallableDef):
-        match callee.call_effects:
-            case DefId() as id:
-                data.callee_defs.append((id, inst))
-                return
-            case fx:
-                effects = fx
+    if isinstance(callee, CallableEffects):
+        effects = callee.call_effects
+    elif isinstance(callee, CallableDef):
+        # Effects not known yet, will be computed
+        data.callee_defs.append((callee.id, inst))
+        return
     else:
         effects = callee
     data.other_callee_effects.extend(effects)

@@ -35,6 +35,7 @@ from guppylang_internals.compiler.core import (
 from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CallReturnWires,
     CompiledCallableDef,
 )
@@ -196,7 +197,7 @@ class RawCustomFunctionDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class CustomFunctionDef(CallableDef, CheckableGenericDef):
+class CustomFunctionDef(CallableDef, CheckableGenericDef, CallableEffects):
     """A custom function with parsed and checked signature.
 
     Args:
@@ -227,6 +228,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     description: str = field(default="function", init=False)
 
     @property
+    @override
     def call_effects(self) -> Iterable[Effect]:
         return self.effects
 

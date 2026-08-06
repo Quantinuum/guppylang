@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import networkx as nx
 
 from guppylang_internals.tys import Effect
+from guppylang_internals.tys.subst import BoundVarFinder
 
 if TYPE_CHECKING:
     from guppylang_internals.engine import MonoDefId
@@ -28,11 +29,21 @@ def compute_effects() -> Mapping["MonoDefId", frozenset[Effect]]:
 
     # First construct a networkx DiGraph based on the call graph info for analysis.
     call_graph: nx.DiGraph[MonoDefId] = nx.DiGraph()
-    call_graph.add_nodes_from(ENGINE.call_graph.keys())
+    # Include only real/concrete instantiations, the others will not be compiled.
+    for mono_def_id in ENGINE.call_graph:
+        finder = BoundVarFinder()
+        (_, args) = mono_def_id
+        for arg in args:
+            arg.visit(finder)
+        if not finder.bound_vars:
+            call_graph.add_node(mono_def_id)
+
     for mono_def_id, data in ENGINE.call_graph.items():
+        if mono_def_id not in call_graph.nodes:
+            continue
         effects = set(data.other_callee_effects)
         for tgt in data.callee_defs:
-            assert tgt in call_graph
+            assert tgt in call_graph.nodes
             call_graph.add_edge(mono_def_id, tgt)
         call_graph.nodes[mono_def_id]["effects"] = effects
 

@@ -40,6 +40,7 @@ from guppylang_internals.definition.function import (
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CallReturnWires,
     CompiledCallableDef,
     CompiledHugrNodeDef,
@@ -164,7 +165,7 @@ class RawLoadPytketDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class ParsedPytketDef(CallableDef, CompilableDef):
+class ParsedPytketDef(CallableDef, CompilableDef, CallableEffects):
     """A circuit definition with signature.
 
     Args:
@@ -186,6 +187,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
     description: str = field(default="pytket circuit", init=False)
 
+    @override
     @property
     def call_effects(self) -> Iterable[Effect]:
         # borrow-array unpacks can panic
@@ -302,7 +304,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
         # Pass all arguments to call node.
         # Pytket circuits can contain `unwrap` operations which can panic.
-        # (This should match `def call_effects` in `CompiledPytketDef` below.)
+        # ALAN TODO this should match `def call_effects` in `CompiledPytketDef` below.
         call_node = outer_func.call(
             hugr_func, *(input_list + bool_wires + param_wires), effects=[Effect.ANY]
         )

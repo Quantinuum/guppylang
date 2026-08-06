@@ -83,14 +83,6 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     defined_at: ast.FunctionDef
 
     @property
-    def call_effects(self) -> Iterable[Effect]:
-        # We can't compute the effects until after we've done tracing, which until the
-        # the big tracing refactor https://github.com/Quantinuum/guppylang/issues/1592
-        # is in compilation. That's too late to help during checking, so for now
-        # we just return the most conservative approximation.
-        return [Effect.ANY]
-
-    @property
     def params(self) -> Sequence[Parameter]:
         """Generic parameters of this function."""
         return self.ty.params
@@ -120,6 +112,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             self.defined_at,
             mono_ty,
             self.python_func,
+            type_args,
             trace,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
@@ -148,6 +141,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
 
 @dataclass(frozen=True)
 class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
+    inst: Inst
     trace: "Trace"
 
     @override
@@ -178,8 +172,10 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.python_func,
+            self.inst,
             self.trace,
             func_def,
+            ctx.effects[(self.id, self.inst)],
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
         )
@@ -190,6 +186,13 @@ class CompiledTracedFunctionDef(
     TracedMonoFunctionDef, CompiledCallableDef, CompiledHugrNodeDef
 ):
     func_def: hf.Function
+    effects: Iterable[Effect]
+
+    @override
+    @property
+    def call_effects(self) -> Iterable[Effect]:
+        """The maximum set of effects that may occur when calling the function."""
+        return self.effects
 
     @property
     def hugr_node(self) -> Node:

@@ -37,6 +37,7 @@ from guppylang_internals.definition.function import (
 )
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CallReturnWires,
     CompiledCallableDef,
     CompiledHugrNodeDef,
@@ -120,7 +121,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
 
 
 @dataclass(frozen=True)
-class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
+class ParsedFunctionDecl(CheckableGenericDef, CallableDef, CallableEffects):
     """A function declaration with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function.
@@ -141,6 +142,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property
+    @override
     def call_effects(self) -> Iterable[Effect]:
         # Assume all external function calls are side-effecting; we could improve
         # by allowing explicit annotation on declarations, but this is a safe default.
