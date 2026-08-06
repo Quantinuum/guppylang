@@ -104,8 +104,8 @@ def trace_function(
     input_count = sum(InputFlags.Comptime not in inp.flags for inp in ty.inputs)
     recorder = TraceRecorder(input_count)
     ctx: ToHugrContext = None
-    # ALAN need an Inst here?
-    mono_id = (func_def.id, ())
+    inst = tuple(generic_args.values())  # Relying on deterministic ordering of dicts
+    mono_id = (func_def.id, inst)
     ENGINE.register_call_graph_node(mono_id)
     state = TracingState(ctx, recorder, node, func_def, current_caller=mono_id)
 
