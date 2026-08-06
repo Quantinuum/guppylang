@@ -12,7 +12,6 @@ from guppylang_internals.checker.core import (
     Locals,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import CallGraphData
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
 from guppylang_internals.definition.custom import CustomFunctionDef
@@ -107,7 +106,7 @@ def trace_function(
     ctx: ToHugrContext = None
     # ALAN need an Inst here?
     mono_id = (func_def.id, ())
-    ENGINE.call_graph[mono_id] = CallGraphData()
+    ENGINE.register_call_graph_node(mono_id)
     state = TracingState(ctx, recorder, node, func_def, current_caller=mono_id)
 
     with set_tracing_state(state):

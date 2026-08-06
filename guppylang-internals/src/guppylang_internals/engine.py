@@ -336,6 +336,13 @@ class CompilationEngine:
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
 
+    def register_call_graph_node(self, mono_id: MonoDefId) -> None:
+        """Ensures a monomorphized definition is registered in the call graph.
+        Required before edges can be added from the node, but not to it.
+        """
+        assert mono_id not in self.call_graph
+        self.call_graph[mono_id] = CallGraphData()
+
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.
 
