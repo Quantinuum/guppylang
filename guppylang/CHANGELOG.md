@@ -14,6 +14,18 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
+## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.1...guppylang-v1.0.2) (2026-08-06)
+
+
+### Bug Fixes
+
+* Update broken v1 changelog links (#2167)([2c71962](https://github.com/Quantinuum/guppylang/commit/2c71962d4f7bd2782e917a57fe56c85107f5930f))
+
+
+### Features
+
+* Make `__truediv__` daggerable (#2177)([f619ccd](https://github.com/Quantinuum/guppylang/commit/f619ccdfbbfdbe296be50d26a1d6bd7530e526d4))
+
 ## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.16...guppylang-v1.0.1) (2026-08-03)
 
 Guppy v1 is the first stable release of the Guppy quantum programming language. It introduces several major new features alongside a number of breaking changes and new behaviours.
