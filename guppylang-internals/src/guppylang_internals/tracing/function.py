@@ -107,9 +107,7 @@ def trace_function(
     ctx: ToHugrContext = None
     # ALAN need an Inst here?
     mono_id = (func_def.id, ())
-    ENGINE.call_graph[mono_id] = CallGraphData(
-        EffectLimitDecl.for_def(ty, func_def.defined_at)
-    )
+    ENGINE.call_graph[mono_id] = CallGraphData()
     state = TracingState(ctx, recorder, node, func_def, current_caller=mono_id)
 
     with set_tracing_state(state):
