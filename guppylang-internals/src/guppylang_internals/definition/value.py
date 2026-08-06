@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from hugr import Node, Wire
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.definition.common import CompiledDef, Definition
+from guppylang_internals.definition.common import CompiledDef, DefId, Definition
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
 
@@ -41,6 +41,14 @@ class CallableDef(ValueDef):
     calls can be type-checked."""
 
     ty: FunctionType
+
+    @abstractproperty
+    def call_effects(self) -> Iterable["Effect"] | DefId:
+        """Return either
+        * the maximum set of effects that may occur when calling the function with
+          the given instantiation; or
+        * the DefId for which (along with the instantiation) the effects should be
+          computed"""
 
     @abstractmethod
     def check_call(

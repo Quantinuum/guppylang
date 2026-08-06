@@ -276,7 +276,7 @@ class ArrayIndexChecker(CustomCallChecker):
 
         # Run regular type checking for the arguments
         args, subs, type_args = check_call(
-            self.func.ty, args, ty, self.node, self.ctx, self.func.effects
+            self.func.ty, args, ty, self.node, self.ctx, self.func
         )
 
         # Check the index bounds (first:index expression, second: length_arg)
@@ -551,7 +551,7 @@ class WasmCallChecker(CustomCallChecker):
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(
-            self.func.ty, args, ty, self.node, self.ctx, self.func.id
+            self.func.ty, args, ty, self.node, self.ctx, self.func
         )
 
         return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
