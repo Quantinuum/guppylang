@@ -822,7 +822,7 @@ def make_assign(lhs: list[ast.AST], value: ast.expr) -> ast.Assign:
 
 def find_missing_return_point(
     final_bb: BB, cfg: CFG
-) -> tuple[BBStatement | None, tuple[ast.expr, int] | None]:
+) -> tuple[BBStatement | None, tuple[ast.AST, int] | None]:
     """Finds the last statement from the final BB or its predecessors, and the branch
     condition. It walks up the ancestors of the given final basic block to locate the
     nearest block containing statements, and attempts to find the most relevant branch
@@ -853,6 +853,25 @@ def find_missing_return_point(
             # we can stop the search and look for the condition in the branch
             # that leads to final_bb.
             final_statement = fbb_ancestor.statements[-1]
+            # A statement-bearing ancestor that also owns a branch predicate
+            # is a loop/if header whose condition got desugared into a
+            # side-effecting statement (e.g. a walrus `(b := b)` whose
+            # `Assign` ends up in the header BB next to the bare-`b`
+            # `branch_pred`). The last statement alone is a poor error span
+            # (it only covers the condition), so fall back to the loop-header
+            # path: the caller uses the whole enclosing statement
+            # (`nodes[-1]`) as the span and we point the help note at the
+            # desugared condition with `truth_value=False`.
+            if (
+                fbb_ancestor.branch_pred is not None
+                and isinstance(final_statement, ast.Assign)
+                and len(final_statement.targets) == 1
+                and isinstance(final_statement.targets[0], ast.Name)
+                and isinstance(fbb_ancestor.branch_pred, ast.Name)
+                and final_statement.targets[0].id == fbb_ancestor.branch_pred.id
+                and final_statement.lineno == fbb_ancestor.branch_pred.lineno
+            ):
+                return None, (final_statement, 0)
             # To have a better error message, we also look for the condition
             # of the branch without return.
             # However, there may be nested branches without returns.
