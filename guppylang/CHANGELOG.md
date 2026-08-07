@@ -14,6 +14,55 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#101-2026-08-03).
 
+## [1.1.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.1...guppylang-v1.1.0-a0) (2026-08-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* Type args to Either/Result factory methods `right`/`err` same way round (#2118)
+* Drop support for Python 3.10 and 3.11 (#1971)
+
+
+### Bug Fixes
+
+* Docstring formatting (#2165)([c6c7d02](https://github.com/Quantinuum/guppylang/commit/c6c7d025d7ad167b07f362e65cca53caa3c176a1))
+* Make most builtin functions + struct constructors daggerable (#2140)([cebd1af](https://github.com/Quantinuum/guppylang/commit/cebd1aff57047a3cee4fd516256e8b8c9093014f))
+* Address missing API docs members from the std.collections module. (#2137)([08a0251](https://github.com/Quantinuum/guppylang/commit/08a0251a050df224b48158806234d1c6e7f55608))
+* Type args to Either/Result factory methods `right`/`err` same way round (#2118)([0573a82](https://github.com/Quantinuum/guppylang/commit/0573a82cec38af580694ed58067f6c5b6004490e))
+* Fix comptime inout updates for `state_output` (and other custom) functions (#2046)([5903c94](https://github.com/Quantinuum/guppylang/commit/5903c946b43058e28f0d267c56901e39c464b6c5))
+* Fix diagnostics rendering for type aliases in Jupyter notebooks (#2040)([939492e](https://github.com/Quantinuum/guppylang/commit/939492eebd511d7b0338943fd0782f80cb722265))
+* Correct docstring indentation in EmulatorBuilder.build (#2011)([91cd238](https://github.com/Quantinuum/guppylang/commit/91cd238e3f0ad91e2c7d50a71cf0e8fff13a007f))
+* Correct formatting in GuppyLibrary docstring (#2009)([428cb53](https://github.com/Quantinuum/guppylang/commit/428cb536ace8488eb6c65d7c6fc036b5fd720d12))
+
+
+### Code Refactoring
+
+* Remove EXTENSION_OPS_WITH_SIDE_EFFECTS, pass effects alongside DataflowOp (#2024)([47205e9](https://github.com/Quantinuum/guppylang/commit/47205e950e86cce0acd73a9f57a85a46df3a4078))
+
+
+### Documentation
+
+* Warning about using barrier with state_output (#2171)([b017878](https://github.com/Quantinuum/guppylang/commit/b0178785f773dd1fa968acf7ecd305157304d653))
+* Fix broken code blocks in emulator docs (#2149)([ca59a1b](https://github.com/Quantinuum/guppylang/commit/ca59a1bd38058f71bc9e28830d1208a9e15142c5))
+* Add entrypoint arguments and target platform to emulator docs (#2125)([dc824f4](https://github.com/Quantinuum/guppylang/commit/dc824f47a53e46501d7c6ea4e7570e01b52ca740))
+* Fix emulator argument formatting (#2124)([16f84cc](https://github.com/Quantinuum/guppylang/commit/16f84cc6847d6d768e877993282eed6129651759))
+* Optimization module docs (#2121)([e04c6d2](https://github.com/Quantinuum/guppylang/commit/e04c6d22a431dc2ef412cc9149ee9b643f3a5db7))
+* More specific std.qsystem documentation including ion identity (#2105)([91eeb62](https://github.com/Quantinuum/guppylang/commit/91eeb62ef4a7626b275be6ef38689e767b3d9bc5))
+* Document expected qubits in emulator API (#2099)([d182404](https://github.com/Quantinuum/guppylang/commit/d182404fb0d1b87b88016745a70675a4e380a040))
+
+
+### Features
+
+* Add target platform configuration for optimizer and emulator (#2180)([20a7af6](https://github.com/Quantinuum/guppylang/commit/20a7af6def72f047977d8af2f70eb462e5ad34f2))
+* Add `Range.__reversed__ ` and panic on range step=0 (#2092)([801aa64](https://github.com/Quantinuum/guppylang/commit/801aa640bdeebbad776d09f0fe7075cb85b1aa4c))
+* Make `__truediv__` daggerable (#2176)([edd3417](https://github.com/Quantinuum/guppylang/commit/edd34171996d16f6aeafc77fbb463146b8a62a22))
+* Add optional `debug_mode` argument to `compile` and `emulator` (#2126)([bb886d2](https://github.com/Quantinuum/guppylang/commit/bb886d296922ac878c73b98a9f884ac3a54ca575))
+* Add RemoveRedundancies pass to default compilation (#2130)([d5fc382](https://github.com/Quantinuum/guppylang/commit/d5fc38237158ae6b58b4de6b9178461c5c1cbb22))
+* Revert "feat: Add quantum pass to default opt level (#2063)" but keep tket dependency bump (#2071)([efb0e83](https://github.com/Quantinuum/guppylang/commit/efb0e8314e35ce6c0136b1f87ba38ac5a8333876))
+* Add quantum pass to default opt level (#2063)([2970cb5](https://github.com/Quantinuum/guppylang/commit/2970cb5ce9445896c12e3cbc84d76368dd7f4d7d))
+* Drop support for Python 3.10 and 3.11 (#1971)([ac2209c](https://github.com/Quantinuum/guppylang/commit/ac2209cb6675de74deb357d965fc22c473a7732e))
+* Add in-place array reverse (#1949)([6433f28](https://github.com/Quantinuum/guppylang/commit/6433f284d442b957b90b0efc50c79c9f9c1685f5))
+
 ## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.16...guppylang-v1.0.1) (2026-08-03)
 
 Guppy v1 is the first stable release of the Guppy quantum programming language. It introduces several major new features alongside a number of breaking changes and new behaviours.
