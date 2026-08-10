@@ -17,9 +17,7 @@ from guppylang_internals.std._internal.compiler.wasm import (
     WasmModuleDiscardCompiler,
     WasmModuleInitCompiler,
 )
-from guppylang_internals.std._internal.decorator import (
-    ext_module_decorator,
-)
+from guppylang_internals.std._internal.decorator import ext_module_decorator
 from guppylang_internals.std._internal.wasm import (
     WasmFileNotFound,
     WasmFunctionNotInFile,

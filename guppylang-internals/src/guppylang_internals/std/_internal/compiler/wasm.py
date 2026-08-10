@@ -12,12 +12,8 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     WASM_EXTENSION,
     ConstWasmModule,
 )
-from guppylang_internals.tys.builtin import (
-    wasm_module_name,
-)
-from guppylang_internals.tys.ty import (
-    FunctionType,
-)
+from guppylang_internals.tys.builtin import wasm_module_name
+from guppylang_internals.tys.ty import FunctionType
 
 
 class WasmModuleInitCompiler(CustomInoutCallCompiler):
