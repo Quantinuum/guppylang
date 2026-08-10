@@ -9,20 +9,29 @@ class _DummyGuppy:
     functions are recognised as regular functions and included in docs.
     """
 
-    def __call__(self, f: Any) -> Any:
-        return f
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        if kwargs:
+            return _DummyGuppy()
+        match args:
+            case [f]:
+                return f
 
     def comptime(self, f: Any) -> Any:
         return f
 
-    def extend_type(self, *args: Any, **kwargs: Any) -> Any:
+    def struct(self, *args: Any, **kwargs: Any) -> Any:
+        if args:
+            return args[0]
         return lambda cls: cls
 
-    def type(self, *args: Any, **kwargs: Any) -> Any:
-        return lambda cls: cls
-
-    def struct(self, cls: Any) -> Any:
+    def enum(self, cls: Any) -> Any:
         return cls
+
+    def protocol(self, cls: Any) -> Any:
+        return cls
+
+    def require(self, f: Any) -> Any:
+        return f
 
     def type_var(self, name: str, *args: Any, **kwargs: Any) -> Any:
         return TypeVar(name)
@@ -30,11 +39,8 @@ class _DummyGuppy:
     def nat_var(self, name: str, *args: Any, **kwargs: Any) -> Any:
         return TypeVar(name)
 
-    def custom(self, *args: Any, **kwargs: Any) -> Any:
-        return lambda f: f
-
-    def hugr_op(self, *args: Any, **kwargs: Any) -> Any:
-        return lambda f: f
+    def const_var(self, name: str, *args: Any, **kwargs: Any) -> Any:
+        return TypeVar(name)
 
     def declare(self, f: Any) -> Any:
         return f
@@ -45,19 +51,7 @@ class _DummyGuppy:
     def constant(self, *args: Any, **kwargs: Any) -> Any:
         return None
 
-    def extern(self, *args: Any, **kwargs: Any) -> Any:
-        return None
-
-    def check(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
-    def compile(self, *args: Any, **kwargs: Any) -> Any:
-        return None
-
-    def compile_function(self, *args: Any, **kwargs: Any) -> Any:
-        return None
-
-    def library(self, *args: Any, **kwargs: Any) -> Any:
+    def _extern(self, *args: Any, **kwargs: Any) -> Any:
         return None
 
     def pytket(self, *args: Any, **kwargs: Any) -> Any:

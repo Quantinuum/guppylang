@@ -134,14 +134,9 @@ class TypeParam(ParameterBase):
                         got=f"type `{ty}` which is not implicitly droppable",
                     )
                     raise GuppyTypeError(err)
-                if self.must_implement:
-                    from guppylang_internals.checker.protocol_checker import (
-                        check_protocol,
-                    )
-
-                    for proto in self.must_implement:
-                        _, proto_subst = check_protocol(ty, proto, loc)
-                        subst |= proto_subst
+                for proto in self.must_implement:
+                    _, proto_subst = proto.check_implemented_by(ty, loc)
+                    subst |= proto_subst
                 return arg, subst
 
     def to_existential(self) -> tuple[Argument, ExistentialVar]:
@@ -184,7 +179,8 @@ class TypeParam(ParameterBase):
         from guppylang_internals.tys.subst import Instantiator
 
         impls = tuple(
-            impl.transform(Instantiator(inst)) for impl in self.must_implement
+            impl.transform(Instantiator(inst, allow_partial=True))
+            for impl in self.must_implement
         )
 
         return replace(self, must_implement=impls)

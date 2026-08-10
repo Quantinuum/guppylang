@@ -1,9 +1,11 @@
-Error: Unitary flag mismatch (at $FILE:17:18)
+Error: Missing protocol implementation (at $FILE:17:18)
    | 
 15 | @guppy
 16 | def test(q: qubit) -> None:
 17 |     apply_unitary(dagger_only, q)
-   |                   ^^^^^^^^^^^ Expected function with unitary flags: `unitary=True`, got:
-   |                               `daggerable=True`
+   |                   ^^^^^^^^^^^ Type `def dagger_only(q: qubit) -> None` does not implement
+   |                               protocol `Unitary[[qubit], None]`
+
+Note: Function `dagger_only` is only declared as `daggerable=True`
 
 Guppy compilation failed due to 1 previous error

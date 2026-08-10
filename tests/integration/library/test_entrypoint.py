@@ -3,21 +3,26 @@ import pytest
 from hugr._hugr.linking import HugrLinkingError
 
 from guppylang import guppy
+from guppylang.library import link_name
+
 from guppylang.defs import GuppyDefinition
 from guppylang.emulator import EmulatorBuilder
-from guppylang.std.platform import result
+from guppylang.library import GuppyLibrary
+from guppylang.std.platform import output
 
 
 def test_manual_link_no_entrypoints():
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
-    @guppy(link_name="super_adder")
+    @guppy
+    @link_name("super_adder")
     def impl(x: int) -> int:
         return x + 5
 
-    lib1 = guppy.library(decl).compile()
-    lib2 = guppy.library(impl).compile()
+    lib1 = GuppyLibrary.from_members(decl).compile()
+    lib2 = GuppyLibrary.from_members(impl).compile()
 
     linked = lib1.link(lib2)
     # Not an executable module
@@ -25,18 +30,20 @@ def test_manual_link_no_entrypoints():
 
 
 def test_manual_link_entrypoint_lhs():
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
-    @guppy(link_name="super_adder")
+    @guppy
+    @link_name("super_adder")
     def impl(x: int) -> int:
         return x + 5
 
-    adder_lib = guppy.library(impl).compile()
+    adder_lib = GuppyLibrary.from_members(impl).compile()
 
     @guppy
     def main() -> None:
-        result("result", decl(5))
+        output("result", decl(5))
 
     linked = main.compile().link(adder_lib)
     emulator = EmulatorBuilder().build(linked, n_qubits=1)
@@ -44,18 +51,20 @@ def test_manual_link_entrypoint_lhs():
 
 
 def test_manual_link_entrypoint_rhs():
-    @guppy.declare(link_name="super_adder")
+    @guppy.declare
+    @link_name("super_adder")
     def decl(x: int) -> int: ...
 
-    @guppy(link_name="super_adder")
+    @guppy
+    @link_name("super_adder")
     def impl(x: int) -> int:
         return x + 5
 
-    adder_lib = guppy.library(impl).compile()
+    adder_lib = GuppyLibrary.from_members(impl).compile()
 
     @guppy
     def main() -> None:
-        result("result", decl(5))
+        output("result", decl(5))
 
     linked = adder_lib.link(main.compile())
     emulator = EmulatorBuilder().build(linked, n_qubits=1)
@@ -66,7 +75,7 @@ def test_manual_link_multiple_entrypoints():
     def produce_entrypoint() -> GuppyDefinition:
         @guppy
         def main() -> None:
-            result("result", 1)
+            output("result", 1)
 
         return main
 

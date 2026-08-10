@@ -31,7 +31,7 @@ class EmulatorResult(QsysResult):
     r"""A result from running an emulator instance.
 
 
-    Collects data from ``result("tag", val)`` calls in the guppy program. Includes
+    Collects data from ``output("tag", val)`` calls in the guppy program. Includes
     results for all shots.
 
     Includes conversions to traditional distributions over bitstrings if a tagging
@@ -41,11 +41,11 @@ class EmulatorResult(QsysResult):
     fit the regex pattern ``^([a-z][\w_]*)\[(\d+)\]$`` (like ``my_Reg[12]``) in which
     case they are assumed to refer to the nth element of a bit register.
 
-    For results of the form ``result("<register>", value)``, ``value`` can be ``{0, 1}``
+    For results of the form ``output("<register>", value)``, ``value`` can be ``{0, 1}``
     , wherein the register is assumed to be length 1, or lists over those values,
     wherein the list is taken to be the value of the entire register.
 
-    For results of the form ``result("<register>[n]", value)`` ``value`` can only be
+    For results of the form ``output("<register>[n]", value)`` ``value`` can only be
     ``{0,1}``. The register is assumed to be at least `n+1` in size and unset elements
     are assumed to be ``0``.
 
@@ -95,7 +95,7 @@ class EmulatorResult(QsysResult):
     def partial_state_dicts(self) -> list[dict[str, PartialVector]]:
         """Extract state results from shot results in to dictionaries.
 
-        Looks for outputs from `state_result("tag", qs)` calls in the guppy program.
+        Looks for outputs from `state_output("tag", qs)` calls in the guppy program.
 
         Returns:
             A list of dictionaries, each dictionary containing the tag as the key and
@@ -108,7 +108,7 @@ class EmulatorResult(QsysResult):
         """Extract state results from shot results.
 
 
-        Looks for outputs from `state_result("tag", qs)` calls in the guppy program.
+        Looks for outputs from `state_output("tag", qs)` calls in the guppy program.
 
         Returns:
             A list (over shots) of lists. The outer list is over shots, and the inner

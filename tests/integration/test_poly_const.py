@@ -1,10 +1,10 @@
-from collections.abc import Callable
 from typing import Generic
 
 import pytest
 from hugr import Hugr, ops
 
 from guppylang import guppy, array, comptime
+from guppylang.std.builtins import Function
 from guppylang.std.num import nat
 
 
@@ -547,7 +547,7 @@ def test_higher_order(validate):
         pass
 
     @guppy
-    def sfoo(f: Callable[[Struct[B, 42.0]], None]) -> None:
+    def sfoo(f: Function[[Struct[B, 42.0]], None]) -> None:
         pass
 
     @guppy
@@ -558,7 +558,7 @@ def test_higher_order(validate):
         sfoo(sfun3[False])
         sfoo(sfun3[True])
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, fun2, and 2 monomorphizations of fun1, fun3,
@@ -582,7 +582,7 @@ def test_higher_order(validate):
         pass
 
     @guppy
-    def efoo(f: Callable[[EnumType[B, 42.0]], None]) -> None:
+    def efoo(f: Function[[EnumType[B, 42.0]], None]) -> None:
         pass
 
     @guppy
@@ -593,7 +593,7 @@ def test_higher_order(validate):
         efoo(efun3[False])
         efoo(efun3[True])
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, efun2, and 2 monomorphizations of efun1,
@@ -619,7 +619,8 @@ def test_nat_generic(validate):
     def main() -> None:
         bar(1, 2)
 
-    compiled = main.compile()
+    # Avoid optimizing the hugr so the functions are not inlined.
+    compiled = main.with_minimal_opt().compile()
     validate(compiled)
 
     # Check we have main, bar, and 4 monomorphisations of foo

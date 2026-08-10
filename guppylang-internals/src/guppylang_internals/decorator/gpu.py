@@ -80,6 +80,7 @@ def _gpu_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition
         DefaultCallChecker(),
         GpuModuleCallCompiler(f.__name__, fn_id),
         True,
+        effects=[],  # No effects as all state in explicit Context
         signature=None,
     )
     DEF_STORE.register_def(func, get_calling_frame())

@@ -1,0 +1,8 @@
+Error: Unsupported Python value (at $FILE:9:11)
+  | 
+7 | @compile_guppy
+8 | def foo() -> int:
+9 |     return s
+  |            ^ Python value of type `<class 'set'>` cannot be used in Guppy
+
+Guppy compilation failed due to 1 previous error

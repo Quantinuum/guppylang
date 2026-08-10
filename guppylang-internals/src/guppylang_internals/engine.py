@@ -8,14 +8,14 @@ from typing import ClassVar, cast
 
 import hugr
 import hugr.build.function as hf
-from hugr import ops
 from hugr.debug_info import DICompileUnit
 from hugr.envelope import ExtensionDesc, GeneratorDesc
 from hugr.ext import Extension, ExtensionRegistry
 from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
+from hugr.ops import FuncDecl
 from hugr.package import ModulePointer, Package
 from semver import Version
-from typing_extensions import assert_never, deprecated
+from typing_extensions import assert_never
 
 import guppylang_internals
 from guppylang_internals.debug_mode import debug_mode_enabled
@@ -50,11 +50,13 @@ from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type_def,
     bool_type_def,
-    callable_type_def,
-    controllable_type_def,
-    daggerable_type_def,
+    callable_protocol_def,
+    controllable_protocol_def,
+    daggerable_protocol_def,
     float_type_def,
     frozenarray_type_def,
+    function_def_type_def,
+    function_type_def,
     int_type_def,
     list_type_def,
     nat_type_def,
@@ -64,7 +66,7 @@ from guppylang_internals.tys.builtin import (
     sized_iter_type_def,
     string_type_def,
     tuple_type_def,
-    unitary_type_def,
+    unitary_protocol_def,
 )
 from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.param import Parameter
@@ -74,6 +76,7 @@ from guppylang_internals.tys.ty import (
     BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
+    FunctionDefType,
     FunctionType,
     NoneType,
     NumericType,
@@ -84,10 +87,11 @@ from guppylang_internals.tys.ty import (
 )
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
-    callable_type_def,
-    unitary_type_def,
-    daggerable_type_def,
-    controllable_type_def,
+    function_type_def,
+    function_def_type_def,
+    unitary_protocol_def,
+    daggerable_protocol_def,
+    controllable_protocol_def,
     self_type_def,
     tuple_type_def,
     none_type_def,
@@ -101,6 +105,7 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
     frozenarray_type_def,
     sized_iter_type_def,
     option_type_def,
+    callable_protocol_def,
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
@@ -245,15 +250,6 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
 
     @pretty_errors
-    @deprecated(
-        "Extensions are included automatically when used. "
-        "Manual registration is no longer necessary."
-    )
-    def register_extension(self, extension: Extension) -> None:
-        if extension not in self.additional_extensions:
-            self.additional_extensions.append(extension)
-
-    @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
         """Look up the parsed version of a definition by its id.
 
@@ -356,7 +352,9 @@ class CompilationEngine:
                     case kind:
                         return assert_never(kind)
             case FunctionType():
-                type_defn = callable_type_def
+                type_defn = function_type_def
+            case FunctionDefType():
+                type_defn = function_def_type_def
             case OpaqueType() as ty:
                 type_defn = ty.defn
             case StructType() as ty:
@@ -463,7 +461,7 @@ class CompilationEngine:
         if (
             isinstance(compiled_def, CompiledHugrNodeDef)
             and isinstance(compiled_def, CompiledCallableDef)
-            and not isinstance(pointer.module[compiled_def.hugr_node].op, ops.FuncDecl)
+            and not isinstance(pointer.module[compiled_def.hugr_node].op, FuncDecl)
         ):
             # if compiling a region set it as the HUGR entrypoint can be
             # loosened after https://github.com/quantinuum/hugr/issues/2501 is fixed
@@ -513,7 +511,7 @@ class CompilationEngine:
                 filename=ctx.metadata_file_table.get_index(filename),
                 file_table=ctx.metadata_file_table.table,
             )
-            graph.hugr.module_root.metadata[HugrDebugInfo] = module_info
+            graph.hugr[graph.hugr.module_root].metadata[HugrDebugInfo] = module_info
 
         # Build resolve registry: start with cached base, add any additional
         if self.additional_extensions:
@@ -545,9 +543,13 @@ class CompilationEngine:
                 for ext_name in used_extensions_result.unresolved_extensions
             ]
         )
-        graph.hugr.module_root.metadata[HugrUsedExtensions] = used_exts_meta
-        graph.hugr.module_root.metadata[HugrGenerator] = GeneratorDesc(
-            name="guppylang", version=Version.parse(guppylang_internals.__version__)
+        root_metadata = graph.hugr[graph.hugr.module_root].metadata
+        root_metadata[HugrUsedExtensions] = used_exts_meta
+        root_metadata[HugrGenerator] = GeneratorDesc(
+            name="guppylang",
+            version=Version.parse(
+                guppylang_internals.__version__, optional_minor_and_patch=True
+            ),
         )
         # Package all non-standard extensions used in the hugr.
         # Standard hugr extensions are universally available and don't need bundling.

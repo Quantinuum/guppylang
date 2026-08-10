@@ -30,11 +30,14 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.frozenarray import (
     FrozenarrayGetitemCompiler,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
+from guppylang.std.mem import mem_swap
 from guppylang.std.option import Option, nothing, some
 
 if TYPE_CHECKING:
@@ -59,10 +62,16 @@ _n = TypeVar("_n")
 class array(builtins.list[_T], Generic[_T, _n]):
     """Sequence of homogeneous values with statically known fixed length."""
 
-    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
+    @custom_function(
+        ArrayGetitemCompiler(),
+        checker=ArrayIndexChecker(),
+    )
     def __getitem__(self: array[L, n], idx: int) -> L: ...
 
-    @custom_function(ArraySetitemCompiler(), checker=ArrayIndexChecker())
+    @custom_function(
+        ArraySetitemCompiler(),
+        checker=ArrayIndexChecker(),
+    )
     def __setitem__(self: array[L, n], idx: int, value: L @ owned) -> None: ...
 
     @guppy
@@ -70,7 +79,12 @@ class array(builtins.list[_T], Generic[_T, _n]):
     def __len__(self: array[L, n]) -> int:
         return n
 
-    @custom_function(NewArrayCompiler(), NewArrayChecker(), higher_order_value=False)
+    @custom_function(
+        NewArrayCompiler(),
+        NewArrayChecker(),
+        higher_order_value=False,
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def __new__(): ...
 
     # `__new__` will be overwritten below to provide actual runtime behaviour for
@@ -83,11 +97,17 @@ class array(builtins.list[_T], Generic[_T, _n]):
     def __iter__(self: array[L, n] @ owned) -> SizedIter[ArrayIter[L, n], n]:
         return SizedIter(ArrayIter(self, 0))
 
-    @custom_function(CopyInoutCompiler(), ArrayCopyChecker())
+    @custom_function(
+        CopyInoutCompiler(), ArrayCopyChecker(), unitary_flags=UnitaryFlags.Dagger
+    )
     def copy(self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
 
-    @custom_function(ArrayIsBorrowedCompiler(), checker=ArrayIndexChecker())
+    @custom_function(
+        ArrayIsBorrowedCompiler(),
+        checker=ArrayIndexChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def is_borrowed(self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
 
@@ -98,14 +118,17 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
             qs = array(qubit() for _ in range(10))
             h(qs[3])
-            result("a", qs.is_borrowed(3))  # False
+            output("a", qs.is_borrowed(3))  # False
             q = qs.take(3).unwrap()
-            result("a", qs.is_borrowed(3))  # True
+            output("a", qs.is_borrowed(3))  # True
             qs.put(qubit(), 3).unwrap()
-            result("a", qs.is_borrowed(3))  # False
+            output("a", qs.is_borrowed(3))  # False
         """
 
-    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
+    @custom_function(
+        ArrayGetitemCompiler(),
+        checker=ArrayIndexChecker(),
+    )
     def take(self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
 
@@ -165,7 +188,8 @@ class array(builtins.list[_T], Generic[_T, _n]):
         return some(self.take(idx))
 
     @custom_function(
-        ArraySetitemCompiler(elem_first=True), checker=ArrayIndexChecker(expr_index=2)
+        ArraySetitemCompiler(elem_first=True),
+        checker=ArrayIndexChecker(expr_index=2),
     )
     def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
@@ -257,6 +281,19 @@ class array(builtins.list[_T], Generic[_T, _n]):
             return list(args[0])
         return [*args]
 
+    @guppy
+    @no_type_check
+    def reverse_in_place(self: array[L, n]) -> None:
+        """Reverse array elements in-place.
+
+        .. code-block:: python
+
+            qs = array(qubit() for _ in range(2))
+            qs.reverse_in_place()
+        """
+        for i in range(n // 2):
+            mem_swap(self[i], self[n - i - 1])
+
 
 @guppy.struct
 class ArrayIter(Generic[L, n]):
@@ -306,7 +343,11 @@ def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
 class frozenarray(Generic[T, n]):
     """An immutable array of fixed static size."""
 
-    @custom_function(FrozenarrayGetitemCompiler())
+    # Panics on out-of-range.
+    @custom_function(
+        FrozenarrayGetitemCompiler(),
+        effects=[Effect.ANY],
+    )
     def __getitem__(self: frozenarray[T, n], item: int) -> T: ...  # type: ignore[type-arg]
 
     @guppy

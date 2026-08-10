@@ -1,4 +1,5 @@
 from guppylang import guppy
+from guppylang.std.builtins import Function
 
 
 @guppy
@@ -15,7 +16,7 @@ def overloaded(): ...
 
 @guppy
 def main() -> None:
-    f = overloaded
+    f: Function[[], None] = overloaded
 
 
 main.compile()

@@ -1,9 +1,7 @@
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar
-
-from hugr import ops
+from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from guppylang_internals.ast_util import AstNode, with_loc, with_type
 from guppylang_internals.cfg.builder import tmp_vars
@@ -16,9 +14,8 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
-from guppylang_internals.compiler.builder import FunctionBuilder
-from guppylang_internals.compiler.core import CompilerContext, DFContainer
-from guppylang_internals.compiler.expr_compiler import ExprCompiler
+from guppylang_internals.definition.custom import CustomFunctionDef
+from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import DEF_STORE
@@ -26,11 +23,17 @@ from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
     InternalGuppyError,
+    RequiresMonomorphizationError,
     exception_hook,
 )
 from guppylang_internals.nodes import PlaceNode
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
+from guppylang_internals.tracing.recorder import (
+    Trace,
+    TraceRecorder,
+    TraceWire,
+)
 from guppylang_internals.tracing.state import (
     TracingState,
     get_tracing_state,
@@ -42,9 +45,11 @@ from guppylang_internals.tracing.unpacking import (
     update_packed_value,
 )
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
-from guppylang_internals.tys.arg import Argument, ConstArg
+from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
 from guppylang_internals.tys.ty import (
+    BoundTypeVar,
+    ExistentialTypeVar,
     FunctionType,
     InputFlags,
     UnitaryFlags,
@@ -55,9 +60,8 @@ from guppylang_internals.tys.ty import (
 if TYPE_CHECKING:
     import ast
 
-    from hugr import Wire
-
-    from guppylang_internals.definition.traced import CompiledTracedFunctionDef
+    from guppylang_internals.definition.traced import TracedFunctionDef
+    from guppylang_internals.tys.common import ToHugrContext
 
 
 @dataclass(frozen=True)
@@ -70,29 +74,45 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
-    builder: FunctionBuilder,
-    ctx: CompilerContext,
     generic_args: Mapping[str, Argument],
     node: AstNode,
-    func_def: "CompiledTracedFunctionDef",
-) -> None:
+    func_def: "TracedFunctionDef",
+) -> Trace:
     """Kicks off tracing of a function.
 
-    Invokes the passed Python callable and constructs the corresponding Hugr using the
-    passed builder.
+    Invokes the passed Python callable and records all resulting `TraceEntry`s
+    to form a Trace.
     """
-    state = TracingState(ctx, DFContainer(builder, ctx, {}), node, func_def)
+
+    def find_const_value(arg: Argument) -> ConstValue | None:
+        """Extracts a Python value from the given generic argument."""
+        match arg:
+            case ConstArg(ConstValue() as v):
+                return v
+            case ConstArg(BoundConstVar()) | TypeArg(ty=BoundTypeVar()):
+                # This means we are building the arguments with which to trace
+                # an uninstantiated generic function. So, avoid tracing such...
+                raise RequiresMonomorphizationError
+            case TypeArg(ty=ExistentialTypeVar()) | ConstArg(ExistentialConstVar()):
+                raise InternalGuppyError("Shouldn't happen?!")
+            case _:
+                # TODO: We don't have a comptime representation of types yet, so we can
+                #  only translate const arguments into Python values for now. In the
+                #  future, drop this restriction and support all kinds of arguments.
+                return None
+
+    input_count = sum(InputFlags.Comptime not in inp.flags for inp in ty.inputs)
+    recorder = TraceRecorder(input_count)
+    ctx: ToHugrContext = None
+    state = TracingState(ctx, recorder, node, func_def)
     with set_tracing_state(state):
         generic_values = {
-            x: const_argument_to_python_value(arg)
+            x: val.value
             for x, arg in generic_args.items()
-            # TODO: We don't have a comptime representation of types yet, so we can only
-            #  translate const arguments into Python values for now. In the future, drop
-            #  this restriction and support all kinds of arguments.
-            if isinstance(arg, ConstArg)
+            if (val := find_const_value(arg)) is not None
         }
 
-        input_wires = iter(builder.inputs())
+        input_wires = iter(recorder.inputs())
         inputs = []
         for inp in ty.inputs:
             if InputFlags.Comptime in inp.flags:
@@ -104,7 +124,7 @@ def trace_function(
                 # thus breaking the semantics expected from Python.
                 frozen = InputFlags.Inout not in inp.flags
                 val = unpack_guppy_object(
-                    GuppyObject(inp.ty, next(input_wires)), builder, frozen
+                    GuppyObject(inp.ty, next(input_wires)), recorder, frozen
                 )
             inputs.append(val)
         assert next(input_wires, None) is None, "All wires should be consumed"
@@ -117,7 +137,7 @@ def trace_function(
             py_out = python_func(*inputs)
 
         try:
-            out_obj = guppy_object_from_py(py_out, builder, node, ctx)
+            out_obj = guppy_object_from_py(py_out, recorder, node, ctx)
         except GuppyComptimeError as err:
             # Error in the return statement. For example, this happens if users
             # try to return a struct with invalid field values or there is a linearity
@@ -133,8 +153,8 @@ def trace_function(
         # Unpack regular returns
         out_tys = type_to_row(out_obj._ty)
         if len(out_tys) > 1:
-            regular_returns: list[Wire] = list(
-                builder.add_op(ops.UnpackTuple(), out_obj._use_wire(None)).outputs()
+            regular_returns = list(
+                recorder.record_untuple(out_tys, out_obj._use_wire(None))
             )
         elif len(out_tys) > 0:
             regular_returns = [out_obj._use_wire(None)]
@@ -151,7 +171,7 @@ def trace_function(
                     f"the caller. "
                 )
                 try:
-                    obj = guppy_object_from_py(inout_obj, builder, node, ctx)
+                    obj = guppy_object_from_py(inout_obj, recorder, node, ctx)
                     inout_returns.append(obj._use_wire(None))
                 except GuppyComptimeError as err:
                     msg = str(err)
@@ -175,7 +195,8 @@ def trace_function(
         msg = f"Value with non-droppable type `{unused._ty}` is leaked by this function"
         raise GuppyError(TracingReturnError(node, msg)) from None
 
-    builder.set_outputs(*regular_returns, *inout_returns)
+    recorder.set_outputs(*regular_returns, *inout_returns)
+    return recorder.finish()
 
 
 def trace_call(func: CallableDef, *args: Any) -> Any:
@@ -187,20 +208,36 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     state = get_tracing_state()
 
     with capture_guppy_errors():
-        # Try to turn args into `GuppyObjects`
+        # Try to turn args into `GuppyObjects`, each containing a `ComptimeVariable`.
+        # (We only really need the variables for arguments that turn out to be inout,
+        # so that we can update the variable with the new port after the call,
+        # but we do it for all arguments for simplicity.)
+        new_vars: list[tuple[ComptimeVariable, TraceWire]] = []
+
+        def assign_var(obj: GuppyObject, arg: Any) -> GuppyObject:
+            # We can get into trace_call more than once for e.g. __radd__.
+            # If the first call fails, we still mark GuppyObjects as used,
+            # but thankfully such methods only happen for Copyable types (ATM).
+            w = obj._use_wire(func)
+            if isinstance(w, ComptimeVariable):
+                # GuppyObject refers to an already-existing Place i.e. local variable.
+                var = replace(w, static_value=arg)
+            else:
+                var = ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
+                new_vars.append((var, w))
+            return GuppyObject(obj._ty, var)  # Will mark used after call
+
         args_objs = [
-            guppy_object_from_py(arg, state.dfg.builder, state.node, state.ctx)
+            assign_var(
+                guppy_object_from_py(arg, state.recorder, state.node, state.ctx), arg
+            )
             for arg in args
         ]
 
-        # Create dummy variables and bind the objects to them
         arg_vars: list[Variable] = [
-            ComptimeVariable(next(tmp_vars), obj._ty, None, static_value=arg)
-            for (obj, arg) in zip(args_objs, args, strict=True)
+            cast("ComptimeVariable", obj._wire) for obj in args_objs
         ]
         locals = Locals({var.name: var for var in arg_vars})
-        for obj, var in zip(args_objs, arg_vars, strict=True):
-            state.dfg[var] = obj._use_wire(func)
 
         # Check call
         arg_exprs: list[ast.expr] = [
@@ -215,43 +252,59 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
             unitary_checker = BBUnitaryChecker()
             unitary_checker.check([call_node], unitary_flag)
 
-    # Compile call
-    ret_wire = ExprCompiler(state.ctx).compile(call_node, state.dfg)
+    # For overloaded functions, we first need to get the signature for the specific
+    # overload that was used.
+    resolved_func = func
+    if len(resolved_func.ty.inputs) == 0 and isinstance(func, OverloadedFunctionDef):
+        result = func.resolve_overload(arg_exprs, state.node, ctx)
+        # Since we already type checked the call, this should always succeed.
+        assert result is not None
+        resolved_func = result
 
-    # Update inouts
-    # If the input types of the function aren't known, we can't check this.
-    # This is the case for functions with a custom checker and no type annotations.
-    if len(func.ty.inputs) != 0:
-        for inp, arg, var in zip(func.ty.inputs, args, arg_vars, strict=True):
-            if InputFlags.Inout in inp.flags:
-                # Note that `inp.ty` could refer to bound variables in the function
-                # signature. Instead, make sure to use `var.ty` which will always be a
-                # concrete type and type checking has ensured that they unify.
-                ty = var.ty
-                inout_wire = state.dfg[var]
-                success = update_packed_value(
-                    arg, GuppyObject(ty, inout_wire), state.dfg.builder
+    input_flags: list[InputFlags] | None = None
+    if len(resolved_func.ty.inputs) == len(args):
+        input_flags = [inp.flags for inp in resolved_func.ty.inputs]
+
+    # Custom functions without a signature or incomplete signature (e.g. varargs)
+    # need to use `compute_input_flags` to determine the input flags.
+    elif isinstance(resolved_func, CustomFunctionDef) and (
+        not resolved_func.has_signature or resolved_func.has_var_args
+    ):
+        input_flags = resolved_func.call_checker.compute_input_flags(arg_exprs)
+        assert len(input_flags) == len(args)
+
+    else:
+        raise InternalGuppyError(
+            f"Couldn't compute signature for `{resolved_func.name}` during tracing. Add"
+            " a signature to the function definition or provide an implementation of "
+            "`compute_input_flags` in the call checker."
+        )
+
+    # Record call to compile later
+    call = state.recorder.record_call(call_node, new_vars)
+
+    # Since all inputs are GuppyObjects identifying ComptimeVariables (varieties
+    # of Place), ExprCompiler will update the Places to map to the output wires
+    # of the call. Here we just write the GuppyObjects with those Places back to
+    # the Python objects that were passed in as arguments.
+    for flags, val, arg_obj in zip(input_flags, args, args_objs, strict=True):
+        if InputFlags.Inout in flags:
+            ty = arg_obj._ty
+            # This marks `arg_obj` as used, but clears usedness of `val`, as desired:
+            success = update_packed_value(val, arg_obj, state.recorder)
+
+            if not success:
+                # This means the user has passed an object that we cannot update,
+                # e.g. calling `mem_swap(x, y)` where the inputs are plain Python
+                # objects
+                raise GuppyComptimeError(
+                    f"Cannot borrow Python object of type `{ty}` at comptime"
                 )
-                if not success:
-                    # This means the user has passed an object that we cannot update,
-                    # e.g. calling `mem_swap(x, y)` where the inputs are plain Python
-                    # objects
-                    raise GuppyComptimeError(
-                        f"Cannot borrow Python object of type `{ty}` at comptime"
-                    )
+        else:
+            # Mark the arg as used, since it is consumed by the call
+            arg_obj._use_wire(func)
 
-    ret_obj = GuppyObject(ret_ty, ret_wire)
-    return unpack_guppy_object(ret_obj, state.dfg.builder)
-
-
-def const_argument_to_python_value(arg: ConstArg) -> Any:
-    """Extracts a Python value from the given generic argument."""
-    match arg.const:
-        case ConstValue(value=v):
-            return v
-        case BoundConstVar() | ExistentialConstVar():
-            # By this point, everything should be monomorphized!
-            raise InternalGuppyError("Unexpected const variable")
+    return unpack_guppy_object(GuppyObject(ret_ty, call), state.recorder)
 
 
 @contextmanager

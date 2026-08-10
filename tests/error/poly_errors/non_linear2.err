@@ -1,8 +1,8 @@
-Error: Expected a copyable type (at $FILE:15:8)
+Error: Expected a copyable type (at $FILE:14:8)
    | 
-13 | @guppy
-14 | def main() -> None:
-15 |     foo(h)
+12 | @guppy
+13 | def main() -> None:
+14 |     foo(h)
    |         ^ Expected a copyable type, got type `qubit` which is not
    |           implicitly copyable
 

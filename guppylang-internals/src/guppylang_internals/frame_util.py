@@ -1,5 +1,5 @@
 import inspect
-from types import FrameType, ModuleType, TracebackType
+from types import FrameType, TracebackType
 
 
 def get_calling_frame(*, skip_main_lang: bool = True) -> FrameType:
@@ -12,13 +12,13 @@ def get_calling_frame(*, skip_main_lang: bool = True) -> FrameType:
     """
     frame = inspect.currentframe()
     while frame:
-        module = inspect.getmodule(frame)
-        if module is None:
+        module_name = frame.f_globals.get("__name__")
+        if module_name is None:
             return frame
-        elif _is_main_lang_module(module):
+        elif _is_main_lang_module(module_name):
             if not skip_main_lang:
                 return frame
-        elif _is_internals_module(module):
+        elif _is_internals_module(module_name):
             pass
         else:
             return frame
@@ -33,7 +33,8 @@ def remove_internal_frames(tb: TracebackType | None) -> TracebackType | None:
     if tb:
         module = inspect.getmodule(tb.tb_frame)
         if module is not None and (
-            _is_main_lang_module(module) or _is_internals_module(module)
+            _is_main_lang_module(module.__name__)
+            or _is_internals_module(module.__name__)
         ):
             return remove_internal_frames(tb.tb_next)
         if tb.tb_next:
@@ -41,9 +42,9 @@ def remove_internal_frames(tb: TracebackType | None) -> TracebackType | None:
     return tb
 
 
-def _is_main_lang_module(module: ModuleType) -> bool:
-    return module.__name__.startswith("guppylang.")
+def _is_main_lang_module(module_name: str) -> bool:
+    return module_name.startswith("guppylang.")
 
 
-def _is_internals_module(module: ModuleType) -> bool:
-    return module.__name__.startswith("guppylang_internals.")
+def _is_internals_module(module_name: str) -> bool:
+    return module_name.startswith("guppylang_internals.")

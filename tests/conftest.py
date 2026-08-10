@@ -1,15 +1,12 @@
 import argparse
-import sys
+from contextlib import contextmanager
 from pathlib import Path
 
-import guppylang
-
-guppylang.enable_experimental_features()
-
-
-if sys.version_info < (3, 12):
-    # Ignore tests that require Python 3.12 syntax
-    collect_ignore_glob = ["*_py312.py"]
+import pytest
+from guppylang.experimental import (
+    disable_experimental_features,
+    enable_experimental_features,
+)
 
 
 def pytest_addoption(parser):
@@ -47,3 +44,18 @@ def pytest_addoption(parser):
         default="helios",
         help="Target qsystem platform for integration emulation tests",
     )
+
+
+@contextmanager
+def experimental_features_enabled():
+    """Enable experimental features and yield"""
+    enable_experimental_features()
+    yield
+    disable_experimental_features()
+
+
+@pytest.fixture
+def use_experimental_features():
+    """Fixture for enabling experimental features."""
+    with experimental_features_enabled():
+        yield

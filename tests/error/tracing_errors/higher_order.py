@@ -1,10 +1,9 @@
-from collections.abc import Callable
-
 from guppylang.decorator import guppy
+from guppylang.std.builtins import Function
 
 
 @guppy.comptime
-def test(f: Callable[[], int]) -> int:
+def test(f: Function[[], int]) -> int:
     return f()
 
 

@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 
 from guppylang import guppy
 from guppylang.std import array
-from guppylang.std.debug import state_result
+from guppylang.std.debug import state_output
 from guppylang.std.lang import comptime
-from guppylang.std.platform import result
+from guppylang.std.platform import output
 from guppylang.std.quantum import discard, discard_array, qubit
 from guppylang_internals.debug_mode import turn_off_debug_mode, turn_on_debug_mode
 from hugr.debug_info import DICompileUnit, DILocation, DISubprogram
@@ -23,7 +23,23 @@ from tests.resources.debug_info_example import (
 if TYPE_CHECKING:
     from hugr import Node
 
-turn_on_debug_mode()
+
+RESOURCE_PATH = Path(__file__).parents[1] / "resources" / "debug_info_example.py"
+
+
+def _marker(marker_name: str) -> str:
+    return f"MARKER:{marker_name}"
+
+
+def _marker_loc(
+    path: Path, marker_name: str, snippet: str | None = None
+) -> tuple[int, int]:
+    lines = path.read_text().splitlines()
+    marker = _marker(marker_name)
+    matches = [(i + 1, line) for i, line in enumerate(lines) if marker in line]
+    assert len(matches) == 1  # Assume each marker is unique in these tests.
+    line_no, line = matches[0]
+    return (line_no, line.index(snippet)) if snippet else (line_no, 0)
 
 
 def get_last_uri_part(uri: str) -> str:
@@ -39,8 +55,8 @@ def test_compile_unit():
     def foo() -> None:
         pass
 
-    hugr = foo.compile().modules[0]
-    meta = hugr.module_root.metadata
+    hugr = foo.compile(debug_mode=True).modules[0]
+    meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
     debug_info = DICompileUnit.from_json(meta[HugrDebugInfo.KEY])
     assert debug_info.directory == Path.cwd().as_uri()
@@ -50,8 +66,8 @@ def test_compile_unit():
 
 def test_subprogram():
     @guppy
-    def foo() -> None:
-        bar()
+    def foo() -> None:  # MARKER:def_foo_subprogram
+        bar()  # MARKER:scope_foo_subprogram
         baz()
         comptime_bar()
         q = qubit()
@@ -59,8 +75,12 @@ def test_subprogram():
         pytket_bar_stub(q)
         discard(q)
 
-    hugr = foo.compile().modules[0]
-    meta = hugr.module_root.metadata
+        def nested_func() -> None:  # MARKER:def_nested_subprogram
+            nested_func()  # MARKER:scope_nested_subprogram
+
+    # Avoid inlining the called functions so we can check their debug info.
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
+    meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
     debug_info = DICompileUnit.from_json(meta[HugrDebugInfo.KEY])
     assert [get_last_uri_part(uri) for uri in debug_info.file_table] == [
@@ -76,54 +96,73 @@ def test_subprogram():
         func_map[get_last_name_part(op.f_name)] = func
 
     foo_func = func_map.pop("foo")
-    assert HugrDebugInfo in foo_func.metadata
-    debug_info = DISubprogram.from_json(foo_func.metadata[HugrDebugInfo.KEY])
+    foo_func_metadata = hugr[foo_func].metadata
+    assert HugrDebugInfo in foo_func_metadata
+    debug_info = DISubprogram.from_json(foo_func_metadata[HugrDebugInfo.KEY])
     assert debug_info.file == 0
-    assert debug_info.line_no == 53
-    assert debug_info.scope_line == 54
+    assert debug_info.line_no == _marker_loc(Path(__file__), "def_foo_subprogram")[0]
+    assert (
+        debug_info.scope_line == _marker_loc(Path(__file__), "scope_foo_subprogram")[0]
+    )
 
     bar_func = func_map.pop("bar")
-    assert HugrDebugInfo in bar_func.metadata
-    debug_info = DISubprogram.from_json(bar_func.metadata[HugrDebugInfo.KEY])
+    bar_func_metadata = hugr[bar_func].metadata
+    assert HugrDebugInfo in bar_func_metadata
+    debug_info = DISubprogram.from_json(bar_func_metadata[HugrDebugInfo.KEY])
     assert debug_info.file == 1
-    assert debug_info.line_no == 9
-    assert debug_info.scope_line == 12
+    assert debug_info.line_no == _marker_loc(RESOURCE_PATH, "def_bar")[0]
+    assert debug_info.scope_line == _marker_loc(RESOURCE_PATH, "scope_bar")[0]
 
     baz_func = func_map.pop("baz")
-    assert HugrDebugInfo in baz_func.metadata
-    debug_info = DISubprogram.from_json(baz_func.metadata[HugrDebugInfo.KEY])
+    baz_func_metadata = hugr[baz_func].metadata
+    assert HugrDebugInfo in baz_func_metadata
+    debug_info = DISubprogram.from_json(baz_func_metadata[HugrDebugInfo.KEY])
     assert debug_info.file == 1
-    assert debug_info.line_no == 16
+    assert debug_info.line_no == _marker_loc(RESOURCE_PATH, "def_baz")[0]
     assert debug_info.scope_line is None
 
     comptime_bar_func = func_map.pop("comptime_bar")
-    assert HugrDebugInfo in comptime_bar_func.metadata
-    debug_info = DISubprogram.from_json(comptime_bar_func.metadata[HugrDebugInfo.KEY])
+    comptime_bar_func_metadata = hugr[comptime_bar_func].metadata
+    assert HugrDebugInfo in comptime_bar_func_metadata
+    debug_info = DISubprogram.from_json(comptime_bar_func_metadata[HugrDebugInfo.KEY])
     assert debug_info.file == 1
-    assert debug_info.line_no == 20
-    assert debug_info.scope_line == 21
+    assert debug_info.line_no == _marker_loc(RESOURCE_PATH, "def_comptime_bar")[0]
+    assert debug_info.scope_line == _marker_loc(RESOURCE_PATH, "scope_comptime_bar")[0]
 
     pytket_bar_load_func = func_map.pop("pytket_bar_load")
-    assert HugrDebugInfo in pytket_bar_load_func.metadata
+    pytket_bar_load_func_metadata = hugr[pytket_bar_load_func].metadata
+    assert HugrDebugInfo in pytket_bar_load_func_metadata
     debug_info = DISubprogram.from_json(
-        pytket_bar_load_func.metadata[HugrDebugInfo.KEY]
+        pytket_bar_load_func_metadata[HugrDebugInfo.KEY]
     )
     assert debug_info.file == 1
-    assert debug_info.line_no == 27
+    assert debug_info.line_no == _marker_loc(RESOURCE_PATH, "def_pytket_bar_load")[0]
     assert debug_info.scope_line is None
 
     pytket_bar_stub_func = func_map.pop("pytket_bar_stub")
-    assert HugrDebugInfo in pytket_bar_stub_func.metadata
+    pytket_bar_stub_func_metadata = hugr[pytket_bar_stub_func].metadata
+    assert HugrDebugInfo in pytket_bar_stub_func_metadata
     debug_info = DISubprogram.from_json(
-        pytket_bar_stub_func.metadata[HugrDebugInfo.KEY]
+        pytket_bar_stub_func_metadata[HugrDebugInfo.KEY]
     )
     assert debug_info.file == 1
-    assert debug_info.line_no == 31
+    assert debug_info.line_no == _marker_loc(RESOURCE_PATH, "def_pytket_bar_stub")[0]
     assert debug_info.scope_line is None
 
     inner_func = func_map.pop("")
     # No metadata on the inner circuit function.
-    assert HugrDebugInfo not in inner_func.metadata
+    assert HugrDebugInfo not in hugr[inner_func].metadata
+
+    nested_func = func_map.pop("nested_func")
+    nested_func_metadata = hugr[nested_func].metadata
+    assert HugrDebugInfo in nested_func_metadata
+    debug_info = DISubprogram.from_json(nested_func_metadata[HugrDebugInfo.KEY])
+    assert debug_info.file == 0
+    assert debug_info.line_no == _marker_loc(Path(__file__), "def_nested_subprogram")[0]
+    assert (
+        debug_info.scope_line
+        == _marker_loc(Path(__file__), "scope_nested_subprogram")[0]
+    )
 
     assert len(func_map) == 0
 
@@ -131,19 +170,37 @@ def test_subprogram():
 def test_call_location():
     @guppy
     def foo() -> None:
-        bar()  # call 1
-        comptime_bar()  # call 2
+        bar()  # call 1  # MARKER:call_bar
+        comptime_bar()  # call 2  # MARKER:call_comptime_bar
         q = qubit()  # compiles to extension op (see test below)
-        pytket_bar_load(q)  # inner circuit function call 3 (in other file) + call 4
+        pytket_bar_load(  # MARKER:call_pytket_bar_load
+            q
+        )  # inner circuit function call 3 (in other file) + call 4
         discard(q)  # compiles to extension op (see test below)
 
-    hugr = foo.compile().modules[0]
+    # Compile with minimal optimization to preserve call ordering in the graph.
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
     calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
     assert len(calls) == 4
-    expected_info = [(134, 8), (135, 8), (27, 0), (137, 8)]
+
+    expected_info = [
+        _marker_loc(Path(__file__), "call_bar", "bar()"),
+        _marker_loc(Path(__file__), "call_comptime_bar", "comptime_bar()"),
+        _marker_loc(
+            RESOURCE_PATH,
+            "def_pytket_bar_load",
+            "pytket_bar_load",
+        ),
+        _marker_loc(
+            Path(__file__),
+            "call_pytket_bar_load",
+            "pytket_bar_load",
+        ),
+    ]
     for i, call in enumerate(calls):
-        assert HugrDebugInfo in call.metadata
-        debug_info = DILocation.from_json(call.metadata[HugrDebugInfo.KEY])
+        call_metadata = hugr[call].metadata
+        assert HugrDebugInfo in call_metadata
+        debug_info = DILocation.from_json(call_metadata[HugrDebugInfo.KEY])
         assert (debug_info.line_no, debug_info.column) == expected_info[i]
 
 
@@ -154,10 +211,12 @@ def test_ext_op_location():
 
     @guppy
     def foo() -> None:
-        MyStruct(1)  # Defined through `custom_function` (`MakeTuple` node)
+        MyStruct(  # MARKER:ext_op_mystruct
+            1
+        )  # Defined through `custom_function` (`MakeTuple` node)
         q = qubit()  # Defined through `hugr_op`
         arr = array(q)  # Forces the use of various array extension ops
-        state_result("tag", arr)  # Defined through `custom_function` (custom node)
+        state_output("tag", arr)  # Defined through `custom_function` (custom node)
         discard_array(arr)  # Defined through `hugr_op`
         numbers = comptime([1, 2, 3])  # Checks frozenarray usage
         x = numbers[0]  # Checks frozenarray usage
@@ -168,39 +227,45 @@ def test_ext_op_location():
             count -= 1
             for _ in range(2):
                 if bools[0]:
-                    result("tag", bools)  # Check result usage
+                    output("tag", bools)  # Check output usage
 
-    hugr = foo.compile().modules[0]
+    # Compile with minimal optimization to preserve all annotated ops.
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
 
     known_exceptions = [
-        # TODO: Reads are usually used inside of a global function defined by a compiler
-        # extension where we currently cannot attach debug info.
-        "tket.bool.read",
         "tket.guppy.drop",
     ]
     found_annotated_tuples = []
-    for node, node_data in hugr.nodes():
+    for _, node_data in hugr.nodes():
         if isinstance(node_data.op, ExtOp) and not any(
             exception in node_data.op.name() for exception in known_exceptions
         ):
-            assert HugrDebugInfo in node.metadata
-            debug_info = DILocation.from_json(node.metadata[HugrDebugInfo.KEY])
-        if isinstance(node_data.op, MakeTuple) and HugrDebugInfo in node.metadata:
-            debug_info = DILocation.from_json(node.metadata[HugrDebugInfo.KEY])
+            assert HugrDebugInfo in node_data.metadata
+            debug_info = DILocation.from_json(node_data.metadata[HugrDebugInfo.KEY])
+        if isinstance(node_data.op, MakeTuple) and HugrDebugInfo in node_data.metadata:
+            debug_info = DILocation.from_json(node_data.metadata[HugrDebugInfo.KEY])
             found_annotated_tuples.append(debug_info.line_no)
-    # Check constructor call is annotated (even though it is not an ExtOp).
-    assert 157 in found_annotated_tuples
+
+    # Also check constructor call is annotated (even though it is not an ExtOp).
+    assert _marker_loc(Path(__file__), "ext_op_mystruct")[0] in found_annotated_tuples
 
 
-def test_turn_off_debug_mode():
-    turn_off_debug_mode()
+def test_global_debug_mode():
+    turn_on_debug_mode()
 
     @guppy
     def foo() -> None:
         q = qubit()
-        state_result("tag", q)
+        state_output("tag", q)
         discard(q)
 
+    # Not turning on debug_mode should not override global state.
     hugr = foo.compile().modules[0]
-    for node, _ in hugr.nodes():
-        assert HugrDebugInfo not in node.metadata
+    meta = hugr[hugr.module_root].metadata
+    assert HugrDebugInfo in meta
+
+    turn_off_debug_mode()
+
+    hugr = foo.compile().modules[0]
+    for _, node_data in hugr.nodes():
+        assert HugrDebugInfo not in node_data.metadata

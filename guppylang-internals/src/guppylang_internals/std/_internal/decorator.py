@@ -15,6 +15,7 @@ from guppylang_internals.definition.custom import (
 from guppylang_internals.definition.ty import OpaqueTypeDef
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.frame_util import get_calling_frame
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -97,6 +98,7 @@ def ext_module_decorator(
                 init_compiler,
                 True,
                 GlobalConstId.fresh(f"{cls.__name__}.__new__"),
+                effects=[Effect.ANY],
                 has_signature=True,
                 has_var_args=False,
             )
@@ -109,6 +111,7 @@ def ext_module_decorator(
                 discard_compiler,
                 False,
                 GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
+                effects=[Effect.ANY],
                 has_signature=True,
                 has_var_args=False,
             )

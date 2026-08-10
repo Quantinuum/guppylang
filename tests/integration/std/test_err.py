@@ -1,6 +1,6 @@
 from guppylang.decorator import guppy
 from guppylang.std.err import Result, ok, err
-from guppylang.std.platform import result, panic
+from guppylang.std.platform import output, panic
 
 from typing import TYPE_CHECKING
 
@@ -30,6 +30,18 @@ def test_err(run_int_fn):
     run_int_fn(main, expected=110)
 
 
+def test_explicit_typeargs(run_int_fn):
+    @guppy
+    def foo(i: int) -> Result[int, ()]:
+        return ok[int, ()](i) if i > 0 else err[int, ()](())
+
+    def main() -> int:
+        foo(-1).unwrap_err()
+        return foo(2).unwrap()
+
+    run_int_fn(main, expected=2)
+
+
 def test_rows():
     """Make sure that Hugr generations correctly handles rows inside sums.
 
@@ -46,12 +58,12 @@ def test_rows():
         a: Result[int, tuple[int, int]] = err((1, 2))
         assertion(not a.is_ok() and a.is_err())
         a0, a1 = a.unwrap_err()
-        result("a", a0 + a1)
+        output("a", a0 + a1)
 
         b: Result[tuple[int,], int] = ok((1,))
         assertion(b.is_ok() and not b.is_err())
         (b0,) = b.unwrap()
-        result("b", b0)
+        output("b", b0)
 
         c: Result[(), int] = ok(())
         assertion(c.is_ok() and not c.is_err())

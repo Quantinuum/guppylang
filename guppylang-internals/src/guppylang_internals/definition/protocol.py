@@ -1,11 +1,9 @@
 import ast
-import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.checker.core import Globals
 from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
@@ -17,18 +15,7 @@ from guppylang_internals.definition.common import (
     Definition,
     ParsableDef,
 )
-from guppylang_internals.definition.declaration import ParsedFunctionDecl
-from guppylang_internals.definition.struct import (
-    params_from_ast,
-    try_parse_generic_base,
-)
-from guppylang_internals.definition.util import (
-    NonGuppyMethodError,
-    RedundantParamsError,
-    parse_py_class,
-)
 from guppylang_internals.diagnostic import Error, Help
-from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.arg import Argument
@@ -36,8 +23,8 @@ from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.ty import FunctionType
 
-if sys.version_info >= (3, 12):
-    from guppylang_internals.tys.parsing import parse_parameter
+if TYPE_CHECKING:
+    from guppylang_internals.checker.core import Globals
 
 
 @dataclass(frozen=True)
@@ -66,8 +53,19 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
 
     python_class: type
 
-    def parse(self, globals: Globals, sources: SourceMap) -> "ParsedProtocolDef":
+    def parse(self, globals: "Globals", sources: SourceMap) -> "ParsedProtocolDef":
         """Parses the raw class object into an AST and checks that it is well-formed."""
+        from guppylang_internals.definition.struct import (
+            params_from_ast,
+            try_parse_generic_base,
+        )
+        from guppylang_internals.definition.util import (
+            NonGuppyMethodError,
+            RedundantParamsError,
+            parse_py_class,
+        )
+        from guppylang_internals.engine import DEF_STORE
+
         # Mostly copied from RawStructDef.parse, but only allowing function declarations
         # in the body and allowing `Protocol` as a base class.
         frame = DEF_STORE.frames[self.id]
@@ -78,17 +76,16 @@ class RawProtocolDef(ProtocolDef, ParsableDef):
         # Look for generic parameters from Python 3.12 style syntax.
         params = []
         params_span: Span | None = None
-        if sys.version_info >= (3, 12):
-            if cls_def.type_params:
-                first, last = cls_def.type_params[0], cls_def.type_params[-1]
-                params_span = Span(to_span(first).start, to_span(last).end)
-                param_vars_mapping: dict[str, Parameter] = {}
-                for idx, param_node in enumerate(cls_def.type_params):
-                    param = parse_parameter(
-                        param_node, idx, globals, param_vars_mapping
-                    )
-                    param_vars_mapping[param.name] = param
-                    params.append(param)
+        from guppylang_internals.tys.parsing import parse_parameter
+
+        if cls_def.type_params:
+            first, last = cls_def.type_params[0], cls_def.type_params[-1]
+            params_span = Span(to_span(first).start, to_span(last).end)
+            param_vars_mapping: dict[str, Parameter] = {}
+            for idx, param_node in enumerate(cls_def.type_params):
+                param = parse_parameter(param_node, idx, globals, param_vars_mapping)
+                param_vars_mapping[param.name] = param
+                params.append(param)
 
         match cls_def.bases:
             case []:
@@ -154,7 +151,7 @@ class ParsedProtocolDef(ProtocolDef, CheckableDef):
     params: Sequence[Parameter]
     members: Mapping[str, DefId]
 
-    def check(self, globals: Globals) -> "CheckedProtocolDef":
+    def check(self, globals: "Globals") -> "CheckedProtocolDef":
         """Checks the member function types and returns a checked definition."""
         # It would be nice to check here that all of the methods are well
         # formed, but they're all already individually queued in the engine.
@@ -174,7 +171,7 @@ class ParsedProtocolDef(ProtocolDef, CheckableDef):
 class CheckedProtocolDef(ProtocolDef, CompiledDef):
     """A fully checked protocol definition."""
 
-    defined_at: ast.ClassDef
+    defined_at: ast.ClassDef | None
     params: Sequence[Parameter]
     member_defs: Mapping[str, DefId]
 
@@ -186,6 +183,9 @@ class CheckedProtocolDef(ProtocolDef, CompiledDef):
         return ProtocolInst(tuple(args), self.id)
 
     def member_sig(self, name: str) -> FunctionType:
+        from guppylang_internals.definition.declaration import ParsedFunctionDecl
+        from guppylang_internals.engine import ENGINE
+
         def_ = ENGINE.get_parsed(self.member_defs[name])
         if not isinstance(def_, ParsedFunctionDecl):
             raise GuppyError(MethodNotRequire(def_.defined_at))
