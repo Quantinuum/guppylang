@@ -72,6 +72,12 @@ class MissingArgAnnotationError(Error):
 
 
 @dataclass(frozen=True)
+class MissingSelfError(Error):
+    title: ClassVar[str] = "Missing self argument"
+    span_label: ClassVar[str] = "Method requires a self argument"
+
+
+@dataclass(frozen=True)
 class RecursiveSelfError(Error):
     title: ClassVar[str] = "Recursive self annotation"
     span_label: ClassVar[str] = (
@@ -335,10 +341,18 @@ def check_signature(
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
     has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
+
+    # Check if method doesn't have any arguments, including `self`.
+    if has_parent and def_id is not None:
+        raise GuppyError(MissingSelfError(func_def))
+
     for i, inp in enumerate(func_def.args.args):
         # Special handling for `self` arguments. Note that `__new__` is excluded here
         # since it's not a method so doesn't take `self`.
         if i == 0 and func_def.name != "__new__" and has_parent and def_id is not None:
+            # Check if first argument in method is not `self`.
+            if func_def.args.args[0].arg != "self":
+                raise GuppyError(MissingSelfError(inp))
             self_def_id = DEF_STORE.type_member_parents[def_id]
             self_defn_untyped = ENGINE.get_checked(self_def_id, mono_args=())
             input: FuncInput
