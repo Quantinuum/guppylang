@@ -6,16 +6,16 @@ from types import FrameType
 from typing import Any, NamedTuple, ParamSpec, TypedDict, TypeVar, cast, overload
 
 from guppylang_internals.ast_util import annotate_location
+from guppylang_internals.checker.unitary_checker import (
+    check_modified_def_combinations,
+)
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.const import RawConstDef
 from guppylang_internals.definition.custom import RawCustomFunctionDef
 from guppylang_internals.definition.declaration import RawFunctionDecl
 from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.extern import RawExternDef
-from guppylang_internals.definition.function import (
-    RawFunctionDef,
-    RawModifiedDefs,
-)
+from guppylang_internals.definition.function import RawFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
@@ -29,8 +29,10 @@ from guppylang_internals.definition.pytket_circuits import (
 )
 from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
+from guppylang_internals.definition.util import parse_py_class
 from guppylang_internals.dummy_decorator import _DummyGuppy, sphinx_running
 from guppylang_internals.engine import DEF_STORE
+from guppylang_internals.error import pretty_errors
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
@@ -315,6 +317,9 @@ class _Guppy:
             class myUnitary
         """
 
+        frame = get_calling_frame()
+        cls = _set_firstlineno(cls, frame)
+        definition_span = parse_py_class(cls, frame, DEF_STORE.sources)
         guppy_def = _get_unitary_call_def(cls)
         raw_func = cast("RawFunctionDef", guppy_def.wrapped)
         call_daggered = _get_unitary_method(cls, raw_func, CALL_DAGGERED_METHOD)
@@ -339,9 +344,10 @@ class _Guppy:
         assert raw_func.metadata is not None
         # raw_func.metadata.set_unitary_flags(raw_func.unitary_flags.value)
         _set_unitary_metadata(
-            raw_func.metadata, [call_daggered, call_controlled, call_ctrl_daggered]
+            raw_func.metadata,
+            [call_daggered, call_controlled, call_ctrl_daggered],
+            definition_span,
         )
-        print(raw_func.metadata)
         return guppy_def  # type: ignore[return-value]
 
     def require(
@@ -772,39 +778,27 @@ def _get_unitary_method(
     return None
 
 
-@hide_trace
+@pretty_errors
 def _set_unitary_metadata(
-    metadata: FunctionMetadata, custom_defs: list[RawFunctionDef | None]
+    metadata: FunctionMetadata,
+    custom_defs: list[RawFunctionDef | None],
+    definition_span: Span | None,
 ):
     """Set unitary metadata based on the available custom implementations.
 
-    :param custom_defs: List of optional unitary modifier methods, where the first
-        element is the `daggered` method, the second is the `controlled` method, and
-        the third is the `ctrl_daggered` method.
-    :raises TypeError:
-        - If a custom `ctrl_daggered` implementation is provided without
-        controllable and daggerable support or `unitary=True` on `__call__`.
-        - If both custom `daggered` and `controlled` implementations are provided
-        without either a custom `ctrl_daggered` implementation or `unitary=True` on
-        `__call__`.
+    We also check that the combination of custom implementations is valid.
     """
 
     assert len(custom_defs) == 3
     daggered, controlled, ctrl_daggered = custom_defs
     flags = UnitaryFlags(metadata.get_unitary_flags() or UnitaryFlags.NoFlags.value)
-    has_default_unitary = flags == UnitaryFlags.Unitary
-
-    if (
-        daggered is not None
-        and controlled is not None
-        and ctrl_daggered is None
-        and not has_default_unitary
-    ):
-        raise TypeError(
-            f"Custom `{CALL_DAGGERED_METHOD}` and `{CALL_CONTROLLED_METHOD}` "
-            f"implementations require either a custom `{CALL_CTRL_DAGGERED_METHOD}` "
-            "implementation or `unitary=True` on `__call__`"
-        )
+    check_modified_def_combinations(
+        flags,
+        definition_span=definition_span,
+        has_daggered=daggered is not None,
+        has_controlled=controlled is not None,
+        has_ctrl_daggered=ctrl_daggered is not None,
+    )
 
     if daggered is not None:
         flags |= UnitaryFlags.Dagger
@@ -812,12 +806,6 @@ def _set_unitary_metadata(
         flags |= UnitaryFlags.Control
 
     if ctrl_daggered is not None:
-        if flags != UnitaryFlags.Unitary:
-            raise TypeError(
-                f"A custom `{CALL_CTRL_DAGGERED_METHOD}` implementation requires "
-                "both controllable and daggerable support, or `unitary=True` on "
-                "`__call__`"
-            )
         flags = UnitaryFlags.Unitary
 
     metadata.set_unitary_flags(flags.value)
@@ -840,8 +828,8 @@ def _get_unitary_methods(cls: builtins.type[T]) -> list[RawFunctionDef | None]:
                 return val.wrapped
 
             raise TypeError(
-                f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a guppy "
-                f"function"
+                f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a "
+                f"guppy function"
             )
 
     return None

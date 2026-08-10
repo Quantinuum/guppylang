@@ -1,5 +1,7 @@
 import ast
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
@@ -7,6 +9,7 @@ from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Place
 from guppylang_internals.checker.errors.generic import ExpectedError, InvalidUnderDagger
 from guppylang_internals.definition.value import CallableDef
+from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
@@ -37,6 +40,44 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.function import ParsedModifiedDefs
+
+
+class InvalidUnitaryKind(Enum):
+    MissingCtrlDaggered = auto()
+    MissingCtrlDaggeredForFlag = auto()
+    MissingCtrl = auto()
+
+
+@dataclass(frozen=True)
+class InvalidUnitaryError(Error):
+    title: ClassVar[str] = "Invalid `@guppy.unitary` implementation"
+    kind: InvalidUnitaryKind
+    implementation: str | None = None
+    flag: str | None = None
+
+    @property
+    def rendered_message(self) -> str:
+        match self.kind:
+            case InvalidUnitaryKind.MissingCtrlDaggered:
+                return (
+                    "Custom `daggered` and `controlled` implementations require "
+                    "either a custom `ctrl_daggered` implementation or "
+                    "`unitary=True` on `__call__`"
+                )
+            case InvalidUnitaryKind.MissingCtrlDaggeredForFlag:
+                assert self.implementation is not None
+                assert self.flag is not None
+                return (
+                    f"A custom `{self.implementation}` implementation for a function "
+                    f"marked `{self.flag}=True` requires either a custom "
+                    "`ctrl_daggered` implementation or `unitary=True` on `__call__`"
+                )
+            case InvalidUnitaryKind.MissingCtrl:
+                return (
+                    "A custom `ctrl_daggered` implementation requires either a "
+                    "custom `controlled` implementation or `controllable=True` on "
+                    "`__call__`"
+                )
 
 
 def check_invalid_under_dagger(
@@ -253,6 +294,73 @@ def check_modified_def_signature(
             parsed_modified_defs.call_ctrl_daggered.ty,
             parent_ty,
             parsed_modified_defs.call_ctrl_daggered.defined_at,
+        )
+
+
+def check_modified_def_combinations(
+    unitary_flags: UnitaryFlags,
+    *,
+    definition_span: ToSpan | None = None,
+    has_daggered: bool,
+    has_controlled: bool,
+    has_ctrl_daggered: bool,
+) -> None:
+    """Check that custom unitary modifier implementations form a valid set.
+
+    We require:
+    - If a function has both `daggered` and `controlled` implementations, it must
+      also have a `ctrl_daggered` implementation, unless the function is marked
+      as `unitary=True`.
+    - If a function is marked as `controllable=True` and has a `daggered`
+      implementation, it must also have a `ctrl_daggered` implementation
+      or the function is marked as `unitary=True`.
+    - If a function is marked as `daggerable=True` and has a `controlled`
+      implementation, it must also have a `ctrl_daggered` implementation
+      or the function is marked as `unitary=True`.
+    - If a function has a `ctrl_daggered` implementation, it must also have
+      a `controlled` implementation, unless the function is marked as
+      `controllable=True`.
+    """
+    # Custom daggered and controlled implementations require ctrl_daggered support.
+    if (
+        has_daggered
+        and has_controlled
+        and not has_ctrl_daggered
+        and unitary_flags != UnitaryFlags.Unitary
+    ):
+        raise GuppyError(
+            InvalidUnitaryError(definition_span, InvalidUnitaryKind.MissingCtrlDaggered)
+        )
+    if not has_ctrl_daggered and unitary_flags != UnitaryFlags.Unitary:
+        # Controllable plus a custom daggered implementation requires ctrl_daggered.
+        if has_daggered and UnitaryFlags.Control in unitary_flags:
+            raise GuppyError(
+                InvalidUnitaryError(
+                    definition_span,
+                    InvalidUnitaryKind.MissingCtrlDaggeredForFlag,
+                    "daggered",
+                    "controllable",
+                )
+            )
+        # Daggerable plus a custom controlled implementation requires ctrl_daggered.
+        if has_controlled and UnitaryFlags.Dagger in unitary_flags:
+            raise GuppyError(
+                InvalidUnitaryError(
+                    definition_span,
+                    InvalidUnitaryKind.MissingCtrlDaggeredForFlag,
+                    "controlled",
+                    "daggerable",
+                )
+            )
+
+    # A custom ctrl_daggered implementation requires controllable support.
+    if (
+        has_ctrl_daggered
+        and not has_controlled
+        and UnitaryFlags.Control not in unitary_flags
+    ):
+        raise GuppyError(
+            InvalidUnitaryError(definition_span, InvalidUnitaryKind.MissingCtrl)
         )
 
 

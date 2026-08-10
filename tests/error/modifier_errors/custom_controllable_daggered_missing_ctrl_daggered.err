@@ -1,0 +1,15 @@
+Error: Invalid `@guppy.unitary` implementation (at $FILE:9:0)
+   | 
+ 7 | 
+ 8 | @guppy.unitary
+ 9 | class foo:
+   | ^^^^^^^^^^
+   | ...
+16 |         pass
+   | ^^^^^^^^^^^^
+
+A custom `daggered` implementation for a function marked `controllable=True`
+requires either a custom `ctrl_daggered` implementation or `unitary=True` on
+`__call__`
+
+Guppy compilation failed due to 1 previous error
