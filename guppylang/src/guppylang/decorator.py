@@ -1,5 +1,6 @@
 import ast
 import builtins
+from collections import defaultdict
 import inspect
 from collections.abc import Callable
 from types import FrameType
@@ -319,36 +320,29 @@ class _Guppy:
 
         frame = get_calling_frame()
         cls = _set_firstlineno(cls, frame)
-        definition_span = parse_py_class(cls, frame, DEF_STORE.sources)
-        guppy_def = _get_unitary_call_def(cls)
-        raw_func = cast("RawFunctionDef", guppy_def.wrapped)
-        call_daggered = _get_unitary_method(cls, raw_func, CALL_DAGGERED_METHOD)
-        call_controlled = _get_unitary_method(cls, raw_func, CALL_CONTROLLED_METHOD)
-        call_ctrl_daggered = _get_unitary_method(
-            cls, raw_func, CALL_CTRL_DAGGERED_METHOD
-        )
-        # object.__setattr__(
-        #     raw_func,
-        #     "modified_defs",
-        #     RawModifiedDefs(call_daggered, call_controlled, call_ctrl_daggered),
-        # )
+        unitary_class_span = parse_py_class(cls, frame, DEF_STORE.sources)
+        call_guppy_def = _get_unitary_call_def(cls)
+        raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
+        # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(raw_func, "name", cls.__name__)
 
-        # NICOLA: TODO :
-        # -> Set the unitary flags and check minimun requirement are satisfied:
-        #   -> cannot be daggarable and controllable without being unitary:
-        #       -> only `daggar` is fine
-        #      -> only `controlled` is fine
-        #      -> if we have `CTRL_DAGGERED` at least `CONTROLLED` is required (or
-        #         controllable=true) on __call__ for default implementation
+        # Update the unitary metadata according to the custom implementations
+        (call_daggered, call_controlled, call_ctrl_daggered) = (
+            _get_custom_implementations(cls, raw_func, CALL_DAGGERED_METHOD)
+        )
+        # call_controlled = _get_custom_implementations(
+        #     cls, raw_func, CALL_CONTROLLED_METHOD
+        # )
+        # call_ctrl_daggered = _get_custom_implementations(
+        #     cls, raw_func, CALL_CTRL_DAGGERED_METHOD
+        # )
         assert raw_func.metadata is not None
-        # raw_func.metadata.set_unitary_flags(raw_func.unitary_flags.value)
         _set_unitary_metadata(
             raw_func.metadata,
             [call_daggered, call_controlled, call_ctrl_daggered],
-            definition_span,
+            unitary_class_span,
         )
-        return guppy_def  # type: ignore[return-value]
+        return call_guppy_def  # type: ignore[return-value]
 
     def require(
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
@@ -758,24 +752,76 @@ def _get_unitary_call_def(
 
 
 # NICOLA: TODO: maybe rename this
-def _get_unitary_method(
+def _get_custom_implementations(
     cls: builtins.type[T], parent: RawFunctionDef, name: str
-) -> RawFunctionDef | None:
+) -> tuple[RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None]:
     """Returns an optional `@guppy`-annotated unitary modifier method.
     Raises a `TypeError` if the method is not properly annotated with @guppy."""
-    val = cls.__dict__.get(name)
-    if val is not None:
-        if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
-            DEF_STORE.register_custom_def(parent.id, val.id)
+    methods = []
 
-            return val.wrapped
+    for name in [
+        CALL_DAGGERED_METHOD,
+        CALL_CONTROLLED_METHOD,
+        CALL_CTRL_DAGGERED_METHOD,
+    ]:
+        val = cls.__dict__.get(name)
+        if val is not None:
+            if isinstance(val, GuppyDefinition) and isinstance(
+                val.wrapped, RawFunctionDef
+            ):
+                DEF_STORE.register_custom_def(parent.id, val.id)
 
-        raise TypeError(
-            f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a guppy "
-            f"function"
-        )
+                methods.append(val.wrapped)
 
-    return None
+            raise TypeError(
+                f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a guppy "
+                f"function"
+            )
+        else:
+            methods.append(None)
+
+    return tuple(methods)
+
+
+# NICOLA: TODO: RESTART FROM HERE: use this properly
+def _get_custom_implementations2(
+    cls: builtins.type[T], parent: RawFunctionDef, name: str
+) -> dict[str, RawFunctionDef | None]:
+    custom_methods = defaultdict(lambda: None)
+    custom_methods_names = (
+        CALL_DAGGERED_METHOD,
+        CALL_CONTROLLED_METHOD,
+        CALL_CTRL_DAGGERED_METHOD,
+    )
+
+    for method_name, method in cls.__dict__.items():
+        if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
+            if isinstance(method.wrapped, RawFunctionDef):
+                DEF_STORE.register_custom_def(parent.id, method.id)
+                custom_methods[method_name] = method.wrapped
+            else:
+                raise TypeError(
+                    f"`{method_name}` in the `@guppy.unitary` class "
+                    f"`{cls.__name__}` must be a guppy function."
+                )
+        elif (
+            isinstance(method, GuppyDefinition)
+            and method_name not in custom_methods_names
+        ):
+            raise TypeError(
+                f"Only guppy function named {custom_methods_names} are allowed as a "
+                f"method in a `@guppy.unitary` class. Found `{method_name}`.",
+            )
+        elif (
+            not isinstance(method, GuppyDefinition)
+            and method_name in custom_methods_names
+        ):
+            raise TypeError(
+                f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a "
+                "guppy function"
+            )
+
+    return custom_methods
 
 
 @pretty_errors
