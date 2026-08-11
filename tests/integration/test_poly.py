@@ -54,43 +54,48 @@ def test_use_twice(validate):
     validate(main.compile_function())
 
 
+E = guppy.type_var("T")
+
+
+@guppy
+def identity(x: E) -> E:
+    return x
+
+
+@guppy
+def helper(q: qubit, n: int) -> int:
+    h(q)
+    return identity(n)
+
+
 def test_generic_functions_in_unitary_class(validate):
+
     @guppy.unitary
     class foo:
-        T = guppy.type_var("T")
         c = guppy.nat_var("c")
 
         @guppy
-        def identity(x: T) -> T:
-            return x
-
-        @guppy
-        def helper(q: qubit, n: int) -> int:
-            h(q)
-            return identity(n)  # noqa: F821
-
-        @guppy
         def __call__(q: qubit) -> None:
-            n = identity(1)  # noqa: F821
-            helper(q, n)  # noqa: F821
+            n = identity(1)
+            helper(q, n)
 
         @guppy
-        def call_daggered(q: qubit) -> None:
-            n = identity(2)  # noqa: F821
-            helper(q, n)  # noqa: F821
+        def daggered(q: qubit) -> None:
+            n = identity(2)
+            helper(q, n)
 
         # TODO: make the _controls argument generic
         @guppy
-        def call_controlled(q: qubit, _controls: array[qubit, c]) -> None:
-            n = identity(3)  # noqa: F821
-            helper(q, n)  # noqa: F821
-            helper(_controls[0], identity(n))  # noqa: F821
+        def controlled(q: qubit, _controls: array[qubit, c]) -> None:
+            n = identity(3)
+            helper(q, n)
+            helper(_controls[0], identity(n))
 
         @guppy
-        def call_ctrl_daggered(q: qubit, _controls: array[qubit, c]) -> None:
-            n = identity(4)  # noqa: F821
-            helper(q, n)  # noqa: F821
-            helper(_controls[0], identity(n))  # noqa: F821
+        def ctrl_daggered(q: qubit, _controls: array[qubit, c]) -> None:
+            n = identity(4)
+            helper(q, n)
+            helper(_controls[0], identity(n))
 
     @guppy
     def main() -> None:

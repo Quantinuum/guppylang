@@ -1,7 +1,7 @@
 import ast
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
@@ -39,9 +39,6 @@ from guppylang_internals.tys.ty import (
     unify,
 )
 
-if TYPE_CHECKING:
-    from guppylang_internals.definition.function import ParsedModifiedDefs
-
 
 class InvalidUnitaryKind(Enum):
     MissingCtrlDaggered = auto()
@@ -61,23 +58,23 @@ class InvalidUnitaryError(Error):
         match self.kind:
             case InvalidUnitaryKind.MissingCtrlDaggered:
                 return (
-                    "Custom `daggered` and `controlled` implementations require "
-                    "either a custom `ctrl_daggered` implementation or "
-                    "`unitary=True` on `__call__`"
+                    "A `@guppy.unitary` class implementing `daggered` and `controlled` "
+                    "requires either a `ctrl_daggered` implementation or `unitary=True`"
+                    " on `__call__`"
                 )
             case InvalidUnitaryKind.MissingCtrlDaggeredForFlag:
                 assert self.implementation is not None
                 assert self.flag is not None
                 return (
-                    f"A custom `{self.implementation}` implementation for a function "
-                    f"marked `{self.flag}=True` requires either a custom "
+                    f"A `@guppy.unitary` class implementing `{self.implementation}` for"
+                    f" a function marked `{self.flag}=True` requires either a "
                     "`ctrl_daggered` implementation or `unitary=True` on `__call__`"
                 )
             case InvalidUnitaryKind.MissingCtrl:
                 return (
-                    "A custom `ctrl_daggered` implementation requires either a "
-                    "custom `controlled` implementation or `controllable=True` on "
-                    "`__call__`"
+                    "A `@guppy.unitary` class implementing `ctrl_daggered` "
+                    "implementation requires either a  `controlled` implementation or "
+                    "`controllable=True` on `__call__`"
                 )
 
 
@@ -159,6 +156,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
         `func`: it's only used for a better error message when the call is a GlobalCall.
         Is None for LocalCall and TensorCall.
         """
+        # NICOLA: TODO: Consider using CustomModifiedHint
 
         # If we are under any modifier, we cannot allocate qubits
         if contain_qubit_ty(call_ty.output) and self.flags != UnitaryFlags.NoFlags:
@@ -181,7 +179,6 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
         if not is_a_valid_call:
             from guppylang_internals.definition.custom import CustomFunctionDef
-            from guppylang_internals.definition.function import ParsedFunctionDef
 
             # We want the hint only for non-custom functions, since custom
             # functions are usually quantum operations (e.g. gates or measurement)
@@ -207,7 +204,9 @@ class BBUnitaryChecker(ast.NodeVisitor):
                             UnitaryCallError.PytketHint(None, func.name)
                         )
                     else:
-                        err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
+                        err.add_sub_diagnostic(
+                            UnitaryCallError.MissingFlagHint(None, func.name)
+                        )
                 else:
                     # If func is None, we are checking a higher-order call
                     missing_flags = self.flags & (~call_ty.unitary_flags)
@@ -225,28 +224,6 @@ class BBUnitaryChecker(ast.NodeVisitor):
                             else call_ty.unitary_flags.callable_name(),
                         )
                     )
-                else:
-                    err.add_sub_diagnostic(
-                        UnitaryCallError.MissingFlagHint(None, func.name)
-                    )
-            else:
-                # If func is None, we are checking a higher-order call
-                missing_flags = self.flags & (~ty.unitary_flags)
-                err = UnitaryCallError(
-                    node,
-                    missing_flags,
-                    missing_keyword_hint=False,
-                )
-                err.add_sub_diagnostic(
-                    UnitaryCallError.HigherOrderHint(
-                        None,
-                        missing_flags.callable_name(),
-                        "higher-order"
-                        if ty.unitary_flags == UnitaryFlags.NoFlags
-                        else ty.unitary_flags.callable_name(),
-                    )
-                )
-
             raise GuppyTypeError(err)
 
     def visit_GlobalCall(self, node: GlobalCall) -> None:
@@ -324,34 +301,6 @@ def check_cfg_unitary(
     bb_checker = BBUnitaryChecker()
     for bb in cfg.bbs:
         bb_checker.check(bb.statements, unitary_flags)
-
-
-def check_modified_def_signature(
-    parsed_modified_defs: "ParsedModifiedDefs", parent_ty: FunctionType
-) -> None:
-    if parsed_modified_defs.call_daggered:
-        daggered_ty = parsed_modified_defs.call_daggered.ty
-        if unify(parent_ty, daggered_ty, {}) is None:
-            # NICOLA: TODO the error message is garbage
-            raise GuppyError(
-                ExpectedError(
-                    parsed_modified_defs.call_daggered.defined_at,
-                    f"signature compatible with {parent_ty}",
-                )
-            )
-
-    if parsed_modified_defs.call_controlled:
-        _check_controlled_def_signature(
-            parsed_modified_defs.call_controlled.ty,
-            parent_ty,
-            parsed_modified_defs.call_controlled.defined_at,
-        )
-    if parsed_modified_defs.call_ctrl_daggered:
-        _check_controlled_def_signature(
-            parsed_modified_defs.call_ctrl_daggered.ty,
-            parent_ty,
-            parsed_modified_defs.call_ctrl_daggered.defined_at,
-        )
 
 
 def check_modified_def_combinations(

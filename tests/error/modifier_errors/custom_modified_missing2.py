@@ -15,7 +15,7 @@ class foo:
         measure(c)
 
     @guppy
-    def call_controlled[c: nat](q: qubit, _controls: array[qubit, c]) -> None:
+    def controlled[c: nat](q: qubit, _controls: array[qubit, c]) -> None:
         cx(_controls[0], q)
 
 @guppy

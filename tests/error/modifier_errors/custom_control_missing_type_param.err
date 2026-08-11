@@ -2,12 +2,11 @@ Error: Incompatible signature for custom `controlled` implementation (at $FILE:1
    | 
 11 | 
 12 |     @guppy
-13 |     def controlled[n: nat](q: int, controls: array[qubit, n]) -> None:
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+13 |     def controlled(q: qubit, controls: array[qubit, 1]) -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 14 |         pass
    | ^^^^^^^^^^^^ Expected signature `forall n: nat. (qubit, array[qubit, n])
-   |              -> None`, got `forall n: nat. (int, array[qubit, n]) ->
-   |              None`
+   |              -> None`, got `(qubit, array[qubit, 1]) -> None`
 
 Note: A custom `controlled` implementation must have its parent function's
 signature followed by an `array[qubit, n]` input containing the control qubits.

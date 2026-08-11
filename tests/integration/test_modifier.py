@@ -564,6 +564,11 @@ def ext_helper(q: qubit) -> None:
     x(q)
 
 
+@guppy
+def helper(q: qubit) -> None:
+    h(q)
+
+
 def test_custom_modifier(validate):
 
     @guppy.unitary
@@ -572,15 +577,11 @@ def test_custom_modifier(validate):
         c = guppy.nat_var("c")
 
         @guppy
-        def helper(q: qubit) -> None:
-            h(q)
-
-        @guppy
         def __call__(q1: array[qubit, n]) -> None:
             # since we have custom implementations of the modifiers, there are no
             # restrictions on the body of the function
             q = qubit()
-            helper(q1[0])  # noqa: F821
+            helper(q1[0])
             i = 10
             while i > 0:
                 i -= 1
@@ -588,15 +589,15 @@ def test_custom_modifier(validate):
             measure(q)
 
         @guppy
-        def call_daggered(q1: array[qubit, n]) -> None:
+        def daggered(q1: array[qubit, n]) -> None:
             ext_helper(q1[0])
 
         @guppy
-        def call_controlled(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
+        def controlled(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
             h(_controls[0])
 
         @guppy
-        def call_ctrl_daggered(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
+        def ctrl_daggered(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
             h(_controls[0])
 
     @guppy

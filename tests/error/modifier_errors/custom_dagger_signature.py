@@ -9,7 +9,7 @@ class foo:
         pass
 
     @guppy
-    def call_daggered(q: qubit, extra: qubit) -> None:
+    def daggered(q: qubit, extra: qubit) -> None:
         pass
 
 

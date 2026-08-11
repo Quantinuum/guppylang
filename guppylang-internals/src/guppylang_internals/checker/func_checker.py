@@ -47,7 +47,6 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.function import ParsedFunctionDef
     from guppylang_internals.definition.protocol import CheckedProtocolDef
 
 
@@ -133,17 +132,19 @@ class SelfParamsShadowedError(Error):
 
 
 def check_global_func_def(
-    parsed_func_def: "ParsedFunctionDef",
+    func_def: ast.FunctionDef,
+    generic_ty: FunctionType,
     type_args: Inst,
     globals: Globals,
     link_name: str,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
-    ty = parsed_func_def.ty.instantiate(type_args)
-    func_def = copy.deepcopy(parsed_func_def.defined_at)
+    ty = generic_ty.instantiate(type_args)
+    func_def = copy.deepcopy(func_def)
     args = func_def.args.args
     returns_none = isinstance(ty.output, NoneType)
-    has_custom_modifier = parsed_func_def.parsed_modified_defs is not None
+    # NICOLA: TODO:
+    has_custom_modifier = False  # parsed_func_def.parsed_modified_defs is not None
 
     assert all(inp.name is not None for inp in ty.inputs)
 
@@ -152,7 +153,7 @@ def check_global_func_def(
         # since we don't need the default dagger implementation
         # NICOLA: TODO: ensure that if the function is daggerable from the flag applied
         # to __call__ we need to check this. A personalized error would be nice here
-        check_invalid_under_dagger(parsed_func_def.defined_at, ty.unitary_flags)
+        check_invalid_under_dagger(func_def, ty.unitary_flags)
 
     cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
     inputs = [
@@ -162,8 +163,7 @@ def check_global_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     generic_args = {
-        param.name: arg
-        for param, arg in zip(parsed_func_def.ty.params, type_args, strict=True)
+        param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
     return check_cfg(
         cfg,

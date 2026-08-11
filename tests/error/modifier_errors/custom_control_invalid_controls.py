@@ -10,7 +10,7 @@ class foo:
         pass
 
     @guppy
-    def controlled[n: nat](q: int, controls: array[qubit, n]) -> None:
+    def controlled[n: nat](q: qubit, controls: array[int, n]) -> None:
         pass
 
 

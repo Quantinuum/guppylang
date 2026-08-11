@@ -13,7 +13,7 @@ class foo:
         measure(c)
 
     @guppy
-    def call_daggered(q: qubit) -> None:
+    def daggered(q: qubit) -> None:
         x(q)
 
 

@@ -1,10 +1,14 @@
-Error: Expected signature compatible with qubit -> None (at $FILE:12:4)
+Error: Incompatible signature for custom `daggered` implementation (at $FILE:12:4)
    | 
 10 | 
 11 |     @guppy
-12 |     def call_daggered(q: qubit, extra: qubit) -> None:
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+12 |     def daggered(q: qubit, extra: qubit) -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 13 |         pass
-   | ^^^^^^^^^^^^ Expected signature compatible with qubit -> None
+   | ^^^^^^^^^^^^ Expected signature `qubit -> None`, got `(qubit, qubit) ->
+   |              None`
+
+Note: A custom `daggered` implementation must have the same signature as its
+parent function.
 
 Guppy compilation failed due to 1 previous error

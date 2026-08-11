@@ -48,11 +48,16 @@ from guppylang_internals.dummy_decorator import (
     _DummyGuppy,
     sphinx_running,
 )
-from guppylang_internals.engine import DEF_STORE
+from guppylang_internals.engine import (
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
+    DEF_STORE,
+)
 from guppylang_internals.error import pretty_errors
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
-from guppylang_internals.span import Loc, SourceMap, Span
+from guppylang_internals.span import Loc, SourceMap, Span, to_span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
     FunctionType,
@@ -94,11 +99,6 @@ __all__ = (
     "guppy",
     "metadata",
 )
-
-# Names of the custom modified definition methods. Used in the @guppy.unitary decorator.
-CALL_DAGGERED_METHOD = "daggered"
-CALL_CONTROLLED_METHOD = "controlled"
-CALL_CTRL_DAGGERED_METHOD = "ctrl_daggered"
 
 
 class GuppyKwargs(TypedDict, total=False):
@@ -345,24 +345,30 @@ class _Guppy:
         cls = _set_firstlineno(cls, frame)
         unitary_class_span = parse_py_class(cls, frame, DEF_STORE.sources)
         call_guppy_def = _get_unitary_call_def(cls)
-        raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
+        call_raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
         # override "__call__" with the class name, mainly for better error messages
-        object.__setattr__(raw_func, "name", cls.__name__)
+        object.__setattr__(call_raw_func, "name", cls.__name__)
 
         # Update the unitary metadata according to the custom implementations
 
-        custom_implementations = _get_custom_implementations(cls, raw_func)
-
-        (call_daggered, call_controlled, call_ctrl_daggered) = (
-            custom_implementations[CALL_DAGGERED_METHOD],
-            custom_implementations[CALL_CONTROLLED_METHOD],
-            custom_implementations[CALL_CTRL_DAGGERED_METHOD],
+        custom_methods: dict[str, RawFunctionDef | None] = _get_custom_methods(
+            cls, call_raw_func
         )
-        assert raw_func.metadata is not None
+
+        custom_modified_definition = (
+            custom_methods[CALL_DAGGERED_METHOD],
+            custom_methods[CALL_CONTROLLED_METHOD],
+            custom_methods[CALL_CTRL_DAGGERED_METHOD],
+        )
+
+        for custom_def in custom_modified_definition:
+            if custom_def is not None:
+                DEF_STORE.register_custom_modified_def(call_raw_func.id, custom_def.id)
+        assert call_raw_func.metadata is not None
         _set_unitary_metadata(
-            raw_func.metadata,
-            [call_daggered, call_controlled, call_ctrl_daggered],
-            unitary_class_span,
+            call_raw_func.metadata,
+            custom_modified_definition,
+            to_span(unitary_class_span),
         )
         return call_guppy_def  # type: ignore[return-value]
 
@@ -846,6 +852,7 @@ def _get_unitary_call_def(
     if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
         return val
 
+    # NICOLA: TODO: Test this error
     raise TypeError(
         f"The `@guppy.unitary` class `{cls.__name__}` requires a `@guppy` "
         f"annotated `__call__` method"
@@ -853,20 +860,21 @@ def _get_unitary_call_def(
 
 
 # NICOLA: TODO: RESTART FROM HERE: use this properly
-def _get_custom_implementations(
-    cls: builtins.type[T], parent: RawFunctionDef, name: str
+def _get_custom_methods(
+    cls: builtins.type[T], parent: RawFunctionDef
 ) -> dict[str, RawFunctionDef | None]:
-    custom_methods = defaultdict(lambda: None)
+    custom_methods: dict[str, RawFunctionDef | None] = defaultdict(lambda: None)
     custom_methods_names = (
         CALL_DAGGERED_METHOD,
         CALL_CONTROLLED_METHOD,
         CALL_CTRL_DAGGERED_METHOD,
     )
 
+    # NICOLA: TODO: Test these errors
     for method_name, method in cls.__dict__.items():
         if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
             if isinstance(method.wrapped, RawFunctionDef):
-                DEF_STORE.register_custom_def(parent.id, method.id)
+                DEF_STORE.register_custom_modified_def(parent.id, method.id)
                 custom_methods[method_name] = method.wrapped
             else:
                 raise TypeError(
@@ -875,8 +883,11 @@ def _get_custom_implementations(
                 )
         elif (
             isinstance(method, GuppyDefinition)
+            and not isinstance(method, GuppyTypeVarDefinition)
             and method_name not in custom_methods_names
+            and method_name != "__call__"
         ):
+            print(type(method))
             raise TypeError(
                 f"Only guppy function named {custom_methods_names} are allowed as a "
                 f"method in a `@guppy.unitary` class. Found `{method_name}`.",
@@ -886,8 +897,8 @@ def _get_custom_implementations(
             and method_name in custom_methods_names
         ):
             raise TypeError(
-                f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a "
-                "guppy function"
+                f"`{method_name}` in the `@guppy.unitary` class `{cls.__name__}` must "
+                "be a guppy function"
             )
 
     return custom_methods
@@ -896,15 +907,16 @@ def _get_custom_implementations(
 @pretty_errors
 def _set_unitary_metadata(
     metadata: FunctionMetadata,
-    custom_defs: list[RawFunctionDef | None],
+    custom_defs: tuple[
+        RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None
+    ],
     definition_span: Span | None,
-):
+) -> None:
     """Set unitary metadata based on the available custom implementations.
 
     We also check that the combination of custom implementations is valid.
     """
 
-    assert len(custom_defs) == 3
     daggered, controlled, ctrl_daggered = custom_defs
     flags = UnitaryFlags(metadata.get_unitary_flags() or UnitaryFlags.NoFlags.value)
     check_modified_def_combinations(
@@ -924,30 +936,6 @@ def _set_unitary_metadata(
         flags = UnitaryFlags.Unitary
 
     metadata.set_unitary_flags(flags.value)
-
-
-def _get_unitary_methods(cls: builtins.type[T]) -> list[RawFunctionDef | None]:
-    """Returns an optional `@guppy`-annotated unitary modifier method.
-    Raises a `TypeError` if the methods are not properly annotated or other @guppy
-    annotaded methods are present."""
-    for name in [
-        CALL_DAGGERED_METHOD,
-        CALL_CONTROLLED_METHOD,
-        CALL_CTRL_DAGGERED_METHOD,
-    ]:
-        val = cls.__dict__.get(name)
-        if val is not None:
-            if isinstance(val, GuppyDefinition) and isinstance(
-                val.wrapped, RawFunctionDef
-            ):
-                return val.wrapped
-
-            raise TypeError(
-                f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a "
-                f"guppy function"
-            )
-
-    return None
 
 
 def custom_guppy_decorator(f: F) -> F:

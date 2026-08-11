@@ -1,16 +1,16 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array
+from guppylang.std.builtins import array, nat
 from guppylang.std.quantum import qubit
 
 
 @guppy.unitary
 class foo:
-    @guppy
+    @guppy(controllable=True)
     def __call__(q: qubit) -> None:
         pass
 
     @guppy
-    def call_ctrl_daggered(q: int, controls: array[qubit, 2]) -> None:
+    def ctrl_daggered[n: nat](q: int, controls: array[qubit, n]) -> None:
         pass
 
 

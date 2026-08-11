@@ -5,7 +5,7 @@ Error: Control constraint violation (at $FILE:22:4)
 22 |     foo(q)
    |     ^^^^^^ This function cannot be called in a controllable context
 
-Help: The `@guppy.unitary` function `foo` is missing a custom implementation.
-Consider implementing the custom method `call_controlled`
+Help: Consider adding the flag `(controllable=True)` to the decorator of the
+function `foo`
 
 Guppy compilation failed due to 1 previous error

@@ -27,7 +27,6 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
     parse_function_with_docstring,
 )
-from guppylang_internals.checker.unitary_checker import check_modified_def_signature
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import (
     CompilerContext,
@@ -121,7 +120,6 @@ class RawModifiedDefs:
             parsed_call_controlled,
             parsed_call_ctrl_daggered,
         )
-        check_modified_def_signature(parsed_definitions, parent_ty)
         return parsed_definitions
 
 
@@ -198,11 +196,6 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    # TODO: delete this
-    modified_defs: RawModifiedDefs | None = field(
-        default=None, kw_only=True, compare=False, repr=False
-    )
-
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
@@ -215,9 +208,6 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
-        parsed_modified_defs = (
-            self.modified_defs.parse(ty) if self.modified_defs is not None else None
-        )
 
         return ParsedFunctionDef(
             self.id,
@@ -227,7 +217,6 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             docstring,
             link_name,
             metadata=self.metadata,
-            parsed_modified_defs=parsed_modified_defs,
         )
 
 
@@ -257,10 +246,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    parsed_modified_defs: ParsedModifiedDefs | None = field(
-        default=None, kw_only=True, compare=False, repr=False
-    )
-
     @property
     def params(self) -> "Sequence[Parameter]":
         """Generic parameters of this function."""
@@ -274,13 +259,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             self.defined_at, self.ty, type_args, globals, mono_link_name
         )
         mono_ty = self.ty.instantiate_partial(type_args)
-
-        checked_modified_defs = (
-            self.parsed_modified_defs.check(type_args)
-            if self.parsed_modified_defs is not None
-            else None
-        )
-
         return CheckedFunctionDef(
             self.id,
             self.name,
@@ -290,8 +268,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_link_name,
             cfg,
             metadata=self.metadata,
-            checked_modified_defs=checked_modified_defs,
-            mono_args=type_args,
         )
 
     @override
@@ -338,12 +314,6 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
 
     cfg: CheckedCFG[Place]
 
-    checked_modified_defs: CheckedModifiedDefs | None = field(
-        default=None, kw_only=True, compare=False, repr=False
-    )
-
-    mono_args: Inst = field(default=(), kw_only=True, compare=False, repr=False)
-
     def __post_init__(self) -> None:
         # We should be monomorphized at this point
         assert not self.params
@@ -372,12 +342,6 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         if debug_mode_enabled():
             assert self.metadata is not None
             self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
-
-        if self.checked_modified_defs is not None:
-            compiled_modified_names = self.checked_modified_defs.compile_outer(ctx)
-            if self.metadata is not None:
-                self.metadata.set_modified_defs(compiled_modified_names)
-
         add_metadata(
             module.hugr[func_def].metadata,
             self.metadata,
