@@ -48,7 +48,7 @@ teleport.check()
 
 📒 [Example notebooks][examples]
 
-[examples]: ../examples/
+[examples]: https://github.com/quantinuum/guppylang/tree/main/examples
 [guide]: https://docs.quantinuum.com/guppy/language_guide/language_guide_index.html
 [website]: https://guppylang.org
 
