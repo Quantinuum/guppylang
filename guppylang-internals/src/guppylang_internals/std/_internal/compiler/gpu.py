@@ -1,20 +1,17 @@
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
 from hugr.std.int import IntVal
+from tket_exts import gpu
 
 from guppylang_internals.compiler.builder import pure
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
-from guppylang_internals.definition.gpu import (
-    QSYSTEM_GPU_EXTENSION,
-    ConstGpuModule,
-    gpu_module_info,
-)
+from guppylang_internals.definition.gpu import ConstGpuModule, gpu_module_info
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.std._internal.compiler.arithmetic import convert_itousize
 from guppylang_internals.std._internal.compiler.prelude import build_unwrap
-from guppylang_internals.tys.ty import FunctionType
+from guppylang_internals.tys.ty import FunctionType, NumericType
 
 
 class GpuModuleInitCompiler(CustomInoutCallCompiler):
@@ -24,13 +21,11 @@ class GpuModuleInitCompiler(CustomInoutCallCompiler):
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         # Make a ConstGpuModule as a CustomConst
         assert len(args) == 0
-        int_wire = self.builder.load(IntVal(0, width=6))
+        int_wire = self.builder.load(IntVal(0, width=NumericType.INT_WIDTH))
         ctx_wire = self.builder.add_op(convert_itousize(), int_wire)
 
-        ctx_ty = QSYSTEM_GPU_EXTENSION.get_type("context").instantiate([])
-        get_ctx_op = ops.ExtOp(
-            QSYSTEM_GPU_EXTENSION.get_op("get_context"),
-            ht.FunctionType([ht.USize()], [ht.Option(ctx_ty)]),
+        get_ctx_op = gpu.get_context.op_def().instantiate(
+            concrete_signature=ht.FunctionType([ht.USize()], [ht.Option(gpu.context)])
         )
         # Should get_context / dispose_context have effects here?
         node = self.builder.add_op(pure(get_ctx_op), ctx_wire)
@@ -46,9 +41,8 @@ class GpuModuleDiscardCompiler(CustomInoutCallCompiler):
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         assert len(args) == 1
         ctx = args[0]
-        op = QSYSTEM_GPU_EXTENSION.get_op("dispose_context").instantiate([])
         # Should get_context / dispose_context have effects here?
-        self.builder.add_op(pure(op), ctx)
+        self.builder.add_op(pure(gpu.dispose_context), ctx)
         return CallReturnWires(regular_returns=[], inout_returns=[])
 
 
@@ -75,8 +69,6 @@ class GpuModuleCallCompiler(CustomInoutCallCompiler):
         # - a GPU context
         # - any args meant for the GPU function
         assert len(args) >= 1
-        module_ty = QSYSTEM_GPU_EXTENSION.get_type("module").instantiate([])
-        ctx_ty = QSYSTEM_GPU_EXTENSION.get_type("context").instantiate([])
 
         # Function type without Inout context arg (for building)
         assert isinstance(self.node, GlobalCall)
@@ -89,12 +81,8 @@ class GpuModuleCallCompiler(CustomInoutCallCompiler):
         inputs_row_arg = ht.ListArg([ty.type_arg() for ty in gpu_sig.input])
         output_row_arg = ht.ListArg([ty.type_arg() for ty in gpu_sig.output])
 
-        func_ty = QSYSTEM_GPU_EXTENSION.get_type("func").instantiate(
-            [inputs_row_arg, output_row_arg]
-        )
-        result_ty = QSYSTEM_GPU_EXTENSION.get_type("result").instantiate(
-            [output_row_arg]
-        )
+        func_ty = gpu.func(gpu_sig.input, gpu_sig.output)
+        result_ty = gpu.result(gpu_sig.output)
 
         # Get the module information from the type
         selfarg = self.func.ty.inputs[0].ty
@@ -110,29 +98,29 @@ class GpuModuleCallCompiler(CustomInoutCallCompiler):
         # Lookup the function we want
         if self.fn_id is None:
             fn_name_arg = ht.StringArg(self.fn_name)
-            gpu_opdef = QSYSTEM_GPU_EXTENSION.get_op("lookup_by_name").instantiate(
+            gpu_opdef = gpu.lookup_by_name_def.instantiate(
                 [fn_name_arg, inputs_row_arg, output_row_arg],
-                ht.FunctionType([module_ty], [func_ty]),
+                ht.FunctionType([gpu.module], [func_ty]),
             )
         else:
             fn_id_arg = ht.BoundedNatArg(self.fn_id)
-            gpu_opdef = QSYSTEM_GPU_EXTENSION.get_op("lookup_by_id").instantiate(
+            gpu_opdef = gpu.lookup_by_id_def.instantiate(
                 [fn_id_arg, inputs_row_arg, output_row_arg],
-                ht.FunctionType([module_ty], [func_ty]),
+                ht.FunctionType([gpu.module], [func_ty]),
             )
         gpu_func = self.builder.add_op(pure(gpu_opdef), gpu_module)
 
         # Call the function
-        call_op = QSYSTEM_GPU_EXTENSION.get_op("call").instantiate(
+        call_op = gpu.call_def.instantiate(
             [inputs_row_arg, output_row_arg],
-            ht.FunctionType([ctx_ty, func_ty, *gpu_sig.input], [result_ty]),
+            ht.FunctionType([gpu.context, func_ty, *gpu_sig.input], [result_ty]),
         )
 
         result = self.builder.add_op(pure(call_op), args[0], gpu_func, *args[1:])
 
-        read_opdef = QSYSTEM_GPU_EXTENSION.get_op("read_result").instantiate(
+        read_opdef = gpu.read_result_def.instantiate(
             [output_row_arg],
-            ht.FunctionType([result_ty], [ctx_ty, *gpu_sig.output]),
+            ht.FunctionType([result_ty], [gpu.context, *gpu_sig.output]),
         )
         data = self.builder.add_op(pure(read_opdef), result)  # ctx + return types
         match list(data[:]):

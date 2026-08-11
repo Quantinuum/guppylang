@@ -49,24 +49,25 @@ def gpu_module(
     return create_decorator(filename, config_filename)
 
 
+# Dual-form decorator, usable as @gpu and @gpu(<number>)
 @overload
-def gpu(arg: Callable[P, T]) -> GuppyFunctionDefinition[P, T]: ...
+def gpu(fn_id: Callable[P, T]) -> GuppyFunctionDefinition[P, T]: ...
 @overload
-def gpu(arg: int) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]: ...
+def gpu(fn_id: int) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]: ...
 def gpu(
-    arg: int | Callable[P, T],
+    fn_id: int | Callable[P, T],
 ) -> (
     GuppyFunctionDefinition[P, T]
     | Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]
 ):
-    if isinstance(arg, int):
+    if isinstance(fn_id, int):
 
         def wrapper(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
-            return _gpu_helper(arg, f)
+            return _gpu_helper(fn_id, f)
 
         return wrapper
     else:
-        return _gpu_helper(None, arg)
+        return _gpu_helper(None, fn_id)
 
 
 def _gpu_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
@@ -90,4 +91,9 @@ def _gpu_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition
 # Override decorators with dummy versions if we're running a sphinx build
 if not TYPE_CHECKING and sphinx_running():
     gpu_module = _dummy_custom_decorator
-    gpu = _dummy_custom_decorator()
+
+    # Support both forms of the decorator
+    def gpu(*args: object, **kwargs: object):  # type: ignore[no-redef]
+        if len(args) == 1 and callable(args[0]) and not kwargs:
+            return args[0]
+        return _dummy_custom_decorator(*args, **kwargs)

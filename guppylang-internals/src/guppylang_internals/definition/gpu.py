@@ -32,39 +32,40 @@ from guppylang_internals.tys.ty import (
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Globals
 
-QSYSTEM_GPU_EXTENSION = gpu()
+
+def _is_valid_gpu_type(ty: Type) -> bool:
+    match ty:
+        case NumericType():
+            return True
+
+    return False
+
+
+def _check_function_type(loc: AstNode | None, fun_ty: FunctionType) -> None:
+    # 1. Check whether the first arg is a GPU module
+    match fun_ty.inputs[0]:
+        case FuncInput(ty=ty, flags=InputFlags.Inout) if (
+            gpu_module_info(ty) is not None
+        ):
+            pass
+        case FuncInput(ty=ty):
+            raise GuppyError(FirstArgNotModule(loc, ty))
+    # 2. Check whether remaining args and return map to GPU types
+    for inp in fun_ty.inputs[1:]:
+        if not _is_valid_gpu_type(inp.ty):
+            raise GuppyError(UnconvertibleType(loc, inp.ty))
+    if not _is_valid_gpu_type(fun_ty.output):
+        match fun_ty.output:
+            case NoneType():
+                pass
+            case _:
+                raise GuppyError(UnconvertibleType(loc, fun_ty.output))
 
 
 class RawGpuFunctionDef(RawCustomFunctionDef):
-    def sanitise_type(self, loc: AstNode | None, fun_ty: FunctionType) -> None:
-        # Place to highlight in error messages
-        match fun_ty.inputs[0]:
-            case FuncInput(ty=ty, flags=InputFlags.Inout) if (
-                gpu_module_info(ty) is not None
-            ):
-                pass
-            case FuncInput(ty=ty):
-                raise GuppyError(FirstArgNotModule(loc, ty))
-        for inp in fun_ty.inputs[1:]:
-            if not self.is_valid_gpu_type(inp.ty):
-                raise GuppyError(UnconvertibleType(loc, inp.ty))
-        if not self.is_valid_gpu_type(fun_ty.output):
-            match fun_ty.output:
-                case NoneType():
-                    pass
-                case _:
-                    raise GuppyError(UnconvertibleType(loc, fun_ty.output))
-
-    def is_valid_gpu_type(self, ty: Type) -> bool:
-        match ty:
-            case NumericType():
-                return True
-
-        return False
-
     def parse(self, globals: "Globals", sources: SourceMap) -> "CustomFunctionDef":
         parsed = super().parse(globals, sources)
-        self.sanitise_type(parsed.defined_at, parsed.ty)
+        _check_function_type(parsed.defined_at, parsed.ty)
         return parsed
 
 
@@ -76,14 +77,12 @@ class ConstGpuModule(val.ExtensionValue):
     gpu_config: str | None
 
     def to_value(self) -> val.Extension:
-        ty = QSYSTEM_GPU_EXTENSION.get_type("module").instantiate([])
-
         name = "ConstGpuModule"
         payload = {
             "module_filename": self.gpu_file,
             "config_filename": self.gpu_config,
         }
-        return val.Extension(name, typ=ty, val=payload)
+        return val.Extension(name, typ=gpu.module, val=payload)
 
     def __str__(self) -> str:
         return (
@@ -113,8 +112,7 @@ class GpuModuleTypeDef(OpaqueTypeDef):
         self, args: Sequence[TypeArg | ConstArg], _: ToHugrContext, /
     ) -> ht.Type:
         assert args == []
-        ty = QSYSTEM_GPU_EXTENSION.get_type("context")
-        return ty.instantiate([])
+        return gpu.context
 
 
 def gpu_module_info(ty: Type) -> tuple[str, str | None] | None:
