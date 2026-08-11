@@ -35,6 +35,7 @@ def teleport(src: qubit @ owned, tgt: qubit) -> None:
     if measure(tmp):
         x(tgt)
 
+
 teleport.check()
 ```
 
