@@ -4,7 +4,7 @@ version = "1.0.1"
 requires-python = ">=3.12,<4"
 description = "Pythonic quantum-classical programming language"
 license = { file = "LICENCE" }
-readme = "../README.md"
+dynamic = ["readme"]
 authors = [
     { name = "Mark Koch", email = "mark.koch@quantinuum.com" },
     { name = "TKET development team", email = "tket-support@quantinuum.com" },
@@ -42,5 +42,12 @@ homepage = "https://github.com/quantinuum/guppylang"
 repository = "https://github.com/quantinuum/guppylang"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-fancy-pypi-readme"]
 build-backend = "hatchling.build"
+
+# Pull the PyPI readme from the repository-root README (outside this package dir).
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "../README.md"
