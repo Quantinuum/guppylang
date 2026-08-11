@@ -3,7 +3,7 @@
 Type `Either[L, R]` represents a value of either typr `L` ("left") or `R` ("right").
 """
 
-from typing import Generic, no_type_check
+from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.std._internal.compiler.either import (
@@ -14,6 +14,7 @@ from guppylang_internals.std._internal.compiler.either import (
     either_to_hugr,
 )
 from guppylang_internals.tys.param import TypeParam
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.lang import owned
@@ -27,20 +28,20 @@ _params = [TypeParam(0, "L", False, False), TypeParam(1, "L", False, False)]
 
 
 @custom_type(either_to_hugr, params=_params)
-class Either(Generic[L, R]):  # type: ignore[misc]
+class Either[L, R]:
     """Represents a union of either a `left` or a `right` value."""
 
-    @custom_function(EitherTestCompiler(0))
+    @custom_function(EitherTestCompiler(0), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def is_left(self: "Either[L, R]") -> bool:
         """Returns `True` for a `left` value."""
 
-    @custom_function(EitherTestCompiler(1))
+    @custom_function(EitherTestCompiler(1), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def is_right(self: "Either[L, R]") -> bool:
         """Returns `True` for a `right` value."""
 
-    @custom_function(EitherToOptionCompiler(0))
+    @custom_function(EitherToOptionCompiler(0), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def try_into_left(self: "Either[L, Droppable]" @ owned) -> Option[L]:
         """Returns the wrapped value if `self` is a `left` value, or `nothing`
@@ -49,7 +50,7 @@ class Either(Generic[L, R]):  # type: ignore[misc]
         This operation is only allowed if the `right` variant wraps a droppable type.
         """
 
-    @custom_function(EitherToOptionCompiler(1))
+    @custom_function(EitherToOptionCompiler(1), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def try_into_right(self: "Either[Droppable, R]" @ owned) -> Option[R]:
         """Returns the wrapped value if `self` is a `right` value, or `nothing`
@@ -75,13 +76,13 @@ class Either(Generic[L, R]):  # type: ignore[misc]
         """
 
 
-@custom_function(EitherConstructor(0))
+@custom_function(EitherConstructor(0), unitary_flags=UnitaryFlags.Dagger)
 @no_type_check
 def left(val: L @ owned) -> Either[L, R]:
     """Constructs a `left` either value."""
 
 
-@custom_function(EitherConstructor(1))
+@custom_function(EitherConstructor(1), unitary_flags=UnitaryFlags.Dagger)
 @no_type_check
-def right(val: R @ owned) -> Either[L, R]:
+def right[L, R](val: R @ owned) -> Either[L, R]:
     """Constructs a `right` either value."""

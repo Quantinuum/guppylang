@@ -1,0 +1,14 @@
+Error: Signature in implementation doesn't match protocol (at $FILE:16:8)
+   | 
+14 | def main() -> None:
+15 |     foo(0)
+16 |     foo(0.0)
+   |         ^^^ Type signature of method `__add__` differs from that
+   |             required by protocol
+
+Note: Protocol `Addable[int]` requires method `__add__` to have type signature:
+    `(float, int) -> float`
+but got actual type signature:
+    `(float, float) -> float`
+
+Guppy compilation failed due to 1 previous error

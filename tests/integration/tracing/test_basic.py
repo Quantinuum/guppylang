@@ -1,7 +1,5 @@
-from collections.abc import Callable
-
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, comptime
+from guppylang.std.builtins import array, comptime, Function
 from guppylang.std.mem import mem_swap
 from guppylang.std.qsystem.random import RNG
 
@@ -9,6 +7,19 @@ from hugr import ops
 from hugr.std.int import IntVal
 
 from guppylang_internals.tracing.object import GuppyObject
+
+
+def test_check_traces() -> None:
+    trace_events = []
+
+    @guppy.comptime
+    def foo() -> int:
+        trace_events.append("traced")
+        return 1
+
+    foo.check()
+
+    assert trace_events == ["traced"]
 
 
 def test_flat(validate):
@@ -69,7 +80,7 @@ def test_load_func(validate):
     def foo(x: int) -> int: ...
 
     @guppy.comptime
-    def test() -> Callable[[int], int]:
+    def test() -> Function[[int], int]:
         return foo
 
     validate(test.compile_function())

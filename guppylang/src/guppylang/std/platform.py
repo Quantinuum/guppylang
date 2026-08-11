@@ -14,8 +14,10 @@ from guppylang_internals.std._internal.checker import (
 )
 from guppylang_internals.std._internal.compiler.platform import (
     ArrayOutputCompiler,
+    MeasurementOutputChecker,
     OutputCompiler,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import int_type, string_type
 from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags, NoneType
 
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
     from guppylang.std.array import array
     from guppylang.std.lang import comptime
     from guppylang.std.num import nat
+    from guppylang.std.quantum import Measurement
 
 n = guppy.nat_var("n")
 
@@ -45,6 +48,10 @@ def _output_bool(tag: str @ comptime, value: bool) -> None: ...
 def _output_float(tag: str @ comptime, value: float) -> None: ...
 
 
+@custom_function(checker=MeasurementOutputChecker())
+def _output_measurement(tag: str @ comptime, value: Measurement) -> None: ...
+
+
 @custom_function(ArrayOutputCompiler("result_array_int", with_int_width=True))
 def _output_int_array(tag: str @ comptime, value: array[int, n]) -> None: ...
 
@@ -61,15 +68,23 @@ def _output_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
 def _output_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
 
 
+@custom_function(checker=MeasurementOutputChecker())
+def _output_measurement_array(
+    tag: str @ comptime, value: array[Measurement, n]
+) -> None: ...
+
+
 @guppy.overload(
     _output_int,
     _output_nat,
     _output_bool,
     _output_float,
+    _output_measurement,
     _output_int_array,
     _output_nat_array,
     _output_bool_array,
     _output_float_array,
+    _output_measurement_array,
 )
 def output(tag: str, value):
     """Report an output with the given tag and value.
@@ -102,6 +117,7 @@ result = output
         NoneType(),
     ),
     has_var_args=True,
+    effects=[Effect.ANY],
 )
 def _panic(msg: str, *args) -> None: ...
 
@@ -117,6 +133,7 @@ def _panic(msg: str, *args) -> None: ...
         NoneType(),
     ),
     has_var_args=True,
+    effects=[Effect.ANY],
 )
 def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
 
@@ -139,7 +156,7 @@ def panic(msg: str, signal: int = 1, *args):
         message: The message to display. Must be a string literal.
         signal: An optional integer for distinguishing different failure modes.
         args: Arbitrary extra inputs, will not affect the message. Only useful for
-        consuming linear values.
+            consuming linear values.
     """
 
 
@@ -193,11 +210,15 @@ def exit(msg: str, signal: int = 1, *args):
         message: The message to display. Must be a string literal.
         signal: An optional integer for distinguishing different failure modes.
         args: Arbitrary extra inputs, will not affect the message. Only useful for
-        consuming linear values.
+            consuming linear values.
     """
 
 
-@custom_function(checker=BarrierChecker(), higher_order_value=False)
+@custom_function(
+    checker=BarrierChecker(),
+    higher_order_value=False,
+    has_var_args=True,
+)
 @no_type_check
 def barrier(*args) -> None:
     """Barrier to guarantee that all operations before the barrier are completed before

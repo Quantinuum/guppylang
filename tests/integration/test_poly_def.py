@@ -1,7 +1,5 @@
-from collections.abc import Callable
-
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array, owned
+from guppylang.std.builtins import array, owned, Function
 from guppylang.std.option import Option, nothing
 
 
@@ -56,7 +54,7 @@ def test_apply(validate):
     T = guppy.type_var("T")
 
     @guppy
-    def apply(f: Callable[[S], T], x: S) -> T:
+    def apply(f: Function[[S], T], x: S) -> T:
         return f(x)
 
     # We can't compile apply on its own, but we can check it

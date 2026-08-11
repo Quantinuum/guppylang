@@ -407,7 +407,9 @@ class StmtChecker(AstVisitor[BBStatement]):
             raise InternalGuppyError("BB required to check nested function def!")
 
         func_def = check_nested_func_def(node, self.bb, self.ctx)
-        self.ctx.locals[func_def.name] = Variable(func_def.name, func_def.ty, func_def)
+        self.ctx.locals[func_def.name] = Variable(
+            func_def.name, func_def.def_ty, func_def
+        )
         return func_def
 
     def visit_ModifiedBlock(self, node: ModifiedBlock) -> ast.stmt:

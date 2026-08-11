@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from typing import Generic
 
 import pytest
@@ -12,6 +11,7 @@ from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.definition.custom import CustomCallCompiler
 from guppylang.std.builtins import array
 from guppylang.std.quantum import discard, h, qubit
+from guppylang.std.builtins import Function
 
 
 def test_id(validate):
@@ -186,7 +186,7 @@ def test_infer_basic(validate):
     validate(main.compile_function())
 
 
-def test_infer_list(validate):
+def test_infer_list(validate, use_experimental_features):
     T = guppy.type_var("T")
 
     @guppy.declare
@@ -346,7 +346,7 @@ def test_pass_poly_basic(validate):
     T = guppy.type_var("T")
 
     @guppy.declare
-    def foo(f: Callable[[T], T]) -> None: ...
+    def foo(f: Function[[T], T]) -> None: ...
 
     @guppy.declare
     def bar(x: int) -> int: ...
@@ -363,7 +363,7 @@ def test_pass_poly_cross(validate):
     T = guppy.type_var("T")
 
     @guppy.declare
-    def foo(f: Callable[[S], int]) -> None: ...
+    def foo(f: Function[[S], int]) -> None: ...
 
     @guppy.declare
     def bar(x: bool) -> T: ...
@@ -435,7 +435,7 @@ def test_pass_linear(validate):
     T = guppy.type_var("T", copyable=False, droppable=False)
 
     @guppy.declare
-    def foo(f: Callable[[T], T]) -> None: ...
+    def foo(f: Function[[T], T]) -> None: ...
 
     @guppy.declare
     def bar(q: qubit) -> qubit: ...
@@ -459,7 +459,7 @@ def test_custom_higher_order():
 
     @guppy
     def main(x: int) -> int:
-        f: Callable[[int], int] = foo
+        f: Function[[int], int] = foo
         return f(x)
 
 

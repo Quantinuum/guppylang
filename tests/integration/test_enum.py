@@ -27,7 +27,7 @@ from typing import Generic, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from guppylang.std.builtins import Function
 
 
 def test_basic_enum(validate):
@@ -176,7 +176,7 @@ def test_methods(validate):
     validate(main.compile_function())
 
 
-def test_generic_explicit(validate):
+def test_generic_explicit(validate, use_experimental_features):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
 
@@ -211,7 +211,7 @@ def test_generic_explicit(validate):
     validate(main.compile_function())
 
 
-def test_generic_infer(validate):
+def test_generic_infer(validate, use_experimental_features):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
 
@@ -250,7 +250,7 @@ def test_higher_order(validate):
         VariantA = {"x": T}
 
     @guppy
-    def factory(mk_enum: "Callable[[int], Enum[int]]", x: int) -> Enum[int]:
+    def factory(mk_enum: "Function[[int], Enum[int]]", x: int) -> Enum[int]:
         return mk_enum(x)
 
     @guppy

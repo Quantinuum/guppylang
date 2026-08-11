@@ -1,10 +1,11 @@
 import ast
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
 import hugr.build.function as hf
 from guppylang.defs import GuppyDefinition
-from hugr import Node, Wire, envelope, ops, val
+from hugr import Node, Wire, envelope, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DILocation, DISubprogram
@@ -21,6 +22,7 @@ from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.compiler.builder.ops import unpack_tuple
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -44,14 +46,16 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.metadata.common import MetadataUnitaryFlags
 from guppylang_internals.metadata.debug_info_util import make_location_record
 from guppylang_internals.nodes import GlobalCall
-from guppylang_internals.span import SourceMap, Span, ToSpan
+from guppylang_internals.span import SourceMap, Span
 from guppylang_internals.std._internal.compiler.array import (
     array_new,
     array_unpack,
 )
 from guppylang_internals.std._internal.compiler.quantum import from_halfturns_unchecked
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type, bool_type, float_type
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import (
@@ -59,6 +63,7 @@ from guppylang_internals.tys.ty import (
     FunctionType,
     InputFlags,
     Type,
+    UnitaryFlags,
     row_to_type,
 )
 
@@ -90,10 +95,14 @@ class RawPytketDef(ParsableDef):
         if not has_empty_body(func_ast):
             # Function stub should have empty body.
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
-        stub_signature = check_signature(func_ast, globals, self.id)
+
+        unitary_flags = _infer_unitary_flags_from_circuit(self.input_circuit)
+        stub_signature = check_signature(
+            func_ast, globals, self.id, unitary_flags=unitary_flags
+        )
 
         # Compare signatures.
-        circuit_signature = _signature_from_circuit(self.input_circuit, self.defined_at)
+        circuit_signature = _signature_from_circuit(self.input_circuit, unitary_flags)
         if not (
             circuit_signature.inputs == stub_signature.inputs
             and circuit_signature.output == stub_signature.output
@@ -111,6 +120,7 @@ class RawPytketDef(ParsableDef):
             self.input_circuit,
             False,
             None,
+            unitary_flags_value=unitary_flags.value,
         )
 
 
@@ -136,8 +146,9 @@ class RawLoadPytketDef(ParsableDef):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedPytketDef":
         """Creates a function signature based on the user-provided circuit."""
+        unitary_flags = _infer_unitary_flags_from_circuit(self.input_circuit)
         circuit_signature = _signature_from_circuit(
-            self.input_circuit, self.source_span, self.use_arrays
+            self.input_circuit, unitary_flags, self.use_arrays
         )
 
         return ParsedPytketDef(
@@ -148,6 +159,7 @@ class RawLoadPytketDef(ParsableDef):
             self.input_circuit,
             self.use_arrays,
             self.source_span,
+            unitary_flags.value,
         )
 
 
@@ -162,12 +174,15 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         ty: The type of the function.
         input_circuit: The user-provided pytket circuit.
         use_arrays: Whether the circuit function should use arrays as input types.
+        unitary_flags_value: The integer value of the unitary flags for this circuit.
     """
 
     input_circuit: Any
     use_arrays: bool
 
     source_span: Span | None  # Only set for load_pytket for debug purposes.
+
+    unitary_flags_value: int
 
     description: str = field(default="pytket circuit", init=False)
 
@@ -195,6 +210,12 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         outer_func = module.module_root_builder().define_function(
             self.name, func_type.body.input, func_type.body.output
         )
+
+        hugr_func_metadata = module.hugr[hugr_func].metadata
+        outer_func_metadata = module.hugr[outer_func].metadata
+        hugr_func_metadata[MetadataUnitaryFlags] = self.unitary_flags_value
+        outer_func_metadata[MetadataUnitaryFlags] = self.unitary_flags_value
+
         # Add circuit function definition metadata (we can't add metadata to the
         # internal circuit function as we don't have that information).
         # Depending on how the circuit was loaded, we have either a function stub node
@@ -214,7 +235,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                     line_no=self.source_span.start.line,
                     scope_line=None,
                 )
-            outer_func.metadata[HugrDebugInfo] = func_metadata
+            outer_func_metadata[HugrDebugInfo] = func_metadata
         outer_func = FunctionBuilder(outer_func)
         # Number of qubit inputs in the outer function.
         offset = (
@@ -247,7 +268,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         # Symbolic parameters (if present) get passed after qubits and bools.
         num_params = len(self.input_circuit.free_symbols())
         has_params = num_params != 0
-        if has_params and "TKET1.input_parameters" not in hugr_func.metadata:
+        if has_params and "TKET1.input_parameters" not in hugr_func_metadata:
             raise InternalGuppyError(
                 "Parameter metadata is missing from pytket circuit HUGR"
             ) from None
@@ -263,31 +284,32 @@ class ParsedPytketDef(CallableDef, CompilableDef):
                 )
                 lex_params = list(unpack_result)
             param_order = cast(
-                "list[str]", hugr_func.metadata["TKET1.input_parameters"]
+                "list[str]", hugr_func_metadata["TKET1.input_parameters"]
             )
             lex_names = sorted(param_order)
             name_to_param = dict(zip(lex_names, lex_params, strict=True))
             angle_wires = [name_to_param[name] for name in param_order]
             # Need to convert all angles to rotations.
             for angle in angle_wires:
-                [halfturns] = outer_func.add_op(ops.UnpackTuple([FLOAT_T]), angle)
+                [halfturns] = outer_func.add_op(unpack_tuple([FLOAT_T]), angle)
                 rotation = outer_func.add_op(from_halfturns_unchecked(), halfturns)
                 param_wires.append(rotation)
 
-        # Pass all arguments to call node. Note that since we are using a
-        # FunctionBuilder, this will default to assuming that the target function
-        # is side-effecting, so may produce more order edges than necessary.
-        call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
+        # Pass all arguments to call node.
+        # Pytket circuits can contain `unwrap` operations which can panic.
+        # (This should match `def call_effects` in `CompiledPytketDef` below.)
+        call_node = outer_func.call(
+            hugr_func, *(input_list + bool_wires + param_wires), effects=[Effect.ANY]
+        )
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
+            call_metadata = outer_func._raw.hugr[call_node].metadata
             # Function stub case.
             if self.defined_at is not None:
-                call_node.metadata[HugrDebugInfo] = make_location_record(
-                    self.defined_at
-                )
+                call_metadata[HugrDebugInfo] = make_location_record(self.defined_at)
             # Load pytket case,
             elif self.source_span is not None:
-                call_node.metadata[HugrDebugInfo] = DILocation(
+                call_metadata[HugrDebugInfo] = DILocation(
                     column=self.source_span.start.column,
                     line_no=self.source_span.start.line,
                 )
@@ -333,6 +355,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             self.input_circuit,
             self.use_arrays,
             self.source_span,
+            self.unitary_flags_value,
             outer_func,
         )
 
@@ -367,11 +390,18 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
         defined_at: The AST node where the function was defined.
         ty: The type of the function.
         input_circuit: The user-provided pytket circuit.
-        func_df: The Hugr function definition.
+        func_def: The Hugr function definition.
         use_arrays: Whether the circuit function uses arrays as input types.
+        unitary_flags_value: The integer value of the unitary flags for this circuit.
+
     """
 
     func_def: hf.Function
+
+    @property
+    def call_effects(self) -> Iterable[Effect]:
+        # Pytket circuits may contain borrow-array unpacks, which can panic.
+        return [Effect.ANY]
 
     @property
     def hugr_node(self) -> Node:
@@ -394,16 +424,17 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, dfg, self.ty, self.func_def, node)
+        return compile_call(
+            args, dfg, self.ty, self.func_def, node, effects=self.call_effects
+        )
 
 
 def _signature_from_circuit(
     input_circuit: Any,
-    defined_at: ToSpan | None,
+    unitary_flags: UnitaryFlags,
     use_arrays: bool = False,
 ) -> FunctionType:
     """Helper function for inferring a function signature from a pytket circuit."""
-    # May want to set proper unitary flags in the future.
     from guppylang.std.angles import angle  # Avoid circular imports
     from guppylang.std.quantum import qubit
     from pytket.circuit import Circuit  # Decoupled import
@@ -434,8 +465,7 @@ def _signature_from_circuit(
             array_type(bool_type(), c_reg.size) for c_reg in input_circuit.c_registers
         ]
         circuit_signature = FunctionType(
-            inputs,
-            row_to_type(outputs),
+            inputs, row_to_type(outputs), unitary_flags=unitary_flags
         )
     else:
         param_inputs = [
@@ -446,5 +476,32 @@ def _signature_from_circuit(
             [FuncInput(qubit_ty, InputFlags.Inout)] * input_circuit.n_qubits
             + param_inputs,
             row_to_type([bool_type()] * input_circuit.n_bits),
+            unitary_flags=unitary_flags,
         )
     return circuit_signature
+
+
+def _infer_unitary_flags_from_circuit(input_circuit: Any) -> UnitaryFlags:
+    """Helper function for inferring unitary flags from a pytket circuit."""
+
+    from pytket.circuit import Circuit, OpType  # Decoupled import
+    from pytket.utils.stats import gate_counts  # Decoupled import
+
+    assert isinstance(input_circuit, Circuit)
+
+    # Classical bits are present in the circuit, we cannot ensure unitarity.
+    if input_circuit.n_bits > 0:
+        return UnitaryFlags.NoFlags
+
+    # The circuit creates or discards qubits, we cannot ensure unitarity.
+    if input_circuit.created_qubits or input_circuit.discarded_qubits:
+        return UnitaryFlags.NoFlags
+
+    counter = gate_counts(input_circuit)
+
+    # List of not unitary operations that not involve classical bits.
+    for op in {OpType.Reset, OpType.Collapse}:
+        if counter[op] > 0:
+            return UnitaryFlags.NoFlags
+
+    return UnitaryFlags.Unitary

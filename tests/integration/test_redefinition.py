@@ -1,7 +1,7 @@
 import pytest
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import power
+from guppylang.std.builtins import dagger
 
 from guppylang_internals.error import GuppyError
 
@@ -167,7 +167,7 @@ def test_struct_method_redefinition(validate):
 def test_redefinition_after_modifier(validate):
     @guppy
     def foo(x: int) -> int:
-        with power(2):
+        with dagger:
             x = x
         x = 2
         return x

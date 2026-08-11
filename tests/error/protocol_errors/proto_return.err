@@ -1,0 +1,8 @@
+Error: Protocols are not allowed as return types (at $FILE:15:13)
+   | 
+13 | 
+14 | @guppy
+15 | def bar() -> Proto:
+   |              ^^^^^ `Proto` is a protocol, which is not allowed as a return type
+
+Guppy compilation failed due to 1 previous error

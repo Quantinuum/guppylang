@@ -9,14 +9,20 @@ class _DummyGuppy:
     functions are recognised as regular functions and included in docs.
     """
 
-    def __call__(self, f: Any) -> Any:
-        return f
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        if kwargs:
+            return _DummyGuppy()
+        match args:
+            case [f]:
+                return f
 
     def comptime(self, f: Any) -> Any:
         return f
 
-    def struct(self, cls: Any) -> Any:
-        return cls
+    def struct(self, *args: Any, **kwargs: Any) -> Any:
+        if args:
+            return args[0]
+        return lambda cls: cls
 
     def enum(self, cls: Any) -> Any:
         return cls
@@ -46,9 +52,6 @@ class _DummyGuppy:
         return None
 
     def _extern(self, *args: Any, **kwargs: Any) -> Any:
-        return None
-
-    def library(self, *args: Any, **kwargs: Any) -> Any:
         return None
 
     def pytket(self, *args: Any, **kwargs: Any) -> Any:

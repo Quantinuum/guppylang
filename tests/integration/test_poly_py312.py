@@ -325,3 +325,20 @@ def test_generic_tuple_chain(validate):
         return foo(comptime((1, 2)))
 
     validate(main.compile_function())
+
+
+def test_struct_unused_param(validate):
+    """See https://github.com/Quantinuum/guppylang/issues/2047"""
+
+    @guppy.struct(frozen=True)
+    class MyStruct[T]:
+        """A struct that is generic over a type this isn't used in a field."""
+
+    @guppy
+    def main() -> None:
+        s = MyStruct[qubit]()
+        # We're allowed to copy `s` since it actually doesn't contain a qubit
+        s1, s2 = s, s
+        # We're also allowed to drop all of them
+
+    validate(main.compile_function())

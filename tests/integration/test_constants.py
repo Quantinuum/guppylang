@@ -1,7 +1,7 @@
 """Constants are only loaded by execution compilers (not validation), test that."""
 
 from guppylang.decorator import guppy
-from guppylang.std.builtins import output, comptime
+from guppylang.std.builtins import output
 
 
 def test_basic_type(run_int_fn):
@@ -35,8 +35,7 @@ def test_tuples(run_int_fn):
 
     @guppy
     def main() -> int:
-        g_t = comptime(tup)
-        x = g_t[0]
+        x = tup[0]
         output("x", x)
         return 0
 

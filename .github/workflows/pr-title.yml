@@ -3,10 +3,11 @@ on:
   pull_request_target:
     branches:
       - main
-      # Also run on the 0.21.x series. This has to be configured on the main
-      # branch since we are using `pull_request_target`, which runs in that
-      # context.
+      # Also run on the 0.21.x series and other release branches. This has
+      # to be configured on the main branch since we are using
+      # `pull_request_target`, which runs in that context.
       - guppylang-0.21
+      - release/**
     types:
       - opened
       - edited

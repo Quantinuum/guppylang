@@ -13,6 +13,7 @@ from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
+    AbortExpr,
     AnyCall,
     BarrierExpr,
     CheckedModifiedBlock,
@@ -144,23 +145,41 @@ class BBUnitaryChecker(ast.NodeVisitor):
         for stmt in statements:
             self.visit(stmt)
 
-    def _check_classical_args(self, args: list[ast.expr]) -> bool:
+    def _check_args(self, args: list[ast.expr]) -> bool:
+        """Recursively checks the arguments of a call.
+        Returns True if the call is classical"""
         for arg in args:
             self.visit(arg)
-            if contain_qubit_ty(get_type(arg)):
-                return False
-        return True
+        return all(not contain_qubit_ty(get_type(arg)) for arg in args)
 
     def _check_call(
-        self, node: AnyCall, ty: FunctionType, func: CallableDef | None = None
+        self, node: AnyCall, call_ty: FunctionType, func: CallableDef | None = None
     ) -> None:
         """
         `func`: it's only used for a better error message when the call is a GlobalCall.
         Is None for LocalCall and TensorCall.
         """
-        classic_args = self._check_classical_args(node.args)
-        flag_ok = self.flags in ty.unitary_flags
-        if not classic_args and not flag_ok:
+
+        # If we are under any modifier, we cannot allocate qubits
+        if contain_qubit_ty(call_ty.output) and self.flags != UnitaryFlags.NoFlags:
+            err = UnitaryCallError(node, self.flags, missing_keyword_hint=False)
+            err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
+            raise GuppyError(err)
+
+        # If the function has quantum i/o, the flags must be compatible with the
+        # function's unitary flags. Otherwise, if the function is classical, we only
+        # need to check that if we are in dagger (or unitary) context, the function
+        # is daggerable.
+        is_classic_fun = self._check_args(node.args)
+        if is_classic_fun:
+            if UnitaryFlags.Dagger not in self.flags:
+                is_a_valid_call = True
+            else:
+                is_a_valid_call = UnitaryFlags.Dagger in call_ty.unitary_flags
+        else:
+            is_a_valid_call = self.flags in call_ty.unitary_flags
+
+        if not is_a_valid_call:
             from guppylang_internals.definition.custom import CustomFunctionDef
             from guppylang_internals.definition.function import ParsedFunctionDef
 
@@ -169,22 +188,42 @@ class BBUnitaryChecker(ast.NodeVisitor):
             if isinstance(func, CustomFunctionDef):
                 err = UnitaryCallError(
                     node,
-                    self.flags & (~ty.unitary_flags),
+                    self.flags & (~call_ty.unitary_flags),
                     missing_keyword_hint=True,
                 )
-            elif func is not None:
-                err = UnitaryCallError(
-                    node,
-                    self.flags & (~ty.unitary_flags),
-                    missing_keyword_hint=False,
-                )
-                if (
-                    isinstance(func, ParsedFunctionDef)
-                    and func.parsed_modified_defs is not None
-                ):
-                    # NICOLA: TODO: this error must be improved
+            else:
+                if func is not None:
+                    err = UnitaryCallError(
+                        node,
+                        self.flags & (~call_ty.unitary_flags),
+                        missing_keyword_hint=False,
+                    )
+                    from guppylang_internals.definition.pytket_circuits import (
+                        ParsedPytketDef,
+                    )
+
+                    if isinstance(func, ParsedPytketDef):
+                        err.add_sub_diagnostic(
+                            UnitaryCallError.PytketHint(None, func.name)
+                        )
+                    else:
+                        err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
+                else:
+                    # If func is None, we are checking a higher-order call
+                    missing_flags = self.flags & (~call_ty.unitary_flags)
+                    err = UnitaryCallError(
+                        node,
+                        missing_flags,
+                        missing_keyword_hint=False,
+                    )
                     err.add_sub_diagnostic(
-                        UnitaryCallError.CustomModifiedHint(None, func.name)
+                        UnitaryCallError.HigherOrderHint(
+                            None,
+                            missing_flags.callable_name(),
+                            "higher-order"
+                            if call_ty.unitary_flags == UnitaryFlags.NoFlags
+                            else call_ty.unitary_flags.callable_name(),
+                        )
                     )
                 else:
                     err.add_sub_diagnostic(
@@ -210,12 +249,6 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
             raise GuppyTypeError(err)
 
-        # If we are under any modifier, we cannot allocate qubits
-        if contain_qubit_ty(ty.output) and self.flags != UnitaryFlags.NoFlags:
-            err = UnitaryCallError(node, self.flags, missing_keyword_hint=False)
-            err.add_sub_diagnostic(UnitaryCallError.QubitAllocationNote(None))
-            raise GuppyError(err)
-
     def visit_GlobalCall(self, node: GlobalCall) -> None:
         func = ENGINE.get_parsed(node.def_id)
         assert isinstance(func, CallableDef)
@@ -234,8 +267,32 @@ class BBUnitaryChecker(ast.NodeVisitor):
         pass
 
     def visit_StateOutputExpr(self, node: StateOutputExpr) -> None:
-        # StateOutput is always allowed
-        pass
+        # State output is not allowed under dagger, since the execution order
+        # is not guaranteed
+        if UnitaryFlags.Dagger in self.flags:
+            raise GuppyTypeError(
+                UnitaryCallError(
+                    node,
+                    self.flags,
+                    missing_keyword_hint=True,
+                )
+            )
+
+    def visit_AbortExpr(self, node: AbortExpr) -> None:
+        # panics and exits are not allowed under dagger, since the execution order
+        # is not guaranteed
+        if UnitaryFlags.Dagger in self.flags:
+            raise GuppyTypeError(
+                UnitaryCallError(
+                    node,
+                    self.flags,
+                    missing_keyword_hint=True,
+                )
+            )
+        self.visit(node.signal)
+        self.visit(node.msg)
+        for value in node.values:
+            self.visit(value)
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
         # Nested modified blocks are checked separately by the CFG checker

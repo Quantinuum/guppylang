@@ -80,10 +80,13 @@ ignore = [
 "guppy/decorator.py" = ["B010"]
 "tests/integration/*" = ["F841", "C416", "RUF005", "RUF012", "TC001"]
 "tests/{hugr,integration}/*" = ["B", "FBT", "SIM", "I"]
+"scripts/release/*" = ["T201"]                                        # CLI scripts print to stdout
 "__init__.py" = ["F401"]                                              # module imported but unused
 
 [per-file-target-version]
 "tests/*/*_py312.py" = "py312"
+"guppylang/src/guppylang/std/either.py" = "py312"
+"guppylang/src/guppylang/std/err.py" = "py312"
 
 # [pydocstyle]
 # convention = "google"

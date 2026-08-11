@@ -1,4 +1,4 @@
-from guppylang.decorator import guppy
+from guppylang.decorator import expected_qubits, guppy
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.emulator.exceptions import EmulatorBuildError
 from guppylang.std.builtins import output, array, comptime, exit, panic
@@ -111,15 +111,16 @@ def test_no_given_qubits() -> None:
         EmulatorBuildError,
         match=(
             r"Number of qubits to be used must be specified, either as an argument to "
-            r"`emulator` or hinted on the entrypoint function using "
-            r"`@guppy\(max_qubits=...\)`."
+            r"`emulator` or hinted on the entrypoint function using the decorator "
+            r"`@expected_qubits`."
         ),
     ):
         main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
 
 
 def test_hinted_qubits() -> None:
-    @guppy(max_qubits=1)
+    @guppy
+    @expected_qubits(1)
     def main() -> None:
         output("c", measure(qubit()).read())
 
@@ -128,7 +129,8 @@ def test_hinted_qubits() -> None:
 
 
 def test_hinted_qubits_with_given_qubits() -> None:
-    @guppy(max_qubits=1)
+    @guppy
+    @expected_qubits(1)
     def main() -> None:
         qubits = array(qubit() for _ in range(4))
         output("c", collect_measurements(measure_array(qubits)))
@@ -138,7 +140,8 @@ def test_hinted_qubits_with_given_qubits() -> None:
 
 
 def test_hinted_qubits_with_insufficient_given_qubits() -> None:
-    @guppy(max_qubits=3)
+    @guppy
+    @expected_qubits(3)
     def main() -> None:
         output("c", measure(qubit()).read())
 
@@ -183,10 +186,10 @@ def test_zeros():
     N = 2
 
     @guppy
-    def main() -> array[qubit, comptime(N)]:
+    def main() -> array[qubit, N]:
         q = array(qubit(), qubit())
-        for i in range(comptime(N)):
-            output("c", project_z(q[i]))
+        for i in range(N):
+            output("c", project_z(q[i]).read())
         return q
 
     res = _build_run(main, n_qubits=N).results[0].entries
@@ -278,7 +281,7 @@ def test_alloc_free():
         qfree(q1)
         b2 = project_z(q0)
         output("c0", b1.read())
-        output("c1", b2)
+        output("c1", b2.read())
         output("c2", measure(q0).read())
 
     res = _build_run(main, n_qubits=2, n_shots=1, seed=12).results[0].entries
@@ -290,7 +293,7 @@ def test_multi_alloc_free():
 
     @guppy
     def main() -> None:
-        for _ in range(comptime(N)):
+        for _ in range(N):
             q = qubit()
             output("c", measure(q).read())
 
@@ -396,7 +399,7 @@ def test_static_array_bool():
 def get_statevector(main: GuppyFunctionDefinition, n_qubits: int) -> StateVector:
     @guppy
     def wrapper() -> None:
-        qs = array(qubit() for _ in range(comptime(n_qubits)))
+        qs = array(qubit() for _ in range(n_qubits))
         main(qs)
         state_output("result_state", qs)
         discard_array(qs)

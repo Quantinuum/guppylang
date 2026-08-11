@@ -5,6 +5,8 @@ from guppylang import guppy
 
 import pytest
 
+from guppylang.library import GuppyLibrary
+
 
 @pytest.fixture
 def qualifier(request) -> str:
@@ -43,7 +45,7 @@ def test_top_level_members_public(validate, qualifier):
         @guppy.declare
         def member_decl(self) -> None: ...
 
-    library = guppy.library(
+    library = GuppyLibrary.from_members(
         func_1,
         func_2,
         MyStruct,
@@ -85,7 +87,7 @@ def test_non_members_default_visibility(validate, qualifier):
         instance.member()
         instance.member_decl()
 
-    library = guppy.library(main)
+    library = GuppyLibrary.from_members(main)
 
     compiled_library = library.compile()
     validate(compiled_library)
@@ -124,7 +126,7 @@ def test_ensure_nested_members_private(validate, qualifier):
         instance = MyStruct()
         instance.member()
 
-    library = guppy.library(main)
+    library = GuppyLibrary.from_members(main)
 
     compiled_library = library.compile()
     validate(compiled_library)

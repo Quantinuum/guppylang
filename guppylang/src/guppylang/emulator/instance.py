@@ -4,11 +4,12 @@ Configuring and executing emulator instances for guppy programs.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, cast
 
 from hugr.qsystem.result import QsysShot
+from selene_argreader_plugin import ArgProvider
 from selene_sim.backends.bundled_error_models import IdealErrorModel
 from selene_sim.backends.bundled_runtimes import SimpleRuntime
 from selene_sim.backends.bundled_simulators import Coinflip, Quest, Stim
@@ -16,12 +17,18 @@ from selene_sim.event_hooks import EventHook, NoEventHook
 from tqdm import tqdm
 from typing_extensions import Self
 
+from ._args import (
+    ArgValue,
+    EntrypointArgValueError,
+    validate_per_shot_args,
+    validate_record,
+)
 from .exceptions import EmulatorError
 from .result import EmulatorResult
 
 if TYPE_CHECKING:
     import datetime
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Mapping
     from pathlib import Path
 
     from hugr.qsystem.result import TaggedResult
@@ -30,13 +37,32 @@ if TYPE_CHECKING:
     from selene_core.simulator import Simulator
     from selene_sim.instance import SeleneInstance
 
+    from ._args import EntrypointArgSpec
+
+
+def _to_provider_args(args: Mapping[str, ArgValue]) -> dict[str, ArgValue]:
+    """Convert a mapping of argument values to a dict suitable for ``ArgProvider``.
+
+    ``ArgProvider`` requires array arguments to be plain ``list``; this converts
+    any other sequence (tuple, numpy array, etc.) to ``list``.
+    """
+
+    def _coerce(v: ArgValue) -> ArgValue:
+        if isinstance(v, (bool, int, float)):
+            return v
+        if isinstance(v, Sequence):
+            return list(v)
+        raise TypeError(f"Unexpected argument value type: {type(v).__name__!r}")
+
+    return {k: _coerce(v) for k, v in args.items()}
+
 
 @dataclass(frozen=True)
 class _Options:
     _simulator: Simulator = field(default_factory=Quest)
     _runtime: Runtime = field(default_factory=SimpleRuntime)
     _error_model: ErrorModel = field(default_factory=IdealErrorModel)
-    _shots: int = 1
+    _shots: int | None = None
     _shot_increment: int = 1
     _shot_offset: int = 0
     _seed: int | None = None
@@ -62,6 +88,7 @@ class EmulatorInstance:
     _instance: SeleneInstance
     _n_qubits: int
     _options: _Options = field(default_factory=_Options)
+    _arg_specs: tuple[EntrypointArgSpec, ...] = ()
 
     def _with_option(self, **kwargs: Any) -> Self:
         """Helper method to simplify setting options."""
@@ -74,8 +101,11 @@ class EmulatorInstance:
 
     @property
     def shots(self) -> int:
-        """Number of shots to run for each execution."""
-        return self._options._shots
+        """Number of shots to run for each execution.
+
+        Defaults to 1 when unset (``with_shots`` was never called).
+        """
+        return self._options._shots if self._options._shots is not None else 1
 
     @property
     def simulator(self) -> Simulator:
@@ -211,11 +241,80 @@ class EmulatorInstance:
         This only works for clifford circuits but is very fast."""
         return self.with_simulator(Stim())
 
-    def run(self) -> EmulatorResult:
+    def run(self, **args: ArgValue) -> EmulatorResult:
         """Run the emulator instance and return the results.
-        By default runs one shot, this can be configured with `with_shots()`."""
-        result_stream = self._run_instance()
 
+        By default runs one shot, this can be configured with `with_shots()`.
+
+        If the entrypoint takes runtime arguments, their values must be passed as
+        keyword arguments. Only ``bool``, signed ``int``, ``float``, and arrays of
+        those types are supported. The same values are used for every shot. For
+        example::
+
+            main.emulator(n_qubits=2).run(theta=1.5, n=3)
+
+        To vary arguments per shot, use :meth:`run_per_shot` instead.
+        """
+        if not self._arg_specs:
+            if args:
+                raise EntrypointArgValueError(
+                    "This entrypoint takes no runtime arguments, but got: "
+                    + ", ".join(f"`{name}`" for name in args)
+                )
+            return self._collect_results(self._run_instance())
+
+        validate_record(self._arg_specs, args)
+        provider = ArgProvider()
+        provider.set_constant_args(**_to_provider_args(args))
+        with provider:
+            return self._collect_results(self._run_instance())
+
+    def run_per_shot(self, args: Sequence[Mapping[str, ArgValue]]) -> EmulatorResult:
+        """Run the emulator with a different set of runtime arguments per shot.
+
+        ``args`` is a sequence with one mapping of argument values per shot, so
+        the number of shots run is ``len(args)``. For example::
+
+            main.emulator(n_qubits=2).run_per_shot(
+                [{"theta": 1.0, "n": 10}, {"theta": 2.5, "n": 20}]
+            )
+
+        Because each record corresponds to exactly one shot, the shot count is
+        fixed by ``args``. If ``with_shots`` has been set explicitly to a value
+        that disagrees with ``len(args)`` this raises, rather than silently
+        picking one; not calling ``with_shots`` at all is always fine.
+
+        For constant arguments shared across all shots, use :meth:`run` instead.
+        """
+        if not self._arg_specs:
+            raise EntrypointArgValueError(
+                "This entrypoint takes no runtime arguments; `run_per_shot` is not "
+                "applicable."
+            )
+        validate_per_shot_args(self._arg_specs, args)
+        if self.shot_offset != 0:
+            raise ValueError(
+                "`run_per_shot` is not compatible with a non-zero shot offset "
+                f"(got {self.shot_offset}); per-shot arguments are indexed from 0."
+            )
+        set_shots = self._options._shots
+        if set_shots is not None and set_shots != len(args):
+            raise ValueError(
+                f"`with_shots` was set to {set_shots}, but `run_per_shot` was given "
+                f"{len(args)} argument record(s); the shot count is fixed by the "
+                "number of records. Remove the conflicting `with_shots` call."
+            )
+
+        instance = self.with_shots(len(args))
+        provider = ArgProvider()
+        provider.set_variable_args([_to_provider_args(record) for record in args])
+        with provider:
+            return instance._collect_results(instance._run_instance())
+
+    def _collect_results(
+        self, result_stream: Iterator[Iterator[TaggedResult]]
+    ) -> EmulatorResult:
+        """Drain a shot result stream into an :class:`EmulatorResult`."""
         all_results: list[QsysShot] = []
         for shot in self._iterate_shots(result_stream):
             shot_results = QsysShot()

@@ -1,0 +1,11 @@
+Error: Control constraint violation (at $FILE:14:8)
+   | 
+12 | def foo(c: qubit, q: array[qubit, 1]) -> None:
+13 |     with control(c):
+14 |         guppy_circ(q)
+   |         ^^^^^^^^^^^^^ This function cannot be called in a controllable context
+
+Help: The function `circ` corresponds to a pytket circuit containing a non
+unitary operation, which is not allowed in a controllable context.
+
+Guppy compilation failed due to 1 previous error

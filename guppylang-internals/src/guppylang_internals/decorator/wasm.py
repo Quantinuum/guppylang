@@ -112,6 +112,7 @@ def _wasm_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinitio
         WasmCallChecker(),
         WasmModuleCallCompiler(f.__name__, fn_id),
         True,
+        effects=[],  # No effects as all state in explicit Context
         signature=None,
         wasm_index=fn_id,
     )

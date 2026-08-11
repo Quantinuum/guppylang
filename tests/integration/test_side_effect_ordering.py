@@ -131,16 +131,14 @@ def test_call(validate):
         f = my_discard
         f(q2)
 
-    compiled = test.compile_function()
+    # Disable optimization so the calls don't get inlined.
+    compiled = test.with_minimal_opt().compile_function()
     validate(compiled)
 
     # Check that we have the expected order edges between the allocations and calls
     hugr = compiled.modules[0]
     [a1, a2] = find_ext_nodes(hugr, QUANTUM_EXTENSION.get_op("QAlloc").qualified_name())
-    [d1] = [node for node, data in hugr.nodes() if isinstance(data.op, ops.Call)]
-    [d2] = [
-        node for node, data in hugr.nodes() if isinstance(data.op, ops.CallIndirect)
-    ]
+    [d1, d2] = [node for node, data in hugr.nodes() if isinstance(data.op, ops.Call)]
     check_order(hugr, [a1, d1, a2, d2])
 
 

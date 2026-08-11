@@ -11,7 +11,7 @@ def test_metadata():
         pass
 
     hugr = foo.compile().modules[0]
-    meta = hugr.module_root.metadata
+    meta = hugr[hugr.module_root].metadata
     assert (
         meta[HugrGenerator].name
         == f"guppylang (guppylang-internals-v{guppylang_internals.__version__})"

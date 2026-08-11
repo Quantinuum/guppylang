@@ -1,6 +1,6 @@
 Traceback (most recent call last):
-  File "$FILE", line 11, in <module>
+  File "$FILE", line 10, in <module>
     test.compile()
-  File "$FILE", line 8, in test
+  File "$FILE", line 7, in test
     return f()
 guppylang_internals.error.GuppyComptimeError: Unsupported: Higher-order comptime functions are not supported

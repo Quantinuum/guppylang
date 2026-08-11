@@ -8,7 +8,7 @@ from tests.integration.modules import struct_scope_defs
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from guppylang.std.builtins import Function
 
 
 def test_basic_defs(validate):
@@ -87,7 +87,7 @@ def test_imported_struct_dependency_uses_defining_scope(validate):
     validate(main.compile_function())
 
 
-def test_generic(validate):
+def test_generic(validate, use_experimental_features):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
 
@@ -150,7 +150,7 @@ def test_higher_order(validate):
         x: T
 
     @guppy
-    def factory(mk_struct: "Callable[[int], Struct[int]]", x: int) -> Struct[int]:
+    def factory(mk_struct: "Function[[int], Struct[int]]", x: int) -> Struct[int]:
         return mk_struct(x)
 
     @guppy

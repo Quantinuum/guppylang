@@ -1,6 +1,6 @@
 import ast
 import inspect
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -58,6 +58,7 @@ from guppylang_internals.metadata.common import (
 )
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
@@ -268,14 +269,18 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     @override
     def check(self, type_args: Inst, globals: Globals) -> "CheckedFunctionDef":
         """Type checks the body of the function."""
-        cfg = check_global_func_def(self, type_args, globals)
-        mono_ty = self.ty.instantiate_partial(type_args)
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
+        cfg = check_global_func_def(
+            self.defined_at, self.ty, type_args, globals, mono_link_name
+        )
+        mono_ty = self.ty.instantiate_partial(type_args)
+
         checked_modified_defs = (
             self.parsed_modified_defs.check(type_args)
             if self.parsed_modified_defs is not None
             else None
         )
+
         return CheckedFunctionDef(
             self.id,
             self.name,
@@ -374,7 +379,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
                 self.metadata.set_modified_defs(compiled_modified_names)
 
         add_metadata(
-            func_def,
+            module.hugr[func_def].metadata,
             self.metadata,
         )
 
@@ -412,6 +417,13 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
 
     _func_bldr: FunctionBuilder
 
+    @override
+    @property
+    def call_effects(self) -> frozenset[Effect]:
+        # For now, an approximation. (We said, may occur.)
+        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
+        return frozenset([Effect.ANY])
+
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
@@ -431,7 +443,9 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, dfg, self.ty, self.hugr_node, node)
+        return compile_call(
+            args, dfg, self.ty, self.hugr_node, node, effects=self.call_effects
+        )
 
     @override
     def compile_inner(self, globals: CompilerContext) -> None:
@@ -484,11 +498,13 @@ def compile_call(
     ty: FunctionType,
     func: ToNode,
     call_ast: AstNode,
+    *,
+    effects: Iterable[Effect],
 ) -> CallReturnWires:
     """Compiles a call to the function."""
     num_returns = len(type_to_row(ty.output))
     with dfg.builder.set_ast_context(call_ast):
-        call = dfg.builder.call(func, *args)
+        call = dfg.builder.call(func, *args, effects=effects)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),
