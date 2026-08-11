@@ -341,16 +341,9 @@ def check_signature(
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
     has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
-    not_wasm_func = def_id not in DEF_STORE.wasm_functions
 
     # Check if method doesn't have any arguments.
-    # Excluding WASM functions where first argument must be a WASM module.
-    if (
-        has_parent
-        and not_wasm_func
-        and func_def.name != "__new__"
-        and not func_def.args.args
-    ):
+    if has_parent and func_def.name != "__new__" and not func_def.args.args:
         raise GuppyError(MissingSelfError(func_def))
 
     for i, inp in enumerate(func_def.args.args):
