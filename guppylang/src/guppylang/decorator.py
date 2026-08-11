@@ -327,15 +327,14 @@ class _Guppy:
         object.__setattr__(raw_func, "name", cls.__name__)
 
         # Update the unitary metadata according to the custom implementations
+
+        custom_implementations = _get_custom_implementations(cls, raw_func)
+
         (call_daggered, call_controlled, call_ctrl_daggered) = (
-            _get_custom_implementations(cls, raw_func, CALL_DAGGERED_METHOD)
+            custom_implementations[CALL_DAGGERED_METHOD],
+            custom_implementations[CALL_CONTROLLED_METHOD],
+            custom_implementations[CALL_CTRL_DAGGERED_METHOD],
         )
-        # call_controlled = _get_custom_implementations(
-        #     cls, raw_func, CALL_CONTROLLED_METHOD
-        # )
-        # call_ctrl_daggered = _get_custom_implementations(
-        #     cls, raw_func, CALL_CTRL_DAGGERED_METHOD
-        # )
         assert raw_func.metadata is not None
         _set_unitary_metadata(
             raw_func.metadata,
@@ -751,40 +750,8 @@ def _get_unitary_call_def(
     )
 
 
-# NICOLA: TODO: maybe rename this
-def _get_custom_implementations(
-    cls: builtins.type[T], parent: RawFunctionDef, name: str
-) -> tuple[RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None]:
-    """Returns an optional `@guppy`-annotated unitary modifier method.
-    Raises a `TypeError` if the method is not properly annotated with @guppy."""
-    methods = []
-
-    for name in [
-        CALL_DAGGERED_METHOD,
-        CALL_CONTROLLED_METHOD,
-        CALL_CTRL_DAGGERED_METHOD,
-    ]:
-        val = cls.__dict__.get(name)
-        if val is not None:
-            if isinstance(val, GuppyDefinition) and isinstance(
-                val.wrapped, RawFunctionDef
-            ):
-                DEF_STORE.register_custom_def(parent.id, val.id)
-
-                methods.append(val.wrapped)
-
-            raise TypeError(
-                f"`{name}` in the `@guppy.unitary` class `{cls.__name__}` must be a guppy "
-                f"function"
-            )
-        else:
-            methods.append(None)
-
-    return tuple(methods)
-
-
 # NICOLA: TODO: RESTART FROM HERE: use this properly
-def _get_custom_implementations2(
+def _get_custom_implementations(
     cls: builtins.type[T], parent: RawFunctionDef, name: str
 ) -> dict[str, RawFunctionDef | None]:
     custom_methods = defaultdict(lambda: None)
