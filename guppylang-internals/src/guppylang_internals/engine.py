@@ -98,9 +98,8 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.function import (
-        ParsedFunctionDef,
-    )
+    from guppylang_internals.checker.core import Globals
+    from guppylang_internals.definition.function import ParsedFunctionDef
 
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
@@ -312,11 +311,11 @@ class CompilationEngine:
 
         # If `defn` has any custom modified definitions linked to it,
         # we need to make sure that they are also parsed.
-        custom_modified_defs = DEF_STORE.custom_modified_defs[defn.id]
-        if custom_modified_defs:
+        custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
+        if custom_modified_ids:
             # Only CallableDef can have custom modified definitions
             assert isinstance(defn, CallableDef)
-            for custom_def_id in custom_modified_defs:
+            for custom_def_id in custom_modified_ids:
                 if custom_def_id not in self.parsed:
                     custom_defn = DEF_STORE.raw_defs[custom_def_id]
                     assert isinstance(custom_defn, ParsableDef)
@@ -347,21 +346,27 @@ class CompilationEngine:
         if isinstance(defn, CheckableDef):
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
-            try:
-                checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
-            except GuppyError as err:
-                # If this is an error arising from the initial parametric check where
-                # parameters are treated as opaque values, then we can just report the
-                # error as is. However, if the error only shows up once we check a
-                # concrete monomorphic instantiation, then we should also report this
-                # instantiation in the error message to give some additional context.
-                if instantiation_context_is_useful_for_error(mono_args):
-                    err.error.add_sub_diagnostic(
-                        MonoArgsNote(None, defn.params, mono_args)
-                    )
-                raise
-            defn = checked_defn
+            defn = _check_generic_def_instantiation(
+                defn, mono_args, Globals(DEF_STORE.frames[defn.id])
+            )
         self.checked[id, mono_args] = defn
+
+        custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
+        for custom_modified_id in custom_modified_ids:
+            if (custom_modified_id, mono_args) in self.checked:
+                return self.checked[custom_modified_id, mono_args]
+            custom_modified_defn = self.get_parsed(custom_modified_id)
+            assert isinstance(custom_modified_defn, CheckableGenericDef)
+            # controlled implematation has an extra parameter for the controllers
+            mono_args = (
+                mono_args
+                if len(mono_args) == len(custom_modified_defn.params)
+                else tuple(param.to_bound() for param in custom_modified_defn.params)
+            )
+            checked_defn = _check_generic_def_instantiation(
+                custom_modified_defn, mono_args, Globals(DEF_STORE.frames[defn.id])
+            )
+            self.checked[custom_modified_id, mono_args] = checked_defn
 
         from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
@@ -554,6 +559,7 @@ class CompilationEngine:
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
+            # NICOLA: NOTE: Here we call the compile outer, in `build_compiled_def`
             requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
         ctx.iterate_worklist()
         self.compiled = ctx.compiled
@@ -589,15 +595,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(
@@ -682,6 +684,22 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
         raise GuppyError(
             EntryMonomorphizeError(defn.defined_at, description, defn.params)
         )
+
+
+def _check_generic_def_instantiation(
+    defn: CheckableGenericDef, mono_args: Inst, globals: "Globals"
+) -> CheckedDef:
+    try:
+        return defn.check(mono_args, globals)
+    except GuppyError as err:
+        # If this is an error arising from the initial parametric check where
+        # parameters are treated as opaque values, then we can just report the
+        # error as is. However, if the error only shows up once we check a
+        # concrete monomorphic instantiation, then we should also report this
+        # instantiation in the error message to give some additional context.
+        if instantiation_context_is_useful_for_error(mono_args):
+            err.error.add_sub_diagnostic(MonoArgsNote(None, defn.params, mono_args))
+        raise
 
 
 def instantiation_context_is_useful_for_error(mono_args: Inst) -> bool:

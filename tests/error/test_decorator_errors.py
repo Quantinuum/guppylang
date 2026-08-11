@@ -33,3 +33,50 @@ def test_metadata_decorator_arguments():
         class MyStruct:
             x: int
             y: int
+
+
+def test_unitary_custom_method_must_be_guppy_function():
+    with pytest.raises(
+        TypeError,
+        match=r"`daggered` in the `@guppy\.unitary` class `Foo` must be a guppy function",
+    ):
+        @guppy.unitary
+        class Foo:
+            @guppy
+            def __call__() -> None:
+                pass
+
+            @guppy.struct
+            class daggered:
+                value: int
+
+
+def test_unitary_rejects_unrecognised_guppy_method():
+    with pytest.raises(
+        TypeError,
+        match=r"Only guppy function named .* are allowed .* Found `other`",
+    ):
+        @guppy.unitary
+        class Foo:
+            @guppy
+            def __call__() -> None:
+                pass
+
+            @guppy
+            def other() -> None:
+                pass
+
+
+def test_unitary_custom_method_requires_guppy_decorator():
+    with pytest.raises(
+        TypeError,
+        match=r"`controlled` in the `@guppy\.unitary` class `Foo` must be a guppy function",
+    ):
+        @guppy.unitary
+        class Foo:
+            @guppy
+            def __call__() -> None:
+                pass
+
+            def controlled() -> None:
+                pass

@@ -338,7 +338,6 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             hugr_ty.params,
             visibility="Public" if self.id in ctx.exported_defs else "Private",
         )
-
         if debug_mode_enabled():
             assert self.metadata is not None
             self.metadata.set_debug_info(make_subprogram_record(self.defined_at, ctx))
@@ -346,7 +345,6 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             module.hugr[func_def].metadata,
             self.metadata,
         )
-
         return CompiledFunctionDef(
             self.id,
             self.name,

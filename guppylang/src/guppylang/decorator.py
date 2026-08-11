@@ -870,7 +870,6 @@ def _get_custom_methods(
         CALL_CTRL_DAGGERED_METHOD,
     )
 
-    # NICOLA: TODO: Test these errors
     for method_name, method in cls.__dict__.items():
         if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
             if isinstance(method.wrapped, RawFunctionDef):
@@ -887,7 +886,6 @@ def _get_custom_methods(
             and method_name not in custom_methods_names
             and method_name != "__call__"
         ):
-            print(type(method))
             raise TypeError(
                 f"Only guppy function named {custom_methods_names} are allowed as a "
                 f"method in a `@guppy.unitary` class. Found `{method_name}`.",
