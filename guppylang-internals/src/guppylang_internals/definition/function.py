@@ -111,17 +111,6 @@ class RawModifiedDefs:
     call_controlled: "RawFunctionDef | None" = None
     call_ctrl_daggered: "RawFunctionDef | None" = None
 
-    def parse(self, parent_ty: FunctionType) -> "ParsedModifiedDefs":
-        parsed_call_daggered = _parse_modified_def(self.call_daggered)
-        parsed_call_controlled = _parse_modified_def(self.call_controlled)
-        parsed_call_ctrl_daggered = _parse_modified_def(self.call_ctrl_daggered)
-        parsed_definitions = ParsedModifiedDefs(
-            parsed_call_daggered,
-            parsed_call_controlled,
-            parsed_call_ctrl_daggered,
-        )
-        return parsed_definitions
-
 
 @dataclass(frozen=True)
 class ParsedModifiedDefs:
@@ -130,13 +119,6 @@ class ParsedModifiedDefs:
     call_daggered: "ParsedFunctionDef | None" = None
     call_controlled: "ParsedFunctionDef | None" = None
     call_ctrl_daggered: "ParsedFunctionDef | None" = None
-
-    def check(self, type_args: Inst) -> "CheckedModifiedDefs":
-        return CheckedModifiedDefs(
-            call_daggered=_check_modified_def(self.call_daggered, type_args),
-            call_controlled=_check_modified_def(self.call_controlled, type_args),
-            call_ctrl_daggered=_check_modified_def(self.call_ctrl_daggered, type_args),
-        )
 
 
 @dataclass(frozen=True)
@@ -445,36 +427,15 @@ def load(dfg: DFContainer, func: ToNode) -> Wire:
     return dfg.builder.load_function(func)
 
 
-def _parse_modified_def(defn: RawFunctionDef | None) -> ParsedFunctionDef | None:
-    if defn is None:
-        return None
-
-    parsed = ENGINE.get_parsed(defn.id)
-    assert isinstance(parsed, ParsedFunctionDef)
-    return parsed
-
-
-def _check_modified_def(
-    defn: ParsedFunctionDef | None, type_args: Inst
-) -> CheckedFunctionDef | None:
-    if defn is None:
-        return None
-    mono_args = (
-        type_args
-        if len(type_args) == len(defn.params)
-        else tuple(param.to_bound() for param in defn.params)
-    )
-    checked = ENGINE.get_checked(defn.id, mono_args)
-    assert isinstance(checked, CheckedFunctionDef)
-    return checked
-
-
 def _compile_modified_def(
     defn: CheckedFunctionDef | None, ctx: CompilerContext
 ) -> str | None:
     if defn is None:
         return None
-    compiled = ctx.build_compiled_def(defn.id, defn.mono_args)
+    compiled = ctx.build_compiled_def(
+        defn.id,
+        defn.mono_args,  # type: ignore[attr-defined]
+    )
     assert isinstance(compiled, CompiledFunctionDef)
     return compiled.link_name
 
