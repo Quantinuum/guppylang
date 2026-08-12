@@ -137,25 +137,19 @@ def check_global_func_def(
     type_args: Inst,
     globals: Globals,
     link_name: str,
+    decorator_unitary_flags: UnitaryFlags,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
     func_def = copy.deepcopy(func_def)
     args = func_def.args.args
     returns_none = isinstance(ty.output, NoneType)
-    # NICOLA: TODO:
-    has_custom_modifier = False  # parsed_func_def.parsed_modified_defs is not None
-
     assert all(inp.name is not None for inp in ty.inputs)
 
-    if not has_custom_modifier:
-        # if the function has custom modifiers, we don't check for invalid under dagger
-        # since we don't need the default dagger implementation
-        # NICOLA: TODO: ensure that if the function is daggerable from the flag applied
-        # to __call__ we need to check this. A personalized error would be nice here
-        check_invalid_under_dagger(func_def, ty.unitary_flags)
-
-    cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
+    check_invalid_under_dagger(func_def, decorator_unitary_flags)
+    cfg = CFGBuilder().build(
+        func_def.body, returns_none, globals, decorator_unitary_flags
+    )
     inputs = [
         Variable(cast("str", inp.name), inp.ty, loc, inp.flags, is_func_input=True)
         for inp, loc in zip(ty.inputs, args, strict=True)
@@ -398,9 +392,9 @@ def parse_self_arg(arg: ast.arg, self_defn: TypeDef, ctx: TypeParsingCtx) -> Fun
     # If the user has provided an annotation for `self`, then we go ahead and parse it.
     # However, in the annotation the user is also allowed to use `Self`, so we have to
     # specify a `self_ty` in the context.
-    self_ty_head = self_defn.check_instantiate(
-        [param.to_existential()[0] for param in self_defn.params]
-    )
+    self_ty_head = self_defn.check_instantiate([
+        param.to_existential()[0] for param in self_defn.params
+    ])
     self_ty_placeholder = ExistentialTypeVar.fresh(
         "Self", copyable=self_ty_head.copyable, droppable=self_ty_head.droppable
     )
@@ -442,9 +436,9 @@ def parse_self_arg_proto(
     # If the user has provided an annotation for `self`, then we go ahead and parse it.
     # However, in the annotation the user is also allowed to use `Self`, so we have to
     # specify a `self_ty` in the context.
-    self_ty_head = self_defn.check_instantiate(
-        [param.to_existential()[0] for param in self_defn.params]
-    )
+    self_ty_head = self_defn.check_instantiate([
+        param.to_existential()[0] for param in self_defn.params
+    ])
     self_ty_placeholder = ExistentialTypeVar.fresh(
         "Self",
         copyable=False,

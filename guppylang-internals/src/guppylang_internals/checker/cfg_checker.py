@@ -83,7 +83,6 @@ def check_cfg(
     func_name: str,
     globals: Globals,
     first_modifier_node: ast.expr | None = None,
-    has_custom_modifier: bool = False,
     modified_block_name_base: str | None = None,
     modified_block_counter: Iterator[int] | None = None,
 ) -> CheckedCFG[Place]:
@@ -197,14 +196,7 @@ def check_cfg(
 
     from guppylang_internals.checker.unitary_checker import check_cfg_unitary
 
-    if not has_custom_modifier:
-        # NICOLA: TODO: we need to check only for automatic flags, not for flags get by
-        # custom implementations.
-        # Also here can be a good place to check if the function has enough custom
-        # implementations
-        # If the function has custom modifiers, we do not need to generate default
-        # modified version of the functions, thus no constraints are required
-        check_cfg_unitary(linearity_checked_cfg, linearity_checked_cfg.unitary_flags)
+    check_cfg_unitary(linearity_checked_cfg, linearity_checked_cfg.unitary_flags)
 
     return linearity_checked_cfg
 

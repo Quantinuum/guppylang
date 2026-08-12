@@ -332,7 +332,7 @@ class _Guppy:
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
     def unitary(self, cls: builtins.type[T]) -> builtins.type[T]:
-        """TODO...
+        """NICOLA: TODO:...
 
         .. code-block:: python
             from guppylang import guppy
@@ -365,10 +365,18 @@ class _Guppy:
             if custom_def is not None:
                 DEF_STORE.register_custom_modified_def(call_raw_func.id, custom_def.id)
         assert call_raw_func.metadata is not None
-        _set_unitary_metadata(
+        combined_flags = _set_unitary_metadata(
             call_raw_func.metadata,
             custom_modified_definition,
             to_span(unitary_class_span),
+        )
+        object.__setattr__(
+            call_raw_func, "decorator_unitary_flags", call_raw_func.unitary_flags
+        )
+        object.__setattr__(
+            call_raw_func,
+            "unitary_flags",
+            combined_flags,
         )
         return call_guppy_def  # type: ignore[return-value]
 
@@ -909,7 +917,7 @@ def _set_unitary_metadata(
         RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None
     ],
     definition_span: Span | None,
-) -> None:
+) -> UnitaryFlags:
     """Set unitary metadata based on the available custom implementations.
 
     We also check that the combination of custom implementations is valid.
@@ -934,6 +942,7 @@ def _set_unitary_metadata(
         flags = UnitaryFlags.Unitary
 
     metadata.set_unitary_flags(flags.value)
+    return flags
 
 
 def custom_guppy_decorator(f: F) -> F:

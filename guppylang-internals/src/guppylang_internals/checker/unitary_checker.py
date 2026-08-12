@@ -7,7 +7,7 @@ from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Place
-from guppylang_internals.checker.errors.generic import ExpectedError, InvalidUnderDagger
+from guppylang_internals.checker.errors.generic import InvalidUnderDagger
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
@@ -24,19 +24,11 @@ from guppylang_internals.nodes import (
     TensorCall,
 )
 from guppylang_internals.span import ToSpan
-from guppylang_internals.tys.builtin import (
-    get_array_length,
-    get_element_type,
-    is_array_type,
-)
-from guppylang_internals.tys.const import BoundConstVar
 from guppylang_internals.tys.errors import UnitaryCallError
-from guppylang_internals.tys.param import ConstParam
-from guppylang_internals.tys.qubit import contain_qubit_ty, is_qubit_ty
+from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import (
     FunctionType,
     UnitaryFlags,
-    unify,
 )
 
 
@@ -367,50 +359,4 @@ def check_modified_def_combinations(
     ):
         raise GuppyError(
             InvalidUnitaryError(definition_span, InvalidUnitaryKind.MissingCtrl)
-        )
-
-
-def _check_controlled_def_signature(
-    modified_ty: FunctionType, parent_ty: FunctionType, defined_at: ast.FunctionDef
-) -> None:
-    expected_ty = FunctionType(
-        # last input must be the array of control qubits
-        modified_ty.inputs[:-1],
-        modified_ty.output,
-        # last param must be parameter for the number of control qubits
-        modified_ty.params[:-1],
-        modified_ty.comptime_args,
-        modified_ty.unitary_flags,
-    )
-    if unify(expected_ty, parent_ty, {}) is None:
-        raise GuppyError(
-            # NICOLA: TODO the error message is garbage
-            ExpectedError(
-                defined_at,
-                f"signature compatible with {parent_ty}",
-            )
-        )
-
-    if not modified_ty.inputs or not modified_ty.params:
-        raise GuppyError(
-            ExpectedError(
-                defined_at,
-                "signature with final input of type `array[qubit, n]`",
-            )
-        )
-
-    last_input_ty = modified_ty.inputs[-1].ty
-    last_param = modified_ty.params[-1]
-    if (
-        not is_array_type(last_input_ty)
-        or not is_qubit_ty(get_element_type(last_input_ty))
-        or not isinstance(last_param, ConstParam)
-        or get_array_length(last_input_ty)
-        != BoundConstVar(last_param.ty, last_param.name, last_param.idx)
-    ):
-        raise GuppyError(
-            ExpectedError(
-                defined_at,
-                "signature with final input of type `array[qubit, n]`",
-            )
         )
