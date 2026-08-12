@@ -375,6 +375,72 @@ def test_higher_order_unitary_callable(validate):
     validate(main.compile_function())
 
 
+def test_custom_unitary_higher_order_callables():
+    """Custom modifier methods determine higher-order callable capabilities."""
+
+    @guppy.unitary
+    class custom_dagger:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_control:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_unitary:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy(daggerable=True)
+    def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy(controllable=True)
+    def apply_control(f: Controllable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy(unitary=True)
+    def apply_unitary(f: Unitary[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main(q: qubit) -> None:
+        apply_dagger(custom_dagger, q)
+        apply_control(custom_control, q)
+        apply_unitary(custom_unitary, q)
+
+    main.check()
+
+
 @pytest.mark.xfail(reason="Returning protocols not supported")
 def test_return_callable_with_stronger_flags(validate):
     """Returning a callable with more flags than required is valid."""
