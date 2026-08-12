@@ -188,10 +188,6 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
         func_ast, docstring = parse_py_func(self.python_func, sources)
-        # NICOLA: TODO unitary are set according to the presence of custom
-        # implementations (see decorator.py), if not present set from the flags.
-        # Save somewhere if the flags come from the implementations or from the decorator.  # noqa: E501
-
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )

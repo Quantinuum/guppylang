@@ -340,7 +340,8 @@ class _Guppy:
             @guppy.unitary
             class myUnitary
         """
-
+        # todo: raise an error if the decorators contains any keyward arguments
+        # -> suggest in the error to put those args in the __call__ method decorator
         frame = get_calling_frame()
         cls = _set_firstlineno(cls, frame)
         unitary_class_span = parse_py_class(cls, frame, DEF_STORE.sources)

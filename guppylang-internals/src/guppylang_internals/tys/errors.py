@@ -242,12 +242,14 @@ class UnitaryCallError(Error):
     @dataclass(frozen=True)
     class MissingFlagHint(Help):
         func_name: str
+        # todo: Suggest also adding the missing custom implementation
         message: ClassVar[str] = (
             "Consider adding the flag `({hint_rendering})` to the decorator of "
             "the function `{func_name}`"
         )
 
     @dataclass(frozen=True)
+    # NICOLA: TODO: Useless
     class CustomModifiedHint(Help):
         func_name: str
         message: ClassVar[str] = (
