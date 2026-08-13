@@ -154,7 +154,6 @@ class DefinitionStore:
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
     sources: SourceMap
-    # NICOLA: DONE? add a new mapping from function to custom definition
     # Maps a parent definition (usually a function) to its custom modified definitions
     custom_modified_defs: dict[DefId, list[DefId]]
 
@@ -350,23 +349,22 @@ class CompilationEngine:
 
         custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
         for custom_modified_id in custom_modified_ids:
-            if (custom_modified_id, mono_args) not in self.checked:
-                custom_modified_defn = self.get_parsed(custom_modified_id)
-                assert isinstance(custom_modified_defn, CheckableGenericDef)
-                # controlled implematation has an extra parameter for the controllers.
-                # We keep that extra parameter generic, the monomorphization will be
-                # done later.
-                mono_args = (
-                    mono_args
-                    if len(mono_args) == len(custom_modified_defn.params)
-                    else tuple(
-                        param.to_bound() for param in custom_modified_defn.params
-                    )
-                )
+            custom_modified_defn = self.get_parsed(custom_modified_id)
+            assert isinstance(custom_modified_defn, CheckableGenericDef)
+            # controlled implematation has an extra parameter for the controllers.
+            # We keep that extra parameter generic, the monomorphization will be
+            # done later.
+            custom_mono_args = mono_args + tuple(
+                param.to_bound()
+                for param in custom_modified_defn.params[len(mono_args) :]
+            )
+            if (custom_modified_id, custom_mono_args) not in self.checked:
                 checked_defn = _check_generic_def_instantiation(
-                    custom_modified_defn, mono_args, Globals(DEF_STORE.frames[defn.id])
+                    custom_modified_defn,
+                    custom_mono_args,
+                    Globals(DEF_STORE.frames[defn.id]),
                 )
-                self.checked[custom_modified_id, mono_args] = checked_defn
+                self.checked[custom_modified_id, custom_mono_args] = checked_defn
 
         from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef

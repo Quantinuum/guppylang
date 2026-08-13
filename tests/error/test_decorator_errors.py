@@ -51,6 +51,19 @@ def test_unitary_custom_method_must_be_guppy_function(use_experimental_features)
                 value: int
 
 
+def test_unitary_requires_guppy_call_method(use_experimental_features):
+    with pytest.raises(
+        TypeError,
+        match=(
+            r"The `@guppy\.unitary` class `Foo` requires a `@guppy` annotated "
+            r"`__call__` method"
+        ),
+    ):
+        @guppy.unitary
+        class Foo:
+            pass
+
+
 def test_unitary_rejects_keyword_arguments():
     with pytest.raises(
         TypeError,

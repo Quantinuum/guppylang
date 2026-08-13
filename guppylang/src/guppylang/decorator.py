@@ -389,7 +389,7 @@ class _Guppy:
         call_raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
         # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(call_raw_func, "name", cls.__name__)
-        # This field is used to for the error span for experimental features checking.
+        # This field is used for the error span for experimental features checking.
         object.__setattr__(call_raw_func, "unitary_class_at", decorator_node)
 
         # Update the unitary metadata according to the custom implementations
@@ -901,7 +901,6 @@ def _get_unitary_call_def(
     if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
         return val
 
-    # TODO: Test this error
     raise TypeError(
         f"The `@guppy.unitary` class `{cls.__name__}` requires a `@guppy` "
         f"annotated `__call__` method"
