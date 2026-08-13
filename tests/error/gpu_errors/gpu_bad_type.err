@@ -6,4 +6,6 @@ Error: GPU signature error (at $FILE:9:4)
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ GPU function signature contained an unsupported type:
   |                                                  `qubit`
 
+Note: Only numeric types are allowed in GPU functions.
+
 Guppy compilation failed due to 1 previous error

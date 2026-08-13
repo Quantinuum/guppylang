@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from guppylang_internals.diagnostic import Error
+from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.tys.ty import Type
 
 
@@ -25,3 +25,7 @@ class UnconvertibleType(GpuError):
         "GPU function signature contained an unsupported type: `{ty}`"
     )
     ty: Type
+
+    @dataclass(frozen=True)
+    class OnlyNumericTypes(Note):
+        message: ClassVar[str] = "Only numeric types are allowed in GPU functions."

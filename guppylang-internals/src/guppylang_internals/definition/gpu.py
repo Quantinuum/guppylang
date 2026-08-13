@@ -53,13 +53,17 @@ def _check_function_type(loc: AstNode | None, fun_ty: FunctionType) -> None:
     # 2. Check whether remaining args and return map to GPU types
     for inp in fun_ty.inputs[1:]:
         if not _is_valid_gpu_type(inp.ty):
-            raise GuppyError(UnconvertibleType(loc, inp.ty))
+            error = UnconvertibleType(loc, inp.ty)
+            error.add_sub_diagnostic(UnconvertibleType.OnlyNumericTypes(None))
+            raise GuppyError(error)
     if not _is_valid_gpu_type(fun_ty.output):
         match fun_ty.output:
             case NoneType():
                 pass
             case _:
-                raise GuppyError(UnconvertibleType(loc, fun_ty.output))
+                error = UnconvertibleType(loc, fun_ty.output)
+                error.add_sub_diagnostic(UnconvertibleType.OnlyNumericTypes(None))
+                raise GuppyError(error)
 
 
 class RawGpuFunctionDef(RawCustomFunctionDef):
