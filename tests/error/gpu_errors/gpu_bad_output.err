@@ -1,0 +1,8 @@
+Error: GPU signature error (at $FILE:8:4)
+  | 
+6 | class Foo:
+7 |     @gpu
+8 |     def bad_output_type(self: "Foo") -> bool: ...
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ GPU function signature contained an unsupported type: `bool`
+
+Guppy compilation failed due to 1 previous error
