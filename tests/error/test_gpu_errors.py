@@ -15,5 +15,5 @@ files = [str(f) for f in files]
 
 
 @pytest.mark.parametrize("file", files)
-def test_wasm_errors(file, capsys, snapshot):
+def test_gpu_errors(file, capsys, snapshot):
     run_error_test(file, capsys, snapshot)
