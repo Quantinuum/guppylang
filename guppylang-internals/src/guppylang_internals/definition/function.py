@@ -102,57 +102,6 @@ def monomorphized_link_name(link_name: str, mono_args: Inst) -> str:
 
 
 @dataclass(frozen=True)
-class RawModifiedDefs:
-    """Class defined to collect the optional modified implementations of the function
-    definition.
-    """
-
-    call_daggered: "RawFunctionDef | None" = None
-    call_controlled: "RawFunctionDef | None" = None
-    call_ctrl_daggered: "RawFunctionDef | None" = None
-
-
-@dataclass(frozen=True)
-class ParsedModifiedDefs:
-    """Parsed modified implementations attached to a function definition."""
-
-    call_daggered: "ParsedFunctionDef | None" = None
-    call_controlled: "ParsedFunctionDef | None" = None
-    call_ctrl_daggered: "ParsedFunctionDef | None" = None
-
-
-@dataclass(frozen=True)
-class CheckedModifiedDefs:
-    """Checked modified implementations attached to a function definition."""
-
-    call_daggered: "CheckedFunctionDef | None" = None
-    call_controlled: "CheckedFunctionDef | None" = None
-    call_ctrl_daggered: "CheckedFunctionDef | None" = None
-
-    def compile_outer(
-        self,
-        ctx: CompilerContext,
-    ) -> list[str | None]:
-        """Return the link names of the compiled modified definitions, in the order:
-        daggered, controlled, ctrl-daggered. If a modified definition is not provided,
-        we return None for its link name."""
-        return [
-            _compile_modified_def(self.call_daggered, ctx),
-            _compile_modified_def(self.call_controlled, ctx),
-            _compile_modified_def(self.call_ctrl_daggered, ctx),
-        ]
-
-
-@dataclass(frozen=True)
-class CompiledModifiedDefs:
-    """Compiled modified implementations attached to a function definition."""
-
-    call_daggered: "CompiledFunctionDef | None" = None
-    call_controlled: "CompiledFunctionDef | None" = None
-    call_ctrl_daggered: "CompiledFunctionDef | None" = None
-
-
-@dataclass(frozen=True)
 class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     """A raw function definition provided by the user.
 
@@ -421,19 +370,6 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
 def load(dfg: DFContainer, func: ToNode) -> Wire:
     """Loads the function as a value into a local Hugr dataflow graph."""
     return dfg.builder.load_function(func)
-
-
-def _compile_modified_def(
-    defn: CheckedFunctionDef | None, ctx: CompilerContext
-) -> str | None:
-    if defn is None:
-        return None
-    compiled = ctx.build_compiled_def(
-        defn.id,
-        defn.mono_args,  # type: ignore[attr-defined]
-    )
-    assert isinstance(compiled, CompiledFunctionDef)
-    return compiled.link_name
 
 
 def compile_call(
