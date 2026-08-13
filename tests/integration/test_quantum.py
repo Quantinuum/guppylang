@@ -1,6 +1,6 @@
 """Various tests for the functions defined in `guppylang.prelude.quantum`."""
 
-from typing import no_type_check
+from typing import Self, no_type_check
 
 from guppylang.std.angles import angle
 
@@ -16,6 +16,7 @@ from guppylang.std.quantum import (
     measure_array,
     discard_array,
     Measurement,
+    AbstractQubit,
 )
 from guppylang.std.quantum.functional import (
     cx,
@@ -42,6 +43,118 @@ from guppylang.std.quantum.functional import (
 )
 
 from tests.util import guppy
+
+
+def test_abstract_qubit(validate):
+    @guppy.struct
+    class WrappedQubit:
+        inner: qubit
+
+        @guppy(unitary=True)
+        def hadamard(self) -> None:
+            q.h(self.inner)
+
+        @guppy(unitary=True)
+        def controlled_z(self, target: Self) -> None:
+            q.cz(self.inner, target.inner)
+
+        @guppy(unitary=True)
+        def controlled_y(self, target: Self) -> None:
+            q.cy(self.inner, target.inner)
+
+        @guppy(unitary=True)
+        def controlled_x(self, target: Self) -> None:
+            q.cx(self.inner, target.inner)
+
+        @guppy(unitary=True)
+        def phase_t(self) -> None:
+            q.t(self.inner)
+
+        @guppy(unitary=True)
+        def phase_s(self) -> None:
+            q.s(self.inner)
+
+        @guppy(unitary=True)
+        def sqrt_x(self) -> None:
+            q.v(self.inner)
+
+        @guppy(unitary=True)
+        def pauli_x(self) -> None:
+            q.x(self.inner)
+
+        @guppy(unitary=True)
+        def pauli_y(self) -> None:
+            q.y(self.inner)
+
+        @guppy(unitary=True)
+        def pauli_z(self) -> None:
+            q.z(self.inner)
+
+        @guppy(unitary=True)
+        def phase_t_dagger(self) -> None:
+            q.tdg(self.inner)
+
+        @guppy(unitary=True)
+        def phase_s_dagger(self) -> None:
+            q.sdg(self.inner)
+
+        @guppy(unitary=True)
+        def sqrt_x_dagger(self) -> None:
+            q.vdg(self.inner)
+
+        @guppy(unitary=True)
+        def rotate_z(self, theta: angle) -> None:
+            q.rz(self.inner, theta)
+
+        @guppy(unitary=True)
+        def rotate_x(self, theta: angle) -> None:
+            q.rx(self.inner, theta)
+
+        @guppy(unitary=True)
+        def rotate_y(self, theta: angle) -> None:
+            q.ry(self.inner, theta)
+
+        @guppy(unitary=True)
+        def controlled_rotate_z(self, target: Self, theta: angle) -> None:
+            q.crz(self.inner, target.inner, theta)
+
+        @guppy(unitary=True)
+        def toffoli(self, control2: Self, target: Self) -> None:
+            q.toffoli(self.inner, control2.inner, target.inner)
+
+        @guppy(unitary=True)
+        def controlled_hadamard(self, target: Self) -> None:
+            q.ch(self.inner, target.inner)
+
+        @guppy
+        def measure(self: Self @ owned) -> Measurement:
+            return q.measure(self.inner)
+
+        @guppy
+        def project_z(self) -> Measurement:
+            return q.project_z(self.inner)
+
+        @guppy
+        def discard(self: Self @ owned) -> None:
+            q.discard(self.inner)
+
+        @guppy
+        def reset(self) -> None:
+            q.reset(self.inner)
+
+    @guppy
+    def use[Q: AbstractQubit](q1: Q @ owned, q2: Q @ owned) -> tuple[Q, Q]:
+        q.h(q1)
+        q.cx(q1, q2)
+        q.ry(q1, angle(0.5))
+        q1, q2 = cx(q1, q2)
+        return q1, q2
+
+    @guppy
+    def test() -> tuple[WrappedQubit, WrappedQubit]:
+        return use(WrappedQubit(qubit()), WrappedQubit(qubit()))
+
+    validate(test.compile_function())
 
 
 def test_alloc(validate):
