@@ -55,7 +55,6 @@ from guppylang_internals.engine import (
     DEF_STORE,
 )
 from guppylang_internals.error import pretty_errors
-from guppylang_internals.experimental import check_unitary_classes_enabled
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 from guppylang_internals.span import Loc, SourceMap, Span, to_span
@@ -386,11 +385,12 @@ class _Guppy:
             ),
             unitary_class_span,
         )
-        check_unitary_classes_enabled(decorator_node)
         call_guppy_def = _get_unitary_call_def(cls)
         call_raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
         # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(call_raw_func, "name", cls.__name__)
+        # This field is used to for the error span for experimental features checking.
+        object.__setattr__(call_raw_func, "unitary_class_at", decorator_node)
 
         # Update the unitary metadata according to the custom implementations
 
