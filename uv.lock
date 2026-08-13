@@ -800,7 +800,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "guppylang-internals", editable = "guppylang-internals" },
-    { name = "numpy", specifier = "~=2.0" },
+    { name = "numpy", specifier = ">=2.2.6,<3" },
     { name = "pytket", specifier = ">=2.7.0" },
     { name = "selene-hugr-qis-compiler", specifier = "~=0.4.2" },
     { name = "selene-sim", specifier = "~=0.3.0" },
