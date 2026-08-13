@@ -6,11 +6,8 @@ class foo:
 
     @guppy
     def __call__(q: int) -> int:
-        return 1 + q
+        return 1
 
-    @guppy
-    def daggered(q: int) -> int:
-        return True
 
 @guppy
 def main() -> None:

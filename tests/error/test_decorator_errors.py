@@ -1,6 +1,7 @@
 import pytest
 
 from guppylang.decorator import guppy, metadata
+from guppylang_internals.error import GuppyError
 
 
 def test_metadata_decorator_position():
@@ -35,7 +36,7 @@ def test_metadata_decorator_arguments():
             y: int
 
 
-def test_unitary_custom_method_must_be_guppy_function():
+def test_unitary_custom_method_must_be_guppy_function(use_experimental_features):
     with pytest.raises(
         TypeError,
         match=r"`daggered` in the `@guppy\.unitary` class `Foo` must be a guppy function",
@@ -61,7 +62,7 @@ def test_unitary_rejects_keyword_arguments():
             pass
 
 
-def test_unitary_rejects_unrecognised_guppy_method():
+def test_unitary_rejects_unrecognised_guppy_method(use_experimental_features):
     with pytest.raises(
         TypeError,
         match=r"Only guppy function named .* are allowed .* Found `other`",
@@ -77,7 +78,7 @@ def test_unitary_rejects_unrecognised_guppy_method():
                 pass
 
 
-def test_unitary_custom_method_requires_guppy_decorator():
+def test_unitary_custom_method_requires_guppy_decorator(use_experimental_features):
     with pytest.raises(
         TypeError,
         match=r"`controlled` in the `@guppy\.unitary` class `Foo` must be a guppy function",

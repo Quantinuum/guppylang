@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:14:15)
+Error: Type mismatch (at $FILE:13:15)
    | 
-12 |     @guppy
-13 |     def daggered(q: int) -> int:
-14 |         return True
+11 |     @guppy
+12 |     def daggered(q: int) -> int:
+13 |         return True
    |                ^^^^ Expected return value of type `int`, got `bool`
 
 Guppy compilation failed due to 1 previous error

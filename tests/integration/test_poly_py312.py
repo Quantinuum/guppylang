@@ -328,16 +328,18 @@ def test_generic_tuple_chain(validate):
     validate(main.compile_function())
 
 
-def test_unitary(validate):
+def test_unitary(validate, use_experimental_features):
     @guppy.unitary
     class MyGate:
         @guppy
-        def __call__[n: nat](qs: array[qubit, n]) -> None: ...
+        def __call__[n: nat](qs: array[qubit, n]) -> None:
+            pass
 
         @guppy
         def controlled[n: nat, m: nat](
             qs: array[qubit, n], controls: array[qubit, m]
-        ) -> None: ...
+        ) -> None:
+            pass
 
     @guppy
     def main() -> None:

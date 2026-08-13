@@ -593,11 +593,15 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend([
-            # TODO: Remove dummy version once optional in Hugr.
-            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
-            for ext_name in used_extensions_result.unresolved_extensions
-        ])
+        used_exts_meta.extend(
+            [
+                # TODO: Remove dummy version once optional in Hugr.
+                ExtensionDesc(
+                    name=ext_name, version=Version(major=0, prerelease="unknown")
+                )
+                for ext_name in used_extensions_result.unresolved_extensions
+            ]
+        )
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(
@@ -807,6 +811,7 @@ def _check_controlled_def_signature(
         invalid_signature = (
             not is_array_type(last_input_ty)
             or not is_qubit_ty(get_element_type(last_input_ty))
+            or modified_ty.inputs[-1].flags != InputFlags.Inout
             or not isinstance(last_param, ConstParam)
             or get_array_length(last_input_ty)
             != BoundConstVar(last_param.ty, last_param.name, last_param.idx)

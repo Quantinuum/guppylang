@@ -55,6 +55,7 @@ from guppylang_internals.engine import (
     DEF_STORE,
 )
 from guppylang_internals.error import pretty_errors
+from guppylang_internals.experimental import check_unitary_classes_enabled
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 from guppylang_internals.span import Loc, SourceMap, Span, to_span
@@ -362,7 +363,7 @@ class _Guppy:
             def main(q: qubit) -> None:
                 # myGate can be used as a function
                 myGate(q)
-                # modified versions of myGate relie on the custom implementations
+                # modified versions of myGate rely on the custom implementations
                 with dagger:
                     myGate(q) # using the `myGate.daggered` implementation
 
@@ -377,6 +378,15 @@ class _Guppy:
         frame = get_calling_frame()
         cls = _set_firstlineno(cls, frame)
         unitary_class_span = parse_py_class(cls, frame, DEF_STORE.sources)
+        decorator_node = next(
+            (
+                decorator
+                for decorator in unitary_class_span.decorator_list
+                if isinstance(decorator, ast.Attribute) and decorator.attr == "unitary"
+            ),
+            unitary_class_span,
+        )
+        check_unitary_classes_enabled(decorator_node)
         call_guppy_def = _get_unitary_call_def(cls)
         call_raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
         # override "__call__" with the class name, mainly for better error messages

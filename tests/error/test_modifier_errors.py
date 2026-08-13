@@ -16,6 +16,18 @@ files = [str(f) for f in files]
 
 # Snapshot tests that require experimental features.
 tests_that_require_experimental_features = [
+    "custom_control_decorator_constraint.py",
+    "custom_control_invalid_controls.py",
+    "custom_control_missing_controls.py",
+    "custom_control_missing_type_param.py",
+    "custom_control_owned_controls.py",
+    "custom_control_signature.py",
+    "custom_ctrl_daggered_signature.py",
+    "custom_dagger_decorator_constraint.py",
+    "custom_dagger_ownership_signature.py",
+    "custom_dagger_signature.py",
+    "custom_unitary_higher_order_requires_dagger.py",
+    "custom_unitary_higher_order_requires_unitary.py",
     "dagger_loop3.py",
     "power_arg_typecheck_inside.py",
     "flags_nested_combined_outer.py",

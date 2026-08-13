@@ -375,7 +375,7 @@ def test_higher_order_unitary_callable(validate):
     validate(main.compile_function())
 
 
-def test_custom_unitary_higher_order_callables():
+def test_custom_unitary_higher_order_callables(use_experimental_features):
     """Custom modifier methods determine higher-order callable capabilities."""
 
     @guppy.unitary
@@ -634,7 +634,7 @@ def helper(q: qubit) -> None:
     h(q)
 
 
-def test_custom_modifier(validate):
+def test_custom_modifier(validate, use_experimental_features):
 
     @guppy.unitary
     class foo:
