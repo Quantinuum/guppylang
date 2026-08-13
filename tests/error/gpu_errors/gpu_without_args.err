@@ -1,72 +1,8 @@
-Traceback (most recent call last):
-  File "$FILE", line 18, in <module>
-    main.compile()
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang/src/guppylang/defs.py", line 428, in compile
-    return self._with_default_opt().compile(debug_mode)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang/src/guppylang/optimizer.py", line 280, in compile
-    return self.compile_entrypoint(debug_mode)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang/src/guppylang/optimizer.py", line 285, in compile_entrypoint
-    self.definition._compile_entrypoint(debug_mode), self.passes
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 140, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang/src/guppylang/defs.py", line 450, in _compile_entrypoint
-    pack = self._compile_function(debug_mode)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang/src/guppylang/defs.py", line 482, in _compile_function
-    return super().compile(debug_mode)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang/src/guppylang/defs.py", line 134, in compile
-    package = ENGINE.compile_single(self.id).package
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 140, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 459, in compile_single
-    pointer, [compiled_def] = self._compile([id])
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 484, in _compile
-    self.check(def_ids, reset=reset)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 140, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 412, in check
-    self.checked[def_id, entry_mono_args] = self.get_checked(
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 140, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 296, in get_checked
-    checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/definition/function.py", line 177, in check
-    cfg = check_global_func_def(
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/func_checker.py", line 159, in check_global_func_def
-    return check_cfg(
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/cfg_checker.py", line 115, in check_cfg
-    checked_cfg.entry_bb = check_bb(
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/cfg_checker.py", line 326, in check_bb
-    checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/stmt_checker.py", line 115, in check_stmts
-    return [self.visit(s) for s in stmts]
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/ast_util.py", line 58, in visit
-    return visitor(node, *args, **kwargs)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/stmt_checker.py", line 387, in visit_Expr
-    node.value, _ = self._synth_expr(node.value)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/stmt_checker.py", line 118, in _synth_expr
-    return ExprSynthesizer(self.ctx).synthesize(node)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/expr_checker.py", line 476, in synthesize
-    node, ty = self.visit(node)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/ast_util.py", line 58, in visit
-    return visitor(node, *args, **kwargs)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/expr_checker.py", line 980, in visit_Call
-    node.func, ty = self.synthesize(node.func)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/expr_checker.py", line 476, in synthesize
-    node, ty = self.visit(node)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/ast_util.py", line 58, in visit
-    return visitor(node, *args, **kwargs)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/expr_checker.py", line 743, in visit_Attribute
-    elif method_w_ty := self._check_method(ty, node):
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/checker/expr_checker.py", line 754, in _check_method
-    if func := ENGINE.get_instance_func(ty, node.attr):
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 377, in get_instance_func
-    defn = ENGINE.get_parsed(def_id)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/error.py", line 140, in pretty_errors_wrapped
-    return f(*args, **kwargs)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/engine.py", line 265, in get_parsed
-    defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/definition/gpu.py", line 68, in parse
-    _check_function_type(parsed.defined_at, parsed.ty)
-  File "/Users/maximilian.ruesch/quantinuum/guppylang/guppylang-internals/src/guppylang_internals/definition/gpu.py", line 46, in _check_function_type
-    match fun_ty.inputs[0]:
-IndexError: list index out of range
+Error: Missing self argument (at $FILE:8:4)
+  | 
+6 | class GpuModule:
+7 |     @gpu
+8 |     def nothing() -> int: ...
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^ Method requires a self argument
+
+Guppy compilation failed due to 1 previous error
