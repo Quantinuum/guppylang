@@ -6,6 +6,7 @@ Error: Control constraint violation (at $FILE:22:4)
    |     ^^^^^^ This function cannot be called in a controllable context
 
 Help: Consider adding the flag `(controllable=True)` to the decorator of the
-function `foo`
+function `foo` or adding a custom `controlled` implementation using the
+`@guppy.unitary` decorator
 
 Guppy compilation failed due to 1 previous error

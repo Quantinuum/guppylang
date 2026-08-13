@@ -6,6 +6,7 @@ Error: Unitary constraint violation (at $FILE:20:4)
    |     ^^^^^^ This function cannot be called in a unitary context
 
 Help: Consider adding the flag `(unitary=True)` to the decorator of the function
-`foo`
+`foo` or adding custom `ctrl_daggered` and `controlled` implementations using
+the `@guppy.unitary` decorator
 
 Guppy compilation failed due to 1 previous error

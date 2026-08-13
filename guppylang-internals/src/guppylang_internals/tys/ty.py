@@ -427,11 +427,11 @@ class UnitaryFlags(Flag):
         """Returns the name of the corresponding custom implementation for this flag."""
         match self:
             case UnitaryFlags.Unitary:
-                return ["call_ctrl_daggered", "call_daggered"]
+                return ["ctrl_daggered", "controlled"]
             case UnitaryFlags.Dagger:
-                return ["call_daggered"]
+                return ["daggered"]
             case UnitaryFlags.Control:
-                return ["call_controlled"]
+                return ["controlled"]
             case UnitaryFlags.NoFlags:
                 raise AssertionError("Expected a non-empty unitary flag")
             case _:
@@ -786,9 +786,9 @@ class TupleType(ParametrizedTypeBase):
 
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
-        return transformer.transform(self) or TupleType(
-            [ty.transform(transformer) for ty in self.element_types]
-        )
+        return transformer.transform(self) or TupleType([
+            ty.transform(transformer) for ty in self.element_types
+        ])
 
 
 @dataclass(frozen=True)
