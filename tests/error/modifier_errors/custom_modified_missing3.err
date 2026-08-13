@@ -1,8 +1,8 @@
-Error: Unitary constraint violation (at $FILE:20:4)
+Error: Unitary constraint violation (at $FILE:18:4)
    | 
-18 | @guppy(unitary=True)
-19 | def main(q: qubit) -> None:
-20 |     foo(q)
+16 | @guppy(unitary=True)
+17 | def main(q: qubit) -> None:
+18 |     foo(q)
    |     ^^^^^^ This function cannot be called in a unitary context
 
 Help: Consider adding the flag `(unitary=True)` to the decorator of the function

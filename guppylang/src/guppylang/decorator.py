@@ -358,7 +358,7 @@ class _Guppy:
                 def ctrl_daggered[n: nat](q: qubit,
                                   controls: array[qubit, n]) -> None: ...
 
-
+            @guppy
             def main(q: qubit) -> None:
                 # myGate can be used as a function
                 myGate(q)
@@ -394,9 +394,7 @@ class _Guppy:
 
         # Update the unitary metadata according to the custom implementations
 
-        custom_methods: dict[str, RawFunctionDef | None] = _get_custom_methods(
-            cls, call_raw_func
-        )
+        custom_methods: dict[str, RawFunctionDef | None] = _get_custom_methods(cls)
 
         custom_modified_definition = (
             custom_methods[CALL_DAGGERED_METHOD],
@@ -903,17 +901,14 @@ def _get_unitary_call_def(
     if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
         return val
 
-    # NICOLA: TODO: Test this error
+    # TODO: Test this error
     raise TypeError(
         f"The `@guppy.unitary` class `{cls.__name__}` requires a `@guppy` "
         f"annotated `__call__` method"
     )
 
 
-# NICOLA: TODO: RESTART FROM HERE: use this properly
-def _get_custom_methods(
-    cls: builtins.type[T], parent: RawFunctionDef
-) -> dict[str, RawFunctionDef | None]:
+def _get_custom_methods(cls: builtins.type[T]) -> dict[str, RawFunctionDef | None]:
     custom_methods: dict[str, RawFunctionDef | None] = defaultdict(lambda: None)
     custom_methods_names = (
         CALL_DAGGERED_METHOD,
@@ -924,7 +919,6 @@ def _get_custom_methods(
     for method_name, method in cls.__dict__.items():
         if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
             if isinstance(method.wrapped, RawFunctionDef):
-                DEF_STORE.register_custom_modified_def(parent.id, method.id)
                 custom_methods[method_name] = method.wrapped
             else:
                 raise TypeError(

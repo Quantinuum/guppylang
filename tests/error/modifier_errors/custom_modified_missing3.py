@@ -1,10 +1,8 @@
-
 from guppylang.decorator import guppy
 from guppylang.std.num import nat
 from guppylang.std.quantum import array, cx, h, measure, qubit
 from guppylang.std.builtins import dagger
-import guppylang
-guppylang.enable_experimental_features()
+
 
 @guppy.unitary
 class foo:

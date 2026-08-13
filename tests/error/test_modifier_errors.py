@@ -16,16 +16,23 @@ files = [str(f) for f in files]
 
 # Snapshot tests that require experimental features.
 tests_that_require_experimental_features = [
+    "custom_controllable_daggered_missing_ctrl_daggered.py",
     "custom_control_decorator_constraint.py",
     "custom_control_invalid_controls.py",
     "custom_control_missing_controls.py",
     "custom_control_missing_type_param.py",
     "custom_control_owned_controls.py",
     "custom_control_signature.py",
+    "custom_ctrl_daggered_missing_support.py",
     "custom_ctrl_daggered_signature.py",
+    "custom_daggerable_controlled_missing_ctrl_daggered.py",
     "custom_dagger_decorator_constraint.py",
     "custom_dagger_ownership_signature.py",
     "custom_dagger_signature.py",
+    "custom_modified_missing1.py",
+    "custom_modified_missing2.py",
+    "custom_modified_missing3.py",
+    "custom_modifiers_missing_ctrl_daggered.py",
     "custom_unitary_higher_order_requires_dagger.py",
     "custom_unitary_higher_order_requires_unitary.py",
     "dagger_loop3.py",

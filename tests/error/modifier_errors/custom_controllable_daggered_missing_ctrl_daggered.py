@@ -1,8 +1,5 @@
-import guppylang
 from guppylang.decorator import guppy
 from guppylang.std.quantum import qubit
-
-guppylang.enable_experimental_features()
 
 
 @guppy.unitary

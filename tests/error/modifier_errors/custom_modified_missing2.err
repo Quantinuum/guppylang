@@ -1,8 +1,8 @@
-Error: Dagger constraint violation (at $FILE:24:8)
+Error: Dagger constraint violation (at $FILE:23:8)
    | 
-22 | def main(q: qubit) -> None:
-23 |     with dagger:
-24 |         foo(q)
+21 | def main(q: qubit) -> None:
+22 |     with dagger:
+23 |         foo(q)
    |         ^^^^^^ This function cannot be called in a daggerable context
 
 Help: Consider adding the flag `(daggerable=True)` to the decorator of the

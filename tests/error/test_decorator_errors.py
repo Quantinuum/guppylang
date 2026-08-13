@@ -1,7 +1,6 @@
 import pytest
 
 from guppylang.decorator import guppy, metadata
-from guppylang_internals.error import GuppyError
 
 
 def test_metadata_decorator_position():

@@ -30,6 +30,9 @@ class _DummyGuppy:
     def protocol(self, cls: Any) -> Any:
         return cls
 
+    def unitary(self, cls: Any) -> Any:
+        return cls
+
     def require(self, f: Any) -> Any:
         return f
 

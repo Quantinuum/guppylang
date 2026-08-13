@@ -1,11 +1,11 @@
-Error: Invalid `@guppy.unitary` implementation (at $FILE:9:0)
+Error: Invalid `@guppy.unitary` implementation (at $FILE:6:0)
    | 
- 7 | 
- 8 | @guppy.unitary
- 9 | class foo:
+ 4 | 
+ 5 | @guppy.unitary
+ 6 | class foo:
    | ^^^^^^^^^^
    | ...
-16 |         pass
+13 |         pass
    | ^^^^^^^^^^^^
 
 A `@guppy.unitary` class implementing `daggered` for a function marked

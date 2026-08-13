@@ -1,6 +1,4 @@
 from guppylang.decorator import guppy
-from guppylang.std.quantum import qubit
-from matplotlib.pylab import identity
 
 
 @guppy.unitary
