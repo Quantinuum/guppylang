@@ -624,7 +624,6 @@ def test_comptime_unitary_mixed(validate):
     validate(foo.compile_function())
 
 
-# NICOLA: TODO investigate why this cannot be inside test_use_other_functions
 @guppy
 def ext_helper(q: qubit) -> None:
     x(q)
@@ -679,20 +678,7 @@ def test_custom_modifier(validate):
         discard_array(qs)
         measure(c)
 
-    package = main.check()
-    # NICOLA: TODO after Mark
-    # hugr_module = package.modules[0]
-    # for _, data in hugr_module.nodes():
-    #     if (
-    #         isinstance(data.op, FuncDefn)
-    #         and data.op.f_name == "__main__.foo.__call__$1"
-    #     ):
-    #         assert data.metadata[DAGGERED_KEY] == "__main__.foo.call_daggered$1"
-    #         assert data.metadata[CONTROLLED_KEY] == "__main__.foo.call_controlled$1"
-    #         assert (
-    #             data.metadata[CTRL_DAGGERED_KEY] == "__main__.foo.call_ctrl_daggered$1"  # noqa: E501
-    #         )
-    # validate(package)
+    main.check()
 
 
 def test_hugr_stability():

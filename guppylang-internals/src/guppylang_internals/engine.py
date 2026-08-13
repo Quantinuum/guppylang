@@ -195,12 +195,9 @@ class DefinitionStore:
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
 
-    # NICOLA: DONE? use this to register custom definitions
     def register_custom_modified_def(
         self, parent_def_id: DefId, custom_def_id: DefId
     ) -> None:
-        # NICOLA: TODO: Do we need as assertion here?
-        # assert custom_def_id not in self.modified_defs, "Already a custom definition"
         self.custom_modified_defs[parent_def_id].append(custom_def_id)
 
 
@@ -357,7 +354,9 @@ class CompilationEngine:
                 return self.checked[custom_modified_id, mono_args]
             custom_modified_defn = self.get_parsed(custom_modified_id)
             assert isinstance(custom_modified_defn, CheckableGenericDef)
-            # controlled implematation has an extra parameter for the controllers
+            # controlled implematation has an extra parameter for the controllers.
+            # We keep that extra parameter generic, the monomorphization will be done
+            # later.
             mono_args = (
                 mono_args
                 if len(mono_args) == len(custom_modified_defn.params)
@@ -559,7 +558,6 @@ class CompilationEngine:
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
-            # NICOLA: NOTE: Here we call the compile outer, in `build_compiled_def`
             requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
         ctx.iterate_worklist()
         self.compiled = ctx.compiled
@@ -595,15 +593,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(

@@ -10,12 +10,6 @@ from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 
-# Metadata keys for modified definitions (daggered, controlled, ctrl-daggered)
-# To be removed when added to tket
-DAGGERED_KEY = "daggered"
-CONTROLLED_KEY = "controlled"
-CTRL_DAGGERED_KEY = "ctrl_daggered"
-
 
 class MetadataUnitaryFlags(Metadata[int]):
     """stub implementation of `tket.metadata.UnitaryFlags` to ensure decoupling between
@@ -73,15 +67,6 @@ class FunctionMetadata:
 
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
-
-    def set_modified_defs(self, modified_names: list[str | None]) -> None:
-        assert len(modified_names) == 3
-        if modified_names[0] is not None:
-            self._node_metadata[DAGGERED_KEY] = modified_names[0]
-        if modified_names[1] is not None:
-            self._node_metadata[CONTROLLED_KEY] = modified_names[1]
-        if modified_names[2] is not None:
-            self._node_metadata[CTRL_DAGGERED_KEY] = modified_names[2]
 
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value

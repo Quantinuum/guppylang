@@ -334,13 +334,38 @@ class _Guppy:
     def unitary(
         self, cls: builtins.type[T] | None = None, **kwargs: Any
     ) -> builtins.type[T]:
-        """NICOLA: TODO:...
+        """Define a unitary custom function.
 
         .. code-block:: python
             from guppylang import guppy
+            from guppylang.std.builtins import array, dagger, nat
+            from guppylang.std.quantum import qubit
 
             @guppy.unitary
-            class myUnitary
+            class myGate:
+
+                @guppy
+                def __call__(q: qubit) -> None: ...
+
+                @guppy
+                def daggered(q: qubit) -> None: ...
+
+                @guppy
+                def controlled[n: nat](q: qubit,
+                                       controls: array[qubit, n]) -> None: ...
+
+                @guppy
+                def ctrl_daggered[n: nat](q: qubit,
+                                  controls: array[qubit, n]) -> None: ...
+
+
+            def main(q: qubit) -> None:
+                # myGate can be used as a function
+                myGate(q)
+                # modified versions of myGate relie on the custom implementations
+                with dagger:
+                    myGate(q) # using the `myGate.daggered` implementation
+
         """
         if kwargs:
             raise TypeError(

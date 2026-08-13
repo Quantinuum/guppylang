@@ -5,6 +5,7 @@ from guppylang.decorator import guppy
 from guppylang.std.lang import Copy, Drop, owned, comptime
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing
+from guppylang.std.quantum import discard_array
 
 
 def test_function(validate):
@@ -325,6 +326,26 @@ def test_generic_tuple_chain(validate):
         return foo(comptime((1, 2)))
 
     validate(main.compile_function())
+
+
+def test_unitary(validate):
+    @guppy.unitary
+    class MyGate:
+        @guppy
+        def __call__[n: nat](qs: array[qubit, n]) -> None: ...
+
+        @guppy
+        def controlled[n: nat, m: nat](
+            qs: array[qubit, n], controls: array[qubit, m]
+        ) -> None: ...
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit(), qubit())
+        MyGate(qs)
+        discard_array(qs)
+
+    main.check()
 
 
 def test_struct_unused_param(validate):
