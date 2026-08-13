@@ -51,6 +51,16 @@ def test_unitary_custom_method_must_be_guppy_function():
                 value: int
 
 
+def test_unitary_rejects_keyword_arguments():
+    with pytest.raises(
+        TypeError,
+        match=r"does not accept keyword arguments.*`__call__` method",
+    ):
+        @guppy.unitary(daggerable=True)
+        class Foo:
+            pass
+
+
 def test_unitary_rejects_unrecognised_guppy_method():
     with pytest.raises(
         TypeError,

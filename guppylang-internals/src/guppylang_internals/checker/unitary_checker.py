@@ -148,7 +148,6 @@ class BBUnitaryChecker(ast.NodeVisitor):
         `func`: it's only used for a better error message when the call is a GlobalCall.
         Is None for LocalCall and TensorCall.
         """
-        # NICOLA: TODO: Consider using CustomModifiedHint
 
         # If we are under any modifier, we cannot allocate qubits
         if contain_qubit_ty(call_ty.output) and self.flags != UnitaryFlags.NoFlags:

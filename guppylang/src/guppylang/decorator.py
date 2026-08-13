@@ -331,7 +331,9 @@ class _Guppy:
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
-    def unitary(self, cls: builtins.type[T]) -> builtins.type[T]:
+    def unitary(
+        self, cls: builtins.type[T] | None = None, **kwargs: Any
+    ) -> builtins.type[T]:
         """NICOLA: TODO:...
 
         .. code-block:: python
@@ -340,8 +342,13 @@ class _Guppy:
             @guppy.unitary
             class myUnitary
         """
-        # todo: raise an error if the decorators contains any keyward arguments
-        # -> suggest in the error to put those args in the __call__ method decorator
+        if kwargs:
+            raise TypeError(
+                "`@guppy.unitary` does not accept keyword arguments. Put them on "
+                "the `@guppy` decorator of the `__call__` method instead."
+            )
+        if cls is None:
+            raise TypeError("`@guppy.unitary` must be applied directly to a class")
         frame = get_calling_frame()
         cls = _set_firstlineno(cls, frame)
         unitary_class_span = parse_py_class(cls, frame, DEF_STORE.sources)

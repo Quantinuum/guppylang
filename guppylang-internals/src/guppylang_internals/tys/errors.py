@@ -224,9 +224,13 @@ class UnitaryCallError(Error):
         """We check which custom implementation name are we missing."""
         names = self.flags.custom_implementation_names()
         if len(names) == 1:
-            return f"method `{names[0]}`"
+            return f"a custom `{names[0]}` implementation"
         elif len(names) == 2:
-            return "methods " + " and ".join(f"`{name}`" for name in names)
+            return (
+                "custom "
+                + " and ".join(f"`{name}`" for name in names)
+                + " implementations"
+            )
         else:
             raise AssertionError(
                 f"Unexpected number of custom implementation names: {len(names)}"
@@ -242,19 +246,10 @@ class UnitaryCallError(Error):
     @dataclass(frozen=True)
     class MissingFlagHint(Help):
         func_name: str
-        # todo: Suggest also adding the missing custom implementation
         message: ClassVar[str] = (
             "Consider adding the flag `({hint_rendering})` to the decorator of "
-            "the function `{func_name}`"
-        )
-
-    @dataclass(frozen=True)
-    # NICOLA: TODO: Useless
-    class CustomModifiedHint(Help):
-        func_name: str
-        message: ClassVar[str] = (
-            "The `@guppy.unitary` function `{func_name}` is missing a custom "
-            "implementation. Consider implementing the custom {custom_hint_rendering}"
+            "the function `{func_name}` or adding {custom_hint_rendering} using the "
+            "`@guppy.unitary` decorator"
         )
 
     @dataclass(frozen=True)
