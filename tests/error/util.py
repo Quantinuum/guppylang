@@ -3,6 +3,7 @@ import inspect
 import pathlib
 import re
 import sys
+from typing import Callable
 
 import pytest
 from hugr import tys
@@ -12,6 +13,28 @@ from guppylang_internals.decorator import custom_type
 from guppylang_internals.diagnostic import DiagnosticsRenderer, wrap
 from tests.util import get_wasm_file
 from tests.conftest import experimental_features_enabled
+
+def collect_error_test_cases(
+    directory: str,
+    *,
+    exclude: Callable[[pathlib.Path], bool] = lambda _: False,
+) -> list[str]:
+    """Collects all error test cases (*.py, but not __init__.py) in the given directory
+    relative to the parent directory of this file.
+
+    Returns a list of file paths that can be processed by pytest.mark.parametrize."""
+    path = pathlib.Path(__file__).parent.resolve() / directory
+    files = [
+        x
+        for x in path.iterdir()
+        if x.is_file() and x.suffix == ".py" and x.name != "__init__.py"
+    ]
+    files = [f for f in files if not exclude(f)]
+
+    # Turn paths into strings, otherwise pytest doesn't display the names
+    files = [str(f) for f in files]
+
+    return files
 
 # Regular expression to match the `~~~~~^^^~~~` highlights that are printed in
 # tracebacks from Python 3.11 onwards. We strip those out so we can use the same golden
