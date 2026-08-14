@@ -344,7 +344,12 @@ def check_signature(
     has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
 
     # Check if method doesn't have any arguments.
-    if has_parent and func_def.name != "__new__" and not func_def.args.args:
+    if (
+        has_parent
+        and func_def.name != "__new__"
+        and not is_static
+        and not func_def.args.args
+    ):
         raise GuppyError(MissingSelfError(func_def))
 
     for i, inp in enumerate(func_def.args.args):
