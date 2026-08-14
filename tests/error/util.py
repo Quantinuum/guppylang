@@ -23,6 +23,8 @@ def collect_error_test_cases(
     relative to the parent directory of this file.
 
     Returns a list of file paths that can be processed by pytest.mark.parametrize."""
+    # __file__ works since the current file is in the same directory as all the error
+    # test cases. If it is moved, this definition needs to be updated.
     path = pathlib.Path(__file__).parent.resolve() / directory
     files = [
         x
