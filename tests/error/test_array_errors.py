@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from tests.error.util import run_error_test, collect_error_test_cases
@@ -21,7 +23,7 @@ skipped_files = {
 
 files = [
     pytest.param(file, marks=pytest.mark.skip(reason="The index bounds checking is currently disabled (https://github.com/Quantinuum/guppylang/issues/1669)."))
-    if any(skipped_name in file for skipped_name in skipped_files)
+    if any(skipped_name in Path(file).name for skipped_name in skipped_files)
     else file
     for file in files
 ]
