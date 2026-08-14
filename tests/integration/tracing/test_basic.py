@@ -38,11 +38,9 @@ def test_check_traces_generic() -> None:
         y: array[int, 5] = foo()
 
     main.check()
-    if trace_events == []:
-        import pytest
 
-        pytest.xfail()
-    assert trace_events == [3, 5]
+    # Order is not preserved
+    assert sorted(trace_events) == [3, 5]
 
 
 def test_flat(validate):
