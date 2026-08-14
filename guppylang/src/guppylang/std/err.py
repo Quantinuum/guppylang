@@ -1,6 +1,6 @@
 """Error handling with the `Result` type."""
 
-from typing import Generic, no_type_check
+from typing import no_type_check
 
 from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.definition.custom import NoopCompiler
@@ -11,6 +11,7 @@ from guppylang_internals.std._internal.compiler.either import (
     either_to_hugr,
 )
 from guppylang_internals.tys.param import TypeParam
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.either import Either
@@ -23,15 +24,15 @@ _params = [TypeParam(0, "T", False, False), TypeParam(1, "E", False, False)]
 
 
 @custom_type(either_to_hugr, params=_params)
-class Result(Generic[T, E]):  # type: ignore[misc]
+class Result[T, E]:
     """Represents a union of either an `ok(T)` or an `err(E)` value."""
 
-    @custom_function(EitherTestCompiler(0))
+    @custom_function(EitherTestCompiler(0), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def is_ok(self: "Result[T, E]") -> bool:
         """Returns `True` for an `ok` value."""
 
-    @custom_function(EitherTestCompiler(1))
+    @custom_function(EitherTestCompiler(1), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def is_err(self: "Result[T, E]") -> bool:
         """Returns `True` for an `err` value."""
@@ -52,19 +53,19 @@ class Result(Generic[T, E]):  # type: ignore[misc]
         Panics if `self` is an `ok` value.
         """
 
-    @custom_function(NoopCompiler())
+    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def into_either(self: "Result[T, E]" @ owned) -> Either[T, E]:
         """Casts a `Result` value into an `Either` value."""
 
 
-@custom_function(EitherConstructor(0))
+@custom_function(EitherConstructor(0), unitary_flags=UnitaryFlags.Dagger)
 @no_type_check
 def ok(val: T @ owned) -> Result[T, E]:
     """Constructs an `ok` result value."""
 
 
-@custom_function(EitherConstructor(1))
+@custom_function(EitherConstructor(1), unitary_flags=UnitaryFlags.Dagger)
 @no_type_check
-def err(err: E @ owned) -> Result[T, E]:
+def err[T, E](err: E @ owned) -> Result[T, E]:
     """Constructs an `err` result value."""

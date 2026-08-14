@@ -30,6 +30,18 @@ def test_err(run_int_fn):
     run_int_fn(main, expected=110)
 
 
+def test_explicit_typeargs(run_int_fn):
+    @guppy
+    def foo(i: int) -> Result[int, ()]:
+        return ok[int, ()](i) if i > 0 else err[int, ()](())
+
+    def main() -> int:
+        foo(-1).unwrap_err()
+        return foo(2).unwrap()
+
+    run_int_fn(main, expected=2)
+
+
 def test_rows():
     """Make sure that Hugr generations correctly handles rows inside sums.
 

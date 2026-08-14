@@ -45,16 +45,22 @@ def test_redefine(validate):
 
 
 def test_define_twice(validate):
+    from guppylang.std.builtins import Function  # noqa: TC002
+
     @compile_guppy
     def foo(x: int) -> int:
         if x == 0:
 
             def bar(y: int) -> int:
                 return y + 3
+
+            bar: Function[[int], int] = bar
         else:
 
             def bar(y: int) -> int:
                 return y - 42
+
+            bar: Function[[int], int] = bar
 
         return bar(x)
 

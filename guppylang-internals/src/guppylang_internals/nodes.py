@@ -11,6 +11,7 @@ from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FunctionType,
+    NestedFunctionDefType,
     StructType,
     TupleType,
     Type,
@@ -708,6 +709,11 @@ class CheckedNestedFunctionDef(ast.FunctionDef):
         self.cfg = cfg
         self.ty = ty
         self.captured = captured
+
+    @property
+    def def_ty(self) -> NestedFunctionDefType:
+        """The definition-specific type of this function as a local value."""
+        return NestedFunctionDefType(self.def_id)
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__

@@ -53,7 +53,7 @@ def check_modified_block(
         cfg,
         inputs,
         NoneType(),
-        {},
+        ctx.generic_param_inst,
         "__modified__()",
         globals,
         # We pass the first modifier node for better error messages in the cfg checker

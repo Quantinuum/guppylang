@@ -144,6 +144,21 @@ class Use(NamedTuple):
     origin_place: Place
 
 
+class Mutation(NamedTuple):
+    """Records data associated with the mutation of a place."""
+
+    #: The AST node corresponding to mutation
+    node: AstNode
+
+    #: The place that is mutated
+    place: Place
+
+    #: Reference to the original place that was mutated. For example, the mutation of a
+    #: struct projection is tracked as mutations of all its parents, but for each of
+    #: them, we remember the original projection that was actually mutated.
+    origin_projection: Place
+
+
 class Scope(Locals[PlaceId, Place]):
     """Scoped collection of assigned places indexed by their id.
 
@@ -163,10 +178,19 @@ class Scope(Locals[PlaceId, Place]):
     #: defined in this or any parent scope
     used_projections: dict[PlaceId, Use]
 
+    #: Tracks all projections (not just leaves) of places that are assigned in this
+    #: scope
+    assigned_projections: dict[PlaceId, AstNode]
+
+    #: Tracks all parents of mutated projections that were defined in a parent scope
+    mutated_parent: dict[PlaceId, Mutation]
+
     def __init__(self, parent: "Scope | None" = None):
         self.used_local = {}
         self.used_parent = {}
         self.used_projections = {}
+        self.assigned_projections = {}
+        self.mutated_parent = {}
         super().__init__({}, parent)
 
     def used(self, x: PlaceId) -> Use | None:
@@ -213,12 +237,19 @@ class Scope(Locals[PlaceId, Place]):
         if x in self.used_local:
             self.used_local.pop(x)
 
-    def assign(self, place: Place) -> None:
+    def assign(self, place: Place, node: AstNode) -> None:
         """Records an assignment of a place."""
         for leaf in leaf_places(place):
             self.assign_leaf(leaf)
         for proj in projections(place):
+            self.assigned_projections[proj.id] = node
             self.used_projections.pop(proj.id, None)
+        for parent in parent_places(place):
+            if (
+                parent.id not in self.assigned_projections
+                and parent.id not in self.mutated_parent
+            ):
+                self.mutated_parent[parent.id] = Mutation(node, parent, place)
 
     def stats(self) -> VariableStats[PlaceId]:
         assigned = {}
@@ -227,6 +258,11 @@ class Scope(Locals[PlaceId, Place]):
             assigned[x] = place.defined_at
         used = {x: use.node for x, use in self.used_parent.items()}
         return VariableStats(assigned, used)
+
+    def mutation_stats(self) -> VariableStats[PlaceId]:
+        """Returns statistics for dataflow analysis to track reachable mutations."""
+        mutated = {x: mutation.node for x, mutation in self.mutated_parent.items()}
+        return VariableStats(self.assigned_projections, mutated)
 
 
 class BBLinearityChecker(ast.NodeVisitor):
@@ -254,7 +290,8 @@ class BBLinearityChecker(ast.NodeVisitor):
         # of this BB
         input_scope = Scope()
         for var in bb.sig.input_row:
-            input_scope.assign(var)
+            assert var.defined_at is not None
+            input_scope.assign(var, var.defined_at)
         self.func_name = func_name
         self.func_inputs = func_inputs
         self.globals = globals
@@ -328,7 +365,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                 err.add_sub_diagnostic(MoveOutOfSubscriptError.Explanation(None))
                 raise GuppyError(err)
             self.visit(subscript.item_expr)
-            self.scope.assign(subscript.item)
+            self.scope.assign(subscript.item, node)
             # Visiting the `__getitem__(place.parent, place.item)` call ensures that we
             # linearity-check the parent and element.
             assert subscript.getitem_call is not None
@@ -461,7 +498,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         if subscript := contains_subscript(place):
             if visit_setitem:
                 assert subscript.setitem_call is not None
-                self.scope.assign(subscript.setitem_call.value_var)
+                self.scope.assign(subscript.setitem_call.value_var, node)
                 self.visit(subscript.setitem_call.call)
             self._reassign_single_inout_arg(
                 subscript.parent, node, visit_setitem=visit_setitem
@@ -469,7 +506,7 @@ class BBLinearityChecker(ast.NodeVisitor):
         else:
             assert not isinstance(place, SubscriptAccess)
             place = place.replace_defined_at(node)
-            self.scope.assign(place)
+            self.scope.assign(place, node)
 
     def _call_name(self, node: AnyCall | None) -> str | None:
         """Tries to extract the name of a called function from a call AST node."""
@@ -545,7 +582,7 @@ class BBLinearityChecker(ast.NodeVisitor):
             err.add_sub_diagnostic(UnnamedSubscriptNotUsedError.Fix(None))
             raise GuppyTypeError(err)
         self.visit(node.item_expr)
-        self.scope.assign(node.item)
+        self.scope.assign(node.item, node)
         self.visit(node.getitem_expr)
 
     def visit_TupleAccessAndDrop(self, node: TupleAccessAndDrop) -> None:
@@ -594,7 +631,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                 )
                 raise GuppyError(err)
             self.scope.use(var, use, UseKind.COPY)
-        self.scope.assign(Variable(node.name, node.ty, node))
+        self.scope.assign(Variable(node.name, node.def_ty, node), node)
 
     def _check_assign_targets(self, targets: list[ast.expr]) -> None:
         """Helper function to check assignments."""
@@ -602,6 +639,11 @@ class BBLinearityChecker(ast.NodeVisitor):
         [target] = targets
         for tgt in find_nodes(lambda n: isinstance(n, PlaceNode), target):
             assert isinstance(tgt, PlaceNode)
+            # When updating fields, we also need to check if any of the parents have
+            # already been moved
+            mutation = Mutation(tgt, tgt.place, tgt.place)
+            check_assignment_parent_already_used(mutation, self.scope)
+
             # Special error message for shadowing of borrowed vars
             x = tgt.place.id
             if x in self.scope.vars and is_inout_var(self.scope[x]):
@@ -612,8 +654,8 @@ class BBLinearityChecker(ast.NodeVisitor):
             if subscript := contains_subscript(tgt.place):
                 assert subscript.setitem_call is not None
                 self.visit(subscript.item_expr)
-                self.scope.assign(subscript.item)
-                self.scope.assign(subscript.setitem_call.value_var)
+                self.scope.assign(subscript.item, tgt)
+                self.scope.assign(subscript.setitem_call.value_var, tgt)
                 self.visit(subscript.setitem_call.call)
             else:
                 for tgt_place in leaf_places(tgt.place):
@@ -626,7 +668,7 @@ class BBLinearityChecker(ast.NodeVisitor):
                             err = PlaceNotUsedError(place.defined_at, place)
                             err.add_sub_diagnostic(PlaceNotUsedError.Fix(None))
                             raise GuppyError(err)
-                self.scope.assign(tgt.place)
+                self.scope.assign(tgt.place, tgt)
 
     def _check_comprehension(
         self, gens: list[DesugaredGenerator], elt: ast.expr
@@ -951,6 +993,24 @@ def check_mutable_parent_already_used(place: Place, use: Use, scope: Scope) -> N
                     raise GuppyError(err)
 
 
+def check_assignment_parent_already_used(mutation: Mutation, scope: Scope) -> None:
+    """Helper function to check assignments of mutable projections.
+
+    If the given mutation updates a projection of a non-copyable place, then we need to
+    check that this parent has not been moved. Note that this is independent of whether
+    the projection itself has an affine type.
+    """
+    place = mutation.origin_projection
+    for parent in parent_places(place, include_self=False):
+        if not parent.ty.copyable and (prev_use := scope.used(parent.id)):
+            err = ParentAlreadyUsedError(
+                mutation.node, mutation.origin_projection, "mutated"
+            )
+            sub = ParentAlreadyUsedError.ParentUse(prev_use.node, parent, prev_use.kind)
+            err.add_sub_diagnostic(sub)
+            raise GuppyError(err)
+
+
 def check_cfg_linearity(
     cfg: "CheckedCFG[Variable]",
     func_name: str,
@@ -1009,6 +1069,13 @@ def check_cfg_linearity(
         stats, initial=live_default, include_unreachable=False
     ).run(cfg.bbs)
 
+    # Run separate liveness analysis to determine which variables have projections that
+    # are mutated later
+    mutation_stats = {bb: scope.mutation_stats() for bb, scope in scopes.items()}
+    mutated_later = LivenessAnalysis(
+        mutation_stats, initial={}, include_unreachable=False
+    ).run(cfg.bbs)
+
     # Construct a CFG that tracks places instead of just variables
     result_cfg: CheckedCFG[Place] = CheckedCFG(cfg.input_tys, cfg.output_ty)
     checked: dict[BB, CheckedBB[Place]] = {}
@@ -1049,6 +1116,11 @@ def check_cfg_linearity(
 
                 # Also check if parents have been moved
                 check_mutable_parent_already_used(place, use, scope)
+
+            # Similarly, projections that are mutated later are not allowed to be moved
+            for x, mutation_bb in mutated_later[succ].items():
+                mutation = scopes[mutation_bb].mutated_parent[x]
+                check_assignment_parent_already_used(mutation, scope)
 
         # On the other hand, unused variables that are not droppable *must* be outputted
         for place in scope.values():

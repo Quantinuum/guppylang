@@ -11,6 +11,7 @@ from guppylang_internals.std._internal.compiler.option import (
 )
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import option_type_def
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.lang import owned
@@ -23,12 +24,12 @@ L = guppy.type_var("T", copyable=False, droppable=False)
 class Option(Generic[L]):  # type: ignore[misc]
     """Represents an optional value."""
 
-    @custom_function(OptionTestCompiler(0))
+    @custom_function(OptionTestCompiler(0), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def is_nothing(self: "Option[L]") -> bool:
         """Returns `True` if the option is a `nothing` value."""
 
-    @custom_function(OptionTestCompiler(1))
+    @custom_function(OptionTestCompiler(1), unitary_flags=UnitaryFlags.Dagger)
     @no_type_check
     def is_some(self: "Option[L]") -> bool:
         """Returns `True` if the option is a `some` value."""
@@ -64,7 +65,9 @@ class Option(Generic[L]):  # type: ignore[misc]
 
 
 # EFFECTS this can + probably should be pure, but preserving behaviour for now
-@custom_function(OptionConstructor(0), effects=[Effect.ANY])
+@custom_function(
+    OptionConstructor(0), effects=[Effect.ANY], unitary_flags=UnitaryFlags.Dagger
+)
 @no_type_check
 def nothing() -> Option[L]:
     """Constructs a `nothing` optional value."""

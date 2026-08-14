@@ -204,7 +204,7 @@ class CallableProtocolDef(CheckedProtocolDef):
 class CallableProtocolInst(ProtocolInst):
     """Protocol instance associated with the builtin `Callable` protocol."""
 
-    sig: FunctionType = field(hash=False)
+    sig: FunctionType = field(compare=False, hash=False)
 
     def __init__(self, sig: FunctionType):
         assert not sig.parametrized
