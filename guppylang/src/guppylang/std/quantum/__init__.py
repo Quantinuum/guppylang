@@ -78,6 +78,8 @@ class AbstractQubit:
     def controlled_rotate_z(self: Self, target: Self, theta: angle) -> None: ...
 
     @guppy.require(unitary=True)
+    # TODO: Provide defaults for derived operations such as Toffoli once protocol
+    # default methods are supported (#2205).
     def toffoli(self: Self, control2: Self, target: Self) -> None: ...
 
     @guppy.require(unitary=True)
