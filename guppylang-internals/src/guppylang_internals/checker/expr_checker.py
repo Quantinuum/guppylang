@@ -88,7 +88,6 @@ from guppylang_internals.checker.errors.type_errors import (
     TypeInferenceError,
     TypeMismatchError,
     UnaryOperatorNotDefinedError,
-    UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
 from guppylang_internals.definition.common import Definition
@@ -1155,8 +1154,7 @@ def check_type_against(
         inst = tuple(subst[v].to_arg() for v in free_vars)
         subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
 
-        # Finally, check that the instantiation respects the linearity requirements and
-        # if the unitary flags match
+        # Finally, check that the instantiation respects the linearity requirements
         check_inst(act_sig, inst, node)
 
         return node, subst, inst
