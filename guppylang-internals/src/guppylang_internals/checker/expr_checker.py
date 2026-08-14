@@ -1158,10 +1158,6 @@ def check_type_against(
         # Finally, check that the instantiation respects the linearity requirements and
         # if the unitary flags match
         check_inst(act_sig, inst, node)
-        exp = exp.substitute(subst)
-        exp = exp.sig if isinstance(exp, FunctionDefType) else exp
-        assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act_sig, node)
 
         return node, subst, inst
 
@@ -1173,12 +1169,6 @@ def check_type_against(
         if coerced := try_coerce_to(act, exp, node, ctx):
             return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
-
-    # If we have a function type, we also check that unitary flags match
-    if isinstance(act, FunctionType):
-        exp = exp.substitute(subst)
-        assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act, node)
 
     return node, subst, ()
 
@@ -1265,13 +1255,6 @@ def function_def_value_to_function_value(
         return with_type(ty.sig, expr)
     name = DEF_STORE.raw_defs[ty.def_id].name
     return with_type(ty.sig, with_loc(expr, GlobalName(id=name, def_id=ty.def_id)))
-
-
-def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
-    if not exp.unitary_flags.is_weaker_than(act.unitary_flags):
-        raise GuppyTypeError(
-            UnitaryFlagMismatchError(node, exp.unitary_flags, act.unitary_flags)
-        )
 
 
 def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Inst:
