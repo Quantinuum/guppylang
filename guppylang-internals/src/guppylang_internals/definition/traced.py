@@ -36,7 +36,6 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
-from guppylang_internals.engine import ENGINE
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
@@ -125,8 +124,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)  # ALAN move into check_call??
+        node = with_loc(node, GlobalCall(defn=self, args=args, type_args=inst))
         return node, subst
 
     @override
@@ -136,8 +134,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)  # ALAN move into synthesize_call??
+        node = with_loc(node, GlobalCall(defn=self, args=args, type_args=inst))
         return node, ty
 
 

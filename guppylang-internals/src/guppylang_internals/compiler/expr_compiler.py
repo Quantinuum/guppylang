@@ -442,7 +442,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         elif isinstance(func_ty, FunctionDefType):
             input_len = len(func_ty.sig.inputs)
             consumed_args, other_args = args[0:input_len], args[input_len:]
-            node = GlobalCall(def_id=func_ty.def_id, args=consumed_args, type_args=())
+            node = GlobalCall(defn=func_ty.defn, args=consumed_args, type_args=())
             out = self.visit_GlobalCall(node)
             returns = unpack_wire(out, func_ty.sig.output, self.builder, self.ctx, node)
             return returns, other_args
@@ -451,7 +451,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Tensor element wasn't function or tuple")
 
     def visit_GlobalCall(self, node: GlobalCall) -> Wire:
-        func = self.ctx.build_compiled_def(node.def_id, node.type_args)
+        func = self.ctx.build_compiled_def(node.defn.id, node.type_args)
         assert isinstance(func, CompiledCallableDef)
 
         if isinstance(func, CustomFunctionDef) and not func.has_signature:

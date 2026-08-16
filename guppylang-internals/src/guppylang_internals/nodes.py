@@ -6,6 +6,9 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.ast_util import AstNode, set_location_from
+from guppylang_internals.definition.common import CheckableGenericDef, DefId
+from guppylang_internals.definition.value import CallableDef
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.span import Span, to_span
 from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
@@ -22,7 +25,6 @@ if TYPE_CHECKING:
     from guppylang_internals.cfg.cfg import CFG
     from guppylang_internals.checker.cfg_checker import CheckedCFG
     from guppylang_internals.checker.core import Place, Variable
-    from guppylang_internals.definition.common import DefId
     from guppylang_internals.definition.util import CheckedField
 
 
@@ -114,7 +116,7 @@ class LocalCall(ast.expr):
 
 
 class GlobalCall(ast.expr):
-    def_id: "DefId"
+    def_id: DefId  # Allows deep-copying, whereas storing the CallableDef wouldn't
     args: list[ast.expr]
     type_args: Inst  # Inferred type arguments
 
@@ -124,12 +126,21 @@ class GlobalCall(ast.expr):
         "type_args",
     )
 
-    def __init__(self, def_id: "DefId", args: list[ast.expr], type_args: Inst) -> None:
+    @property
+    def defn(self) -> CallableDef:
+        defn = ENGINE.get_parsed(self.def_id)
+        assert isinstance(defn, CallableDef)
+        return defn
+
+    def __init__(
+        self, defn: CallableDef, args: list[ast.expr], type_args: Inst
+    ) -> None:
         super().__init__()
-        self.def_id = def_id
+        self.def_id = defn.id
         self.args = args
-        assert isinstance(type_args, tuple)
         self.type_args = type_args
+        if isinstance(defn, CheckableGenericDef):
+            ENGINE.register_generic_use(defn, type_args)
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__

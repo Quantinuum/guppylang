@@ -186,7 +186,7 @@ class ArrayCopyChecker(CustomCallChecker):
                     )
                     raise GuppyTypeError(err)
         [array_arg], _, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        node = GlobalCall(def_id=self.func.id, args=[array_arg], type_args=inst)
+        node = GlobalCall(defn=self.func, args=[array_arg], type_args=inst)
         return with_loc(self.node, node), get_type(array_arg)
 
 
@@ -280,7 +280,7 @@ class ArrayIndexChecker(CustomCallChecker):
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
 
         # Return the synthesized node and type
-        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        node = GlobalCall(defn=self.func, args=args, type_args=type_args)
         return with_loc(self.node, node), subs
 
     @override
@@ -294,7 +294,7 @@ class ArrayIndexChecker(CustomCallChecker):
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
 
         # Return the synthesized node and type
-        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        node = GlobalCall(defn=self.func, args=args, type_args=type_args)
         return with_loc(self.node, node), ty
 
 
@@ -362,7 +362,7 @@ class NewArrayChecker(CustomCallChecker):
 
                 result_ty = array_type(common_ty, len(args))
                 call = GlobalCall(
-                    def_id=self.func.id, args=args, type_args=tuple(result_ty.args)
+                    defn=self.func, args=args, type_args=tuple(result_ty.args)
                 )
                 return with_loc(self.node, call), result_ty
 
@@ -407,11 +407,7 @@ class NewArrayChecker(CustomCallChecker):
                             TypeArg(elem_ty.substitute(subst)),
                             ConstArg(ConstValue(nat_type(), len(args))),
                         )
-                        call = GlobalCall(
-                            self.func.id,
-                            args,
-                            type_args,
-                        )
+                        call = GlobalCall(self.func, args, type_args)
                         return with_loc(self.node, call), subst
             case type_args:
                 raise InternalGuppyError(f"Invalid array type args: {type_args}")
@@ -544,10 +540,10 @@ class WasmCallChecker(CustomCallChecker):
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
 
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
+        return GlobalCall(defn=self.func, args=args, type_args=inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), ty
+        return GlobalCall(defn=self.func, args=args, type_args=inst), ty

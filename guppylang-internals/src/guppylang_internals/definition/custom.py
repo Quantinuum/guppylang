@@ -538,13 +538,13 @@ class DefaultCallChecker(CustomCallChecker):
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
+        return GlobalCall(defn=self.func, args=args, type_args=inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), ty
+        return GlobalCall(defn=self.func, args=args, type_args=inst), ty
 
 
 class OwnedArgumentsCallChecker(DefaultCallChecker):
