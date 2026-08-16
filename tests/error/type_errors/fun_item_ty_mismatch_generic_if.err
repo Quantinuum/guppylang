@@ -1,0 +1,19 @@
+Error: Different types (at $FILE:17:10)
+   | 
+15 | @guppy
+16 | def main(b: bool) -> int:
+17 |     baz = foo if b else bar
+   |           ^^^^^^^^^^^^^^^^^ Expression may refer to different types
+
+Notes:
+   | 
+16 | def main(b: bool) -> int:
+17 |     baz = foo if b else bar
+   |           --- This is of type `def foo(x: T) -> T`
+   | 
+17 |     baz = foo if b else bar
+   |                         --- This is of type `def bar(x: T) -> T`
+
+Help: Consider coercing both values to `Function[[?T], ?T]`
+
+Guppy compilation failed due to 1 previous error
