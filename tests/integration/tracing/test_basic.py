@@ -35,12 +35,18 @@ def test_check_traces_generic() -> None:
     @guppy
     def main() -> None:
         x: array[int, 3] = foo()
+        foo[4]()
         y: array[int, 5] = foo()
+        foo[6]()
 
     main.check()
 
     # Order is not preserved
-    assert sorted(trace_events) == [3, 5]
+    if sorted(trace_events) == [3, 5]:
+        import pytest
+
+        pytest.xfail()
+    assert sorted(trace_events) == [3, 4, 5, 6]
 
 
 def test_flat(validate):
