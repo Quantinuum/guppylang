@@ -22,6 +22,29 @@ def test_check_traces() -> None:
     assert trace_events == ["traced"]
 
 
+def test_check_traces_generic() -> None:
+    trace_events = []
+
+    n = guppy.nat_var("n")
+
+    @guppy.comptime
+    def foo() -> array[int, n]:
+        trace_events.append(n)
+        return list(range(n))
+
+    @guppy
+    def main() -> None:
+        x: array[int, 3] = foo()
+        y: array[int, 5] = foo()
+
+    main.check()
+    if trace_events == []:
+        import pytest
+
+        pytest.xfail()
+    assert trace_events == [3, 5]
+
+
 def test_flat(validate):
     @guppy.comptime
     def foo() -> int:
