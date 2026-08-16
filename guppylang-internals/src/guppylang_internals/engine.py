@@ -23,6 +23,7 @@ from guppylang_internals.definition.common import (
     CheckableDef,
     CheckableGenericDef,
     CheckedDef,
+    CompilableDef,
     CompiledDef,
     DefId,
     ParsableDef,
@@ -250,18 +251,20 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
 
     @pretty_errors
-    def get_parsed(self, id: DefId) -> ParsedDef:
+    def get_parsed(self, id: DefId, parse: bool = True) -> ParsedDef:
         """Look up the parsed version of a definition by its id.
 
-        Parses the definition if it hasn't been parsed yet. Also makes sure that the
-        definition will be checked and compiled later on.
+        If `parse` is True, parses the definition if it hasn't been already.
+        Also makes sure that the definition will be checked and compiled later on.
         """
         from guppylang_internals.checker.core import Globals
 
         if id in self.parsed:
             return self.parsed[id]
         defn = DEF_STORE.raw_defs[id]
-        if isinstance(defn, ParsableDef):
+        if not parse:
+            assert isinstance(defn, ParsedDef)
+        elif isinstance(defn, ParsableDef):
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
         self.parsed[id] = defn
@@ -278,18 +281,21 @@ class CompilationEngine:
         return defn
 
     @pretty_errors
-    def get_checked(self, id: DefId, mono_args: Inst) -> CheckedDef:
+    def get_checked(self, id: DefId, mono_args: Inst, check: bool = True) -> CheckedDef:
         """Look up the checked version of a definition by its id.
 
-        Parses and checks the definition if it hasn't been parsed/checked yet. Also
-        makes sure that the definition will be compiled to Hugr later on.
+        if `check` is True, parses and checks the definition if it hasn't been already.
+        Also makes sure that the definition will be compiled to Hugr later on.
         """
         from guppylang_internals.checker.core import Globals
 
         if (id, mono_args) in self.checked:
             return self.checked[id, mono_args]
-        defn = self.get_parsed(id)
-        if isinstance(defn, CheckableDef):
+        defn = self.get_parsed(id, parse=check)
+
+        if not check:
+            assert isinstance(defn, (CompiledDef, CompilableDef))
+        elif isinstance(defn, CheckableDef):
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
             try:
