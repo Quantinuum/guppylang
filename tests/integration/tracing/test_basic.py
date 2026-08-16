@@ -42,10 +42,6 @@ def test_check_traces_generic() -> None:
     main.check()
 
     # Order is not preserved
-    if sorted(trace_events) == [3, 5]:
-        import pytest
-
-        pytest.xfail()
     assert sorted(trace_events) == [3, 4, 5, 6]
 
 
