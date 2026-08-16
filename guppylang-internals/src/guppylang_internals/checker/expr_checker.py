@@ -274,8 +274,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             )
             # Apply instantiation of quantified type variables
             if inst:
-                assert isinstance(syn_ty, (FunctionType, FunctionDefType))
-                expr = instantiate_poly2(expr, syn_ty, inst)
+                expr = make_type_apply(expr, inst)
             return with_type(ty.substitute(subst), expr), subst
 
         # Otherwise, invoke the visitor
@@ -453,8 +452,8 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Apply instantiation of quantified type variables
         if inst:
-            assert isinstance(synth, (FunctionType, FunctionDefType))
-            node = instantiate_poly2(node, synth, inst)
+            node = make_type_apply(node, inst)
+
         return node, subst
 
 
@@ -1668,17 +1667,19 @@ def check_inst(func_ty: FunctionType, inst: Inst, node: AstNode) -> None:
         param.check_arg(arg, node)
 
 
-def instantiate_poly2(
-    node: ast.expr, ty: FunctionType | FunctionDefType, inst: Inst
-) -> ast.expr:
-    match ty:
-        case FunctionType() as fty:
-            pass
-        case FunctionDefType(sig=fty):
-            pass
+def make_type_apply(node: ast.expr, inst: Inst) -> ast.expr:
+    """Makes a new TypeApply node, registering that the target is used with the
+    specified type arguments."""
+    # TODO perhaps we can combine this with instantiate_poly, but that
+    # requires a FunctionType
+    match node:
+        case GlobalName(def_id=def_id):
+            defn = ENGINE.get_parsed(def_id)
+            assert isinstance(defn, CheckableGenericDef)
+            ENGINE.register_generic_use(defn, inst)
         case _:
-            raise InternalGuppyError("Unexpected polymorphic type")
-    return instantiate_poly(node, fty, inst)
+            raise InternalGuppyError(f"Unhandled case: applying type args to {node}")
+    return with_loc(node, TypeApply(node, inst))
 
 
 def instantiate_poly(node: ast.expr, ty: FunctionType, inst: Inst) -> ast.expr:
@@ -1692,16 +1693,7 @@ def instantiate_poly(node: ast.expr, ty: FunctionType, inst: Inst) -> ast.expr:
             assert full_ty.params == ty.params
             node.func = instantiate_poly(node.func, full_ty, inst)
         else:
-            match node:
-                case GlobalName(def_id=def_id):
-                    defn = ENGINE.get_parsed(def_id)
-                    assert isinstance(defn, CheckableGenericDef)
-                    ENGINE.register_generic_use(defn, inst)
-                case _:
-                    raise InternalGuppyError(
-                        f"Unhandled case: applying type args to {node}"
-                    )
-            node = with_loc(node, TypeApply(with_type(ty, node), inst))
+            node = make_type_apply(with_type(ty, node), inst)
         return with_type(ty.instantiate(inst), node)
     return with_type(ty, node)
 
