@@ -73,6 +73,29 @@ class Range:
         self._next += self._step
         return some((actual_next, self))
 
+    @guppy
+    @no_type_check
+    def __reversed__(self: Self) -> None:
+        if self._step == 0:
+            panic("Range.__reversed__: step is zero")
+
+        diff = self._stop - self._next
+
+        # The range is empty when diff and step have different signs,
+        # or when the difference is zero.
+        if diff == 0 or (diff < 0) != (self._step < 0):
+            last = self._next
+            self._stop = self._next
+        else:
+            distance = diff if diff >= 0 else -diff
+            step = self._step if self._step >= 0 else -self._step
+            count = (distance + step - 1) // step
+            last = self._next + (count - 1) * self._step
+            self._stop = self._next - self._step
+
+        self._next = last
+        self._step = -self._step
+
 
 @guppy
 @no_type_check
@@ -89,6 +112,8 @@ def _range2(start: int, stop: int) -> Range:
 @guppy
 @no_type_check
 def _range3(start: int, stop: int, step: int) -> Range:
+    if step == 0:
+        panic("range() arg 3 must not be zero")
     return Range(start, stop, step)
 
 
@@ -111,4 +136,11 @@ def range(start: int, stop: int = 0, step: int = 1) -> Range:
     ``start`` defaults to ``0`` and ``step`` defaults to ``1``. If the provided ``stop``
     value is comptime known, then the returned iterator will have a static size
     annotation and may for example be used inside array comprehensions.
+
+    Iterating with a ``step`` of ``0`` raises a runtime panic.
     """
+
+
+# Delayed import to avoid cyclic import since `iter` is loaded very early via
+# `builtins`/`array` (which import `SizedIter` from this module).
+from guppylang.std.platform import panic  # noqa: E402

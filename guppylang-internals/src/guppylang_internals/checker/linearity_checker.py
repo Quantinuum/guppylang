@@ -177,7 +177,8 @@ class Scope(Locals[PlaceId, Place]):
     #: defined in this or any parent scope
     used_projections: dict[PlaceId, Use]
 
-    #: Tracks all projections (not just leaves) of places assigned in this scope
+    #: Tracks all projections (not just leaves) of places that are assigned in this
+    #: scope
     assigned_projections: dict[PlaceId, AstNode]
 
     #: Tracks all parents of mutated projections that were defined in a parent scope
