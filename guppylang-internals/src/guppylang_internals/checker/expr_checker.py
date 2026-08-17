@@ -89,7 +89,6 @@ from guppylang_internals.checker.errors.type_errors import (
     TypeInferenceError,
     TypeMismatchError,
     UnaryOperatorNotDefinedError,
-    UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
 from guppylang_internals.definition.common import Definition
@@ -123,7 +122,6 @@ from guppylang_internals.nodes import (
     MakeIter,
     PartialApply,
     PlaceNode,
-    ProtocolCall,
     SubscriptAccessAndDrop,
     TensorCall,
     TupleAccessAndDrop,
@@ -170,6 +168,7 @@ from guppylang_internals.tys.ty import (
     FunctionDefType,
     FunctionType,
     InputFlags,
+    NestedFunctionDefType,
     NoneType,
     NumericType,
     OpaqueType,
@@ -374,32 +373,14 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         node.func, func_ty = self._synthesize(node.func, allow_free_vars=False)
 
         if isinstance(func_ty, FunctionDefType):
-            node.func = function_def_value_to_global_name(node.func, func_ty)
+            node.func = function_def_value_to_function_value(node.func, func_ty)
+            func_ty = func_ty.sig
 
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
                 return defn.check_call(node.args, ty, node, self.ctx)
-
-            from guppylang_internals.definition.protocol import (
-                ParsedProtocolDef,
-            )
-
-            # Protocol methods don't have their own definition, we have to look up the
-            # protocol definition itself first.
-            if isinstance(defn, ParsedProtocolDef):
-                assert isinstance(func_ty, FunctionType)
-                args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
-                return with_loc(
-                    node,
-                    ProtocolCall(
-                        member=node.func.id,
-                        proto_id=node.func.def_id,
-                        args=args,
-                        type_args=inst,
-                    ),
-                ), subst
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1045,30 +1026,14 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         node.func, ty = self.synthesize(node.func)
 
         if isinstance(ty, FunctionDefType):
-            node.func = function_def_value_to_global_name(node.func, ty)
+            node.func = function_def_value_to_function_value(node.func, ty)
+            ty = ty.sig
 
         # First handle direct calls of user-defined functions and extension functions
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
                 return defn.synthesize_call(node.args, node, self.ctx)
-
-            from guppylang_internals.definition.protocol import ParsedProtocolDef
-
-            # Protocol methods don't have their own definition, we have to look up the
-            # protocol definition itself first.
-            if isinstance(defn, ParsedProtocolDef):
-                assert isinstance(ty, FunctionType)
-                args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
-                return with_loc(
-                    node,
-                    ProtocolCall(
-                        member=node.func.id,
-                        proto_id=node.func.def_id,
-                        args=args,
-                        type_args=inst,
-                    ),
-                ), return_ty
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1208,7 +1173,7 @@ def check_type_against(
     # If the actual type is a function item, we coerce it early to allow for generic to
     # be inferred below
     if isinstance(act, FunctionDefType) and isinstance(exp, FunctionType):
-        node = function_def_value_to_global_name(node, act)
+        node = function_def_value_to_function_value(node, act)
         act = act.sig
 
     # The actual type may be parametrised. In that case, we have to find an
@@ -1236,13 +1201,8 @@ def check_type_against(
         inst = tuple(subst[v].to_arg() for v in free_vars)
         subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
 
-        # Finally, check that the instantiation respects the linearity requirements and
-        # if the unitary flags match
+        # Finally, check that the instantiation respects the linearity requirements
         check_inst(act_sig, inst, node)
-        exp = exp.substitute(subst)
-        exp = exp.sig if isinstance(exp, FunctionDefType) else exp
-        assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act_sig, node)
 
         return node, subst, inst
 
@@ -1254,12 +1214,6 @@ def check_type_against(
         if coerced := try_coerce_to(act, exp, node, ctx):
             return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
-
-    # If we have a function type, we also check that unitary flags match
-    if isinstance(act, FunctionType):
-        exp = exp.substitute(subst)
-        assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act, node)
 
     return node, subst, ()
 
@@ -1277,7 +1231,7 @@ def try_coerce_to(
         and isinstance(exp, FunctionType)
         and act.sig == exp
     ):
-        return function_def_value_to_global_name(node, act)
+        return function_def_value_to_function_value(node, act)
 
     # We also support implicit coercions of numeric types
     if not isinstance(act, NumericType) or not isinstance(exp, NumericType):
@@ -1294,22 +1248,58 @@ def try_coerce_to(
     return None
 
 
-def function_def_value_to_global_name(expr: AstNode, ty: FunctionDefType) -> GlobalName:
-    """Turns an expressions with a `FunctionDefType` into the corresponding
-    `GlobalName`.
+def coerces_to(act: Type, exp: Type) -> bool:
+    """Checks whether `act` implicitly coerces to `exp`.
 
-    This is allowed since the function item already uniquely identifies the function
-    value, so there is no need to keep the expression that evaluates to this value.
+    Unlike `try_coerce_to`, this function just performs the check but does not emit any
+    code to actually perform the coercion.
     """
+    function_coercion = (
+        isinstance(act, FunctionDefType)
+        and isinstance(exp, FunctionType)
+        and act.sig == exp
+    )
+    numeric_coercion = (
+        isinstance(act, NumericType)
+        and isinstance(exp, NumericType)
+        and act.kind < exp.kind
+    )
+    return function_coercion or numeric_coercion
+
+
+def coerce_to_common(ty1: Type, ty2: Type) -> Type | None:
+    """Checks whether two types implicitly coerce to a common type.
+
+    Returns the resulting type or `None` if there is no such type.
+    """
+    # First, check if one coerces to the other or vice versa
+    if coerces_to(ty1, ty2):
+        return ty2
+    if coerces_to(ty2, ty1):
+        return ty1
+    # The only other supported case at the moment is coercing both to an opaque function
+    if (
+        isinstance(ty1, FunctionDefType)
+        and isinstance(ty2, FunctionDefType)
+        and ty1.sig == ty2.sig
+    ):
+        return ty1.sig
+    return None
+
+
+def function_def_value_to_function_value(
+    expr: ast.expr, ty: FunctionDefType
+) -> ast.expr:
+    """Coerces a definition-specific function value to its opaque function type.
+
+    Global function items can be replaced by a `GlobalName` since the definition id
+    uniquely identifies them. Nested functions are materialised as local values, so
+    their expression must be preserved to retain a possible closure.
+    """
+    if isinstance(ty, NestedFunctionDefType):
+        return with_type(ty.sig, expr)
     name = DEF_STORE.raw_defs[ty.def_id].name
     return with_type(ty.sig, with_loc(expr, GlobalName(id=name, def_id=ty.def_id)))
-
-
-def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
-    if not exp.unitary_flags.is_weaker_than(act.unitary_flags):
-        raise GuppyTypeError(
-            UnitaryFlagMismatchError(node, exp.unitary_flags, act.unitary_flags)
-        )
 
 
 def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Inst:

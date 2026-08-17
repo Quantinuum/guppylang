@@ -137,7 +137,7 @@ def test_infer_basic(validate):
     validate(main.compile_function())
 
 
-def test_infer_list(validate):
+def test_infer_list(validate, use_experimental_features):
     T = guppy.type_var("T")
 
     @guppy.declare

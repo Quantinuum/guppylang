@@ -41,26 +41,6 @@ class TypeMismatchError(Error):
 
 
 @dataclass(frozen=True)
-class UnitaryFlagMismatchError(Error):
-    title: ClassVar[str] = "Unitary flag mismatch"
-    span_label: ClassVar[str] = (
-        "Expected function with unitary flags: `{rendered_expected}`,"
-        " got: `{rendered_actual}`"
-    )
-
-    expected: UnitaryFlags
-    actual: UnitaryFlags
-
-    @property
-    def rendered_expected(self) -> str:
-        return self.expected.hint_rendering()
-
-    @property
-    def rendered_actual(self) -> str:
-        return self.actual.hint_rendering()
-
-
-@dataclass(frozen=True)
 class UnitaryFlagMismatchHint(Note):
     expected: UnitaryFlags
     actual: UnitaryFlags
@@ -533,3 +513,7 @@ class DontReturnProtocol(Error):
         "`{proto}` is a protocol, which is not allowed as a return type"
     )
     proto: str
+
+    @dataclass(frozen=True)
+    class FunctionInsteadOfCallable(Help):
+        message: ClassVar[str] = "Consider returning a `Function` type instead"

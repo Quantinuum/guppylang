@@ -558,7 +558,7 @@ def test_higher_order(validate):
         sfoo(sfun3[False])
         sfoo(sfun3[True])
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, fun2, and 2 monomorphizations of fun1, fun3,
@@ -593,7 +593,7 @@ def test_higher_order(validate):
         efoo(efun3[False])
         efoo(efun3[True])
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, efun2, and 2 monomorphizations of efun1,

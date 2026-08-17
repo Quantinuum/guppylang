@@ -5,12 +5,14 @@ from guppylang import comptime
 from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
 from guppylang.std.builtins import array, owned
+from guppylang.std.lang import Function
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.platform import output
 from guppylang_internals.std._internal.compiler.arithmetic import UnsignedIntVal
 from tests.util import compile_guppy
 
+from guppylang.optimizer import OptimizationLevel
 from guppylang.std.quantum import (
     qubit,
     discard,
@@ -839,6 +841,48 @@ def test_field_access_after_subscript(validate):
     validate(main.compile_function())
 
 
+def test_swap_borrowed(run_int_fn):
+    from guppylang.std.array import array_swap
+
+    @guppy.struct
+    class MyStruct:
+        i: int
+
+    @guppy
+    def main() -> int:
+        arr = array(MyStruct(1), MyStruct(2), MyStruct(3))
+        m = arr.take(1)
+        array_swap(arr, 0, 1)
+        return 0
+
+    with pytest.raises(EmulatorError, match="Array element is already borrowed"):
+        run_int_fn(main, expected=0)
+
+
+# This should panic, but the borrow's are optimized away
+# as effect-less. (With OptimizationLevel.Minimal, this
+# happens at the beginning of QSystemPass.)
+# https://github.com/Quantinuum/guppylang/issues/1747
+@pytest.mark.xfail(match="DID NOT RAISE")
+@pytest.mark.parametrize(
+    "level", [OptimizationLevel.Minimal, OptimizationLevel.Default]
+)
+def test_take_panic(level: OptimizationLevel, run_int_fn):
+    @guppy.struct
+    class MyStruct:
+        i: int
+
+    @guppy
+    def main() -> int:
+        arr = array(MyStruct(1), MyStruct(2), MyStruct(3))
+        arr.take(0)
+        arr.take(0)  # This should panic
+        return 17  # Do not use array
+
+    with pytest.raises(EmulatorError, match="Array element is already borrowed"):
+        main.with_opt_level(level).emulator(n_qubits=1).run()
+
+
 def test_dynamic_index_subscript(validate):
     """Smoketest for checking duplicate subscript accesses:
     Asserts that dynamic accesses with duplicate subscripts
@@ -908,3 +952,25 @@ def test_array_reverse_linear(validate) -> None:
     validate(main.compile())
     results = main.emulator(4).run().results[0].entries
     assert results == [("result", True)]
+
+
+def test_array_constructor_coercion(validate) -> None:
+    """See https://github.com/Quantinuum/guppylang/issues/2036"""
+
+    @guppy.declare
+    def foo(x: int) -> int: ...
+
+    @guppy.declare
+    def bar(x: int) -> int: ...
+
+    @guppy.declare
+    def baz(x: int) -> int: ...
+
+    @guppy
+    def main() -> tuple[array[int, 2], array[float, 5], array[Function[[int], int], 3]]:
+        xs = array(1, nat(2))
+        ys = array(1, 1.5, nat(2), 3.5, 4)
+        fs = array(foo, bar, baz)
+        return xs, ys, fs
+
+    validate(main.compile_function())

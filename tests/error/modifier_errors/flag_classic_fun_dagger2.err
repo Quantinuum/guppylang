@@ -1,0 +1,11 @@
+Error: Unitary constraint violation (at $FILE:14:8)
+   | 
+12 |     q = qubit()
+13 |     with dagger, control(q):
+14 |         foo()
+   |         ^^^^^ This function cannot be called in a unitary context
+
+Help: Consider adding the flag `(unitary=True)` to the decorator of the function
+`foo`
+
+Guppy compilation failed due to 1 previous error

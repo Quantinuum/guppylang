@@ -1,0 +1,25 @@
+Error: Different types (at $FILE:15:11)
+   | 
+13 |             return y - 42
+14 | 
+15 |     return bar(x)
+   |            ^^^ Variable `bar` may refer to different types
+
+Notes:
+   | 
+ 7 | 
+ 8 |         def bar(y: int) -> int:
+   |         -----------------------
+ 9 |             return y + 3
+   | ------------------------ This is of type `def bar(y: int) -> int`
+
+11 | 
+12 |         def bar(y: int) -> int:
+   |         -----------------------
+13 |             return y - 42
+   | ------------------------- This is of type `def bar(y: int) -> int`
+
+Help: Consider adding type annotations to coerce them into opaque function
+values: `bar: Function[[int], int] = ...`
+
+Guppy compilation failed due to 1 previous error

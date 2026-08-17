@@ -11,6 +11,7 @@ from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     FunctionType,
+    NestedFunctionDefType,
     StructType,
     TupleType,
     Type,
@@ -133,29 +134,6 @@ class GlobalCall(ast.expr):
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
     __reduce_ex__ = object.__reduce_ex__
-
-
-class ProtocolCall(ast.expr):
-    member: str
-    proto_id: "DefId"
-    args: list[ast.expr]
-    type_args: Inst
-
-    _fields = (
-        "member",
-        "proto_id",
-        "args",
-        "type_args",
-    )
-
-    def __init__(
-        self, member: str, proto_id: "DefId", args: list[ast.expr], type_args: Inst
-    ):
-        super().__init__()
-        self.member = member
-        self.proto_id = proto_id
-        self.args = args
-        self.type_args = type_args
 
 
 class TensorCall(ast.expr):
@@ -563,9 +541,7 @@ class StateOutputExpr(ast.expr):
     __reduce_ex__ = object.__reduce_ex__
 
 
-AnyCall = (
-    LocalCall | GlobalCall | TensorCall | BarrierExpr | StateOutputExpr | ProtocolCall
-)
+AnyCall = LocalCall | GlobalCall | TensorCall | BarrierExpr | StateOutputExpr
 
 
 class InoutReturnSentinel(ast.expr):
@@ -733,6 +709,11 @@ class CheckedNestedFunctionDef(ast.FunctionDef):
         self.cfg = cfg
         self.ty = ty
         self.captured = captured
+
+    @property
+    def def_ty(self) -> NestedFunctionDefType:
+        """The definition-specific type of this function as a local value."""
+        return NestedFunctionDefType(self.def_id)
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
