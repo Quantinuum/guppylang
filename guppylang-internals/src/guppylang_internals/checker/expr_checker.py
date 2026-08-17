@@ -77,7 +77,7 @@ from guppylang_internals.checker.errors.type_errors import (
     BinaryOperatorNotDefinedError,
     ConstMismatchError,
     IllegalConstant,
-    InstanceMethodOnClassError,
+    InstanceMemberOnClassError,
     IntOverflowError,
     KindMismatch,
     ModuleMemberNotFoundError,
@@ -655,12 +655,16 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # case is below: a bare struct/alias reference resolves (via
                 # `_check_name_id`) to its `__new__` constructor's `FunctionType`,
                 # never to `StructType`, so we check it here instead.
-                if defn := self._find_instance_func_on_class(node):
-                    err = InstanceMethodOnClassError(attr_span, defn.name, node.attr)
+                if found := self._find_instance_member_on_class(node):
+                    defn, member_kind = found
+                    example = f"{defn.name}(...).{node.attr}"
+                    if member_kind == "method":
+                        example += "(...)"
+                    err = InstanceMemberOnClassError(
+                        attr_span, defn.name, node.attr, member_kind
+                    )
                     err.add_sub_diagnostic(
-                        InstanceMethodOnClassError.CallOnInstanceHelp(
-                            None, f"{defn.name}(...).{node.attr}(...)"
-                        )
+                        InstanceMemberOnClassError.CallOnInstanceHelp(None, example)
                     )
                     raise GuppyTypeError(err)
 
@@ -746,9 +750,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     # currently unsupported). Fail with a helpful error instead of
                     # the generic "no variant" message below.
                     example_variant = next(iter(ty.variants_as_dict))
-                    err = InstanceMethodOnClassError(attr_span, str(ty), node.attr)
+                    err = InstanceMemberOnClassError(
+                        attr_span, str(ty), node.attr, "method"
+                    )
                     err.add_sub_diagnostic(
-                        InstanceMethodOnClassError.CallOnInstanceHelp(
+                        InstanceMemberOnClassError.CallOnInstanceHelp(
                             None, f"{ty}.{example_variant}(...).{node.attr}(...)"
                         )
                     )
@@ -767,19 +773,27 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             AttributeNotFoundError(attr_span, ty, node.attr, is_enum_class)
         )
 
-    def _find_instance_func_on_class(self, node: ast.Attribute) -> TypeDef | None:
-        """Returns the class's definition if `node` is an instance method being
-        called on the class itself (e.g. `MyStruct.foo`) rather than on an
-        instance, or `None` otherwise.
+    def _find_instance_member_on_class(
+        self, node: ast.Attribute
+    ) -> tuple[TypeDef, str] | None:
+        """Returns the class's definition and the kind of member accessed
+        ("method" or "field") if `node` is an instance method or struct field
+        being accessed on the class itself (e.g. `MyStruct.foo` or
+        `MyStruct.field`) rather than on an instance, or `None` otherwise.
 
-        Excludes enums: `get_instance_func` can't tell an instance method apart
-        from a variant constructor there, so this would misfire on legal variant
-        construction like `MyEnum.Left()`. That case is handled separately by the
-        `EnumType` branch further down.
+        Excludes enum methods: `get_instance_func` can't tell an instance method
+        apart from a variant constructor there, so this would misfire on legal
+        variant construction like `MyEnum.Left()`. That case is handled
+        separately by the `EnumType` branch further down. Enums have no
+        class-level fields, so no such exclusion is needed for those.
         """
         if not isinstance(node.value, ast.Name):
             return None
         from guppylang_internals.definition.enum import CheckedEnumDef, ParsedEnumDef
+        from guppylang_internals.definition.struct import (
+            CheckedStructDef,
+            ParsedStructDef,
+        )
 
         name_id = node.value.id
         if (
@@ -789,13 +803,18 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         ):
             return None
         defn = self.ctx.globals[name_id]
+        if not isinstance(defn, TypeDef):
+            return None
+        if isinstance(defn, ParsedStructDef | CheckedStructDef) and any(
+            f.name == node.attr for f in defn.fields
+        ):
+            return defn, "field"
         if (
-            isinstance(defn, TypeDef)
-            and not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
+            not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
             and node.attr != "__new__"
             and ENGINE.get_instance_func(defn, node.attr) is not None
         ):
-            return defn
+            return defn, "method"
         return None
 
     def _check_method(

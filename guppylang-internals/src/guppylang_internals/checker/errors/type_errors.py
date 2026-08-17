@@ -183,17 +183,19 @@ class AttributeNotFoundError(Error):
 
 
 @dataclass(frozen=True)
-class InstanceMethodOnClassError(Error):
-    title: ClassVar[str] = "Instance method called on class"
+class InstanceMemberOnClassError(Error):
+    title: ClassVar[str] = "Instance {member_kind} accessed on class"
     span_label: ClassVar[str] = (
-        "`{attribute}` is an instance method of `{ty_name}`, not a static method"
+        "`{attribute}` is an instance {member_kind} of `{ty_name}`, not a "
+        "static {member_kind}"
     )
     ty_name: str
     attribute: str
+    member_kind: str  # "method" or "field"
 
     @dataclass(frozen=True)
     class CallOnInstanceHelp(Help):
-        message: ClassVar[str] = "Call it on an instance instead, e.g. `{example}`"
+        message: ClassVar[str] = "Access it on an instance instead, e.g. `{example}`"
         example: str
 
 

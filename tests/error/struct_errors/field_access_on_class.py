@@ -12,9 +12,8 @@ class MyStruct:
 
 @guppy
 def main() -> int:
-    # `field` is a data field, not an instance method, so this must fall through to
-    # the ordinary "attribute not found" error rather than being misdiagnosed as an
-    # instance method called on the class.
+    # `field` is a data field, not a method, so this must raise the field-specific
+    # "instance field accessed on class" error, not the method-specific one.
     return MyStruct.field
 
 
