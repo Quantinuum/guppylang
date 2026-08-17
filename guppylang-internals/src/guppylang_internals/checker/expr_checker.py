@@ -651,44 +651,18 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
             if ty is None:
-                from guppylang_internals.definition.enum import (
-                    CheckedEnumDef,
-                    ParsedEnumDef,
-                )
-
-                name_id = node.value.id
-                if (
-                    # A local variable of the same name shadows the global (e.g.
-                    # `def f(MyStruct: Other)`), matching `_check_name_id` below.
-                    name_id not in self.ctx.locals
-                    # Same shadowing rule, for generic type/const parameters.
-                    and name_id not in self.ctx.generic_param_inst
-                    # Only relevant if `name_id` does resolve to a global.
-                    and name_id in self.ctx.globals
-                ):
-                    defn = self.ctx.globals[name_id]
-                    if (
-                        # Only types (structs, aliases, ...) can have this problem.
-                        isinstance(defn, TypeDef)
-                        # Enums are excluded and handled separately below:
-                        # `get_instance_func` can't tell an instance method apart
-                        # from a variant constructor, so this would misfire on
-                        # legal variant construction like `MyEnum.Left()`.
-                        and not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
-                        # `MyStruct(...)` desugars to a legal `__new__` call.
-                        and node.attr != "__new__"
-                        # Only fire if `node.attr` really names an instance method.
-                        and ENGINE.get_instance_func(defn, node.attr) is not None
-                    ):
-                        err = InstanceMethodOnClassError(
-                            attr_span, defn.name, node.attr
+                # Can't be scoped under `isinstance(ty, StructType)` like the enum
+                # case is below: a bare struct/alias reference resolves (via
+                # `_check_name_id`) to its `__new__` constructor's `FunctionType`,
+                # never to `StructType`, so we check it here instead.
+                if defn := self._find_instance_func_on_class(node):
+                    err = InstanceMethodOnClassError(attr_span, defn.name, node.attr)
+                    err.add_sub_diagnostic(
+                        InstanceMethodOnClassError.CallOnInstanceHelp(
+                            None, f"{defn.name}(...).{node.attr}(...)"
                         )
-                        err.add_sub_diagnostic(
-                            InstanceMethodOnClassError.CallOnInstanceHelp(
-                                None, f"{defn.name}(...).{node.attr}(...)"
-                            )
-                        )
-                        raise GuppyTypeError(err)
+                    )
+                    raise GuppyTypeError(err)
 
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
@@ -792,6 +766,37 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         raise GuppyTypeError(
             AttributeNotFoundError(attr_span, ty, node.attr, is_enum_class)
         )
+
+    def _find_instance_func_on_class(self, node: ast.Attribute) -> TypeDef | None:
+        """Returns the class's definition if `node` is an instance method being
+        called on the class itself (e.g. `MyStruct.foo`) rather than on an
+        instance, or `None` otherwise.
+
+        Excludes enums: `get_instance_func` can't tell an instance method apart
+        from a variant constructor there, so this would misfire on legal variant
+        construction like `MyEnum.Left()`. That case is handled separately by the
+        `EnumType` branch further down.
+        """
+        if not isinstance(node.value, ast.Name):
+            return None
+        from guppylang_internals.definition.enum import CheckedEnumDef, ParsedEnumDef
+
+        name_id = node.value.id
+        if (
+            name_id in self.ctx.locals
+            or name_id in self.ctx.generic_param_inst
+            or name_id not in self.ctx.globals
+        ):
+            return None
+        defn = self.ctx.globals[name_id]
+        if (
+            isinstance(defn, TypeDef)
+            and not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
+            and node.attr != "__new__"
+            and ENGINE.get_instance_func(defn, node.attr) is not None
+        ):
+            return defn
+        return None
 
     def _check_method(
         self, ty: Type, node: ast.Attribute
