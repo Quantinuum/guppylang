@@ -140,6 +140,10 @@ CALL_CTRL_DAGGERED_METHOD = "ctrl_daggered"
 #: instantiation for the generic parameters for the monomorphized version.
 MonoDefId = tuple[DefId, Inst]
 
+#: A checked custom modifier definition together with its parsed definition when it
+#: still has generic parameters that must be monomorphized before compilation.
+CustomModifiedDef = tuple[CheckedDef, CheckableGenericDef | None]
+
 
 class DefinitionStore:
     """Storage class holding references to all Guppy definitions created in the current
@@ -239,6 +243,10 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
+    #: Custom modifier definitions keyed by the parent definition and its
+    #: monomorphization.
+    checked_custom_modified_defs: dict[MonoDefId, list[CustomModifiedDef]]
+
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
@@ -277,6 +285,7 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
+        self.checked_custom_modified_defs = {}
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
@@ -346,11 +355,12 @@ class CompilationEngine:
                 defn, mono_args, Globals(DEF_STORE.frames[defn.id])
             )
         self.checked[id, mono_args] = defn
-
+        checked_custom_defs: list[CustomModifiedDef] = []
         custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
         for custom_modified_id in custom_modified_ids:
             custom_modified_defn = self.get_parsed(custom_modified_id)
             assert isinstance(custom_modified_defn, CheckableGenericDef)
+            # NICOLA: TODO: saving in self.checked may be useless
             # controlled implematation has an extra parameter for the controllers.
             # We keep that extra parameter generic, the monomorphization will be
             # done later.
@@ -365,6 +375,15 @@ class CompilationEngine:
                     Globals(DEF_STORE.frames[defn.id]),
                 )
                 self.checked[custom_modified_id, custom_mono_args] = checked_defn
+            else:
+                checked_defn = self.checked[custom_modified_id, custom_mono_args]
+            remaining_generic_defn = (
+                custom_modified_defn
+                if len(custom_modified_defn.params) > len(mono_args)
+                else None
+            )
+            checked_custom_defs.append((checked_defn, remaining_generic_defn))
+        self.checked_custom_modified_defs[id, mono_args] = checked_custom_defs
 
         from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
@@ -557,6 +576,7 @@ class CompilationEngine:
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
+            # NICOLA: NOTE: Here we call the compile outer, in `build_compiled_def`
             requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
         ctx.iterate_worklist()
         self.compiled = ctx.compiled

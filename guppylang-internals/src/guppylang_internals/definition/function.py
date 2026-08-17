@@ -432,17 +432,17 @@ def load(dfg: DFContainer, func: ToNode) -> Wire:
     return dfg.builder.load_function(func)
 
 
-# def _compile_modified_def(
-#     defn: CheckedFunctionDef | None, ctx: CompilerContext
-# ) -> str | None:
-#     if defn is None:
-#         return None
-#     compiled = ctx.build_compiled_def(
-#         defn.id,
-#         defn.mono_args,  # type: ignore[attr-defined]
-#     )
-#     assert isinstance(compiled, CompiledFunctionDef)
-#     return compiled.link_name
+def _compile_modified_def(
+    defn: CheckedFunctionDef | None, ctx: CompilerContext
+) -> str | None:
+    if defn is None:
+        return None
+    compiled = ctx.build_compiled_def(
+        defn.id,
+        defn.mono_args,  # type: ignore[attr-defined]
+    )
+    assert isinstance(compiled, CompiledFunctionDef)
+    return compiled.link_name
 
 
 def compile_call(
