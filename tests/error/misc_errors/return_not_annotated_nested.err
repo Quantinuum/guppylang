@@ -1,8 +1,8 @@
-Error: Missing type annotation (at $FILE:6:4)
+Error: Missing type annotation (at $FILE:7:4)
   | 
-4 | def _wrapper():
-5 |     @guppy
-6 |     def wrapper():
+5 | def _wrapper():
+6 |     @guppy
+7 |     def wrapper():
   |     ^^^^^^^^^^^^^^ Return type must be annotated
 
 Help: Looks like `wrapper` doesn't return anything. Consider annotating it with

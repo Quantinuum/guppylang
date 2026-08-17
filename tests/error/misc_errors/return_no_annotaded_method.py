@@ -2,12 +2,17 @@
 from guppylang import guppy
 
 
-def _wrapper():
+@guppy.struct
+class struct:
+
     @guppy
-    def wrapper():
+    def method():
         return
 
-    return wrapper
+@guppy
+def main() -> None:
+    w = struct()
+    w.method()
 
 
-_wrapper().compile()
+main.compile()

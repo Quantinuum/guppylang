@@ -141,7 +141,7 @@ def function_header_span(func_def: ast.FunctionDef) -> Span:
     lines = source.splitlines()
     # `parse_source` wraps indented functions in a synthetic class so that Python can
     # parse them without changing their column offsets. The wrapper is not included in
-    # `source`, so account for its extra line when indexing into the source text.
+    # `source`, so `func_def.lineno` points 2 lines below the definition line.
     wrapper_lines = int(source[0].isspace())
     line_idx = func_def.lineno - wrapper_lines - 1
     paren_depth = 0
