@@ -1,4 +1,5 @@
 import base64
+from collections.abc import Callable
 import pytest
 
 from guppylang.decorator import guppy
@@ -420,6 +421,12 @@ def test_custom_unitary_higher_order_callables(use_experimental_features):
         def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
+    @guppy.unitary
+    class custom_call:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
     @guppy(daggerable=True)
     def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
         f(q)
@@ -433,10 +440,26 @@ def test_custom_unitary_higher_order_callables(use_experimental_features):
         f(q)
 
     @guppy
+    def apply_plain(f: Function[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def apply_plain2(f: Callable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
     def main(q: qubit) -> None:
         apply_dagger(custom_dagger, q)
         apply_control(custom_control, q)
         apply_unitary(custom_unitary, q)
+        apply_plain(custom_dagger, q)
+        apply_plain(custom_control, q)
+        apply_plain(custom_unitary, q)
+        apply_plain(custom_call, q)
+        apply_plain2(custom_dagger, q)
+        apply_plain2(custom_control, q)
+        apply_plain2(custom_unitary, q)
+        apply_plain2(custom_call, q)
 
     main.check()
 
