@@ -4,7 +4,7 @@ dev = [
   { include-group = "lint" },
   { include-group = "test" },
 ]
-docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
+docs = ["furo>=2024.8.6", "sphinx>=9.1.0,<10"]
 examples = ["matplotlib>=3.10.9", "networkx>=2.6,<4"]
 lint = ["mypy~=2.1.0", "pre-commit>=4.6.0,<5", "ruff~=0.15.21"]
 test = [
