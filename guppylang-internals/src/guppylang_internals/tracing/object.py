@@ -541,6 +541,18 @@ class TracingDefMixin(DunderMixin):
 
     wrapped: Definition
 
+    def __mro_entries__(self, bases: tuple[type, ...]) -> tuple[type, ...]:
+        """Resolve Guppy definitions used as Python class bases.
+
+        This lets class creation proceed so Guppy can report unsupported
+        inheritance with its regular diagnostics during struct/enum/protocol parsing.
+        """
+        if isinstance(self.wrapped, TypeDef):
+            python_class = getattr(self.wrapped, "python_class", None)
+            if isinstance(python_class, type):
+                return (python_class,)
+        return ()
+
     @property
     def id(self) -> DefId:
         return self.wrapped.id
