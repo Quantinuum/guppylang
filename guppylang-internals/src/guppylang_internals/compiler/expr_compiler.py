@@ -16,7 +16,6 @@ from hugr import val as hv
 from guppylang_internals.ast_util import AstNode, AstVisitor, get_type
 from guppylang_internals.cfg.builder import tmp_vars
 from guppylang_internals.checker.core import Variable, contains_subscript
-from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.compiler.builder import (
     CondBuilder,
     DFBuilder,
@@ -265,12 +264,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
     def visit_GlobalName(self, node: GlobalName) -> Wire:
         defn = ENGINE.get_parsed(node.def_id)
-        if isinstance(defn, CheckableGenericDef) and defn.params:
-            # TODO: This should be caught during checking
-            err = UnsupportedError(
-                node, "Polymorphic functions as dynamic higher-order values"
-            )
-            raise GuppyError(err)
+        assert not (isinstance(defn, CheckableGenericDef) and defn.params)
 
         if isinstance(get_type(node), FunctionDefType):
             # Function items don't need an actual runtime representation so we just
