@@ -353,20 +353,20 @@ class CompilationEngine:
 
         custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
         for custom_modified_id in custom_modified_ids:
-            if (custom_modified_id, mono_args) in self.checked:
-                return self.checked[custom_modified_id, mono_args]
             custom_modified_defn = self.get_parsed(custom_modified_id)
             assert isinstance(custom_modified_defn, CheckableGenericDef)
             # controlled implematation has an extra parameter for the controllers
-            mono_args = (
-                mono_args
-                if len(mono_args) == len(custom_modified_defn.params)
-                else tuple(param.to_bound() for param in custom_modified_defn.params)
+            custom_mono_args = mono_args + tuple(
+                param.to_bound()
+                for param in custom_modified_defn.params[len(mono_args) :]
             )
-            checked_defn = _check_generic_def_instantiation(
-                custom_modified_defn, mono_args, Globals(DEF_STORE.frames[defn.id])
-            )
-            self.checked[custom_modified_id, mono_args] = checked_defn
+            if (custom_modified_id, custom_mono_args) not in self.checked:
+                checked_defn = _check_generic_def_instantiation(
+                    custom_modified_defn,
+                    custom_mono_args,
+                    Globals(DEF_STORE.frames[defn.id]),
+                )
+                self.checked[custom_modified_id, custom_mono_args] = checked_defn
 
         from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
@@ -595,15 +595,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(
