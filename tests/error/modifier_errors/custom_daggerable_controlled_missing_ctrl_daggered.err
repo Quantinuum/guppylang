@@ -1,11 +1,11 @@
-Error: Invalid `@guppy.unitary` implementation (at $FILE:10:0)
+Error: Invalid `@guppy.unitary` implementation (at $FILE:7:0)
    | 
- 8 | 
- 9 | @guppy.unitary
-10 | class foo:
+ 5 | 
+ 6 | @guppy.unitary
+ 7 | class foo:
    | ^^^^^^^^^^
    | ...
-17 |         pass
+14 |         pass
    | ^^^^^^^^^^^^
 
 A `@guppy.unitary` class implementing `controlled` for a function marked

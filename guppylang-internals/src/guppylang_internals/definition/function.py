@@ -51,6 +51,8 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
+
+# from guppylang_internals.experimental import check_unitary_classes_enabled
 from guppylang_internals.metadata.common import (
     FunctionMetadata,
     add_metadata,
@@ -182,11 +184,18 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     # extra capabilities must not impose constraints on the `__call__` body.
     decorator_unitary_flags: UnitaryFlags | None = field(default=None, kw_only=True)
 
+    # Location of the `@guppy.unitary` decorator when this function is the `__call__`
+    # implementation of a unitary class.
+    # Used for experimental feature checking.
+    unitary_class_at: AstNode | None = field(default=None, kw_only=True)
+
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
+        # if self.unitary_class_at is not None:
+        #     check_unitary_classes_enabled(self.unitary_class_at)
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags

@@ -1,4 +1,5 @@
 import base64
+from collections.abc import Callable
 import pytest
 
 from guppylang.decorator import guppy
@@ -375,7 +376,7 @@ def test_higher_order_unitary_callable(validate):
     validate(main.compile_function())
 
 
-def test_custom_unitary_higher_order_callables():
+def test_custom_unitary_higher_order_callables(use_experimental_features):
     """Custom modifier methods determine higher-order callable capabilities."""
 
     @guppy.unitary
@@ -420,6 +421,12 @@ def test_custom_unitary_higher_order_callables():
         def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
+    @guppy.unitary
+    class custom_call:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
     @guppy(daggerable=True)
     def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
         f(q)
@@ -433,10 +440,26 @@ def test_custom_unitary_higher_order_callables():
         f(q)
 
     @guppy
+    def apply_plain(f: Function[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def apply_plain2(f: Callable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
     def main(q: qubit) -> None:
         apply_dagger(custom_dagger, q)
         apply_control(custom_control, q)
         apply_unitary(custom_unitary, q)
+        apply_plain(custom_dagger, q)
+        apply_plain(custom_control, q)
+        apply_plain(custom_unitary, q)
+        apply_plain(custom_call, q)
+        apply_plain2(custom_dagger, q)
+        apply_plain2(custom_control, q)
+        apply_plain2(custom_unitary, q)
+        apply_plain2(custom_call, q)
 
     main.check()
 
@@ -624,7 +647,6 @@ def test_comptime_unitary_mixed(validate):
     validate(foo.compile_function())
 
 
-# NICOLA: TODO investigate why this cannot be inside test_use_other_functions
 @guppy
 def ext_helper(q: qubit) -> None:
     x(q)
@@ -635,7 +657,7 @@ def helper(q: qubit) -> None:
     h(q)
 
 
-def test_custom_modifier(validate):
+def test_custom_modifier(validate, use_experimental_features):
 
     @guppy.unitary
     class foo:
@@ -679,20 +701,7 @@ def test_custom_modifier(validate):
         discard_array(qs)
         measure(c)
 
-    package = main.check()
-    # NICOLA: TODO after Mark
-    # hugr_module = package.modules[0]
-    # for _, data in hugr_module.nodes():
-    #     if (
-    #         isinstance(data.op, FuncDefn)
-    #         and data.op.f_name == "__main__.foo.__call__$1"
-    #     ):
-    #         assert data.metadata[DAGGERED_KEY] == "__main__.foo.call_daggered$1"
-    #         assert data.metadata[CONTROLLED_KEY] == "__main__.foo.call_controlled$1"
-    #         assert (
-    #             data.metadata[CTRL_DAGGERED_KEY] == "__main__.foo.call_ctrl_daggered$1"  # noqa: E501
-    #         )
-    # validate(package)
+    main.check()
 
 
 def test_hugr_stability():

@@ -1,8 +1,7 @@
 
 from guppylang.decorator import guppy
 from guppylang.std.quantum import h, x, measure, qubit
-import guppylang
-guppylang.enable_experimental_features()
+
 
 @guppy.unitary
 class foo:

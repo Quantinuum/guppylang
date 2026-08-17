@@ -1,8 +1,8 @@
-Error: Control constraint violation (at $FILE:22:4)
+Error: Control constraint violation (at $FILE:21:4)
    | 
-20 | @guppy(controllable=True)
-21 | def main(q: qubit) -> None:
-22 |     foo(q)
+19 | @guppy(controllable=True)
+20 | def main(q: qubit) -> None:
+21 |     foo(q)
    |     ^^^^^^ This function cannot be called in a controllable context
 
 Help: Consider adding the flag `(controllable=True)` to the decorator of the

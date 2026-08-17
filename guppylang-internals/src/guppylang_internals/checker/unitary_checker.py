@@ -49,25 +49,27 @@ class InvalidUnitaryError(Error):
     def rendered_message(self) -> str:
         match self.kind:
             case InvalidUnitaryKind.MissingCtrlDaggered:
-                return (
-                    "A `@guppy.unitary` class implementing `daggered` and `controlled` "
-                    "requires either a `ctrl_daggered` implementation or `unitary=True`"
-                    " on `__call__`"
-                )
+                implementation = "`daggered` and `controlled`"
+                required_implementation = "`ctrl_daggered`"
+                required_flag = "unitary"
             case InvalidUnitaryKind.MissingCtrlDaggeredForFlag:
                 assert self.implementation is not None
                 assert self.flag is not None
-                return (
-                    f"A `@guppy.unitary` class implementing `{self.implementation}` for"
-                    f" a function marked `{self.flag}=True` requires either a "
-                    "`ctrl_daggered` implementation or `unitary=True` on `__call__`"
+                implementation = (
+                    f"`{self.implementation}` for a function marked `{self.flag}=True`"
                 )
+                required_implementation = "`ctrl_daggered`"
+                required_flag = "unitary"
             case InvalidUnitaryKind.MissingCtrl:
-                return (
-                    "A `@guppy.unitary` class implementing `ctrl_daggered` "
-                    "implementation requires either a  `controlled` implementation or "
-                    "`controllable=True` on `__call__`"
-                )
+                implementation = "`ctrl_daggered`"
+                required_implementation = "`controlled`"
+                required_flag = "controllable"
+
+        return (
+            f"A `@guppy.unitary` class implementing {implementation} "
+            f"requires either a {required_implementation} implementation or "
+            f"`{required_flag}=True` on `__call__`"
+        )
 
 
 def check_invalid_under_dagger(

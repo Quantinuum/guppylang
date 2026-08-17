@@ -68,7 +68,7 @@ def helper(q: qubit, n: int) -> int:
     return identity(n)
 
 
-def test_generic_functions_in_unitary_class(validate):
+def test_generic_functions_in_unitary_class(validate, use_experimental_features):
 
     @guppy.unitary
     class foo:
@@ -84,7 +84,6 @@ def test_generic_functions_in_unitary_class(validate):
             n = identity(2)
             helper(q, n)
 
-        # TODO: make the _controls argument generic
         @guppy
         def controlled(q: qubit, _controls: array[qubit, c]) -> None:
             n = identity(3)
@@ -104,7 +103,6 @@ def test_generic_functions_in_unitary_class(validate):
         discard(q)
 
     main.check()
-    # validate(main.compile())
 
 
 def test_define_twice(validate):

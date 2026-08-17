@@ -154,7 +154,6 @@ class DefinitionStore:
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
     sources: SourceMap
-    # NICOLA: DONE? add a new mapping from function to custom definition
     # Maps a parent definition (usually a function) to its custom modified definitions
     custom_modified_defs: dict[DefId, list[DefId]]
 
@@ -195,12 +194,9 @@ class DefinitionStore:
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
 
-    # NICOLA: DONE? use this to register custom definitions
     def register_custom_modified_def(
         self, parent_def_id: DefId, custom_def_id: DefId
     ) -> None:
-        # NICOLA: TODO: Do we need as assertion here?
-        # assert custom_def_id not in self.modified_defs, "Already a custom definition"
         self.custom_modified_defs[parent_def_id].append(custom_def_id)
 
 
@@ -355,7 +351,9 @@ class CompilationEngine:
         for custom_modified_id in custom_modified_ids:
             custom_modified_defn = self.get_parsed(custom_modified_id)
             assert isinstance(custom_modified_defn, CheckableGenericDef)
-            # controlled implematation has an extra parameter for the controllers
+            # controlled implematation has an extra parameter for the controllers.
+            # We keep that extra parameter generic, the monomorphization will be
+            # done later.
             custom_mono_args = mono_args + tuple(
                 param.to_bound()
                 for param in custom_modified_defn.params[len(mono_args) :]
@@ -559,7 +557,6 @@ class CompilationEngine:
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
-            # NICOLA: NOTE: Here we call the compile outer, in `build_compiled_def`
             requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
         ctx.iterate_worklist()
         self.compiled = ctx.compiled
@@ -809,6 +806,7 @@ def _check_controlled_def_signature(
         invalid_signature = (
             not is_array_type(last_input_ty)
             or not is_qubit_ty(get_element_type(last_input_ty))
+            or modified_ty.inputs[-1].flags != InputFlags.Inout
             or not isinstance(last_param, ConstParam)
             or get_array_length(last_input_ty)
             != BoundConstVar(last_param.ty, last_param.name, last_param.idx)
