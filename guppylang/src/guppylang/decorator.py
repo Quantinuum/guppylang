@@ -243,7 +243,7 @@ class _Guppy:
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:
-            if not hasattr(cls, "__firstlineno__"):
+            if "__firstlineno__" not in cls.__dict__:
                 cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
             # We're pretending to return the class unchanged, but in fact we return
             # a `GuppyDefinition` that handles the comptime logic
@@ -287,7 +287,7 @@ class _Guppy:
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:
-            if not hasattr(cls, "__firstlineno__"):
+            if "__firstlineno__" not in cls.__dict__:
                 cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
             # We're pretending to return the class unchanged, but in fact we return
             # a `GuppyDefinition` that handles the comptime logic
@@ -786,7 +786,9 @@ def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T
     However, we need this information to precisely look up the source for the
     class later. If it's not there, we can set it from the calling frame.
     """
-    if not hasattr(cls, "__firstlineno__"):
+    # Use the class dict directly: inherited `__firstlineno__` from a base class would
+    # point to the wrong source block for this class.
+    if "__firstlineno__" not in cls.__dict__:
         cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
     return cls
 
