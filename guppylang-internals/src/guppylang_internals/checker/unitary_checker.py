@@ -19,7 +19,6 @@ from guppylang_internals.nodes import (
     StateOutputExpr,
     TensorCall,
 )
-from guppylang_internals.span import ToSpan
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import FunctionType, UnitaryFlags
@@ -46,23 +45,19 @@ def check_invalid_under_dagger(
         # we do not want to recursively check inside nested `with` blocks
         if isinstance(stmt, ast.With):
             continue
-        loops = loop_in_ast(stmt)
-        if len(loops) != 0:
-            loop = next(iter(loops))
-            _raise_invalid_under_dagger(loop, def_node, "Loop", unitary_flags)
-        branches = branching_in_ast(stmt)
-        if len(branches) != 0:
-            branch = next(iter(branches))
-            _raise_invalid_under_dagger(branch, def_node, "Branch", unitary_flags)
+        for loop in loop_in_ast(stmt):
+            err = InvalidUnderDagger(loop, things="Loop")
+            raise _annotate_diagnostics(err, def_node, unitary_flags)
+        for branch in branching_in_ast(stmt):
+            err = InvalidUnderDagger(branch, things="Branch")
+            raise _annotate_diagnostics(err, def_node, unitary_flags)
 
 
-def _raise_invalid_under_dagger(
-    span: ToSpan,
+def _annotate_diagnostics(
+    err: InvalidUnderDagger,
     node: ast.FunctionDef | ModifiedBlock,
-    things: str,
     unitary_flags: UnitaryFlags,
-) -> None:
-    err = InvalidUnderDagger(span, things)
+) -> GuppyError:
     if isinstance(node, ModifiedBlock):
         err.add_sub_diagnostic(InvalidUnderDagger.Dagger(node.span_ctxt_manager()))
     elif isinstance(node, ast.FunctionDef):
@@ -71,7 +66,7 @@ def _raise_invalid_under_dagger(
         )
     err.add_sub_diagnostic(InvalidUnderDagger.ControlFlowHelp(None))
 
-    raise GuppyError(err)
+    return GuppyError(err)
 
 
 class BBUnitaryChecker(ast.NodeVisitor):
