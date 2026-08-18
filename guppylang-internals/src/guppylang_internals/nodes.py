@@ -58,8 +58,15 @@ class GlobalName(ast.Name):
         # Python 3.15 validates subclass-defined AST fields in the base constructor,
         # but typeshed still exposes `ast.Name.__init__` without custom kwargs.
         super().__init__(id=id, def_id=def_id)  # type: ignore[call-arg]
+        from guppylang_internals.engine import ENGINE
+
         self.id = id
         self.def_id = def_id
+        defn = ENGINE.get_parsed(def_id)
+        if isinstance(defn, CheckableGenericDef) and not defn.params:
+            # If the defn has params, it will have to be subject to a
+            # TypeApply or turned into a GlobalCall, which will register.
+            ENGINE.register_generic_use(defn, ())
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
