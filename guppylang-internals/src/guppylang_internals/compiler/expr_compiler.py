@@ -442,6 +442,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         elif isinstance(func_ty, FunctionDefType):
             input_len = len(func_ty.sig.inputs)
             consumed_args, other_args = args[0:input_len], args[input_len:]
+            assert (func_ty.defn.id, ()) in ENGINE.checked
             node = GlobalCall(defn=func_ty.defn, args=consumed_args, type_args=())
             out = self.visit_GlobalCall(node)
             returns = unpack_wire(out, func_ty.sig.output, self.builder, self.ctx, node)

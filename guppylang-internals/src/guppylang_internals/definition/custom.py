@@ -20,7 +20,11 @@ from guppylang_internals.ast_util import (
     with_type,
 )
 from guppylang_internals.checker.core import Context, Globals
-from guppylang_internals.checker.expr_checker import check_call, synthesize_call
+from guppylang_internals.checker.expr_checker import (
+    check_call,
+    make_global_call,
+    synthesize_call,
+)
 from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.builder import (
     DFBuilder,
@@ -538,13 +542,13 @@ class DefaultCallChecker(CustomCallChecker):
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
-        return GlobalCall(defn=self.func, args=args, type_args=inst), subst
+        return make_global_call(self.func, args, inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        return GlobalCall(defn=self.func, args=args, type_args=inst), ty
+        return make_global_call(self.func, args, inst), ty
 
 
 class OwnedArgumentsCallChecker(DefaultCallChecker):
