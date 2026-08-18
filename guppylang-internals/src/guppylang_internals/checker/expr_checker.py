@@ -567,9 +567,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         match defn:
             case CallableDef() as defn:
                 ty = FunctionDefType(defn.id)
-                return with_loc(node, GlobalName(id=name, def_id=defn.id)), ty
+                return with_loc(node, make_global_name(name, defn.id)), ty
             case ValueDef() as defn:
-                return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
+                return with_loc(node, make_global_name(name, defn.id)), defn.ty
             # We need a special case for enums since they don't have a `__new__` method,
             # but they have a special constructor for each variant.
             # A new enum is defined as `EnumName.Variant()`, however, since we are
@@ -586,15 +586,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     raise InternalGuppyError(
                         "Valid variants should be available in `ctx.globals`"
                     )
-                return with_loc(
-                    node, GlobalName(id=name, def_id=defn.id)
-                ), constr.ty.output
+                return with_loc(node, make_global_name(name, defn.id)), constr.ty.output
             # For types, we return their `__new__` constructor
             case TypeDef() as defn:
                 if constr := ENGINE.get_instance_func(defn, "__new__"):
-                    return with_loc(
-                        node, GlobalName(id=name, def_id=constr.id)
-                    ), constr.ty
+                    return with_loc(node, make_global_name(name, constr.id)), constr.ty
                 else:
                     err = ExpectedError(
                         node,
@@ -698,8 +694,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         member_ty,
                         with_loc(
                             node,
-                            GlobalName(
-                                id=node.attr, def_id=proto_def.member_defs[node.attr]
+                            make_global_name(
+                                node.attr, proto_def.member_defs[node.attr]
                             ),
                         ),
                     )
@@ -722,7 +718,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         "Valid variants should be available in `ctx.globals`"
                     )
                     return with_loc(
-                        node, GlobalName(id=node.attr, def_id=variant_constr.id)
+                        node, make_global_name(node.attr, variant_constr.id)
                     ), variant_constr.ty
                 else:
                     # Not a global name, thus node.value is a instantiated variant
@@ -753,7 +749,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         """Helper method to check if an attribute access corresponds to a method call"""
         if func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
-                func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
+                func.ty, with_loc(node, make_global_name(func.name, func.id))
             )
             # Make a closure by partially applying the `self` argument
             # TODO: Try to infer some type args based on `self`
@@ -1264,7 +1260,7 @@ def function_def_value_to_function_value(
     if isinstance(ty, NestedFunctionDefType):
         return with_type(ty.sig, expr)
     name = DEF_STORE.raw_defs[ty.def_id].name
-    return with_type(ty.sig, with_loc(expr, GlobalName(id=name, def_id=ty.def_id)))
+    return with_type(ty.sig, with_loc(expr, make_global_name(name, ty.def_id)))
 
 
 def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
