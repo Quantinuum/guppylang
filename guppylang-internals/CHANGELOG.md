@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.1...guppylang-internals-v1.0.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* Internal error in generating function span for missing return annotation error on nested functions (#2222)([f7e3648](https://github.com/Quantinuum/guppylang/commit/f7e36483b98d94f0de7f726da48bf20a71c58c06))
+
 ## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.36.1...guppylang-internals-v1.0.1) (2026-08-03)
 
 
