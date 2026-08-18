@@ -128,7 +128,7 @@ class CompilerContext(ToHugrContext):
         """
         mono_args = type_args or ()
         if (def_id, mono_args) not in self.compiled:
-            defn = ENGINE.get_checked(def_id, mono_args, check=False)
+            defn = ENGINE.get_checked(def_id, mono_args)
             if isinstance(defn, CompilableDef):
                 defn = defn.compile_outer(self.module, self)
             self.compiled[def_id, mono_args] = defn
