@@ -20,9 +20,11 @@ from guppylang import guppy
 from guppylang.std.lang import owned
 from guppylang.std.option import Option
 
+L = guppy.type_var("L", copyable=False, droppable=False)
+R = guppy.type_var("R", copyable=False, droppable=False)
 Droppable = guppy.type_var("Droppable", copyable=False, droppable=True)
 
-_params = [TypeParam(0, "L", False, False), TypeParam(1, "L", False, False)]
+_params = [TypeParam(0, "L", False, False), TypeParam(1, "R", False, False)]
 
 
 @custom_type(either_to_hugr, params=_params)

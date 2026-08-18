@@ -108,7 +108,7 @@ class Queue[T, MAX_SIZE: nat]:
 
     @guppy
     @no_type_check
-    def discard_empty(self: Queue[T, MAX_SIZE] @ owned) -> None:
+    def discard_empty(self: Self @ owned) -> None:
         """Discards a queue of potentially non-droppable elements assuming that the
         queue is empty.
 

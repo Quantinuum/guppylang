@@ -99,7 +99,7 @@ class Stack[T, MAX_SIZE: nat]:
 
     @guppy
     @no_type_check
-    def discard_empty(self: Stack[T, MAX_SIZE] @ owned) -> None:
+    def discard_empty(self: Self @ owned) -> None:
         """Discards a stack of potentially non-droppable elements assuming that the
         stack is empty.
 

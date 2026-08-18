@@ -37,13 +37,18 @@ from guppylang_internals.tys.ty import UnitaryFlags
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
-from guppylang.std.lang import Copy
+from guppylang.std.lang import Copy, Drop
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
+
+
+T = guppy.type_var("T")
+n = guppy.nat_var("n")
+L = guppy.type_var("L", copyable=False, droppable=False)
 
 
 @extend_type(
@@ -348,27 +353,27 @@ class frozenarray[T, n: nat]:
         FrozenarrayGetitemCompiler(),
         effects=[Effect.ANY],
     )
-    def __getitem__(self: frozenarray[T, n], item: int) -> T: ...
+    def __getitem__(self, item: int) -> T: ...
 
     @guppy
     @no_type_check
-    def __len__(self: frozenarray[T, n]) -> int:
+    def __len__(self) -> int:
         return n
 
     @guppy
     @no_type_check
-    def __iter__(self: frozenarray[T, n]) -> SizedIter[FrozenarrayIter[T, n], n]:
+    def __iter__(self) -> SizedIter[FrozenarrayIter[T, n], n]:
         return SizedIter(FrozenarrayIter(self, 0))
 
     @guppy
     @no_type_check
-    def mutable_copy(self: frozenarray[T, n]) -> array[T, n]:
+    def mutable_copy(self) -> array[T, n]:
         """Creates a mutable copy of this array."""
         return array(x for x in self)
 
 
 @guppy.struct
-class FrozenarrayIter[T, n: nat]:
+class FrozenarrayIter[T: (Copy, Drop), n: nat]:
     """Iterator for frozenarrays."""
 
     _xs: frozenarray[T, n]

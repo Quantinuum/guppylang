@@ -112,7 +112,7 @@ class DiscreteDistribution[DISCRETE_N: nat]:  # type: ignore[misc]
 
     @guppy
     @no_type_check
-    def sample(self: "DiscreteDistribution[DISCRETE_N]", rng: RNG) -> int:
+    def sample(self, rng: RNG) -> int:
         """Return a sample value from the distribution, using the provided
         :py:class:`RNG`.
         """

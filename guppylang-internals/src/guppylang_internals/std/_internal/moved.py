@@ -1,11 +1,8 @@
 from collections.abc import Callable
-from typing import Any, ParamSpec, Self, TypeVar
-
-P = ParamSpec("P")
-Out = TypeVar("Out")
+from typing import Any, Self
 
 
-def produce_moved_function(
+def produce_moved_function[**P, Out](
     module: str, old_name: str, new_location: str
 ) -> Callable[P, Out]:
     """Produces a function that raises an import error when used, stating that it
@@ -27,7 +24,7 @@ def produce_moved_class(module: str, old_name: str, new_location: str) -> type:
     mechanism, and should be considered for removal several months after the move."""
 
     class MovedClass:
-        def __new__(cls, *_args: P.args, **_kwargs: P.kwargs) -> Self:  # type: ignore[valid-type]
+        def __new__[**P](cls, *_args: P.args, **_kwargs: P.kwargs) -> Self:  # type: ignore[valid-type]
             raise ImportError(
                 f"The class `{old_name}` has been moved to `{new_location}`, and "
                 f"can no longer be imported from `{module}`."

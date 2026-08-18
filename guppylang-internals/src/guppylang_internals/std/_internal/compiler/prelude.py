@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Final, TypeVar
+from typing import TYPE_CHECKING, Final
 
 import hugr.std.collections
 import hugr.std.int
@@ -94,8 +94,6 @@ def make_error() -> OpWithEffects:
 # ------------------------------------------------------
 # --------- Custom compilers for non-native ops --------
 # ------------------------------------------------------
-
-P = TypeVar("P", bound=ops.DfParentOp)
 
 
 def build_panic(

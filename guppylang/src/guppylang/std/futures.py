@@ -6,8 +6,10 @@ from guppylang_internals.decorator import custom_type, hugr_op
 from guppylang_internals.std._internal.compiler.futures import future_op, future_to_hugr
 from guppylang_internals.tys.param import TypeParam
 
+from guppylang import guppy
 from guppylang.std.lang import owned
 
+T = guppy.type_var("T")
 _future_params = [TypeParam(0, "T", must_be_copyable=False, must_be_droppable=False)]
 
 
