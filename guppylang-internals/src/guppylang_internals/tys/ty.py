@@ -3,7 +3,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, Literal, assert_never, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, assert_never, cast
 
 import hugr.std.float
 import hugr.std.int
@@ -20,7 +20,11 @@ from guppylang_internals.tys.common import (
     Transformer,
     Visitor,
 )
-from guppylang_internals.tys.const import Const, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.const import (
+    Const,
+    ConstValue,
+    ExistentialConstVar,
+)
 from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
@@ -957,6 +961,32 @@ type Type = (
     | ParametrizedType
 )
 
+
+def is_type(t: Any) -> Type | None:
+    """Typechecker nonsense"""
+    if isinstance(t, BoundTypeVar):
+        return t
+    if isinstance(t, ExistentialTypeVar):
+        return t
+    if isinstance(t, NumericType):
+        return t
+    if isinstance(t, NoneType):
+        return t
+    if isinstance(t, FunctionDefType):
+        return t
+    if isinstance(t, FunctionType):
+        return t
+    if isinstance(t, TupleType):
+        return t
+    if isinstance(t, OpaqueType):
+        return t
+    if isinstance(t, StructType):
+        return t
+    if isinstance(t, EnumType):
+        return t
+    return None
+
+
 #: An immutable row of Guppy types.
 type TypeRow = Sequence[Type]
 
@@ -1051,12 +1081,12 @@ def unify_const(s: Const, t: Const, subst: "Subst | None") -> "Subst | None":
 def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst | None":
     """Helper function for unification of type variables."""
     if var in subst:
-        s = subst[var]
-        assert isinstance(s, Type)
+        s = is_type(subst[var])
+        assert s is not None
         return unify(s, t, subst)
     if isinstance(t, ExistentialTypeVar) and t in subst:
-        s = subst[t]
-        assert isinstance(s, Type)
+        s = is_type(subst[t])
+        assert s is not None
         return unify(var, s, subst)
     if var in t.unsolved_vars:
         return None
