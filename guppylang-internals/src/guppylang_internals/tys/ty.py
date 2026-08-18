@@ -993,30 +993,23 @@ def rows_to_hugr(rows: Sequence[TypeRow], ctx: ToHugrContext) -> list[ht.TypeRow
     return [row_to_hugr(row, ctx) for row in rows]
 
 
-def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | None":
+def unify(s: Type, t: Type, subst: "Subst | None") -> "Subst | None":
     """Computes a most general unifier for two types or constants.
 
     Return a substitutions `subst` such that `s[subst] == t[subst]` or `None` if this
     not possible.
     """
     # Make sure that s and t are either both constants or both types
-    assert isinstance(s, TypeBase) == isinstance(t, TypeBase)
     if subst is None:
         return None
     match s, t:
         case ExistentialVar(id=s_id), ExistentialVar(id=t_id) if s_id == t_id:
             return subst
-        case ExistentialTypeVar() as s_var, t if isinstance(t, Type):
+        case ExistentialTypeVar() as s_var, t:
             return _unify_type_var(s_var, t, subst)
-        case ExistentialConstVar() as s_var, t if isinstance(t, Const):
-            return _unify_const_var(s_var, t, subst)
-        case s, ExistentialTypeVar() as t_var if isinstance(s, Type):
+        case s, ExistentialTypeVar() as t_var:
             return _unify_type_var(t_var, s, subst)
-        case s, ExistentialConstVar() as t_var if isinstance(s, Const):
-            return _unify_const_var(t_var, s, subst)
         case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
-            return subst
-        case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
             return subst
         case NumericType(kind=s_kind), NumericType(kind=t_kind) if s_kind == t_kind:
             return subst
@@ -1041,12 +1034,33 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return None
 
 
+def unify_const(s: Const, t: Const, subst: "Subst | None") -> "Subst | None":
+    if subst is None:
+        return None
+
+    match s, t:
+        case ExistentialConstVar() as s_var, t:
+            return _unify_const_var(s_var, t, subst)
+        case s, ExistentialConstVar() as t_var:
+            return _unify_const_var(t_var, s, subst)
+        case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
+            return subst
+        case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
+            return subst
+        case _:
+            return None
+
+
 def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst | None":
     """Helper function for unification of type variables."""
     if var in subst:
-        return unify(subst[var], t, subst)
+        s = subst[var]
+        assert isinstance(s, Type)
+        return unify(s, t, subst)
     if isinstance(t, ExistentialTypeVar) and t in subst:
-        return unify(var, subst[t], subst)
+        s = subst[t]
+        assert isinstance(s, Type)
+        return unify(var, s, subst)
     if var in t.unsolved_vars:
         return None
     # Check that `t` implements all protocols required by `var`.
@@ -1077,7 +1091,7 @@ def _unify_const_var(
     var = replace(var, ty=var.ty.transform(Substituter(subst)))
     t = t.transform(Substituter(subst))
     if var in subst:
-        return unify(subst[var], t, subst)
+        return unify_const(cast("Const", subst[var]), t, subst)
 
     if var in t.unsolved_vars:
         return None
@@ -1098,7 +1112,7 @@ def _unify_args(
                     return None
                 subst = res
             case ConstArg(const=sa_const), ConstArg(const=ta_const):
-                res = unify(sa_const, ta_const, subst)
+                res = unify_const(sa_const, ta_const, subst)
                 if res is None:
                     return None
                 subst = res
@@ -1115,7 +1129,7 @@ def unify_type_args(
             case TypeArg(), TypeArg():
                 subst = unify(s.ty, t.ty, subst)
             case ConstArg(), ConstArg():
-                subst = unify(s.const, t.const, subst)
+                subst = unify_const(s.const, t.const, subst)
             case _:
                 return None
     return subst

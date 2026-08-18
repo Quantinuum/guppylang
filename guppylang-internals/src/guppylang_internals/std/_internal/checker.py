@@ -68,7 +68,7 @@ from guppylang_internals.tys.ty import (
     InputFlags,
     NoneType,
     Type,
-    unify,
+    unify_const,
 )
 
 
@@ -395,7 +395,7 @@ class NewArrayChecker(CustomCallChecker):
                                 args[i], elem_ty.substitute(subst)
                             )
                             subst |= s
-                        ls = unify(length, ConstValue(nat_type(), len(args)), {})
+                        ls = unify_const(length, ConstValue(nat_type(), len(args)), {})
                         if ls is None:
                             raise GuppyTypeError(
                                 TypeMismatchError(
