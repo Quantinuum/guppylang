@@ -66,7 +66,12 @@ def dagger(*args: Any, **kwargs: Any) -> Generator[None]:
 
 
 def power(*args: Any, **kwargs: Any) -> Generator[None]:
-    """Dummy function to support `with power(...):` blocks in Guppy code."""
+    """Dummy function to support `with power(...):` blocks in Guppy code.
+
+    .. warning::
+
+        ``power`` is an experimental feature and is not fully operational yet.
+    """
     raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="power"))
 
 

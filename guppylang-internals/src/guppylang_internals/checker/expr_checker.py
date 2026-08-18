@@ -88,10 +88,9 @@ from guppylang_internals.checker.errors.type_errors import (
     TypeInferenceError,
     TypeMismatchError,
     UnaryOperatorNotDefinedError,
-    UnitaryFlagMismatchError,
     WrongNumberOfArgsError,
 )
-from guppylang_internals.definition.common import Definition
+from guppylang_internals.definition.common import CheckableGenericDef, DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CallableDef, CallableEffects, ValueDef
@@ -116,6 +115,7 @@ from guppylang_internals.nodes import (
     DesugaredListComp,
     DummyGenericParamValue,
     FieldAccessAndDrop,
+    GlobalCall,
     GlobalName,
     IterNext,
     LocalCall,
@@ -264,8 +264,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # the target
         if actual := get_type_opt(expr):
             expr, subst, inst = check_type_against(actual, ty, expr, self.ctx, kind)
-            if inst:
-                expr = with_loc(expr, TypeApply(expr, inst))
+            assert len(inst) == 0
             return with_type(ty.substitute(subst), expr), subst
 
         # When checking against a variable, we have to synthesize
@@ -276,7 +275,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             )
             # Apply instantiation of quantified type variables
             if inst:
-                expr = with_loc(expr, TypeApply(expr, inst))
+                expr = make_type_apply(expr, inst)
             return with_type(ty.substitute(subst), expr), subst
 
         # Otherwise, invoke the visitor
@@ -359,9 +358,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     ) -> tuple[ast.expr, Subst]:
         if not is_list_type(ty):
             return self._fail(ty, node)
+        # Check the append method now, before we need it during compilation
+        func = ENGINE.get_instance_func(ty, "append")
+        assert isinstance(func, CheckableGenericDef)
         node.generators, node.elt, elt_ty = synthesize_comprehension(
             node, node.generators, node.elt, self.ctx
         )
+        ENGINE.register_generic_use(func, (TypeArg(elt_ty),))
         subst = unify(get_element_type(ty), elt_ty, {})
         if subst is None:
             actual = list_type(elt_ty)
@@ -466,7 +469,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Apply instantiation of quantified type variables
         if inst:
-            node = with_loc(node, TypeApply(node, inst))
+            node = make_type_apply(node, inst)
 
         return node, subst
 
@@ -580,9 +583,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         match defn:
             case CallableDef() as defn:
                 ty = FunctionDefType(defn.id)
-                return with_loc(node, GlobalName(id=name, def_id=defn.id)), ty
+                return with_loc(node, make_global_name(name, defn.id)), ty
             case ValueDef() as defn:
-                return with_loc(node, GlobalName(id=name, def_id=defn.id)), defn.ty
+                return with_loc(node, make_global_name(name, defn.id)), defn.ty
             # We need a special case for enums since they don't have a `__new__` method,
             # but they have a special constructor for each variant.
             # A new enum is defined as `EnumName.Variant()`, however, since we are
@@ -599,15 +602,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     raise InternalGuppyError(
                         "Valid variants should be available in `ctx.globals`"
                     )
-                return with_loc(
-                    node, GlobalName(id=name, def_id=defn.id)
-                ), constr.ty.output
+                return with_loc(node, make_global_name(name, defn.id)), constr.ty.output
             # For types, we return their `__new__` constructor
             case TypeDef() as defn:
                 if constr := ENGINE.get_instance_func(defn, "__new__"):
-                    return with_loc(
-                        node, GlobalName(id=name, def_id=constr.id)
-                    ), constr.ty
+                    return with_loc(node, make_global_name(name, constr.id)), constr.ty
                 else:
                     err = ExpectedError(
                         node,
@@ -711,8 +710,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         member_ty,
                         with_loc(
                             node,
-                            GlobalName(
-                                id=node.attr, def_id=proto_def.member_defs[node.attr]
+                            make_global_name(
+                                node.attr, proto_def.member_defs[node.attr]
                             ),
                         ),
                     )
@@ -735,7 +734,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         "Valid variants should be available in `ctx.globals`"
                     )
                     return with_loc(
-                        node, GlobalName(id=node.attr, def_id=variant_constr.id)
+                        node, make_global_name(node.attr, variant_constr.id)
                     ), variant_constr.ty
                 else:
                     # Not a global name, thus node.value is a instantiated variant
@@ -766,7 +765,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         """Helper method to check if an attribute access corresponds to a method call"""
         if func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
-                func.ty, with_loc(node, GlobalName(id=func.name, def_id=func.id))
+                func.ty, with_loc(node, make_global_name(func.name, func.id))
             )
             # Make a closure by partially applying the `self` argument
             # TODO: Try to infer some type args based on `self`
@@ -810,6 +809,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             node, node.generators, node.elt, self.ctx
         )
         result_ty = list_type(elt_ty)
+        # Check the append method now, before we need it during compilation
+        func = ENGINE.get_instance_func(result_ty, "append")
+        assert isinstance(func, CheckableGenericDef)
+        ENGINE.register_generic_use(func, (TypeArg(elt_ty),))
         return node, result_ty
 
     def visit_DesugaredGeneratorExpr(
@@ -1175,13 +1178,8 @@ def check_type_against(
         inst = tuple(subst[v].to_arg() for v in free_vars)
         subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
 
-        # Finally, check that the instantiation respects the linearity requirements and
-        # if the unitary flags match
+        # Finally, check that the instantiation respects the linearity requirements
         check_inst(act_sig, inst, node)
-        exp = exp.substitute(subst)
-        exp = exp.sig if isinstance(exp, FunctionDefType) else exp
-        assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act_sig, node)
 
         return node, subst, inst
 
@@ -1193,12 +1191,6 @@ def check_type_against(
         if coerced := try_coerce_to(act, exp, node, ctx):
             return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
-
-    # If we have a function type, we also check that unitary flags match
-    if isinstance(act, FunctionType):
-        exp = exp.substitute(subst)
-        assert isinstance(exp, FunctionType)
-        check_unitary_flags(exp, act, node)
 
     return node, subst, ()
 
@@ -1284,14 +1276,7 @@ def function_def_value_to_function_value(
     if isinstance(ty, NestedFunctionDefType):
         return with_type(ty.sig, expr)
     name = DEF_STORE.raw_defs[ty.def_id].name
-    return with_type(ty.sig, with_loc(expr, GlobalName(id=name, def_id=ty.def_id)))
-
-
-def check_unitary_flags(exp: FunctionType, act: FunctionType, node: AstNode) -> None:
-    if not exp.unitary_flags.is_weaker_than(act.unitary_flags):
-        raise GuppyTypeError(
-            UnitaryFlagMismatchError(node, exp.unitary_flags, act.unitary_flags)
-        )
+    return with_type(ty.sig, with_loc(expr, make_global_name(name, ty.def_id)))
 
 
 def check_type_apply(ty: FunctionType, node: ast.Subscript, ctx: Context) -> Inst:
@@ -1730,6 +1715,37 @@ def check_inst(func_ty: FunctionType, inst: Inst, node: AstNode) -> None:
         param.check_arg(arg, node)
 
 
+def make_global_name(id: str, def_id: DefId) -> GlobalName:
+    defn = ENGINE.get_parsed(def_id)
+    if isinstance(defn, CheckableGenericDef) and not defn.params:
+        # If the defn has params, it will have to be subject to a
+        # TypeApply or turned into a GlobalCall, which will register.
+        ENGINE.register_generic_use(defn, ())
+
+    return GlobalName(id, def_id)
+
+
+def make_global_call(
+    defn: CallableDef, args: list[ast.expr], type_args: Inst
+) -> GlobalCall:
+    if isinstance(defn, CheckableGenericDef):
+        ENGINE.register_generic_use(defn, type_args)
+    return GlobalCall(defn, args, type_args)
+
+
+def make_type_apply(node: ast.expr, inst: Inst) -> ast.expr:
+    """Makes a new TypeApply node, registering that the target is used with the
+    specified type arguments."""
+    match node:
+        case GlobalName(def_id=def_id):
+            defn = ENGINE.get_parsed(def_id)
+            assert isinstance(defn, CheckableGenericDef)
+            ENGINE.register_generic_use(defn, inst)
+        case _:
+            raise InternalGuppyError(f"Unhandled case: applying type args to {node}")
+    return with_loc(node, TypeApply(node, inst))
+
+
 def instantiate_poly(node: ast.expr, ty: FunctionType, inst: Inst) -> ast.expr:
     """Instantiates quantified type arguments in a function."""
     assert len(ty.params) == len(inst)
@@ -1741,7 +1757,7 @@ def instantiate_poly(node: ast.expr, ty: FunctionType, inst: Inst) -> ast.expr:
             assert full_ty.params == ty.params
             node.func = instantiate_poly(node.func, full_ty, inst)
         else:
-            node = with_loc(node, TypeApply(with_type(ty, node), inst))
+            node = make_type_apply(with_type(ty, node), inst)
         return with_type(ty.instantiate(inst), node)
     return with_type(ty, node)
 
