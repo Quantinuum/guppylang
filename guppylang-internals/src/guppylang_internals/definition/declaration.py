@@ -35,6 +35,7 @@ from guppylang_internals.definition.function import (
     monomorphized_link_name,
     parse_py_func,
 )
+from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -97,9 +98,18 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        is_static, unwrapped_if_static = determine_static(self)
+        if unwrapped_if_static is not None:
+            py_func = unwrapped_if_static
+        else:
+            py_func = self.python_func
+        func_ast, docstring = parse_py_func(py_func, sources)
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
 
@@ -115,6 +125,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
             ty=ty,
             docstring=docstring,
             link_name=link_name,
+            is_static=is_static,
             metadata=self.metadata,
         )
 
@@ -138,6 +149,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     defined_at: ast.FunctionDef
     docstring: str | None
     link_name: str
+    is_static: bool = field(default=False, kw_only=True)
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property
@@ -156,6 +168,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
             docstring=self.docstring,
             link_name=mono_link_name,
             type_args=type_args,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -225,6 +238,7 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
             link_name=self.link_name,
             type_args=self.type_args,
             declaration=node,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 

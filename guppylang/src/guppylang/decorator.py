@@ -23,7 +23,7 @@ from guppylang_internals.definition.custom import RawCustomFunctionDef
 from guppylang_internals.definition.declaration import RawFunctionDecl
 from guppylang_internals.definition.enum import RawEnumDef
 from guppylang_internals.definition.extern import RawExternDef
-from guppylang_internals.definition.function import RawFunctionDef
+from guppylang_internals.definition.function import RawFunctionDef, parse_py_func
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.parameter import (
     ConstVarDef,
@@ -524,8 +524,9 @@ class _Guppy:
 
         def decorator(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
             dummy_sig = FunctionType([], NoneType())
+            func_ast, _docstring = parse_py_func(f, DEF_STORE.sources)
             defn = OverloadedFunctionDef(
-                DefId.fresh(), f.__name__, None, dummy_sig, func_ids
+                DefId.fresh(), f.__name__, func_ast, dummy_sig, func_ids
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
