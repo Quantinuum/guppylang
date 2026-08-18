@@ -16,7 +16,8 @@ files = [str(f) for f in files]
 
 # Snapshot tests that require experimental features.
 tests_that_require_experimental_features = [
-        "arg_mismatch5.py",
+    "arg_mismatch5.py",
+    "unitary_generic_function_error.py",
 ]
 files_with_experimental_flag = [
     (file, any(case in file for case in tests_that_require_experimental_features))

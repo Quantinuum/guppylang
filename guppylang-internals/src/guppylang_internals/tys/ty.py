@@ -423,6 +423,20 @@ class UnitaryFlags(Flag):
             case _:
                 assert_never(self)
 
+    def custom_implementation_names(self) -> list[str]:
+        """Returns the name of the corresponding custom implementation for this flag."""
+        match self:
+            case UnitaryFlags.Unitary:
+                return ["ctrl_daggered", "controlled"]
+            case UnitaryFlags.Dagger:
+                return ["daggered"]
+            case UnitaryFlags.Control:
+                return ["controlled"]
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case _:
+                assert_never(self)
+
 
 @dataclass(frozen=True)
 class FuncInput:
@@ -445,6 +459,8 @@ class FunctionType(ParametrizedTypeBase):
     params: Sequence[Parameter]
     comptime_args: Sequence[ConstArg]
 
+    # Contains a list of TypeArgs (corresponding to the function inputs and output) and
+    # ConstArgs (corresponding to the comptime arguments)
     args: Sequence[Argument] = field(init=False)
     copyable: bool = field(default=True, init=True)
     droppable: bool = field(default=True, init=True)

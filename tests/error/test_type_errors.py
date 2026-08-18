@@ -19,7 +19,11 @@ files = [str(f) for f in files]
 
 # Snapshot tests that require experimental features.
 tests_that_require_experimental_features = [
-        "unpack_non_static.py",
+    "unitary_function_bad_method1.py",
+    "unitary_function_bad_method2.py",
+    "unitary_function_call_wrong.py",
+    "unitary_function_return_error.py",
+    "unpack_non_static.py",
 ]
 files_with_experimental_flag = [
     (file, any(case in file for case in tests_that_require_experimental_features))

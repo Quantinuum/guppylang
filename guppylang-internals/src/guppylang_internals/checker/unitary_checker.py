@@ -1,4 +1,7 @@
 import ast
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import ClassVar
 
 from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
@@ -6,6 +9,7 @@ from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Place
 from guppylang_internals.checker.errors.generic import InvalidUnderDagger
 from guppylang_internals.definition.value import CallableDef
+from guppylang_internals.diagnostic import Error
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
@@ -22,7 +26,50 @@ from guppylang_internals.nodes import (
 from guppylang_internals.span import ToSpan
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
-from guppylang_internals.tys.ty import FunctionType, UnitaryFlags
+from guppylang_internals.tys.ty import (
+    FunctionType,
+    UnitaryFlags,
+)
+
+
+class InvalidUnitaryKind(Enum):
+    MissingCtrlDaggered = auto()
+    MissingCtrlDaggeredForFlag = auto()
+    MissingCtrl = auto()
+
+
+@dataclass(frozen=True)
+class InvalidUnitaryError(Error):
+    title: ClassVar[str] = "Invalid `@guppy.unitary` implementation"
+    kind: InvalidUnitaryKind
+    implementation: str | None = None
+    flag: str | None = None
+
+    @property
+    def rendered_message(self) -> str:
+        match self.kind:
+            case InvalidUnitaryKind.MissingCtrlDaggered:
+                implementation = "`daggered` and `controlled`"
+                required_implementation = "`ctrl_daggered`"
+                required_flag = "unitary"
+            case InvalidUnitaryKind.MissingCtrlDaggeredForFlag:
+                assert self.implementation is not None
+                assert self.flag is not None
+                implementation = (
+                    f"`{self.implementation}` for a function marked `{self.flag}=True`"
+                )
+                required_implementation = "`ctrl_daggered`"
+                required_flag = "unitary"
+            case InvalidUnitaryKind.MissingCtrl:
+                implementation = "`ctrl_daggered`"
+                required_implementation = "`controlled`"
+                required_flag = "controllable"
+
+        return (
+            f"A `@guppy.unitary` class implementing {implementation} "
+            f"requires either a {required_implementation} implementation or "
+            f"`{required_flag}=True` on `__call__`"
+        )
 
 
 def check_invalid_under_dagger(
@@ -150,7 +197,9 @@ class BBUnitaryChecker(ast.NodeVisitor):
                             UnitaryCallError.PytketHint(None, func.name)
                         )
                     else:
-                        err.add_sub_diagnostic(UnitaryCallError.Hint(None, func.name))
+                        err.add_sub_diagnostic(
+                            UnitaryCallError.MissingFlagHint(None, func.name)
+                        )
                 else:
                     # If func is None, we are checking a higher-order call
                     missing_flags = self.flags & (~call_ty.unitary_flags)
@@ -245,3 +294,70 @@ def check_cfg_unitary(
     bb_checker = BBUnitaryChecker()
     for bb in cfg.bbs:
         bb_checker.check(bb.statements, unitary_flags)
+
+
+def check_modified_def_combinations(
+    unitary_flags: UnitaryFlags,
+    *,
+    definition_span: ToSpan | None = None,
+    has_daggered: bool,
+    has_controlled: bool,
+    has_ctrl_daggered: bool,
+) -> None:
+    """Check that custom unitary modifier implementations form a valid set.
+
+    We require:
+    - If a function has both `daggered` and `controlled` implementations, it must
+      also have a `ctrl_daggered` implementation, unless the function is marked
+      as `unitary=True`.
+    - If a function is marked as `controllable=True` and has a `daggered`
+      implementation, it must also have a `ctrl_daggered` implementation
+      or the function is marked as `unitary=True`.
+    - If a function is marked as `daggerable=True` and has a `controlled`
+      implementation, it must also have a `ctrl_daggered` implementation
+      or the function is marked as `unitary=True`.
+    - If a function has a `ctrl_daggered` implementation, it must also have
+      a `controlled` implementation, unless the function is marked as
+      `controllable=True`.
+    """
+    # Custom daggered and controlled implementations require ctrl_daggered support.
+    if (
+        has_daggered
+        and has_controlled
+        and not has_ctrl_daggered
+        and unitary_flags != UnitaryFlags.Unitary
+    ):
+        raise GuppyError(
+            InvalidUnitaryError(definition_span, InvalidUnitaryKind.MissingCtrlDaggered)
+        )
+    if not has_ctrl_daggered and unitary_flags != UnitaryFlags.Unitary:
+        # Controllable plus a custom daggered implementation requires ctrl_daggered.
+        if has_daggered and UnitaryFlags.Control in unitary_flags:
+            raise GuppyError(
+                InvalidUnitaryError(
+                    definition_span,
+                    InvalidUnitaryKind.MissingCtrlDaggeredForFlag,
+                    "daggered",
+                    "controllable",
+                )
+            )
+        # Daggerable plus a custom controlled implementation requires ctrl_daggered.
+        if has_controlled and UnitaryFlags.Dagger in unitary_flags:
+            raise GuppyError(
+                InvalidUnitaryError(
+                    definition_span,
+                    InvalidUnitaryKind.MissingCtrlDaggeredForFlag,
+                    "controlled",
+                    "daggerable",
+                )
+            )
+
+    # A custom ctrl_daggered implementation requires controllable support.
+    if (
+        has_ctrl_daggered
+        and not has_controlled
+        and UnitaryFlags.Control not in unitary_flags
+    ):
+        raise GuppyError(
+            InvalidUnitaryError(definition_span, InvalidUnitaryKind.MissingCtrl)
+        )

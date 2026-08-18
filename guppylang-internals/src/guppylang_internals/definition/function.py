@@ -51,14 +51,23 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
-from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
+from guppylang_internals.experimental import check_unitary_classes_enabled
+from guppylang_internals.metadata.common import (
+    FunctionMetadata,
+    add_metadata,
+)
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
-from guppylang_internals.tys.ty import FunctionType, Type, UnitaryFlags, type_to_row
+from guppylang_internals.tys.ty import (
+    FunctionType,
+    Type,
+    UnitaryFlags,
+    type_to_row,
+)
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.declaration import RawFunctionDecl
@@ -117,11 +126,24 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, kw_only=True)
 
+    # Flags explicitly declared on the `@guppy` decorator. For ordinary functions,
+    # these are the same as `unitary_flags`. A `@guppy.unitary` class may extend
+    # `unitary_flags` with capabilities provided by custom modifier methods, but those
+    # extra capabilities must not impose constraints on the `__call__` body.
+    decorator_unitary_flags: UnitaryFlags | None = field(default=None, kw_only=True)
+
+    # Location of the `@guppy.unitary` decorator when this function is the `__call__`
+    # implementation of a unitary class.
+    # Used for experimental feature checking.
+    unitary_class_at: AstNode | None = field(default=None, kw_only=True)
+
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
+        if self.unitary_class_at is not None:
+            check_unitary_classes_enabled(self.unitary_class_at)
         func_ast, docstring = parse_py_func(self.python_func, sources)
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
@@ -135,6 +157,11 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             ty,
             docstring,
             link_name,
+            decorator_unitary_flags=(
+                self.unitary_flags
+                if self.decorator_unitary_flags is None
+                else self.decorator_unitary_flags
+            ),
             metadata=self.metadata,
         )
 
@@ -165,6 +192,13 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
+    # Only flags originating from the `@guppy` decorator constrain the function CFG.
+    # `ty.unitary_flags` may additionally contain capabilities supplied by custom
+    # modifier implementations.
+    decorator_unitary_flags: UnitaryFlags = field(
+        default=UnitaryFlags.NoFlags, kw_only=True
+    )
+
     @property
     def params(self) -> "Sequence[Parameter]":
         """Generic parameters of this function."""
@@ -175,7 +209,12 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         """Type checks the body of the function."""
         mono_link_name = monomorphized_link_name(self.link_name, type_args)
         cfg = check_global_func_def(
-            self.defined_at, self.ty, type_args, globals, mono_link_name
+            self.defined_at,
+            self.ty,
+            type_args,
+            globals,
+            mono_link_name,
+            self.decorator_unitary_flags,
         )
         mono_ty = self.ty.instantiate_partial(type_args)
         return CheckedFunctionDef(
@@ -186,6 +225,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             self.docstring,
             mono_link_name,
             cfg,
+            decorator_unitary_flags=self.decorator_unitary_flags,
             metadata=self.metadata,
         )
 
@@ -273,6 +313,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.link_name,
             self.cfg,
             FunctionBuilder(func_def),
+            decorator_unitary_flags=self.decorator_unitary_flags,
             metadata=self.metadata,
         )
 
