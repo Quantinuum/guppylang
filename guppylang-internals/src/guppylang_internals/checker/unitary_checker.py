@@ -6,7 +6,6 @@ from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Place
 from guppylang_internals.checker.errors.generic import InvalidUnderDagger
 from guppylang_internals.definition.value import CallableDef
-from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
     AbortExpr,
@@ -166,8 +165,7 @@ class BBUnitaryChecker(ast.NodeVisitor):
             raise GuppyTypeError(err)
 
     def visit_GlobalCall(self, node: GlobalCall) -> None:
-        func = ENGINE.get_parsed(node.def_id)
-        assert isinstance(func, CallableDef)
+        func: CallableDef = node.defn
         self._check_call(node, func.ty, func)
 
     def visit_LocalCall(self, node: LocalCall) -> None:

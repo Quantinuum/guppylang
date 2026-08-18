@@ -16,7 +16,11 @@ from guppylang_internals.ast_util import (
     with_type,
 )
 from guppylang_internals.checker.core import Context, Globals
-from guppylang_internals.checker.expr_checker import check_call, synthesize_call
+from guppylang_internals.checker.expr_checker import (
+    check_call,
+    make_global_call,
+    synthesize_call,
+)
 from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
@@ -42,7 +46,6 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
 from guppylang_internals.nodes import GlobalCall
@@ -166,8 +169,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
     @override
@@ -177,8 +179,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
+        node = with_loc(node, make_global_call(self, args, inst))
         return with_type(ty, node), ty
 
 

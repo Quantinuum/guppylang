@@ -48,8 +48,6 @@ from guppylang_internals.checker.errors.linearity import (
     UnnamedTupleNotUsedError,
 )
 from guppylang_internals.definition.custom import CustomFunctionDef
-from guppylang_internals.definition.value import CallableDef
-from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError, GuppyTypeError
 from guppylang_internals.nodes import (
     AnyCall,
@@ -81,6 +79,7 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.value import CallableDef
     from guppylang_internals.diagnostic import Error
 
 
@@ -513,12 +512,11 @@ class BBLinearityChecker(ast.NodeVisitor):
         if isinstance(node, LocalCall):
             return node.func.id if isinstance(node.func, ast.Name) else None
         elif isinstance(node, GlobalCall):
-            return DEF_STORE.raw_defs[node.def_id].name
+            return node.defn.name
         return None
 
     def visit_GlobalCall(self, node: GlobalCall) -> None:
-        func = ENGINE.get_parsed(node.def_id)
-        assert isinstance(func, CallableDef)
+        func: CallableDef = node.defn
         if isinstance(func, CustomFunctionDef) and (
             not func.has_signature or func.has_var_args
         ):
