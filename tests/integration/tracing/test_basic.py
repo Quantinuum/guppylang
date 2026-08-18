@@ -45,6 +45,23 @@ def test_check_traces_generic() -> None:
     assert sorted(trace_events) == [3, 4, 5, 6]
 
 
+def test_check_traces_load() -> None:
+    trace_events = []
+
+    @guppy.comptime
+    def foo() -> int:
+        trace_events.append("traced")
+        return 1
+
+    @guppy.comptime
+    def main() -> Function[[], int]:
+        return foo
+
+    main.check()
+
+    assert trace_events == ["traced"]
+
+
 def test_flat(validate):
     @guppy.comptime
     def foo() -> int:
