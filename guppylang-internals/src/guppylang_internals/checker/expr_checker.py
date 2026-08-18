@@ -651,23 +651,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
             if ty is None:
-                # Can't be scoped under `isinstance(ty, StructType)` like the enum
-                # case is below: a bare struct/alias reference resolves (via
-                # `_check_name_id`) to its `__new__` constructor's `FunctionType`,
-                # never to `StructType`, so we check it here instead.
-                if found := self._find_instance_member_on_class(node):
-                    defn, member_kind = found
-                    example = f"{defn.name}(...).{node.attr}"
-                    if member_kind == "method":
-                        example += "(...)"
-                    err = InstanceMemberOnClassError(
-                        attr_span, defn.name, node.attr, member_kind
-                    )
-                    err.add_sub_diagnostic(
-                        InstanceMemberOnClassError.CallOnInstanceHelp(None, example)
-                    )
-                    raise GuppyTypeError(err)
-
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
                 )
@@ -766,6 +749,21 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 # definition, otherwise it is an instance of the enum.
                 is_enum_class = isinstance(node.value, GlobalName)
 
+        elif isinstance(ty, FunctionType) and (
+            found := self._find_instance_member_on_struct_class(node, ty)
+        ):
+            defn, member_kind = found
+            example = f"{defn.name}(...).{node.attr}"
+            if member_kind == "method":
+                example += "(...)"
+            err = InstanceMemberOnClassError(
+                attr_span, defn.name, node.attr, member_kind
+            )
+            err.add_sub_diagnostic(
+                InstanceMemberOnClassError.CallOnInstanceHelp(None, example)
+            )
+            raise GuppyTypeError(err)
+
         elif method_w_ty := self._check_method(ty, node):
             return method_w_ty[0], method_w_ty[1]
 
@@ -773,47 +771,34 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             AttributeNotFoundError(attr_span, ty, node.attr, is_enum_class)
         )
 
-    def _find_instance_member_on_class(
-        self, node: ast.Attribute
+    def _find_instance_member_on_struct_class(
+        self, node: ast.Attribute, ty: FunctionType
     ) -> tuple[TypeDef, str] | None:
-        """Returns the class's definition and the kind of member accessed
-        ("method" or "field") if `node` is an instance method or struct field
-        being accessed on the class itself (e.g. `MyStruct.foo` or
-        `MyStruct.field`) rather than on an instance, or `None` otherwise.
+        """Returns the struct's definition and the kind of member accessed
+        ("method" or "field") if `node.value` is a bare reference to a struct
+        class's own `__new__` constructor (e.g. `MyStruct`, which has type `ty`)
+        and `node.attr` is an instance method or field on it - as opposed to
+        `node.value` being some other function that merely happens to return a
+        struct (e.g. a local `Function[[int], MyStruct]` value, or an unrelated
+        global function). Returns `None` if this isn't a struct class reference,
+        or if `node.attr` doesn't name a field or instance method.
 
-        Excludes enum methods: `get_instance_func` can't tell an instance method
-        apart from a variant constructor there, so this would misfire on legal
-        variant construction like `MyEnum.Left()`. That case is handled
-        separately by the `EnumType` branch further down. Enums have no
-        class-level fields, so no such exclusion is needed for those.
+        A struct class reference is identified by `node.value` being a
+        `GlobalName` whose `def_id` is exactly the struct's own `__new__`
+        definition - the same identity that `_check_global` assigns when a bare
+        `MyStruct` name is resolved.
         """
-        if not isinstance(node.value, ast.Name):
-            return None
-        from guppylang_internals.definition.enum import CheckedEnumDef, ParsedEnumDef
-        from guppylang_internals.definition.struct import (
-            CheckedStructDef,
-            ParsedStructDef,
-        )
-
-        name_id = node.value.id
-        if (
-            name_id in self.ctx.locals
-            or name_id in self.ctx.generic_param_inst
-            or name_id not in self.ctx.globals
+        if not isinstance(ty.output, StructType) or not isinstance(
+            node.value, GlobalName
         ):
             return None
-        defn = self.ctx.globals[name_id]
-        if not isinstance(defn, TypeDef):
+        defn = ty.output.defn
+        constr = ENGINE.get_instance_func(defn, "__new__")
+        if constr is None or node.value.def_id != constr.id:
             return None
-        if isinstance(defn, ParsedStructDef | CheckedStructDef) and any(
-            f.name == node.attr for f in defn.fields
-        ):
+        if any(f.name == node.attr for f in defn.fields):
             return defn, "field"
-        if (
-            not isinstance(defn, ParsedEnumDef | CheckedEnumDef)
-            and node.attr != "__new__"
-            and ENGINE.get_instance_func(defn, node.attr) is not None
-        ):
+        if node.attr != "__new__" and ENGINE.get_instance_func(defn, node.attr):
             return defn, "method"
         return None
 
