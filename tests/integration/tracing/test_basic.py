@@ -5,6 +5,7 @@ from guppylang.std.qsystem.random import RNG
 
 from hugr import ops
 from hugr.std.int import IntVal
+import pytest
 
 from guppylang_internals.tracing.object import GuppyObject
 
@@ -45,7 +46,8 @@ def test_check_traces_generic() -> None:
     assert sorted(trace_events) == [3, 4, 5, 6]
 
 
-def test_check_traces_load() -> None:
+@pytest.mark.parametrize("deco", [guppy, guppy.comptime])
+def test_check_traces_load(deco) -> None:
     trace_events = []
 
     @guppy.comptime
@@ -53,7 +55,7 @@ def test_check_traces_load() -> None:
         trace_events.append("traced")
         return 1
 
-    @guppy.comptime
+    @deco
     def main() -> Function[[], int]:
         return foo
 
