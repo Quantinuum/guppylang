@@ -6,7 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.ast_util import AstNode, set_location_from
-from guppylang_internals.definition.common import CheckableGenericDef, DefId
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.span import Span, to_span
@@ -58,15 +58,8 @@ class GlobalName(ast.Name):
         # Python 3.15 validates subclass-defined AST fields in the base constructor,
         # but typeshed still exposes `ast.Name.__init__` without custom kwargs.
         super().__init__(id=id, def_id=def_id)  # type: ignore[call-arg]
-        from guppylang_internals.engine import ENGINE
-
         self.id = id
         self.def_id = def_id
-        defn = ENGINE.get_parsed(def_id)
-        if isinstance(defn, CheckableGenericDef) and not defn.params:
-            # If the defn has params, it will have to be subject to a
-            # TypeApply or turned into a GlobalCall, which will register.
-            ENGINE.register_generic_use(defn, ())
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
@@ -146,8 +139,6 @@ class GlobalCall(ast.expr):
         self.def_id = defn.id
         self.args = args
         self.type_args = type_args
-        if isinstance(defn, CheckableGenericDef):
-            ENGINE.register_generic_use(defn, type_args)
 
     # See MakeIter for explanation
     __reduce__ = object.__reduce__
