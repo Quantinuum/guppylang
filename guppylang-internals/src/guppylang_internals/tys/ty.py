@@ -1077,7 +1077,7 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
         assert is_type(s)
         return unify(s, t, subst)
     if isinstance(t, ExistentialTypeVar) and t in subst:
-        s = is_type(subst[t])
+        s = subst[t]
         assert is_type(s)
         return unify(var, s, subst)
     if var in t.unsolved_vars:
