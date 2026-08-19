@@ -19,6 +19,7 @@ from guppylang_internals.checker.expr_checker import (
 )
 from guppylang_internals.checker.func_checker import (
     check_signature,
+    unique_named_generic_args,
 )
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
@@ -93,10 +94,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         Executes the Python body while recording a replayable HUGR trace.
         """
         mono_ty = self.ty.instantiate_partial(type_args)
-        generic_args = {
-            param.name: arg
-            for param, arg in zip(self.ty.params, type_args, strict=True)
-        }
+        generic_args = unique_named_generic_args(self.ty.params, type_args)
         from guppylang_internals.tracing.function import trace_function
 
         trace = trace_function(
