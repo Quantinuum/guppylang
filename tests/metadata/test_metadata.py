@@ -9,6 +9,7 @@ from guppylang_internals.metadata.common import (
     add_metadata,
 )
 from hugr.metadata import NodeMetadata
+from tket.metadata import InlineAnnotation
 
 
 def test_add_metadata():
@@ -50,6 +51,21 @@ def test_add_metadata_no_reserved_metadata():
         )
 
 
+def test_add_metadata_inline_reserved():
+    node_metadata = NodeMetadata({})
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError)
+            and e.error.keys == {InlineAnnotation.KEY}
+        ),
+    ):
+        add_metadata(
+            node_metadata, additional_metadata={InlineAnnotation.KEY: "best_effort"}
+        )
+
+
 def test_add_metadata_metadata_already_set():
     node_metadata = NodeMetadata(
         {
@@ -78,11 +94,13 @@ def test_add_metadata_metadata_already_set():
         add_metadata(node_metadata, additional_metadata={"preset-key": "preset-value"})
 
 
-def test_add_metadata_property_expected_qubits():
+def test_add_metadata_property_inline():
+    from tket.metadata import InlineAnnotation
+
     node_metadata = NodeMetadata({})
 
     guppy_metadata = FunctionMetadata()
-    guppy_metadata.set_expected_qubits(5)
+    guppy_metadata.set_inline("best_effort")
     add_metadata(node_metadata, guppy_metadata)
 
-    assert node_metadata.as_dict() == {"tket.hint.expected_qubits": 5}
+    assert node_metadata.as_dict() == {InlineAnnotation.KEY: "best_effort"}

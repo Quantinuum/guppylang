@@ -65,6 +65,9 @@ from guppylang.defs import (
 )
 from guppylang.library import _get_link_name
 
+if TYPE_CHECKING:
+    from tket.metadata import InlineAnnotationValue
+
 type Decorator[S, T] = Callable[[S], T]
 
 AnyRawFunctionDef = (
@@ -81,6 +84,7 @@ __all__ = (
     "custom_guppy_decorator",
     "expected_qubits",
     "guppy",
+    "inline",
     "metadata",
 )
 
@@ -722,6 +726,27 @@ def expected_qubits(num: int) -> Any:
     return metadata(MetadataExpectedQubitsHint.KEY, num)
 
 
+def inline(value: "InlineAnnotationValue") -> Any:
+    """Decorator to attach inline metadata to a Guppy function. It must be
+    placed below the @guppy decorator.
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.decorator import inline
+
+        @guppy
+        @inline("best_effort")
+        def main() -> None:
+            pass
+
+        main.compile()
+    """
+    from tket.metadata import InlineAnnotation
+
+    return metadata(InlineAnnotation.KEY, value)
+
+
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
     """Helper function to parse expressions that are provided as strings.
 
@@ -899,13 +924,23 @@ def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> 
     """Adds the given metadata to the function's `__guppy_metadata__` attribute, which
     is used by the compiler to store metadata for Guppy functions.
     """
+    try:
+        from tket.metadata import InlineAnnotation
+
+        inline_key = InlineAnnotation.KEY
+    except ImportError:
+        inline_key = None
+
     custom_metadata = getattr(f, "__guppy_metadata__", {})
     assert isinstance(custom_metadata, dict)
     for key, value in custom_metadata.items():
-        if key == MetadataExpectedQubitsHint.KEY:
-            metadata.set_expected_qubits(value)
-        else:
-            metadata.set_generic_metadata(key, value)
+        match key:
+            case MetadataExpectedQubitsHint.KEY:
+                metadata.set_expected_qubits(value)
+            case k if k == inline_key and inline_key is not None:
+                metadata.set_inline(value)
+            case _:
+                metadata.set_generic_metadata(key, value)
 
 
 def _params_from_list(params: list[Any]) -> list[ParamDef]:
