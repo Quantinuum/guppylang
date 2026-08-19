@@ -9,7 +9,7 @@ from guppylang_internals.tys.param import TypeParam
 from guppylang import guppy
 from guppylang.std.lang import owned
 
-T = guppy.type_var("T")
+T = guppy.type_var("T", copyable=False, droppable=False)
 _future_params = [TypeParam(0, "T", must_be_copyable=False, must_be_droppable=False)]
 
 
