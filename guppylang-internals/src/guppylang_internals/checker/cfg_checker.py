@@ -32,7 +32,12 @@ from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.ty import FunctionDefType, InputFlags, Type
+from guppylang_internals.tys.ty import (
+    FunctionDefType,
+    InputFlags,
+    NestedFunctionDefType,
+    Type,
+)
 
 Row = Sequence[V]
 
@@ -235,8 +240,14 @@ class BranchTypeError(Error):
 
     @dataclass(frozen=True)
     class TypeHint(Note):
-        span_label: ClassVar[str] = "This is of type `{ty}`"
+        var: str
         ty: Type
+
+        @property
+        def rendered_span_label(self) -> str:
+            if isinstance(self.ty, NestedFunctionDefType):
+                return f"This is a distinct function `{self.var}` of type `{self.ty}`"
+            return f"This is of type `{self.ty}`"
 
     @dataclass(frozen=True)
     class CoerceOneHint(Help):
@@ -425,8 +436,12 @@ def check_rows_match(row1: Row[Variable], row2: Row[Variable], bb: BB) -> None:
             # We don't add a location to the type hint for the global variable,
             # since it could lead to cross-file diagnostics (which are not
             # supported) or refer to long function definitions.
-            err.add_sub_diagnostic(BranchTypeError.TypeHint(v1.defined_at, v1.ty))
-            err.add_sub_diagnostic(BranchTypeError.TypeHint(v2.defined_at, v2.ty))
+            err.add_sub_diagnostic(
+                BranchTypeError.TypeHint(v1.defined_at, v1.name, v1.ty)
+            )
+            err.add_sub_diagnostic(
+                BranchTypeError.TypeHint(v2.defined_at, v2.name, v2.ty)
+            )
             if hint := maybe_coerce_hint(v1, v2):
                 err.add_sub_diagnostic(hint)
             raise GuppyError(err)
