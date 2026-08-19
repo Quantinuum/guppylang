@@ -1,4 +1,3 @@
-import functools
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -124,19 +123,24 @@ def pretty_errors(f: FuncT) -> FuncT:
     """Decorator to print custom error banners when a `GuppyError` occurs."""
 
     def hook(
-        excty: type[BaseException], err: BaseException, traceback: TracebackType | None
+        old_handler: ExceptHook,
+        excty: type[BaseException],
+        err: BaseException,
+        traceback: TracebackType | None,
     ) -> None:
         """Custom `excepthook` that intercepts `GuppyExceptions` for pretty printing."""
         if isinstance(err, GuppyError):
             sys.stderr.write(str(err))
             return
 
-        # If it's not a GuppyError, fall back to default hook
-        sys.__excepthook__(excty, err, traceback)
+        # If it's not a GuppyError, fall back to previous hook
+        old_handler(excty, err, traceback)
 
-    @functools.wraps(f)
+    from functools import partial, wraps
+
+    @wraps(f)
     def pretty_errors_wrapped(*args: Any, **kwargs: Any) -> Any:
-        with exception_hook(hook):
+        with exception_hook(partial(hook, sys.excepthook)):
             return f(*args, **kwargs)
 
     return cast("FuncT", pretty_errors_wrapped)

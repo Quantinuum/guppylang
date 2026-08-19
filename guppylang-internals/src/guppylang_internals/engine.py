@@ -27,6 +27,7 @@ from guppylang_internals.definition.common import (
     CompilableDef,
     CompiledDef,
     DefId,
+    Definition,
     ParsableDef,
     ParsedDef,
     RawDef,
@@ -40,6 +41,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import (
     GuppyError,
+    InternalGuppyError,
     RequiresMonomorphizationError,
     pretty_errors,
 )
@@ -271,10 +273,10 @@ class CompilationEngine:
             return self.parsed[id]
         defn = DEF_STORE.raw_defs[id]
         if self._stage != "check":
-            # assert isinstance(defn, ParsedDef) # Sadly must inline ParsedDef (union)
-            assert isinstance(
+            if not isinstance(
                 defn, (CheckableDef, CheckableGenericDef, CompilableDef, CompiledDef)
-            )
+            ):
+                raise DefinitionStageError("parse", defn, "check")
         elif isinstance(defn, ParsableDef):
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
@@ -305,7 +307,8 @@ class CompilationEngine:
         defn = self.get_parsed(id)
 
         if self._stage != "check":
-            assert isinstance(defn, (CompiledDef, CompilableDef))
+            if not isinstance(defn, (CompiledDef, CompilableDef)):
+                raise DefinitionStageError("check", defn, "check")
         elif isinstance(defn, CheckableDef):
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
@@ -605,6 +608,16 @@ class CompilationEngine:
             )
         finally:
             self._stage = "none"
+
+
+class DefinitionStageError(InternalGuppyError):
+    """Raised when a definition is requested at an invalid compiler stage."""
+
+    def __init__(self, operation: str, defn: Definition, stage: str) -> None:
+        super().__init__(
+            f"Can only {operation} {defn.description.capitalize()} `{defn.name}`"
+            f" during the `{stage}` compiler stage"
+        )
 
 
 @dataclass(frozen=True)
