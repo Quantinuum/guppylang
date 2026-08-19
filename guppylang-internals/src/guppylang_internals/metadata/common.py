@@ -74,7 +74,9 @@ class FunctionMetadata:
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
 
-    def set_modified_defs(self, modified_names: list[str | None]) -> None:
+    def set_modified_defs(
+        self, modified_names: list[str | list[str] | None]
+    ) -> None:
         assert len(modified_names) == 3
         if modified_names[0] is not None:
             self._node_metadata[DAGGERED_KEY] = modified_names[0]

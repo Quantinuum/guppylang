@@ -154,7 +154,7 @@ class CompilerContext(ToHugrContext):
                     (def_id, mono_args), ()
                 )
                 if custom_defs:
-                    modified_names: list[str | None] = [None, None, None]
+                    modified_names: list[str | list[str] | None] = [None, None, None]
                     for checked_custom_defn, generic_custom_defn in custom_defs:
                         modified_name_index = _MODIFIED_NAME_INDICES[
                             checked_custom_defn.name
@@ -170,6 +170,7 @@ class CompilerContext(ToHugrContext):
                                 compiled_custom_defn.link_name
                             )
                             continue
+                        generic_modified_names = []
                         for value in (1, 2):
                             concrete_mono_args = (
                                 *mono_args,
@@ -181,10 +182,10 @@ class CompilerContext(ToHugrContext):
                                     generic_custom_defn.id, concrete_mono_args
                                 ),
                             )
-                            if value == 1:
-                                modified_names[modified_name_index] = (
-                                    compiled_custom_defn.link_name
-                                )
+                            generic_modified_names.append(
+                                compiled_custom_defn.link_name
+                            )
+                        modified_names[modified_name_index] = generic_modified_names
                     function_defn = cast("CheckedFunctionDef", defn)
                     assert function_defn.metadata is not None
                     function_defn.metadata.set_modified_defs(modified_names)
