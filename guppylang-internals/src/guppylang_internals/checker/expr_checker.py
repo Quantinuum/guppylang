@@ -179,6 +179,7 @@ from guppylang_internals.tys.ty import (
     function_tensor_signature,
     parse_function_tensor,
     unify,
+    unify_const,
 )
 from guppylang_internals.tys.var import ExistentialVar
 
@@ -1463,7 +1464,7 @@ def check_comptime_arg(
             err.add_sub_diagnostic(ComptimeUnknownError.Feedback(None))
             raise GuppyError(err)
     # Unify with expected constant to check and maybe infer some variables
-    subst = unify(exp_const, const, subst)
+    subst = unify_const(exp_const, const, subst)
     if subst is None:
         raise GuppyError(ConstMismatchError(arg, exp_const, const))
     return subst
