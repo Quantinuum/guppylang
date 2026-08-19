@@ -21,7 +21,7 @@ test = [
 ]
 
 [tool.uv]
-prerelease = "if-necessary"
+prerelease = "if-necessary-or-explicit"
 
 [tool.uv.workspace]
 members = ["guppylang", "guppylang-internals", "miette-py"]
