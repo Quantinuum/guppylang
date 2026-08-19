@@ -963,19 +963,20 @@ type Type = (
 
 
 def is_type(t: Any) -> TypeGuard[Type]:
-    return any(
+    return isinstance(
+        t,
         (
-            isinstance(t, BoundTypeVar),
-            isinstance(t, ExistentialTypeVar),
-            isinstance(t, NumericType),
-            isinstance(t, NoneType),
-            isinstance(t, FunctionDefType),
-            isinstance(t, FunctionType),
-            isinstance(t, TupleType),
-            isinstance(t, OpaqueType),
-            isinstance(t, StructType),
-            isinstance(t, EnumType),
-        )
+            BoundTypeVar,
+            ExistentialTypeVar,
+            NumericType,
+            NoneType,
+            FunctionDefType,
+            FunctionType,
+            TupleType,
+            OpaqueType,
+            StructType,
+            EnumType,
+        ),
     )
 
 
