@@ -15,6 +15,7 @@ from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsH
 DAGGERED_KEY = "tket.daggered"
 CONTROLLED_KEY = "tket.controlled"
 CTRL_DAGGERED_KEY = "tket.ctrl_daggered"
+NUM_CONTROL_QUBITS_KEY = "tket.num_control_qubits"
 
 
 class MetadataUnitaryFlags(Metadata[int]):
@@ -151,3 +152,13 @@ def add_unitary_metadata(
     if MetadataUnitaryFlags.KEY in node_metadata:
         raise GuppyError(MetadataAlreadySetError(None, MetadataUnitaryFlags.KEY))
     node_metadata[MetadataUnitaryFlags.KEY] = unitary_flag
+
+
+def add_num_control_qubits(
+    node_metadata: NodeMetadata,
+    num_control_qubits: int,
+) -> None:
+    """Adds the number of control qubits, ensuring it isn't overwritten."""
+    if NUM_CONTROL_QUBITS_KEY in node_metadata:
+        raise GuppyError(MetadataAlreadySetError(None, NUM_CONTROL_QUBITS_KEY))
+    node_metadata[NUM_CONTROL_QUBITS_KEY] = num_control_qubits

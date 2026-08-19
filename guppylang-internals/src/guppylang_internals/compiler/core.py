@@ -38,6 +38,7 @@ from guppylang_internals.engine import (
     MonoDefId,
 )
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.metadata.common import add_num_control_qubits
 from guppylang_internals.metadata.debug_info_util import StringTable
 from guppylang_internals.std._internal.compiler.tket_exts import (
     DEBUG_EXTENSION as TKET_DEBUG_EXTENSION,
@@ -181,6 +182,12 @@ class CompilerContext(ToHugrContext):
                                 self.build_compiled_def(
                                     generic_custom_defn.id, concrete_mono_args
                                 ),
+                            )
+                            add_num_control_qubits(
+                                self.module.hugr[
+                                    compiled_custom_defn.hugr_node
+                                ].metadata,
+                                value,
                             )
                             generic_modified_names.append(
                                 compiled_custom_defn.link_name
