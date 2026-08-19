@@ -5,7 +5,7 @@ Error: Invalid comptime expression (at $FILE:11:20)
 11 |     return comptime(Enum.VariantA(1))
    |                     ^^^^^^^^^^^^^^^^ Cannot use a Guppy object in a comptime expression
 
-Function `VariantA` may only be called in a Guppy context
+Members of Type `Enum` may only be accessed in a Guppy context
 
 Comptime expressions are evaluated as plain Python. Guppy functions and types
 require a Guppy context and cannot be called inside `comptime`.

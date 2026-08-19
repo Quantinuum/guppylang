@@ -150,6 +150,14 @@ class GuppyEnumDefinition(GuppyDefinition):
         # Handle attribute access when calling an enum variant constructor, like
         # `Enum.VariantA()`. In all other cases, we should not try create a new
         # attribute, so we directly raise the error.
+        from guppylang_internals.error import GuppyComptimeError
+        from guppylang_internals.tracing.state import tracing_active
+
+        if not tracing_active():
+            raise GuppyComptimeError(
+                f"Members of {self.wrapped.description.capitalize()} "
+                f"`{self.wrapped.name}` may only be accessed in a Guppy context"
+            )
         defn = ENGINE.get_checked(self.wrapped.id, mono_args=())
         assert isinstance(defn, CheckedEnumDef)
         if (
