@@ -12,9 +12,9 @@ from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsH
 
 # Metadata keys for modified definitions (daggered, controlled, ctrl-daggered)
 # To be removed when added to tket
-DAGGERED_KEY = "daggered"
-CONTROLLED_KEY = "controlled"
-CTRL_DAGGERED_KEY = "ctrl_daggered"
+DAGGERED_KEY = "tket.daggered"
+CONTROLLED_KEY = "tket.controlled"
+CTRL_DAGGERED_KEY = "tket.ctrl_daggered"
 
 
 class MetadataUnitaryFlags(Metadata[int]):
