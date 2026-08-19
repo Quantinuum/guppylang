@@ -26,21 +26,21 @@ def test_simple():
 
     callgraph = ENGINE.call_graph
 
-    # After checking we should have call graph node for root, caller1, caller2, leaf
-    root = (root.id, ())
-    assert root in callgraph
-    caller1 = (caller1.id, ())
-    assert caller1 in callgraph
-    caller2 = (caller2.id, ())
-    assert caller2 in callgraph
-    leaf = (leaf.id, ())
-    assert leaf in callgraph
+    # After checking we should have call graph node for root, caller1, caller2 (but not
+    # leaf since it doesn't call anything so it is only implicitly a node by being in
+    # the list of callees for one of the callers).
+    root_data = ENGINE.call_graph.get((root.id, ()))
+    assert root_data is not None
+    caller1_data = ENGINE.call_graph.get((caller1.id, ()))
+    assert caller1_data is not None
+    caller2_data = ENGINE.call_graph.get((caller2.id, ()))
+    assert caller2_data is not None
 
     # Verify edges point to the right callees.
-    assert callgraph.has_edge(root, caller1)
-    assert callgraph.has_edge(root, caller2)
-    assert callgraph.has_edge(caller1, leaf)
-    assert callgraph.has_edge(caller2, leaf)
+    assert (caller1.id, ()) in root_data.callee_defs
+    assert (caller2.id, ()) in root_data.callee_defs
+    assert (leaf.id, ()) in caller1_data.callee_defs
+    assert (leaf.id, ()) in caller2_data.callee_defs
 
 
 def test_recursive():
@@ -55,15 +55,15 @@ def test_recursive():
 
     factorial.check()
 
-    assert (factorial.id, ()) in ENGINE.call_graph
+    data = ENGINE.call_graph.get((factorial.id, ()))
+    assert data is not None
     # Check that factorial calls itself.
-    assert ENGINE.call_graph.has_edge((factorial.id, ()), (factorial.id, ()))
+    assert (factorial.id, ()) in data.callee_defs
 
 
 @pytest.mark.xfail(
     match="0 == 1",
-    reason="Nested functions are resolved as indirect calls to unknown target"
-    "Believed because of https://github.com/Quantinuum/guppylang/issues/2038",
+    reason="Nested functions are resolved as indirect calls to unknown target",
 )
 def test_nested_function():
     """Test that nested function calls are recorded in the call graph."""
