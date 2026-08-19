@@ -1,13 +1,12 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, override
 
 from hugr import Node, Wire
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.metadata import HugrDebugInfo
-from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,

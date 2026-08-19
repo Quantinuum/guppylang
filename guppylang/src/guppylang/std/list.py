@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING
 
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
@@ -32,7 +32,7 @@ L = guppy.type_var("L", copyable=False, droppable=False)
 
 
 @extend_type(list_type_def)
-class list(Generic[T]):
+class list[T]:
     """Mutable sequence items with homogeneous types."""
 
     @custom_function(ListGetitemCompiler())

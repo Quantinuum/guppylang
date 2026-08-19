@@ -1,6 +1,7 @@
+from typing import assert_never
+
 import hugr.build.function as hf
 from hugr import Wire
-from typing_extensions import assert_never
 
 from guppylang_internals.checker.core import ComptimeVariable
 from guppylang_internals.compiler.builder import FunctionBuilder, ops

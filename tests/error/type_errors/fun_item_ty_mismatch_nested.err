@@ -11,13 +11,15 @@ Notes:
  8 |         def bar(y: int) -> int:
    |         -----------------------
  9 |             return y + 3
-   | ------------------------ This is of type `def bar(y: int) -> int`
+   | ------------------------ This is a distinct function `bar` of type `def bar(y: int)
+   |                          -> int`
 
 11 | 
 12 |         def bar(y: int) -> int:
    |         -----------------------
 13 |             return y - 42
-   | ------------------------- This is of type `def bar(y: int) -> int`
+   | ------------------------- This is a distinct function `bar` of type `def bar(y: int)
+   |                           -> int`
 
 Help: Consider adding type annotations to coerce them into opaque function
 values: `bar: Function[[int], int] = ...`

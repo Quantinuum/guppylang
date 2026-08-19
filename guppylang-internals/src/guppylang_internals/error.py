@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from guppylang_internals.diagnostic import Error, Fatal
@@ -117,10 +117,7 @@ def saved_exception_hook() -> Iterator[None]:
         sys.excepthook = old_hook
 
 
-FuncT = TypeVar("FuncT", bound=Callable[..., Any])
-
-
-def pretty_errors(f: FuncT) -> FuncT:
+def pretty_errors[**P, T](f: Callable[P, T]) -> Callable[P, T]:
     """Decorator to print custom error banners when a `GuppyError` occurs."""
 
     def hook(
@@ -139,4 +136,4 @@ def pretty_errors(f: FuncT) -> FuncT:
         with exception_hook(hook):
             return f(*args, **kwargs)
 
-    return cast("FuncT", pretty_errors_wrapped)
+    return cast("Callable[P, Any]", pretty_errors_wrapped)
