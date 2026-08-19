@@ -9,6 +9,7 @@ from guppylang_internals.metadata.common import (
     add_metadata,
 )
 from hugr.metadata import NodeMetadata
+from tket.metadata import InlineAnnotation
 
 
 def test_add_metadata():
@@ -47,6 +48,21 @@ def test_add_metadata_no_reserved_metadata():
     ):
         add_metadata(
             node_metadata, additional_metadata={"tket.hint.expected_qubits": 3}
+        )
+
+
+def test_add_metadata_inline_reserved():
+    node_metadata = NodeMetadata({})
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError)
+            and e.error.keys == {InlineAnnotation.KEY}
+        ),
+    ):
+        add_metadata(
+            node_metadata, additional_metadata={InlineAnnotation.KEY: "best_effort"}
         )
 
 
