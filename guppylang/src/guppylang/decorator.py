@@ -46,7 +46,6 @@ from guppylang_internals.dummy_decorator import (
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
-from guppylang_internals.metadata.inline import InlineOptions, MetadataInline
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
@@ -56,6 +55,7 @@ from guppylang_internals.tys.ty import (
     UnitaryFlags,
 )
 from hugr import val as hv
+from tket.metadata import InlineAnnotation, InlineAnnotationValue
 from typing_extensions import Unpack, dataclass_transform
 
 from guppylang.defs import (
@@ -721,7 +721,7 @@ def expected_qubits(num: int) -> Any:
     return metadata(MetadataExpectedQubitsHint.KEY, num)
 
 
-def inline(value: InlineOptions) -> Any:
+def inline(value: InlineAnnotationValue) -> Any:
     """Decorator to attach inline metadata to a Guppy function. It must be
     placed below the @guppy decorator.
 
@@ -737,7 +737,7 @@ def inline(value: InlineOptions) -> Any:
 
         main.compile()
     """
-    return metadata(MetadataInline.KEY, value)
+    return metadata(InlineAnnotation.KEY, value)
 
 
 def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.expr:
@@ -923,7 +923,7 @@ def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> 
         match key:
             case MetadataExpectedQubitsHint.KEY:
                 metadata.set_expected_qubits(value)
-            case MetadataInline.KEY:
+            case InlineAnnotation.KEY:
                 metadata.set_inline(value)
             case _:
                 metadata.set_generic_metadata(key, value)

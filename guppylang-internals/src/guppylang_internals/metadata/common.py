@@ -1,19 +1,15 @@
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, get_args
 
 from hugr.debug_info import DebugRecord
 from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
 from hugr.utils import JsonType
+from tket.metadata import InlineAnnotation, InlineAnnotationValue
 
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
-from guppylang_internals.metadata.inline import (
-    INLINE_OPTIONS,
-    InlineOptions,
-    MetadataInline,
-)
 
 
 class MetadataUnitaryFlags(Metadata[int]):
@@ -62,7 +58,7 @@ class FunctionMetadata:
         HugrDebugInfo.KEY,
         MetadataExpectedQubitsHint.KEY,
         MetadataUnitaryFlags.KEY,
-        MetadataInline.KEY,
+        InlineAnnotation.KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -74,14 +70,14 @@ class FunctionMetadata:
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
 
-    def set_inline(self, inline: InlineOptions) -> None:
-        if inline not in INLINE_OPTIONS:  # for anyone not using a typechecker
-            expected = " or ".join(f"'{opt}'" for opt in INLINE_OPTIONS)
+    def set_inline(self, inline: InlineAnnotationValue) -> None:
+        inline_options = get_args(InlineAnnotationValue)
+        if inline not in inline_options:  # for anyone not using a typechecker
+            expected = " or ".join(f"'{opt}'" for opt in inline_options)
             raise ValueError(
-                f"Expected {expected} for MetadataInline, but got "
-                + (f"'{inline}'" if isinstance(inline, str) else f"a {type(inline)}")
+                f"Expected {expected} for InlineAnnotation, but got {inline!r}"
             )
-        self._node_metadata[MetadataInline] = inline
+        self._node_metadata[InlineAnnotation] = inline
 
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value
@@ -101,10 +97,8 @@ class FunctionMetadata:
         assert qubits is None or isinstance(qubits, int)
         return qubits
 
-    def get_inline(self) -> InlineOptions | None:
-        inline = self._node_metadata.get(MetadataInline, None)
-        assert inline is None or inline in INLINE_OPTIONS
-        return inline
+    def get_inline(self) -> InlineAnnotationValue | None:
+        return self._node_metadata.get(InlineAnnotation, None)
 
     @classmethod
     def reserved_keys(cls) -> set[str]:
