@@ -7,7 +7,6 @@ from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Literal,
     NamedTuple,
     ParamSpec,
     TypedDict,
@@ -47,7 +46,7 @@ from guppylang_internals.dummy_decorator import (
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
-from guppylang_internals.metadata.inline import MetadataInline
+from guppylang_internals.metadata.inline import InlineOptions, MetadataInline
 from guppylang_internals.span import Loc, SourceMap, Span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
@@ -722,7 +721,7 @@ def expected_qubits(num: int) -> Any:
     return metadata(MetadataExpectedQubitsHint.KEY, num)
 
 
-def inline(value: Literal["best_effort", "never"]) -> Any:
+def inline(value: InlineOptions) -> Any:
     """Decorator to attach inline metadata to a Guppy function. It must be
     placed below the @guppy decorator.
 

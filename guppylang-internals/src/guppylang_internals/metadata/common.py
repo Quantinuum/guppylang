@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 from hugr.debug_info import DebugRecord
 from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
@@ -9,7 +9,11 @@ from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
-from guppylang_internals.metadata.inline import MetadataInline
+from guppylang_internals.metadata.inline import (
+    INLINE_OPTIONS,
+    InlineOptions,
+    MetadataInline,
+)
 
 
 class MetadataUnitaryFlags(Metadata[int]):
@@ -70,7 +74,13 @@ class FunctionMetadata:
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
 
-    def set_inline(self, inline: Literal["best_effort", "never"]) -> None:
+    def set_inline(self, inline: InlineOptions) -> None:
+        if inline not in INLINE_OPTIONS:  # for anyone not using a typechecker
+            expected = " or ".join(f"'{opt}'" for opt in INLINE_OPTIONS)
+            raise ValueError(
+                f"Expected {expected} for MetadataInline, but got "
+                + (f"'{inline}'" if isinstance(inline, str) else f"a {type(inline)}")
+            )
         self._node_metadata[MetadataInline] = inline
 
     def set_unitary_flags(self, value: int) -> None:
@@ -91,9 +101,9 @@ class FunctionMetadata:
         assert qubits is None or isinstance(qubits, int)
         return qubits
 
-    def get_inline(self) -> Literal["best_effort", "never"] | None:
+    def get_inline(self) -> InlineOptions | None:
         inline = self._node_metadata.get(MetadataInline, None)
-        assert inline is None or inline in ["best_effort", "never"]
+        assert inline is None or inline in INLINE_OPTIONS
         return inline
 
     @classmethod
