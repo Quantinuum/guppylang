@@ -5,6 +5,7 @@ from hugr.debug_info import DebugRecord
 from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
 from hugr.utils import JsonType
 
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
@@ -110,6 +111,8 @@ def add_metadata(
     if metadata is not None:
         metadata_dict = metadata.as_dict()
         for key in metadata_dict:
+            if key == HugrDebugInfo.KEY and not debug_mode_enabled():
+                continue
             if key in node_metadata:
                 raise GuppyError(MetadataAlreadySetError(None, key))
             if metadata_dict[key] is not None:

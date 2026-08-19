@@ -1,6 +1,7 @@
 import ast
 import builtins
 import inspect
+import linecache
 from collections.abc import Callable
 from types import FrameType
 from typing import (
@@ -100,7 +101,6 @@ class GuppyKwargs(TypedDict, total=False):
     unitary: bool
     controllable: bool
     daggerable: bool
-    max_qubits: int
 
 
 class GuppyStructKwargs(TypedDict, total=False):
@@ -246,7 +246,7 @@ class _Guppy:
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:
-            if not hasattr(cls, "__firstlineno__"):
+            if "__firstlineno__" not in cls.__dict__:
                 cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
             # We're pretending to return the class unchanged, but in fact we return
             # a `GuppyDefinition` that handles the comptime logic
@@ -290,7 +290,7 @@ class _Guppy:
             # Prior to Python 3.13, the `__firstlineno__` attribute on classes is not
             # set. However, we need this information to precisely look up the source for
             # the class later. If it's not there, we can set it from the calling frame:
-            if not hasattr(cls, "__firstlineno__"):
+            if "__firstlineno__" not in cls.__dict__:
                 cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
             # We're pretending to return the class unchanged, but in fact we return
             # a `GuppyDefinition` that handles the comptime logic
@@ -710,7 +710,7 @@ def expected_qubits(num: int) -> Any:
     .. code-block:: python
 
         from guppylang import guppy
-        from guppylang.decorator import expected_qubit
+        from guppylang.decorator import expected_qubits
 
         @guppy.declare
         @expected_qubits(2)
@@ -757,8 +757,13 @@ def _parse_expr_string(ty_str: str, parse_err: str, sources: SourceMap) -> ast.e
     if caller_frame := get_calling_frame():
         info = inspect.getframeinfo(caller_frame)
         if caller_module := inspect.getmodule(caller_frame):
-            sources.add_file(info.filename)
             source_lines, _ = inspect.getsourcelines(caller_module)
+        else:
+            # inspect.getmodule can fail, for example if we are running in IPython. Fall
+            # back to linecache in that case
+            source_lines = linecache.getlines(info.filename)
+        if source_lines:
+            sources.add_file(info.filename)
             source = "".join(source_lines)
             annotate_location(expr_ast, source, info.filename, 1)
             # Modify the AST so that all sub-nodes span the entire line. We
@@ -803,7 +808,9 @@ def _set_firstlineno(cls: builtins.type[T], frame: FrameType) -> builtins.type[T
     However, we need this information to precisely look up the source for the
     class later. If it's not there, we can set it from the calling frame.
     """
-    if not hasattr(cls, "__firstlineno__"):
+    # Use the class dict directly: inherited `__firstlineno__` from a base class would
+    # point to the wrong source block for this class.
+    if "__firstlineno__" not in cls.__dict__:
         cls.__firstlineno__ = frame.f_lineno  # type: ignore[attr-defined]
     return cls
 

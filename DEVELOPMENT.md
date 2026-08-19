@@ -126,7 +126,7 @@ The general format of a contribution title should be:
 <type>(<scope>)!: <description>
 ```
 
-Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major version bump.
+Where the scope is optional, and the `!` is only included if this is a semver breaking change that requires a major version bump *to the `guppylang` package*.
 
 We accept the following contribution types:
 
@@ -276,35 +276,22 @@ After a release is made, the main branch needs to be updated to reflect the newe
 Create a PR that updates version references and the changelog on the main branch (by cherry-picking the release commit).
 You should not update the version (i.e. only update the changelog) if the main branch already tracks the alpha of the next version!
 
+## :back: Backports & Patch releases
+
+TLDR: Patches for a shipped minor series live on its `release/<major>.<minor>` branch.
+Fixes should land on the main branch (unless provably inapplicable) and be backported to the release branch.
+
+### Backports
+
+A new commit should always land on the main branch (there may be exceptions to this if a bug can be proven to not be present on the main branch but in a released version to be patched).
+The corresponding PR may then be labelled with `B-backport-nominated`, and if accepted by *another* Guppy team member, it will also be labelled with `B-backport-accepted`.
+
+Regularly, a Guppy team member backports pending fixes (identified via a [`nominated+accepted`](https://github.com/Quantinuum/guppylang/issues?q=label%3AB-backport-nominated%20label%3AB-backport-accepted) query) onto the release branch of the last minor version (or earlier versions as well if applicable) and documents the backport status in the original PR.
+Backporting fixes should be done by opening a PR against the release branch with the cherry-picked commit, and labelling the backport PR with `C-backport`.
+Once the backport is complete (the backport PR is merged), the `B-backport-nominated` label on the original PR should be removed.
+
 ### Patch releases
 
-Patches for a shipped minor series live on its `release/<major>.<minor>` branch.
-Land the fix on the branch (e.g. cherry-pick from `main`); `release-pr.yml` then
-opens/updates the release PR on `release-pr--release/<major>.<minor>` with the next
-patch version. Merge it, and `release-publish.yml` tags and drafts the releases as
-usual.
-
-For a fully out-of-band release that should not go through a release branch, you
-can tag a commit manually — release creation is tag-driven, so **pushing the tag is
-all it takes**:
-
-1. Bump the version and update the changelog on the commit/branch:
-   - `uv run --no-project scripts/release/compute_versions.py set-versions <version>`
-   - `uv run --no-project scripts/release/compute_versions.py set-pin <version>`
-   - Add a matching `## [<version>]` section to each package's `CHANGELOG.md`. The
-     `create-release` job extracts this section verbatim for the release notes, so
-     it must exist before you tag.
-   - Run `uv lock` to refresh the lock file.
-2. Tag the commit and push the tags (both packages share the same version):
-
-   ```sh
-   git tag guppylang-v1.0.1
-   git tag guppylang-internals-v1.0.1
-   git push origin guppylang-v1.0.1 guppylang-internals-v1.0.1
-   ```
-
-   `release-publish.yml` picks up each tag, creates the draft GitHub release, and —
-   once you publish it — `python-wheels.yml` builds and uploads the wheels.
-
+Once the backport is complete, `release-pr.yml` then opens/updates the release PR on `release-pr--release/<major>.<minor>` with the next patch version. Merge it, and `release-publish.yml` tags and drafts the releases as usual.
 After the release is published, make sure the version and changelog changes are
 reflected on `main` so the history stays consistent.

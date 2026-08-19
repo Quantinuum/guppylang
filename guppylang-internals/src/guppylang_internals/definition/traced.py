@@ -1,7 +1,7 @@
 import ast
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import hugr.build.function as hf
 import hugr.tys as ht
@@ -14,12 +14,12 @@ from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import (
     check_call,
+    make_global_call,
     synthesize_call,
 )
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
-from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -38,14 +38,17 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
-from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
-from guppylang_internals.tys.arg import Argument
+from guppylang_internals.tracing.compile import replay_trace
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import Type, UnitaryFlags, type_to_row
 
 PyFunc = Callable[..., Any]
+
+if TYPE_CHECKING:
+    from guppylang_internals.tracing.recorder import Trace
 
 
 @dataclass(frozen=True)
@@ -87,20 +90,29 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     def check(self, type_args: Inst, globals: Globals) -> "TracedMonoFunctionDef":
         """Monomorphizes the function for the given type arg instantiation.
 
-        The actual checking happens during tracing while constructing the HUGR.
+        Executes the Python body while recording a replayable HUGR trace.
         """
         mono_ty = self.ty.instantiate_partial(type_args)
         generic_args = {
             param.name: arg
             for param, arg in zip(self.ty.params, type_args, strict=True)
         }
+        from guppylang_internals.tracing.function import trace_function
+
+        trace = trace_function(
+            self.python_func,
+            mono_ty,
+            generic_args,
+            self.defined_at,
+            self,
+        )
         return TracedMonoFunctionDef(
             self.id,
             self.name,
             self.defined_at,
             mono_ty,
             self.python_func,
-            generic_args,
+            trace,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
         )
@@ -112,7 +124,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
     @override
@@ -122,13 +134,13 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, ty
 
 
 @dataclass(frozen=True)
 class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
-    generic_args: Mapping[str, Argument]
+    trace: "Trace"
 
     @override
     def compile_outer(
@@ -158,7 +170,7 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.python_func,
-            self.generic_args,
+            self.trace,
             func_def,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
@@ -170,6 +182,14 @@ class CompiledTracedFunctionDef(
     TracedMonoFunctionDef, CompiledCallableDef, CompiledHugrNodeDef
 ):
     func_def: hf.Function
+
+    @override
+    @property
+    def call_effects(self) -> frozenset[Effect]:
+        """The maximum set of effects that may occur when calling the function."""
+        # For now, an approximation. (We said, may occur.)
+        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
+        return frozenset([Effect.ANY])
 
     @property
     def hugr_node(self) -> Node:
@@ -195,7 +215,7 @@ class CompiledTracedFunctionDef(
         """Compiles a call to the function."""
         num_returns = len(type_to_row(self.ty.output))
         with dfg.builder.set_ast_context(node):
-            call = dfg.builder.call(self.func_def, *args)
+            call = dfg.builder.call(self.func_def, *args, effects=self.call_effects)
         return CallReturnWires(
             regular_returns=list(call[:num_returns]),
             inout_returns=list(call[num_returns:]),
@@ -203,15 +223,5 @@ class CompiledTracedFunctionDef(
 
     @override
     def compile_inner(self, ctx: CompilerContext) -> None:
-        """Compiles the body of the function by tracing it."""
-        from guppylang_internals.tracing.function import trace_function
-
-        trace_function(
-            self.python_func,
-            self.ty,
-            FunctionBuilder(self.func_def),
-            ctx,
-            self.generic_args,
-            self.defined_at,
-            self,
-        )
+        """Replays the trace recorded while the function was checked."""
+        replay_trace(self.func_def, self.trace, ctx)

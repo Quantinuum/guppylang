@@ -140,7 +140,7 @@ def test_control_flow(validate):
     validate(test.compile_function())
 
 
-def test_tensor(validate):
+def test_tensor(validate, use_experimental_features):
     @guppy.struct
     class A:
         q: qubit

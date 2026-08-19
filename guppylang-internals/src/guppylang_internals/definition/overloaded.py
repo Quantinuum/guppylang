@@ -1,5 +1,6 @@
 import ast
 import copy
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, NamedTuple, NoReturn
 
@@ -26,6 +27,7 @@ from guppylang_internals.error import (
     InternalGuppyError,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.printing import signature_to_str
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
@@ -94,6 +96,10 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
     description: str = field(default="overloaded function", init=False)
 
+    @property
+    def call_effects(self) -> Iterable[Effect]:
+        raise InternalGuppyError("Should have been resolved to one overload")
+
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         raise GuppyError(OverloadHigherOrderError(node, self.name))
 
@@ -121,6 +127,26 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
             checking=False,
         )
         return new_node, ty
+
+    def resolve_overload(
+        self, args: list[ast.expr], node: AstNode, ctx: "Context"
+    ) -> CallableDef | None:
+        """Resolves an overload usage to a specific function definition based on the
+        provided arguments. Returns None if no matching overload can be synthesized."""
+        for def_id in self.func_ids:
+            defn = ctx.globals[def_id]
+            assert isinstance(defn, CallableDef)
+            try:
+                # synthesize_call may modify args and node,
+                # thus we deepcopy them before passing in the function
+                node_copy = copy.deepcopy(node)
+                args_copy = copy.deepcopy(args)
+                defn.synthesize_call(args_copy, node_copy, ctx)
+            except GuppyError:
+                continue
+            else:
+                return defn
+        return None
 
     def _try_overloads(
         self,

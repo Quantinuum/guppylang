@@ -10,6 +10,7 @@ from guppylang_internals.std._internal.compiler.quantum import (
 )
 from guppylang_internals.std._internal.compiler.tket_exts import MEASUREMENT_EXTENSION
 from guppylang_internals.std._internal.util import quantum_op
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr import tys as ht
 
@@ -23,7 +24,7 @@ from guppylang.std.option import Option
 
 @custom_type(ht.Qubit, copyable=False, droppable=False)
 class qubit:
-    @hugr_op(quantum_op("QAlloc"))
+    @hugr_op(quantum_op("QAlloc"), effects=[Effect.ANY])
     @no_type_check
     def __new__() -> "qubit": ...
 
@@ -387,13 +388,13 @@ def project_z(q: qubit) -> Measurement:
     return m
 
 
-@hugr_op(quantum_op("QFree"))
+@hugr_op(quantum_op("QFree"), effects=[Effect.ANY])
 @no_type_check
 def discard(q: qubit @ owned) -> None:
     """Discard a single qubit."""
 
 
-@hugr_op(quantum_op("MeasureFree"))
+@hugr_op(quantum_op("MeasureFree"), effects=[Effect.ANY])
 @no_type_check
 def measure(q: qubit @ owned) -> Measurement:
     """Request a destructive lazy measurement of a qubit, returning a `Measurement`

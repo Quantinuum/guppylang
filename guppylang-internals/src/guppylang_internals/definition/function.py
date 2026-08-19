@@ -1,6 +1,6 @@
 import ast
 import inspect
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +21,11 @@ from guppylang_internals.ast_util import (
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Context, Globals, Place
 from guppylang_internals.checker.errors.generic import ExpectedError
-from guppylang_internals.checker.expr_checker import check_call, synthesize_call
+from guppylang_internals.checker.expr_checker import (
+    check_call,
+    make_global_call,
+    synthesize_call,
+)
 from guppylang_internals.checker.func_checker import (
     check_global_func_def,
     check_signature,
@@ -52,8 +56,8 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
-from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst, Subst
@@ -195,8 +199,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
     @override
@@ -206,8 +209,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
+        node = with_loc(node, make_global_call(self, args, inst))
         return with_type(ty, node), ty
 
 
@@ -297,6 +299,13 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
 
     _func_bldr: FunctionBuilder
 
+    @override
+    @property
+    def call_effects(self) -> frozenset[Effect]:
+        # For now, an approximation. (We said, may occur.)
+        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
+        return frozenset([Effect.ANY])
+
     @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
@@ -316,7 +325,9 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         node: AstNode,
     ) -> CallReturnWires:
         """Compiles a call to the function."""
-        return compile_call(args, dfg, self.ty, self.hugr_node, node)
+        return compile_call(
+            args, dfg, self.ty, self.hugr_node, node, effects=self.call_effects
+        )
 
     @override
     def compile_inner(self, globals: CompilerContext) -> None:
@@ -335,11 +346,13 @@ def compile_call(
     ty: FunctionType,
     func: ToNode,
     call_ast: AstNode,
+    *,
+    effects: Iterable[Effect],
 ) -> CallReturnWires:
     """Compiles a call to the function."""
     num_returns = len(type_to_row(ty.output))
     with dfg.builder.set_ast_context(call_ast):
-        call = dfg.builder.call(func, *args)
+        call = dfg.builder.call(func, *args, effects=effects)
     return CallReturnWires(
         regular_returns=list(call[:num_returns]),
         inout_returns=list(call[num_returns:]),

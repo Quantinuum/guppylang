@@ -1,8 +1,9 @@
 import pytest
 from typing import Self
 from guppylang.decorator import guppy
-from guppylang.std.builtins import nat
-from guppylang.std.lang import Copy, Drop
+from guppylang.std.builtins import array, nat
+from guppylang.std.lang import Copy, Drop, owned
+from guppylang.std.quantum import discard, qubit
 
 
 def test_def():
@@ -208,7 +209,7 @@ def test_multi(validate):
         def bar(self: "Bar[T]", t: T @ owned) -> T: ...
 
     @guppy
-    def baz[T: (Foo[nat], Bar[nat])](t: T) -> nat:
+    def baz[T: (Foo[nat], Bar[nat], Copy, Drop)](t: T) -> nat:
         return t.bar(t.foo(42))
 
     @guppy.struct(frozen=True)
@@ -355,14 +356,14 @@ def test_run_int(validate, run_int_fn):
             return 9
 
     @guppy
-    def get_fav_num(a: Animal) -> nat:
-        return a.fav_num()
+    def sum_fav_num(a: Animal, b: Animal) -> nat:
+        x = a.fav_num()
+        x += b.fav_num()
+        return x
 
     @guppy
     def main() -> nat:
-        a = get_fav_num(Dog())
-        b = get_fav_num(Duck())
-        return a + b
+        return sum_fav_num(Dog(), Duck())
 
     validate(main.compile())
     run_int_fn(main, 13)
@@ -423,3 +424,189 @@ def test_clash(validate):
         return
 
     validate(main.compile())
+
+
+def test_unitary(validate):
+    from guppylang import guppy
+    from guppylang.std.builtins import (
+        Unitary,
+        control,
+        dagger,
+    )
+    from guppylang.std.quantum import discard, h, qubit, s
+
+    @guppy(unitary=True)
+    def apply(f: Unitary[[qubit], None], q: qubit) -> None:
+        apply2(f, q)
+
+    @guppy(unitary=True)
+    def apply2(f: Unitary[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        c = qubit()
+        h(c)
+        with control(c), dagger:
+            apply(s, q)
+            apply(h, q)
+        discard(q)
+        discard(c)
+
+    validate(main.compile())
+
+
+def test_double_fn(validate):
+    from collections.abc import Callable
+    from guppylang.std.builtins import qubit
+
+    @guppy
+    def take_two(
+        a: Callable[[qubit], None], b: Callable[[qubit], None], q: qubit
+    ) -> None:
+        a(q)
+        b(q)
+
+    @guppy
+    def fn(q: qubit) -> None:
+        return
+
+    @guppy
+    def fn2(q: qubit) -> None:
+        return
+
+    @guppy
+    def call_two() -> None:
+        q = qubit()
+        take_two(fn, fn2, q)
+        take_two(fn, fn, q)
+        q.discard()
+
+    validate(call_two.compile())
+
+
+def test_comptime(validate, run_int_fn):
+    @guppy.protocol
+    class Animal[T]:
+        @guppy.require
+        def fav_num(self: Self, x: T) -> int: ...
+
+    @guppy.struct(frozen=True)
+    class Dog:
+        @guppy.comptime
+        def fav_num(self: Self, n: nat) -> int:
+            return n + 1
+
+    @guppy.struct(frozen=True)
+    class Duck:
+        @guppy.comptime
+        def fav_num(self: Self, x: int) -> int:
+            return x + 2
+
+    V = guppy.type_var("V")
+    W = guppy.type_var("W")
+
+    @guppy.comptime
+    def sum_fav_num(a: Animal[V], b: Animal[W], x: V, y: W) -> int:
+        return a.fav_num(x) + b.fav_num(y)
+
+    @guppy.comptime
+    def main() -> int:
+        return sum_fav_num(Dog(), Duck(), nat(1), 2)
+
+    validate(main.compile())
+    run_int_fn(main, 6)
+
+
+def test_linear(validate):
+    @guppy.protocol
+    class Proto:
+        @guppy.require
+        def borrowed(self) -> int: ...
+
+        @guppy.require
+        def owned(self: Self @ owned) -> int: ...
+
+    @guppy.struct(frozen=True)
+    class ClassicalType:
+        x: int
+
+        @guppy
+        def borrowed(self) -> int:
+            return self.x
+
+        @guppy
+        def owned(self) -> int:
+            return self.x
+
+    @guppy.struct
+    class AffineType:
+        xs: array[int, 10]
+
+        @guppy
+        def borrowed(self) -> int:
+            return self.xs[0]
+
+        @guppy
+        def owned(self: Self @ owned) -> int:
+            return self.xs[0]
+
+    @guppy.struct
+    class LinearType:
+        q: qubit
+
+        @guppy
+        def borrowed(self) -> int:
+            return 0
+
+        @guppy
+        def owned(self: Self @ owned) -> int:
+            discard(self.q)
+            return 0
+
+    @guppy
+    def foo_borrowed(x: Proto) -> int:
+        return x.borrowed()
+
+    @guppy
+    def foo_owned(x: Proto @ owned) -> int:
+        return x.owned()
+
+    @guppy
+    def main(x: ClassicalType, y: AffineType @ owned, z: LinearType @ owned) -> int:
+        return (
+            foo_borrowed(x)
+            + foo_owned(x)
+            + foo_borrowed(y)
+            + foo_owned(y)
+            + foo_borrowed(z)
+            + foo_owned(z)
+        )
+
+    validate(main.compile_function())
+
+
+def test_copy_drop(validate):
+    @guppy.protocol
+    class Proto:
+        """Empty protocol"""
+
+    @guppy
+    def copy[T: (Proto, Copy)](x: T) -> tuple[T, T]:
+        return x, x
+
+    @guppy
+    def drop[T: (Proto, Drop)](x: T @ owned) -> None:
+        pass
+
+    @guppy
+    def copy_drop[T: (Proto, Copy, Drop)](x: T, y: T) -> tuple[T, T]:
+        return x, x
+
+    @guppy
+    def main() -> int:
+        drop(array(1.0))
+        return copy(42)[0] + copy_drop(1, 2)[1]
+
+    validate(main.compile_function())

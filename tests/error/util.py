@@ -3,6 +3,7 @@ import inspect
 import pathlib
 import re
 import sys
+from typing import Callable
 
 import pytest
 from hugr import tys
@@ -11,6 +12,31 @@ from hugr.tys import TypeBound
 from guppylang_internals.decorator import custom_type
 from guppylang_internals.diagnostic import DiagnosticsRenderer, wrap
 from tests.util import get_wasm_file
+from tests.conftest import experimental_features_enabled
+
+def collect_error_test_cases(
+    directory: str,
+    *,
+    exclude: Callable[[pathlib.Path], bool] = lambda _: False,
+) -> list[str]:
+    """Collects all error test cases (*.py, but not __init__.py) in the given directory
+    relative to the parent directory of this file.
+
+    Returns a list of file paths that can be processed by pytest.mark.parametrize."""
+    # __file__ works since the current file is in the same directory as all the error
+    # test cases. If it is moved, this definition needs to be updated.
+    path = pathlib.Path(__file__).parent.resolve() / directory
+    files = [
+        x
+        for x in path.iterdir()
+        if x.is_file() and x.suffix == ".py" and x.name != "__init__.py"
+    ]
+    files = [f for f in files if not exclude(f)]
+
+    # Turn paths into strings, otherwise pytest doesn't display the names
+    files = [str(f) for f in files]
+
+    return files
 
 # Regular expression to match the `~~~~~^^^~~~` highlights that are printed in
 # tracebacks from Python 3.11 onwards. We strip those out so we can use the same golden
@@ -37,35 +63,43 @@ def filter_traceback_not_containing(s: str, disallowed_regex: re.Pattern[str]) -
 
     return "\n".join(result)
 
-def run_error_test(file, capsys, snapshot):
+def run_error_test(file, capsys, snapshot, needs_experimental_features=False):
     file = pathlib.Path(file)
 
-    with pytest.raises(Exception) as exc_info:
-        importlib.import_module(f"tests.error.{file.parent.name}.{file.stem}")
+    def run_test():
+        with pytest.raises(Exception) as exc_info:
+            importlib.import_module(f"tests.error.{file.parent.name}.{file.stem}")
 
-    # Remove the importlib frames from the traceback by skipping beginning frames until
-    # we end up in the executed file
-    tb = exc_info.tb
-    while tb is not None and inspect.getfile(tb.tb_frame) != str(file):
-        tb = tb.tb_next
+        # Remove the importlib frames from the traceback by skipping beginning frames until
+        # we end up in the executed file
+        tb = exc_info.tb
+        while tb is not None and inspect.getfile(tb.tb_frame) != str(file):
+            tb = tb.tb_next
 
-    # Invoke except hook to print the exception to stderr
-    sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
+        # Invoke except hook to print the exception to stderr
+        sys.excepthook(exc_info.type, exc_info.value.with_traceback(tb), tb)
 
-    err = capsys.readouterr().err
-    err = err.replace(str(file), "$FILE")
-    # The WASM file descriptor can stretch across multiple lines in a longer message,
-    # so we try to predict the wrapping points to be able to build a replacement regex.
-    wasm_module = get_wasm_file()
-    wrapped_wasm = wrap(f"`{wasm_module}`", DiagnosticsRenderer.MAX_MESSAGE_LINE_LEN)
-    err = re.sub("\n".join(wrapped_wasm), "`$WASM`", err)
-    # Strip the bootstrap included in the traceback by Python 3.13+ for parallel tests
-    err = filter_traceback_not_containing(err, EXECNET_BOOTSTRAP)
-    # Strip the error markers that are only present for Python 3.11+
-    err = filter_traceback_not_containing(err, TRACEBACK_HIGHLIGHT)
+        err = capsys.readouterr().err
+        err = err.replace(str(file), "$FILE")
+        # The WASM file descriptor can stretch across multiple lines in a longer message,
+        # so we try to predict the wrapping points to be able to build a replacement regex.
+        wasm_module = get_wasm_file()
+        wrapped_wasm = wrap(f"`{wasm_module}`", DiagnosticsRenderer.MAX_MESSAGE_LINE_LEN)
+        err = re.sub("\n".join(wrapped_wasm), "`$WASM`", err)
+        # Strip the bootstrap included in the traceback by Python 3.13+ for parallel tests
+        err = filter_traceback_not_containing(err, EXECNET_BOOTSTRAP)
+        # Strip the error markers that are only present for Python 3.11+
+        err = filter_traceback_not_containing(err, TRACEBACK_HIGHLIGHT)
 
-    snapshot.snapshot_dir = str(file.parent)
-    snapshot.assert_match(err, file.with_suffix(".err").name)
+        snapshot.snapshot_dir = str(file.parent)
+        snapshot.assert_match(err, file.with_suffix(".err").name)
+
+    # Enable experimental features in context to properly clean up
+    if needs_experimental_features:
+        with experimental_features_enabled():
+            run_test()
+    else:
+        run_test()
 
 
 @custom_type(

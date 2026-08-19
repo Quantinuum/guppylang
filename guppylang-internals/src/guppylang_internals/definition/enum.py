@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Generic, TypeVar
 
-from hugr import Wire, ops
+from hugr import Wire
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
@@ -12,6 +12,7 @@ from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
+from guppylang_internals.compiler.builder.ops import tag
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -23,7 +24,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomFunctionDef,
-    DefaultCallChecker,
+    OwnedArgumentsCallChecker,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
@@ -39,6 +40,7 @@ from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -285,7 +287,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
                     self.builder.add_op(
-                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
+                        tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
                         *wires,
                     )
                 )
@@ -313,12 +315,13 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 name=variant_name,
                 defined_at=self.defined_at,
                 ty=constructor_sig,
-                call_checker=DefaultCallChecker(),
+                call_checker=OwnedArgumentsCallChecker(),
                 call_compiler=ConstructorCompiler(variant.index, enum_type),
                 higher_order_value=True,
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,
                 has_var_args=False,
+                effects=[Effect.ANY],
             )
             variants_constructors.append(constructor_def)
 

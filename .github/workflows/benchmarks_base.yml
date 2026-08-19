@@ -41,7 +41,7 @@ jobs:
                --github-actions '${{ secrets.GITHUB_TOKEN }}' \
 
       - name: Benchmark with CodSpeed
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@v5
         with:
           mode: simulation
-          run: uv run pytest tests/ --codspeed -k "not executable"
+          run: uv run pytest tests/ --codspeed -k "not executable" -v --durations=0

@@ -4,7 +4,8 @@ These are the objects returned by the `@guppy` decorator. They should not be con
 with the compiler-internal definition objects in the `definitions` module.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -19,6 +20,11 @@ from typing import (
 )
 
 import guppylang_internals
+from guppylang_internals.debug_mode import (
+    debug_mode_enabled,
+    turn_off_debug_mode,
+    turn_on_debug_mode,
+)
 from guppylang_internals.definition.declaration import RawFunctionDecl
 from guppylang_internals.definition.enum import CheckedEnumDef
 from guppylang_internals.definition.function import RawFunctionDef
@@ -75,6 +81,20 @@ def _update_generator_metadata(hugr: Hugr[Any]) -> None:
     )
 
 
+@contextmanager
+def _temporary_debug_mode(enable: bool) -> Iterator[None]:
+    """If not already enabled, temporarily enable debug mode for a single compile
+    call."""
+    changed = enable and not debug_mode_enabled()
+    if changed:
+        turn_on_debug_mode()
+    try:
+        yield
+    finally:
+        if changed:
+            turn_off_debug_mode()
+
+
 @dataclass(frozen=True)
 class EntrypointArgsError(Error):
     title: ClassVar[str] = "Entrypoint function has arguments"
@@ -108,9 +128,10 @@ class UnsupportedEntrypointArgError(Error):
 class GuppyDefinition(TracingDefMixin):
     """A general Guppy definition."""
 
-    def compile(self) -> Package:
+    def compile(self, debug_mode: bool = False) -> Package:
         """Compile a Guppy definition to HUGR."""
-        package: Package = ENGINE.compile_single(self.id).package
+        with _temporary_debug_mode(enable=debug_mode):
+            package = ENGINE.compile_single(self.id).package
         for mod in package.modules:
             _update_generator_metadata(mod)
         return package
@@ -155,6 +176,7 @@ class GuppyCompilableProgram(Protocol):
         builder: EmulatorBuilder | None = None,
         libs: list[Package] | None = None,
         platform: Platform = "helios",
+        debug_mode: bool = False,
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
@@ -165,38 +187,48 @@ class GuppyCompilableProgram(Protocol):
 
         Args:
             n_qubits: The number of qubits to allocate for the function. If it is not
-            provided, the function has to declare the maximum number of qubits it needs
-            in the decorator, e.g. `@guppy(max_qubits=5)`.
+                provided, the function has to declare the expected number of qubits it
+                needs with the decorator `@expected_qubits`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
-            instance. If not provided, the default `EmulatorBuilder` will be used.
+                instance. If not provided, the default `EmulatorBuilder` will be used.
             libs: An optional list of additional HUGR packages to link with the compiled
-            function. This can be used to provide additional library functions that the
-            function being compiled depends on.
+                function. This can be used to provide additional library functions that
+                the function being compiled depends on.
             platform: The quantum platform to target. Defaults to ``"helios"``. Set to
-            ``"sol"`` to target the Sol QIS. Ignored if an explicit ``builder`` is
-            provided (use ``builder.with_platform()`` in that case).
+                ``"sol"`` to target the Sol QIS. Ignored if an explicit ``builder`` is
+                provided (use ``builder.with_platform()`` in that case).
+            debug_mode: Whether to add debug information to the compiled package. This
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
         ...
 
-    def compile(self) -> Package:
+    def compile(self, debug_mode: bool = False) -> Package:
         """Compile an execution entrypoint to a HUGR package.
 
         Alias for :py:meth:`compile_entrypoint`.
 
-
+        Args:
+            debug_mode: Whether to add debug information to the compiled package. This
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         Raises:
             GuppyError: If the entrypoint has arguments.
         """
-        return self.compile_entrypoint()
+        return self.compile_entrypoint(debug_mode)
 
-    def compile_entrypoint(self) -> Package:
+    def compile_entrypoint(self, debug_mode: bool = False) -> Package:
         """Compile an execution entrypoint to a HUGR package.
 
+        Args:
+            debug_mode: Whether to add debug information to the compiled package. This
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         Raises:
@@ -204,7 +236,7 @@ class GuppyCompilableProgram(Protocol):
         """
         ...
 
-    def compile_function(self) -> Package:
+    def compile_function(self, debug_mode: bool = False) -> Package:
         """Compile the function definition to a HUGR package.
 
         Returns:
@@ -229,6 +261,7 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         builder: EmulatorBuilder | None = None,
         libs: list[Package] | None = None,
         platform: Platform = "helios",
+        debug_mode: bool = False,
     ) -> EmulatorInstance:
         """Compile this function for emulation with the selene-sim emulator.
 
@@ -239,22 +272,27 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
 
         Args:
             n_qubits: The number of qubits to allocate for the function. If it is not
-            provided, the function has to declare the maximum number of qubits it needs
-            in the decorator, e.g. `@guppy(max_qubits=5)`.
+                provided, the function has to declare the expected number of qubits it
+                needs with the decorator `@expected_qubits`.
             builder: An optional `EmulatorBuilder` to use for building the emulator
-            instance. If not provided, the default `EmulatorBuilder` will be used.
+                instance. If not provided, the default `EmulatorBuilder` will be used.
             libs: An optional list of additional HUGR packages to link with the compiled
-            function. This can be used to provide additional library functions that the
-            function being compiled depends on.
+                function. This can be used to provide additional library functions that
+                the function being compiled depends on.
             platform: The quantum platform to target. Defaults to ``"helios"``. Set to
-            ``"sol"`` to target the Sol QIS. Ignored if an explicit ``builder`` is
-            provided (use ``builder.with_platform()`` in that case).
+                ``"sol"`` to target the Sol QIS. Ignored if an explicit ``builder`` is
+                provided (use ``builder.with_platform()`` in that case).
+            debug_mode: Whether to add debug information to the compiled package. This
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
         """
-        return self.with_opt_level(OptimizationLevel.Default).emulator(
-            n_qubits, builder, libs, platform
+        return (
+            self._with_default_opt()
+            .with_target_platform(platform)
+            .emulator(n_qubits, builder, libs, debug_mode=debug_mode)
         )
 
     def _emulator(
@@ -361,38 +399,55 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
         """
         return self.with_opt_level(OptimizationLevel.Minimal)
 
-    def compile(self) -> Package:
+    def _with_default_opt(self) -> "OptimizerInstance[P, Out]":
+        """Configure the function to use the default optimization level.
+
+        Equivalent to `with_opt_level(OptimizationLevel.Default)`."""
+        return self.with_opt_level(OptimizationLevel.Default)
+
+    def with_target_platform(self, platform: Platform) -> "OptimizerInstance[P, Out]":
+        """Configure the target platform used when building the emulator."""
+        return self._with_default_opt().with_target_platform(platform)
+
+    def compile(self, debug_mode: bool = False) -> Package:
         """
         Compiles an execution entrypoint function definition to a HUGR package
 
         Equivalent to :py:meth:`GuppyDefinition.compile_entrypoint`.
 
-
+        Args:
+            debug_mode: Whether to add debug information to the compiled package. This
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         Raises:
             GuppyError: If the entrypoint has arguments.
         """
 
-        return self.with_opt_level(OptimizationLevel.Default).compile()
+        return self._with_default_opt().compile(debug_mode)
 
     @pretty_errors
-    def compile_entrypoint(self) -> Package:
+    def compile_entrypoint(self, debug_mode: bool = False) -> Package:
         """
         Compiles an execution entrypoint function definition to a HUGR package
 
+        Args:
+            debug_mode: Whether to add debug information to the compiled package. This
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         Raises:
             GuppyError: If the entrypoint has arguments.
         """
 
-        return self.with_opt_level(OptimizationLevel.Default).compile_entrypoint()
+        return self._with_default_opt().compile_entrypoint(debug_mode)
 
     @pretty_errors
-    def _compile_entrypoint(self) -> Package:
+    def _compile_entrypoint(self, debug_mode: bool = False) -> Package:
         """Compile an execution entrypoint without applying optimization passes."""
-        pack = self._compile_function()
+        pack = self._compile_function(debug_mode)
         if (result := self._compiled_entrypoint_with_inputs()) is not None:
             compiled_def, defined_at = result
             start = to_span(defined_at.args.args[0])
@@ -410,18 +465,21 @@ class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P
             )
         return pack
 
-    def compile_function(self) -> Package:
+    def compile_function(self, debug_mode: bool = False) -> Package:
         """Compile a Guppy function definition to HUGR.
 
-
+        Args:
+            debug_mode: Whether to add debug information to the compiled package. This
+                may be useful for debugging, but will increase the size of the HUGR
+                package.
         Returns:
             Package: The compiled package object.
         """
-        return self.with_opt_level(OptimizationLevel.Default).compile_function()
+        return self._with_default_opt().compile_function(debug_mode)
 
-    def _compile_function(self) -> Package:
+    def _compile_function(self, debug_mode: bool = False) -> Package:
         """Compile a Guppy function definition without applying optimization passes."""
-        return super().compile()
+        return super().compile(debug_mode)
 
     @property
     def is_decl(self) -> bool:

@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, NamedTuple, TypeAlias
 
-from hugr import Wire
-
 import guppylang_internals.checker.expr_checker as expr_checker
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.errors.type_errors import (
@@ -20,12 +18,13 @@ from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
-    CompiledValueDef,
+    ValueDef,
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyComptimeError, GuppyError, GuppyTypeError
 from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.ipython_inspect import normalize_ipython_dummy_files
+from guppylang_internals.tracing.recorder import TraceOutput
 from guppylang_internals.tracing.state import get_tracing_state, tracing_active
 from guppylang_internals.tracing.util import capture_guppy_errors, hide_trace
 from guppylang_internals.tys.ty import EnumType, FunctionType, StructType, Type
@@ -63,7 +62,7 @@ def unary_operation(f: UnaryDunderMethod) -> UnaryDunderMethod:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(self, state.dfg.builder, state.node, state.ctx)
+        self = guppy_object_from_py(self, state.recorder, state.node, state.ctx)
 
         with suppress(Exception):
             return f(self)
@@ -90,8 +89,8 @@ def binary_operation(f: BinaryDunderMethod) -> BinaryDunderMethod:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(self, state.dfg.builder, state.node, state.ctx)
-        other = guppy_object_from_py(other, state.dfg.builder, state.node, state.ctx)
+        self = guppy_object_from_py(self, state.recorder, state.node, state.ctx)
+        other = guppy_object_from_py(other, state.recorder, state.node, state.ctx)
 
         # First try the method on `self`
         with suppress(Exception):
@@ -127,7 +126,7 @@ class DunderMixin:
         from guppylang_internals.tracing.unpacking import guppy_object_from_py
 
         state = get_tracing_state()
-        self = guppy_object_from_py(self, state.dfg.builder, state.node, state.ctx)
+        self = guppy_object_from_py(self, state.recorder, state.node, state.ctx)
         return self.__getattr__(name)
 
     def __abs__(self) -> Any:
@@ -317,14 +316,14 @@ class GuppyObjectId:
 class GuppyObject(DunderMixin):
     """The runtime representation of abstract Guppy objects during tracing.
 
-    They correspond to a single Hugr wire within the current dataflow graph.
+    They correspond to a single wire within the current dataflow graph.
     """
 
     #: The type of this object
     _ty: Type
 
-    #: The Hugr wire holding this object
-    _wire: Wire
+    #: The wire holding this object
+    _wire: TraceOutput
 
     #: Whether this object has been used
     _used: ObjectUse | None
@@ -332,7 +331,12 @@ class GuppyObject(DunderMixin):
     #: Unique id for this object
     _id: GuppyObjectId
 
-    def __init__(self, ty: Type, wire: Wire, used: ObjectUse | None = None) -> None:
+    def __init__(
+        self,
+        ty: Type,
+        wire: TraceOutput,
+        used: ObjectUse | None = None,
+    ) -> None:
         self._ty = ty
         self._wire = wire
         self._used = used
@@ -386,7 +390,7 @@ class GuppyObject(DunderMixin):
             f"Expression of type `{self._ty}` is not iterable at comptime"
         )
 
-    def _use_wire(self, called_func: CallableDef | None) -> Wire:
+    def _use_wire(self, called_func: CallableDef | None) -> TraceOutput:
         # Panic if the value has already been used
         if self._used and not self._ty.copyable:
             use = self._used
@@ -490,7 +494,7 @@ class GuppyEnumObject(DunderMixin):
     """The runtime representation of Guppy enum objects during tracing.
 
     Enum values are tagged unions: the active variant is not known at comptime, so
-    variant fields are not accessible. This class is backed by a single Hugr wire
+    variant fields are not accessible. This class is backed by a single wire
     (like `GuppyObject`) and only exposes methods defined on the enum type.
 
     Attribute assignment is always rejected since enums have no mutable fields.
@@ -498,10 +502,10 @@ class GuppyEnumObject(DunderMixin):
 
     #: The enum type
     _ty: EnumType
-    #: The Hugr wire holding this enum object
-    _wire: Wire
+    #: The wire holding this enum object
+    _wire: TraceOutput
 
-    def __init__(self, ty: EnumType, wire: Wire) -> None:
+    def __init__(self, ty: EnumType, wire: TraceOutput) -> None:
         # Can't use regular assignment for class attributes since we override
         # `__setattr__` below
         object.__setattr__(self, "_ty", ty)
@@ -536,6 +540,18 @@ class TracingDefMixin(DunderMixin):
     """Mixin to provide tracing semantics for definitions."""
 
     wrapped: Definition
+
+    def __mro_entries__(self, bases: tuple[type, ...]) -> tuple[type, ...]:
+        """Resolve Guppy definitions used as Python class bases.
+
+        This lets class creation proceed so Guppy can report unsupported
+        inheritance with its regular diagnostics during struct/enum/protocol parsing.
+        """
+        if isinstance(self.wrapped, TypeDef):
+            python_class = getattr(self.wrapped, "python_class", None)
+            if isinstance(python_class, type):
+                return (python_class,)
+        return ()
 
     @property
     def id(self) -> DefId:
@@ -595,27 +611,30 @@ class TracingDefMixin(DunderMixin):
     def to_guppy_object(self) -> GuppyObject:
         state = get_tracing_state()
         defn = ENGINE.get_parsed(self.id)
+        if isinstance(defn, TypeDef):
+            # If this is a type definition, then we want to return the constructor.
+            # As below, we don't handle generic types yet.
+            ctor = ENGINE.get_instance_func(defn, "__new__")
+            if ctor is None:
+                raise GuppyComptimeError(
+                    f"Type `{defn.name}` has no constructor and cannot be instantiated"
+                )
+            defn = ctor
+
         # TODO: For generic functions, we need to know an instantiation for their type
         #  parameters. Maybe we should pass them to `to_guppy_object`? Either way, this
         #  will require some more plumbing of type inference information through the
         #  comptime logic. For now, let's just bail on generic functions.
         #  See https://github.com/quantinuum/guppylang/issues/1336
-        if isinstance(defn, CallableDef) and defn.ty.parametrized:
-            raise GuppyComptimeError(
-                f"Cannot infer type parameters of generic function `{defn.name}`"
-            )
-        defn = state.ctx.build_compiled_def(self.id, type_args=())
-        if isinstance(defn, CompiledValueDef):
-            wire = defn.load(state.dfg, state.ctx, state.node)
+        if isinstance(defn, CallableDef):
+            if defn.ty.parametrized:
+                raise GuppyComptimeError(
+                    f"Cannot infer type parameters of generic function `{defn.name}`"
+                )
+            wire = state.recorder.record_load_func(defn, ())
             return GuppyObject(defn.ty, wire, None)
-        elif isinstance(defn, TypeDef):
-            if (
-                defn.id in DEF_STORE.type_members
-                and "__new__" in DEF_STORE.type_members[defn.id]
-            ):
-                constructor = DEF_STORE.raw_defs[
-                    DEF_STORE.type_members[defn.id]["__new__"]
-                ]
-                return TracingDefMixin(constructor).to_guppy_object()
-        err = f"{defn.description.capitalize()} `{defn.name}` is not a value"
-        raise GuppyComptimeError(err)
+        if isinstance(defn, ValueDef):
+            return GuppyObject(defn.ty, state.recorder.record_load(defn))
+        raise GuppyComptimeError(
+            f"Cannot convert {defn.description} `{defn.name}` to a Guppy object"
+        )

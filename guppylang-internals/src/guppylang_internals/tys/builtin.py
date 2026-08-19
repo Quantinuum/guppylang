@@ -204,7 +204,7 @@ class CallableProtocolDef(CheckedProtocolDef):
 class CallableProtocolInst(ProtocolInst):
     """Protocol instance associated with the builtin `Callable` protocol."""
 
-    sig: FunctionType = field(hash=False)
+    sig: FunctionType = field(compare=False, hash=False)
 
     def __init__(self, sig: FunctionType):
         assert not sig.parametrized
@@ -324,7 +324,7 @@ class ModifiableFunctionProtocolInst(ProtocolInst):
 
         elif isinstance(ty, BoundTypeVar):
             for protocol in ty.implements:
-                if isinstance(protocol, CallableProtocolInst):
+                if isinstance(protocol, ModifiableFunctionProtocolInst):
                     subst = unify(self.sig, protocol.sig, {})
                     if subst is not None:
                         return AssumptionImplProof(self, ty), subst

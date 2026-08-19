@@ -1,8 +1,8 @@
-Error: Variable not defined (at $FILE:12:8)
+Error: Variable not defined (at $FILE:10:8)
    | 
-10 |     if b:
-11 |         y = 2
-12 |     a = i
+ 8 |     if b:
+ 9 |         y = 2
+10 |     a = i
    |         ^ `i` is not defined
 
 Guppy compilation failed due to 1 previous error

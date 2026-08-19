@@ -1,3 +1,4 @@
+import pytest
 from hugr import tys
 
 from guppylang.decorator import guppy
@@ -9,6 +10,11 @@ from guppylang_internals.decorator import custom_type
 
 from guppylang_internals.tys.ty import NoneType
 from tests.util import compile_guppy
+
+
+@pytest.fixture(autouse=True)
+def enable_experimental_features_for_suite(use_experimental_features):
+    pass
 
 
 def test_basic(validate):

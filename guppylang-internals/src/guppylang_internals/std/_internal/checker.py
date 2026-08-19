@@ -1,4 +1,5 @@
 import ast
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -17,23 +18,31 @@ from guppylang_internals.checker.expr_checker import (
     check_call,
     check_num_args,
     check_type_against,
+    coerce_to_common,
+    make_global_call,
     synthesize_call,
     synthesize_comprehension,
+    try_coerce_to,
 )
 from guppylang_internals.definition.custom import (
     CustomCallChecker,
+    InputFlagDefaultMode,
 )
 from guppylang_internals.definition.overloaded import InternalExpectOverloadError
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.engine import ENGINE
-from guppylang_internals.error import GuppyError, GuppyTypeError, InternalGuppyError
+from guppylang_internals.error import (
+    GuppyError,
+    GuppyTypeError,
+    GuppyTypeInferenceError,
+    InternalGuppyError,
+)
 from guppylang_internals.nodes import (
     AbortExpr,
     AbortKind,
     BarrierExpr,
     DesugaredArrayComp,
     DesugaredGeneratorExpr,
-    GlobalCall,
     MakeIter,
     PlaceNode,
 )
@@ -177,7 +186,7 @@ class ArrayCopyChecker(CustomCallChecker):
                     )
                     raise GuppyTypeError(err)
         [array_arg], _, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        node = GlobalCall(def_id=self.func.id, args=[array_arg], type_args=inst)
+        node = make_global_call(self.func, [array_arg], inst)
         return with_loc(self.node, node), get_type(array_arg)
 
 
@@ -271,7 +280,7 @@ class ArrayIndexChecker(CustomCallChecker):
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
 
         # Return the synthesized node and type
-        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        node = make_global_call(self.func, args, type_args)
         return with_loc(self.node, node), subs
 
     @override
@@ -285,12 +294,14 @@ class ArrayIndexChecker(CustomCallChecker):
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
 
         # Return the synthesized node and type
-        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        node = make_global_call(self.func, args, type_args)
         return with_loc(self.node, node), ty
 
 
 class NewArrayChecker(CustomCallChecker):
     """Function call checker for the `array.__new__` function."""
+
+    input_flag_mode = InputFlagDefaultMode.OWNED
 
     @dataclass(frozen=True)
     class InferenceError(Error):
@@ -309,26 +320,49 @@ class NewArrayChecker(CustomCallChecker):
             case []:
                 err = NewArrayChecker.InferenceError(self.node)
                 err.add_sub_diagnostic(NewArrayChecker.InferenceError.Suggestion(None))
-                raise GuppyTypeError(err)
+                raise GuppyTypeInferenceError(err)
             # Either an array comprehension
             case [DesugaredGeneratorExpr() as compr]:
                 return self.synthesize_array_comprehension(compr)
             # Or a list of array elements
-            case [fst, *rest]:
-                fst, ty = ExprSynthesizer(self.ctx).synthesize(fst)
-                checker = ExprChecker(self.ctx)
-                for i in range(len(rest)):
-                    rest[i], subst = checker.check(rest[i], ty)
-                    assert len(subst) == 0, "Array element type is closed"
-                result_ty = array_type(ty, len(args))
-                call = GlobalCall(
-                    def_id=self.func.id,
-                    args=[fst, *rest],
-                    type_args=tuple(result_ty.args),
-                )
-                return with_loc(self.node, call), result_ty
             case args:
-                return assert_never(args)  # type: ignore[arg-type]
+                # Check if there are any elements for which we can infer a type
+                tys: list[Type | None] = [None for _ in range(len(args))]
+                for i, arg in enumerate(args):
+                    with suppress(GuppyTypeInferenceError):
+                        args[i], tys[i] = ExprSynthesizer(self.ctx).synthesize(arg)
+                if not any(tys):
+                    err = NewArrayChecker.InferenceError(self.node)
+                    err.add_sub_diagnostic(
+                        NewArrayChecker.InferenceError.Suggestion(None)
+                    )
+                    raise GuppyTypeInferenceError(err)
+
+                # If we found multiple types, check if they can coerce to a common type
+                (_, common_ty), *other_tys = [(i, ty) for i, ty in enumerate(tys) if ty]
+                for i, ty in other_tys:
+                    if ty != common_ty:
+                        new_common_ty = coerce_to_common(common_ty, ty)
+                        if new_common_ty is None:
+                            err = TypeMismatchError(args[i], common_ty, ty)
+                            raise GuppyTypeError(err)
+                        common_ty = new_common_ty
+                assert not common_ty.unsolved_vars, "synth types are already closed"
+
+                # Finally, check the remaining elements and perform the coercions
+                checker = ExprChecker(self.ctx)
+                for i, ty in enumerate(tys):
+                    if ty is None:
+                        args[i], subst = checker.check(args[i], common_ty)
+                        assert len(subst) == 0, "common_ty is closed"
+                    elif ty != common_ty:
+                        coerced = try_coerce_to(ty, common_ty, args[i], self.ctx)
+                        assert coerced, "ty coerces to common_ty by definition"
+                        args[i] = coerced
+
+                result_ty = array_type(common_ty, len(args))
+                call = make_global_call(self.func, args, tuple(result_ty.args))
+                return with_loc(self.node, call), result_ty
 
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
@@ -371,11 +405,7 @@ class NewArrayChecker(CustomCallChecker):
                             TypeArg(elem_ty.substitute(subst)),
                             ConstArg(ConstValue(nat_type(), len(args))),
                         )
-                        call = GlobalCall(
-                            self.func.id,
-                            args,
-                            type_args,
-                        )
+                        call = make_global_call(self.func, args, type_args)
                         return with_loc(self.node, call), subst
             case type_args:
                 raise InternalGuppyError(f"Invalid array type args: {type_args}")
@@ -423,6 +453,8 @@ class NewArrayChecker(CustomCallChecker):
 
 class AbortChecker(CustomCallChecker):
     """Call checker for the `panic` and `exit` functions."""
+
+    input_flag_mode = InputFlagDefaultMode.OWNED
 
     def __init__(self, exit_kind: AbortKind):
         self.exit_kind = exit_kind
@@ -499,15 +531,17 @@ class BarrierChecker(CustomCallChecker):
 
 
 class WasmCallChecker(CustomCallChecker):
+    input_flag_mode = InputFlagDefaultMode.OWNED
+
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
 
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
+        return make_global_call(self.func, args, inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), ty
+        return make_global_call(self.func, args, inst), ty

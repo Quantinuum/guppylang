@@ -1,10 +1,11 @@
 import ast
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
 import hugr.build.function as hf
 from guppylang.defs import GuppyDefinition
-from hugr import Node, Wire, envelope, ops, val
+from hugr import Node, Wire, envelope, val
 from hugr import tys as ht
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DILocation, DISubprogram
@@ -16,11 +17,16 @@ from typing_extensions import override
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.errors.comptime_errors import PytketSignatureMismatch
-from guppylang_internals.checker.expr_checker import check_call, synthesize_call
+from guppylang_internals.checker.expr_checker import (
+    check_call,
+    make_global_call,
+    synthesize_call,
+)
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
 from guppylang_internals.compiler.builder import FunctionBuilder
+from guppylang_internals.compiler.builder.ops import unpack_tuple
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -46,13 +52,13 @@ from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.metadata.common import MetadataUnitaryFlags
 from guppylang_internals.metadata.debug_info_util import make_location_record
-from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, Span
 from guppylang_internals.std._internal.compiler.array import (
     array_new,
     array_unpack,
 )
 from guppylang_internals.std._internal.compiler.quantum import from_halfturns_unchecked
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type, bool_type, float_type
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import (
@@ -288,14 +294,16 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             angle_wires = [name_to_param[name] for name in param_order]
             # Need to convert all angles to rotations.
             for angle in angle_wires:
-                [halfturns] = outer_func.add_op(ops.UnpackTuple([FLOAT_T]), angle)
+                [halfturns] = outer_func.add_op(unpack_tuple([FLOAT_T]), angle)
                 rotation = outer_func.add_op(from_halfturns_unchecked(), halfturns)
                 param_wires.append(rotation)
 
-        # Pass all arguments to call node. Note that since we are using a
-        # FunctionBuilder, this will default to assuming that the target function
-        # is side-effecting, so may produce more order edges than necessary.
-        call_node = outer_func.call(hugr_func, *(input_list + bool_wires + param_wires))
+        # Pass all arguments to call node.
+        # Pytket circuits can contain `unwrap` operations which can panic.
+        # (This should match `def call_effects` in `CompiledPytketDef` below.)
+        call_node = outer_func.call(
+            hugr_func, *(input_list + bool_wires + param_wires), effects=[Effect.ANY]
+        )
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
             call_metadata = outer_func._raw.hugr[call_node].metadata
@@ -361,7 +369,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
     @override
@@ -371,7 +379,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, ty
 
 
@@ -394,6 +402,11 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
     func_def: hf.Function
 
     @property
+    def call_effects(self) -> Iterable[Effect]:
+        # Pytket circuits may contain borrow-array unpacks, which can panic.
+        return [Effect.ANY]
+
+    @property
     def hugr_node(self) -> Node:
         """The Hugr node this definition was compiled into."""
         return self.func_def.parent_node
@@ -414,7 +427,9 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
     ) -> CallReturnWires:
         """Compiles a call to the function."""
         # Use implementation from function definition.
-        return compile_call(args, dfg, self.ty, self.func_def, node)
+        return compile_call(
+            args, dfg, self.ty, self.func_def, node, effects=self.call_effects
+        )
 
 
 def _signature_from_circuit(

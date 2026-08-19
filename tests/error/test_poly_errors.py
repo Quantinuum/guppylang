@@ -1,19 +1,19 @@
-import pathlib
 import pytest
 
-from tests.error.util import run_error_test
+from tests.error.util import run_error_test, collect_error_test_cases
 
-path = pathlib.Path(__file__).parent.resolve() / "poly_errors"
-files = [
-    x
-    for x in path.iterdir()
-    if x.is_file() and x.suffix == ".py" and x.name != "__init__.py"
+
+files = collect_error_test_cases("poly_errors")
+
+# Snapshot tests that require experimental features.
+tests_that_require_experimental_features = [
+        "arg_mismatch5.py",
+]
+files_with_experimental_flag = [
+    (file, any(case in file for case in tests_that_require_experimental_features))
+    for file in files
 ]
 
-# Turn paths into strings, otherwise pytest doesn't display the names
-files = [str(f) for f in files]
-
-
-@pytest.mark.parametrize("file", files)
-def test_type_errors(file, capsys, snapshot):
-    run_error_test(file, capsys, snapshot)
+@pytest.mark.parametrize("file,needs_experimental_features", files_with_experimental_flag)
+def test_type_errors(file: str, needs_experimental_features: bool, capsys, snapshot):
+    run_error_test(file, capsys, snapshot, needs_experimental_features)
