@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, no_type_check
+from typing import TYPE_CHECKING, Any, Self, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.tys.builtin import sized_iter_type_def
-from typing_extensions import Self
 
 from guppylang import guppy
 from guppylang.std.option import Option, nothing, some

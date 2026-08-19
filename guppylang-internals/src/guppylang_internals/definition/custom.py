@@ -4,13 +4,12 @@ from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, override
 
 from hugr import Wire
 from hugr import tys as ht
 from hugr.ops import DataflowOp
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
-from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,

@@ -3,12 +3,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeGuard, assert_never, cast
 
 import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
-from typing_extensions import assert_never
 
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import GuppyError, InternalGuppyError
@@ -21,7 +20,11 @@ from guppylang_internals.tys.common import (
     Transformer,
     Visitor,
 )
-from guppylang_internals.tys.const import Const, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.const import (
+    Const,
+    ConstValue,
+    ExistentialConstVar,
+)
 from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
@@ -937,9 +940,7 @@ class EnumType(ParametrizedTypeBase):
 
 
 #: The type of parametrized Guppy types.
-ParametrizedType: TypeAlias = (
-    FunctionType | TupleType | OpaqueType | StructType | EnumType
-)
+type ParametrizedType = FunctionType | TupleType | OpaqueType | StructType | EnumType
 
 
 #: The type of Guppy types.
@@ -951,7 +952,7 @@ ParametrizedType: TypeAlias = (
 #: This might become obsolete in case the @sealed decorator is added:
 #:   * https://peps.python.org/pep-0622/#sealed-classes-as-algebraic-data-types
 #:   * https://github.com/johnthagen/sealed-typing-pep
-Type: TypeAlias = (
+type Type = (
     BoundTypeVar
     | ExistentialTypeVar
     | NumericType
@@ -960,8 +961,27 @@ Type: TypeAlias = (
     | ParametrizedType
 )
 
+
+def is_type(t: Any) -> TypeGuard[Type]:
+    return isinstance(
+        t,
+        (
+            BoundTypeVar,
+            ExistentialTypeVar,
+            NumericType,
+            NoneType,
+            FunctionDefType,
+            FunctionType,
+            TupleType,
+            OpaqueType,
+            StructType,
+            EnumType,
+        ),
+    )
+
+
 #: An immutable row of Guppy types.
-TypeRow: TypeAlias = Sequence[Type]
+type TypeRow = Sequence[Type]
 
 
 def row_to_type(row: TypeRow) -> Type:
@@ -1055,11 +1075,11 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
     """Helper function for unification of type variables."""
     if var in subst:
         s = subst[var]
-        assert isinstance(s, Type)
+        assert is_type(s)
         return unify(s, t, subst)
     if isinstance(t, ExistentialTypeVar) and t in subst:
         s = subst[t]
-        assert isinstance(s, Type)
+        assert is_type(s)
         return unify(var, s, subst)
     if var in t.unsolved_vars:
         return None
@@ -1070,7 +1090,7 @@ def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst 
                 loc = DUMMY_SPAN  # We catch the error later so the span doesn't matter
                 _, proto_subst = proto.check_implemented_by(t, loc)
                 subst |= proto_subst
-            except GuppyError:  # noqa: PERF203
+            except GuppyError:
                 # At this point, we only use protocol checking to infer types. If the
                 # protocol is not satisfied, we still keep going. The error will be
                 # raised later when we check the inferred instantiation.

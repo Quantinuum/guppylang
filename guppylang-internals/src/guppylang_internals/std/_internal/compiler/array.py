@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 import hugr
 from hugr import Wire, ops
@@ -268,9 +268,6 @@ def array_swap(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
 # ------------------------------------------------------
 # --------- Custom compilers for non-native ops --------
 # ------------------------------------------------------
-
-
-P = TypeVar("P", bound=ops.DfParentOp)
 
 
 def unpack_array(
