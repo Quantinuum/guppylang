@@ -1,9 +1,11 @@
 """Provides Python objects for builtin language keywords."""
 
 from collections.abc import Callable, Generator
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, ParamSpec, Protocol, TypeVar
 
 from guppylang_internals.error import GuppyComptimeError
+
+T = TypeVar("T")
 
 _MODIFIER_COMPTIME_ERROR = (
     "The `{modifier}` modifier is not supported in comptime functions"
@@ -71,6 +73,10 @@ def power(*args: Any, **kwargs: Any) -> Generator[None]:
         ``power`` is an experimental feature and is not fully operational yet.
     """
     raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="power"))
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class Unitary[**P, R]:

@@ -7,6 +7,10 @@ from guppylang.std.builtins import array, owned, panic
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
 
+T = guppy.type_var("T", copyable=False, droppable=False)
+TCopyable = guppy.type_var("TCopyable", copyable=True, droppable=False)
+MAX_SIZE = guppy.nat_var("MAX_SIZE")
+
 
 @guppy.struct
 class PriorityQueue[T, MAX_SIZE: nat]:
@@ -157,7 +161,7 @@ class PriorityQueue[T, MAX_SIZE: nat]:
 
 @guppy
 @no_type_check
-def empty_priority_queue[T, MAX_SIZE: nat]() -> PriorityQueue[T, MAX_SIZE]:
+def empty_priority_queue() -> PriorityQueue[T, MAX_SIZE]:
     """Constructs a new empty priority queue."""
-    buf = array(nothing[tuple[int, T]]() for _ in range(MAX_SIZE))  # type: ignore[name-defined]
+    buf = array(nothing[tuple[int, T]]() for _ in range(MAX_SIZE))  # type: ignore[valid-type]
     return PriorityQueue(buf, 0)

@@ -11,6 +11,10 @@ from guppylang.std.platform import panic
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
 
+T = guppy.type_var("T", copyable=False, droppable=False)
+TCopyable = guppy.type_var("TCopyable", copyable=True, droppable=False)
+MAX_SIZE = guppy.nat_var("MAX_SIZE")
+
 
 @guppy.struct
 class Queue[T, MAX_SIZE: nat]:
@@ -124,5 +128,5 @@ class Queue[T, MAX_SIZE: nat]:
 @no_type_check
 def empty_queue[T, MAX_SIZE: nat]() -> Queue[T, MAX_SIZE]:
     """Constructs a new empty queue."""
-    buf = array(nothing[T]() for _ in range(MAX_SIZE))  # type: ignore[name-defined]
+    buf = array(nothing[T]() for _ in range(MAX_SIZE))
     return Queue(buf, 0, 0, 0)

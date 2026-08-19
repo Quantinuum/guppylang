@@ -27,6 +27,8 @@ from guppylang.std.option import Option
 SHUFFLE_N = guppy.nat_var("SHUFFLE_N")
 SHUFFLE_T = guppy.type_var("SHUFFLE_T", copyable=False, droppable=False)
 
+DISCRETE_N = guppy.nat_var("DISCRETE_N")
+
 
 @hugr_op(external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION))
 @no_type_check
@@ -145,10 +147,10 @@ def make_discrete_distribution[DISCRETE_N: nat](
         W += w
     if W == 0.0:
         panic("No positive weights included in discrete distribution.")
-    sums = array(0.0 for _ in range(DISCRETE_N))  # type:ignore[name-defined]
+    sums = array(0.0 for _ in range(DISCRETE_N))
     s = 0.0
-    for i in range(DISCRETE_N - 1):  # type:ignore[name-defined]
+    for i in range(DISCRETE_N - 1):
         s += weights[i]
         sums[i] = s / W
-    sums[DISCRETE_N - 1] = 1.0  # type:ignore[name-defined]
+    sums[DISCRETE_N - 1] = 1.0
     return DiscreteDistribution(sums)
