@@ -306,7 +306,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if subst is None:
             return None
         act = act.substitute(subst)
-        subst = {x: s for x, s in subst.items() if x in ty.unsolved_vars}
+        subst = filter_subst(subst, ty.unsolved_vars)
         return with_type(act, with_loc(node, ast.Constant(value=value))), subst
 
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
@@ -1164,6 +1164,16 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         raise GuppyError(UnsupportedError(node, "This expression", singular=True))
 
 
+def filter_subst(subst: "Subst", unsolved_vars: set["ExistentialVar"]) -> "Subst":
+    """Filter substitution to only include variables that appear in unsolved_vars.
+
+    This avoids creating intermediate dictionaries when the filter is not needed.
+    """
+    if not subst or not unsolved_vars:
+        return {}
+    return {v: t for v, t in subst.items() if v in unsolved_vars}
+
+
 def check_type_against(
     act: Type, exp: Type, node: ast.expr, ctx: Context, kind: str = "expression"
 ) -> tuple[ast.expr, Subst, Inst]:
@@ -1205,7 +1215,7 @@ def check_type_against(
                 )
                 raise GuppyTypeError(err)
         inst = tuple(subst[v].to_arg() for v in free_vars)
-        subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
+        subst = filter_subst(subst, exp.unsolved_vars)
 
         # Finally, check that the instantiation respects the linearity requirements
         check_inst(act_sig, inst, node)
@@ -1649,7 +1659,7 @@ def check_call(
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
     inst = check_all_solved(subst, free_vars, func_ty, node)
-    subst = {v: t for v, t in subst.items() if v in ty.unsolved_vars}
+    subst = filter_subst(subst, ty.unsolved_vars)
 
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
