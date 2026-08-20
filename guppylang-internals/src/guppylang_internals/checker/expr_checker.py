@@ -77,6 +77,7 @@ from guppylang_internals.checker.errors.type_errors import (
     BinaryOperatorNotDefinedError,
     ConstMismatchError,
     IllegalConstant,
+    InstanceMemberOnClassError,
     IntOverflowError,
     KindMismatch,
     ModuleMemberNotFoundError,
@@ -723,18 +724,42 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 else:
                     # Not a global name, thus node.value is a instantiated variant
                     is_enum_class = False
-            elif (method_w_ty := self._check_method(ty, node)) and not isinstance(
-                node.value, GlobalName
-            ):
+            elif method_w_ty := self._check_method(ty, node):
+                if isinstance(node.value, GlobalName):
+                    # Method exists, but on enum instances (since class methods are
+                    # currently unsupported). Fail with a helpful error instead of
+                    # the generic "no variant" message below.
+                    example_variant = next(iter(ty.variants_as_dict))
+                    err = InstanceMemberOnClassError(
+                        attr_span, str(ty), node.attr, "method"
+                    )
+                    err.add_sub_diagnostic(
+                        InstanceMemberOnClassError.CallOnInstanceHelp(
+                            None, f"{ty}.{example_variant}(...).{node.attr}(...)"
+                        )
+                    )
+                    raise GuppyTypeError(err)
                 # Otherwise, we may try to access a method from the enum class
-                # If the method exists, we also need to check that node.value is not a
-                # GlobalName, i.e. it does not correspond to the enum class definition:
-                # we cannot write `MyEnum.method`.
                 return method_w_ty[0], method_w_ty[1]
             else:
                 # If node.value is a GlobalName it corresponds to the enum class
                 # definition, otherwise it is an instance of the enum.
                 is_enum_class = isinstance(node.value, GlobalName)
+
+        elif isinstance(ty, FunctionType) and (
+            found := self._find_instance_member_on_struct_class(node, ty)
+        ):
+            defn, member_kind = found
+            example = f"{defn.name}(...).{node.attr}"
+            if member_kind == "method":
+                example += "(...)"
+            err = InstanceMemberOnClassError(
+                attr_span, defn.name, node.attr, member_kind
+            )
+            err.add_sub_diagnostic(
+                InstanceMemberOnClassError.CallOnInstanceHelp(None, example)
+            )
+            raise GuppyTypeError(err)
 
         elif method_w_ty := self._check_method(ty, node):
             return method_w_ty[0], method_w_ty[1]
@@ -742,6 +767,37 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         raise GuppyTypeError(
             AttributeNotFoundError(attr_span, ty, node.attr, is_enum_class)
         )
+
+    def _find_instance_member_on_struct_class(
+        self, node: ast.Attribute, ty: FunctionType
+    ) -> tuple[TypeDef, str] | None:
+        """Returns the struct's definition and the kind of member accessed
+        ("method" or "field") if `node.value` is a bare reference to a struct
+        class's own `__new__` constructor (e.g. `MyStruct`, which has type `ty`)
+        and `node.attr` is an instance method or field on it - as opposed to
+        `node.value` being some other function that merely happens to return a
+        struct (e.g. a local `Function[[int], MyStruct]` value, or an unrelated
+        global function). Returns `None` if this isn't a struct class reference,
+        or if `node.attr` doesn't name a field or instance method.
+
+        A struct class reference is identified by `node.value` being a
+        `GlobalName` whose `def_id` is exactly the struct's own `__new__`
+        definition - the same identity that `_check_global` assigns when a bare
+        `MyStruct` name is resolved.
+        """
+        if not isinstance(ty.output, StructType) or not isinstance(
+            node.value, GlobalName
+        ):
+            return None
+        defn = ty.output.defn
+        constr = ENGINE.get_instance_func(defn, "__new__")
+        if constr is None or node.value.def_id != constr.id:
+            return None
+        if any(f.name == node.attr for f in defn.fields):
+            return defn, "field"
+        if node.attr != "__new__" and ENGINE.get_instance_func(defn, node.attr):
+            return defn, "method"
+        return None
 
     def _check_method(
         self, ty: Type, node: ast.Attribute

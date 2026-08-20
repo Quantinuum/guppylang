@@ -183,6 +183,23 @@ class AttributeNotFoundError(Error):
 
 
 @dataclass(frozen=True)
+class InstanceMemberOnClassError(Error):
+    title: ClassVar[str] = "Instance {member_kind} accessed on class"
+    span_label: ClassVar[str] = (
+        "`{attribute}` is an instance {member_kind} of `{ty_name}`, not a "
+        "static {member_kind}"
+    )
+    ty_name: str
+    attribute: str
+    member_kind: str  # "method" or "field"
+
+    @dataclass(frozen=True)
+    class CallOnInstanceHelp(Help):
+        message: ClassVar[str] = "Access it on an instance instead, e.g. `{example}`"
+        example: str
+
+
+@dataclass(frozen=True)
 class UnaryOperatorNotDefinedError(Error):
     title: ClassVar[str] = "Operator not defined"
     span_label: ClassVar[str] = "Unary operator `{op}` not defined for `{ty}`"
