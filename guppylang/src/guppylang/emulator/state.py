@@ -5,12 +5,11 @@ Debug querying the internal state of the emulator.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, TypeVar
+from typing import Protocol, Self, TypeVar
 
 import numpy as np
 import numpy.typing as npt
 from selene_quest_plugin.state import SeleneQuestState, TracedState
-from typing_extensions import Self
 
 __all__ = [
     "NotSingleStateError",

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Self, cast
 
 from hugr.qsystem.result import QsysShot
 from selene_argreader_plugin import ArgProvider
@@ -15,7 +15,6 @@ from selene_sim.backends.bundled_runtimes import SimpleRuntime
 from selene_sim.backends.bundled_simulators import Coinflip, Quest, Stim
 from selene_sim.event_hooks import EventHook, NoEventHook
 from tqdm import tqdm
-from typing_extensions import Self
 
 from ._args import (
     ArgValue,

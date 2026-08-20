@@ -1,9 +1,7 @@
 import ast
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import ClassVar
-
-from typing_extensions import assert_never, override
+from typing import ClassVar, assert_never, override
 
 from guppylang_internals.ast_util import fake_call, get_type, with_loc, with_type
 from guppylang_internals.checker.core import Context, Variable
@@ -19,6 +17,7 @@ from guppylang_internals.checker.expr_checker import (
     check_num_args,
     check_type_against,
     coerce_to_common,
+    make_global_call,
     synthesize_call,
     synthesize_comprehension,
     try_coerce_to,
@@ -42,7 +41,6 @@ from guppylang_internals.nodes import (
     BarrierExpr,
     DesugaredArrayComp,
     DesugaredGeneratorExpr,
-    GlobalCall,
     MakeIter,
     PlaceNode,
 )
@@ -68,7 +66,7 @@ from guppylang_internals.tys.ty import (
     InputFlags,
     NoneType,
     Type,
-    unify,
+    unify_const,
 )
 
 
@@ -186,7 +184,7 @@ class ArrayCopyChecker(CustomCallChecker):
                     )
                     raise GuppyTypeError(err)
         [array_arg], _, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        node = GlobalCall(def_id=self.func.id, args=[array_arg], type_args=inst)
+        node = make_global_call(self.func, [array_arg], inst)
         return with_loc(self.node, node), get_type(array_arg)
 
 
@@ -280,7 +278,7 @@ class ArrayIndexChecker(CustomCallChecker):
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
 
         # Return the synthesized node and type
-        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        node = make_global_call(self.func, args, type_args)
         return with_loc(self.node, node), subs
 
     @override
@@ -294,7 +292,7 @@ class ArrayIndexChecker(CustomCallChecker):
         # self._check_constant_index_bounds(args[self.expr_index], type_args[1])
 
         # Return the synthesized node and type
-        node = GlobalCall(def_id=self.func.id, args=args, type_args=type_args)
+        node = make_global_call(self.func, args, type_args)
         return with_loc(self.node, node), ty
 
 
@@ -361,9 +359,7 @@ class NewArrayChecker(CustomCallChecker):
                         args[i] = coerced
 
                 result_ty = array_type(common_ty, len(args))
-                call = GlobalCall(
-                    def_id=self.func.id, args=args, type_args=tuple(result_ty.args)
-                )
+                call = make_global_call(self.func, args, tuple(result_ty.args))
                 return with_loc(self.node, call), result_ty
 
     @override
@@ -395,7 +391,7 @@ class NewArrayChecker(CustomCallChecker):
                                 args[i], elem_ty.substitute(subst)
                             )
                             subst |= s
-                        ls = unify(length, ConstValue(nat_type(), len(args)), {})
+                        ls = unify_const(length, ConstValue(nat_type(), len(args)), {})
                         if ls is None:
                             raise GuppyTypeError(
                                 TypeMismatchError(
@@ -407,11 +403,7 @@ class NewArrayChecker(CustomCallChecker):
                             TypeArg(elem_ty.substitute(subst)),
                             ConstArg(ConstValue(nat_type(), len(args))),
                         )
-                        call = GlobalCall(
-                            self.func.id,
-                            args,
-                            type_args,
-                        )
+                        call = make_global_call(self.func, args, type_args)
                         return with_loc(self.node, call), subst
             case type_args:
                 raise InternalGuppyError(f"Invalid array type args: {type_args}")
@@ -544,10 +536,10 @@ class WasmCallChecker(CustomCallChecker):
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
 
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
+        return make_global_call(self.func, args, inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), ty
+        return make_global_call(self.func, args, inst), ty

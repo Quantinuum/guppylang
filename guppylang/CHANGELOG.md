@@ -41,6 +41,7 @@ from guppylang.decorator import guppy
 from guppylang.std.quantum import s, qubit
 from guppylang.std.builtins import control, dagger
 
+
 @guppy
 def controlled_inverse(c: qubit, q: qubit) -> None:
     with control(c), dagger:
@@ -58,6 +59,7 @@ Protocols are a powerful way of constraining polymorphism: they let you define a
 ```python
 from typing import Self
 from guppylang.std.quantum import Measurement
+
 
 @guppy.protocol
 class Measurable:
