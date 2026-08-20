@@ -211,15 +211,19 @@ def test_comptime_call_location():
         bar()  # call 1  # MARKER:ct_call_bar
         non_guppy_function()  # not a hugr call
         comptime_bar()  # call 2  # MARKER:ct_call_comptime_bar
+        _ = (bar(), comptime_bar())  # MARKER:ct_calls_same_line
 
     # Compile with minimal optimization to preserve call ordering in the graph.
-    hugr = foo.with_minimal_opt().compile().modules[0]
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
     calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
 
     expected_info = [
         _marker_loc(Path(__file__), "ct_call_bar", "bar()"),
         _marker_loc(Path(__file__), "ct_call_comptime_bar", "comptime_bar()"),
+        _marker_loc(Path(__file__), "ct_calls_same_line", "bar()"),
+        _marker_loc(Path(__file__), "ct_calls_same_line", "comptime_bar()"),
     ]
+    assert len(calls) == len(expected_info)
     for i, call in enumerate(calls):
         call_metadata = hugr[call].metadata
         assert HugrDebugInfo in call_metadata
