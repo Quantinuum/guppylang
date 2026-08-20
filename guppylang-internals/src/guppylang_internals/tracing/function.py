@@ -1,3 +1,5 @@
+import ast
+import inspect
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -26,7 +28,9 @@ from guppylang_internals.error import (
     RequiresMonomorphizationError,
     exception_hook,
 )
+from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.nodes import PlaceNode
+from guppylang_internals.span import Loc, Span, to_span
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
 from guppylang_internals.tracing.recorder import (
@@ -58,8 +62,6 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
-    import ast
-
     from guppylang_internals.definition.traced import TracedFunctionDef
     from guppylang_internals.tys.common import ToHugrContext
 
@@ -69,6 +71,46 @@ class TracingReturnError(Error):
     title: ClassVar[str] = "Error in comptime function return"
     message: ClassVar[str] = "{msg}"
     msg: str
+
+
+def _find_call_site(calling_func_node: AstNode) -> AstNode:
+    """Tries to find the source AST call corresponding to the active Python call.
+    Returns `calling_func_node` again as a fallback."""
+    frame = get_calling_frame()
+    positions = inspect.getframeinfo(frame).positions
+    if (
+        positions is None
+        or positions.lineno is None
+        or positions.col_offset is None
+        or positions.end_lineno is None
+        or positions.end_col_offset is None
+    ):
+        return calling_func_node
+
+    try:
+        calling_func_span = to_span(calling_func_node)
+    except (AssertionError, AttributeError):
+        return calling_func_node
+
+    active_call_span = Span(
+        Loc(calling_func_span.file, positions.lineno, positions.col_offset),
+        Loc(calling_func_span.file, positions.end_lineno, positions.end_col_offset),
+    )
+    candidates = [
+        call
+        for call in ast.walk(calling_func_node)
+        if isinstance(call, ast.Call)
+        and (call_span := to_span(call)).start <= active_call_span.start
+        and active_call_span.end <= call_span.end
+    ]
+    # Choose inner-most call - this may be incorrect, however the debug information
+    # should be the same for both and for any other used we should also be fine
+    # with the calling function node this should not be a problem.
+    return min(
+        candidates,
+        key=lambda call: len(list(ast.walk(call))),
+        default=calling_func_node,
+    )
 
 
 def trace_function(
@@ -206,6 +248,7 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     handles inout arguments.
     """
     state = get_tracing_state()
+    call_site = _find_call_site(state.node)
 
     with capture_guppy_errors():
         # Try to turn args into `GuppyObjects`, each containing a `ComptimeVariable`.
@@ -241,10 +284,10 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
         # Check call
         arg_exprs: list[ast.expr] = [
-            with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
+            with_loc(call_site, with_type(var.ty, PlaceNode(var))) for var in arg_vars
         ]
         ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
-        call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
+        call_node, ret_ty = func.synthesize_call(arg_exprs, call_site, ctx)
 
         # Here we check if unitary constraints are respected in the function body
         unitary_flag = state.function_definition.unitary_flags
