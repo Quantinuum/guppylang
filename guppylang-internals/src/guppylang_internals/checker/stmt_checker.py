@@ -13,7 +13,7 @@ import functools
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from itertools import takewhile
-from typing import TypeVar, cast
+from typing import cast
 
 from guppylang_internals.ast_util import (
     AstVisitor,
@@ -407,7 +407,9 @@ class StmtChecker(AstVisitor[BBStatement]):
             raise InternalGuppyError("BB required to check nested function def!")
 
         func_def = check_nested_func_def(node, self.bb, self.ctx)
-        self.ctx.locals[func_def.name] = Variable(func_def.name, func_def.ty, func_def)
+        self.ctx.locals[func_def.name] = Variable(
+            func_def.name, func_def.def_ty, func_def
+        )
         return func_def
 
     def visit_ModifiedBlock(self, node: ModifiedBlock) -> ast.stmt:
@@ -482,10 +484,7 @@ class StmtChecker(AstVisitor[BBStatement]):
         raise InternalGuppyError("Control-flow statement should not be present here.")
 
 
-T = TypeVar("T")
-
-
-def all_equal(xs: Iterable[T]) -> bool:
+def all_equal[T](xs: Iterable[T]) -> bool:
     """Checks if all elements yielded from an iterable are equal."""
     it = iter(xs)
     try:

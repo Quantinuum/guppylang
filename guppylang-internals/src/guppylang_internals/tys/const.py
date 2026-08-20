@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.tys.common import Transformable, Transformer, Visitor
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
@@ -136,4 +136,4 @@ class ExistentialConstVar(ExistentialVar, ConstBase):
         )
 
 
-Const: TypeAlias = ConstValue | BoundConstVar | ExistentialConstVar
+type Const = ConstValue | BoundConstVar | ExistentialConstVar

@@ -5,29 +5,30 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from guppylang_internals.ast_util import AstNode
-from guppylang_internals.compiler.core import CompilerContext, DFContainer
-from guppylang_internals.definition.traced import CompiledTracedFunctionDef
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.tys.common import ToHugrContext
 
 if TYPE_CHECKING:
+    from guppylang_internals.definition.traced import TracedFunctionDef
     from guppylang_internals.tracing.object import GuppyObject, GuppyObjectId
+    from guppylang_internals.tracing.recorder import TraceRecorder
 
 
 @dataclass
 class TracingState:
     """Internal state that is used during the tracing phase of comptime functions."""
 
-    #: Reference to the global compilation context.
-    ctx: CompilerContext
+    #: Context used to translate Guppy types into HUGR types.
+    ctx: ToHugrContext
 
-    #: The current dataflow graph under construction.
-    dfg: DFContainer
+    #: The trace of operations performed during the comptime execution of a function.
+    recorder: "TraceRecorder"
 
     #: An AST node capturing the code block that is currently being traced
     node: AstNode
 
     #: The function definition currently being traced.
-    function_definition: CompiledTracedFunctionDef
+    function_definition: "TracedFunctionDef"  # quotes to avoid circular import
 
     #: Set of all allocated undroppable GuppyObjects where the `used` flag is not set,
     #: indexed by their id. This is used to detect linearity violations.

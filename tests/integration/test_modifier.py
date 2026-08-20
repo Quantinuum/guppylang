@@ -1,4 +1,5 @@
 import base64
+from guppylang.std.angles import angle
 import pytest
 
 from guppylang.decorator import guppy
@@ -17,7 +18,7 @@ from guppylang.std.builtins import (
     power,
 )
 from guppylang.std.num import nat
-from guppylang.std.quantum import cx, discard, discard_array, h, qubit
+from guppylang.std.quantum import cx, discard, discard_array, h, qubit, rx
 
 
 def test_dagger_simple(validate):
@@ -587,3 +588,46 @@ def test_hugr_stability():
         hashes.add(sig)
 
     assert len(hashes) == 1
+
+
+def test_std(validate):
+    from guppylang.std.err import Result, ok
+    from guppylang.std.option import Option
+
+    y = 42
+
+    n = guppy.nat_var("n")
+
+    @guppy.comptime(daggerable=True)
+    def test(r: Result[int, qubit] @ owned) -> tuple[float, Option[qubit]]:
+        b = r.is_ok()
+        e = r.into_either()
+        b = e.is_right()
+        o = e.try_into_right()
+        b = o.is_some()
+        return 1 + 2.0 - 3 * 4 // y, o
+
+    @guppy(unitary=True)
+    def f(controller: qubit, target: qubit) -> None:
+        a = angle(1 / 3)
+        with control(controller):
+            rx(target, a)
+
+    @guppy.comptime(daggerable=True)
+    def test_arr() -> array[int, n]:
+        x = array(y // y for i in range(n)).copy()
+        return x
+
+    @guppy
+    def main() -> None:
+        test_arr[3]()
+        r = ok[int, qubit](42)
+        _, oq = test(r)
+        oq.unwrap_nothing()
+        c = qubit()
+        t = qubit()
+        f(c, t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile())

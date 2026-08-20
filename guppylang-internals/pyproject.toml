@@ -1,6 +1,6 @@
 [project]
 name = "guppylang-internals"
-version = "1.0.0-a8"
+version = "1.0.1"
 requires-python = ">=3.12,<4"
 description = "Compiler internals for `guppylang` package."
 license = { file = "LICENCE" }
@@ -33,7 +33,7 @@ dependencies = [
     "hugr ~= 0.18.2",
     "wasmtime>=47.0.1,<47.1",
     "pytket>=2.18.1",
-    "tket[pytket]~=0.15.4",
+    "tket[pytket]~=0.15.6",
 ]
 
 [build-system]

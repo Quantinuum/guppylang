@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Iterable, Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
-from typing import Any, TypeGuard, TypeVar
+from typing import Any, TypeGuard
 
 import hugr
 import hugr.std.float
@@ -92,6 +92,7 @@ from guppylang_internals.tys.builtin import (
     int_type,
     is_frozenarray_type,
 )
+from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import BoundConstVar, Const, ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
@@ -441,7 +442,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         elif isinstance(func_ty, FunctionDefType):
             input_len = len(func_ty.sig.inputs)
             consumed_args, other_args = args[0:input_len], args[input_len:]
-            node = GlobalCall(def_id=func_ty.def_id, args=consumed_args, type_args=())
+            assert (func_ty.defn.id, ()) in ENGINE.checked
+            node = GlobalCall(defn=func_ty.defn, args=consumed_args, type_args=())
             out = self.visit_GlobalCall(node)
             returns = unpack_wire(out, func_ty.sig.output, self.builder, self.ctx, node)
             return returns, other_args
@@ -450,7 +452,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             raise InternalGuppyError("Tensor element wasn't function or tuple")
 
     def visit_GlobalCall(self, node: GlobalCall) -> Wire:
-        func = self.ctx.build_compiled_def(node.def_id, node.type_args)
+        func = self.ctx.build_compiled_def(node.defn.id, node.type_args)
         assert isinstance(func, CompiledCallableDef)
 
         if isinstance(func, CustomFunctionDef) and not func.has_signature:
@@ -789,7 +791,7 @@ def unpack_wire(
     return [wire]
 
 
-def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value | None:
+def python_value_to_hugr(v: Any, exp_ty: Type, ctx: ToHugrContext) -> hv.Value | None:
     """Turns a Python value into a Hugr value.
 
     Returns None if the Python value cannot be represented in Guppy.
@@ -833,9 +835,6 @@ def python_value_to_hugr(v: Any, exp_ty: Type, ctx: CompilerContext) -> hv.Value
     return None
 
 
-T = TypeVar("T")
-
-
-def doesnt_contain_none(xs: list[T | None]) -> TypeGuard[list[T]]:
+def doesnt_contain_none[T](xs: list[T | None]) -> TypeGuard[list[T]]:
     """Checks if a list contains `None`."""
     return all(x is not None for x in xs)

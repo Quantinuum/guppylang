@@ -1,13 +1,17 @@
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, get_args
 
 from hugr.debug_info import DebugRecord
 from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
 from hugr.utils import JsonType
 
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
+
+if TYPE_CHECKING:
+    from tket.metadata import InlineAnnotationValue
 
 
 class MetadataUnitaryFlags(Metadata[int]):
@@ -56,6 +60,7 @@ class FunctionMetadata:
         HugrDebugInfo.KEY,
         MetadataExpectedQubitsHint.KEY,
         MetadataUnitaryFlags.KEY,
+        "tket.inline",  # InlineAnnotation.KEY # Not possible for decoupled tests
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -66,6 +71,17 @@ class FunctionMetadata:
 
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
+
+    def set_inline(self, inline: "InlineAnnotationValue") -> None:
+        from tket.metadata import InlineAnnotation, InlineAnnotationValue
+
+        inline_options = get_args(InlineAnnotationValue)
+        if inline not in inline_options:  # for anyone not using a typechecker
+            expected = " or ".join(f"'{opt}'" for opt in inline_options)
+            raise ValueError(
+                f"Expected {expected} for InlineAnnotation, but got {inline!r}"
+            )
+        self._node_metadata[InlineAnnotation] = inline
 
     def set_unitary_flags(self, value: int) -> None:
         self._node_metadata[MetadataUnitaryFlags] = value
@@ -85,6 +101,11 @@ class FunctionMetadata:
         assert qubits is None or isinstance(qubits, int)
         return qubits
 
+    def get_inline(self) -> "InlineAnnotationValue | None":
+        from tket.metadata import InlineAnnotation
+
+        return self._node_metadata.get(InlineAnnotation, None)
+
     @classmethod
     def reserved_keys(cls) -> set[str]:
         return cls._RESERVED_KEYS
@@ -100,6 +121,8 @@ def add_metadata(
     if metadata is not None:
         metadata_dict = metadata.as_dict()
         for key in metadata_dict:
+            if key == HugrDebugInfo.KEY and not debug_mode_enabled():
+                continue
             if key in node_metadata:
                 raise GuppyError(MetadataAlreadySetError(None, key))
             if metadata_dict[key] is not None:

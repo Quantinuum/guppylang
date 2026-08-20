@@ -2,7 +2,7 @@ import ast
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -211,7 +211,7 @@ def try_parse_defn(node: AstNode, ctx: TypeParsingCtx) -> Definition | None:
                     if x in module.__dict__:
                         val = module.__dict__[x]
                         if isinstance(val, GuppyDefinition):
-                            return ENGINE.get_parsed(val.id)
+                            return cast("Definition", ENGINE.get_parsed(val.id))
                     raise GuppyError(
                         ModuleMemberNotFoundError(node, module.__name__, x)
                     )
@@ -497,11 +497,18 @@ def parse_parameter(
             if proto_inst := parse_bound(
                 bound, globals, param_var_mapping, allow_free_vars
             ):
+                # TODO: Copyability and droppablity should be specified by the protocol.
+                #  See https://github.com/Quantinuum/guppylang/issues/2097
+                #  For now, treat everything as linear *except* for Callable and
+                #  modifier protocols to avoid breakage.
+                must_be_copyable = must_be_droppable = isinstance(
+                    proto_inst, CallableProtocolInst | ModifiableFunctionProtocolInst
+                )
                 return TypeParam(
                     idx,
                     node.name,
-                    must_be_copyable=False,
-                    must_be_droppable=False,
+                    must_be_copyable=must_be_copyable,
+                    must_be_droppable=must_be_droppable,
                     must_implement=[proto_inst],
                 )
             else:
@@ -534,10 +541,16 @@ def parse_bound(
         arg_nodes = (
             bound.slice.elts if isinstance(bound.slice, ast.Tuple) else [bound.slice]
         )
-        # Special case for the `Callable` protocol
+        # Special case for the `Callable` and modifiable function protocols
         if isinstance(proto_defn, CallableProtocolDef):
             sig = _parse_function_type(arg_nodes, bound, ctx, "Callable")
             return CallableProtocolInst(sig)
+        if isinstance(proto_defn, ModifiableFunctionProtocolDef):
+            sig = _parse_function_type(
+                arg_nodes, bound, ctx, proto_defn.flags.callable_name()
+            )
+            sig = sig.with_unitary_flags(proto_defn.flags)
+            return ModifiableFunctionProtocolInst(sig)
         proto_args = [arg_from_ast(arg_node, ctx) for arg_node in arg_nodes]
     else:
         proto_defn = try_parse_defn(bound, ctx)

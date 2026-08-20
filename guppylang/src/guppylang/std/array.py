@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import builtins
 from types import GeneratorType
-from typing import TYPE_CHECKING, Generic, TypeVar, no_type_check
+from typing import TYPE_CHECKING, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type
 from guppylang_internals.definition.custom import CopyInoutCompiler
@@ -32,11 +32,14 @@ from guppylang_internals.std._internal.compiler.frozenarray import (
 )
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
+from guppylang.std.lang import Copy, Drop
 from guppylang.std.mem import mem_swap
+from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
 
 if TYPE_CHECKING:
@@ -44,11 +47,8 @@ if TYPE_CHECKING:
 
 
 T = guppy.type_var("T")
-L = guppy.type_var("L", copyable=False, droppable=False)
 n = guppy.nat_var("n")
-
-_T = TypeVar("_T")
-_n = TypeVar("_n")
+L = guppy.type_var("L", copyable=False, droppable=False)
 
 
 @extend_type(
@@ -58,21 +58,34 @@ _n = TypeVar("_n")
     # comptime to behave like lists.
     return_class=True,
 )
-class array(builtins.list[_T], Generic[_T, _n]):
+class array[T, n: nat](builtins.list[T]):
     """Sequence of homogeneous values with statically known fixed length."""
 
-    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
-    def __getitem__(self: array[L, n], idx: int) -> L: ...
+    @custom_function(
+        ArrayGetitemCompiler(),
+        checker=ArrayIndexChecker(),
+    )
+    def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
 
-    @custom_function(ArraySetitemCompiler(), checker=ArrayIndexChecker())
-    def __setitem__(self: array[L, n], idx: int, value: L @ owned) -> None: ...
+    @custom_function(
+        ArraySetitemCompiler(),
+        checker=ArrayIndexChecker(),
+    )
+    def __setitem__[L, n: nat](
+        self: array[L, n], idx: int, value: L @ owned
+    ) -> None: ...
 
     @guppy
     @no_type_check
-    def __len__(self: array[L, n]) -> int:
+    def __len__[L, n: nat](self: array[L, n]) -> int:
         return n
 
-    @custom_function(NewArrayCompiler(), NewArrayChecker(), higher_order_value=False)
+    @custom_function(
+        NewArrayCompiler(),
+        NewArrayChecker(),
+        higher_order_value=False,
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def __new__(): ...
 
     # `__new__` will be overwritten below to provide actual runtime behaviour for
@@ -82,15 +95,21 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
     @guppy
     @no_type_check
-    def __iter__(self: array[L, n] @ owned) -> SizedIter[ArrayIter[L, n], n]:
+    def __iter__[L, n: nat](self: array[L, n] @ owned) -> SizedIter[ArrayIter[L, n], n]:
         return SizedIter(ArrayIter(self, 0))
 
-    @custom_function(CopyInoutCompiler(), ArrayCopyChecker())
-    def copy(self: array[T, n]) -> array[T, n]:
+    @custom_function(
+        CopyInoutCompiler(), ArrayCopyChecker(), unitary_flags=UnitaryFlags.Dagger
+    )
+    def copy[T: Copy, n: nat](self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
 
-    @custom_function(ArrayIsBorrowedCompiler(), checker=ArrayIndexChecker())
-    def is_borrowed(self: array[L, n], idx: int) -> bool:
+    @custom_function(
+        ArrayIsBorrowedCompiler(),
+        checker=ArrayIndexChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+    )
+    def is_borrowed[L, n: nat](self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
 
         This is the case whenever a non-copyable element is borrowed, or when an element
@@ -107,8 +126,11 @@ class array(builtins.list[_T], Generic[_T, _n]):
             output("a", qs.is_borrowed(3))  # False
         """
 
-    @custom_function(ArrayGetitemCompiler(), checker=ArrayIndexChecker())
-    def take(self: array[L, n], idx: int) -> L:
+    @custom_function(
+        ArrayGetitemCompiler(),
+        checker=ArrayIndexChecker(),
+    )
+    def take[L, n: nat](self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -138,7 +160,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
     @guppy
     @no_type_check
-    def try_take(self: array[L, n], idx: int) -> Option[L]:
+    def try_take[L, n: nat](self: array[L, n], idx: int) -> Option[L]:
         """Tries to take an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -167,9 +189,10 @@ class array(builtins.list[_T], Generic[_T, _n]):
         return some(self.take(idx))
 
     @custom_function(
-        ArraySetitemCompiler(elem_first=True), checker=ArrayIndexChecker(expr_index=2)
+        ArraySetitemCompiler(elem_first=True),
+        checker=ArrayIndexChecker(expr_index=2),
     )
-    def put(self: array[L, n], elem: L @ owned, idx: int) -> None:
+    def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
 
         This is the complement of `array.take`. It may be used to fill the "hole" left
@@ -193,7 +216,9 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
     @guppy
     @no_type_check
-    def try_put(self: array[L, n], elem: L @ owned, idx: int) -> Result[None, L]:
+    def try_put[L, n: nat](
+        self: array[L, n], elem: L @ owned, idx: int
+    ) -> Result[None, L]:
         """Tries to put an element back into the array if it has been taken out
         previously.
 
@@ -220,7 +245,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         return ok(None)
 
     @custom_function(ArrayDiscardAllUsedCompiler())
-    def discard_all_taken(self: array[L, n] @ owned) -> None:
+    def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
 
@@ -235,7 +260,9 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
     @guppy
     @no_type_check
-    def try_discard_all_taken(self: array[L, n] @ owned) -> Result[None, array[L, n]]:
+    def try_discard_all_taken[L, n: nat](
+        self: array[L, n] @ owned,
+    ) -> Result[None, array[L, n]]:
         """Similar to `discard_all_taken`, but instead of panicking returns the
         unmodified array when not all elements have been taken out.
 
@@ -252,7 +279,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
         self.discard_all_taken()
         return ok(None)
 
-    def __new__(cls, *args: _T) -> builtins.list[_T]:  # type: ignore[no-redef]
+    def __new__(cls, *args: T) -> builtins.list[T]:  # type: ignore[no-redef]
         # Runtime array constructor that is used for comptime. We return an actual list
         # in line with the comptime unpacking logic that turns arrays into lists.
         if len(args) == 1 and isinstance(args[0], GeneratorType):
@@ -274,7 +301,7 @@ class array(builtins.list[_T], Generic[_T, _n]):
 
 
 @guppy.struct
-class ArrayIter(Generic[L, n]):
+class ArrayIter[L, n: nat]:
     """Iterator over arrays."""
 
     _xs: array[L, n]
@@ -294,7 +321,7 @@ class ArrayIter(Generic[L, n]):
 
 
 @custom_function(ArraySwapCompiler())
-def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
+def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
     Exchanges the elements at two indices within the array. This operation
@@ -318,35 +345,38 @@ def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
 
 
 @extend_type(frozenarray_type_def)
-class frozenarray(Generic[T, n]):
+class frozenarray[T, n: nat]:
     """An immutable array of fixed static size."""
 
     # Panics on out-of-range.
-    @custom_function(FrozenarrayGetitemCompiler(), effects=[Effect.ANY])
-    def __getitem__(self: frozenarray[T, n], item: int) -> T: ...  # type: ignore[type-arg]
+    @custom_function(
+        FrozenarrayGetitemCompiler(),
+        effects=[Effect.ANY],
+    )
+    def __getitem__(self, item: int) -> T: ...
 
     @guppy
     @no_type_check
-    def __len__(self: frozenarray[T, n]) -> int:
+    def __len__(self) -> int:
         return n
 
     @guppy
     @no_type_check
-    def __iter__(self: frozenarray[T, n]) -> SizedIter[FrozenarrayIter[T, n], n]:
+    def __iter__(self) -> SizedIter[FrozenarrayIter[T, n], n]:
         return SizedIter(FrozenarrayIter(self, 0))
 
     @guppy
     @no_type_check
-    def mutable_copy(self: frozenarray[T, n]) -> array[T, n]:
+    def mutable_copy(self) -> array[T, n]:
         """Creates a mutable copy of this array."""
         return array(x for x in self)
 
 
 @guppy.struct
-class FrozenarrayIter(Generic[T, n]):
+class FrozenarrayIter[T: (Copy, Drop), n: nat]:
     """Iterator for frozenarrays."""
 
-    _xs: frozenarray[T, n]  # type: ignore[type-arg]
+    _xs: frozenarray[T, n]
     _i: int
 
     @guppy

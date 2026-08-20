@@ -1,0 +1,11 @@
+Error: Instance field accessed on class (at $FILE:17:20)
+   | 
+15 |     # `field` is a data field, not a method, so this must raise the field-specific
+16 |     # "instance field accessed on class" error, not the method-specific one.
+17 |     return MyStruct.field
+   |                     ^^^^^ `field` is an instance field of `MyStruct`, not a static
+   |                           field
+
+Help: Access it on an instance instead, e.g. `MyStruct(...).field`
+
+Guppy compilation failed due to 1 previous error

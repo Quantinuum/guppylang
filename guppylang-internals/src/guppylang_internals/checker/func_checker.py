@@ -72,6 +72,12 @@ class MissingArgAnnotationError(Error):
 
 
 @dataclass(frozen=True)
+class MissingSelfError(Error):
+    title: ClassVar[str] = "Missing self argument"
+    span_label: ClassVar[str] = "Method requires a self argument"
+
+
+@dataclass(frozen=True)
 class RecursiveSelfError(Error):
     title: ClassVar[str] = "Recursive self annotation"
     span_label: ClassVar[str] = (
@@ -226,6 +232,20 @@ def check_nested_func_def(
     # so the link name does not really matter.
     link_name = func_def.name
 
+    # We need to register nested functions in the engine so that FunctionDefType.sig and
+    # FunctionDefType.defn can be used properly.
+    from guppylang_internals.definition.function import ParsedFunctionDef
+
+    func = ParsedFunctionDef(
+        def_id,
+        func_def.name,
+        func_def,
+        func_ty,
+        func_def.docstring,
+        link_name,
+    )
+    ENGINE.parsed[def_id] = func
+
     # Check if the body contains a free (recursive) occurrence of the function name.
     # By checking if the name is free at the entry BB, we avoid false positives when
     # a user shadows the name with a local variable
@@ -234,19 +254,8 @@ def check_nested_func_def(
             # If there are no captured vars, we treat the function like a global name
             from guppylang.defs import GuppyDefinition
 
-            from guppylang_internals.definition.function import ParsedFunctionDef
-
             parent_frame = ctx.globals.frame
-            func = ParsedFunctionDef(
-                def_id,
-                func_def.name,
-                func_def,
-                func_ty,
-                None,
-                link_name,
-            )
             DEF_STORE.register_def(func, parent_frame)
-            ENGINE.parsed[def_id] = func
             globals.f_locals[func_def.name] = GuppyDefinition(func)
         else:
             # Otherwise, we treat it like a local name
@@ -332,6 +341,11 @@ def check_signature(
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
     has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
+
+    # Check if method doesn't have any arguments.
+    if has_parent and func_def.name != "__new__" and not func_def.args.args:
+        raise GuppyError(MissingSelfError(func_def))
+
     for i, inp in enumerate(func_def.args.args):
         # Special handling for `self` arguments. Note that `__new__` is excluded here
         # since it's not a method so doesn't take `self`.
