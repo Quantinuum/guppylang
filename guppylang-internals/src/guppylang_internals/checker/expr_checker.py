@@ -306,7 +306,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if subst is None:
             return None
         act = act.substitute(subst)
-        subst = {x: s for x, s in subst.items() if x in ty.unsolved_vars}
+        subst = filter_subst_to_unsolved_vars(subst, ty.unsolved_vars)
         return with_type(act, with_loc(node, ast.Constant(value=value))), subst
 
     def visit_Constant(self, node: ast.Constant, ty: Type) -> tuple[ast.expr, Subst]:
@@ -1205,7 +1205,7 @@ def check_type_against(
                 )
                 raise GuppyTypeError(err)
         inst = tuple(subst[v].to_arg() for v in free_vars)
-        subst = {v: t for v, t in subst.items() if v in exp.unsolved_vars}
+        subst = filter_subst_to_unsolved_vars(subst, exp.unsolved_vars)
 
         # Finally, check that the instantiation respects the linearity requirements
         check_inst(act_sig, inst, node)
@@ -1222,6 +1222,17 @@ def check_type_against(
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
 
     return node, subst, ()
+
+
+def filter_subst_to_unsolved_vars(
+    subst: Subst, unsolved_vars: set[ExistentialVar]
+) -> Subst:
+    """Filters a substitution map to requested unsolved vars with minimal allocation."""
+    if not subst or not unsolved_vars:
+        return {}
+    if subst.keys() <= unsolved_vars:
+        return subst
+    return {v: t for v, t in subst.items() if v in unsolved_vars}
 
 
 def try_coerce_to(
@@ -1649,7 +1660,7 @@ def check_call(
     # Success implies that the substitution is closed
     assert all(not t.unsolved_vars for t in subst.values())
     inst = check_all_solved(subst, free_vars, func_ty, node)
-    subst = {v: t for v, t in subst.items() if v in ty.unsolved_vars}
+    subst = filter_subst_to_unsolved_vars(subst, ty.unsolved_vars)
 
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
