@@ -62,6 +62,65 @@ def test_basic_emulation() -> None:
     assert res == expected
 
 
+def test_emulator_analysis() -> None:
+    """Analysis data is collected per shot without changing the run API."""
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        h(q)
+        outcome = measure(q).read()
+        output("outcome", outcome)
+        if outcome:
+            output("branch", measure(qubit()).read())
+
+    result = (
+        main.emulator(2)
+        .coinflip_sim()
+        .with_seed(42)
+        .with_shots(2)
+        .with_trace()
+        .with_metrics()
+        .run()
+    )
+
+    traces = result.traces()
+    metrics = result.metrics()
+
+    assert len(result.results) == 2
+    assert len(traces) == 2
+    assert len(result.circuits()) == 2
+    assert len(metrics) == 2
+    assert [shot["emulator"]["shot_number"] for shot in metrics] == [0, 1]
+    assert [shot["simulator"]["observed_bias"] for shot in metrics] == [0.0, 1.0]
+    assert [shot["user_program"]["qalloc_count"] for shot in metrics] == [1, 2]
+    assert [shot["user_program"]["measure_request_count"] for shot in metrics] == [1, 2]
+    assert [shot["post_runtime"]["measure_individual_count"] for shot in metrics] == [
+        1,
+        2,
+    ]
+
+    user_trace_events = [trace.get_user_program_trace().events for trace in traces]
+    assert [len(events) for events in user_trace_events] == [7, 12]
+    assert [[event.event.kind for event in events] for events in user_trace_events] == [
+        ["Gate", "Reset", "Gate", "Gate", "Measurement", "Gate", "Measurement"],
+        [
+            "Gate",
+            "Reset",
+            "Gate",
+            "Gate",
+            "Measurement",
+            "Gate",
+            "Measurement",
+            "Gate",
+            "Reset",
+            "Measurement",
+            "Gate",
+            "Measurement",
+        ],
+    ]
+
+
 def test_all_options() -> None:
     """Test that all configuration options are properly set and accessible."""
 
