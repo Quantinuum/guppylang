@@ -17,6 +17,7 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
+from guppylang_internals.checker.effects_checker import CallGraphData
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -212,6 +213,10 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
+    #: Call graph mapping from caller to list of callees. Populated during type checking
+    # as calls are checked, to be then used for effects checking.
+    call_graph: dict[MonoDefId, CallGraphData]
+
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
@@ -252,6 +257,7 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
+        self.call_graph = {}
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
@@ -357,6 +363,13 @@ class CompilationEngine:
             arg.visit(finder)
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
+
+    def register_call_graph_node(self, mono_id: MonoDefId) -> None:
+        """Ensures a monomorphized definition is registered in the call graph.
+        Required before edges can be added from the node, but not to it.
+        """
+        assert mono_id not in self.call_graph
+        self.call_graph[mono_id] = CallGraphData()
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.
@@ -524,6 +537,11 @@ class CompilationEngine:
             graph = hf.Module()
             graph.metadata["name"] = "__main__"  # entrypoint metadata
 
+            from guppylang_internals.checker.effects_checker import compute_effects
+
+            # Run effects checking based on call graph analysis.
+            effects = compute_effects()
+
             # Lower definitions to Hugr
             from guppylang_internals.compiler.core import CompilerContext
 
@@ -532,7 +550,7 @@ class CompilationEngine:
             frame = get_calling_frame()
             filename = frame.f_code.co_filename
 
-            ctx = CompilerContext(graph, set(def_ids), StringTable())
+            ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
             requested_defs = []
             for def_id in def_ids:
                 check_entry_point_non_generic(self.get_parsed(def_id))

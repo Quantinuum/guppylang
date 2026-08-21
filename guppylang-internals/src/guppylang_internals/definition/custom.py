@@ -38,6 +38,7 @@ from guppylang_internals.compiler.core import (
 from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CallReturnWires,
     CompiledCallableDef,
 )
@@ -199,7 +200,7 @@ class RawCustomFunctionDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class CustomFunctionDef(CallableDef, CheckableGenericDef):
+class CustomFunctionDef(CallableDef, CheckableGenericDef, CallableEffects):
     """A custom function with parsed and checked signature.
 
     Args:
@@ -228,6 +229,11 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     effects: Iterable[Effect]
 
     description: str = field(default="function", init=False)
+
+    @property
+    @override
+    def call_effects(self) -> Iterable[Effect]:
+        return self.effects
 
     @property
     def params(self) -> Sequence[Parameter]:
@@ -297,11 +303,6 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
     """
 
     type_args: Inst
-
-    @override
-    @property
-    def call_effects(self) -> Iterable[Effect]:
-        return self.effects
 
     @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
@@ -539,14 +540,20 @@ class DefaultCallChecker(CustomCallChecker):
 
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
-        # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
+        # Use default implementation from the expression checker,
+        # but pass known effects (not DefId - we do not wish to compute them)
+        args, subst, inst = check_call(
+            self.func.ty, args, ty, self.node, self.ctx, self.func
+        )
         return make_global_call(self.func, args, inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
-        # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
+        # Use default implementation from the expression checker,
+        # but pass known effects (not DefId - we do not wish to compute them)
+        args, ty, inst = synthesize_call(
+            self.func.ty, args, self.node, self.ctx, self.func.effects
+        )
         return make_global_call(self.func, args, inst), ty
 
 

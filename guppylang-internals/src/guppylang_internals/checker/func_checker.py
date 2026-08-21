@@ -7,6 +7,8 @@ node straight from the Python AST. We build a CFG, check it, and return a
 
 import ast
 import copy
+import itertools
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, ClassVar, cast
 
@@ -25,6 +27,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
 from guppylang_internals.span import function_header_span
+from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, TypeParam
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
@@ -143,6 +146,7 @@ def check_global_func_def(
     type_args: Inst,
     globals: Globals,
     link_name: str,
+    def_id: DefId,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -159,9 +163,11 @@ def check_global_func_def(
         # Comptime inputs are turned into generic args, so are not included here
         if InputFlags.Comptime not in inp.flags
     ]
-    generic_args = {
-        param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
-    }
+    generic_args = unique_named_generic_args(generic_ty.params, type_args)
+
+    current_caller = (def_id, type_args)
+    ENGINE.register_call_graph_node(current_caller)
+
     return check_cfg(
         cfg,
         inputs,
@@ -170,7 +176,24 @@ def check_global_func_def(
         func_def.name,
         globals,
         modified_block_name_base=link_name,
+        current_caller=current_caller,
     )
+
+
+def unique_named_generic_args(
+    params: Iterable[Parameter], type_args: Inst
+) -> dict[str, Argument]:
+    result = {}
+    for param, arg in zip(params, type_args, strict=True):
+        name = param.name
+        if name in result:
+            for i in itertools.count():
+                new_name = f"{name}_{i}"
+                if new_name not in result:
+                    name = new_name
+                    break
+        result[name] = arg
+    return result
 
 
 def check_nested_func_def(
@@ -226,6 +249,12 @@ def check_nested_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     def_id = DefId.fresh()
+    mono_args: Inst = ()
+
+    # Store nested functions in the call graph under their own DefIDs,
+    # although calls to them will be via local variables until we solve
+    # https://github.com/Quantinuum/guppylang/issues/2038
+    ENGINE.register_call_graph_node((def_id, mono_args))
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,
@@ -261,7 +290,15 @@ def check_nested_func_def(
             # Otherwise, we treat it like a local name
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
-    checked_cfg = check_cfg(cfg, inputs, func_ty.output, {}, func_def.name, globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        current_caller=(def_id, ()),
+    )
     checked_def = CheckedNestedFunctionDef(
         def_id,
         checked_cfg,
@@ -277,13 +314,14 @@ def check_nested_func_def(
 
     from guppylang_internals.definition.function import CheckedFunctionDef
 
-    ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
+    ENGINE.checked[(def_id, mono_args)] = CheckedFunctionDef(
         def_id,
         func_def.name,
         func_def,
         func_ty,
         func_def.docstring,
         link_name,
+        mono_args,
         checked_cfg,
     )
     return with_loc(func_def, checked_def)

@@ -95,6 +95,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
     description: str = field(default="overloaded function", init=False)
 
+    @override
     @property
     def call_effects(self) -> Iterable[Effect]:
         raise InternalGuppyError("Should have been resolved to one overload")
