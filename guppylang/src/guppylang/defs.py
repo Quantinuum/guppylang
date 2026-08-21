@@ -47,6 +47,14 @@ from guppylang.emulator._args import (
     wrap_entrypoint_with_args,
 )
 from guppylang.emulator.exceptions import EmulatorBuildError
+from guppylang.emulator.runners import (
+    LocalRunner,
+    LocalRunnerConfig,
+    NexusRunner,
+    NexusRunnerConfig,
+    RunnerConfig,
+    RunResult,
+)
 from guppylang.optimizer import (
     OptimizationLevel,
     OptimizerInstance,
@@ -248,6 +256,23 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
     @hide_trace
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Out:
         return cast("Out", super().__call__(*args, **kwargs))
+
+    def with_runner(self, runner_config: RunnerConfig) -> RunResult:
+        """Run this function with the provided runner configuration.
+
+        Args:
+            runner_config: The runner configuration to use for running the function.
+        Returns:
+            RunResult: The result of running the function.
+        """
+        if isinstance(runner_config, LocalRunnerConfig):
+            return LocalRunner().run(runner_config)
+        elif isinstance(runner_config, NexusRunnerConfig):
+            return NexusRunner().run(runner_config)
+        else:
+            raise TypeError(
+                f"Unsupported runner config type: {type(runner_config).__name__}"
+            )
 
     def emulator(
         self,
