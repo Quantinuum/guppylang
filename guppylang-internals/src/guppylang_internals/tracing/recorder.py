@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import ComptimeVariable, Place
@@ -29,7 +29,7 @@ class TraceWire:
 #: A value usable as an input to an op/call in a trace, i.e. that will be resolved
 #: to a Hugr `Wire` during compilation. (`ComptimeVariable`s are resolved via the
 #: state held in the DFContainer.)
-TraceOutput: TypeAlias = TraceWire | ComptimeVariable
+type TraceOutput = TraceWire | ComptimeVariable
 
 
 @dataclass(frozen=True)

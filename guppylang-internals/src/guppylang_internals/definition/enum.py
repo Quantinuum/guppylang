@@ -2,7 +2,7 @@ import ast
 import keyword
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic, TypeVar
+from typing import ClassVar, TypeVar
 
 from hugr import Wire
 
@@ -76,7 +76,7 @@ F = TypeVar("F", UncheckedField, CheckedField)
 
 
 @dataclass(frozen=True)
-class EnumVariant(Generic[F]):
+class EnumVariant[F]:
     index: int
     name: str
     fields: Sequence[F]

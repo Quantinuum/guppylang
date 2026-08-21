@@ -4,7 +4,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, Literal, cast
+from typing import ClassVar, Literal, assert_never, cast
 
 import hugr
 import hugr.build.function as hf
@@ -15,7 +15,6 @@ from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
 from hugr.ops import FuncDecl
 from hugr.package import ModulePointer, Package
 from semver import Version
-from typing_extensions import assert_never
 
 import guppylang_internals
 from guppylang_internals.debug_mode import debug_mode_enabled

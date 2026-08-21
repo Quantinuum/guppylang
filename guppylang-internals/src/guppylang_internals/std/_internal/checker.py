@@ -1,9 +1,7 @@
 import ast
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import ClassVar
-
-from typing_extensions import assert_never, override
+from typing import ClassVar, assert_never, override
 
 from guppylang_internals.ast_util import fake_call, get_type, with_loc, with_type
 from guppylang_internals.checker.core import Context, Variable
@@ -68,7 +66,7 @@ from guppylang_internals.tys.ty import (
     InputFlags,
     NoneType,
     Type,
-    unify,
+    unify_const,
 )
 
 
@@ -393,7 +391,7 @@ class NewArrayChecker(CustomCallChecker):
                                 args[i], elem_ty.substitute(subst)
                             )
                             subst |= s
-                        ls = unify(length, ConstValue(nat_type(), len(args)), {})
+                        ls = unify_const(length, ConstValue(nat_type(), len(args)), {})
                         if ls is None:
                             raise GuppyTypeError(
                                 TypeMismatchError(
