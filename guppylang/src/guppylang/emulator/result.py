@@ -4,9 +4,11 @@ Emulation results and post-processing.
 
 from __future__ import annotations
 
+from importlib import import_module
 from typing import TYPE_CHECKING
 
 from hugr.qsystem.result import QsysResult, QsysShot, TaggedResult
+from selene_core.trace import Trace
 from selene_sim.backends.bundled_simulators import Quest
 
 from .state import PartialVector
@@ -16,14 +18,29 @@ if TYPE_CHECKING:
 
     from hugr.qsystem.result import DataValue
     from pytket.backends.backendresult import BackendResult
+    from pytket.circuit import Circuit
     from selene_quest_plugin.state import SeleneQuestState
+    from selene_sim.event_hooks.instruction_log import CircuitExtractor
+    from selene_sim.event_hooks.metrics import MetricStore
+
+
+#: A scalar metric value emitted by an emulator component.
+type MetricValue = float | int | bool | str
+#: Named scalar metrics emitted by one emulator component.
+type MetricGroup = dict[str, MetricValue]
+#: Component metrics collected for one emulated shot.
+type ShotMetrics = dict[str, MetricGroup]
 
 # Re-exports QsysResult, QsysShot, and TaggedResult - breaking changes to those upstream
 # classes should be treated as breaking changes to this module.
 __all__ = [
     "EmulatorResult",
+    "MetricGroup",
+    "MetricValue",
     "QsysShot",
+    "ShotMetrics",
     "TaggedResult",
+    "Trace",
 ]
 
 
@@ -58,13 +75,24 @@ class EmulatorResult(QsysResult):
 
     # cache for extracted partial states, since extraction cleans up the files
     _partial_states: list[list[tuple[str, PartialVector]]] | None = None
+    _circuit_extractor: CircuitExtractor | None
+    _metric_store: MetricStore | None
     #: List of QsysShot objects, each representing a single shot's results.
     results: list[QsysShot]
 
     # Re-define parent methods for documentation purposes
 
-    def __init__(self, results: list[QsysShot] | None = None):
+    def __init__(
+        self,
+        results: list[QsysShot] | None = None,
+        *,
+        _circuit_extractor: CircuitExtractor | None = None,
+        _metric_store: MetricStore | None = None,
+    ):
         super().__init__(results=results)
+        self._partial_states = None
+        self._circuit_extractor = _circuit_extractor
+        self._metric_store = _metric_store
 
     def register_counts(
         self, strict_names: bool = False, strict_lengths: bool = False
@@ -127,3 +155,78 @@ class EmulatorResult(QsysResult):
                 for shot in self.results
             ]
         return self._partial_states
+
+    def traces(self) -> list[Trace]:
+        """Return the per-shot record of instructions emitted during emulation.
+
+        Each :py:class:`Trace` is an ordered collection of events emitted by the
+        user program, runtime, error model, and simulator. Use its
+        ``get_user_program_trace()``, ``get_runtime_trace()``,
+        ``get_error_model_trace()``, and ``get_simulator_trace()`` methods to
+        inspect an individual execution stage.
+
+        Enable trace collection with :meth:`EmulatorInstance.with_trace` before
+        running the emulator.
+        """
+        if self._circuit_extractor is None:
+            raise RuntimeError(
+                "Trace collection was not enabled; call `with_trace()` before running "
+                "the emulator."
+            )
+        # Selene starts collection before parsing a shot, so an interrupted shot may
+        # have analysis data without a corresponding entry in ``self.results``.
+        return [
+            shot.get_trace()
+            for shot in self._circuit_extractor.shots[: len(self.results)]
+        ]
+
+    def circuits(self) -> list[Circuit]:
+        """Return `pytket Circuit objects
+        <https://docs.quantinuum.com/tket/api-docs/circuit.html>`_ representing
+        the stream of gates output by the user program at emulation time.
+
+        Circuits are extracted from each shot's trace in the gateset produced by
+        compilation, typically the primitive gateset of the hardware platform
+        being emulated.
+
+        Enable trace collection with :meth:`EmulatorInstance.with_trace` before
+        running the emulator. ``pytket`` availability is checked before conversion.
+        """
+        if self._circuit_extractor is None:
+            raise RuntimeError(
+                "Trace collection was not enabled; call `with_trace()` before running "
+                "the emulator."
+            )
+        try:
+            import_module("pytket")
+        except ModuleNotFoundError as e:
+            if e.name == "pytket":
+                raise ImportError(
+                    "Circuit extraction requires pytket. Install pytket to use "
+                    "`circuits()`."
+                ) from None
+            raise
+        # Selene starts collection before parsing a shot, so an interrupted shot may
+        # have analysis data without a corresponding entry in ``self.results``.
+        return [
+            shot.get_user_circuit()
+            for shot in self._circuit_extractor.shots[: len(self.results)]
+        ]
+
+    def metrics(self) -> list[ShotMetrics]:
+        """Return collected metrics for each emulated shot.
+
+        Metrics include gate-count and allocation statistics for the user program
+        and the operations emitted after runtime processing.
+
+        Enable metric collection with :meth:`EmulatorInstance.with_metrics` before
+        running the emulator.
+        """
+        if self._metric_store is None:
+            raise RuntimeError(
+                "Metric collection was not enabled; call `with_metrics()` before "
+                "running the emulator."
+            )
+        # Selene starts collection before parsing a shot, so an interrupted shot may
+        # have analysis data without a corresponding entry in ``self.results``.
+        return self._metric_store.shots[: len(self.results)]
