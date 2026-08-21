@@ -266,6 +266,13 @@ class CompilationEngine:
         if id in self.parsed:
             return self.parsed[id]
         defn = DEF_STORE.raw_defs[id]
+        if self._stage == "none":
+            self._stage = "check"
+            try:
+                return self.get_parsed(id)
+            finally:
+                self._stage = "none"
+
         if self._stage != "check":
             # assert isinstance(defn, ParsedDef) # Can't isinstance ParsedDef (union)
             if not isinstance(
@@ -300,6 +307,13 @@ class CompilationEngine:
         if (id, mono_args) in self.checked:
             return self.checked[id, mono_args]
         defn = self.get_parsed(id)
+
+        if self._stage == "none":
+            self._stage = "check"
+            try:
+                return self.get_checked(id, mono_args)
+            finally:
+                self._stage = "none"
 
         if self._stage != "check":
             if not isinstance(defn, (CompiledDef, CompilableDef)):
