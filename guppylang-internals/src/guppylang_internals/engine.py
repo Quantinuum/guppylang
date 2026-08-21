@@ -267,6 +267,7 @@ class CompilationEngine:
             return self.parsed[id]
         defn = DEF_STORE.raw_defs[id]
         if self._stage != "check":
+            # assert isinstance(defn, ParsedDef) # Can't isinstance ParsedDef (union)
             if not isinstance(
                 defn, (CheckableDef, CheckableGenericDef, CompilableDef, CompiledDef)
             ):
