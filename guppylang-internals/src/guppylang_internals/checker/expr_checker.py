@@ -359,9 +359,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     ) -> tuple[ast.expr, Subst]:
         if not is_list_type(ty):
             return self._fail(ty, node)
+        # Check the append method now, before we need it during compilation
+        func = ENGINE.get_instance_func(ty, "append")
+        assert isinstance(func, CheckableGenericDef)
         node.generators, node.elt, elt_ty = synthesize_comprehension(
             node, node.generators, node.elt, self.ctx
         )
+        ENGINE.register_generic_use(func, (TypeArg(elt_ty),))
         subst = unify(get_element_type(ty), elt_ty, {})
         if subst is None:
             actual = list_type(elt_ty)
@@ -849,6 +853,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             node, node.generators, node.elt, self.ctx
         )
         result_ty = list_type(elt_ty)
+        # Check the append method now, before we need it during compilation
+        func = ENGINE.get_instance_func(result_ty, "append")
+        assert isinstance(func, CheckableGenericDef)
+        ENGINE.register_generic_use(func, (TypeArg(elt_ty),))
         return node, result_ty
 
     def visit_DesugaredGeneratorExpr(

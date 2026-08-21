@@ -126,6 +126,7 @@ class CompilerContext(ToHugrContext):
 
         Might mutate the current Hugr if this definition has never been compiled before.
         """
+        assert ENGINE._stage == "compile"
         mono_args = type_args or ()
         if (def_id, mono_args) not in self.compiled:
             defn = ENGINE.get_checked(def_id, mono_args)
