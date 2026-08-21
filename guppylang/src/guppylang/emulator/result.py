@@ -182,8 +182,12 @@ class EmulatorResult(QsysResult):
 
     def circuits(self) -> list[Circuit]:
         """Return `pytket Circuit objects
-        <https://docs.quantinuum.com/tket/api-docs/circuit.html>`_ for each
-        emulated shot.
+        <https://docs.quantinuum.com/tket/api-docs/circuit.html>`_ representing
+        the stream of gates output by the user program at emulation time.
+
+        Circuits are extracted from each shot's trace in the compiler's compiled
+        gateset, typically the primitive gateset of the hardware platform being
+        emulated.
 
         Enable trace collection with :meth:`EmulatorInstance.with_trace` before
         running the emulator. ``pytket`` availability is checked before conversion.
