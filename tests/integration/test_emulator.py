@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from guppylang.decorator import expected_qubits, guppy
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.emulator.exceptions import EmulatorBuildError
@@ -62,7 +65,7 @@ def test_basic_emulation() -> None:
     assert res == expected
 
 
-def test_emulator_analysis() -> None:
+def test_emulator_analysis(snapshot, request) -> None:
     """Analysis data is collected per shot without changing the run API."""
 
     @guppy
@@ -84,41 +87,24 @@ def test_emulator_analysis() -> None:
         .run()
     )
 
-    traces = result.traces()
-    metrics = result.metrics()
-
     assert len(result.results) == 2
-    assert len(traces) == 2
     assert len(result.circuits()) == 2
-    assert len(metrics) == 2
-    assert [shot["emulator"]["shot_number"] for shot in metrics] == [0, 1]
-    assert [shot["simulator"]["observed_bias"] for shot in metrics] == [0.0, 1.0]
-    assert [shot["user_program"]["qalloc_count"] for shot in metrics] == [1, 2]
-    assert [shot["user_program"]["measure_request_count"] for shot in metrics] == [1, 2]
-    assert [shot["post_runtime"]["measure_individual_count"] for shot in metrics] == [
-        1,
-        2,
-    ]
-
-    user_trace_events = [trace.get_user_program_trace().events for trace in traces]
-    assert [len(events) for events in user_trace_events] == [7, 12]
-    assert [[event.event.kind for event in events] for events in user_trace_events] == [
-        ["Gate", "Reset", "Gate", "Gate", "Measurement", "Gate", "Measurement"],
-        [
-            "Gate",
-            "Reset",
-            "Gate",
-            "Gate",
-            "Measurement",
-            "Gate",
-            "Measurement",
-            "Gate",
-            "Reset",
-            "Measurement",
-            "Gate",
-            "Measurement",
-        ],
-    ]
+    snapshot.snapshot_dir = str(Path(request.fspath).parent / "snapshots")
+    snapshot.assert_match(
+        json.dumps(result.metrics(), indent=2, sort_keys=True),
+        f"{request.node.name}_metrics.json",
+    )
+    snapshot.assert_match(
+        json.dumps(
+            [
+                trace.clear_simulator_perf_timing().model_dump()
+                for trace in result.traces()
+            ],
+            indent=2,
+            sort_keys=True,
+        ),
+        f"{request.node.name}_traces.json",
+    )
 
 
 def test_all_options() -> None:
