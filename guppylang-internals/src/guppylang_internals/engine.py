@@ -18,7 +18,7 @@ from semver import Version
 from typing_extensions import assert_never
 
 import guppylang_internals
-from guppylang_internals.checker.effects_checker import CallGraphData
+from guppylang_internals.checker.effects_checker import CallGraphData, compute_effects
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -522,8 +522,6 @@ class CompilationEngine:
             # Prepare Hugr for this module
             graph = hf.Module()
             graph.metadata["name"] = "__main__"  # entrypoint metadata
-
-            from guppylang_internals.checker.effects_checker import compute_effects
 
             # Run effects checking based on call graph analysis.
             effects = compute_effects(self.call_graph)
