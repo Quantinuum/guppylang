@@ -21,24 +21,25 @@ class CallGraphData:
     other_callee_effects: list[Effect] = field(default_factory=list)
 
 
-def compute_effects() -> Mapping["MonoDefId", frozenset[Effect]]:
+def compute_effects(
+    func_data: Mapping["MonoDefId", CallGraphData],
+) -> Mapping["MonoDefId", frozenset[Effect]]:
     """Computes the effects of functions in the program, checking that they
     respect the declared effect limits. This should be called after a call graph
     has been constructed during checking."""
-    from guppylang_internals.engine import ENGINE
 
     # First construct a networkx DiGraph based on the call graph info for analysis.
     call_graph: nx.DiGraph[MonoDefId] = nx.DiGraph()
-    # Include only real/concrete instantiations, the others will not be compiled.
-    for mono_def_id in ENGINE.call_graph:
+    for mono_def_id in func_data:
         finder = BoundVarFinder()
         (_, args) = mono_def_id
+        # Include only real/concrete instantiations, the others will not be compiled.
         for arg in args:
             arg.visit(finder)
         if not finder.bound_vars:
             call_graph.add_node(mono_def_id)
 
-    for mono_def_id, data in ENGINE.call_graph.items():
+    for mono_def_id, data in func_data.items():
         if mono_def_id not in call_graph.nodes:
             continue
         effects = set(data.other_callee_effects)

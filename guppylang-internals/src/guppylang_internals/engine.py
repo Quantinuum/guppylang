@@ -526,7 +526,7 @@ class CompilationEngine:
             from guppylang_internals.checker.effects_checker import compute_effects
 
             # Run effects checking based on call graph analysis.
-            effects = compute_effects()
+            effects = compute_effects(self.call_graph)
 
             # Lower definitions to Hugr
             from guppylang_internals.compiler.core import CompilerContext
