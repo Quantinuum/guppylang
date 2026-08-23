@@ -15,6 +15,7 @@ from guppylang_internals.checker.errors.type_errors import (
 from guppylang_internals.checker.expr_checker import (
     ExprChecker,
     ExprSynthesizer,
+    _register_callee,
     check_call,
     check_num_args,
     check_type_against,
@@ -46,6 +47,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     PlaceNode,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type,
@@ -494,6 +496,8 @@ class AbortChecker(CustomCallChecker):
                     values=[val[0] for val in vals],
                     signal=signal,
                 )
+                # Since we don't ExprChecker.check/syn_call:
+                _register_callee(self.ctx, [Effect.ANY], ())
                 return with_loc(self.node, node), NoneType()
 
             case args:

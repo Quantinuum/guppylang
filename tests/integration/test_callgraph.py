@@ -1,9 +1,10 @@
 import pytest
 from hugr import ops as hops
+from hugr.std import PRELUDE
 
 from guppylang import guppy
 from guppylang_internals.engine import ENGINE
-from guppylang.std.builtins import owned
+from guppylang.std.builtins import owned, panic
 from guppylang.std.quantum import qubit
 from guppylang.std.quantum.functional import cx, h
 
@@ -121,15 +122,10 @@ def test_pure_quantum_calls_have_no_order_edges(validate):
         if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
     ]
 
-    def ancestors(node):
-        while (parent := hugr[node].parent) is not None:
-            yield parent
-            node = parent
-
     main_calls = [
         node
         for node, data in hugr.nodes()
-        if isinstance(data.op, hops.Call) and main_node in ancestors(node)
+        if isinstance(data.op, hops.Call) and main_node in ancestors(hugr, node)
     ]
     assert len(main_calls) == 3
 
@@ -143,3 +139,86 @@ def test_pure_quantum_calls_have_no_order_edges(validate):
     first_call, second_call, _ = main_calls
     assert not has_directed_path(first_call, second_call)
     assert not has_directed_path(second_call, first_call)
+
+
+def ancestors(hugr, node):
+    while (parent := hugr[node].parent) is not None:
+        yield parent
+        node = parent
+
+
+def test_panicking_calls_have_order_edges(validate):
+    @guppy
+    def panicking_function() -> None:
+        panic("From panicking function")
+
+    @guppy
+    def pure_function() -> None:
+        pass
+
+    @guppy
+    def main() -> None:
+        panicking_function()
+        pure_function()
+        panic("From main")
+        pure_function()
+        panicking_function()
+
+    package = main.with_minimal_opt().compile_function()
+    validate(package)
+
+    hugr = package.modules[0]
+    [main_node] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
+    ]
+
+    main_calls = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.Call) and main_node in ancestors(hugr, node)
+    ]
+    assert [
+        "panicking_function" in get_called_func_name(hugr, node) for node in main_calls
+    ] == [True, False, False, True]
+    assert [
+        "pure_function" in get_called_func_name(hugr, node) for node in main_calls
+    ] == [False, True, True, False]
+    [panic_call1, pure_call1, pure_call2, panic_call2] = main_calls
+
+    [panic_op] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.ExtOp)
+        and data.op.op_def().qualified_name()
+        == PRELUDE.get_op("panic").qualified_name()
+        and main_node in ancestors(hugr, node)
+    ]
+
+    def has_order_path(source, target):
+        return any(
+            node == target or has_order_path(node, target)
+            for node in hugr.outgoing_order_links(source)
+        )
+
+    assert has_order_path(panic_call1, panic_op)
+    assert has_order_path(panic_op, panic_call2)
+    for pure_call in [pure_call1, pure_call2]:
+        for op in [panic_call1, panic_op, panic_call2]:
+            assert not has_order_path(pure_call, op)
+            assert not has_order_path(op, pure_call)
+
+
+def get_called_func_name(hugr, call_node):
+    from hugr.tys import FunctionKind
+
+    srcs = [
+        srcs
+        for tgt, srcs in hugr.incoming_links(call_node)
+        if isinstance(hugr.port_kind(tgt), FunctionKind)
+    ]
+    [[static_outport]] = srcs
+    op = hugr[static_outport.node].op
+    assert isinstance(op, hops.FuncDefn)
+    return op.f_name
