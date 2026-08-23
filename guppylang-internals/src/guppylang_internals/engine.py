@@ -4,7 +4,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, Literal, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 import hugr
 import hugr.build.function as hf
@@ -35,6 +35,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
@@ -89,6 +90,12 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from guppylang_internals.checker.core import Context
+    from guppylang_internals.tys import Effect
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
@@ -259,6 +266,26 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_graph = {}
+
+    def register_call(
+        self,
+        ctx: "Context",
+        callee: "CallableDef | Iterable[Effect]",
+        inst: Inst,
+    ) -> None:
+        """Registers a function call in the call graph."""
+        # current_caller is not set for e.g. comptime but should be here:
+        assert ctx.current_caller is not None
+        data = self.call_graph[ctx.current_caller]
+        if isinstance(callee, CallableEffects):
+            effects = callee.call_effects
+        elif isinstance(callee, CallableDef):
+            # Effects not known yet, will be computed.
+            data.callee_defs.append((callee.id, inst))
+            return
+        else:
+            effects = callee
+        data.other_callee_effects.extend(effects)
 
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:

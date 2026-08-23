@@ -93,7 +93,7 @@ from guppylang_internals.checker.errors.type_errors import (
 from guppylang_internals.definition.common import CheckableGenericDef, DefId, Definition
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.definition.ty import TypeDef
-from guppylang_internals.definition.value import CallableDef, CallableEffects, ValueDef
+from guppylang_internals.definition.value import CallableDef, ValueDef
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
@@ -1505,28 +1505,6 @@ def _identify_callee(node: ast.expr) -> str | None:
             return None
 
 
-def _register_callee(
-    ctx: Context,
-    callee: CallableDef | Iterable[Effect],
-    # Used only if callee is a CallableDef whose call_effects gives a DefId
-    inst: Inst,
-) -> None:
-    """Registers a function call in the call graph."""
-    # current_caller is not set for e.g. comptime but should be here:
-    assert ctx.current_caller is not None
-    data = ENGINE.call_graph[ctx.current_caller]
-    effects: Iterable[Effect]
-    if isinstance(callee, CallableEffects):
-        effects = callee.call_effects
-    elif isinstance(callee, CallableDef):
-        # Effects not known yet, will be computed
-        data.callee_defs.append((callee.id, inst))
-        return
-    else:
-        effects = callee
-    data.other_callee_effects.extend(effects)
-
-
 def synthesize_call(
     func_ty: FunctionType,
     args: list[ast.expr],
@@ -1564,7 +1542,7 @@ def synthesize_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, callee, inst)
+    ENGINE.register_call(ctx, callee, inst)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1665,7 +1643,7 @@ def check_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    _register_callee(ctx, callee, inst)
+    ENGINE.register_call(ctx, callee, inst)
 
     return inputs, subst, inst
 

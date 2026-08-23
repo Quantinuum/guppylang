@@ -15,7 +15,6 @@ from guppylang_internals.checker.errors.type_errors import (
 from guppylang_internals.checker.expr_checker import (
     ExprChecker,
     ExprSynthesizer,
-    _register_callee,
     check_call,
     check_num_args,
     check_type_against,
@@ -497,7 +496,7 @@ class AbortChecker(CustomCallChecker):
                     signal=signal,
                 )
                 # Since we don't ExprChecker.check/syn_call:
-                _register_callee(self.ctx, [Effect.ANY], ())
+                ENGINE.register_call(self.ctx, [Effect.ANY], ())
                 return with_loc(self.node, node), NoneType()
 
             case args:
