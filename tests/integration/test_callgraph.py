@@ -1,6 +1,11 @@
 import pytest
+from hugr import ops as hops
+
 from guppylang import guppy
 from guppylang_internals.engine import ENGINE
+from guppylang.std.builtins import owned
+from guppylang.std.quantum import qubit
+from guppylang.std.quantum.functional import cx, h
 
 
 def test_simple():
@@ -82,3 +87,26 @@ def test_nested_function():
     assert data is not None
     # Check the outer function call exactly one function (the nested function).
     assert len(data.callee_defs) == 1
+
+
+def test_pure_quantum_calls_have_no_order_edges(validate):
+    @guppy
+    def apply_gates(q1: qubit @ owned, q2: qubit @ owned) -> tuple[qubit, qubit]:
+        q1 = h(q1)
+        q1, q2 = cx(q1, q2)
+        return q1, q2
+
+    @guppy
+    def main(q1: qubit @ owned, q2: qubit @ owned) -> tuple[qubit, qubit]:
+        q1, q2 = apply_gates(q1, q2)
+        return apply_gates(q1, q2)
+
+    package = main.with_minimal_opt().compile_function()
+    validate(package)
+
+    hugr = package.modules[0]
+    calls = [node for node, data in hugr.nodes() if isinstance(data.op, hops.Call)]
+    assert len(calls) == 4
+    for call in calls:
+        assert not list(hugr.incoming_order_links(call))
+        assert not list(hugr.outgoing_order_links(call))
