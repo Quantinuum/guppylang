@@ -82,7 +82,3 @@ def test_nested_function():
     assert data is not None
     # Check the outer function call exactly one function (the nested function).
     assert len(data.callee_defs) == 1
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
