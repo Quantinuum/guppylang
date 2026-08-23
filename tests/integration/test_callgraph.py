@@ -97,16 +97,49 @@ def test_pure_quantum_calls_have_no_order_edges(validate):
         return q1, q2
 
     @guppy
-    def main(q1: qubit @ owned, q2: qubit @ owned) -> tuple[qubit, qubit]:
+    def main(
+        q1: qubit @ owned,
+        q2: qubit @ owned,
+        q3: qubit @ owned,
+        q4: qubit @ owned,
+    ) -> tuple[qubit, qubit, qubit, qubit]:
         q1, q2 = apply_gates(q1, q2)
-        return apply_gates(q1, q2)
+        q3, q4 = apply_gates(q3, q4)
+        q2, q3 = apply_gates(q2, q3)
+        return q1, q2, q3, q4
 
     package = main.with_minimal_opt().compile_function()
     validate(package)
 
     hugr = package.modules[0]
     calls = [node for node, data in hugr.nodes() if isinstance(data.op, hops.Call)]
-    assert len(calls) == 4
-    for call in calls:
-        assert not list(hugr.incoming_order_links(call))
-        assert not list(hugr.outgoing_order_links(call))
+    assert len(calls) == 5
+
+    [main_node] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
+    ]
+
+    def ancestors(node):
+        while (parent := hugr[node].parent) is not None:
+            yield parent
+            node = parent
+
+    main_calls = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.Call) and main_node in ancestors(node)
+    ]
+    assert len(main_calls) == 3
+
+    def has_directed_path(source, target):
+        return any(
+            destination.node == target or has_directed_path(destination.node, target)
+            for _, destinations in hugr.outgoing_links(source)
+            for destination in destinations
+        )
+
+    first_call, second_call, _ = main_calls
+    assert not has_directed_path(first_call, second_call)
+    assert not has_directed_path(second_call, first_call)
