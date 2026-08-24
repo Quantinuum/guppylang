@@ -296,6 +296,7 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
         builder: EmulatorBuilder | None = None,
         libs: list[Package] | None = None,
         platform: Platform = "helios",
+        debug_mode: bool = False,
     ) -> EmulatorInstance:
         """Build an emulator instance from a compiled package."""
         if libs is not None:
@@ -338,6 +339,16 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
                     f"`@{expected_qubits.__name__}`."
                 )
             )
+
+        if debug_mode:
+            from selene_hugr_qis_compiler import compile_to_llvm_ir
+
+            llvm_ir = compile_to_llvm_ir(
+                mod.to_bytes(),
+                platform=platform,
+                emit_debug=True,
+            )
+            return builder.build(llvm_ir, n_qubits=qubits, arg_specs=arg_specs)
 
         return builder.build(mod, n_qubits=qubits, arg_specs=arg_specs)
 

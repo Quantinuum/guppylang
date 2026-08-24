@@ -268,7 +268,12 @@ class OptimizerInstance[**P, Out]:
             platform = "helios"
 
         return self.definition._emulator(
-            self.compile_function(debug_mode), n_qubits, builder, libs, platform
+            self.compile_function(debug_mode),
+            n_qubits,
+            builder,
+            libs,
+            platform,
+            debug_mode=debug_mode,
         )
 
     def compile(self, debug_mode: bool = False) -> Package:

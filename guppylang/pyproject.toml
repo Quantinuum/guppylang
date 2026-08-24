@@ -44,3 +44,6 @@ repository = "https://github.com/quantinuum/guppylang"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+selene-sim = { path = "../../../../Desktop/selene_sim-0.3.0-py3-none-macosx_12_0_arm64.whl" }

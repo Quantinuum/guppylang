@@ -803,7 +803,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.2.6,<3" },
     { name = "pytket", specifier = ">=2.7.0" },
     { name = "selene-hugr-qis-compiler", specifier = "~=0.4.2" },
-    { name = "selene-sim", specifier = "~=0.3.0" },
+    { name = "selene-sim", path = "../../../Desktop/selene_sim-0.3.0-py3-none-macosx_12_0_arm64.whl" },
     { name = "tqdm", specifier = ">=4.70.0" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]
@@ -2770,7 +2770,7 @@ wheels = [
 [[package]]
 name = "selene-sim"
 version = "0.3.0"
-source = { registry = "https://pypi.org/simple" }
+source = { path = "../../../Desktop/selene_sim-0.3.0-py3-none-macosx_12_0_arm64.whl" }
 dependencies = [
     { name = "numpy" },
     { name = "pyyaml" },
@@ -2778,11 +2778,15 @@ dependencies = [
     { name = "tqdm" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/db/85948e48627510b22c8097690595a0a446c219fdc930c9fd19fb173b3dce/selene_sim-0.3.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:20b2627120947b2696b290afcf3a6bc3475c80cc473c4894d14b06850462827e", size = 5120432, upload-time = "2026-07-22T17:02:37.371Z" },
-    { url = "https://files.pythonhosted.org/packages/91/28/dbbb558e5940a7ddb7089b2784c3b41f9ec1aed71ac3bdc02c29748e9063/selene_sim-0.3.0-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:94ad3a9a3c44869ed0cce40af975339dadeffb1bf451b4f2fd523a4509430f91", size = 5338322, upload-time = "2026-07-22T17:02:38.828Z" },
-    { url = "https://files.pythonhosted.org/packages/c4/b7/862cbf7166c78a4c94586eb44ef49e4f068b38a6a3354d54e8dbef5f8b54/selene_sim-0.3.0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:0f5de0d98fe28fcf7f036fb86b57054b1c18026a7db79f37496d2d2299fa759c", size = 5162750, upload-time = "2026-07-22T17:02:40.273Z" },
-    { url = "https://files.pythonhosted.org/packages/13/c8/f828875de20b60c9b24846f7ec3e076ee9a75ec4fe8aa1bdfd81d336d8b8/selene_sim-0.3.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:3534150c0a511bcaf3735b0bd285c11891f074f7d4d5e0a684ad45f166a3449e", size = 5364660, upload-time = "2026-07-22T17:02:41.89Z" },
-    { url = "https://files.pythonhosted.org/packages/32/1b/edd341e2a307a594c51bb4c072137c4b02bb00effe38dd28429fa48e82f4/selene_sim-0.3.0-py3-none-win_amd64.whl", hash = "sha256:7ebc929ba6e3560f78889981a6d9043df358875f94c66a3c28ea180ca5801489", size = 11271378, upload-time = "2026-07-22T17:02:43.334Z" },
+    { filename = "selene_sim-0.3.0-py3-none-macosx_12_0_arm64.whl", hash = "sha256:fff0f8db626bfbe9c2afc86d56b535599c8f7d327e9f231c250274f63271f8f8" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = "~=2.0" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "selene-core", specifier = "~=0.3.0a1" },
+    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 
 [[package]]
