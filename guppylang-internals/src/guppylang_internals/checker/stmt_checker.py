@@ -74,6 +74,7 @@ from guppylang_internals.nodes import (
     UnpackPattern,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import (
     array_type,
     get_array_length,
@@ -327,6 +328,9 @@ class StmtChecker(AstVisitor[BBStatement]):
                 case ConstValue(value=int(size)):
                     elt_ty = get_element_type(ty)
                     unpack = ArrayUnpack(pattern, size, elt_ty)
+                    # This compiles to an array-unpacking op, which will have
+                    # side-effects that we need to account for in checking
+                    ENGINE.register_call(self.ctx, [Effect.ANY], ())
                     return unpack, size * [expr], size * [elt_ty]
                 case BoundConstVar():
                     raise RequiresMonomorphizationError

@@ -65,12 +65,14 @@ class array(builtins.list[_T], Generic[_T, _n]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
+        effects=[Effect.ANY],  # includes unwrap (compiled separately)
     )
     def __getitem__(self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
+        effects=[Effect.ANY],  # includes (compiled separately)
     )
     def __setitem__(self: array[L, n], idx: int, value: L @ owned) -> None: ...
 
@@ -315,7 +317,7 @@ class ArrayIter(Generic[L, n]):
         return nothing()
 
 
-@custom_function(ArraySwapCompiler())
+@custom_function(ArraySwapCompiler(), effects=[Effect.ANY])
 def array_swap(arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
