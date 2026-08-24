@@ -16,6 +16,7 @@ from guppylang_internals.checker.core import (
 )
 from guppylang_internals.checker.errors.type_errors import TypeMismatchError
 from guppylang_internals.checker.unitary_checker import BBUnitaryChecker
+from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
@@ -248,7 +249,11 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     handles inout arguments.
     """
     state = get_tracing_state()
-    call_site = _find_call_site(state.node)
+    ast_node = state.node
+    if debug_mode_enabled():
+        # We want to avoid this computation for performance reasons unless we really
+        # need the exact call site for debugging purposes.
+        ast_node = _find_call_site(state.node)
 
     with capture_guppy_errors():
         # Try to turn args into `GuppyObjects`, each containing a `ComptimeVariable`.
@@ -284,10 +289,10 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
 
         # Check call
         arg_exprs: list[ast.expr] = [
-            with_loc(call_site, with_type(var.ty, PlaceNode(var))) for var in arg_vars
+            with_loc(ast_node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
         ]
         ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
-        call_node, ret_ty = func.synthesize_call(arg_exprs, call_site, ctx)
+        call_node, ret_ty = func.synthesize_call(arg_exprs, ast_node, ctx)
 
         # Here we check if unitary constraints are respected in the function body
         unitary_flag = state.function_definition.unitary_flags
