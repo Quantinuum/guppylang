@@ -105,8 +105,8 @@ def _find_call_site(calling_func_node: AstNode) -> AstNode:
         and active_call_span.end <= call_span.end
     ]
     # Choose inner-most call - this may be incorrect, however the debug information
-    # should be the same for both and for any other used we should also be fine
-    # with the calling function node this should not be a problem.
+    # should be the same for both and for any other use we should also be fine
+    # with the calling function node, so this should not be a problem.
     return min(
         candidates,
         key=lambda call: len(list(ast.walk(call))),
