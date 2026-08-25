@@ -278,8 +278,7 @@ class CompilationEngine:
                 else ""
             )
             raise InternalGuppyError(
-                f"Can only {operation}{object}"
-                f" during the `{stage}` compiler stage, not {self._stage}"
+                f"Can only {operation}{object} during `{stage}`, not {self._stage}"
             )
 
     @pretty_errors
