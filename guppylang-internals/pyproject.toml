@@ -29,7 +29,7 @@ classifiers = [
 
 dependencies = [
     "typing-extensions >=4.9.0,<5",
-    "tket-exts ~= 0.14.0",
+    "tket-exts~=0.14.1",
     "hugr ~= 0.18.2",
     "wasmtime>=47.0.1,<47.1",
     "pytket>=2.18.1",
