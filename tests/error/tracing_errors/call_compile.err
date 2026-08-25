@@ -3,4 +3,4 @@ Traceback (most recent call last):
     main.compile()
   File "$FILE", line 10, in main
     foo.compile()
-guppylang_internals.error.InternalGuppyError: Can only compile during `CompilationStage.NONE`, not CompilationStage.CHECK
+guppylang_internals.engine.CompilationStageError: Can only compile during `CompilationStage.NONE`, not `CompilationStage.CHECK`

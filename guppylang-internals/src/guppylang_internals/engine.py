@@ -272,13 +272,8 @@ class CompilationEngine:
         self, operation: str, defn: Definition | None, stage: CompilationStage
     ) -> None:
         if self._stage != stage:
-            object = (
-                f" {defn.description.capitalize()} `{defn.name}`"
-                if defn is not None
-                else ""
-            )
-            raise InternalGuppyError(
-                f"Can only {operation}{object} during `{stage}`, not {self._stage}"
+            raise CompilationStageError(
+                operation, defn, actual_stage=self._stage, expected_stage=stage
             )
 
     @pretty_errors
@@ -642,6 +637,29 @@ class EntryMonomorphizeError(Error):
     @property
     def params_str(self) -> str:
         return ", ".join(f"`{p.name}`" for p in self.params)
+
+
+class CompilationStageError(InternalGuppyError):
+    """Raised when the CompilationEngine is requested to do some operation
+    during a stage in which the operation cannot be performed"""
+
+    def __init__(
+        self,
+        operation: str,
+        defn: Definition | None,
+        *,
+        actual_stage: CompilationStage,
+        expected_stage: CompilationStage,
+    ) -> None:
+        object = (
+            f" {defn.description.capitalize()} `{defn.name}`"
+            if defn is not None
+            else ""
+        )
+        super().__init__(
+            f"Can only {operation}{object} during `{expected_stage}`"
+            f", not `{actual_stage}`"
+        )
 
 
 @dataclass(frozen=True)
