@@ -29,7 +29,7 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
-from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
+from guppylang_internals.engine import DEF_STORE, ENGINE, CompilationStage, MonoDefId
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.metadata.debug_info_util import StringTable
 from guppylang_internals.std._internal.compiler.tket_exts import (
@@ -126,7 +126,7 @@ class CompilerContext(ToHugrContext):
 
         Might mutate the current Hugr if this definition has never been compiled before.
         """
-        assert ENGINE._stage == "compile"
+        assert ENGINE._stage == CompilationStage.COMPILE
         mono_args = type_args or ()
         if (def_id, mono_args) not in self.compiled:
             defn = ENGINE.get_checked(def_id, mono_args)

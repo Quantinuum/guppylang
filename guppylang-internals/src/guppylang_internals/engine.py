@@ -2,9 +2,10 @@ from collections import defaultdict
 from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, Literal, assert_never, cast
+from typing import ClassVar, assert_never, cast
 
 import hugr
 import hugr.build.function as hf
@@ -122,6 +123,12 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 MonoDefId = tuple[DefId, Inst]
 
 
+class CompilationStage(Enum):
+    NONE = "none"
+    CHECK = "check"
+    COMPILE = "compile"
+
+
 class DefinitionStore:
     """Storage class holding references to all Guppy definitions created in the current
     interpreter session.
@@ -215,7 +222,7 @@ class CompilationEngine:
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
-    _stage: Literal["none", "check", "compile"] = "none"
+    _stage: CompilationStage = CompilationStage.NONE
 
     def __init__(self) -> None:
         """Resets the compilation cache."""
@@ -265,14 +272,14 @@ class CompilationEngine:
         if id in self.parsed:
             return self.parsed[id]
         defn = DEF_STORE.raw_defs[id]
-        if self._stage == "none":
-            self._stage = "check"
+        if self._stage == CompilationStage.NONE:
+            self._stage = CompilationStage.CHECK
             try:
                 return self.get_parsed(id)
             finally:
-                self._stage = "none"
+                self._stage = CompilationStage.NONE
 
-        if self._stage != "check":
+        if self._stage != CompilationStage.CHECK:
             # assert isinstance(defn, ParsedDef) # Can't isinstance ParsedDef (union)
             if not isinstance(
                 defn, (CheckableDef, CheckableGenericDef, CompilableDef, CompiledDef)
@@ -307,14 +314,14 @@ class CompilationEngine:
             return self.checked[id, mono_args]
         defn = self.get_parsed(id)
 
-        if self._stage == "none":
-            self._stage = "check"
+        if self._stage == CompilationStage.NONE:
+            self._stage = CompilationStage.CHECK
             try:
                 return self.get_checked(id, mono_args)
             finally:
-                self._stage = "none"
+                self._stage = CompilationStage.NONE
 
-        if self._stage != "check":
+        if self._stage != CompilationStage.CHECK:
             if not isinstance(defn, (CompiledDef, CompilableDef)):
                 raise DefinitionStageError("check", defn, "check")
         elif isinstance(defn, CheckableDef):
@@ -421,8 +428,8 @@ class CompilationEngine:
 
         This is the main driver behind `guppy.library(...).check()`.
         """
-        assert self._stage == "none"
-        self._stage = "check"
+        assert self._stage == CompilationStage.NONE
+        self._stage = CompilationStage.CHECK
         try:
             # Clear previous compilation cache.
             # TODO: In order to maintain results from the previous `check` call we would
@@ -483,7 +490,7 @@ class CompilationEngine:
                     (id, mono_args), _ = self.to_check_worklist.popitem()
                     self.checked[id, mono_args] = self.get_checked(id, mono_args)
         finally:
-            self._stage = "none"
+            self._stage = CompilationStage.NONE
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
@@ -517,8 +524,8 @@ class CompilationEngine:
         self, def_ids: list[DefId], *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
         self.check(def_ids, reset=reset)
-        assert self._stage == "none"
-        self._stage = "compile"
+        assert self._stage == CompilationStage.NONE
+        self._stage = CompilationStage.COMPILE
         try:
             # Prepare Hugr for this module
             graph = hf.Module()
@@ -603,7 +610,7 @@ class CompilationEngine:
                 requested_defs,
             )
         finally:
-            self._stage = "none"
+            self._stage = CompilationStage.NONE
 
 
 class DefinitionStageError(InternalGuppyError):
