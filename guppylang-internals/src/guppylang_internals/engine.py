@@ -1,6 +1,6 @@
 from collections import defaultdict
-from collections.abc import Sequence
-from contextlib import suppress
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -228,6 +228,15 @@ class CompilationEngine:
         self.reset()
         self.additional_extensions = []
 
+    @contextmanager
+    def _in_stage(self, stage: CompilationStage) -> Generator[None, None, None]:
+        old_stage = self._stage
+        self._stage = stage
+        try:
+            yield
+        finally:
+            self._stage = old_stage
+
     @staticmethod
     def _get_base_resolve_registry() -> ExtensionRegistry:
         """Get the base resolve registry with standard extensions.
@@ -259,27 +268,50 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
 
+    def assert_stage(
+        self, operation: str, defn: Definition | None, stage: CompilationStage
+    ) -> None:
+        if self._stage != stage:
+            object = (
+                f" {defn.description.capitalize()} `{defn.name}`"
+                if defn is not None
+                else ""
+            )
+            raise InternalGuppyError(
+                f"Can only {operation}{object}"
+                f" during the `{stage}` compiler stage, not {self._stage}"
+            )
+
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
         """Look up the parsed version of a definition by its id.
 
-        Parses the definition if it hasn't been parsed yet. Also makes sure that the
-        definition will be checked and compiled later on.
+        If in checking stage, parses the definition if it hasn't been already.
+        Also makes sure that the definition will be checked and compiled later on.
         """
         from guppylang_internals.checker.core import Globals
 
         if id in self.parsed:
             return self.parsed[id]
+
+        if self._stage == CompilationStage.NONE:
+            with self._in_stage(CompilationStage.CHECK):
+                return self.get_parsed(id)
+
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
+            self.assert_stage("parse", defn, CompilationStage.CHECK)
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
+            self.assert_stage("parse", defn, CompilationStage.CHECK)
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
+            self.assert_stage("parse", defn, CompilationStage.CHECK)
             self.to_check_worklist[id, ()] = defn
         elif isinstance(defn, CheckableGenericDef) and defn.params:
+            self.assert_stage("parse", defn, CompilationStage.CHECK)
             self.generic_to_check_worklist[id] = defn
         # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
         # since we don't know the generic instantiation yet. It will be added when
@@ -291,17 +323,24 @@ class CompilationEngine:
     def get_checked(self, id: DefId, mono_args: Inst) -> CheckedDef:
         """Look up the checked version of a definition by its id.
 
-        Parses and checks the definition if it hasn't been parsed/checked yet. Also
-        makes sure that the definition will be compiled to Hugr later on.
+        If in checking stage, parses & checks the definition if it hasn't been already.
+        Also makes sure that the definition will be compiled to Hugr later on.
         """
         from guppylang_internals.checker.core import Globals
 
         if (id, mono_args) in self.checked:
             return self.checked[id, mono_args]
+
+        if self._stage == CompilationStage.NONE:
+            with self._in_stage(CompilationStage.CHECK):
+                return self.get_checked(id, mono_args)
+
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
+            self.assert_stage("check", defn, CompilationStage.CHECK)
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
+            self.assert_stage("check", defn, CompilationStage.CHECK)
             try:
                 checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
             except GuppyError as err:
@@ -491,8 +530,14 @@ class CompilationEngine:
     def _compile(
         self, def_ids: list[DefId], *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
+        self.assert_stage("compile", None, CompilationStage.NONE)
         self.check(def_ids, reset=reset)
+        with self._in_stage(CompilationStage.COMPILE):
+            return self._compile_impl(def_ids)
 
+    def _compile_impl(
+        self, def_ids: list[DefId]
+    ) -> tuple[ModulePointer, list[CompiledDef]]:
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
@@ -598,18 +643,6 @@ class EntryMonomorphizeError(Error):
     @property
     def params_str(self) -> str:
         return ", ".join(f"`{p.name}`" for p in self.params)
-
-
-class DefinitionStageError(InternalGuppyError):
-    """Raised when a definition is requested at an invalid compiler stage."""
-
-    def __init__(
-        self, operation: str, defn: Definition, stage: CompilationStage
-    ) -> None:
-        super().__init__(
-            f"Can only {operation} {defn.description.capitalize()} `{defn.name}`"
-            f" during the `{stage}` compiler stage"
-        )
 
 
 @dataclass(frozen=True)

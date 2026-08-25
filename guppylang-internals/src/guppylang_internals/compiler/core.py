@@ -126,10 +126,13 @@ class CompilerContext(ToHugrContext):
 
         Might mutate the current Hugr if this definition has never been compiled before.
         """
-        assert ENGINE._stage == CompilationStage.COMPILE
         mono_args = type_args or ()
         if (def_id, mono_args) not in self.compiled:
             defn = ENGINE.get_checked(def_id, mono_args)
+            # During compilation stage, get_checked will not have done any checking.
+            # (During checking stage, this will fail, but we might have done more
+            # checking. We could avoid this side effect, but it'd be more work.)
+            ENGINE.assert_stage("build_compiled_def", defn, CompilationStage.COMPILE)
             if isinstance(defn, CompilableDef):
                 defn = defn.compile_outer(self.module, self)
             self.compiled[def_id, mono_args] = defn
