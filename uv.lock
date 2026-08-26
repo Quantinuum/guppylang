@@ -805,7 +805,7 @@ requires-dist = [
     { name = "selene-hugr-qis-compiler", specifier = "~=0.4.2" },
     { name = "selene-sim", specifier = "~=0.3.0" },
     { name = "tqdm", specifier = ">=4.70.0" },
-    { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
+    { name = "types-tqdm", specifier = ">=4.70.0.20260805" },
 ]
 
 [[package]]
@@ -3093,27 +3093,12 @@ wheels = [
 ]
 
 [[package]]
-name = "types-requests"
-version = "2.33.0.20260518"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e0/01/c5a19253fe1ac159159ddf9a3a07cec8bb5e486ec4d9002ad2821da0e5d2/types_requests-2.33.0.20260518.tar.gz", hash = "sha256:df7bd3bfe0ca8402dfb841e7d9be714bb5578203283d66d7dc4ef69343449a5e", size = 24752, upload-time = "2026-05-18T06:07:37.966Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1c/bc/b139710a3b6018f7fb2b9508b35c8af564e61bf2bf4fa619d088f3e16f85/types_requests-2.33.0.20260518-py3-none-any.whl", hash = "sha256:626d697d1adaaff76e2044dc8c5c051d8f21abc157bdfe204a75558076fe0bf0", size = 21391, upload-time = "2026-05-18T06:07:37.044Z" },
-]
-
-[[package]]
 name = "types-tqdm"
-version = "4.68.0.20260608"
+version = "4.70.0.20260805"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "types-requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/dc/e0/3facccb1ff69970c73fca7a8028286c233d4c1312c475a65fb3d896f56d9/types_tqdm-4.68.0.20260608.tar.gz", hash = "sha256:e1dfddf8770fbc30ecaf95ae57c286397831235064308f7dfc2b1d6684a76107", size = 18470, upload-time = "2026-06-08T06:26:06.661Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/41/284465d9bb5e657a1a4b17a4addf8800bbfad3d2e903f5a1a4d5bd10dd53/types_tqdm-4.70.0.20260805.tar.gz", hash = "sha256:569efd0fd8b2a460e6e6548634ec253c1362ed8907f8b0daacf0a07eab204a26", size = 19115, upload-time = "2026-08-05T04:52:04.435Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/e8/61d95bfd49d1609fb8e8c5e06f4a094183411988a6f448873f5de6602499/types_tqdm-4.68.0.20260608-py3-none-any.whl", hash = "sha256:450a6e7e9e9b604928968927c414b32970e40091213c4180e1ed470905b13eff", size = 24858, upload-time = "2026-06-08T06:26:05.741Z" },
+    { url = "https://files.pythonhosted.org/packages/97/92/acbd53e79df923bca3881192558a3bc73a47b8b7bd6c94b3649ae45e8094/types_tqdm-4.70.0.20260805-py3-none-any.whl", hash = "sha256:c83113470a46caee2d045428554714f3c314be94eb4ed4030aaa8a8ab21b830c", size = 25135, upload-time = "2026-08-05T04:52:03.166Z" },
 ]
 
 [[package]]
