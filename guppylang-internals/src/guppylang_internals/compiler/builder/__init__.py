@@ -3,7 +3,7 @@ from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Generic, NamedTuple, TypeAlias, TypeVar
+from typing import Self, override
 
 from hugr import Node, Wire, val
 from hugr import tys as ht
@@ -12,7 +12,6 @@ from hugr.build import function as hf
 from hugr.hugr.node_port import ToNode
 from hugr.metadata import HugrDebugInfo
 from hugr.ops import DataflowOp, Output
-from typing_extensions import Self, override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.metadata.debug_info_util import (
@@ -21,7 +20,7 @@ from guppylang_internals.metadata.debug_info_util import (
 )
 from guppylang_internals.tys import Effect
 
-OpWithEffects: TypeAlias = tuple[DataflowOp, Iterable[Effect]]
+type OpWithEffects = tuple[DataflowOp, Iterable[Effect]]
 
 
 def pure(op: DataflowOp) -> OpWithEffects:
@@ -204,11 +203,8 @@ class DFBuilder(ABC, ToNode):
         return self._raw.add_const(value, parent)
 
 
-B = TypeVar("B", bound=hf.Function | Case | TailLoop | Block)
-
-
 @dataclass
-class _DFBuilderRaw(DFBuilder, Generic[B]):
+class _DFBuilderRaw[B: hf.Function | Case | TailLoop | Block](DFBuilder):
     _raw_builder: B
 
     @property

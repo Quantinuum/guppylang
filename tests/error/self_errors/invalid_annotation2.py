@@ -1,7 +1,6 @@
 from typing import Generic
 
 from guppylang.decorator import guppy
-from guppylang_internals.checker.core import V
 
 T = guppy.type_var("T")
 

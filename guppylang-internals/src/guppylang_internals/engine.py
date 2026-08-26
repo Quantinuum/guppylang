@@ -1,10 +1,11 @@
 from collections import defaultdict
-from collections.abc import Sequence
-from contextlib import suppress
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from types import FrameType
-from typing import TYPE_CHECKING, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, ClassVar, assert_never, cast
 
 import hugr
 import hugr.build.function as hf
@@ -15,7 +16,6 @@ from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
 from hugr.ops import FuncDecl
 from hugr.package import ModulePointer, Package
 from semver import Version
-from typing_extensions import assert_never
 
 import guppylang_internals
 from guppylang_internals.checker.effects_checker import CallGraphData, compute_effects
@@ -24,7 +24,6 @@ from guppylang_internals.definition.common import (
     CheckableDef,
     CheckableGenericDef,
     CheckedDef,
-    CompilableDef,
     CompiledDef,
     DefId,
     Definition,
@@ -131,6 +130,12 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 MonoDefId = tuple[DefId, Inst]
 
 
+class CompilationStage(Enum):
+    NONE = "none"
+    CHECK = "check"
+    COMPILE = "compile"
+
+
 class DefinitionStore:
     """Storage class holding references to all Guppy definitions created in the current
     interpreter session.
@@ -228,12 +233,21 @@ class CompilationEngine:
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
-    _stage: Literal["none", "check", "compile"] = "none"
+    _stage: CompilationStage = CompilationStage.NONE
 
     def __init__(self) -> None:
         """Resets the compilation cache."""
         self.reset()
         self.additional_extensions = []
+
+    @contextmanager
+    def _in_stage(self, stage: CompilationStage) -> Generator[None, None, None]:
+        old_stage = self._stage
+        self._stage = stage
+        try:
+            yield
+        finally:
+            self._stage = old_stage
 
     @staticmethod
     def _get_base_resolve_registry() -> ExtensionRegistry:
@@ -287,6 +301,14 @@ class CompilationEngine:
             effects = callee
         data.other_callee_effects.extend(effects)
 
+    def assert_stage(
+        self, operation: str, defn: Definition | None, stage: CompilationStage
+    ) -> None:
+        if self._stage != stage:
+            raise CompilationStageError(
+                operation, defn, actual_stage=self._stage, expected_stage=stage
+            )
+
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
         """Look up the parsed version of a definition by its id.
@@ -298,21 +320,25 @@ class CompilationEngine:
 
         if id in self.parsed:
             return self.parsed[id]
+
+        if self._stage == CompilationStage.NONE:
+            with self._in_stage(CompilationStage.CHECK):
+                return self.get_parsed(id)
+
         defn = DEF_STORE.raw_defs[id]
-        if self._stage != "check":
-            if not isinstance(
-                defn, (CheckableDef, CheckableGenericDef, CompilableDef, CompiledDef)
-            ):
-                raise DefinitionStageError("parse", defn, "check")
-        elif isinstance(defn, ParsableDef):
+        if isinstance(defn, ParsableDef):
+            self.assert_stage("parse", defn, CompilationStage.CHECK)
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
+            self.assert_stage("parse", defn, CompilationStage.CHECK)
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
+            self.assert_stage("parse", defn, CompilationStage.CHECK)
             self.to_check_worklist[id, ()] = defn
         elif isinstance(defn, CheckableGenericDef) and defn.params:
+            self.assert_stage("parse", defn, CompilationStage.CHECK)
             self.generic_to_check_worklist[id] = defn
         # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
         # since we don't know the generic instantiation yet. It will be added when
@@ -331,14 +357,17 @@ class CompilationEngine:
 
         if (id, mono_args) in self.checked:
             return self.checked[id, mono_args]
-        defn = self.get_parsed(id)
 
-        if self._stage != "check":
-            if not isinstance(defn, (CompiledDef, CompilableDef)):
-                raise DefinitionStageError("check", defn, "check")
-        elif isinstance(defn, CheckableDef):
+        if self._stage == CompilationStage.NONE:
+            with self._in_stage(CompilationStage.CHECK):
+                return self.get_checked(id, mono_args)
+
+        defn = self.get_parsed(id)
+        if isinstance(defn, CheckableDef):
+            self.assert_stage("check", defn, CompilationStage.CHECK)
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
+            self.assert_stage("check", defn, CompilationStage.CHECK)
             try:
                 checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
             except GuppyError as err:
@@ -447,69 +476,62 @@ class CompilationEngine:
 
         This is the main driver behind `guppy.library(...).check()`.
         """
-        assert self._stage == "none"
-        self._stage = "check"
-        try:
-            # Clear previous compilation cache.
-            # TODO: In order to maintain results from the previous `check` call we would
-            #  need to store and check if any dependencies have changed.
-            if reset:
-                self.reset()
+        # Clear previous compilation cache.
+        # TODO: In order to maintain results from the previous `check` call we would
+        #  need to store and check if any dependencies have changed.
+        if reset:
+            self.reset()
 
-            # We allow generic functions as checking entrypoints as long as we don't run
-            # into a check that requires monomorphization. For this, we check a version
-            # where all parameters are instantiated to opaque `BoundVariable`s.
-            for def_id in def_ids:
-                entry_defn = self.get_parsed(def_id)
-                entry_params = (
-                    entry_defn.params
-                    if isinstance(entry_defn, CheckableGenericDef)
-                    else []
+        # We allow generic functions as checking entrypoints as long as we don't run
+        # into a check that requires monomorphization. For this, we check a version
+        # where all parameters are instantiated to opaque `BoundVariable`s.
+        for def_id in def_ids:
+            entry_defn = self.get_parsed(def_id)
+            entry_params = (
+                entry_defn.params if isinstance(entry_defn, CheckableGenericDef) else []
+            )
+            entry_mono_args = tuple(param.to_bound() for param in entry_params)
+            try:
+                self.checked[def_id, entry_mono_args] = self.get_checked(
+                    def_id, entry_mono_args
                 )
-                entry_mono_args = tuple(param.to_bound() for param in entry_params)
-                try:
-                    self.checked[def_id, entry_mono_args] = self.get_checked(
-                        def_id, entry_mono_args
-                    )
-                except RequiresMonomorphizationError as e:
-                    # `RequiresMonomorphizationError` is raised whenever we cannot check
-                    # without having the monomorphization available. In that case,
-                    # we give up and prompt the user to specify the generic arguments.
-                    assert isinstance(entry_defn, CheckableGenericDef)
-                    err = EntryCheckMonomorphizeError(entry_defn.defined_at, entry_defn)
-                    raise GuppyError(err) from e
+            except RequiresMonomorphizationError as e:
+                # `RequiresMonomorphizationError` is raised whenever we cannot proceed
+                # checking without having the monomorphization available. In that case,
+                # we give up and prompt the user to specify the generic arguments.
+                assert isinstance(entry_defn, CheckableGenericDef)
+                err = EntryCheckMonomorphizeError(entry_defn.defined_at, entry_defn)
+                raise GuppyError(err) from e
 
-            # Checking the entrypoint will have populated the worklist,
-            # so now we need to process it
-            while (
-                self.types_to_check_worklist
-                or self.generic_to_check_worklist
-                or self.to_check_worklist
-            ):
-                # Types must be checked first. This is because parsing e.g. a function
-                # definition requires instantiating the types in its signature which can
-                # only be done if the types have already been checked.
-                if self.types_to_check_worklist:
-                    id, _ = self.types_to_check_worklist.popitem()
-                    mono_args: Inst = ()
+        # Checking the entrypoint will have populated the worklist, so now we need to
+        # process it
+        while (
+            self.types_to_check_worklist
+            or self.generic_to_check_worklist
+            or self.to_check_worklist
+        ):
+            # Types need to be checked first. This is because parsing e.g. a function
+            # definition requires instantiating the types in its signature which can
+            # only be done if the types have already been checked.
+            if self.types_to_check_worklist:
+                id, _ = self.types_to_check_worklist.popitem()
+                mono_args: Inst = ()
+                self.checked[id, mono_args] = self.get_checked(id, mono_args)
+            # For generic functions, we first check a version where all parameters are
+            # instantiated to opaque `BoundVariable`s. This way, we'll get nicer error
+            # messages e.g. for type mismatches with generic parameters. The concrete
+            # monomorphic instantiations will be checked later via the regular worklist.
+            elif self.generic_to_check_worklist:
+                id, defn = self.generic_to_check_worklist.popitem()
+                mono_args = tuple(param.to_bound() for param in defn.params)
+                # `RequiresMonomorphizationError` is raised whenever we cannot proceed
+                # checking without having the monomorphization available. In that case,
+                # we just gve up and wait for the proper monomorphic check later.
+                with suppress(RequiresMonomorphizationError):
                     self.checked[id, mono_args] = self.get_checked(id, mono_args)
-                # For generic functions, we first check a version with all parameters
-                # instantiated to opaque `BoundVariable`s. This way we get nicer error
-                # messages e.g. for type mismatches with generic parameters. Concrete
-                # monomorphizations will be checked later via the regular worklist.
-                elif self.generic_to_check_worklist:
-                    id, defn = self.generic_to_check_worklist.popitem()
-                    mono_args = tuple(param.to_bound() for param in defn.params)
-                    # `RequiresMonomorphizationError` is raised whenever we cannot check
-                    # without having the monomorphization available. In that case,
-                    # we just give up and wait for the proper monomorphic check later.
-                    with suppress(RequiresMonomorphizationError):
-                        self.checked[id, mono_args] = self.get_checked(id, mono_args)
-                else:
-                    (id, mono_args), _ = self.to_check_worklist.popitem()
-                    self.checked[id, mono_args] = self.get_checked(id, mono_args)
-        finally:
-            self._stage = "none"
+            else:
+                (id, mono_args), _ = self.to_check_worklist.popitem()
+                self.checked[id, mono_args] = self.get_checked(id, mono_args)
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
@@ -542,106 +564,98 @@ class CompilationEngine:
     def _compile(
         self, def_ids: list[DefId], *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
+        self.assert_stage("compile", None, CompilationStage.NONE)
         self.check(def_ids, reset=reset)
-        assert self._stage == "none"
-        self._stage = "compile"
-        try:
-            # Prepare Hugr for this module
-            graph = hf.Module()
-            graph.metadata["name"] = "__main__"  # entrypoint metadata
+        with self._in_stage(CompilationStage.COMPILE):
+            return self._compile_impl(def_ids)
 
-            # Run effects checking based on call graph analysis.
-            effects = compute_effects(self.call_graph)
+    def _compile_impl(
+        self, def_ids: list[DefId]
+    ) -> tuple[ModulePointer, list[CompiledDef]]:
+        # Run effects checking based on call graph analysis.
+        effects = compute_effects(self.call_graph)
 
-            # Lower definitions to Hugr
-            from guppylang_internals.compiler.core import CompilerContext
+        # Prepare Hugr for this module
+        graph = hf.Module()
+        graph.metadata["name"] = "__main__"  # entrypoint metadata
 
-            # Set up string tables for metadata serialization. We know that the first
-            # entry in the table is always the file containing the Hugr entrypoint.
-            frame = get_calling_frame()
-            filename = frame.f_code.co_filename
+        # Lower definitions to Hugr
+        from guppylang_internals.compiler.core import CompilerContext
 
-            ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
-            requested_defs = []
-            for def_id in def_ids:
-                check_entry_point_non_generic(self.get_parsed(def_id))
-                requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
-            ctx.iterate_worklist()
-            self.compiled = ctx.compiled
+        # Set up string tables for metadata serialization. We know that the first entry
+        # in the table is always the file containing the Hugr entrypoint.
+        frame = get_calling_frame()
+        filename = frame.f_code.co_filename
 
-            # Add debug info about the module to the root node
-            if debug_mode_enabled():
-                module_info = DICompileUnit(
-                    directory=Path.cwd().as_uri(),
-                    # We know this file is always the first entry in the file table.
-                    filename=ctx.metadata_file_table.get_index(filename),
-                    file_table=ctx.metadata_file_table.table,
+        ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
+        requested_defs = []
+        for def_id in def_ids:
+            check_entry_point_non_generic(self.get_parsed(def_id))
+            requested_defs.append(ctx.build_compiled_def(def_id, type_args=None))
+        ctx.iterate_worklist()
+        self.compiled = ctx.compiled
+
+        # Add debug info about the module to the root node
+        if debug_mode_enabled():
+            module_info = DICompileUnit(
+                directory=Path.cwd().as_uri(),
+                # We know this file is always the first entry in the file table.
+                filename=ctx.metadata_file_table.get_index(filename),
+                file_table=ctx.metadata_file_table.table,
+            )
+            graph.hugr[graph.hugr.module_root].metadata[HugrDebugInfo] = module_info
+
+        # Build resolve registry: start with cached base, add any additional
+        if self.additional_extensions:
+            from copy import deepcopy
+
+            resolve_registry = deepcopy(self._get_base_resolve_registry())
+            for ext in self.additional_extensions:
+                resolve_registry.register(ext)
+        else:
+            resolve_registry = self._get_base_resolve_registry()
+
+        # Compute used extensions dynamically from the HUGR.
+        used_extensions_result = graph.hugr.used_extensions(
+            resolve_from=resolve_registry
+        )
+
+        # Set metadata for used extensions
+        used_exts_meta = [
+            ExtensionDesc(name=ext.name, version=ext.version)
+            for ext in used_extensions_result.used_extensions.extensions
+        ]
+        # Add unresolved extensions as well, but we only have the names
+        used_exts_meta.extend(
+            [
+                # TODO: Remove dummy version once optional in Hugr.
+                ExtensionDesc(
+                    name=ext_name, version=Version(major=0, prerelease="unknown")
                 )
-                graph.hugr[graph.hugr.module_root].metadata[HugrDebugInfo] = module_info
-
-            # Build resolve registry: start with cached base, add any additional
-            if self.additional_extensions:
-                from copy import deepcopy
-
-                resolve_registry = deepcopy(self._get_base_resolve_registry())
-                for ext in self.additional_extensions:
-                    resolve_registry.register(ext)
-            else:
-                resolve_registry = self._get_base_resolve_registry()
-
-            # Compute used extensions dynamically from the HUGR.
-            used_extensions_result = graph.hugr.used_extensions(
-                resolve_from=resolve_registry
-            )
-
-            # Set metadata for used extensions
-            used_exts_meta = [
-                ExtensionDesc(name=ext.name, version=ext.version)
-                for ext in used_extensions_result.used_extensions.extensions
+                for ext_name in used_extensions_result.unresolved_extensions
             ]
-            # Add unresolved extensions as well, but we only have the names
-            used_exts_meta.extend(
-                [
-                    # TODO: Remove dummy version once optional in Hugr.
-                    ExtensionDesc(
-                        name=ext_name, version=Version(major=0, prerelease="unknown")
-                    )
-                    for ext_name in used_extensions_result.unresolved_extensions
-                ]
-            )
-            root_metadata = graph.hugr[graph.hugr.module_root].metadata
-            root_metadata[HugrUsedExtensions] = used_exts_meta
-            root_metadata[HugrGenerator] = GeneratorDesc(
-                name="guppylang",
-                version=Version.parse(
-                    guppylang_internals.__version__, optional_minor_and_patch=True
-                ),
-            )
-            # Package all non-standard extensions used in the hugr.
-            # Standard hugr extensions are universally available so aren't needed.
-            std_ext_names = hugr.std._std_extensions()
-            packaged_extensions = [
-                ext
-                for ext in used_extensions_result.used_extensions.extensions
-                if ext.name not in std_ext_names
-            ]
-            return (
-                ModulePointer(
-                    Package(modules=[graph.hugr], extensions=packaged_extensions), 0
-                ),
-                requested_defs,
-            )
-        finally:
-            self._stage = "none"
-
-
-class DefinitionStageError(InternalGuppyError):
-    """Raised when a definition is requested at an invalid compiler stage."""
-
-    def __init__(self, operation: str, defn: Definition, stage: str) -> None:
-        super().__init__(
-            f"Can only {operation} {defn.description.capitalize()} `{defn.name}`"
-            f" during the `{stage}` compiler stage"
+        )
+        root_metadata = graph.hugr[graph.hugr.module_root].metadata
+        root_metadata[HugrUsedExtensions] = used_exts_meta
+        root_metadata[HugrGenerator] = GeneratorDesc(
+            name="guppylang",
+            version=Version.parse(
+                guppylang_internals.__version__, optional_minor_and_patch=True
+            ),
+        )
+        # Package all non-standard extensions used in the hugr.
+        # Standard hugr extensions are universally available and don't need bundling.
+        std_ext_names = hugr.std._std_extensions()
+        packaged_extensions = [
+            ext
+            for ext in used_extensions_result.used_extensions.extensions
+            if ext.name not in std_ext_names
+        ]
+        return (
+            ModulePointer(
+                Package(modules=[graph.hugr], extensions=packaged_extensions), 0
+            ),
+            requested_defs,
         )
 
 
@@ -666,6 +680,29 @@ class EntryMonomorphizeError(Error):
     @property
     def params_str(self) -> str:
         return ", ".join(f"`{p.name}`" for p in self.params)
+
+
+class CompilationStageError(InternalGuppyError):
+    """Raised when the CompilationEngine is requested to do some operation
+    during a stage in which the operation cannot be performed"""
+
+    def __init__(
+        self,
+        operation: str,
+        defn: Definition | None,
+        *,
+        actual_stage: CompilationStage,
+        expected_stage: CompilationStage,
+    ) -> None:
+        object = (
+            f" {defn.description.capitalize()} `{defn.name}`"
+            if defn is not None
+            else ""
+        )
+        super().__init__(
+            f"Can only {operation}{object} during `{expected_stage}`"
+            f", not `{actual_stage}`"
+        )
 
 
 @dataclass(frozen=True)
