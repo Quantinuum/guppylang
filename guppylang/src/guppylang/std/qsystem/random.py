@@ -16,6 +16,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_RANDOM_EXTENSION,
 )
 from guppylang_internals.std._internal.util import external_op
+from guppylang_internals.tys import Effect
 
 from guppylang import guppy
 from guppylang.std.angles import angle, pi
@@ -30,7 +31,10 @@ SHUFFLE_T = guppy.type_var("SHUFFLE_T", copyable=False, droppable=False)
 DISCRETE_N = guppy.nat_var("DISCRETE_N")
 
 
-@hugr_op(external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION))
+@hugr_op(
+    external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
+    effects=[Effect.ANY],
+)
 @no_type_check
 def _new_rng_context(seed: int) -> Option["RNG"]: ...
 
@@ -54,7 +58,10 @@ class RNG:
         r"""Generate a random Clifford angle (multiple of :math:`\pi/2`)."""
         return self.random_int_bounded(4) * pi / 2
 
-    @hugr_op(external_op("DeleteRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION))
+    @hugr_op(
+        external_op("DeleteRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
+        effects=[Effect.ANY],
+    )
     @no_type_check
     def discard(self: "RNG" @ owned) -> None:
         """Discard the random number generator."""
