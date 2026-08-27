@@ -600,7 +600,7 @@ class EntryCheckMonomorphizeError(Error):
 
     @property
     def thing(self) -> str:
-        return self.defn.caps_str()
+        return self.defn.to_caps_str()
 
     @property
     def plural_s(self) -> str:
@@ -623,7 +623,7 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
     if isinstance(defn, CheckableGenericDef) and defn.params:
         assert defn.defined_at is not None
         raise GuppyError(
-            EntryMonomorphizeError(defn.defined_at, defn.caps_str(), defn.params)
+            EntryMonomorphizeError(defn.defined_at, defn.to_caps_str(), defn.params)
         )
 
 

@@ -155,7 +155,7 @@ class GuppyEnumDefinition(GuppyDefinition):
         ):
             member_def = DEF_STORE.raw_defs[DEF_STORE.type_members[defn.id][name]]
             return TracingDefMixin(member_def)
-        raise AttributeError(f"{defn.caps_str()} has no attribute `{name}`")
+        raise AttributeError(f"{defn.to_caps_str()} has no attribute `{name}`")
 
 
 @runtime_checkable

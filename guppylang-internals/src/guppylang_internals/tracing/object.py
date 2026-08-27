@@ -563,7 +563,7 @@ class TracingDefMixin(DunderMixin):
 
         if not tracing_active():
             raise GuppyComptimeError(
-                f"{self.wrapped.caps_str()} may only be called in a Guppy context"
+                f"{self.wrapped.to_caps_str()} may only be called in a Guppy context"
             )
 
         defn = ENGINE.get_parsed(self.wrapped.id)
@@ -576,7 +576,7 @@ class TracingDefMixin(DunderMixin):
                 constructor_id := DEF_STORE.type_members[defn.id].get("__new__")
             ):
                 return TracingDefMixin(DEF_STORE.raw_defs[constructor_id])(*args)
-        raise GuppyComptimeError(f"{defn.caps_str()} is not callable")
+        raise GuppyComptimeError(f"{defn.to_caps_str()} is not callable")
 
     def __getitem__(self, item: Any) -> Any:
         # If this is a type definition, then `__getitem__` might be called when
@@ -601,7 +601,7 @@ class TracingDefMixin(DunderMixin):
                     "Explicitly specifying type arguments of generic functions in a "
                     "comptime context is not supported yet"
                 )
-        raise GuppyComptimeError(f"{self.wrapped.caps_str()} is not subscriptable")
+        raise GuppyComptimeError(f"{self.wrapped.to_caps_str()} is not subscriptable")
 
     def to_guppy_object(self) -> GuppyObject:
         state = get_tracing_state()
