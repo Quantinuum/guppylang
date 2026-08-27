@@ -30,9 +30,6 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
 from guppylang_internals.engine import (
-    CALL_CONTROLLED_METHOD,
-    CALL_CTRL_DAGGERED_METHOD,
-    CALL_DAGGERED_METHOD,
     DEF_STORE,
     ENGINE,
     CompilationStage,
@@ -59,6 +56,9 @@ from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
     StructType,
     TupleType,
     Type,

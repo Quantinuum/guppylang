@@ -367,15 +367,6 @@ class UnitaryFlags(Flag):
 
     Unitary = Control | Dagger
 
-    def is_weaker_than(self, other: "UnitaryFlags") -> bool:
-        """Whether this flag is weaker than `other`,
-        i.e. whether this flag allows more contexts than `other`."""
-
-        if self == UnitaryFlags.NoFlags:
-            return True
-        else:
-            return self in other
-
     def hint_rendering(self) -> str:
         """Return the corresponding decorator flag"""
         match self:
@@ -810,9 +801,9 @@ class TupleType(ParametrizedTypeBase):
 
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
-        return transformer.transform(self) or TupleType(
-            [ty.transform(transformer) for ty in self.element_types]
-        )
+        return transformer.transform(self) or TupleType([
+            ty.transform(transformer) for ty in self.element_types
+        ])
 
 
 @dataclass(frozen=True)
