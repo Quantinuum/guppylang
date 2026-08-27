@@ -7,7 +7,7 @@ T = guppy.type_var("T")
 
 
 @guppy.struct
-class Box(Generic[T]):
+class Box[T]:
     value: T
 
 

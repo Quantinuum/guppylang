@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ParamSpec, TypeVar
+from typing import TYPE_CHECKING
 
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
 from guppylang_internals.engine import DEF_STORE
@@ -9,9 +9,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from guppylang_internals.definition.ty import TypeDef
-
-T = TypeVar("T")
-P = ParamSpec("P")
 
 
 def extend_type(defn: TypeDef, return_class: bool = False) -> Callable[[type], type]:

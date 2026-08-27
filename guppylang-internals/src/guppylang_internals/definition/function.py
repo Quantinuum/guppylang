@@ -2,13 +2,12 @@ import ast
 import inspect
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.debug_info import DISubprogram
 from hugr.hugr.node_port import ToNode
-from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -21,7 +20,11 @@ from guppylang_internals.ast_util import (
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Context, Globals, Place
 from guppylang_internals.checker.errors.generic import ExpectedError
-from guppylang_internals.checker.expr_checker import check_call, synthesize_call
+from guppylang_internals.checker.expr_checker import (
+    check_call,
+    make_global_call,
+    synthesize_call,
+)
 from guppylang_internals.checker.func_checker import (
     check_global_func_def,
     check_signature,
@@ -56,7 +59,6 @@ from guppylang_internals.metadata.common import (
     FunctionMetadata,
     add_metadata,
 )
-from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, to_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
@@ -236,8 +238,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
     @override
@@ -247,8 +248,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
-        ENGINE.register_generic_use(self, inst)
+        node = with_loc(node, make_global_call(self, args, inst))
         return with_type(ty, node), ty
 
 

@@ -1,17 +1,13 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
-from typing import Generic, TypeVar
+from collections.abc import Hashable, Iterable
 
-from guppylang_internals.cfg.bb import BB, VariableStats, VId
-
-# Type variable for the lattice domain
-T = TypeVar("T")
+from guppylang_internals.cfg.bb import BB, VariableStats
 
 # Analysis result is a mapping from basic blocks to lattice values
-Result = dict[BB, T]
+type Result[T] = dict[BB, T]
 
 
-class Analysis(ABC, Generic[T]):
+class Analysis[T](ABC):
     """Abstract base class for a program analysis pass over the lattice `T`"""
 
     def eq(self, t1: T, t2: T, /) -> bool:
@@ -39,7 +35,7 @@ class Analysis(ABC, Generic[T]):
         """
 
 
-class ForwardAnalysis(Analysis[T], ABC, Generic[T]):
+class ForwardAnalysis[T](Analysis[T], ABC):
     """Abstract base class for a program analysis pass running in forward direction."""
 
     @abstractmethod
@@ -71,7 +67,7 @@ class ForwardAnalysis(Analysis[T], ABC, Generic[T]):
         return vals_before
 
 
-class BackwardAnalysis(Analysis[T], ABC, Generic[T]):
+class BackwardAnalysis[T](Analysis[T], ABC):
     """Abstract base class for a program analysis pass running in backward direction."""
 
     @abstractmethod
@@ -102,10 +98,10 @@ class BackwardAnalysis(Analysis[T], ABC, Generic[T]):
 
 # For live variable analysis, we also store a BB in which a use occurs as evidence of
 # liveness.
-LivenessDomain = dict[VId, BB]
+type LivenessDomain[VId: Hashable] = dict[VId, BB]
 
 
-class LivenessAnalysis(BackwardAnalysis[LivenessDomain[VId]], Generic[VId]):
+class LivenessAnalysis[VId: Hashable](BackwardAnalysis[LivenessDomain[VId]]):
     """Live variable analysis pass.
 
     Computes the variables that are live before the execution of each BB. The analysis
@@ -151,17 +147,19 @@ class LivenessAnalysis(BackwardAnalysis[LivenessDomain[VId]], Generic[VId]):
 
 
 # Set of variables that are definitely assigned at the start of a BB
-DefAssignmentDomain = set[VId]
+type DefAssignmentDomain[VId: Hashable] = set[VId]
 
 # Set of variables that are assigned on (at least) some paths to a BB. Definitely
 # assigned variables are a subset of this
-MaybeAssignmentDomain = set[VId]
+type MaybeAssignmentDomain[VId: Hashable] = set[VId]
 
 # For assignment analysis, we do definite- and maybe-assignment in one pass
-AssignmentDomain = tuple[DefAssignmentDomain[VId], MaybeAssignmentDomain[VId]]
+type AssignmentDomain[VId: Hashable] = tuple[
+    DefAssignmentDomain[VId], MaybeAssignmentDomain[VId]
+]
 
 
-class AssignmentAnalysis(ForwardAnalysis[AssignmentDomain[VId]], Generic[VId]):
+class AssignmentAnalysis[VId: Hashable](ForwardAnalysis[AssignmentDomain[VId]]):
     """Assigned variable analysis pass.
 
     Computes the set of variables (i.e. `V`s) that are definitely assigned at the start

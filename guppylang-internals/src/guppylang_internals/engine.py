@@ -5,7 +5,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, assert_never, cast
 
 import hugr
 import hugr.build.function as hf
@@ -16,7 +16,6 @@ from hugr.metadata import HugrDebugInfo, HugrGenerator, HugrUsedExtensions
 from hugr.ops import FuncDecl
 from hugr.package import ModulePointer, Package
 from semver import Version
-from typing_extensions import assert_never
 
 import guppylang_internals
 from guppylang_internals.debug_mode import debug_mode_enabled
@@ -81,10 +80,10 @@ from guppylang_internals.tys.printing import TypePrinter
 from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
 from guppylang_internals.tys.subst import BoundVarFinder, Inst
 from guppylang_internals.tys.ty import (
-    BoundTypeVar,
     CALL_CONTROLLED_METHOD,
     CALL_CTRL_DAGGERED_METHOD,
     CALL_DAGGERED_METHOD,
+    BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
     FuncInput,

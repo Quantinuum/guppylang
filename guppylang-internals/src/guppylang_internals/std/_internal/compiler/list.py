@@ -4,12 +4,12 @@ multiple nodes.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 import hugr.std.collections.list
 from hugr import Wire
 from hugr import tys as ht
-from hugr.ops import DfParentOp, ExtOp
+from hugr.ops import ExtOp
 from hugr.std.collections.list import List, ListVal
 
 from guppylang_internals.compiler.builder import OpWithEffects, ops, pure
@@ -319,9 +319,6 @@ class ListLengthCompiler(CustomCallCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
-
-
-P = TypeVar("P", bound=DfParentOp)
 
 
 def list_new(builder: DFBuilder, elem_type: ht.Type, args: list[Wire]) -> Wire:

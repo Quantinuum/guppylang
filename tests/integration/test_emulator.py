@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from guppylang.decorator import expected_qubits, guppy
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.emulator.exceptions import EmulatorBuildError
@@ -60,6 +63,48 @@ def test_basic_emulation() -> None:
     res = main.emulator(1).statevector_sim().with_seed(42).run()
     expected = EmulatorResult([[("c", True)]])
     assert res == expected
+
+
+def test_emulator_analysis(snapshot, request) -> None:
+    """Analysis data is collected per shot without changing the run API."""
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        h(q)
+        outcome = measure(q).read()
+        output("outcome", outcome)
+        if outcome:
+            output("branch", measure(qubit()).read())
+
+    result = (
+        main.emulator(2)
+        .coinflip_sim()
+        .with_seed(42)
+        .with_shots(2)
+        .with_trace()
+        .with_metrics()
+        .run()
+    )
+
+    assert len(result.results) == 2
+    assert len(result.circuits()) == 2
+    snapshot.snapshot_dir = str(Path(request.fspath).parent / "snapshots")
+    snapshot.assert_match(
+        json.dumps(result.metrics(), indent=2, sort_keys=True),
+        f"{request.node.name}_metrics.json",
+    )
+    snapshot.assert_match(
+        json.dumps(
+            [
+                trace.clear_simulator_perf_timing().model_dump()
+                for trace in result.traces()
+            ],
+            indent=2,
+            sort_keys=True,
+        ),
+        f"{request.node.name}_traces.json",
+    )
 
 
 def test_all_options() -> None:

@@ -1,5 +1,5 @@
 from typing import Generic
-from typing_extensions import Self
+from typing import Self
 
 from guppylang import guppy
 

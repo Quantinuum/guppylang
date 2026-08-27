@@ -1,19 +1,19 @@
 import ast
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 import hugr.build.function as hf
 import hugr.tys as ht
 from hugr import Node, Wire
 from hugr.build.dfg import DefinitionBuilder, OpVar
 from hugr.metadata import HugrDebugInfo
-from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode, with_loc
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.expr_checker import (
     check_call,
+    make_global_call,
     synthesize_call,
 )
 from guppylang_internals.checker.func_checker import (
@@ -37,7 +37,6 @@ from guppylang_internals.definition.value import (
     CompiledHugrNodeDef,
 )
 from guppylang_internals.metadata.common import FunctionMetadata, add_metadata
-from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tracing.compile import replay_trace
 from guppylang_internals.tys import Effect
@@ -124,7 +123,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
     @override
@@ -134,7 +133,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, ty
 
 
