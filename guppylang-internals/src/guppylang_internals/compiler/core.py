@@ -132,7 +132,7 @@ class CompilerContext(ToHugrContext):
             # During compilation stage, get_checked will not have done any checking.
             # (During checking stage, this will fail, but we might have done more
             # checking. We could avoid this side effect, but it'd be more work.)
-            ENGINE.assert_stage(CompilationStage.COMPILE, "build_compiled_def", defn)
+            ENGINE.assert_stage(CompilationStage.COMPILE, ("build_compiled_def", defn))
             if isinstance(defn, CompilableDef):
                 defn = defn.compile_outer(self.module, self)
             self.compiled[def_id, mono_args] = defn
