@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, cast, get_args
 
 from hugr.debug_info import DebugRecord
 from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
@@ -81,11 +81,11 @@ class FunctionMetadata:
     def set_modified_defs(self, modified_names: list[str | list[str] | None]) -> None:
         assert len(modified_names) == 3
         if modified_names[0] is not None:
-            self._node_metadata[DAGGERED_KEY] = modified_names[0]
+            self._node_metadata[DAGGERED_KEY] = cast("JsonType", modified_names[0])
         if modified_names[1] is not None:
-            self._node_metadata[CONTROLLED_KEY] = modified_names[1]
+            self._node_metadata[CONTROLLED_KEY] = cast("JsonType", modified_names[1])
         if modified_names[2] is not None:
-            self._node_metadata[CTRL_DAGGERED_KEY] = modified_names[2]
+            self._node_metadata[CTRL_DAGGERED_KEY] = cast("JsonType", modified_names[2])
 
     def set_inline(self, inline: "InlineAnnotationValue") -> None:
         from tket.metadata import InlineAnnotation, InlineAnnotationValue
