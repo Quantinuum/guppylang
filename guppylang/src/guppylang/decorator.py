@@ -394,6 +394,9 @@ class _Guppy:
         object.__setattr__(call_raw_func, "name", cls.__name__)
         # This field is used for the error span for experimental features checking.
         object.__setattr__(call_raw_func, "unitary_class_at", decorator_node)
+        object.__setattr__(
+            call_raw_func, "unitary_class_params", unitary_class_span.type_params
+        )
 
         # Update the unitary metadata according to the custom implementations
 
@@ -401,6 +404,11 @@ class _Guppy:
 
         for custom_def in custom_modified_definition:
             if custom_def is not None:
+                object.__setattr__(
+                    custom_def,
+                    "unitary_class_params",
+                    unitary_class_span.type_params,
+                )
                 DEF_STORE.register_custom_modified_def(call_raw_func.id, custom_def.id)
         assert call_raw_func.metadata is not None
         daggered, controlled, ctrl_daggered = custom_modified_definition

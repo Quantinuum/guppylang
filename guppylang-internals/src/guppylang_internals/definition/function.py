@@ -139,6 +139,10 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     # Used for experimental feature checking.
     unitary_class_at: AstNode | None = field(default=None, kw_only=True)
 
+    # Type parameters of the `@guppy.unitary` class when this function is the `__call__`
+    # implementation or one of custom modified implementations.
+    unitary_class_params: Sequence[ast.type_param] = field(default=(), kw_only=True)
+
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @override
@@ -147,6 +151,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
         if self.unitary_class_at is not None:
             check_unitary_classes_enabled(self.unitary_class_at)
         func_ast, docstring = parse_py_func(self.python_func, sources)
+        func_ast.type_params = [*self.unitary_class_params, *func_ast.type_params]
         ty = check_signature(
             func_ast, globals, self.id, unitary_flags=self.unitary_flags
         )
