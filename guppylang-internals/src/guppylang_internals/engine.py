@@ -25,7 +25,6 @@ from guppylang_internals.definition.common import (
     CheckedDef,
     CompiledDef,
     DefId,
-    Definition,
     ParsableDef,
     ParsedDef,
     RawDef,
@@ -268,12 +267,10 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
 
-    def assert_stage(
-        self, stage: CompilationStage, operation: str, defn: Definition | None = None
-    ) -> None:
+    def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
             raise CompilationStageError(
-                operation, defn, actual_stage=self._stage, expected_stage=stage
+                context, actual_stage=self._stage, expected_stage=stage
             )
 
     @pretty_errors
@@ -294,18 +291,18 @@ class CompilationEngine:
 
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
-            self.assert_stage(CompilationStage.CHECK, "parse", defn)
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
-            self.assert_stage(CompilationStage.CHECK, "parse", defn)
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
-            self.assert_stage(CompilationStage.CHECK, "parse", defn)
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.to_check_worklist[id, ()] = defn
         elif isinstance(defn, CheckableGenericDef) and defn.params:
-            self.assert_stage(CompilationStage.CHECK, "parse", defn)
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.generic_to_check_worklist[id] = defn
         # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
         # since we don't know the generic instantiation yet. It will be added when
@@ -331,10 +328,10 @@ class CompilationEngine:
 
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
-            self.assert_stage(CompilationStage.CHECK, "check", defn)
+            self.assert_stage(CompilationStage.CHECK, f"check {defn}")
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
-            self.assert_stage(CompilationStage.CHECK, "check", defn)
+            self.assert_stage(CompilationStage.CHECK, f"check {defn}")
             try:
                 checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
             except GuppyError as err:
@@ -645,20 +642,13 @@ class CompilationStageError(InternalGuppyError):
 
     def __init__(
         self,
-        operation: str,
-        defn: Definition | None,
+        context: str,
         *,
         actual_stage: CompilationStage,
         expected_stage: CompilationStage,
     ) -> None:
-        object = (
-            f" {defn.description.capitalize()} `{defn.name}`"
-            if defn is not None
-            else ""
-        )
         super().__init__(
-            f"Can only {operation}{object} during `{expected_stage}`"
-            f", not `{actual_stage}`"
+            f"Can only {context} during `{expected_stage}`, not `{actual_stage}`"
         )
 
 
