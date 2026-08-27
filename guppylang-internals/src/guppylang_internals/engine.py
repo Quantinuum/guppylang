@@ -269,7 +269,7 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
 
     def assert_stage(
-        self, operation: str, defn: Definition | None, stage: CompilationStage
+        self, stage: CompilationStage, operation: str, defn: Definition | None
     ) -> None:
         if self._stage != stage:
             raise CompilationStageError(
@@ -294,18 +294,18 @@ class CompilationEngine:
 
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
-            self.assert_stage("parse", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, "parse", defn)
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
-            self.assert_stage("parse", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, "parse", defn)
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
-            self.assert_stage("parse", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, "parse", defn)
             self.to_check_worklist[id, ()] = defn
         elif isinstance(defn, CheckableGenericDef) and defn.params:
-            self.assert_stage("parse", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, "parse", defn)
             self.generic_to_check_worklist[id] = defn
         # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
         # since we don't know the generic instantiation yet. It will be added when
@@ -331,10 +331,10 @@ class CompilationEngine:
 
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
-            self.assert_stage("check", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, "check", defn)
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
-            self.assert_stage("check", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, "check", defn)
             try:
                 checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
             except GuppyError as err:
@@ -524,7 +524,7 @@ class CompilationEngine:
     def _compile(
         self, def_ids: list[DefId], *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
-        self.assert_stage("compile", None, CompilationStage.NONE)
+        self.assert_stage(CompilationStage.NONE, "compile", None)
         self.check(def_ids, reset=reset)
         with self._in_stage(CompilationStage.COMPILE):
             return self._compile_impl(def_ids)
