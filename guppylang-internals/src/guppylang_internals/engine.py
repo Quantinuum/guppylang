@@ -82,6 +82,9 @@ from guppylang_internals.tys.printing import TypePrinter
 from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
 from guppylang_internals.tys.subst import BoundVarFinder, Inst
 from guppylang_internals.tys.ty import (
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
     BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
@@ -126,12 +129,6 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
-
-
-# Names of the custom modified definition methods. Used in the @guppy.unitary decorator.
-CALL_DAGGERED_METHOD = "daggered"
-CALL_CONTROLLED_METHOD = "controlled"
-CALL_CTRL_DAGGERED_METHOD = "ctrl_daggered"
 
 #: Identifier for a monomorphized version of a definition.
 #:

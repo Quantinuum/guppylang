@@ -38,6 +38,12 @@ if TYPE_CHECKING:
     from guppylang_internals.tys.subst import Inst, PartialInst, Subst
 
 
+# Names of the custom modified definition methods. Used in the @guppy.unitary decorator.
+CALL_DAGGERED_METHOD = "daggered"
+CALL_CONTROLLED_METHOD = "controlled"
+CALL_CTRL_DAGGERED_METHOD = "ctrl_daggered"
+
+
 @dataclass(frozen=True)
 class TypeBase(ToHugr[ht.Type], Transformable["Type"], ABC):
     """Abstract base class for all Guppy types.
@@ -430,15 +436,30 @@ class UnitaryFlags(Flag):
         """Returns the name of the corresponding custom implementation for this flag."""
         match self:
             case UnitaryFlags.Unitary:
-                return ["ctrl_daggered", "controlled"]
+                return [CALL_CTRL_DAGGERED_METHOD, CALL_CONTROLLED_METHOD]
             case UnitaryFlags.Dagger:
-                return ["daggered"]
+                return [CALL_DAGGERED_METHOD]
             case UnitaryFlags.Control:
-                return ["controlled"]
+                return [CALL_CONTROLLED_METHOD]
             case UnitaryFlags.NoFlags:
                 raise AssertionError("Expected a non-empty unitary flag")
             case _:
                 assert_never(self)
+
+    def custom_hint_rendering(self) -> str:
+        """Render the custom implementations required by this flag for a hint."""
+        names = self.custom_implementation_names()
+        if len(names) == 1:
+            return f"a custom `{names[0]}` implementation"
+        if len(names) == 2:
+            return (
+                "custom "
+                + " and ".join(f"`{name}`" for name in names)
+                + " implementations"
+            )
+        raise AssertionError(
+            f"Unexpected number of custom implementation names: {len(names)}"
+        )
 
 
 @dataclass(frozen=True)

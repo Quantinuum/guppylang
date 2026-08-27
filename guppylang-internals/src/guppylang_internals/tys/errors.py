@@ -221,20 +221,7 @@ class UnitaryCallError(Error):
 
     @property
     def custom_hint_rendering(self) -> str:
-        """We check which custom implementation name are we missing."""
-        names = self.flags.custom_implementation_names()
-        if len(names) == 1:
-            return f"a custom `{names[0]}` implementation"
-        elif len(names) == 2:
-            return (
-                "custom "
-                + " and ".join(f"`{name}`" for name in names)
-                + " implementations"
-            )
-        else:
-            raise AssertionError(
-                f"Unexpected number of custom implementation names: {len(names)}"
-            )
+        return self.flags.custom_hint_rendering()
 
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
