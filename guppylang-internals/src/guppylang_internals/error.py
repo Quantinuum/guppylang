@@ -1,3 +1,4 @@
+import functools
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -133,11 +134,9 @@ def pretty_errors[**P, T](f: Callable[P, T]) -> Callable[P, T]:
         # If it's not a GuppyError, fall back to previous hook
         old_handler(excty, err, traceback)
 
-    from functools import partial, wraps
-
-    @wraps(f)
+    @functools.wraps(f)
     def pretty_errors_wrapped(*args: Any, **kwargs: Any) -> Any:
-        with exception_hook(partial(hook, sys.excepthook)):
+        with exception_hook(functools.partial(hook, sys.excepthook)):
             return f(*args, **kwargs)
 
     return cast("Callable[P, Any]", pretty_errors_wrapped)

@@ -13,7 +13,7 @@ from selene_argreader_plugin import ArgProvider
 from selene_sim.backends.bundled_error_models import IdealErrorModel
 from selene_sim.backends.bundled_runtimes import SimpleRuntime
 from selene_sim.backends.bundled_simulators import Coinflip, Quest, Stim
-from selene_sim.event_hooks import EventHook, NoEventHook
+from selene_sim.event_hooks.event_hook import EventHook, MultiEventHook, NoEventHook
 from tqdm import tqdm
 
 from ._args import (
@@ -34,6 +34,8 @@ if TYPE_CHECKING:
     from selene_core.error_model import ErrorModel
     from selene_core.runtime import Runtime
     from selene_core.simulator import Simulator
+    from selene_sim.event_hooks.instruction_log import CircuitExtractor
+    from selene_sim.event_hooks.metrics import MetricStore
     from selene_sim.instance import SeleneInstance
 
     from ._args import EntrypointArgSpec
@@ -72,6 +74,8 @@ class _Options:
     # unstable:
     _results_logfile: Path | None = None
     _display_progress_bar: bool = False
+    _trace_enabled: bool = False
+    _metrics_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -156,6 +160,16 @@ class EmulatorInstance:
         Defaults to 1, meaning no parallelisation."""
         return self._options._n_processes
 
+    @property
+    def trace_enabled(self) -> bool:
+        """Whether instruction tracing is enabled for emulator executions."""
+        return self._options._trace_enabled
+
+    @property
+    def metrics_enabled(self) -> bool:
+        """Whether metric collection is enabled for emulator executions."""
+        return self._options._metrics_enabled
+
     def with_n_qubits(self, value: int) -> Self:
         """Set the number of qubits available in the emulator instance."""
         return replace(self, _n_qubits=value)
@@ -181,9 +195,35 @@ class EmulatorInstance:
         return self._with_option(_error_model=value)
 
     def with_event_hook(self, value: EventHook) -> Self:
-        """Set the event hook used for the emulator instance.
-        Defaults to NoEventHook."""
+        """Set a custom Selene event hook for the emulator instance.
+
+        When :meth:`with_trace` or :meth:`with_metrics` is enabled, the custom
+        hook is composed with fresh, result-owned analysis hooks for each
+        execution. All hooks receive each event, even when the custom hook
+        handles it, so custom event processing cannot prevent trace or metric
+        collection. Analysis hooks supplied explicitly here remain caller-owned
+        and are not exposed through :class:`EmulatorResult` accessors.
+
+        Defaults to :class:`~selene_sim.event_hooks.event_hook.NoEventHook`.
+        """
         return self._with_option(_event_hook=value)
+
+    def with_trace(self, value: bool = True) -> Self:
+        """Enable collection of per-shot instruction traces.
+
+        Traces can be retrieved from the :class:`EmulatorResult` returned by
+        :meth:`run` or :meth:`run_per_shot`. The same instruction log can also be
+        converted to circuits with :meth:`EmulatorResult.circuits`.
+        """
+        return self._with_option(_trace_enabled=value)
+
+    def with_metrics(self, value: bool = True) -> Self:
+        """Enable collection of per-shot emulator metrics.
+
+        Metrics can be retrieved from the :class:`EmulatorResult` returned by
+        :meth:`run` or :meth:`run_per_shot`.
+        """
+        return self._with_option(_metrics_enabled=value)
 
     def with_verbose(self, value: bool) -> Self:
         """Set whether to print verbose output during the emulator execution.
@@ -260,13 +300,13 @@ class EmulatorInstance:
                     "This entrypoint takes no runtime arguments, but got: "
                     + ", ".join(f"`{name}`" for name in args)
                 )
-            return self._collect_results(self._run_instance())
+            return self._run_and_collect_results()
 
         validate_record(self._arg_specs, args)
         provider = ArgProvider()
         provider.set_constant_args(**_to_provider_args(args))
         with provider:
-            return self._collect_results(self._run_instance())
+            return self._run_and_collect_results()
 
     def run_per_shot(self, args: Sequence[Mapping[str, ArgValue]]) -> EmulatorResult:
         """Run the emulator with a different set of runtime arguments per shot.
@@ -308,10 +348,56 @@ class EmulatorInstance:
         provider = ArgProvider()
         provider.set_variable_args([_to_provider_args(record) for record in args])
         with provider:
-            return instance._collect_results(instance._run_instance())
+            return instance._run_and_collect_results()
+
+    def _run_and_collect_results(self) -> EmulatorResult:
+        """Run the instance and retain any configured analysis collectors."""
+        event_hook, circuit_extractor, metric_store = self._analysis_event_hook()
+        return self._collect_results(
+            self._run_instance(event_hook),
+            circuit_extractor=circuit_extractor,
+            metric_store=metric_store,
+        )
+
+    def _analysis_event_hook(
+        self,
+    ) -> tuple[EventHook, CircuitExtractor | None, MetricStore | None]:
+        """Construct fresh analysis hooks for one emulator execution."""
+        circuit_extractor: CircuitExtractor | None = None
+        metric_store: MetricStore | None = None
+        event_hooks: list[EventHook] = []
+
+        if type(self._options._event_hook) is not NoEventHook:
+            event_hooks.append(self._options._event_hook)
+
+        if self.trace_enabled:
+            from selene_sim.event_hooks.instruction_log import CircuitExtractor
+
+            circuit_extractor = CircuitExtractor()  # type: ignore[no-untyped-call]
+            event_hooks.append(circuit_extractor)
+
+        if self.metrics_enabled:
+            from selene_sim.event_hooks.metrics import MetricStore
+
+            metric_store = MetricStore()  # type: ignore[no-untyped-call]
+            event_hooks.append(metric_store)
+
+        if not event_hooks:
+            return NoEventHook(), circuit_extractor, metric_store
+        if len(event_hooks) == 1:
+            return event_hooks[0], circuit_extractor, metric_store
+        return (
+            MultiEventHook(event_hooks=event_hooks, short_circuit=False),
+            circuit_extractor,
+            metric_store,
+        )
 
     def _collect_results(
-        self, result_stream: Iterator[Iterator[TaggedResult]]
+        self,
+        result_stream: Iterator[Iterator[TaggedResult]],
+        *,
+        circuit_extractor: CircuitExtractor | None = None,
+        metric_store: MetricStore | None = None,
     ) -> EmulatorResult:
         """Drain a shot result stream into an :class:`EmulatorResult`."""
         all_results: list[QsysShot] = []
@@ -324,21 +410,33 @@ class EmulatorInstance:
                 # In this case, casting a wide net on exceptions is
                 # suitable.
                 raise EmulatorError(
-                    completed_shots=EmulatorResult(all_results),
+                    completed_shots=EmulatorResult(
+                        all_results,
+                        _circuit_extractor=circuit_extractor,
+                        _metric_store=metric_store,
+                    ),
                     failing_shot=shot_results,
                     underlying_exception=e,
                 ) from None
             all_results.append(shot_results)
-        return EmulatorResult(all_results)
+        return EmulatorResult(
+            all_results,
+            _circuit_extractor=circuit_extractor,
+            _metric_store=metric_store,
+        )
 
-    def _run_instance(self) -> Iterator[Iterator[TaggedResult]]:
+    def _run_instance(
+        self, event_hook: EventHook | None = None
+    ) -> Iterator[Iterator[TaggedResult]]:
         """Run the Selene instance with the given simulator lazily."""
         return self._instance.run_shots(
             simulator=self.simulator,
             runtime=self.runtime,
             n_qubits=self.n_qubits,
             n_shots=self.shots,
-            event_hook=self._options._event_hook,
+            event_hook=(
+                event_hook if event_hook is not None else self._options._event_hook
+            ),
             error_model=self.error_model,
             verbose=self.verbose,
             timeout=self.timeout,

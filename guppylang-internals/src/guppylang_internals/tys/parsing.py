@@ -298,8 +298,7 @@ def _arg_from_instantiated_defn(
         case ParsedProtocolDef() as defn:
             return _arg_from_proto(defn, arg_nodes, node, ctx)
         case defn:
-            err = ExpectedError(node, "a type", got=f"{defn.description} `{defn.name}`")
-            raise GuppyError(err)
+            raise GuppyError(ExpectedError(node, "a type", got=str(defn)))
 
 
 def _arg_from_proto(
