@@ -19,8 +19,9 @@ As of version `1.0.0`, the Guppy language is considered stable. An extended chan
 
 ### Bug Fixes
 
-* Chore: Update `guppylang/pyproject.toml` to use the proper `README.md` (#2220)([5d16455](https://github.com/Quantinuum/guppylang/commit/5d1645599f7da775abf2f9b7e9d680d25a21997d))
+* Update `guppylang/pyproject.toml` to use the proper `README.md` (#2220)([5d16455](https://github.com/Quantinuum/guppylang/commit/5d1645599f7da775abf2f9b7e9d680d25a21997d))
 * Update broken v1 changelog links (#2167)([2c71962](https://github.com/Quantinuum/guppylang/commit/2c71962d4f7bd2782e917a57fe56c85107f5930f))
+* Improve error message for missing return annotations on nested functions (#2222)([f7e3648](https://github.com/Quantinuum/guppylang/commit/f7e36483b98d94f0de7f726da48bf20a71c58c06))
 
 
 ### Documentation
