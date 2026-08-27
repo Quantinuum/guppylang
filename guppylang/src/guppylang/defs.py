@@ -11,8 +11,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Generic,
-    ParamSpec,
     Protocol,
     TypeVar,
     cast,
@@ -66,10 +64,6 @@ __all__ = (
     "OptimizationLevel",
     "OptimizerInstance",
 )
-
-
-P = ParamSpec("P")
-Out = TypeVar("Out")
 
 
 def _update_generator_metadata(hugr: Hugr[Any]) -> None:
@@ -138,7 +132,7 @@ class GuppyDefinition(TracingDefMixin):
 
     def check(self) -> None:
         """Type-check a Guppy definition."""
-        return ENGINE.check_single(self.id)
+        ENGINE.check_single(self.id)
 
 
 @dataclass(frozen=True)
@@ -248,7 +242,7 @@ class GuppyCompilableProgram(Protocol):
 
 
 @dataclass(frozen=True)
-class GuppyFunctionDefinition(GuppyDefinition, GuppyCompilableProgram, Generic[P, Out]):
+class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram):
     """A Guppy function definition."""
 
     @hide_trace

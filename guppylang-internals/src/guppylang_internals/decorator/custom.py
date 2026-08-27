@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ParamSpec, TypeVar
+from typing import TYPE_CHECKING
 
 from hugr import tys as ht
 
@@ -31,11 +31,8 @@ if TYPE_CHECKING:
     from guppylang_internals.tys.param import Parameter
     from guppylang_internals.tys.subst import Inst
 
-T = TypeVar("T")
-P = ParamSpec("P")
 
-
-def custom_function(
+def custom_function[**P, T](
     compiler: CustomInoutCallCompiler | None = None,
     checker: CustomCallChecker | None = None,
     higher_order_value: bool = True,
@@ -77,7 +74,7 @@ def custom_function(
     return dec
 
 
-def custom_type(
+def custom_type[T](
     hugr_ty: ht.Type | Callable[[Sequence[Argument], CompilerContext], ht.Type],
     name: str = "",
     copyable: bool = True,
@@ -124,7 +121,7 @@ def custom_type(
     return dec
 
 
-def hugr_op(
+def hugr_op[**P, T](
     op: Callable[[ht.FunctionType, Inst, CompilerContext], DataflowOp],
     checker: CustomCallChecker | None = None,
     higher_order_value: bool = True,

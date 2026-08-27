@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pathlib
-from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, overload
 
 from guppylang.defs import GuppyFunctionDefinition
 
@@ -37,12 +37,9 @@ if TYPE_CHECKING:
 
     from guppylang_internals.definition.ty import OpaqueTypeDef
 
-T = TypeVar("T")
-P = ParamSpec("P")
-
 
 @pretty_errors
-def wasm_module(
+def wasm_module[T](
     filename: str,
     wasm_platform: WasmPlatform = WasmPlatform.Helios,
 ) -> Callable[[builtins.type[T]], GuppyDefinition]:
@@ -122,10 +119,12 @@ def wasm_module(
 
 
 @overload
-def wasm(arg: Callable[P, T]) -> GuppyFunctionDefinition[P, T]: ...
+def wasm[**P, T](arg: Callable[P, T]) -> GuppyFunctionDefinition[P, T]: ...
 @overload
-def wasm(arg: int) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]: ...
-def wasm(
+def wasm[**P, T](
+    arg: int,
+) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]: ...
+def wasm[**P, T](
     arg: int | Callable[P, T],
 ) -> (
     GuppyFunctionDefinition[P, T]
@@ -141,7 +140,9 @@ def wasm(
         return _wasm_helper(None, arg)
 
 
-def _wasm_helper(fn_id: int | None, f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:
+def _wasm_helper[**P, T](
+    fn_id: int | None, f: Callable[P, T]
+) -> GuppyFunctionDefinition[P, T]:
     from guppylang.defs import GuppyFunctionDefinition
 
     func = RawWasmFunctionDef(

@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, NamedTuple, TypeAlias
+from typing import Any, ClassVar, NamedTuple
 
 import guppylang_internals.checker.expr_checker as expr_checker
 from guppylang_internals.checker.errors.generic import UnsupportedError
@@ -45,8 +45,8 @@ reverse_binary_table = {
     for method, reverse_method, display_name in expr_checker.binary_table.values()
 }
 
-UnaryDunderMethod: TypeAlias = Callable[["DunderMixin"], Any]
-BinaryDunderMethod: TypeAlias = Callable[["DunderMixin", Any], Any]
+type UnaryDunderMethod = Callable[["DunderMixin"], Any]
+type BinaryDunderMethod = Callable[["DunderMixin", Any], Any]
 
 
 def unary_operation(f: UnaryDunderMethod) -> UnaryDunderMethod:
@@ -541,6 +541,18 @@ class TracingDefMixin(DunderMixin):
 
     wrapped: Definition
 
+    def __mro_entries__(self, bases: tuple[type, ...]) -> tuple[type, ...]:
+        """Resolve Guppy definitions used as Python class bases.
+
+        This lets class creation proceed so Guppy can report unsupported
+        inheritance with its regular diagnostics during struct/enum/protocol parsing.
+        """
+        if isinstance(self.wrapped, TypeDef):
+            python_class = getattr(self.wrapped, "python_class", None)
+            if isinstance(python_class, type):
+                return (python_class,)
+        return ()
+
     @property
     def id(self) -> DefId:
         return self.wrapped.id
@@ -619,7 +631,7 @@ class TracingDefMixin(DunderMixin):
                 raise GuppyComptimeError(
                     f"Cannot infer type parameters of generic function `{defn.name}`"
                 )
-            wire = state.recorder.record_load_func(defn.id, ())
+            wire = state.recorder.record_load_func(defn, ())
             return GuppyObject(defn.ty, wire, None)
         if isinstance(defn, ValueDef):
             return GuppyObject(defn.ty, state.recorder.record_load(defn))

@@ -31,11 +31,11 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
-class BumpMode(str, Enum):
+class BumpMode(StrEnum):
     auto = "auto"
     alpha = "alpha"
     alpha_patch = "alpha-patch"
@@ -49,7 +49,7 @@ class BumpMode(str, Enum):
     major = "major"
 
 
-class PreLabel(str, Enum):
+class PreLabel(StrEnum):
     alpha = "a"
     beta = "b"
     rc = "rc"

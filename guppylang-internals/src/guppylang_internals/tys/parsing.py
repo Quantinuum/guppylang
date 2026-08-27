@@ -2,7 +2,7 @@ import ast
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -211,7 +211,7 @@ def try_parse_defn(node: AstNode, ctx: TypeParsingCtx) -> Definition | None:
                     if x in module.__dict__:
                         val = module.__dict__[x]
                         if isinstance(val, GuppyDefinition):
-                            return ENGINE.get_parsed(val.id)
+                            return cast("Definition", ENGINE.get_parsed(val.id))
                     raise GuppyError(
                         ModuleMemberNotFoundError(node, module.__name__, x)
                     )

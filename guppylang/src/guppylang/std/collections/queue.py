@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, no_type_check
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Self, no_type_check
 
 from guppylang.decorator import guppy
 from guppylang.std.array import array
+from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
 from guppylang.std.platform import panic
 
@@ -18,7 +17,7 @@ MAX_SIZE = guppy.nat_var("MAX_SIZE")
 
 
 @guppy.struct
-class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
+class Queue[T, MAX_SIZE: nat]:
     """A first-in-first-out (FIFO) growable collection of values.
 
     To ensure static allocation, the maximum queue size must be specified in advance
@@ -40,7 +39,7 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
     #: Without this, then the queue would be limited to MAX_SIZE - 1 since
     #: we cannot distinguish completely full and completely empty states
     #: with just using `self._start` and `self._end`.
-    _buf: array[Option[T], MAX_SIZE]  # type: ignore[valid-type, type-arg]
+    _buf: array[Option[T], MAX_SIZE]
     #: Index of the current front of the queue (first element to be popped).
     _start: int
     #: Index of the next free slot in `self._buf`.
@@ -76,10 +75,10 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
         Panics if the queue has already reached its maximum size.
         """
-        if self._size >= MAX_SIZE:
+        if self._size >= MAX_SIZE:  # type: ignore[misc]
             panic("Queue.push: max size reached")
         self._buf[self._end].swap(some(elem)).unwrap_nothing()
-        self._end = (self._end + 1) % MAX_SIZE
+        self._end = (self._end + 1) % MAX_SIZE  # type: ignore[misc]
         self._size += 1
 
     @guppy
@@ -93,13 +92,13 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
         if self._size == 0:
             panic("Queue.pop: queue is empty")
         elem = self._buf[self._start].take().unwrap()
-        self._start = (self._start + 1) % MAX_SIZE
+        self._start = (self._start + 1) % MAX_SIZE  # type: ignore[misc]
         self._size -= 1
         return elem
 
     @guppy
     @no_type_check
-    def peek(self: Queue[TCopyable, MAX_SIZE] @ owned) -> TCopyable:
+    def peek[TC: Copy](self: Queue[TC, MAX_SIZE] @ owned) -> TC:
         """Returns a copy of the top element of the queue without removing it.
 
         Panics if the queue is empty.
@@ -113,7 +112,7 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
     @guppy
     @no_type_check
-    def discard_empty(self: Queue[T, MAX_SIZE] @ owned) -> None:
+    def discard_empty(self: Self @ owned) -> None:
         """Discards a queue of potentially non-droppable elements assuming that the
         queue is empty.
 
@@ -127,7 +126,7 @@ class Queue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
 @guppy
 @no_type_check
-def empty_queue() -> Queue[T, MAX_SIZE]:
+def empty_queue[T, MAX_SIZE: nat]() -> Queue[T, MAX_SIZE]:
     """Constructs a new empty queue."""
     buf = array(nothing[T]() for _ in range(MAX_SIZE))
     return Queue(buf, 0, 0, 0)
