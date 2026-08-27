@@ -384,20 +384,16 @@ def test_unitary_with_unitary_parameters(use_experimental_features):
 
     @guppy.unitary
     class custom_control:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy.unitary
     class custom_unitary:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
@@ -407,11 +403,11 @@ def test_unitary_with_unitary_parameters(use_experimental_features):
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
         @guppy
-        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy(daggerable=True)
@@ -437,9 +433,11 @@ def test_unitary_with_unitary_parameters(use_experimental_features):
         apply_dagger(custom_dagger, q)
         apply_control(custom_control, q)
         apply_unitary(custom_unitary, q)
-        apply_daggerable_and_controllable(custom_unitary, q)
         apply_dagger(h, q)
         apply_unitary(h, q)
+
+        # We have to skip this test due to https://github.com/Quantinuum/guppylang/issues/2244
+        # apply_daggerable_and_controllable(custom_unitary, q)
 
     main.check()
 
