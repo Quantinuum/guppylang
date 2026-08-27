@@ -336,7 +336,7 @@ class _Guppy:
         # a `GuppyDefinition` that handles the comptime logic
         return GuppyDefinition(defn)  # type: ignore[return-value]
 
-    def unitary(
+    def unitary[T](
         self, cls: builtins.type[T] | None = None, **kwargs: Any
     ) -> builtins.type[T]:
         """Define a unitary custom function.
@@ -922,7 +922,7 @@ def _set_firstlineno[T](cls: builtins.type[T], frame: FrameType) -> builtins.typ
     return cls
 
 
-def _get_unitary_call_def(
+def _get_unitary_call_def[T](
     cls: builtins.type[T],
 ) -> GuppyDefinition:
     """Returns the `@guppy`-annotated `__call__` method from a unitary class.
@@ -937,7 +937,7 @@ def _get_unitary_call_def(
     )
 
 
-def _get_custom_methods(cls: builtins.type[T]) -> dict[str, RawFunctionDef | None]:
+def _get_custom_methods[T](cls: builtins.type[T]) -> dict[str, RawFunctionDef | None]:
     custom_methods: dict[str, RawFunctionDef | None] = defaultdict(lambda: None)
     custom_methods_names = (
         CALL_DAGGERED_METHOD,
