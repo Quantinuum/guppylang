@@ -173,12 +173,9 @@ class EmulatorResult(QsysResult):
                 "Trace collection was not enabled; call `with_trace()` before running "
                 "the emulator."
             )
-        # Selene starts collection before parsing a shot, so an interrupted shot may
-        # have analysis data without a corresponding entry in ``self.results``.
-        return [
-            shot.get_trace()
-            for shot in self._circuit_extractor.shots[: len(self.results)]
-        ]
+        # Retain every started shot. Selene currently leaves failed-shot analysis
+        # empty (an upstream bug), but future partial analysis must remain visible.
+        return [shot.get_trace() for shot in self._circuit_extractor.shots]
 
     def circuits(self) -> list[Circuit]:
         """Return `pytket Circuit objects
@@ -206,12 +203,9 @@ class EmulatorResult(QsysResult):
                     "`circuits()`."
                 ) from None
             raise
-        # Selene starts collection before parsing a shot, so an interrupted shot may
-        # have analysis data without a corresponding entry in ``self.results``.
-        return [
-            shot.get_user_circuit()
-            for shot in self._circuit_extractor.shots[: len(self.results)]
-        ]
+        # Retain every started shot. Selene currently leaves failed-shot analysis
+        # empty (an upstream bug), but future partial analysis must remain visible.
+        return [shot.get_user_circuit() for shot in self._circuit_extractor.shots]
 
     def metrics(self) -> list[ShotMetrics]:
         """Return collected metrics for each emulated shot.
@@ -227,6 +221,6 @@ class EmulatorResult(QsysResult):
                 "Metric collection was not enabled; call `with_metrics()` before "
                 "running the emulator."
             )
-        # Selene starts collection before parsing a shot, so an interrupted shot may
-        # have analysis data without a corresponding entry in ``self.results``.
-        return self._metric_store.shots[: len(self.results)]
+        # Retain every started shot. Selene currently leaves failed-shot analysis
+        # empty (an upstream bug), but future partial analysis must remain visible.
+        return self._metric_store.shots
