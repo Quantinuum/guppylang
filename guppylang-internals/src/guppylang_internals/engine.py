@@ -269,7 +269,7 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
 
     def assert_stage(
-        self, stage: CompilationStage, operation: str, defn: Definition | None
+        self, stage: CompilationStage, operation: str, defn: Definition | None = None
     ) -> None:
         if self._stage != stage:
             raise CompilationStageError(
@@ -524,7 +524,7 @@ class CompilationEngine:
     def _compile(
         self, def_ids: list[DefId], *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
-        self.assert_stage(CompilationStage.NONE, "compile", None)
+        self.assert_stage(CompilationStage.NONE, "compile")
         self.check(def_ids, reset=reset)
         with self._in_stage(CompilationStage.COMPILE):
             return self._compile_impl(def_ids)
