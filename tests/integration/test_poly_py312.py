@@ -350,6 +350,26 @@ def test_unitary(validate, use_experimental_features):
     main.check()
 
 
+def test_unitary_generic(validate, use_experimental_features):
+    @guppy.unitary
+    class MyGate[n: nat]:
+        @guppy
+        def __call__(qs: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def controlled[m: nat](qs: array[qubit, n], controls: array[qubit, m]) -> None:
+            pass
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit(), qubit())
+        MyGate[2](qs)
+        discard_array(qs)
+
+    main.check()
+
+
 def test_struct_unused_param(validate):
     """See https://github.com/Quantinuum/guppylang/issues/2047"""
 

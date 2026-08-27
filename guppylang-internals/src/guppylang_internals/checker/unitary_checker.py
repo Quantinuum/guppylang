@@ -299,7 +299,7 @@ def check_cfg_unitary(
 def check_modified_def_combinations(
     unitary_flags: UnitaryFlags,
     *,
-    definition_span: ToSpan | None = None,
+    definition_span: ToSpan,
     has_daggered: bool,
     has_controlled: bool,
     has_ctrl_daggered: bool,
@@ -307,17 +307,17 @@ def check_modified_def_combinations(
     """Check that custom unitary modifier implementations form a valid set.
 
     We require:
-    - If a function has both `daggered` and `controlled` implementations, it must
-      also have a `ctrl_daggered` implementation, unless the function is marked
+    - If a `@guppy.unitary` class has both `daggered` and `controlled` implementations,
+      it must also have a `ctrl_daggered` implementation, unless `__call__` is marked
       as `unitary=True`.
-    - If a function is marked as `controllable=True` and has a `daggered`
-      implementation, it must also have a `ctrl_daggered` implementation
-      or the function is marked as `unitary=True`.
-    - If a function is marked as `daggerable=True` and has a `controlled`
-      implementation, it must also have a `ctrl_daggered` implementation
-      or the function is marked as `unitary=True`.
-    - If a function has a `ctrl_daggered` implementation, it must also have
-      a `controlled` implementation, unless the function is marked as
+    - If `__call__` is marked as `controllable=True` and the function has a
+      `daggered` implementation, it must also have a `ctrl_daggered` implementation
+      or `__call__` is marked as `unitary=True`.
+    - If `__call__` is marked as `daggerable=True` and the function has a
+      `controlled` implementation, it must also have a `ctrl_daggered` implementation
+      or `__call__` is marked as `unitary=True`.
+    - If a `@guppy.unitary` class has a `ctrl_daggered` implementation, it must also
+      have  a `controlled` implementation, unless `__call__` is marked as
       `controllable=True`.
     """
     # Custom daggered and controlled implementations require ctrl_daggered support.

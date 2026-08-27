@@ -394,22 +394,19 @@ class _Guppy:
 
         # Update the unitary metadata according to the custom implementations
 
-        custom_methods: dict[str, RawFunctionDef | None] = _get_custom_methods(cls)
-
-        custom_modified_definition = (
-            custom_methods[CALL_DAGGERED_METHOD],
-            custom_methods[CALL_CONTROLLED_METHOD],
-            custom_methods[CALL_CTRL_DAGGERED_METHOD],
-        )
+        custom_modified_definition = _get_custom_methods(cls)
 
         for custom_def in custom_modified_definition:
             if custom_def is not None:
                 DEF_STORE.register_custom_modified_def(call_raw_func.id, custom_def.id)
         assert call_raw_func.metadata is not None
+        daggered, controlled, ctrl_daggered = custom_modified_definition
         combined_flags = _set_unitary_metadata(
             call_raw_func.metadata,
-            custom_modified_definition,
-            to_span(unitary_class_span),
+            daggered=daggered,
+            controlled=controlled,
+            ctrl_daggered=ctrl_daggered,
+            definition_span=to_span(unitary_class_span),
         )
         object.__setattr__(
             call_raw_func, "decorator_unitary_flags", call_raw_func.unitary_flags
@@ -907,7 +904,10 @@ def _get_unitary_call_def(
     )
 
 
-def _get_custom_methods(cls: builtins.type[T]) -> dict[str, RawFunctionDef | None]:
+def _get_custom_methods(
+    cls: builtins.type[T],
+) -> tuple[RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None]:
+    """Returns the `@guppy`-annotated `daggered`, `controlled`, and `ctrl_daggered`"""
     custom_methods: dict[str, RawFunctionDef | None] = defaultdict(lambda: None)
     custom_methods_names = (
         CALL_DAGGERED_METHOD,
@@ -943,23 +943,32 @@ def _get_custom_methods(cls: builtins.type[T]) -> dict[str, RawFunctionDef | Non
                 "be a guppy function"
             )
 
-    return custom_methods
+    return (
+        custom_methods[CALL_DAGGERED_METHOD],
+        custom_methods[CALL_CONTROLLED_METHOD],
+        custom_methods[CALL_CTRL_DAGGERED_METHOD],
+    )
 
 
 @pretty_errors
 def _set_unitary_metadata(
     metadata: FunctionMetadata,
-    custom_defs: tuple[
-        RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None
-    ],
-    definition_span: Span | None,
+    *,
+    daggered: RawFunctionDef | None,
+    controlled: RawFunctionDef | None,
+    ctrl_daggered: RawFunctionDef | None,
+    definition_span: Span,
 ) -> UnitaryFlags:
-    """Set unitary metadata based on the available custom implementations.
+    """Set unitary metadata based on the available custom implementations:
+    - `daggered`: The custom implementation for the daggered modifier, None if absent.
+    - `controlled`: The custom implementation for the controlled modifier,
+      None if absent.
+    - `ctrl_daggered`: The custom implementation for the ctrl_daggered modifier,
+      None if absent.
 
     We also check that the combination of custom implementations is valid.
     """
 
-    daggered, controlled, ctrl_daggered = custom_defs
     flags = UnitaryFlags(metadata.get_unitary_flags() or UnitaryFlags.NoFlags.value)
     check_modified_def_combinations(
         flags,

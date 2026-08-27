@@ -82,6 +82,9 @@ from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
 from guppylang_internals.tys.subst import BoundVarFinder, Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
     EnumType,
     ExistentialTypeVar,
     FuncInput,
@@ -125,12 +128,6 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 ]
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
-
-
-# Names of the custom modified definition methods. Used in the @guppy.unitary decorator.
-CALL_DAGGERED_METHOD = "daggered"
-CALL_CONTROLLED_METHOD = "controlled"
-CALL_CTRL_DAGGERED_METHOD = "ctrl_daggered"
 
 #: Identifier for a monomorphized version of a definition.
 #:
@@ -592,15 +589,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(
