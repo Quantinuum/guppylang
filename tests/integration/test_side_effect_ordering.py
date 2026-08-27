@@ -8,9 +8,11 @@ from hugr.std import PRELUDE
 from guppylang import guppy
 from guppylang_internals.std._internal.compiler.tket_exts import (
     QUANTUM_EXTENSION,
+    QSYSTEM_RANDOM_EXTENSION,
     RESULT_EXTENSION,
 )
 from guppylang.std.builtins import output, array, owned, panic
+from guppylang.std.qsystem.random import RNG
 from guppylang.std.quantum import qubit, discard, measure
 
 
@@ -116,6 +118,76 @@ def test_qalloc_qfree(validate):
         hugr, QUANTUM_EXTENSION.get_op("MeasureFree").qualified_name()
     )
     check_order(hugr, [a1, d1, a2, d2])
+
+
+def test_rng_context_lifetimes(validate):
+    @guppy
+    def test() -> None:
+        rng = RNG(42)
+        _ = rng.random_int()
+        rng.discard()
+
+        rng = RNG(84)
+        _ = rng.random_int()
+        rng.discard()
+
+    compiled = test.compile_function()
+    validate(compiled)
+
+    hugr = compiled.modules[0]
+    [new1, new2] = find_ext_nodes(
+        hugr, QSYSTEM_RANDOM_EXTENSION.get_op("NewRNGContext").qualified_name()
+    )
+    [delete1, delete2] = find_ext_nodes(
+        hugr, QSYSTEM_RANDOM_EXTENSION.get_op("DeleteRNGContext").qualified_name()
+    )
+    [inp, out] = hugr.children(hugr[new1].parent)[:2]
+    check_order(hugr, [inp, new1, delete1, new2, delete2, out])
+
+
+def test_rng_effect_propagates_through_call(validate):
+    @guppy
+    def use_rng() -> None:
+        rng = RNG(42)
+        _ = rng.random_int()
+        rng.discard()
+
+    @guppy
+    def test() -> None:
+        q1 = qubit()
+        discard(q1)
+        use_rng()
+        q2 = qubit()
+        discard(q2)
+
+    compiled = test.with_minimal_opt().compile_function()
+    validate(compiled)
+
+    hugr = compiled.modules[0]
+    [delete] = find_ext_nodes(
+        hugr, QSYSTEM_RANDOM_EXTENSION.get_op("DeleteRNGContext").qualified_name()
+    )
+    helper_parent = hugr[delete].parent
+    [constructor_call] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, ops.Call) and data.parent == helper_parent
+    ]
+    [helper_inp, helper_out] = hugr.children(helper_parent)[:2]
+    check_order(hugr, [helper_inp, constructor_call, delete, helper_out])
+
+    [alloc1, alloc2] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("QAlloc").qualified_name()
+    )
+    [free1, free2] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("QFree").qualified_name()
+    )
+    [call] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, ops.Call) and data.parent == hugr[alloc1].parent
+    ]
+    check_order(hugr, [alloc1, free1, call, alloc2, free2])
 
 
 def test_call(validate):

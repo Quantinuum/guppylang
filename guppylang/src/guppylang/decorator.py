@@ -523,10 +523,7 @@ class _Guppy:
             if not isinstance(func, GuppyDefinition):
                 raise TypeError(f"Not a Guppy definition: {func}")
             if not isinstance(func.wrapped, AnyRawFunctionDef):
-                raise TypeError(
-                    f"Not a Guppy function definition: {func.wrapped.description} "
-                    f"`{func.wrapped.name}`"
-                )
+                raise TypeError(f"Not a Guppy function definition: {func.wrapped}")
             func_ids.append(func.id)
 
         def decorator(f: Callable[P, T]) -> GuppyFunctionDefinition[P, T]:

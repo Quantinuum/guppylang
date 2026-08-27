@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
+import pytest
 from guppylang.emulator.result import EmulatorResult
+from hugr.qsystem.result import QsysShot
+
+if TYPE_CHECKING:
+    from guppylang.emulator import MetricGroup, MetricValue, ShotMetrics
 
 
 @patch("guppylang.emulator.result.Quest")
@@ -48,3 +54,41 @@ def test_emulator_result_methods_comprehensive(mock_quest):
         assert mock_quest.extract_states.call_count == 2
         # Verify PartialVector._from_inner called for each state
         assert mock_pv._from_inner.call_count == 3
+
+
+def test_emulator_result_analysis_requires_collection():
+    """Analysis accessors explain how to enable their collection."""
+    result = EmulatorResult()
+
+    with pytest.raises(RuntimeError, match=r"with_trace\(\)"):
+        result.traces()
+    with pytest.raises(RuntimeError, match=r"with_trace\(\)"):
+        result.circuits()
+    with pytest.raises(RuntimeError, match=r"with_metrics\(\)"):
+        result.metrics()
+
+
+def test_emulator_result_analysis_accessors():
+    """Analysis accessors return the data recorded by their collectors."""
+    trace, circuit = Mock(), Mock()
+    shot = Mock()
+    shot.get_trace.return_value = trace
+    shot.get_user_circuit.return_value = circuit
+    circuit_extractor = Mock(shots=[shot])
+    metric_store = Mock(shots=[{"user_program": {"measure_count": 1}}])
+    result = EmulatorResult(
+        [QsysShot()],
+        _circuit_extractor=circuit_extractor,
+        _metric_store=metric_store,
+    )
+
+    assert result.traces() == [trace]
+
+    with patch("guppylang.emulator.result.import_module"):
+        assert result.circuits() == [circuit]
+
+    assert result.metrics() == [{"user_program": {"measure_count": 1}}]
+    metric_value: MetricValue = 1
+    metric_group: MetricGroup = {"measure_count": metric_value}
+    shot_metrics: ShotMetrics = {"user_program": metric_group}
+    assert shot_metrics == {"user_program": {"measure_count": 1}}
