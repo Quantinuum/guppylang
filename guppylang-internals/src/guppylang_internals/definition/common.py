@@ -61,6 +61,13 @@ class Definition(ABC):
     name: str
     defined_at: ast.AST | None
 
+    def __str__(self) -> str:
+        return f"{self.description} {self.name}"
+
+    def caps_str(self) -> str:
+        """Returns a capitalized string representation of this definition."""
+        return f"{self.description.capitalize()} {self.name}"
+
     @property
     @abstractmethod
     def description(self) -> str:

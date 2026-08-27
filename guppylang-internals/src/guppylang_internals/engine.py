@@ -600,7 +600,7 @@ class EntryCheckMonomorphizeError(Error):
 
     @property
     def thing(self) -> str:
-        return f"{self.defn.description.capitalize()} `{self.defn.name}`"
+        return self.defn.caps_str()
 
     @property
     def plural_s(self) -> str:
@@ -622,9 +622,8 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
     """
     if isinstance(defn, CheckableGenericDef) and defn.params:
         assert defn.defined_at is not None
-        description = f"{defn.description.capitalize()} `{defn.name}`"
         raise GuppyError(
-            EntryMonomorphizeError(defn.defined_at, description, defn.params)
+            EntryMonomorphizeError(defn.defined_at, defn.caps_str(), defn.params)
         )
 
 
