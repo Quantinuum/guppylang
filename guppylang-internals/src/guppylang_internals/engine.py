@@ -154,6 +154,22 @@ CallGraphEdge = tuple[MonoDefId, MonoDefId]
 CustomModifiedDef = tuple[CheckedDef, CheckableGenericDef | None]
 
 
+class CustomModifierKind(Enum):
+    """Kinds of custom implementations supported by ``@guppy.unitary``."""
+
+    DAGGERED = CALL_DAGGERED_METHOD
+    CONTROLLED = CALL_CONTROLLED_METHOD
+    CTRL_DAGGERED = CALL_CTRL_DAGGERED_METHOD
+
+    @property
+    def takes_controls(self) -> bool:
+        """Whether the implementation has a control-count parameter."""
+        return self in {
+            CustomModifierKind.CONTROLLED,
+            CustomModifierKind.CTRL_DAGGERED,
+        }
+
+
 class CompilationStage(Enum):
     NONE = "none"
     CHECK = "check"
@@ -174,7 +190,7 @@ class DefinitionStore:
     frames: dict[DefId, FrameType]
     sources: SourceMap
     # Maps a parent definition (usually a function) to its custom modified definitions
-    custom_modified_defs: dict[DefId, list[DefId]]
+    custom_modified_defs: dict[DefId, dict[CustomModifierKind, DefId]]
 
     def __init__(self) -> None:
         self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
@@ -183,7 +199,7 @@ class DefinitionStore:
         self.frames = {}
         self.sources = SourceMap()
         self.wasm_functions = {}
-        self.custom_modified_defs = defaultdict(list)
+        self.custom_modified_defs = defaultdict(dict)
 
     def register_def(self, defn: RawDef, frame: FrameType) -> None:
         self.raw_defs[defn.id] = defn
@@ -214,9 +230,14 @@ class DefinitionStore:
         self.wasm_functions[fn_id] = sig
 
     def register_custom_modified_def(
-        self, parent_def_id: DefId, custom_def_id: DefId
+        self,
+        parent_def_id: DefId,
+        kind: CustomModifierKind,
+        custom_def_id: DefId,
     ) -> None:
-        self.custom_modified_defs[parent_def_id].append(custom_def_id)
+        custom_defs = self.custom_modified_defs[parent_def_id]
+        assert kind not in custom_defs, f"Custom {kind.value} already registered"
+        custom_defs[kind] = custom_def_id
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()
@@ -389,24 +410,16 @@ class CompilationEngine:
 
         # If `defn` has any custom modified definitions linked to it,
         # we need to make sure that they are also parsed.
-        custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
-        if custom_modified_ids:
+        custom_modified_defs = DEF_STORE.custom_modified_defs.get(defn.id, {})
+        if custom_modified_defs:
             # Only CallableDef can have custom modified definitions
             assert isinstance(defn, CallableDef)
-            for custom_def_id in custom_modified_ids:
-                if custom_def_id not in self.parsed:
-                    custom_defn = DEF_STORE.raw_defs[custom_def_id]
-                    assert isinstance(custom_defn, ParsableDef)
-                    parsed_custom_defn = custom_defn.parse(
-                        Globals(DEF_STORE.frames[custom_defn.id]), DEF_STORE.sources
-                    )
-                    from guppylang_internals.definition.function import (
-                        ParsedFunctionDef,
-                    )
+            for custom_def_id in custom_modified_defs.values():
+                parsed_custom_defn = self.get_parsed(custom_def_id)
+                from guppylang_internals.definition.function import ParsedFunctionDef
 
-                    assert isinstance(parsed_custom_defn, ParsedFunctionDef)
-                    _check_modified_def_signature(parsed_custom_defn, defn.ty)
-                    self.parsed[custom_def_id] = parsed_custom_defn
+                assert isinstance(parsed_custom_defn, ParsedFunctionDef)
+                _check_modified_def_signature(parsed_custom_defn, defn.ty)
         return defn
 
     @pretty_errors
@@ -436,8 +449,8 @@ class CompilationEngine:
             )
         self.checked[id, mono_args] = defn
         checked_custom_defs: list[CustomModifiedDef] = []
-        custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
-        for custom_modified_id in custom_modified_ids:
+        custom_modified_defs = DEF_STORE.custom_modified_defs.get(defn.id, {})
+        for custom_modified_id in custom_modified_defs.values():
             custom_modified_defn = self.get_parsed(custom_modified_id)
             assert isinstance(custom_modified_defn, CheckableGenericDef)
             # NICOLA: TODO: saving in self.checked may be useless

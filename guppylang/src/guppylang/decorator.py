@@ -2,8 +2,7 @@ import ast
 import builtins
 import inspect
 import linecache
-from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from types import FrameType
 from typing import (
     TYPE_CHECKING,
@@ -49,16 +48,13 @@ from guppylang_internals.dummy_decorator import (
     _DummyGuppy,
     sphinx_running,
 )
-from guppylang_internals.engine import DEF_STORE
+from guppylang_internals.engine import DEF_STORE, CustomModifierKind
 from guppylang_internals.error import pretty_errors
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 from guppylang_internals.span import Loc, SourceMap, Span, to_span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
-    CALL_CONTROLLED_METHOD,
-    CALL_CTRL_DAGGERED_METHOD,
-    CALL_DAGGERED_METHOD,
     FunctionType,
     NoneType,
     NumericType,
@@ -78,6 +74,7 @@ if TYPE_CHECKING:
     from tket.metadata import InlineAnnotationValue
 
 type Decorator[S, T] = Callable[[S], T]
+type CustomModifierDefinitions = dict[CustomModifierKind, RawFunctionDef]
 
 AnyRawFunctionDef = (
     RawFunctionDef,
@@ -394,29 +391,30 @@ class _Guppy:
         object.__setattr__(call_raw_func, "name", cls.__name__)
         # This field is used for the error span for experimental features checking.
         object.__setattr__(call_raw_func, "unitary_class_at", decorator_node)
+        # We forward the type parameters of the unitary class to the `__call__` method
         object.__setattr__(
             call_raw_func, "unitary_class_params", unitary_class_span.type_params
         )
 
         # Update the unitary metadata according to the custom implementations
-
-        custom_modified_definition = _get_custom_methods(cls)
-
-        for custom_def in custom_modified_definition:
-            if custom_def is not None:
-                object.__setattr__(
-                    custom_def,
-                    "unitary_class_params",
-                    unitary_class_span.type_params,
-                )
-                DEF_STORE.register_custom_modified_def(call_raw_func.id, custom_def.id)
+        custom_modified_definitions = _get_custom_methods(cls)
+        for kind in CustomModifierKind:
+            custom_def = custom_modified_definitions.get(kind)
+            if custom_def is None:
+                continue
+            # We forward the type parameters of the unitary class to the custom method
+            object.__setattr__(
+                custom_def,
+                "unitary_class_params",
+                unitary_class_span.type_params,
+            )
+            DEF_STORE.register_custom_modified_def(
+                call_raw_func.id, kind, custom_def.id
+            )
         assert call_raw_func.metadata is not None
-        daggered, controlled, ctrl_daggered = custom_modified_definition
         combined_flags = _set_unitary_metadata(
             call_raw_func.metadata,
-            daggered=daggered,
-            controlled=controlled,
-            ctrl_daggered=ctrl_daggered,
+            custom_kinds=custom_modified_definitions.keys(),
             definition_span=to_span(unitary_class_span),
         )
         object.__setattr__(
@@ -939,19 +937,15 @@ def _get_unitary_call_def[T](
 
 def _get_custom_methods[T](
     cls: builtins.type[T],
-) -> tuple[RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None]:
+) -> CustomModifierDefinitions:
     """Returns the `@guppy`-annotated `daggered`, `controlled`, and `ctrl_daggered`"""
-    custom_methods: dict[str, RawFunctionDef | None] = defaultdict(lambda: None)
-    custom_methods_names = (
-        CALL_DAGGERED_METHOD,
-        CALL_CONTROLLED_METHOD,
-        CALL_CTRL_DAGGERED_METHOD,
-    )
+    custom_methods: CustomModifierDefinitions = {}
+    custom_methods_names = tuple(kind.value for kind in CustomModifierKind)
 
     for method_name, method in cls.__dict__.items():
         if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
             if isinstance(method.wrapped, RawFunctionDef):
-                custom_methods[method_name] = method.wrapped
+                custom_methods[CustomModifierKind(method_name)] = method.wrapped
             else:
                 raise TypeError(
                     f"`{method_name}` in the `@guppy.unitary` class "
@@ -976,47 +970,36 @@ def _get_custom_methods[T](
                 "be a guppy function"
             )
 
-    return (
-        custom_methods[CALL_DAGGERED_METHOD],
-        custom_methods[CALL_CONTROLLED_METHOD],
-        custom_methods[CALL_CTRL_DAGGERED_METHOD],
-    )
+    return custom_methods
 
 
 @pretty_errors
 def _set_unitary_metadata(
     metadata: FunctionMetadata,
     *,
-    daggered: RawFunctionDef | None,
-    controlled: RawFunctionDef | None,
-    ctrl_daggered: RawFunctionDef | None,
+    custom_kinds: Collection[CustomModifierKind],
     definition_span: Span,
 ) -> UnitaryFlags:
-    """Set unitary metadata based on the available custom implementations:
-    - `daggered`: The custom implementation for the daggered modifier, None if absent.
-    - `controlled`: The custom implementation for the controlled modifier,
-      None if absent.
-    - `ctrl_daggered`: The custom implementation for the ctrl_daggered modifier,
-      None if absent.
-
-    We also check that the combination of custom implementations is valid.
-    """
+    """Set unitary metadata based on the available custom implementations."""
 
     flags = UnitaryFlags(metadata.get_unitary_flags() or UnitaryFlags.NoFlags.value)
+    has_daggered = CustomModifierKind.DAGGERED in custom_kinds
+    has_controlled = CustomModifierKind.CONTROLLED in custom_kinds
+    has_ctrl_daggered = CustomModifierKind.CTRL_DAGGERED in custom_kinds
     check_modified_def_combinations(
         flags,
         definition_span=definition_span,
-        has_daggered=daggered is not None,
-        has_controlled=controlled is not None,
-        has_ctrl_daggered=ctrl_daggered is not None,
+        has_daggered=has_daggered,
+        has_controlled=has_controlled,
+        has_ctrl_daggered=has_ctrl_daggered,
     )
 
-    if daggered is not None:
+    if has_daggered:
         flags |= UnitaryFlags.Dagger
-    if controlled is not None:
+    if has_controlled:
         flags |= UnitaryFlags.Control
 
-    if ctrl_daggered is not None:
+    if has_ctrl_daggered:
         flags = UnitaryFlags.Unitary
 
     metadata.set_unitary_flags(flags.value)

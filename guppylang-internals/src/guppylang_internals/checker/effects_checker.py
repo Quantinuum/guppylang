@@ -84,7 +84,7 @@ def compute_effects(
 
     nx.draw(call_graph, with_labels=True)
     plt.gca().margins(x=4)
-    plt.savefig("call_graph.png")
+    # plt.savefig("call_graph.png")
     plt.show()
     plt.close()
 
