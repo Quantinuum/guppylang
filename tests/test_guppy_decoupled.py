@@ -18,12 +18,12 @@ def break_module(key) -> None:
 
 
 @contextmanager
-def broken_tket():
+def broken_pytket():
     old_modules = sys.modules.copy()
 
-    # Break all tket and pytket imports
+    # Break all pytket imports
     for key in list(sys.modules.keys()):
-        if key.startswith(("pytket", "tket")) and not key.startswith("tket_exts"):
+        if key.startswith("pytket"):
             break_module(key)
 
     # Purge cached guppylang imports
@@ -39,18 +39,10 @@ def broken_tket():
 
 
 @pytest.mark.forked
-def test_broken_tket():
-    """Asserts that the module breaker works as intended to break tket imports."""
-
-    with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):
-        from tket.passes import PassResult  # noqa: F401
-
-
-@pytest.mark.forked
 def test_broken_pytket():
     """Asserts that the module breaker works as intended to break pytket imports."""
 
-    with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):
+    with broken_pytket(), pytest.raises(ImportError, match=r"empty_module.py"):
         from pytket.circuit import Circuit  # noqa: F401
 
 
@@ -59,7 +51,7 @@ def test_use_pytket_decorator():
     """Tests that using the pytket decorator raises an import error when imports are
     broken."""
 
-    with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):  # noqa: PT012
+    with broken_pytket(), pytest.raises(ImportError, match=r"empty_module.py"):  # noqa: PT012
         from guppylang import guppy
 
         @guppy.pytket(None)
@@ -71,7 +63,7 @@ def test_use_pytket_decorator():
 def test_use_load_pytket_decorator():
     """Tests that using the load_pytket decorator raises an import error when imports
     are broken."""
-    with broken_tket(), pytest.raises(ImportError, match=r"empty_module.py"):  # noqa: PT012
+    with broken_pytket(), pytest.raises(ImportError, match=r"empty_module.py"):  # noqa: PT012
         from guppylang import guppy
 
         @guppy.load_pytket("some-circuit", None)
@@ -80,13 +72,12 @@ def test_use_load_pytket_decorator():
 
 
 @pytest.mark.forked
-def test_guppy_decoupled():
+def test_guppy_decoupled_from_pytket():
     """Regression test for https://github.com/Quantinuum/guppylang/issues/1595 to
-    ensure that the main guppy decorator is decoupled from the `tket` dependency, in
-    that import-time problems in the `tket` dependency an import of the decorator to
-    fail."""
+    ensure that the main guppy decorator is decoupled from the `pytket` dependency, so
+    import-time problems in `pytket` don't cause importing the decorator to fail."""
 
-    with broken_tket():
+    with broken_pytket():
         from guppylang import guppy
 
         @guppy

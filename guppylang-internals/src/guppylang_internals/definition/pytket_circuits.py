@@ -12,6 +12,8 @@ from hugr.debug_info import DILocation, DISubprogram
 from hugr.envelope import EnvelopeConfig
 from hugr.metadata import HugrDebugInfo
 from hugr.std.float import FLOAT_T
+from tket._state import CompilationState
+from tket.metadata import UnitaryFlags as TketUnitaryFlags
 
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals
@@ -49,7 +51,6 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.metadata.common import MetadataUnitaryFlags
 from guppylang_internals.metadata.debug_info_util import make_location_record
 from guppylang_internals.span import SourceMap, Span
 from guppylang_internals.std._internal.compiler.array import (
@@ -194,7 +195,6 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     ) -> "CompiledPytketDef":
         """Adds a Hugr `FuncDefn` node for this function to the Hugr."""
         from pytket.circuit import Circuit  # Decoupled import
-        from tket._state import CompilationState  # Decoupled import
 
         # Type mismatch should have been raised in decorator
         assert isinstance(self.input_circuit, Circuit)
@@ -215,8 +215,8 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
         hugr_func_metadata = module.hugr[hugr_func].metadata
         outer_func_metadata = module.hugr[outer_func].metadata
-        hugr_func_metadata[MetadataUnitaryFlags] = self.unitary_flags_value
-        outer_func_metadata[MetadataUnitaryFlags] = self.unitary_flags_value
+        hugr_func_metadata[TketUnitaryFlags] = self.unitary_flags_value
+        outer_func_metadata[TketUnitaryFlags] = self.unitary_flags_value
 
         # Add circuit function definition metadata (we can't add metadata to the
         # internal circuit function as we don't have that information).

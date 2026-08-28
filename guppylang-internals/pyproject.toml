@@ -33,7 +33,7 @@ dependencies = [
     "hugr ~= 0.18.2",
     "wasmtime>=38.0,<48.1",
     "pytket>=2.18.1",
-    "tket[pytket]~=0.15.6",
+    "tket[pytket]~=0.15.7",
 ]
 
 [build-system]

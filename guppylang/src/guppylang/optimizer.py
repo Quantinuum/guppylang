@@ -126,6 +126,8 @@ from typing import (
     TypeVar,
 )
 
+from tket import passes
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -189,12 +191,9 @@ class OptimizationLevel(Enum):
                 # encoding of the passes rather than the pytket objects
                 # themselves.
                 from pytket.passes import RemoveRedundancies
-                from tket import passes
 
                 return [passes.Normalize(), passes.PytketHugrPass(RemoveRedundancies())]
             case OptimizationLevel.Classical:
-                from tket import passes
-
                 return [passes.Normalize()]
             case OptimizationLevel.Minimal:
                 return []

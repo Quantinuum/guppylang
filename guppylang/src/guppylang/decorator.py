@@ -56,6 +56,7 @@ from guppylang_internals.tys.ty import (
     UnitaryFlags,
 )
 from hugr import val as hv
+from tket.metadata import InlineAnnotation, InlineAnnotationValue
 
 from guppylang.defs import (
     GuppyDefinition,
@@ -64,9 +65,6 @@ from guppylang.defs import (
     GuppyTypeVarDefinition,
 )
 from guppylang.library import _get_link_name
-
-if TYPE_CHECKING:
-    from tket.metadata import InlineAnnotationValue
 
 type Decorator[S, T] = Callable[[S], T]
 
@@ -723,7 +721,7 @@ def expected_qubits(num: int) -> Any:
     return metadata(MetadataExpectedQubitsHint.KEY, num)
 
 
-def inline(value: "InlineAnnotationValue") -> Any:
+def inline(value: InlineAnnotationValue) -> Any:
     """Decorator to attach inline metadata to a Guppy function. It must be
     placed below the @guppy decorator.
 
@@ -739,8 +737,6 @@ def inline(value: "InlineAnnotationValue") -> Any:
 
         main.compile()
     """
-    from tket.metadata import InlineAnnotation
-
     return metadata(InlineAnnotation.KEY, value)
 
 
@@ -921,20 +917,13 @@ def _add_generic_metadata(f: Callable[..., Any], metadata: FunctionMetadata) -> 
     """Adds the given metadata to the function's `__guppy_metadata__` attribute, which
     is used by the compiler to store metadata for Guppy functions.
     """
-    try:
-        from tket.metadata import InlineAnnotation
-
-        inline_key = InlineAnnotation.KEY
-    except ImportError:
-        inline_key = None
-
     custom_metadata = getattr(f, "__guppy_metadata__", {})
     assert isinstance(custom_metadata, dict)
     for key, value in custom_metadata.items():
         match key:
             case MetadataExpectedQubitsHint.KEY:
                 metadata.set_expected_qubits(value)
-            case k if k == inline_key and inline_key is not None:
+            case InlineAnnotation.KEY:
                 metadata.set_inline(value)
             case _:
                 metadata.set_generic_metadata(key, value)
