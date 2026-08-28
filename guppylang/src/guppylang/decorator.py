@@ -2,7 +2,7 @@ import ast
 import builtins
 import inspect
 import linecache
-from collections.abc import Callable, Collection
+from collections.abc import Callable
 from types import FrameType
 from typing import (
     TYPE_CHECKING,
@@ -414,7 +414,11 @@ class _Guppy:
         assert call_raw_func.metadata is not None
         combined_flags = _set_unitary_metadata(
             call_raw_func.metadata,
-            custom_kinds=custom_modified_definitions.keys(),
+            daggered=custom_modified_definitions.get(CustomModifierKind.DAGGERED),
+            controlled=custom_modified_definitions.get(CustomModifierKind.CONTROLLED),
+            ctrl_daggered=custom_modified_definitions.get(
+                CustomModifierKind.CTRL_DAGGERED
+            ),
             definition_span=to_span(unitary_class_span),
         )
         object.__setattr__(
@@ -977,29 +981,36 @@ def _get_custom_methods[T](
 def _set_unitary_metadata(
     metadata: FunctionMetadata,
     *,
-    custom_kinds: Collection[CustomModifierKind],
+    daggered: RawFunctionDef | None,
+    controlled: RawFunctionDef | None,
+    ctrl_daggered: RawFunctionDef | None,
     definition_span: Span,
 ) -> UnitaryFlags:
-    """Set unitary metadata based on the available custom implementations."""
+    """Set unitary metadata based on the available custom implementations:
+    - `daggered`: The custom implementation for the daggered modifier, None if absent.
+    - `controlled`: The custom implementation for the controlled modifier,
+      None if absent.
+    - `ctrl_daggered`: The custom implementation for the ctrl_daggered modifier,
+      None if absent.
+
+    We also check that the combination of custom implementations is valid.
+    """
 
     flags = UnitaryFlags(metadata.get_unitary_flags() or UnitaryFlags.NoFlags.value)
-    has_daggered = CustomModifierKind.DAGGERED in custom_kinds
-    has_controlled = CustomModifierKind.CONTROLLED in custom_kinds
-    has_ctrl_daggered = CustomModifierKind.CTRL_DAGGERED in custom_kinds
     check_modified_def_combinations(
         flags,
         definition_span=definition_span,
-        has_daggered=has_daggered,
-        has_controlled=has_controlled,
-        has_ctrl_daggered=has_ctrl_daggered,
+        has_daggered=daggered is not None,
+        has_controlled=controlled is not None,
+        has_ctrl_daggered=ctrl_daggered is not None,
     )
 
-    if has_daggered:
+    if daggered is not None:
         flags |= UnitaryFlags.Dagger
-    if has_controlled:
+    if controlled is not None:
         flags |= UnitaryFlags.Control
 
-    if has_ctrl_daggered:
+    if ctrl_daggered is not None:
         flags = UnitaryFlags.Unitary
 
     metadata.set_unitary_flags(flags.value)
