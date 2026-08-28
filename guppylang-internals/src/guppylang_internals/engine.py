@@ -19,6 +19,7 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
+from guppylang_internals.checker.effects_checker import CallGraphData, compute_effects
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -26,7 +27,6 @@ from guppylang_internals.definition.common import (
     CheckedDef,
     CompiledDef,
     DefId,
-    Definition,
     ParsableDef,
     ParsedDef,
     RawDef,
@@ -34,6 +34,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
@@ -102,9 +103,11 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
-    from guppylang_internals.checker.core import Globals
-    from guppylang_internals.definition.function import ParsedFunctionDef
+    from collections.abc import Iterable
 
+    from guppylang_internals.checker.core import Context, Globals
+    from guppylang_internals.definition.function import ParsedFunctionDef
+    from guppylang_internals.tys import Effect
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
@@ -250,6 +253,9 @@ class CompilationEngine:
     #: Custom modifier definitions keyed by the parent definition and its
     #: monomorphization.
     checked_custom_modified_defs: dict[MonoDefId, list[CustomModifiedDef]]
+    #: Call graph mapping from caller to list of callees. Populated during type checking
+    # as calls are checked, to be then used for effects checking.
+    call_graph: dict[MonoDefId, CallGraphData]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -301,13 +307,32 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.checked_custom_modified_defs = {}
+        self.call_graph = {}
 
-    def assert_stage(
-        self, operation: str, defn: Definition | None, stage: CompilationStage
+    def register_call(
+        self,
+        ctx: "Context",
+        callee: "CallableDef | Iterable[Effect]",
+        inst: Inst,
     ) -> None:
+        """Registers a function call in the call graph."""
+        # current_caller is not set for e.g. comptime but should be here:
+        assert ctx.current_caller is not None
+        data = self.call_graph[ctx.current_caller]
+        if isinstance(callee, CallableEffects):
+            effects = callee.call_effects
+        elif isinstance(callee, CallableDef):
+            # Effects not known yet, will be computed.
+            data.callee_defs.append((callee.id, inst))
+            return
+        else:
+            effects = callee
+        data.other_callee_effects.extend(effects)
+
+    def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
             raise CompilationStageError(
-                operation, defn, actual_stage=self._stage, expected_stage=stage
+                context, actual_stage=self._stage, expected_stage=stage
             )
 
     @pretty_errors
@@ -328,22 +353,22 @@ class CompilationEngine:
 
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
-            self.assert_stage("parse", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
-            self.assert_stage("parse", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
-            self.assert_stage("parse", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.to_check_worklist[id, ()] = defn
         elif isinstance(defn, CheckableGenericDef) and defn.params:
             # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
             # since we don't know the generic instantiation yet. It will be added when
             # we're checking a use of the definition (e.g. a call). See for example
             # `ParsedFunctionDef.check_call`.
-            self.assert_stage("parse", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.generic_to_check_worklist[id] = defn
 
         # If `defn` has any custom modified definitions linked to it,
@@ -386,10 +411,10 @@ class CompilationEngine:
 
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
-            self.assert_stage("check", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, f"check {defn}")
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
-            self.assert_stage("check", defn, CompilationStage.CHECK)
+            self.assert_stage(CompilationStage.CHECK, f"check {defn}")
             defn = _check_generic_def_instantiation(
                 defn, mono_args, Globals(DEF_STORE.frames[defn.id])
             )
@@ -445,6 +470,13 @@ class CompilationEngine:
             arg.visit(finder)
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
+
+    def register_call_graph_node(self, mono_id: MonoDefId) -> None:
+        """Ensures a monomorphized definition is registered in the call graph.
+        Required before edges can be added from the node, but not to it.
+        """
+        assert mono_id not in self.call_graph
+        self.call_graph[mono_id] = CallGraphData()
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.
@@ -572,7 +604,9 @@ class CompilationEngine:
 
         This is the function that is invoked by e.g. `<guppy-definition>.compile`.
         """
-        pointer, [compiled_def] = self._compile([id])
+        pointer, [compiled_def] = self._compile(
+            [id], f"compile {DEF_STORE.raw_defs[id]}"
+        )
 
         if (
             isinstance(compiled_def, CompiledHugrNodeDef)
@@ -592,19 +626,24 @@ class CompilationEngine:
 
         This is the function that is invoked by e.g. `<guppy-library>.compile`.
         """
-        return self._compile(def_ids, reset=reset)[0]
+        return self._compile(def_ids, context="call compile()", reset=reset)[0]
 
     def _compile(
-        self, def_ids: list[DefId], *, reset: bool = True
+        self, def_ids: list[DefId], context: str, *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
-        self.assert_stage("compile", None, CompilationStage.NONE)
+        # Avoid side-effects of checking if we are not going to compile.
+        self.assert_stage(CompilationStage.NONE, context)
         self.check(def_ids, reset=reset)
+        assert self._stage == CompilationStage.NONE, "Checking should have reset stage"
         with self._in_stage(CompilationStage.COMPILE):
             return self._compile_impl(def_ids)
 
     def _compile_impl(
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
+        # Run effects checking based on call graph analysis.
+        effects = compute_effects(self.call_graph)
+
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
@@ -617,7 +656,7 @@ class CompilationEngine:
         frame = get_calling_frame()
         filename = frame.f_code.co_filename
 
-        ctx = CompilerContext(graph, set(def_ids), StringTable())
+        ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
@@ -719,20 +758,13 @@ class CompilationStageError(InternalGuppyError):
 
     def __init__(
         self,
-        operation: str,
-        defn: Definition | None,
+        context: str,
         *,
         actual_stage: CompilationStage,
         expected_stage: CompilationStage,
     ) -> None:
-        object = (
-            f" {defn.description.capitalize()} `{defn.name}`"
-            if defn is not None
-            else ""
-        )
         super().__init__(
-            f"Can only {operation}{object} during `{expected_stage}`"
-            f", not `{actual_stage}`"
+            f"Can only {context} during `{expected_stage}`, not `{actual_stage}`"
         )
 
 
@@ -747,7 +779,7 @@ class EntryCheckMonomorphizeError(Error):
 
     @property
     def thing(self) -> str:
-        return f"{self.defn.description.capitalize()} `{self.defn.name}`"
+        return self.defn.to_caps_str()
 
     @property
     def plural_s(self) -> str:
@@ -769,9 +801,8 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
     """
     if isinstance(defn, CheckableGenericDef) and defn.params:
         assert defn.defined_at is not None
-        description = f"{defn.description.capitalize()} `{defn.name}`"
         raise GuppyError(
-            EntryMonomorphizeError(defn.defined_at, description, defn.params)
+            EntryMonomorphizeError(defn.defined_at, defn.to_caps_str(), defn.params)
         )
 
 

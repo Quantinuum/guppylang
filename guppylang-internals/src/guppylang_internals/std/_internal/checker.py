@@ -44,6 +44,7 @@ from guppylang_internals.nodes import (
     MakeIter,
     PlaceNode,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type,
@@ -183,7 +184,9 @@ class ArrayCopyChecker(CustomCallChecker):
                         ArrayCopyChecker.NonCopyableElementsError.Explanation(None)
                     )
                     raise GuppyTypeError(err)
-        [array_arg], _, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
+        [array_arg], _, inst = synthesize_call(
+            self.func.ty, args, self.node, self.ctx, self.func.effects
+        )
         node = make_global_call(self.func, [array_arg], inst)
         return with_loc(self.node, node), get_type(array_arg)
 
@@ -271,7 +274,9 @@ class ArrayIndexChecker(CustomCallChecker):
         expected type and perform bounds check."""
 
         # Run regular type checking for the arguments
-        args, subs, type_args = check_call(self.func.ty, args, ty, self.node, self.ctx)
+        args, subs, type_args = check_call(
+            self.func.ty, args, ty, self.node, self.ctx, self.func
+        )
 
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
@@ -285,7 +290,9 @@ class ArrayIndexChecker(CustomCallChecker):
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         """Synthesize-mode: infer return type and perform bounds check."""
         # Run regular type synthesis for the arguments
-        args, ty, type_args = synthesize_call(self.func.ty, args, self.node, self.ctx)
+        args, ty, type_args = synthesize_call(
+            self.func.ty, args, self.node, self.ctx, self.func.effects
+        )
 
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
@@ -486,6 +493,8 @@ class AbortChecker(CustomCallChecker):
                     values=[val[0] for val in vals],
                     signal=signal,
                 )
+                # Since we don't ExprChecker.check/syn_call:
+                ENGINE.register_call(self.ctx, [Effect.ANY], ())
                 return with_loc(self.node, node), NoneType()
 
             case args:
@@ -522,7 +531,9 @@ class BarrierChecker(CustomCallChecker):
             [FuncInput(t, InputFlags.Inout) for t in tys],
             NoneType(),
         )
-        args, ret_ty, inst = synthesize_call(func_ty, args, self.node, self.ctx)
+        args, ret_ty, inst = synthesize_call(
+            func_ty, args, self.node, self.ctx, self.func.effects
+        )
         assert len(inst) == 0, "func_ty is not generic"
         node = BarrierExpr(args=args, func_ty=func_ty)
         return with_loc(self.node, node), ret_ty
@@ -534,12 +545,16 @@ class WasmCallChecker(CustomCallChecker):
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
+        args, subst, inst = check_call(
+            self.func.ty, args, ty, self.node, self.ctx, self.func
+        )
 
         return make_global_call(self.func, args, inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
+        args, ty, inst = synthesize_call(
+            self.func.ty, args, self.node, self.ctx, self.func.effects
+        )
         return make_global_call(self.func, args, inst), ty

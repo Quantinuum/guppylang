@@ -18,6 +18,7 @@ from guppylang_internals.std._internal.compiler.list import (
     ListSetitemCompiler,
 )
 from guppylang_internals.std._internal.util import unsupported_op
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import list_type_def
 
 from guppylang import guppy
@@ -35,10 +36,11 @@ L = guppy.type_var("L", copyable=False, droppable=False)
 class list[T]:
     """Mutable sequence items with homogeneous types."""
 
-    @custom_function(ListGetitemCompiler())
+    @custom_function(ListGetitemCompiler(), effects=[Effect.ANY])
     def __getitem__(self: list[L], idx: int) -> L: ...
 
-    @custom_function(ListSetitemCompiler())
+    @custom_function(ListSetitemCompiler(), effects=[Effect.ANY])
+    # ALAN couldn't write a test that triggered this, setting not supported??
     def __setitem__(self: list[L], idx: int, value: L @ owned) -> None: ...
 
     @custom_function(ListLengthCompiler())
@@ -56,5 +58,5 @@ class list[T]:
     @custom_function(ListPushCompiler())
     def append(self: list[L], item: L @ owned) -> None: ...
 
-    @custom_function(ListPopCompiler())
+    @custom_function(ListPopCompiler(), effects=[Effect.ANY])  # panics if list empty
     def pop(self: list[L]) -> L: ...

@@ -801,9 +801,9 @@ class TupleType(ParametrizedTypeBase):
 
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
-        return transformer.transform(self) or TupleType([
-            ty.transform(transformer) for ty in self.element_types
-        ])
+        return transformer.transform(self) or TupleType(
+            [ty.transform(transformer) for ty in self.element_types]
+        )
 
 
 @dataclass(frozen=True)

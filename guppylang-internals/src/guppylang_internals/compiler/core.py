@@ -1,5 +1,6 @@
 import itertools
 from abc import ABC
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
@@ -70,6 +71,7 @@ if TYPE_CHECKING:
         CheckedFunctionDef,
         CompiledFunctionDef,
     )
+    from guppylang_internals.tys import Effect
 
 CompiledLocals = dict[PlaceId, Wire]
 
@@ -128,10 +130,14 @@ class CompilerContext(ToHugrContext):
 
     metadata_file_table: StringTable
 
+    # Info computed from callgraph before compilation begins
+    effects: Mapping[MonoDefId, frozenset["Effect"]]
+
     def __init__(
         self,
         module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
+        effects: Mapping[MonoDefId, frozenset["Effect"]],
         file_table: StringTable | None = None,
     ) -> None:
         self.module = module
@@ -139,6 +145,7 @@ class CompilerContext(ToHugrContext):
         self.compiled = {}
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
+        self.effects = effects
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )
@@ -154,7 +161,7 @@ class CompilerContext(ToHugrContext):
             # During compilation stage, get_checked will not have done any checking.
             # (During checking stage, this will fail, but we might have done more
             # checking. We could avoid this side effect, but it'd be more work.)
-            ENGINE.assert_stage("build_compiled_def", defn, CompilationStage.COMPILE)
+            ENGINE.assert_stage(CompilationStage.COMPILE, f"build_compiled_def {defn}")
             if isinstance(defn, CompilableDef):
                 custom_defs = ENGINE.checked_custom_modified_defs.get(
                     (def_id, mono_args), ()

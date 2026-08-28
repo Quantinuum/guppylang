@@ -273,6 +273,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             type_args,
             globals,
             mono_link_name,
+            self.id,
             self.decorator_unitary_flags,
         )
         mono_ty = self.ty.instantiate_partial(type_args)
@@ -283,6 +284,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_ty,
             self.docstring,
             mono_link_name,
+            type_args,
             cfg,
             decorator_unitary_flags=self.decorator_unitary_flags,
             metadata=self.metadata,
@@ -294,7 +296,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.ty, args, ty, node, ctx)
+        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self)
         node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
@@ -304,7 +306,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
     ) -> tuple[ast.expr, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.ty, args, node, ctx)
+        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self)
         node = with_loc(node, make_global_call(self, args, inst))
         return with_type(ty, node), ty
 
@@ -325,9 +327,11 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
         link_name: The external name for this function (applied to the Hugr node, and
             other representations, regardless of whether the function is actually
             visible for linking)
+        mono_args: Type arguments used to produce this monomorphization.
         cfg: The type- and linearity-checked CFG for the function body.
     """
 
+    mono_args: Inst
     cfg: CheckedCFG[Place]
 
     def __post_init__(self) -> None:
@@ -368,10 +372,12 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.ty,
             self.docstring,
             self.link_name,
+            self.mono_args,
             self.cfg,
             FunctionBuilder(func_def),
             decorator_unitary_flags=self.decorator_unitary_flags,
             metadata=self.metadata,
+            effects=ctx.effects[(self.id, self.mono_args)],
         )
 
 
@@ -383,25 +389,26 @@ class CompiledFunctionDef(CheckedFunctionDef, CompiledCallableDef, CompiledHugrN
         id: The unique definition identifier.
         name: The name of the function.
         defined_at: The AST node where the function was defined.
-        mono_args: Partial monomorphization of the generic type parameters.
         ty: The type of the function after partial monomorphization.
         docstring: The docstring of the function.
         link_name: The external name for this function (applied to the Hugr node, and
             other representations, regardless of whether the function is actually
             visible for linking)
+        mono_args: Partial monomorphization of the generic type parameters.
         cfg: The type- and linearity-checked CFG for the function body.
         _func_bldr: used to build the function body in `compile_inner`; clients
                    should use `hugr_node`
+        effects: effects of calling the function, computed after checking
+                but before compilation begins
     """
 
     _func_bldr: FunctionBuilder
+    effects: frozenset[Effect]
 
     @override
     @property
     def call_effects(self) -> frozenset[Effect]:
-        # For now, an approximation. (We said, may occur.)
-        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
-        return frozenset([Effect.ANY])
+        return self.effects
 
     @property
     def hugr_node(self) -> Node:

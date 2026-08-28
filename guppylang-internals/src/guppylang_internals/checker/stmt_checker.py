@@ -74,6 +74,7 @@ from guppylang_internals.nodes import (
     UnpackPattern,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import (
     array_type,
     get_array_length,
@@ -327,6 +328,9 @@ class StmtChecker(AstVisitor[BBStatement]):
                 case ConstValue(value=int(size)):
                     elt_ty = get_element_type(ty)
                     unpack = ArrayUnpack(pattern, size, elt_ty)
+                    # This compiles to an array-unpacking op, which will have
+                    # side-effects that we need to account for in checking
+                    ENGINE.register_call(self.ctx, [Effect.ANY], ())
                     return unpack, size * [expr], size * [elt_ty]
                 case BoundConstVar():
                     raise RequiresMonomorphizationError
@@ -417,9 +421,12 @@ class StmtChecker(AstVisitor[BBStatement]):
 
         if not self.bb:
             raise InternalGuppyError("BB required to check with block!")
-
+        if not self.ctx.current_caller:
+            raise InternalGuppyError("current_caller required to check with block!")
         # check the body of the modified block
-        checked_modified_block = check_modified_block(node, self.bb, self.ctx)
+        checked_modified_block = check_modified_block(
+            node, self.bb, self.ctx, current_caller=self.ctx.current_caller
+        )
 
         # check the arguments of the control and power.
         for control in checked_modified_block.control:

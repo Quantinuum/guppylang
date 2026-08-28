@@ -9,6 +9,7 @@ from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.hugr_extension import PartialOp
 from guppylang_internals.debug_mode import debug_mode_enabled
+from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef
 
@@ -24,6 +25,16 @@ def compile_global_func_def(
     """Compiles a top-level function definition to Hugr."""
     cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
+    if not ctx.effects[(func.id, func.mono_args)].issuperset(
+        builder._last_side_effect.keys()
+    ):
+        raise InternalGuppyError(
+            f"Function {func.name} compiled to have side effects not expected"
+            " during checking; callgraph analysis will be incomplete."
+        )
+    # Inequality (actual effects < expected) does not lead to wrong behaviour,
+    # merely unnecessary/extra order edges that may inhibit optimization,
+    # so do not break here.
 
 
 def compile_local_func_def(
@@ -63,7 +74,7 @@ def compile_local_func_def(
 
     # If we have captured variables and the body contains a recursive occurrence of
     # the function itself, then we provide the partially applied function as a local
-    # variable
+    # variable.
     if len(captured) > 0 and recursive:
         call_args: list[Wire] = list(func_builder.inputs())
         check_partial_functions_enabled()
@@ -93,8 +104,10 @@ def compile_local_func_def(
             # Even though global, this function will be private to the built hugr,
             # so the hugr name does not really matter.
             func.name,
+            mono_args,
             func.cfg,
             func_builder,
+            effects=ctx.effects[(func.def_id, mono_args)],
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 
