@@ -5,12 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import pytest
 from guppylang import (
     GuppyCompilableProgram,
     OptimizationLevel,
     OptimizerInstance,
     guppy,
 )
+from guppylang.optimizer import _RemoveRedundanciesPass
 from hugr.passes.composable import ComposablePass, PassResult
 
 if TYPE_CHECKING:
@@ -32,6 +34,16 @@ class CountingPass(ComposablePass):
 
     def with_scope(self, scope: PassScope) -> ComposablePass:
         return self
+
+
+def test_remove_redundancies_pass_definition() -> None:
+    """Keep the pytket-free pass definition in sync with pytket's serialization."""
+    pytket_passes = pytest.importorskip("pytket.passes")
+
+    assert (
+        _RemoveRedundanciesPass().to_dict()
+        == pytket_passes.RemoveRedundancies().to_dict()
+    )
 
 
 def test_opt_levels() -> None:
