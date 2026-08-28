@@ -3,12 +3,47 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import networkx as nx
+from matplotlib import pyplot as plt
 
 from guppylang_internals.tys import Effect
+from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.subst import BoundVarFinder
 
 if TYPE_CHECKING:
     from guppylang_internals.engine import MonoDefId
+
+
+@dataclass(frozen=True)
+class CallModifiers:
+    """Dagger and control modifiers active at a call site."""
+
+    daggered: bool = False
+    control_sizes: tuple[int | Const, ...] = ()
+
+    def compose(self, inner: "CallModifiers") -> "CallModifiers":
+        """
+        Return a new CallModifiers instance by composing modifiers self with inner.
+        """
+        return CallModifiers(
+            daggered=self.daggered ^ inner.daggered,
+            control_sizes=(*self.control_sizes, *inner.control_sizes),
+        )
+
+    def concrete_control_count(self) -> int:
+        """Returns the total number of controls in a concrete context."""
+        total = 0
+        for size in self.control_sizes:
+            match size:
+                case int() as value:
+                    total += value
+                case ConstValue(value=int() as value):
+                    total += value
+                case _:
+                    raise ValueError("Control count is not concrete")
+        return total
+
+
+NO_CALL_MODIFIERS = CallModifiers()
 
 
 @dataclass
@@ -16,7 +51,6 @@ class CallGraphData:
     """Node in the call graph representing a function with its effect limit
     declaration."""
 
-    # calls to definitions, each with AST of the call
     callee_defs: list["MonoDefId"] = field(default_factory=list)
     other_callee_effects: list[Effect] = field(default_factory=list)
 
@@ -47,6 +81,12 @@ def compute_effects(
             assert tgt in call_graph.nodes
             call_graph.add_edge(mono_def_id, tgt)
         call_graph.nodes[mono_def_id]["effects"] = effects
+
+    nx.draw(call_graph, with_labels=True)
+    plt.gca().margins(x=4)
+    plt.savefig("call_graph.png")
+    plt.show()
+    plt.close()
 
     # Then compute strongly components to find cycles in the call graph. Every node
     # in a component must have the same effects.

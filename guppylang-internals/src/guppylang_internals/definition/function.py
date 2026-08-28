@@ -444,6 +444,7 @@ def load(dfg: DFContainer, func: ToNode) -> Wire:
     return dfg.builder.load_function(func)
 
 
+# NICOLA: TODO: unused function
 def _compile_modified_def(
     defn: CheckedFunctionDef | None, ctx: CompilerContext
 ) -> str | None:
@@ -451,7 +452,7 @@ def _compile_modified_def(
         return None
     compiled = ctx.build_compiled_def(
         defn.id,
-        defn.mono_args,  # type: ignore[attr-defined]
+        defn.mono_args,
     )
     assert isinstance(compiled, CompiledFunctionDef)
     return compiled.link_name

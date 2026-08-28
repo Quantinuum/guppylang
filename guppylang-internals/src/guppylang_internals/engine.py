@@ -19,7 +19,11 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
-from guppylang_internals.checker.effects_checker import CallGraphData, compute_effects
+from guppylang_internals.checker.effects_checker import (
+    CallGraphData,
+    CallModifiers,
+    compute_effects,
+)
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -105,6 +109,7 @@ from guppylang_internals.tys.ty import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from guppylang_internals.ast_util import AstNode
     from guppylang_internals.checker.core import Context, Globals
     from guppylang_internals.definition.function import ParsedFunctionDef
     from guppylang_internals.tys import Effect
@@ -140,6 +145,9 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 #: registered with an empty tuple () as `Inst`. Otherwise, `Inst` will be the
 #: instantiation for the generic parameters for the monomorphized version.
 MonoDefId = tuple[DefId, Inst]
+
+#: An edge in the monomorphized call graph, represented as `(caller, callee)`.
+CallGraphEdge = tuple[MonoDefId, MonoDefId]
 
 #: A checked custom modifier definition together with its parsed definition when it
 #: still has generic parameters that must be monomorphized before compilation.
@@ -256,6 +264,9 @@ class CompilationEngine:
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
     call_graph: dict[MonoDefId, CallGraphData]
+    #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
+    #: stores one representative call site for future diagnostics.
+    modifier_calls: dict[CallGraphEdge, dict[CallModifiers, "AstNode | None"]]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -308,6 +319,7 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
         self.checked_custom_modified_defs = {}
         self.call_graph = {}
+        self.modifier_calls = {}
 
     def register_call(
         self,
@@ -323,7 +335,11 @@ class CompilationEngine:
             effects = callee.call_effects
         elif isinstance(callee, CallableDef):
             # Effects not known yet, will be computed.
-            data.callee_defs.append((callee.id, inst))
+            callee_id = (callee.id, inst)
+            data.callee_defs.append(callee_id)
+            edge = (ctx.current_caller, callee_id)
+            modifier_contexts = self.modifier_calls.setdefault(edge, {})
+            modifier_contexts.setdefault(ctx.call_modifiers, None)
             return
         else:
             effects = callee
@@ -696,15 +712,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(

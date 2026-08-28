@@ -1858,6 +1858,7 @@ def check_generator(
         inner_locals,
         ctx.generic_param_inst,
         current_caller=ctx.current_caller,
+        call_modifiers=ctx.call_modifiers,
     )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
