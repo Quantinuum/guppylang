@@ -18,11 +18,11 @@ class CallGraphData:
 
     # calls to definitions, each with AST of the call
     callee_defs: list["MonoDefId"] = field(default_factory=list)
-    other_callee_effects: list[Effect] = field(default_factory=list)
 
 
 def compute_effects(
     func_data: Mapping["MonoDefId", CallGraphData],
+    other_callee_effects: Mapping["MonoDefId", list[Effect]],
 ) -> Mapping["MonoDefId", frozenset[Effect]]:
     """Computes the effects of functions in the program, checking that they
     respect the declared effect limits. This should be called after a call graph
@@ -42,7 +42,7 @@ def compute_effects(
     for mono_def_id, data in func_data.items():
         if mono_def_id not in call_graph.nodes:
             continue
-        effects = set(data.other_callee_effects)
+        effects = set(other_callee_effects[mono_def_id])
         for tgt in data.callee_defs:
             assert tgt in call_graph.nodes
             call_graph.add_edge(mono_def_id, tgt)

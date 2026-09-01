@@ -228,6 +228,7 @@ class CompilationEngine:
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
     call_graph: dict[MonoDefId, CallGraphData]
+    other_callee_effects: dict[MonoDefId, list["Effect"]]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -279,6 +280,7 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_graph = {}
+        self.other_callee_effects = {}
 
     def register_call(
         self,
@@ -289,16 +291,17 @@ class CompilationEngine:
         """Registers a function call in the call graph."""
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
-        data = self.call_graph[ctx.current_caller]
+        assert ctx.current_caller in self.call_graph
+        assert ctx.current_caller in self.other_callee_effects
         if isinstance(callee, CallableEffects):
             effects = callee.call_effects
         elif isinstance(callee, CallableDef):
             # Effects not known yet, will be computed.
-            data.callee_defs.append((callee.id, inst))
+            self.call_graph[ctx.current_caller].callee_defs.append((callee.id, inst))
             return
         else:
             effects = callee
-        data.other_callee_effects.extend(effects)
+        self.other_callee_effects[ctx.current_caller].extend(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -408,7 +411,9 @@ class CompilationEngine:
         Required before edges can be added from the node, but not to it.
         """
         assert mono_id not in self.call_graph
+        assert mono_id not in self.other_callee_effects
         self.call_graph[mono_id] = CallGraphData()
+        self.other_callee_effects[mono_id] = []
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.
@@ -574,7 +579,7 @@ class CompilationEngine:
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
         # Run effects checking based on call graph analysis.
-        effects = compute_effects(self.call_graph)
+        effects = compute_effects(self.call_graph, self.other_callee_effects)
 
         # Prepare Hugr for this module
         graph = hf.Module()
