@@ -341,14 +341,9 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
             )
 
         if debug_mode:
-            from selene_hugr_qis_compiler import compile_to_llvm_ir
-
-            llvm_ir = compile_to_llvm_ir(
-                mod.to_bytes(),
-                platform=platform,
-                emit_debug=True,
+            return builder.build(
+                mod, n_qubits=qubits, arg_specs=arg_specs, debug_mode=True
             )
-            return builder.build(llvm_ir, n_qubits=qubits, arg_specs=arg_specs)
 
         return builder.build(mod, n_qubits=qubits, arg_specs=arg_specs)
 

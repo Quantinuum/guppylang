@@ -136,6 +136,7 @@ class EmulatorBuilder:
         package: Package,
         n_qubits: int,
         arg_specs: Sequence[EntrypointArgSpec] = (),
+        debug_mode: bool = False,
     ) -> EmulatorInstance:
         """Build an EmulatorInstance from a compiled package.
 
@@ -167,6 +168,7 @@ class EmulatorBuilder:
             strict=self._strict,
             save_planner=self._save_planner,
             platform=self._platform,
+            debug=debug_mode,
             **custom_args,
         )
 

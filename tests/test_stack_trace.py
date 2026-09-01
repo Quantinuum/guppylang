@@ -19,4 +19,4 @@ def main() -> None:
     array_out_of_bounds(5)
 
 
-main.emulator(n_qubits=1, debug_mode=True).run()
+main.with_minimal_opt().emulator(n_qubits=1, debug_mode=True).run()
