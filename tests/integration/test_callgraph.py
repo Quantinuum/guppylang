@@ -44,10 +44,10 @@ def test_simple():
     assert caller2_data is not None
 
     # Verify edges point to the right callees.
-    assert (caller1.id, ()) in root_data.callee_defs
-    assert (caller2.id, ()) in root_data.callee_defs
-    assert (leaf.id, ()) in caller1_data.callee_defs
-    assert (leaf.id, ()) in caller2_data.callee_defs
+    assert (caller1.id, ()) in root_data
+    assert (caller2.id, ()) in root_data
+    assert (leaf.id, ()) in caller1_data
+    assert (leaf.id, ()) in caller2_data
 
 
 def test_recursive():
@@ -65,7 +65,7 @@ def test_recursive():
     data = ENGINE.call_graph.get((factorial.id, ()))
     assert data is not None
     # Check that factorial calls itself.
-    assert (factorial.id, ()) in data.callee_defs
+    assert (factorial.id, ()) in data
 
 
 @pytest.mark.xfail(
@@ -88,7 +88,7 @@ def test_nested_function():
     data = ENGINE.call_graph.get((outer.id, ()))
     assert data is not None
     # Check the outer function call exactly one function (the nested function).
-    assert len(data.callee_defs) == 1
+    assert len(data) == 1
 
 
 def test_pure_quantum_calls_have_no_order_edges(validate):

@@ -18,6 +18,7 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
+from guppylang_internals.checker.callgraph import CallGraph
 from guppylang_internals.checker.effects_checker import compute_effects
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -578,8 +579,8 @@ class CompilationEngine:
     def _compile_impl(
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
-        # Run effects checking based on call graph analysis.
-        effects = compute_effects(self.call_graph, self.other_callee_effects)
+        callgraph = CallGraph(self.call_graph)
+        effects = compute_effects(callgraph, self.other_callee_effects)
 
         # Prepare Hugr for this module
         graph = hf.Module()
