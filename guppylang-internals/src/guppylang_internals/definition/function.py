@@ -2,6 +2,7 @@ import ast
 import inspect
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
+from types import FrameType
 from typing import TYPE_CHECKING, Any, override
 
 from hugr import Node, Wire
@@ -46,6 +47,7 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.definition.enum import ParsedEnumDef
 from guppylang_internals.definition.struct import ParsedStructDef
+from guppylang_internals.definition.util import parse_py_class
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -144,6 +146,32 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     unitary_class_params: Sequence[ast.type_param] = field(default=(), kw_only=True)
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
+
+    def set_unitary_class(
+        self,
+        cls: type,
+        defining_frame: FrameType,
+        sources: SourceMap,
+    ) -> ast.ClassDef:
+        """
+        Initialise for this definition the location and the type parameters of the
+        `@guppy.unitary` class
+        """
+        unitary_class_span = parse_py_class(cls, defining_frame, sources)
+        decorator_node = next(
+            (
+                decorator
+                for decorator in unitary_class_span.decorator_list
+                if isinstance(decorator, ast.Attribute) and decorator.attr == "unitary"
+            ),
+            unitary_class_span,
+        )
+
+        # Used as the error span when checking that experimental features are enabled.
+        object.__setattr__(self, "unitary_class_at", decorator_node)
+        object.__setattr__(self, "unitary_class_params", unitary_class_span.type_params)
+
+        return unitary_class_span
 
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":

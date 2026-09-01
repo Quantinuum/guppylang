@@ -43,7 +43,6 @@ from guppylang_internals.definition.pytket_circuits import (
 )
 from guppylang_internals.definition.struct import RawStructDef
 from guppylang_internals.definition.traced import RawTracedFunctionDef
-from guppylang_internals.definition.util import parse_py_class
 from guppylang_internals.dummy_decorator import (
     _dummy_custom_decorator,
     _DummyGuppy,
@@ -379,35 +378,25 @@ class _Guppy:
             raise TypeError("`@guppy.unitary` must be applied directly to a class")
         frame = get_calling_frame()
         cls = _set_firstlineno(cls, frame)
-        unitary_class_span = parse_py_class(cls, frame, DEF_STORE.sources)
-        decorator_node = next(
-            (
-                decorator
-                for decorator in unitary_class_span.decorator_list
-                if isinstance(decorator, ast.Attribute) and decorator.attr == "unitary"
-            ),
-            unitary_class_span,
-        )
         call_guppy_def = _get_unitary_call_def(cls)
         call_raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
         # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(call_raw_func, "name", cls.__name__)
-        # This field is used for the error span for experimental features checking.
-        object.__setattr__(call_raw_func, "unitary_class_at", decorator_node)
-        object.__setattr__(
-            call_raw_func, "unitary_class_params", unitary_class_span.type_params
-        )
 
         # Update the unitary metadata according to the custom implementations
-
         custom_modified_definition = _get_custom_methods(cls)
+        definition_span = call_raw_func.set_unitary_class(
+            cls,
+            frame,
+            DEF_STORE.sources,
+        )
 
         for custom_def in custom_modified_definition:
             if custom_def is not None:
                 object.__setattr__(
                     custom_def,
                     "unitary_class_params",
-                    unitary_class_span.type_params,
+                    definition_span.type_params,
                 )
                 DEF_STORE.register_custom_modified_def(call_raw_func.id, custom_def.id)
         assert call_raw_func.metadata is not None
@@ -417,16 +406,12 @@ class _Guppy:
             daggered=daggered,
             controlled=controlled,
             ctrl_daggered=ctrl_daggered,
-            definition_span=to_span(unitary_class_span),
+            definition_span=to_span(definition_span),
         )
         object.__setattr__(
             call_raw_func, "decorator_unitary_flags", call_raw_func.unitary_flags
         )
-        object.__setattr__(
-            call_raw_func,
-            "unitary_flags",
-            combined_flags,
-        )
+        object.__setattr__(call_raw_func, "unitary_flags", combined_flags)
         return call_guppy_def  # type: ignore[return-value]
 
     def require[**P, T](
@@ -925,6 +910,7 @@ def _set_firstlineno[T](cls: builtins.type[T], frame: FrameType) -> builtins.typ
     return cls
 
 
+@hide_trace
 def _get_unitary_call_def[T](
     cls: builtins.type[T],
 ) -> GuppyDefinition:
@@ -954,6 +940,7 @@ def _get_custom_methods[T](
     for method_name, method in cls.__dict__.items():
         if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
             if isinstance(method.wrapped, RawFunctionDef):
+                _check_custom_method_metadata(method_name, method.wrapped, cls.__name__)
                 custom_methods[method_name] = method.wrapped
             else:
                 raise TypeError(
@@ -986,6 +973,27 @@ def _get_custom_methods[T](
     )
 
 
+@hide_trace
+def _check_custom_method_metadata(
+    method_name: str, method: RawFunctionDef, class_name: str
+) -> None:
+    """Reject metadata that is only meaningful on a unitary class's ``__call__``."""
+    if method.unitary_flags != UnitaryFlags.NoFlags:
+        raise TypeError(
+            f"`{method_name}` in the `@guppy.unitary` class `{class_name}` cannot "
+            "set unitary flags; only `__call__` can set them"
+        )
+
+    if (
+        method.metadata is not None
+        and method.metadata.get_expected_qubits() is not None
+    ):
+        raise TypeError(
+            f"`{method_name}` in the `@guppy.unitary` class `{class_name}` cannot "
+            "use `@expected_qubits`; only `__call__` can use it"
+        )
+
+
 @pretty_errors
 def _set_unitary_metadata(
     metadata: FunctionMetadata,
@@ -1004,7 +1012,6 @@ def _set_unitary_metadata(
 
     We also check that the combination of custom implementations is valid.
     """
-
     flags = UnitaryFlags(metadata.get_unitary_flags() or UnitaryFlags.NoFlags.value)
     check_modified_def_combinations(
         flags,
@@ -1018,7 +1025,6 @@ def _set_unitary_metadata(
         flags |= UnitaryFlags.Dagger
     if controlled is not None:
         flags |= UnitaryFlags.Control
-
     if ctrl_daggered is not None:
         flags = UnitaryFlags.Unitary
 
