@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-from guppylang_internals.checker.callgraph import CallGraph, CallGraphComponent
+from guppylang_internals.checker.callgraph import CallGraph
 from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
@@ -16,25 +16,16 @@ def compute_effects(
     respect the declared effect limits. This should be called after a call graph
     has been constructed during checking."""
 
-    component_effects: dict[CallGraphComponent, frozenset[Effect]] = {}
+    func_effects: dict[MonoDefId, frozenset[Effect]] = {}
 
     # Start in the leaves of the condensed graph and work up to the roots, so that we
     # can compute the effects of a component based on the effects of its callees.
     for component in reversed(call_graph.condensed):
         effects = set.union(
-            *(
-                set(other_callee_effects[mono_def_id])
-                for mono_def_id in component.members
-            )
+            *(set(other_callee_effects[func]) for func in component.members)
         )
-        for _, succ, _ in component.callees:
-            effects.update(component_effects[succ])
+        for _, _, tgt in component.callees:
+            effects.update(func_effects[tgt])
+        func_effects.update(dict.fromkeys(component.members, frozenset(effects)))
 
-        fx = frozenset(effects)
-        component_effects[component] = fx
-
-    return {
-        def_id: component_effects[component]
-        for component in call_graph.condensed
-        for def_id in component.members
-    }
+    return func_effects
