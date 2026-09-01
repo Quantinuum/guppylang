@@ -1,5 +1,4 @@
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -11,17 +10,8 @@ if TYPE_CHECKING:
     from guppylang_internals.engine import MonoDefId
 
 
-@dataclass
-class CallGraphData:
-    """Node in the call graph representing a function with its effect limit
-    declaration."""
-
-    # calls to definitions, each with AST of the call
-    callee_defs: list["MonoDefId"] = field(default_factory=list)
-
-
 def compute_effects(
-    func_data: Mapping["MonoDefId", CallGraphData],
+    callee_defs: Mapping["MonoDefId", list["MonoDefId"]],
     other_callee_effects: Mapping["MonoDefId", list[Effect]],
 ) -> Mapping["MonoDefId", frozenset[Effect]]:
     """Computes the effects of functions in the program, checking that they
@@ -30,7 +20,7 @@ def compute_effects(
 
     # First construct a networkx DiGraph based on the call graph info for analysis.
     call_graph: nx.DiGraph[MonoDefId] = nx.DiGraph()
-    for mono_def_id in func_data:
+    for mono_def_id in callee_defs:
         finder = BoundVarFinder()
         (_, args) = mono_def_id
         # Include only real/concrete instantiations, the others will not be compiled.
@@ -39,11 +29,11 @@ def compute_effects(
         if not finder.bound_vars:
             call_graph.add_node(mono_def_id)
 
-    for mono_def_id, data in func_data.items():
+    for mono_def_id, callees in callee_defs.items():
         if mono_def_id not in call_graph.nodes:
             continue
         effects = set(other_callee_effects[mono_def_id])
-        for tgt in data.callee_defs:
+        for tgt in callees:
             assert tgt in call_graph.nodes
             call_graph.add_edge(mono_def_id, tgt)
         call_graph.nodes[mono_def_id]["effects"] = effects

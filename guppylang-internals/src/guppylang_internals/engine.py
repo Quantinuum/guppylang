@@ -18,7 +18,7 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
-from guppylang_internals.checker.effects_checker import CallGraphData, compute_effects
+from guppylang_internals.checker.effects_checker import compute_effects
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -227,7 +227,7 @@ class CompilationEngine:
 
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
-    call_graph: dict[MonoDefId, CallGraphData]
+    call_graph: dict[MonoDefId, list[MonoDefId]]
     other_callee_effects: dict[MonoDefId, list["Effect"]]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
@@ -297,7 +297,7 @@ class CompilationEngine:
             effects = callee.call_effects
         elif isinstance(callee, CallableDef):
             # Effects not known yet, will be computed.
-            self.call_graph[ctx.current_caller].callee_defs.append((callee.id, inst))
+            self.call_graph[ctx.current_caller].append((callee.id, inst))
             return
         else:
             effects = callee
@@ -412,7 +412,7 @@ class CompilationEngine:
         """
         assert mono_id not in self.call_graph
         assert mono_id not in self.other_callee_effects
-        self.call_graph[mono_id] = CallGraphData()
+        self.call_graph[mono_id] = []
         self.other_callee_effects[mono_id] = []
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
