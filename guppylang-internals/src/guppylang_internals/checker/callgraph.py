@@ -66,4 +66,9 @@ class CallGraphComponent:
     """Represents a strongly connected component in the call graph."""
 
     members: frozenset[MonoDefId]
+
+    """ Calls from this component to other components.
+    Each tuple is (source, target_component, target). """
+    # ALAN TODO make middle CallGraphComponent | None
+    # so as to include calls to non-callgraph funcs.
     callees: frozenset[tuple[MonoDefId, CallGraphComponent, MonoDefId]]

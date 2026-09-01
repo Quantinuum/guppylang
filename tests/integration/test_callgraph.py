@@ -9,6 +9,11 @@ from guppylang.std.builtins import owned, panic
 from guppylang.std.quantum import qubit
 from guppylang.std.quantum.functional import cx, h
 
+# ALAN TODO add test that a user-defined function calling a *declaration* gets the [ANY]
+
+# ALAN TODO move hugr tests into test_side_effect_ordering.py,
+# then move this file outside of integration
+
 
 def test_simple():
     """Test that a simple call graph is built correctly."""
