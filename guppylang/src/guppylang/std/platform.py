@@ -13,6 +13,7 @@ from guppylang_internals.std._internal.checker import (
     BarrierChecker,
 )
 from guppylang_internals.std._internal.compiler.platform import (
+    ArrayOutputChecker,
     ArrayOutputCompiler,
     MeasurementOutputChecker,
     OutputCompiler,
@@ -52,19 +53,25 @@ def _output_float(tag: str @ comptime, value: float) -> None: ...
 def _output_measurement(tag: str @ comptime, value: Measurement) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_int", with_int_width=True))
+@custom_function(
+    ArrayOutputCompiler("result_array_int", with_int_width=True),
+    checker=ArrayOutputChecker(),
+)
 def _output_int_array(tag: str @ comptime, value: array[int, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_uint", with_int_width=True))
+@custom_function(
+    ArrayOutputCompiler("result_array_uint", with_int_width=True),
+    checker=ArrayOutputChecker(),
+)
 def _output_nat_array(tag: str @ comptime, value: array[nat, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_bool"))
+@custom_function(ArrayOutputCompiler("result_array_bool"), checker=ArrayOutputChecker())
 def _output_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_f64"))
+@custom_function(ArrayOutputCompiler("result_array_f64"), checker=ArrayOutputChecker())
 def _output_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
 
 

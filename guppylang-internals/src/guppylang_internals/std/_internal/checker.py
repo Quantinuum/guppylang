@@ -515,6 +515,14 @@ def to_sized_iter(
 class BarrierChecker(CustomCallChecker):
     """Call checker for the `barrier` function."""
 
+    preserves_static_inout_values = True
+
+    @override
+    def compute_input_flags(self, args: list[ast.expr]) -> list[InputFlags]:
+        # Unlike ordinary borrows, barriers forward copyable values too. This ensures
+        # that subsequent operations depend on the barrier's output wires.
+        return [InputFlags.Inout] * len(args)
+
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         tys = [ExprSynthesizer(self.ctx).synthesize(val)[1] for val in args]
