@@ -109,7 +109,7 @@ which is just a numpy array of complex amplitudes.
 
 In general the qubits you request state for may not be all the qubits in the fully
 entangled state, in which case the remaining qubits are traced over and a
-probabilistic distribution over statws is returned.
+probabilistic distribution over states is returned.
 
 The two methods :py:meth:`EmulatorResult.partial_states` and
 :meth:`EmulatorResult.partial_state_dicts` extract state results
@@ -119,6 +119,7 @@ from the emulator output as :py:class:`PartialVector` objects.
 
     from guppylang import guppy
     from guppylang.std.debug import state_output
+    from guppylang.std.platform import barrier
     from guppylang.std.quantum import qubit, measure, cx, h
 
     @guppy
@@ -128,6 +129,7 @@ from the emulator output as :py:class:`PartialVector` objects.
         h(q0)
         q1 = qubit()
         cx(q0, q1)
+        barrier(q0, q1)
         state_output("q0", q0)
         measure(q0)
         measure(q1)
@@ -142,6 +144,17 @@ Output is a uniform distribution over the two basis states of the qubit:
 
     [TracedState(probability=0.5, state=array([1.+0.j, 0.+0.j])),
     TracedState(probability=0.5, state=array([0.+0.j, 1.+0.j]))]
+
+.. warning::
+
+    Guppy does not in general respect the order of function calls in the source code, it
+    is constrained by the dataflow of the program. If two function calls act on
+    disjoint qubits they can slide past each other. This can interact badly with
+    entanglement since the guppy compiler does not know which qubits are entangled
+    together. In practice a gate on a qubit may be executed before a state_output on
+    another (potentially entangled) qubit, which can lead to unexpected results. To
+    avoid this, use the :py:func:`barrier` command to ensure that all operations on a
+    set of qubits are completed before the state is output.
 
 
 

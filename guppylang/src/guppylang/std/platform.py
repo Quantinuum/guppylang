@@ -153,7 +153,7 @@ def panic(msg: str, signal: int = 1, *args):
         message: The message to display. Must be a string literal.
         signal: An optional integer for distinguishing different failure modes.
         args: Arbitrary extra inputs, will not affect the message. Only useful for
-        consuming linear values.
+            consuming linear values.
     """
 
 
@@ -207,7 +207,7 @@ def exit(msg: str, signal: int = 1, *args):
         message: The message to display. Must be a string literal.
         signal: An optional integer for distinguishing different failure modes.
         args: Arbitrary extra inputs, will not affect the message. Only useful for
-        consuming linear values.
+            consuming linear values.
     """
 
 

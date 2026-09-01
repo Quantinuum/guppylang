@@ -84,7 +84,7 @@ class RNG:
 
         Args:
             delta: Number of steps to move the RNG state forward (if positive)
-            or backward (if negative).
+                or backward (if negative).
         """
 
     @guppy
