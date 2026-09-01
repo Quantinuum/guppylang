@@ -1013,7 +1013,7 @@ main.compile()
 
 * Use `release-please bootstrap`'s default config ([#187](https://github.com/quantinuum/guppylang/issues/187)) ([72e666a](https://github.com/quantinuum/guppylang/commit/72e666af5a52c44a4094080a665342422a242d2b))
 
-## [0.1.0](https://github.com/quantinuum/guppy/releases/tag/v0.1.0)
+## [0.1.0](https://github.com/quantinuum/guppylang/releases/tag/v0.1.0)
 
 First release of Guppy! 🐟
 
