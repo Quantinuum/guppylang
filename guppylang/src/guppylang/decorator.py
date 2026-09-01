@@ -374,11 +374,10 @@ class _Guppy:
                 "`@guppy.unitary` does not accept keyword arguments. Put them on "
                 "the `@guppy` decorator of the `__call__` method instead."
             )
-        if cls is None:
-            raise TypeError("`@guppy.unitary` must be applied directly to a class")
+        call_guppy_def = _get_unitary_call_def(cls)
+        cls = cast("builtins.type[T]", cls)
         frame = get_calling_frame()
         cls = _set_firstlineno(cls, frame)
-        call_guppy_def = _get_unitary_call_def(cls)
         call_raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
         # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(call_raw_func, "name", cls.__name__)
@@ -911,11 +910,14 @@ def _set_firstlineno[T](cls: builtins.type[T], frame: FrameType) -> builtins.typ
 
 
 @hide_trace
-def _get_unitary_call_def[T](
-    cls: builtins.type[T],
-) -> GuppyDefinition:
+def _get_unitary_call_def(cls: object) -> GuppyDefinition:
     """Returns the `@guppy`-annotated `__call__` method from a unitary class.
-    Raises a `TypeError` if the method is not present or not properly annotated."""
+    Raises a `TypeError` if the input is not a class or the method is not present or
+    properly annotated.
+    """
+    if not isinstance(cls, builtins.type):
+        raise TypeError("`@guppy.unitary` must be applied directly to a class")
+
     val = cls.__dict__.get("__call__")
     if isinstance(val, GuppyDefinition) and isinstance(val.wrapped, RawFunctionDef):
         return val

@@ -71,6 +71,23 @@ def test_unitary_requires_guppy_call_method(use_experimental_features):
             pass
 
 
+def test_unitary_requires_class():
+    with pytest.raises(
+        TypeError,
+        match=r"`@guppy\.unitary` must be applied directly to a class",
+    ):
+
+        @guppy.unitary
+        def foo() -> None:
+            pass
+
+    with pytest.raises(
+        TypeError,
+        match=r"`@guppy\.unitary` must be applied directly to a class",
+    ):
+        guppy.unitary()
+
+
 def test_unitary_rejects_keyword_arguments():
     with pytest.raises(
         TypeError,
