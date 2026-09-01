@@ -2,7 +2,7 @@ import itertools
 from abc import ABC
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from hugr import Hugr, Wire
 from hugr import tys as ht
@@ -37,7 +37,6 @@ from guppylang_internals.engine import (
     MonoDefId,
 )
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.metadata.common import add_num_control_qubits
 from guppylang_internals.metadata.debug_info_util import StringTable
 from guppylang_internals.std._internal.compiler.tket_exts import (
     DEBUG_EXTENSION as TKET_DEBUG_EXTENSION,
@@ -51,15 +50,9 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
 from guppylang_internals.std._internal.compiler.tket_exts import (
     RESULT_EXTENSION as TKET_RESULT_EXTENSION,
 )
-from guppylang_internals.tys.arg import ConstArg
-from guppylang_internals.tys.builtin import nat_type
 from guppylang_internals.tys.common import ToHugrContext
-from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
-    CALL_CONTROLLED_METHOD,
-    CALL_CTRL_DAGGERED_METHOD,
-    CALL_DAGGERED_METHOD,
     StructType,
     TupleType,
     Type,
@@ -67,19 +60,9 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.compiler.builder import DFBuilder
-    from guppylang_internals.definition.function import (
-        CheckedFunctionDef,
-        CompiledFunctionDef,
-    )
     from guppylang_internals.tys import Effect
 
 CompiledLocals = dict[PlaceId, Wire]
-
-_MODIFIED_NAME_INDICES = {
-    CALL_DAGGERED_METHOD: 0,
-    CALL_CONTROLLED_METHOD: 1,
-    CALL_CTRL_DAGGERED_METHOD: 2,
-}
 
 
 @dataclass(frozen=True)
@@ -163,51 +146,6 @@ class CompilerContext(ToHugrContext):
             # checking. We could avoid this side effect, but it'd be more work.)
             ENGINE.assert_stage(CompilationStage.COMPILE, f"build_compiled_def {defn}")
             if isinstance(defn, CompilableDef):
-                custom_defs = ENGINE.checked_custom_modified_defs.get(
-                    (def_id, mono_args), ()
-                )
-                if custom_defs:
-                    modified_names: list[str | list[str] | None] = [None, None, None]
-                    for checked_custom_defn, generic_custom_defn in custom_defs:
-                        modified_name_index = _MODIFIED_NAME_INDICES[
-                            checked_custom_defn.name
-                        ]
-                        if generic_custom_defn is None:
-                            compiled_custom_defn = cast(
-                                "CompiledFunctionDef",
-                                self.build_compiled_def(
-                                    checked_custom_defn.id, mono_args
-                                ),
-                            )
-                            modified_names[modified_name_index] = (
-                                compiled_custom_defn.link_name
-                            )
-                            continue
-                        generic_modified_names = []
-                        for value in (1, 2):
-                            concrete_mono_args = (
-                                *mono_args,
-                                ConstArg(ConstValue(nat_type(), value)),
-                            )
-                            compiled_custom_defn = cast(
-                                "CompiledFunctionDef",
-                                self.build_compiled_def(
-                                    generic_custom_defn.id, concrete_mono_args
-                                ),
-                            )
-                            add_num_control_qubits(
-                                self.module.hugr[
-                                    compiled_custom_defn.hugr_node
-                                ].metadata,
-                                value,
-                            )
-                            generic_modified_names.append(
-                                compiled_custom_defn.link_name
-                            )
-                        modified_names[modified_name_index] = generic_modified_names
-                    function_defn = cast("CheckedFunctionDef", defn)
-                    assert function_defn.metadata is not None
-                    function_defn.metadata.set_modified_defs(modified_names)
                 defn = defn.compile_outer(self.module, self)
             self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None

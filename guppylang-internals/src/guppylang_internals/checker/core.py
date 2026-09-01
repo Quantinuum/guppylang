@@ -16,7 +16,7 @@ from typing import (
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
 from guppylang_internals.checker.effects_checker import (
     NO_CALL_MODIFIERS,
-    CallModifiers,
+    ModifierContext,
 )
 from guppylang_internals.definition.common import (
     DefId,
@@ -450,7 +450,7 @@ class Context(NamedTuple):
     current_caller: MonoDefId | None = None
 
     #: Stores under which modifiers context a function is being called.
-    call_modifiers: CallModifiers = NO_CALL_MODIFIERS
+    modifier_ctx: ModifierContext = NO_CALL_MODIFIERS
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

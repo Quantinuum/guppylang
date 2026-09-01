@@ -33,7 +33,7 @@ from guppylang_internals.checker.core import (
     SubscriptAccess,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import CallModifiers
+from guppylang_internals.checker.effects_checker import ModifierContext
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.errors.type_errors import (
     AssignFieldTypeMismatchError,
@@ -483,13 +483,13 @@ class StmtChecker(AstVisitor[BBStatement]):
             assert control.qubit_num is not None
             control_sizes.append(control.qubit_num)
 
-        local_modifiers = CallModifiers(
+        local_modifiers = ModifierContext(
             daggered=node.has_dagger(),
             control_sizes=tuple(control_sizes),
         )
 
         body_ctx = self.ctx._replace(
-            call_modifiers=self.ctx.call_modifiers.compose(local_modifiers)
+            modifier_ctx=self.ctx.modifier_ctx.compose(local_modifiers)
         )
 
         return check_modified_block(node, self.bb, body_ctx)

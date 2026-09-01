@@ -21,7 +21,8 @@ from semver import Version
 import guppylang_internals
 from guppylang_internals.checker.effects_checker import (
     CallGraphData,
-    CallModifiers,
+    CustomModifierKind,
+    ModifierContext,
     compute_effects,
 )
 from guppylang_internals.debug_mode import debug_mode_enabled
@@ -81,11 +82,11 @@ from guppylang_internals.tys.builtin import (
     tuple_type_def,
     unitary_protocol_def,
 )
-from guppylang_internals.tys.const import BoundConstVar
+from guppylang_internals.tys.const import BoundConstVar, ConstValue
 from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.printing import TypePrinter
 from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
-from guppylang_internals.tys.subst import BoundVarFinder, Inst
+from guppylang_internals.tys.subst import Inst, is_concrete_inst
 from guppylang_internals.tys.ty import (
     CALL_CONTROLLED_METHOD,
     CALL_CTRL_DAGGERED_METHOD,
@@ -149,25 +150,19 @@ MonoDefId = tuple[DefId, Inst]
 #: An edge in the monomorphized call graph, represented as `(caller, callee)`.
 CallGraphEdge = tuple[MonoDefId, MonoDefId]
 
-#: A checked custom modifier definition together with its parsed definition when it
-#: still has generic parameters that must be monomorphized before compilation.
-CustomModifiedDef = tuple[CheckedDef, CheckableGenericDef | None]
+#: A modifier-labelled call-graph edge that has been resolved to its concrete
+#: implementation.
+ResolvedModifierCall = tuple[CallGraphEdge, ModifierContext]
 
 
-class CustomModifierKind(Enum):
-    """Kinds of custom implementations supported by ``@guppy.unitary``."""
+@dataclass(frozen=True)
+class ConcreteCustomUse:
+    """A concrete custom modifier implementation required by the program."""
 
-    DAGGERED = CALL_DAGGERED_METHOD
-    CONTROLLED = CALL_CONTROLLED_METHOD
-    CTRL_DAGGERED = CALL_CTRL_DAGGERED_METHOD
-
-    @property
-    def takes_controls(self) -> bool:
-        """Whether the implementation has a control-count parameter."""
-        return self in {
-            CustomModifierKind.CONTROLLED,
-            CustomModifierKind.CTRL_DAGGERED,
-        }
+    parent: MonoDefId
+    implementation: MonoDefId
+    kind: CustomModifierKind
+    control_count: int | None
 
 
 class CompilationStage(Enum):
@@ -279,15 +274,17 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
-    #: Custom modifier definitions keyed by the parent definition and its
-    #: monomorphization.
-    checked_custom_modified_defs: dict[MonoDefId, list[CustomModifiedDef]]
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
     call_graph: dict[MonoDefId, CallGraphData]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site for future diagnostics.
-    modifier_calls: dict[CallGraphEdge, dict[CallModifiers, "AstNode | None"]]
+    modifiers_on_calls: dict[CallGraphEdge, dict[ModifierContext, "AstNode | None"]]
+    #: Cache used for storing resolved modifier-labelled calls during custom modifier
+    #: monomorphization.
+    resolved_call_targets: dict[ResolvedModifierCall, MonoDefId]
+    #: Concrete custom uses, deduplicated by implementation monomorphization.
+    concrete_custom_uses: dict[MonoDefId, ConcreteCustomUse]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -338,9 +335,10 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
-        self.checked_custom_modified_defs = {}
         self.call_graph = {}
-        self.modifier_calls = {}
+        self.modifiers_on_calls = {}
+        self.resolved_call_targets = {}
+        self.concrete_custom_uses = {}
 
     def register_call(
         self,
@@ -356,11 +354,14 @@ class CompilationEngine:
             effects = callee.call_effects
         elif isinstance(callee, CallableDef):
             # Effects not known yet, will be computed.
-            callee_id = (callee.id, inst)
-            data.callee_defs.append(callee_id)
-            edge = (ctx.current_caller, callee_id)
-            modifier_contexts = self.modifier_calls.setdefault(edge, {})
-            modifier_contexts.setdefault(ctx.call_modifiers, None)
+            callee_mono_def_id: MonoDefId = (callee.id, inst)
+            data.callee_defs.append(callee_mono_def_id)
+            edge = (ctx.current_caller, callee_mono_def_id)
+            # We are adding the modifier context to the edge, maybe improve the
+            # readability
+            modifier_contexts = self.modifiers_on_calls.setdefault(edge, {})
+            # adding the key with the ast set to None
+            modifier_contexts.setdefault(ctx.modifier_ctx, None)
             return
         else:
             effects = callee
@@ -448,35 +449,6 @@ class CompilationEngine:
                 defn, mono_args, Globals(DEF_STORE.frames[defn.id])
             )
         self.checked[id, mono_args] = defn
-        checked_custom_defs: list[CustomModifiedDef] = []
-        custom_modified_defs = DEF_STORE.custom_modified_defs.get(defn.id, {})
-        for custom_modified_id in custom_modified_defs.values():
-            custom_modified_defn = self.get_parsed(custom_modified_id)
-            assert isinstance(custom_modified_defn, CheckableGenericDef)
-            # NICOLA: TODO: saving in self.checked may be useless
-            # controlled implematation has an extra parameter for the controllers.
-            # We keep that extra parameter generic, the monomorphization will be
-            # done later.
-            custom_mono_args = mono_args + tuple(
-                param.to_bound()
-                for param in custom_modified_defn.params[len(mono_args) :]
-            )
-            if (custom_modified_id, custom_mono_args) not in self.checked:
-                checked_defn = _check_generic_def_instantiation(
-                    custom_modified_defn,
-                    custom_mono_args,
-                    Globals(DEF_STORE.frames[defn.id]),
-                )
-                self.checked[custom_modified_id, custom_mono_args] = checked_defn
-            else:
-                checked_defn = self.checked[custom_modified_id, custom_mono_args]
-            remaining_generic_defn = (
-                custom_modified_defn
-                if len(custom_modified_defn.params) > len(mono_args)
-                else None
-            )
-            checked_custom_defs.append((checked_defn, remaining_generic_defn))
-        self.checked_custom_modified_defs[id, mono_args] = checked_custom_defs
 
         from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
@@ -494,10 +466,7 @@ class CompilationEngine:
 
         Adds the instantiation to the worklist and ensures that it will be checked.
         """
-        finder = BoundVarFinder()
-        for arg in type_args:
-            arg.visit(finder)
-        if not finder.bound_vars:
+        if is_concrete_inst(type_args):
             self.to_check_worklist[defn.id, type_args] = defn
 
     def register_call_graph_node(self, mono_id: MonoDefId) -> None:
@@ -598,7 +567,19 @@ class CompilationEngine:
                 raise GuppyError(err) from e
 
         # Checking the entrypoint will have populated the worklist, so now we need to
-        # process it
+        # process it. Afterwards, use the modifier-labelled call graph to register the
+        # concrete custom implementations that are actually needed. Their bodies may
+        # contain further modified calls, so repeat to a fixed point.
+        self._drain_check_worklists()
+        while True:
+            self._discover_concrete_custom_uses()
+            if not self._register_custom_modifier_monomorphizations():
+                break
+            self._drain_check_worklists()
+        self._expand_custom_modifier_call_graph()
+
+    def _drain_check_worklists(self) -> None:
+        """Checks all definitions currently queued on the checking worklists."""
         while (
             self.types_to_check_worklist
             or self.generic_to_check_worklist
@@ -626,6 +607,111 @@ class CompilationEngine:
             else:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
                 self.checked[id, mono_args] = self.get_checked(id, mono_args)
+
+    def _discover_concrete_custom_uses(self) -> None:
+        """Resolves new concrete modifier-labelled calls"""
+        for edge, modifier_contexts in list(self.modifiers_on_calls.items()):
+            caller, callee = edge
+            if not is_concrete_inst(caller[1]):
+                continue
+
+            for modifier_ctx in modifier_contexts:
+                modified_call = (edge, modifier_ctx)
+                if modified_call in self.resolved_call_targets:
+                    # Already resolved
+                    continue
+
+                target, custom_use = self._resolve_call_target(callee, modifier_ctx)
+                # We cache the result
+                self.resolved_call_targets[modified_call] = target
+                if custom_use is not None:
+                    stored_use = self.concrete_custom_uses.setdefault(
+                        target, custom_use
+                    )
+                    # We may have multiple modified calls to the same concrete
+                    # implementation, but they should represent the same concrete custom
+                    # use, e.g. call under controllers sizes (1, 1) and (2,).
+                    assert stored_use == custom_use
+
+    def _resolve_call_target(
+        self, callee: MonoDefId, modifier_ctx: ModifierContext
+    ) -> tuple[MonoDefId, ConcreteCustomUse | None]:
+        """Resolves a call target and describes its concrete custom use, if any."""
+        kind = modifier_ctx.kind_required()
+        if kind is None:
+            # No modification required
+            return callee, None
+
+        callee_id, callee_inst = callee
+        custom_id = DEF_STORE.custom_modified_defs.get(callee_id, {}).get(kind)
+        if custom_id is None:
+            # No custom implementation available for this kind of modification
+            return callee, None
+
+        custom_args = callee_inst
+        control_count = None
+        if kind.takes_controls:
+            try:
+                control_count = modifier_ctx.concrete_control_count()
+            except ValueError:
+                # Control count is not concrete, we cannot resolve the call target yet.
+                return callee, None
+            custom_args = (
+                *custom_args,
+                ConstArg(ConstValue(nat_type(), control_count)),
+            )
+        if not is_concrete_inst(custom_args):
+            # Custom arguments are not concrete, we cannot resolve the call target yet.
+            return callee, None
+
+        implementation = (custom_id, custom_args)
+        return implementation, ConcreteCustomUse(
+            parent=callee,
+            implementation=implementation,
+            kind=kind,
+            control_count=control_count,
+        )
+
+    def _register_custom_modifier_monomorphizations(self) -> bool:
+        """Adds unresolved concrete custom implementations to the checking worklist.
+
+        Returns whether at least one new monomorphization was added to the checking
+        worklist.
+        """
+        # Discover concrete custom uses and store them in `self.concrete_custom_uses`.
+        added = False
+        for target in self.concrete_custom_uses:
+            if target in self.checked or target in self.to_check_worklist:
+                continue
+            custom_id, custom_args = target
+            custom_defn = self.get_parsed(custom_id)
+            assert isinstance(custom_defn, CheckableGenericDef)
+            assert len(custom_args) == len(custom_defn.params)
+            self.register_generic_use(custom_defn, custom_args)
+            added = True
+        return added
+
+    def _expand_custom_modifier_call_graph(self) -> None:
+        """Rewrites concrete call-graph edges using cached resolved targets."""
+        for caller, data in self.call_graph.items():
+            if not is_concrete_inst(caller[1]):
+                continue
+
+            expanded_callees: list[MonoDefId] = []
+            for callee in data.callee_defs:
+                edge = (caller, callee)
+                modifier_contexts = self.modifiers_on_calls.get(edge)
+                if modifier_contexts is None:
+                    expanded_callees.append(callee)
+                    continue
+
+                for modifier_ctx in modifier_contexts:
+                    key = (edge, modifier_ctx)
+                    expanded_callees.append(self.resolved_call_targets[key])
+
+            # Multiple call sites can produce the same graph edge. Preserve insertion
+            # order while removing duplicates.
+            data.callee_defs = list(dict.fromkeys(expanded_callees))
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:

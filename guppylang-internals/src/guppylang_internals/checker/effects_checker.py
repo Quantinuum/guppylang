@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -7,24 +8,45 @@ from matplotlib import pyplot as plt
 
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.const import Const, ConstValue
-from guppylang_internals.tys.subst import BoundVarFinder
+from guppylang_internals.tys.subst import is_concrete_inst
+from guppylang_internals.tys.ty import (
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
+)
 
 if TYPE_CHECKING:
     from guppylang_internals.engine import MonoDefId
 
 
+class CustomModifierKind(Enum):
+    """Kinds of custom implementations supported by ``@guppy.unitary``."""
+
+    DAGGERED = CALL_DAGGERED_METHOD
+    CONTROLLED = CALL_CONTROLLED_METHOD
+    CTRL_DAGGERED = CALL_CTRL_DAGGERED_METHOD
+
+    @property
+    def takes_controls(self) -> bool:
+        """Whether the implementation has a control-count parameter."""
+        return self in {
+            CustomModifierKind.CONTROLLED,
+            CustomModifierKind.CTRL_DAGGERED,
+        }
+
+
 @dataclass(frozen=True)
-class CallModifiers:
+class ModifierContext:
     """Dagger and control modifiers active at a call site."""
 
     daggered: bool = False
     control_sizes: tuple[int | Const, ...] = ()
 
-    def compose(self, inner: "CallModifiers") -> "CallModifiers":
+    def compose(self, inner: "ModifierContext") -> "ModifierContext":
         """
         Return a new CallModifiers instance by composing modifiers self with inner.
         """
-        return CallModifiers(
+        return ModifierContext(
             daggered=self.daggered ^ inner.daggered,
             control_sizes=(*self.control_sizes, *inner.control_sizes),
         )
@@ -42,8 +64,18 @@ class CallModifiers:
                     raise ValueError("Control count is not concrete")
         return total
 
+    def kind_required(self) -> CustomModifierKind | None:
+        """Returns the kind of custom modifier required by this context, if any."""
+        if self.daggered and len(self.control_sizes) > 0:
+            return CustomModifierKind.CTRL_DAGGERED
+        if self.daggered:
+            return CustomModifierKind.DAGGERED
+        if len(self.control_sizes) > 0:
+            return CustomModifierKind.CONTROLLED
+        return None
 
-NO_CALL_MODIFIERS = CallModifiers()
+
+NO_CALL_MODIFIERS = ModifierContext()
 
 
 @dataclass
@@ -65,12 +97,9 @@ def compute_effects(
     # First construct a networkx DiGraph based on the call graph info for analysis.
     call_graph: nx.DiGraph[MonoDefId] = nx.DiGraph()
     for mono_def_id in func_data:
-        finder = BoundVarFinder()
         (_, args) = mono_def_id
         # Include only real/concrete instantiations, the others will not be compiled.
-        for arg in args:
-            arg.visit(finder)
-        if not finder.bound_vars:
+        if is_concrete_inst(args):
             call_graph.add_node(mono_def_id)
 
     for mono_def_id, data in func_data.items():

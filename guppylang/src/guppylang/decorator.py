@@ -17,6 +17,7 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import annotate_location
+from guppylang_internals.checker.effects_checker import CustomModifierKind
 from guppylang_internals.checker.unitary_checker import (
     check_modified_def_combinations,
 )
@@ -48,7 +49,7 @@ from guppylang_internals.dummy_decorator import (
     _DummyGuppy,
     sphinx_running,
 )
-from guppylang_internals.engine import DEF_STORE, CustomModifierKind
+from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import pretty_errors
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint

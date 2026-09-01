@@ -27,6 +27,11 @@ Inst = tuple[Argument, ...]
 PartialInst = Sequence["Argument | None"]
 
 
+def is_concrete_inst(inst: Inst) -> bool:
+    """Whether an instantiation contains no opaque bound variables."""
+    return all(not arg.bound_vars for arg in inst)
+
+
 class Substituter(Transformer):
     """Type transformer that applies a substitution of existential variables."""
 
