@@ -73,6 +73,24 @@ def test_method(run_int_fn):
     run_int_fn(main, 42, args=[40, 2])
 
 
+def test_unitary_method(use_experimental_features):
+    @guppy.struct
+    class S:
+        x: int
+
+        @guppy.unitary
+        class get_x:
+            @guppy
+            def __call__(self) -> int:
+                return self.x
+
+    @guppy
+    def main() -> int:
+        return S(42).get_x()
+
+    main.check()
+
+
 def test_generic_nested(validate, run_float_fn_approx):
     S = guppy.type_var("S")
     T = guppy.type_var("T")
