@@ -656,10 +656,12 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if isinstance(typearg, TypeArg):
                     match typearg.ty:
                         case BoundTypeVar() as ty:
-                            return self._check_bound_type_method(ty, node)
-                        case StructType() | EnumType() as ty:
+                            raise GuppyError(
+                                UnsupportedError(node, "staticmethods on protocols")
+                            )
+                            # return self._check_bound_type_method(ty, node)
+                        case _ as ty:
                             # case for when the type is known
-                            # what types actually should this be?
                             ty_def = ty.defn
                             if func := ENGINE.get_instance_func(ty_def, node.attr):
                                 return with_loc(
@@ -715,12 +717,15 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     member_ty = proto_def.member_sig(node.attr)
 
                     if ENGINE.is_def_static(proto_def.member_defs[node.attr]):
-                        return with_loc(
-                            node,
-                            GlobalName(
-                                id=node.attr, def_id=proto_def.member_defs[node.attr]
-                            ),
-                        ), member_ty
+                        # return with_loc(
+                        #     node,
+                        #     GlobalName(
+                        #         id=node.attr, def_id=proto_def.member_defs[node.attr]
+                        #     ),
+                        # ), member_ty
+                        raise GuppyError(
+                            UnsupportedError(node, "staticmethods on protocols")
+                        )
                     else:
                         name_node = with_type(
                             member_ty,
@@ -735,9 +740,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         ty_without_self = FunctionType(
                             member_ty.inputs[1:], member_ty.output, member_ty.params
                         )
-                        return with_loc(
-                            node, PartialApply(func=name_node, args=[node.value])
-                        ), ty_without_self
+                    return with_loc(
+                        node, PartialApply(func=name_node, args=[node.value])
+                    ), ty_without_self
                 case _:
                     raise RequiresMonomorphizationError
 

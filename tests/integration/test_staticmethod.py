@@ -123,25 +123,6 @@ def test_staticmethod_enum_instantiated(validate):
     validate(main.compile())
 
 
-@pytest.mark.xfail(reason="Self outputs not yet supported")
-def test_staticmethod_self(validate):
-
-    @guppy.struct(frozen=True)
-    class Test:
-        @guppy
-        @staticmethod
-        def foo() -> Self:
-            return Test()
-
-    @guppy
-    def main() -> None:
-        t = Test()
-        t.foo()
-        Test.foo()
-
-    validate(main.compile())
-
-
 def test_staticmethod_overload(validate):
     @guppy.struct
     class Test:
@@ -197,6 +178,26 @@ def test_library_staticmethod():
     assert results == [("result", 5)]
 
 
+@pytest.mark.xfail(reason="Self outputs not yet supported")
+def test_staticmethod_self(validate):
+
+    @guppy.struct(frozen=True)
+    class Test:
+        @guppy
+        @staticmethod
+        def foo() -> Self:
+            return Test()
+
+    @guppy
+    def main() -> None:
+        t = Test()
+        t.foo()
+        Test.foo()
+
+    validate(main.compile())
+
+
+@pytest.mark.xfail(reason="protocol staticmethods not yet supported")
 def test_staticmethod_protocol_basic(validate):
 
     @guppy.protocol
@@ -228,6 +229,7 @@ def test_staticmethod_protocol_basic(validate):
     assert res == [("out", 3), ("out", 4)]
 
 
+@pytest.mark.xfail(reason="protocol staticmethods not yet supported")
 def test_staticmethod_protocol_generic(validate):
 
     T = guppy.type_var("T")
@@ -260,7 +262,7 @@ def test_staticmethod_protocol_generic(validate):
     validate(main.compile())
 
 
-@pytest.mark.xfail(reason="Self outputs not yet supported")
+@pytest.mark.xfail(reason="Self outputs and proto staticmethods not yet supported")
 def test_staticmethod_protocol_self(validate):
 
     @guppy.protocol
