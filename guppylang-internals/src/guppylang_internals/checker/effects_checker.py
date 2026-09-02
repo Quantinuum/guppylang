@@ -4,8 +4,8 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 import networkx as nx
-from matplotlib import pyplot as plt
 
+# from matplotlib import pyplot as plt
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.subst import is_concrete_inst
@@ -112,10 +112,10 @@ def compute_effects(
         call_graph.nodes[mono_def_id]["effects"] = effects
 
     nx.draw(call_graph, with_labels=True)
-    plt.gca().margins(x=4)
-    # plt.savefig("call_graph.png")
-    plt.show()
-    plt.close()
+    # plt.gca().margins(x=4)
+    # # plt.savefig("call_graph.png")
+    # plt.show()
+    # plt.close()
 
     # Then compute strongly components to find cycles in the call graph. Every node
     # in a component must have the same effects.

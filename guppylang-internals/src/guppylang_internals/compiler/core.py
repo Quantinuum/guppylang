@@ -169,15 +169,21 @@ class CompilerContext(ToHugrContext):
             self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None
 
-            modified_names = self._compile_custom_modifier_uses((def_id, mono_args))
-            if modified_names is not None:
+            if (def_id, mono_args) in self.custom_uses_by_parent:
+                daggered, controlled, ctrl_daggered = (
+                    self._compile_custom_modifier_uses((def_id, mono_args))
+                )
                 from guppylang_internals.definition.function import (
                     CompiledFunctionDef,
                 )
 
                 assert isinstance(defn, CompiledFunctionDef)
                 metadata = FunctionMetadata()
-                metadata.set_modified_defs(modified_names)
+                metadata.set_modified_defs(
+                    daggered=daggered,
+                    controlled=controlled,
+                    ctrl_daggered=ctrl_daggered,
+                )
                 add_metadata(
                     self.module.hugr[defn.hugr_node].metadata,
                     metadata,
@@ -186,15 +192,11 @@ class CompilerContext(ToHugrContext):
         return self.compiled[def_id, mono_args]
 
     # NICOLA: there are a lot for loop packing and unpacking custom modifier uses, can we avoid this  # noqa: E501
-    # todo: make more explicit that the first retun value is daggered, the second is controlled, and the third is ctrl_daggered  # noqa: E501
     def _compile_custom_modifier_uses(
         self, parent: MonoDefId
-    ) -> list[str | list[str] | None] | None:
+    ) -> tuple[str | None, list[str] | None, list[str] | None]:
         """Compiles a parent's concrete custom uses and builds its metadata values."""
-        custom_uses = self.custom_uses_by_parent.get(parent)
-        # todo: move this check outside in build_compiled_def
-        if custom_uses is None:
-            return None
+        custom_uses = self.custom_uses_by_parent[parent]
 
         # Group custom implementations by modification kind.
         by_kind: dict[CustomModifierKind, list[ConcreteCustomUse]] = {}
@@ -202,15 +204,15 @@ class CompilerContext(ToHugrContext):
             assert custom_use.parent == parent
             by_kind.setdefault(custom_use.kind, []).append(custom_use)
 
-        modified_names: list[str | list[str] | None] = [None, None, None]
+        daggered: str | None = None
+        controlled: list[str] | None = None
+        ctrl_daggered: list[str] | None = None
         for kind, kind_uses in by_kind.items():
             if kind == CustomModifierKind.DAGGERED:
                 # Daggered implementations is not generic, thus must have exactly one
                 # concrete implementation (i.e. the original one).
                 assert len(kind_uses) == 1
-                modified_names[0] = self._compile_custom_modifier_use(
-                    kind_uses[0]
-                ).link_name
+                daggered = self._compile_custom_modifier_use(kind_uses[0]).link_name
                 continue
 
             assert kind.takes_controls
@@ -231,13 +233,13 @@ class CompilerContext(ToHugrContext):
                 )
                 custom_implementation_names.append(compiled_custom.link_name)
 
-            index = {
-                CustomModifierKind.CONTROLLED: 1,
-                CustomModifierKind.CTRL_DAGGERED: 2,
-            }[kind]
-            modified_names[index] = custom_implementation_names
+            if kind == CustomModifierKind.CONTROLLED:
+                controlled = custom_implementation_names
+            else:
+                assert kind == CustomModifierKind.CTRL_DAGGERED
+                ctrl_daggered = custom_implementation_names
 
-        return modified_names
+        return daggered, controlled, ctrl_daggered
 
     def _compile_custom_modifier_use(
         self, custom_use: ConcreteCustomUse

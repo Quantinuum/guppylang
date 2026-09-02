@@ -78,18 +78,22 @@ class FunctionMetadata:
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
 
-    # todo: we should have 3 separate inputs for the 3 kinds of modifications, and forcing kwargs  # noqa: E501
-    def set_modified_defs(self, modified_names: list[str | list[str] | None]) -> None:
+    def set_modified_defs(
+        self,
+        *,
+        daggered: str | None,
+        controlled: list[str] | None,
+        ctrl_daggered: list[str] | None,
+    ) -> None:
         """
         Add metadata containing names of the functions implementing custom modifications
         """
-        assert len(modified_names) == 3
-        if modified_names[0] is not None:
-            self._node_metadata[DAGGERED_KEY] = cast("JsonType", modified_names[0])
-        if modified_names[1] is not None:
-            self._node_metadata[CONTROLLED_KEY] = cast("JsonType", modified_names[1])
-        if modified_names[2] is not None:
-            self._node_metadata[CTRL_DAGGERED_KEY] = cast("JsonType", modified_names[2])
+        if daggered is not None:
+            self._node_metadata[DAGGERED_KEY] = cast("JsonType", daggered)
+        if controlled is not None:
+            self._node_metadata[CONTROLLED_KEY] = cast("JsonType", controlled)
+        if ctrl_daggered is not None:
+            self._node_metadata[CTRL_DAGGERED_KEY] = cast("JsonType", ctrl_daggered)
 
     def set_inline(self, inline: "InlineAnnotationValue") -> None:
         from tket.metadata import InlineAnnotation, InlineAnnotationValue
