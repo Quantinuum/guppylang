@@ -144,6 +144,7 @@ def check_global_func_def(
     globals: Globals,
     link_name: str,
     def_id: DefId,
+    decorator_unitary_flags: UnitaryFlags,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -152,8 +153,10 @@ def check_global_func_def(
     returns_none = isinstance(ty.output, NoneType)
     assert all(inp.name is not None for inp in ty.inputs)
 
-    check_invalid_under_dagger(func_def, ty.unitary_flags)
-    cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
+    check_invalid_under_dagger(func_def, decorator_unitary_flags)
+    cfg = CFGBuilder().build(
+        func_def.body, returns_none, globals, decorator_unitary_flags
+    )
     inputs = [
         Variable(cast("str", inp.name), inp.ty, loc, inp.flags, is_func_input=True)
         for inp, loc in zip(ty.inputs, args, strict=True)

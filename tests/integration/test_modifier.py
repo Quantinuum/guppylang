@@ -1,5 +1,5 @@
 import base64
-from guppylang.std.angles import angle
+from collections.abc import Callable
 import pytest
 
 from guppylang.decorator import guppy
@@ -18,7 +18,17 @@ from guppylang.std.builtins import (
     power,
 )
 from guppylang.std.num import nat
-from guppylang.std.quantum import cx, discard, discard_array, h, qubit, rx
+from guppylang.std.quantum import (
+    angle,
+    cx,
+    discard,
+    h,
+    measure,
+    qubit,
+    rx,
+    discard_array,
+    x,
+)
 
 
 def test_dagger_simple(validate):
@@ -366,6 +376,94 @@ def test_higher_order_unitary_callable(validate):
     validate(main.compile_function())
 
 
+def test_custom_unitary_higher_order_callables(use_experimental_features):
+    """Custom modifier methods determine higher-order callable capabilities."""
+
+    @guppy.unitary
+    class custom_dagger:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_control:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_unitary:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_call:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+    @guppy(daggerable=True)
+    def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy(controllable=True)
+    def apply_control(f: Controllable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy(unitary=True)
+    def apply_unitary(f: Unitary[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def apply_plain(f: Function[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def apply_plain2(f: Callable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main(q: qubit) -> None:
+        apply_dagger(custom_dagger, q)
+        apply_control(custom_control, q)
+        apply_unitary(custom_unitary, q)
+        apply_plain(custom_dagger, q)
+        apply_plain(custom_control, q)
+        apply_plain(custom_unitary, q)
+        apply_plain(custom_call, q)
+        apply_plain2(custom_dagger, q)
+        apply_plain2(custom_control, q)
+        apply_plain2(custom_unitary, q)
+        apply_plain2(custom_call, q)
+
+    main.check()
+
+
 @pytest.mark.xfail(reason="Returning protocols not supported")
 def test_return_callable_with_stronger_flags(validate):
     """Returning a callable with more flags than required is valid."""
@@ -547,6 +645,63 @@ def test_comptime_unitary_mixed(validate):
         return q1
 
     validate(foo.compile_function())
+
+
+@guppy
+def ext_helper(q: qubit) -> None:
+    x(q)
+
+
+@guppy
+def helper(q: qubit) -> None:
+    h(q)
+
+
+def test_custom_modifier(validate, use_experimental_features):
+
+    @guppy.unitary
+    class foo:
+        n = guppy.nat_var("n")
+        c = guppy.nat_var("c")
+
+        @guppy
+        def __call__(q1: array[qubit, n]) -> None:
+            # since we have custom implementations of the modifiers, there are no
+            # restrictions on the body of the function
+            q = qubit()
+            helper(q1[0])
+            i = 10
+            while i > 0:
+                i -= 1
+                h(q1[0])
+            measure(q)
+
+        @guppy
+        def daggered(q1: array[qubit, n]) -> None:
+            ext_helper(q1[0])
+
+        @guppy
+        def controlled(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
+            h(_controls[0])
+
+        @guppy
+        def ctrl_daggered(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
+            h(_controls[0])
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit(), qubit())
+        c = qubit()
+        with control(c):
+            foo(qs)
+        with dagger:
+            foo(qs)
+        with control(c), dagger:
+            foo(qs)
+        discard_array(qs)
+        measure(c)
+
+    main.check()
 
 
 def test_hugr_stability():
