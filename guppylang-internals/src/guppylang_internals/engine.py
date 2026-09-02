@@ -1,8 +1,9 @@
 import ast
 from collections import defaultdict
-from collections.abc import Sequence
-from contextlib import suppress
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING, ClassVar, assert_never, cast
@@ -137,6 +138,12 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 MonoDefId = tuple[DefId, Inst]
 
 
+class CompilationStage(Enum):
+    NONE = "none"
+    CHECK = "check"
+    COMPILE = "compile"
+
+
 class DefinitionStore:
     """Storage class holding references to all Guppy definitions created in the current
     interpreter session.
@@ -238,10 +245,21 @@ class CompilationEngine:
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
+    _stage: CompilationStage = CompilationStage.NONE
+
     def __init__(self) -> None:
         """Resets the compilation cache."""
         self.reset()
         self.additional_extensions = []
+
+    @contextmanager
+    def _in_stage(self, stage: CompilationStage) -> Generator[None, None, None]:
+        old_stage = self._stage
+        self._stage = stage
+        try:
+            yield
+        finally:
+            self._stage = old_stage
 
     @staticmethod
     def _get_base_resolve_registry() -> ExtensionRegistry:
@@ -274,31 +292,46 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
 
+    def assert_stage(self, stage: CompilationStage, context: str) -> None:
+        if self._stage != stage:
+            raise CompilationStageError(
+                context, actual_stage=self._stage, expected_stage=stage
+            )
+
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
         """Look up the parsed version of a definition by its id.
 
-        Parses the definition if it hasn't been parsed yet. Also makes sure that the
-        definition will be checked and compiled later on.
+        If in checking stage, parses the definition if it hasn't been already.
+        Also makes sure that the definition will be checked and compiled later on.
         """
         from guppylang_internals.checker.core import Globals
 
         if id in self.parsed:
             return self.parsed[id]
+
+        if self._stage == CompilationStage.NONE:
+            with self._in_stage(CompilationStage.CHECK):
+                return self.get_parsed(id)
+
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.to_check_worklist[id, ()] = defn
         elif isinstance(defn, CheckableGenericDef) and defn.params:
             # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
             # since we don't know the generic instantiation yet. It will be added when
             # we're checking a use of the definition (e.g. a call). See for example
             # `ParsedFunctionDef.check_call`.
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.generic_to_check_worklist[id] = defn
 
         # If `defn` has any custom modified definitions linked to it,
@@ -327,17 +360,24 @@ class CompilationEngine:
     def get_checked(self, id: DefId, mono_args: Inst) -> CheckedDef:
         """Look up the checked version of a definition by its id.
 
-        Parses and checks the definition if it hasn't been parsed/checked yet. Also
-        makes sure that the definition will be compiled to Hugr later on.
+        If in checking stage, parses & checks the definition if it hasn't been already.
+        Also makes sure that the definition will be compiled to Hugr later on.
         """
         from guppylang_internals.checker.core import Globals
 
         if (id, mono_args) in self.checked:
             return self.checked[id, mono_args]
+
+        if self._stage == CompilationStage.NONE:
+            with self._in_stage(CompilationStage.CHECK):
+                return self.get_checked(id, mono_args)
+
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
+            self.assert_stage(CompilationStage.CHECK, f"check {defn}")
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
+            self.assert_stage(CompilationStage.CHECK, f"check {defn}")
             defn = _check_generic_def_instantiation(
                 defn, mono_args, Globals(DEF_STORE.frames[defn.id])
             )
@@ -510,7 +550,9 @@ class CompilationEngine:
 
         This is the function that is invoked by e.g. `<guppy-definition>.compile`.
         """
-        pointer, [compiled_def] = self._compile([id])
+        pointer, [compiled_def] = self._compile(
+            [id], f"compile {DEF_STORE.raw_defs[id]}"
+        )
 
         if (
             isinstance(compiled_def, CompiledHugrNodeDef)
@@ -530,13 +572,21 @@ class CompilationEngine:
 
         This is the function that is invoked by e.g. `<guppy-library>.compile`.
         """
-        return self._compile(def_ids, reset=reset)[0]
+        return self._compile(def_ids, context="call compile()", reset=reset)[0]
 
     def _compile(
-        self, def_ids: list[DefId], *, reset: bool = True
+        self, def_ids: list[DefId], context: str, *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
+        # Avoid side-effects of checking if we are not going to compile.
+        self.assert_stage(CompilationStage.NONE, context)
         self.check(def_ids, reset=reset)
+        assert self._stage == CompilationStage.NONE, "Checking should have reset stage"
+        with self._in_stage(CompilationStage.COMPILE):
+            return self._compile_impl(def_ids)
 
+    def _compile_impl(
+        self, def_ids: list[DefId]
+    ) -> tuple[ModulePointer, list[CompiledDef]]:
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
@@ -588,15 +638,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(
@@ -644,6 +690,22 @@ class EntryMonomorphizeError(Error):
         return ", ".join(f"`{p.name}`" for p in self.params)
 
 
+class CompilationStageError(InternalGuppyError):
+    """Raised when the CompilationEngine is requested to do some operation
+    during a stage in which the operation cannot be performed"""
+
+    def __init__(
+        self,
+        context: str,
+        *,
+        actual_stage: CompilationStage,
+        expected_stage: CompilationStage,
+    ) -> None:
+        super().__init__(
+            f"Can only {context} during `{expected_stage}`, not `{actual_stage}`"
+        )
+
+
 @dataclass(frozen=True)
 class EntryCheckMonomorphizeError(Error):
     title: ClassVar[str] = "Invalid check point"
@@ -655,7 +717,7 @@ class EntryCheckMonomorphizeError(Error):
 
     @property
     def thing(self) -> str:
-        return f"{self.defn.description.capitalize()} `{self.defn.name}`"
+        return self.defn.to_caps_str()
 
     @property
     def plural_s(self) -> str:
@@ -677,9 +739,8 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
     """
     if isinstance(defn, CheckableGenericDef) and defn.params:
         assert defn.defined_at is not None
-        description = f"{defn.description.capitalize()} `{defn.name}`"
         raise GuppyError(
-            EntryMonomorphizeError(defn.defined_at, description, defn.params)
+            EntryMonomorphizeError(defn.defined_at, defn.to_caps_str(), defn.params)
         )
 
 

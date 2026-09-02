@@ -61,6 +61,22 @@ class Definition(ABC):
     name: str
     defined_at: ast.AST | None
 
+    def __str__(self) -> str:
+        return self.to_str()
+
+    def to_str(self) -> str:
+        """Returns a string identifying this definition and its kind.
+        For example, "function `foo`" or "type `Bar`".
+        For a detailed representation, use `repr(defn)` instead.
+        """
+        return f"{self.description} `{self.name}`"
+
+    def to_caps_str(self) -> str:
+        """Returns a capitalized string identifying this definition and its kind.
+        For example, "Function `foo`" or "Type `Bar`".
+        """
+        return f"{self.description.capitalize()} `{self.name}`"
+
     @property
     @abstractmethod
     def description(self) -> str:
