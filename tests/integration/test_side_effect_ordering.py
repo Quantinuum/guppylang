@@ -2,18 +2,25 @@
 side-effects.
 """
 
+import pytest
 from hugr import ops, Hugr, Node
 from hugr.std import PRELUDE
+from hugr import ops as hops
+from hugr import InPort
 
 from guppylang import guppy
+from guppylang.std.builtins import owned, panic
+from guppylang.std.quantum import qubit
+from guppylang.std.quantum.functional import cx, h
+
 from guppylang_internals.std._internal.compiler.tket_exts import (
     QUANTUM_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
     RESULT_EXTENSION,
 )
-from guppylang.std.builtins import output, array, owned, panic
+from guppylang.std.builtins import output, array
 from guppylang.std.qsystem.random import RNG
-from guppylang.std.quantum import qubit, discard, measure
+from guppylang.std.quantum import discard, measure
 
 
 def find_ext_nodes(hugr: Hugr, qualified_name: str) -> list[Node]:
@@ -48,6 +55,7 @@ def check_order(hugr: Hugr, nodes: list[Node]) -> None:
         if curr in nodes:
             # Check this node is the next one in the sequence
             assert curr == nodes.pop(0)
+            stack.clear()  # Only follow the order edges from this node
         for n in hugr.outgoing_order_links(curr):
             assert n not in visited, "Order edge graph must be acyclic"
             stack.append(n)
@@ -235,3 +243,223 @@ def test_nested(validate):
 
     for loop in [l1, l2, l3, l4]:
         check_order(hugr, hugr.children(loop)[:2])
+
+
+def test_pure_quantum_calls_have_no_order_edges(validate):
+    @guppy
+    def apply_gates(q1: qubit @ owned, q2: qubit @ owned) -> tuple[qubit, qubit]:
+        q1 = h(q1)
+        q1, q2 = cx(q1, q2)
+        return q1, q2
+
+    @guppy
+    def main(
+        q1: qubit @ owned,
+        q2: qubit @ owned,
+        q3: qubit @ owned,
+        q4: qubit @ owned,
+    ) -> tuple[qubit, qubit, qubit, qubit]:
+        q1, q2 = apply_gates(q1, q2)
+        q3, q4 = apply_gates(q3, q4)
+        q2, q3 = apply_gates(q2, q3)
+        return q1, q2, q3, q4
+
+    package = main.with_minimal_opt().compile_function()
+    validate(package)
+
+    hugr = package.modules[0]
+    calls = [node for node, data in hugr.nodes() if isinstance(data.op, hops.Call)]
+    assert len(calls) == 5
+
+    [main_node] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
+    ]
+
+    main_calls = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.Call) and main_node in ancestors(hugr, node)
+    ]
+    assert len(main_calls) == 3
+
+    def has_directed_path(source, target):
+        return any(
+            destination.node == target or has_directed_path(destination.node, target)
+            for _, destinations in hugr.outgoing_links(source)
+            for destination in destinations
+        )
+
+    first_call, second_call, _ = main_calls
+    assert not has_directed_path(first_call, second_call)
+    assert not has_directed_path(second_call, first_call)
+
+
+def ancestors(hugr, node):
+    while (parent := hugr[node].parent) is not None:
+        yield parent
+        node = parent
+
+
+def has_order_path(hugr, source, target):
+    return any(
+        node == target or has_order_path(hugr, node, target)
+        for node in hugr.outgoing_order_links(source)
+    )
+
+
+def test_panicking_calls_have_order_edges(validate):
+    @guppy
+    def panicking_function() -> None:
+        panic("From panicking function")
+
+    @guppy
+    def pure_function() -> None:
+        pass
+
+    @guppy
+    def main() -> None:
+        panicking_function()
+        pure_function()
+        panic("From main")
+        pure_function()
+        panicking_function()
+
+    package = main.with_minimal_opt().compile_function()
+    validate(package)
+
+    hugr = package.modules[0]
+    [main_node] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
+    ]
+
+    main_calls = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.Call) and main_node in ancestors(hugr, node)
+    ]
+
+    def get_called_func_name(call_node):
+        from hugr.tys import FunctionKind
+
+        srcs = [
+            srcs
+            for tgt, srcs in hugr.incoming_links(call_node)
+            if isinstance(hugr.port_kind(tgt), FunctionKind)
+        ]
+        [[static_outport]] = srcs
+        op = hugr[static_outport.node].op
+        assert isinstance(op, hops.FuncDefn)
+        return op.f_name
+
+    assert [
+        "panicking_function" in get_called_func_name(node) for node in main_calls
+    ] == [True, False, False, True]
+    assert ["pure_function" in get_called_func_name(node) for node in main_calls] == [
+        False,
+        True,
+        True,
+        False,
+    ]
+    [panic_call1, pure_call1, pure_call2, panic_call2] = main_calls
+
+    [panic_op] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.ExtOp)
+        and data.op.op_def().qualified_name()
+        == PRELUDE.get_op("panic").qualified_name()
+        and main_node in ancestors(hugr, node)
+    ]
+
+    check_order(hugr, [panic_call1, panic_op, panic_call2])
+
+    for pure_call in [pure_call1, pure_call2]:
+        for op in [panic_call1, panic_op, panic_call2]:
+            assert not has_order_path(hugr, pure_call, op)
+            assert not has_order_path(hugr, op, pure_call)
+
+
+def test_nested_panicking_calls(validate):
+    @guppy
+    def main() -> None:
+        def panicking_function() -> None:
+            panic("From panicking function")
+
+        def pure_function() -> None:
+            pass
+
+        panicking_function()
+        pure_function()
+        panic("From main")
+        pure_function()
+        panicking_function()
+
+    package = main.with_minimal_opt().compile_function()
+    validate(package)
+
+    hugr = package.modules[0]
+    [main_node] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
+    ]
+
+    main_calls = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.CallIndirect) and main_node in ancestors(hugr, node)
+    ]
+
+    def get_called_func_name(call_indirect):
+        [loadfunc] = hugr.linked_ports(InPort(call_indirect, 0))
+        assert isinstance(hugr[loadfunc.node].op, hops.LoadFunc)
+        [func] = hugr.linked_ports(InPort(loadfunc.node, 0))
+        assert isinstance(hugr[func.node].op, hops.FuncDefn)
+        return hugr[func.node].op.f_name
+
+    assert [
+        "panicking_function" in get_called_func_name(node) for node in main_calls
+    ] == [True, False, False, True]
+    assert ["pure_function" in get_called_func_name(node) for node in main_calls] == [
+        False,
+        True,
+        True,
+        False,
+    ]
+    [panic_call1, pure_call1, pure_call2, panic_call2] = main_calls
+
+    [panic_op] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.ExtOp)
+        and data.op.op_def().qualified_name()
+        == PRELUDE.get_op("panic").qualified_name()
+        and main_node in ancestors(hugr, node)
+    ]
+
+    check_order(hugr, [panic_call1, panic_op, panic_call2])
+
+    # These order paths would lead to cycles:
+    assert not has_order_path(hugr, pure_call1, panic_call1)
+    for op in [panic_op, pure_call2, panic_call2]:
+        assert not has_order_path(hugr, op, pure_call1)
+    assert not has_order_path(hugr, panic_call2, pure_call2)
+    for op in [panic_call1, pure_call1, panic_op]:
+        assert not has_order_path(hugr, pure_call2, op)
+
+    # For the time being:
+    check_order(hugr, [panic_call1, pure_call1, panic_op, pure_call2, panic_call2])
+    pytest.xfail(
+        "Calls to nested functions are not resolved in checking,"
+        " leading to spurious order edges"
+    )
+
+    # Otherwise - the desired outcome when previous is fixed:
+    for pure_call in [pure_call1, pure_call2]:
+        for op in [panic_call1, panic_op, panic_call2]:
+            assert not has_order_path(hugr, pure_call, op)
+            assert not has_order_path(hugr, op, pure_call)
