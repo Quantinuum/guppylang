@@ -424,7 +424,7 @@ def test_unitary_with_unitary_parameters(use_experimental_features):
 
     @guppy(unitary=True)
     def apply_daggerable_and_controllable[
-        F: (Daggerable[[qubit], None], Controllable[[qubit], None])
+        F: (Daggerable[[qubit], None], Controllable[[qubit], None], Copy, Drop)
     ](f: F, q: qubit) -> None:
         f(q)
 
