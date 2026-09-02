@@ -309,22 +309,36 @@ def has_order_path(hugr, source, target):
     )
 
 
+def get_called_func_name(hugr, call_node):
+    from hugr.tys import FunctionKind
+
+    srcs = [
+        srcs
+        for tgt, srcs in hugr.incoming_links(call_node)
+        if isinstance(hugr.port_kind(tgt), FunctionKind)
+    ]
+    [[static_outport]] = srcs
+    op = hugr[static_outport.node].op
+    assert isinstance(op, hops.FuncDefn)
+    return op.f_name
+
+
 def test_panicking_calls_have_order_edges(validate):
     @guppy
-    def panicking_function() -> None:
+    def panicking_func() -> None:
         panic("From panicking function")
 
     @guppy
-    def pure_function() -> None:
+    def pure_func() -> None:
         pass
 
     @guppy
     def main() -> None:
-        panicking_function()
-        pure_function()
+        panicking_func()
+        pure_func()
         panic("From main")
-        pure_function()
-        panicking_function()
+        pure_func()
+        panicking_func()
 
     package = main.with_minimal_opt().compile_function()
     validate(package)
@@ -342,23 +356,10 @@ def test_panicking_calls_have_order_edges(validate):
         if isinstance(data.op, hops.Call) and main_node in ancestors(hugr, node)
     ]
 
-    def get_called_func_name(call_node):
-        from hugr.tys import FunctionKind
-
-        srcs = [
-            srcs
-            for tgt, srcs in hugr.incoming_links(call_node)
-            if isinstance(hugr.port_kind(tgt), FunctionKind)
-        ]
-        [[static_outport]] = srcs
-        op = hugr[static_outport.node].op
-        assert isinstance(op, hops.FuncDefn)
-        return op.f_name
-
     assert [
-        "panicking_function" in get_called_func_name(node) for node in main_calls
+        "panicking_func" in get_called_func_name(hugr, node) for node in main_calls
     ] == [True, False, False, True]
-    assert ["pure_function" in get_called_func_name(node) for node in main_calls] == [
+    assert ["pure_func" in get_called_func_name(hugr, node) for node in main_calls] == [
         False,
         True,
         True,
@@ -463,3 +464,37 @@ def test_nested_panicking_calls(validate):
         for op in [panic_call1, panic_op, panic_call2]:
             assert not has_order_path(hugr, pure_call, op)
             assert not has_order_path(hugr, op, pure_call)
+
+
+def test_decl(validate):
+    @guppy.declare
+    def foo() -> int: ...
+
+    @guppy
+    def bar() -> int:
+        return foo()
+
+    @guppy
+    def main() -> int:
+        return bar()
+
+    pkg = main.with_minimal_opt().compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+    [main_node] = [
+        node
+        for node, data in hugr.nodes()
+        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
+    ]
+    [inp, out, call_cfg] = hugr.children(main_node)
+
+    assert isinstance(hugr[inp].op, hops.Input)
+    assert isinstance(hugr[out].op, hops.Output)
+    [call] = [
+        node
+        for node in hugr.descendants(call_cfg)
+        if isinstance(hugr[node].op, hops.Call)
+    ]
+    assert "bar" in get_called_func_name(hugr, call)
+
+    check_order(hugr, [inp, call_cfg, out])

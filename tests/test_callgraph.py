@@ -2,8 +2,6 @@ import pytest
 from guppylang import guppy
 from guppylang_internals.engine import ENGINE
 
-# ALAN TODO add test that a user-defined function calling a *declaration* gets the [ANY]
-
 
 def test_simple():
     """Test that a simple call graph is built correctly."""
