@@ -14,6 +14,24 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
+## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.2...guppylang-v1.0.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* Raise minimum version of tket to 0.15.7 (#2266)([3733050](https://github.com/Quantinuum/guppylang/commit/3733050b9c6a0d16e4536ebfd068977d92f66524))
+
+
+### Documentation
+
+* Warn about using barrier with `state_output` (#2260)([a9ace7c](https://github.com/Quantinuum/guppylang/commit/a9ace7c43ede6fe839c2717ef15eca30c140a24a))
+* Fix emulator argument formatting (#2260)([a9ace7c](https://github.com/Quantinuum/guppylang/commit/a9ace7c43ede6fe839c2717ef15eca30c140a24a))
+
+
+### Features
+
+* Lower minimal numpy version to 2.2.6 (#2247)([e102475](https://github.com/Quantinuum/guppylang/commit/e102475799464154948ae36a9d2472dc3211d7ce))
+
 ## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.1...guppylang-v1.0.2) (2026-08-27)
 
 
@@ -1356,7 +1374,7 @@ main.compile()
 
 * Use `release-please bootstrap`'s default config ([#187](https://github.com/quantinuum/guppylang/issues/187)) ([72e666a](https://github.com/quantinuum/guppylang/commit/72e666af5a52c44a4094080a665342422a242d2b))
 
-## [0.1.0](https://github.com/quantinuum/guppylang/releases/tag/v0.1.0)
+## [0.1.0](https://github.com/quantinuum/guppy/releases/tag/v0.1.0)
 
 First release of Guppy! 🐟
 
