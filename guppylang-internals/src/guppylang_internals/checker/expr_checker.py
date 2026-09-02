@@ -1421,8 +1421,16 @@ def function_def_value_to_function_value(
     their expression must be preserved to retain a possible closure.
     """
     if isinstance(ty, NestedFunctionDefType):
-        return with_type(ty.sig, expr)
-    name = DEF_STORE.raw_defs[ty.def_id].name
+        from guppylang_internals.experimental import check_capturing_closures_enabled
+
+        try:
+            check_capturing_closures_enabled(expr)
+            # Expression must be preserved to retain a possible closure.
+            return with_type(ty.sig, expr)
+        except GuppyError:
+            name = ENGINE.get_parsed(ty.def_id).name
+    else:
+        name = DEF_STORE.raw_defs[ty.def_id].name
     return with_type(ty.sig, with_loc(expr, make_global_name(name, ty.def_id)))
 
 
