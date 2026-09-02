@@ -571,10 +571,7 @@ class CompilationEngine:
         # concrete custom implementations that are actually needed. Their bodies may
         # contain further modified calls, so repeat to a fixed point.
         self._drain_check_worklists()
-        while True:
-            self._discover_concrete_custom_uses()
-            if not self._register_custom_modifier_monomorphizations():
-                break
+        while self._register_custom_modifier_monomorphizations():
             self._drain_check_worklists()
         self._expand_custom_modifier_call_graph()
 
@@ -608,8 +605,9 @@ class CompilationEngine:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
                 self.checked[id, mono_args] = self.get_checked(id, mono_args)
 
-    def _discover_concrete_custom_uses(self) -> None:
-        """Resolves new concrete modifier-labelled calls"""
+    def _discover_concrete_custom_uses(self) -> list[ConcreteCustomUse]:
+        """Resolves calls and returns newly discovered concrete custom uses."""
+        discovered: list[ConcreteCustomUse] = []
         for edge, modifier_contexts in list(self.modifiers_on_calls.items()):
             caller, callee = edge
             if not is_concrete_inst(caller[1]):
@@ -625,13 +623,16 @@ class CompilationEngine:
                 # We cache the result
                 self.resolved_call_targets[modified_call] = target
                 if custom_use is not None:
-                    stored_use = self.concrete_custom_uses.setdefault(
-                        target, custom_use
-                    )
-                    # We may have multiple modified calls to the same concrete
-                    # implementation, but they should represent the same concrete custom
-                    # use, e.g. call under controllers sizes (1, 1) and (2,).
-                    assert stored_use == custom_use
+                    stored_use = self.concrete_custom_uses.get(target)
+                    if stored_use is not None:
+                        # Multiple calls may resolve to the same implementation, e.g.
+                        # control layouts (1, 1) and (2,). Their descriptions must
+                        # agree.
+                        assert stored_use == custom_use
+                        continue
+                    self.concrete_custom_uses[target] = custom_use
+                    discovered.append(custom_use)
+        return discovered
 
     def _resolve_call_target(
         self, callee: MonoDefId, modifier_ctx: ModifierContext
@@ -675,12 +676,12 @@ class CompilationEngine:
     def _register_custom_modifier_monomorphizations(self) -> bool:
         """Adds unresolved concrete custom implementations to the checking worklist.
 
-        Returns whether at least one new monomorphization was added to the checking
-        worklist.
+        Discovers new custom uses and returns whether at least one corresponding
+        monomorphization was added to the checking worklist.
         """
-        # Discover concrete custom uses and store them in `self.concrete_custom_uses`.
         added = False
-        for target in self.concrete_custom_uses:
+        for custom_use in self._discover_concrete_custom_uses():
+            target = custom_use.implementation
             if target in self.checked or target in self.to_check_worklist:
                 continue
             custom_id, custom_args = target
