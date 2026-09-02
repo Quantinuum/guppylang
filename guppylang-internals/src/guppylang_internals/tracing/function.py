@@ -283,6 +283,14 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
     # Record call to compile later
     call = state.recorder.record_call(call_node, new_vars)
 
+    # Some custom inout calls, such as barriers, return their arguments unchanged.
+    # This lets tracing reconnect dynamic values to the call's output wires while
+    # leaving immutable static Python values inside packed arguments untouched.
+    preserves_static_inout_values = (
+        isinstance(resolved_func, CustomFunctionDef)
+        and resolved_func.call_checker.preserves_static_inout_values
+    )
+
     # Since all inputs are GuppyObjects identifying ComptimeVariables (varieties
     # of Place), ExprCompiler will update the Places to map to the output wires
     # of the call. Here we just write the GuppyObjects with those Places back to
@@ -291,7 +299,12 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         if InputFlags.Inout in flags:
             ty = arg_obj._ty
             # This marks `arg_obj` as used, but clears usedness of `val`, as desired:
-            success = update_packed_value(val, arg_obj, state.recorder)
+            success = update_packed_value(
+                val,
+                arg_obj,
+                state.recorder,
+                preserve_static=preserves_static_inout_values,
+            )
 
             if not success:
                 # This means the user has passed an object that we cannot update,

@@ -380,6 +380,11 @@ class CustomCallChecker(ABC):
     # overridden, this controls the default behaviour of `compute_input_flags`.
     input_flag_mode: ClassVar[InputFlagDefaultMode] = InputFlagDefaultMode.RAISE
 
+    # Whether inout arguments are guaranteed to return static Python values unchanged.
+    # During tracing, this permits packed dynamic values to be updated while leaving
+    # any static Python leaves intact.
+    preserves_static_inout_values: ClassVar[bool] = False
+
     _depth = 0
 
     @contextmanager
