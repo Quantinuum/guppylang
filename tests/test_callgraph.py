@@ -59,7 +59,8 @@ def test_recursive():
 
 @pytest.mark.xfail(
     match="0 == 1",
-    reason="Nested functions are resolved as indirect calls to unknown target",
+    reason="Nested functions are resolved as indirect calls to unknown target"
+    " (see https://github.com/Quantinuum/guppylang/issues/2272)",
 )
 def test_nested_function():
     """Test that nested function calls are recorded in the call graph."""

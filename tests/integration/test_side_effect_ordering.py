@@ -456,7 +456,8 @@ def test_nested_panicking_calls(validate):
     check_order(hugr, [panic_call1, pure_call1, panic_op, pure_call2, panic_call2])
     pytest.xfail(
         "Calls to nested functions are not resolved in checking,"
-        " leading to spurious order edges"
+        " leading to spurious order edges - see"
+        " https://github.com/Quantinuum/guppylang/issues/2272"
     )
 
     # Otherwise - the desired outcome when previous is fixed:
