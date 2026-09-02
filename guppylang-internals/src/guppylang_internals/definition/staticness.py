@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from guppylang_internals.definition.common import Definition
-from guppylang_internals.diagnostic import Error
+from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
 
 PyFunc = Callable[..., Any]
@@ -12,16 +12,29 @@ PyFunc = Callable[..., Any]
 @dataclass(frozen=True)
 class OverloadInvalidStaticError(Error):
     title: ClassVar[str] = "Invalid static overloads"
-    func: str
-    static_overloads: list[str]
-    non_static_overloads: list[str]
+    function_name: str
+    span_label: ClassVar[
+        str
+    ] = (
+        "Some overloads of method `{function_name}` "
+        "are static but others are not."
+        )
 
-    @property
-    def rendered_span_label(self) -> str:
-        stem = f"""Some overloads of method `{self.func}` are static but others are not
-        static: {", ".join(f"`{n}`" for n in self.static_overloads)}
-        non-static: {", ".join(f"`{n}`" for n in self.non_static_overloads)}"""
-        return stem
+    @dataclass(frozen=True)
+    class StaticMismatchHint(Note):
+        message: ClassVar[str] = """
+            static: {static_overloads_fmt}
+            non-static: {non_static_overloads_fmt}"""
+        static_overloads: list[str]
+        non_static_overloads: list[str]
+
+        @property
+        def static_overloads_fmt(self) -> str:
+            return ", ".join(f"`{name}`" for name in self.static_overloads)
+
+        @property
+        def non_static_overloads_fmt(self) -> str:
+            return ", ".join(f"`{name}`" for name in self.non_static_overloads)
 
 
 def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
@@ -73,8 +86,10 @@ def determine_static(defn: Definition) -> tuple[bool, PyFunc | None]:
                     OverloadInvalidStaticError(
                         defn.defined_at,
                         defn.name,
-                        static_func_names,
-                        non_static_func_names,
+                    ).add_sub_diagnostic(
+                        OverloadInvalidStaticError.StaticMismatchHint(
+                            None, static_func_names, non_static_func_names
+                        )
                     )
                 )
         case RawPytketDef() | RawLoadPytketDef():

@@ -4,8 +4,10 @@ Error: Invalid static overloads (at $FILE:15:4)
 14 |     @guppy.overload(func1, func2)
 15 |     def overloaded() -> None: ...
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Some overloads of method `overloaded` are static but others
-   |                                   are not
-   |                                           static: `func2`
-   |                                           non-static: `func1`
+   |                                   are not.
+
+Note:
+            static: `func2`
+            non-static: `func1`
 
 Guppy compilation failed due to 1 previous error
