@@ -76,5 +76,5 @@ def test_nested_function():
 
     data = ENGINE.call_graph.get((outer.id, ()))
     assert data is not None
-    # Check the outer function call exactly one function (the nested function).
+    # Check the outer function calls exactly one function (the nested function).
     assert len(data) == 1
