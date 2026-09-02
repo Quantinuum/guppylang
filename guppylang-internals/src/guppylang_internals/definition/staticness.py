@@ -13,12 +13,9 @@ PyFunc = Callable[..., Any]
 class OverloadInvalidStaticError(Error):
     title: ClassVar[str] = "Invalid static overloads"
     function_name: str
-    span_label: ClassVar[
-        str
-    ] = (
-        "Some overloads of method `{function_name}` "
-        "are static but others are not."
-        )
+    span_label: ClassVar[str] = (
+        "Some overloads of method `{function_name}` are static but others are not."
+    )
 
     @dataclass(frozen=True)
     class StaticMismatchHint(Note):

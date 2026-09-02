@@ -403,16 +403,9 @@ class CompilationEngine:
 
     def is_def_static(self, func_id: DefId) -> bool:
         """Get staticness of parsed definition if it can be static."""
-        from guppylang_internals.definition.declaration import ParsedFunctionDecl
-        from guppylang_internals.definition.function import ParsedFunctionDef
-        from guppylang_internals.definition.traced import TracedFunctionDef
 
         parsed = self.get_parsed(func_id)
-        match parsed:
-            case ParsedFunctionDef() | ParsedFunctionDecl() | TracedFunctionDef():
-                return parsed.is_static
-            case _:
-                return False
+        return isinstance(parsed, CallableDef) and parsed.is_static
 
     @pretty_errors
     def check_single(self, id: DefId) -> None:

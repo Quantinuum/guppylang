@@ -95,6 +95,7 @@ def compile_local_func_def(
             func.name,
             func.cfg,
             func_builder,
+            is_static=False,
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 

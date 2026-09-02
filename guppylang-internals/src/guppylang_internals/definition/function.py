@@ -176,8 +176,6 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
 
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
-    is_static: bool = field(default=False, kw_only=True)
-
     @property
     def params(self) -> "Sequence[Parameter]":
         """Generic parameters of this function."""

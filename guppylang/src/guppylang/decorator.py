@@ -526,7 +526,12 @@ class _Guppy:
             dummy_sig = FunctionType([], NoneType())
             func_ast, _docstring = parse_py_func(f, DEF_STORE.sources)
             defn = OverloadedFunctionDef(
-                DefId.fresh(), f.__name__, func_ast, dummy_sig, func_ids
+                DefId.fresh(),
+                f.__name__,
+                func_ast,
+                dummy_sig,
+                func_ids,
+                is_static=False,
             )
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)

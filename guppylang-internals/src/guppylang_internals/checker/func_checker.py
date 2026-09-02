@@ -243,6 +243,7 @@ def check_nested_func_def(
         func_ty,
         func_def.docstring,
         link_name,
+        is_static=False,
     )
     ENGINE.parsed[def_id] = func
 
@@ -285,6 +286,7 @@ def check_nested_func_def(
         func_def.docstring,
         link_name,
         checked_cfg,
+        is_static=False,
     )
     return with_loc(func_def, checked_def)
 

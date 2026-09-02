@@ -149,7 +149,6 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     defined_at: ast.FunctionDef
     docstring: str | None
     link_name: str
-    is_static: bool = field(default=False, kw_only=True)
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property

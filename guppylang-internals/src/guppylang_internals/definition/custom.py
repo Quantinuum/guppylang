@@ -148,7 +148,7 @@ class RawCustomFunctionDef(ParsableDef):
         """
         from guppylang_internals.definition.function import parse_py_func
 
-        _is_static, unwrapped_if_static = determine_static(self)
+        is_static, unwrapped_if_static = determine_static(self)
         if unwrapped_if_static is not None:
             py_func = unwrapped_if_static
         else:
@@ -171,6 +171,7 @@ class RawCustomFunctionDef(ParsableDef):
             sig is not None,
             self.has_var_args,
             self.effects,
+            is_static=is_static,
         )
 
     def _get_signature(
@@ -252,6 +253,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             self.has_var_args,
             self.effects,
             type_args,
+            is_static=self.is_static,
         )
 
     @override

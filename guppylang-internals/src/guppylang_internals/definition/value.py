@@ -41,6 +41,7 @@ class CallableDef(ValueDef):
     calls can be type-checked."""
 
     ty: FunctionType
+    is_static: bool = field(kw_only=True)
 
     @abstractmethod
     def check_call(

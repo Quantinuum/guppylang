@@ -92,7 +92,6 @@ class RawTracedFunctionDef(ParsableDef):
 @dataclass(frozen=True)
 class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     defined_at: ast.FunctionDef
-    is_static: bool = field(default=False, kw_only=True)
 
     @property
     def params(self) -> Sequence[Parameter]:
