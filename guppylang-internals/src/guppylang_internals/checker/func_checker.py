@@ -7,8 +7,6 @@ node straight from the Python AST. We build a CFG, check it, and return a
 
 import ast
 import copy
-import itertools
-from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, ClassVar, cast
 
@@ -27,7 +25,6 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.experimental import check_capturing_closures_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef, NestedFunctionDef
 from guppylang_internals.span import function_header_span
-from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, TypeParam
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
@@ -163,7 +160,9 @@ def check_global_func_def(
         # Comptime inputs are turned into generic args, so are not included here
         if InputFlags.Comptime not in inp.flags
     ]
-    generic_args = unique_named_generic_args(generic_ty.params, type_args)
+    generic_args = {
+        param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
+    }
 
     current_caller = (def_id, type_args)
     ENGINE.register_call_graph_node(current_caller)
@@ -178,27 +177,6 @@ def check_global_func_def(
         modified_block_name_base=link_name,
         current_caller=current_caller,
     )
-
-
-def unique_named_generic_args(
-    params: Iterable[Parameter], type_args: Inst
-) -> dict[str, Argument]:
-    """Returns a mapping from parameter names, mangled if necessary to make them unique,
-    to the corresponding type arguments.
-
-    Necessary because for each Protocol arg we add a parameter named after the Protocol
-    containing the actual type implementing said Protocol."""
-    result = {}
-    for param, arg in zip(params, type_args, strict=True):
-        name = param.name
-        if name in result:
-            for i in itertools.count():
-                new_name = f"{name}_{i}"
-                if new_name not in result:
-                    name = new_name
-                    break
-        result[name] = arg
-    return result
 
 
 def check_nested_func_def(
