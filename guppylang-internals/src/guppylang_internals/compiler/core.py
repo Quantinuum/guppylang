@@ -20,6 +20,7 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
+from guppylang_internals.checker.effects_checker import CustomModifierKind
 from guppylang_internals.compiler.builder import ops
 from guppylang_internals.definition.common import (
     CompilableDef,
@@ -34,9 +35,15 @@ from guppylang_internals.engine import (
     DEF_STORE,
     ENGINE,
     CompilationStage,
+    ConcreteCustomUse,
     MonoDefId,
 )
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.metadata.common import (
+    FunctionMetadata,
+    add_metadata,
+    add_num_control_qubits,
+)
 from guppylang_internals.metadata.debug_info_util import StringTable
 from guppylang_internals.std._internal.compiler.tket_exts import (
     DEBUG_EXTENSION as TKET_DEBUG_EXTENSION,
@@ -60,6 +67,7 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.compiler.builder import DFBuilder
+    from guppylang_internals.definition.function import CompiledFunctionDef
     from guppylang_internals.tys import Effect
 
 CompiledLocals = dict[PlaceId, Wire]
@@ -116,11 +124,15 @@ class CompilerContext(ToHugrContext):
     # Info computed from callgraph before compilation begins
     effects: Mapping[MonoDefId, frozenset["Effect"]]
 
+    #: Concrete custom modifier implementations grouped by parent monomorphization.
+    custom_uses_by_parent: dict[MonoDefId, list[ConcreteCustomUse]]
+
     def __init__(
         self,
         module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
         effects: Mapping[MonoDefId, frozenset["Effect"]],
+        concrete_custom_uses: Mapping[MonoDefId, ConcreteCustomUse],
         file_table: StringTable | None = None,
     ) -> None:
         self.module = module
@@ -129,6 +141,13 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
         self.effects = effects
+        self.custom_uses_by_parent = {}
+        # Group concrete custom uses by parent monomorphization.
+        for implementation, custom_use in concrete_custom_uses.items():
+            assert implementation == custom_use.implementation
+            self.custom_uses_by_parent.setdefault(custom_use.parent, []).append(
+                custom_use
+            )
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )
@@ -150,7 +169,87 @@ class CompilerContext(ToHugrContext):
             self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None
 
+            modified_names = self._compile_custom_modifier_uses((def_id, mono_args))
+            if modified_names is not None:
+                from guppylang_internals.definition.function import (
+                    CompiledFunctionDef,
+                )
+
+                assert isinstance(defn, CompiledFunctionDef)
+                metadata = FunctionMetadata()
+                metadata.set_modified_defs(modified_names)
+                add_metadata(
+                    self.module.hugr[defn.hugr_node].metadata,
+                    metadata,
+                )
+
         return self.compiled[def_id, mono_args]
+
+    # NICOLA: there are a lot for loop packing and unpacking custom modifier uses, can we avoid this  # noqa: E501
+    # todo: make more explicit that the first retun value is daggered, the second is controlled, and the third is ctrl_daggered  # noqa: E501
+    def _compile_custom_modifier_uses(
+        self, parent: MonoDefId
+    ) -> list[str | list[str] | None] | None:
+        """Compiles a parent's concrete custom uses and builds its metadata values."""
+        custom_uses = self.custom_uses_by_parent.get(parent)
+        # todo: move this check outside in build_compiled_def
+        if custom_uses is None:
+            return None
+
+        # Group custom implementations by modification kind.
+        by_kind: dict[CustomModifierKind, list[ConcreteCustomUse]] = {}
+        for custom_use in custom_uses:
+            assert custom_use.parent == parent
+            by_kind.setdefault(custom_use.kind, []).append(custom_use)
+
+        modified_names: list[str | list[str] | None] = [None, None, None]
+        for kind, kind_uses in by_kind.items():
+            if kind == CustomModifierKind.DAGGERED:
+                # Daggered implementations is not generic, thus must have exactly one
+                # concrete implementation (i.e. the original one).
+                assert len(kind_uses) == 1
+                modified_names[0] = self._compile_custom_modifier_use(
+                    kind_uses[0]
+                ).link_name
+                continue
+
+            assert kind.takes_controls
+            # Group uses by number of control qubits required
+            uses_by_control_count: list[tuple[int, ConcreteCustomUse]] = []
+            for custom_use in kind_uses:
+                assert custom_use.control_count is not None
+                uses_by_control_count.append((custom_use.control_count, custom_use))
+
+            custom_implementation_names: list[str] = []
+            for control_count, custom_use in sorted(
+                uses_by_control_count, key=lambda item: item[0]
+            ):
+                compiled_custom = self._compile_custom_modifier_use(custom_use)
+                add_num_control_qubits(
+                    self.module.hugr[compiled_custom.hugr_node].metadata,
+                    control_count,
+                )
+                custom_implementation_names.append(compiled_custom.link_name)
+
+            index = {
+                CustomModifierKind.CONTROLLED: 1,
+                CustomModifierKind.CTRL_DAGGERED: 2,
+            }[kind]
+            modified_names[index] = custom_implementation_names
+
+        return modified_names
+
+    def _compile_custom_modifier_use(
+        self, custom_use: ConcreteCustomUse
+    ) -> "CompiledFunctionDef":
+        """Compiles one custom implementation already prepared during checking."""
+        from guppylang_internals.definition.function import CompiledFunctionDef
+
+        assert custom_use.implementation in ENGINE.checked
+        custom_id, custom_args = custom_use.implementation
+        compiled = self.build_compiled_def(custom_id, custom_args)
+        assert isinstance(compiled, CompiledFunctionDef)
+        return compiled
 
     def iterate_worklist(self) -> None:
         while self.worklist:

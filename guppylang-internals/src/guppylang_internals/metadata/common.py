@@ -78,7 +78,11 @@ class FunctionMetadata:
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
 
+    # todo: we should have 3 separate inputs for the 3 kinds of modifications, and forcing kwargs  # noqa: E501
     def set_modified_defs(self, modified_names: list[str | list[str] | None]) -> None:
+        """
+        Add metadata containing names of the functions implementing custom modifications
+        """
         assert len(modified_names) == 3
         if modified_names[0] is not None:
             self._node_metadata[DAGGERED_KEY] = cast("JsonType", modified_names[0])

@@ -155,6 +155,8 @@ CallGraphEdge = tuple[MonoDefId, MonoDefId]
 ResolvedModifierCall = tuple[CallGraphEdge, ModifierContext]
 
 
+# NICOLA: there is some redundancy here, ConcreteCustomUse contains implementation but
+# we then store them using the implementation as key
 @dataclass(frozen=True)
 class ConcreteCustomUse:
     """A concrete custom modifier implementation required by the program."""
@@ -772,7 +774,13 @@ class CompilationEngine:
         frame = get_calling_frame()
         filename = frame.f_code.co_filename
 
-        ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
+        ctx = CompilerContext(
+            graph,
+            set(def_ids),
+            effects,
+            self.concrete_custom_uses,
+            StringTable(),
+        )
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
