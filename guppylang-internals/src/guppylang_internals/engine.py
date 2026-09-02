@@ -286,23 +286,22 @@ class CompilationEngine:
     def register_call(
         self,
         ctx: "Context",
-        callee: "CallableDef | Iterable[Effect]",
+        callee: "CallableDef",
         inst: Inst,
     ) -> None:
         """Registers a function call in the call graph."""
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
         assert ctx.current_caller in self.call_graph
-        assert ctx.current_caller in self.other_callee_effects
+        self.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
-            effects = callee.call_effects
-        elif isinstance(callee, CallableDef):
-            # Effects not known yet, will be computed.
-            self.call_graph[ctx.current_caller].append((callee.id, inst))
-            return
-        else:
-            effects = callee
-        self.other_callee_effects[ctx.current_caller].extend(effects)
+            # ALAN this'll happen a lot, we should switch to a set
+            self.register_effects((callee.id, inst), callee.call_effects)
+
+    def register_effects(self, caller: MonoDefId, effects: "Iterable[Effect]") -> None:
+        """Registers known effects for a caller."""
+        assert caller in self.other_callee_effects
+        self.other_callee_effects[caller].extend(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -410,6 +409,9 @@ class CompilationEngine:
     def register_call_graph_node(self, mono_id: MonoDefId) -> None:
         """Ensures a monomorphized definition is registered in the call graph.
         Required before edges can be added from the node, but not to it.
+
+        Thus, used to indicate the def is of a kind for which we wish to track calls
+        (i.e. a user-defined function), even if it doesn't actually contain any.
         """
         assert mono_id not in self.call_graph
         assert mono_id not in self.other_callee_effects

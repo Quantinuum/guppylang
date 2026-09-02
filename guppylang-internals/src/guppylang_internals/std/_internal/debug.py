@@ -101,7 +101,7 @@ class StateOutputChecker(CustomCallChecker):
                 NoneType(),
             )
         args, ret_ty, inst = synthesize_call(
-            func_ty, syn_args, self.node, self.ctx, self.func.effects
+            func_ty, syn_args, self.node, self.ctx, self.func
         )
         assert len(inst) == 0, "func_ty is not generic"
         node = StateOutputExpr(

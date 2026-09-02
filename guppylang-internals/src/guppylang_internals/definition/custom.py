@@ -552,7 +552,7 @@ class DefaultCallChecker(CustomCallChecker):
         # Use default implementation from the expression checker,
         # but pass known effects (not DefId - we do not wish to compute them)
         args, ty, inst = synthesize_call(
-            self.func.ty, args, self.node, self.ctx, self.func.effects
+            self.func.ty, args, self.node, self.ctx, self.func
         )
         return make_global_call(self.func, args, inst), ty
 
