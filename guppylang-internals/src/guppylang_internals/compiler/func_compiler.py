@@ -25,9 +25,7 @@ def compile_global_func_def(
     """Compiles a top-level function definition to Hugr."""
     cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
-    if not ctx.effects[(func.id, func.mono_args)].issuperset(
-        builder._last_side_effect.keys()
-    ):
+    if not ctx.effects[(func.id, func.mono_args)].issuperset(builder.effects):
         raise InternalGuppyError(
             f"Function {func.name} compiled to have side effects not expected"
             " during checking; callgraph analysis will be incomplete."
