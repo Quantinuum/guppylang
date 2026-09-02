@@ -58,6 +58,10 @@ require a specific gateset when targeting a particular architecture.
 ``with_minimal_opt()`` is shorthand for selecting :py:attr:`OptimizationLevel.Minimal`.
 It disables optional optimizations on the program.
 
+Emulation in debug mode (enabling panic traces) requires minimal optimization. Calling
+``emulator()`` with debug mode enabled and any optimization passes configured raises
+``EmulatorBuildError``.
+
 .. code-block:: python
 
     emulator = main.with_minimal_opt().emulator(n_qubits=1)
@@ -126,6 +130,8 @@ from typing import (
     TypeVar,
 )
 
+from guppylang.emulator.exceptions import EmulatorBuildError
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -179,6 +185,9 @@ class OptimizationLevel(Enum):
 
     This is useful for low-level program analysis or when more control over
     the optimization passes is desired.
+
+    Note that any rewrites applied at this level must preserve enough debug information
+    to allow for stack traces to be generated in the event of a panic.
     """
 
     def passes(self) -> list[ComposablePass]:
@@ -258,7 +267,18 @@ class OptimizerInstance[**P, Out]:
         platform: Platform | None = None,
         debug_mode: bool = False,
     ) -> EmulatorInstance:
-        """Compile this function for emulation with the configured optimizations."""
+        """Compile this function for emulation with the configured optimizations.
+
+        Emulation in debug mode (enabling panic traces) requires minimal optimization.
+        """
+        if debug_mode and self.passes:
+            raise EmulatorBuildError(
+                ValueError(
+                    "Emulation in debug mode (enabling panic traces) requires minimal "
+                    "optimization. Call `with_minimal_opt()` before `emulator()`, or "
+                    "disable debug mode."
+                )
+            )
 
         # If platform is set, use it.
         # Else if platform is not explicitly provided, use the target platform

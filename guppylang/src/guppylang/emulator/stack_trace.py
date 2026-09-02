@@ -24,7 +24,7 @@ def render_stack_trace(stack_trace: StackTrace | None, message: str) -> str | No
     source = SourceMap()
     blocks: list[str] = []
 
-    def append_frame_snippet(span: Span, label: str | None) -> None:
+    def append_frame_snippet(span: Span, label: str | None, function_name: str) -> None:
         renderer = DiagnosticsRenderer(source)
         renderer.render_snippet(
             span,
@@ -33,7 +33,10 @@ def render_stack_trace(stack_trace: StackTrace | None, message: str) -> str | No
             is_primary=True,
             prefix_lines=renderer.PREFIX_ERROR_CONTEXT_LINES,
         )
-        blocks.append("\n".join(renderer.buffer))
+        header = (
+            f'File "{span.start.file}", line {span.start.line}, in {function_name}:'
+        )
+        blocks.append(f"{header}\n" + "\n".join(renderer.buffer))
 
     for entry in stack_trace.entries:
         for i, symbol in enumerate(entry.symbols):
@@ -45,9 +48,13 @@ def render_stack_trace(stack_trace: StackTrace | None, message: str) -> str | No
 
             loc = Loc(symbol.filename, symbol.line, symbol.column)
             span = Span(loc, loc.shift_right(1))
-            append_frame_snippet(span, message if i == 0 else None)
+            append_frame_snippet(
+                span, message if i == 0 else None, symbol.function_name
+            )
 
     if not blocks:
         return None
 
-    return "\n\n".join(blocks)
+    trace = "\n\n".join(blocks)
+    indented_trace = "\n".join(f"   {line}" for line in trace.splitlines())
+    return f"Guppy traceback (most recent call last):\n{indented_trace}\n"

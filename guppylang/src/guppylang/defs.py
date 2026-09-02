@@ -197,6 +197,8 @@ class GuppyCompilableProgram(Protocol):
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
+        Raises:
+            EmulatorBuildError: If debug mode is enabled without minimal optimization.
         """
         ...
 
@@ -282,6 +284,8 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
 
         Returns:
             An `EmulatorInstance` that can be used to run the function in an emulator.
+        Raises:
+            EmulatorBuildError: If debug mode is enabled without minimal optimization.
         """
         return (
             self._with_default_opt()
@@ -341,9 +345,7 @@ class GuppyFunctionDefinition[**P, Out](GuppyDefinition, GuppyCompilableProgram)
             )
 
         if debug_mode:
-            return builder.build(
-                mod, n_qubits=qubits, arg_specs=arg_specs, debug_mode=True
-            )
+            builder = builder.with_build_arg("debug", True)
 
         return builder.build(mod, n_qubits=qubits, arg_specs=arg_specs)
 

@@ -5,12 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import pytest
 from guppylang import (
     GuppyCompilableProgram,
     OptimizationLevel,
     OptimizerInstance,
     guppy,
 )
+from guppylang.emulator.exceptions import EmulatorBuildError
+from hugr.metadata import HugrDebugInfo
 from hugr.passes.composable import ComposablePass, PassResult
 
 if TYPE_CHECKING:
@@ -162,3 +165,36 @@ def test_reconfiguring_optimizer() -> None:
     classical.compile()
     minimal.compile()
     assert custom_pass.calls == 0
+
+
+def test_debug_emulator_requires_minimal_optimization() -> None:
+    @guppy
+    def main() -> None:
+        pass
+
+    with pytest.raises(EmulatorBuildError, match="with_minimal_opt"):
+        main.emulator(n_qubits=0, debug_mode=True)
+
+    with pytest.raises(EmulatorBuildError, match="with_minimal_opt"):
+        main.with_opt_level(OptimizationLevel.Classical).emulator(
+            n_qubits=0, debug_mode=True
+        )
+
+    with pytest.raises(EmulatorBuildError, match="with_minimal_opt"):
+        main.with_minimal_opt().with_optimization(CountingPass()).emulator(
+            n_qubits=0, debug_mode=True
+        )
+
+
+def test_debug_compile_allows_optimization() -> None:
+    @guppy
+    def main() -> None:
+        pass
+
+    hugr = (
+        main.with_opt_level(OptimizationLevel.Classical)
+        .compile(debug_mode=True)
+        .modules[0]
+    )
+    meta = hugr[hugr.module_root].metadata
+    assert HugrDebugInfo in meta
