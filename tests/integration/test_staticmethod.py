@@ -123,29 +123,42 @@ def test_staticmethod_enum_instantiated(validate):
     validate(main.compile())
 
 
-def test_staticmethod_overload(validate):
+def test_staticmethod_overload(validate) -> None:
+
     @guppy.struct
-    class Test:
-        @guppy
-        @staticmethod
-        def func1(b: float) -> None:
-            pass
+    class HasStaticOverloads:
 
         @guppy
         @staticmethod
-        def func2(a: int) -> None:
-            pass
+        def defined1(a: int) -> int:
+            return a
 
-        @guppy.overload(func1, func2)
-        def overloaded() -> None: ...
+        @guppy.declare
+        @staticmethod
+        def declaration(a: int, b: int, c: int) -> None: ...
+
+        @guppy
+        @staticmethod
+        def defined(a: int, b: int, c: int, d: int) -> int:
+            return a + b + c + d
+
+        @guppy.overload(declaration, defined)
+        def overloaded(): ...  # Overloaded functions can be overloaded themselves!
+
+        @guppy.overload(overloaded, defined1)
+        def combined(): ...
 
     @guppy
     def main() -> None:
-        t = Test()
-        Test.overloaded(3)
-        Test.overloaded(2.0)
+        s = HasStaticOverloads()
+        s.combined(1)
+        s.combined(1, 2, 3)
+        s.combined(1, 2, 3, 4)
+        HasStaticOverloads.combined(1)
+        HasStaticOverloads.combined(1, 2, 3)
+        HasStaticOverloads.combined(1, 2, 3, 4)
 
-    validate(main.compile())
+    validate(main.compile_function())
 
 
 def test_library_staticmethod():
