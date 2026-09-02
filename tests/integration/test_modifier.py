@@ -4,6 +4,7 @@ import pytest
 
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
+from guppylang_internals.engine import DEF_STORE, ENGINE, CustomModifierKind
 from guppylang.std.array import array
 
 from guppylang.std.builtins import (
@@ -702,6 +703,10 @@ def test_custom_modifier(validate, use_experimental_features):
         measure(c)
 
     main.check()
+
+    custom_defs = DEF_STORE.custom_modified_defs[foo.id]
+    assert set(custom_defs) == set(CustomModifierKind)
+    assert set(custom_defs.values()) <= set(ENGINE.parsed)
 
 
 def test_hugr_stability():

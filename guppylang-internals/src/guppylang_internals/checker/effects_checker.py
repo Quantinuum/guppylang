@@ -111,7 +111,7 @@ def compute_effects(
             call_graph.add_edge(mono_def_id, tgt)
         call_graph.nodes[mono_def_id]["effects"] = effects
 
-    nx.draw(call_graph, with_labels=True)
+    # nx.draw(call_graph, with_labels=True)
     # plt.gca().margins(x=4)
     # # plt.savefig("call_graph.png")
     # plt.show()
