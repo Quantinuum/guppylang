@@ -6,6 +6,7 @@ Error: Missing protocol implementation (at $FILE:15:15)
    |                ^^^^^^^^^^^ Type `def dagger_only(q: qubit) -> None` does not implement
    |                            protocol `Controllable[[qubit], None]`
 
-Note: Function `dagger_only` is only declared as `daggerable=True`
+Note: Function `dagger_only` is only daggerable. Consider declaring it with
+`controllable=True` or adding a custom `controlled` implementation
 
 Guppy compilation failed due to 1 previous error

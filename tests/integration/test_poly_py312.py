@@ -2,9 +2,11 @@
 
 from guppylang import array, qubit
 from guppylang.decorator import guppy
+from guppylang.std.builtins import Controllable, Daggerable, Unitary
 from guppylang.std.lang import Copy, Drop, owned, comptime
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing
+from guppylang.std.quantum import discard_array, h
 
 
 def test_function(validate):
@@ -325,6 +327,119 @@ def test_generic_tuple_chain(validate):
         return foo(comptime((1, 2)))
 
     validate(main.compile_function())
+
+
+def test_unitary(validate, use_experimental_features):
+    @guppy.unitary
+    class MyGate:
+        @guppy
+        def __call__[n: nat](qs: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat, m: nat](
+            qs: array[qubit, n], controls: array[qubit, m]
+        ) -> None:
+            pass
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit(), qubit())
+        MyGate(qs)
+        discard_array(qs)
+
+    main.check()
+
+
+def test_unitary_generic(validate, use_experimental_features):
+    @guppy.unitary
+    class MyGate[n: nat]:
+        @guppy
+        def __call__(qs: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def controlled[m: nat](qs: array[qubit, n], controls: array[qubit, m]) -> None:
+            pass
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit(), qubit())
+        MyGate[2](qs)
+        discard_array(qs)
+
+    main.check()
+
+
+def test_unitary_with_unitary_parameters(use_experimental_features):
+    @guppy.unitary
+    class custom_dagger:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_control:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_unitary:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy(daggerable=True)
+    def apply_dagger[F: Daggerable[[qubit], None]](f: F, q: qubit) -> None:
+        f(q)
+
+    @guppy(controllable=True)
+    def apply_control[F: Controllable[[qubit], None]](f: F, q: qubit) -> None:
+        f(q)
+
+    @guppy(unitary=True)
+    def apply_unitary[F: Unitary[[qubit], None]](f: F, q: qubit) -> None:
+        f(q)
+
+    @guppy(unitary=True)
+    def apply_daggerable_and_controllable[
+        F: (Daggerable[[qubit], None], Controllable[[qubit], None], Copy, Drop)
+    ](f: F, q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main(q: qubit) -> None:
+        apply_dagger(custom_dagger, q)
+        apply_control(custom_control, q)
+        apply_unitary(custom_unitary, q)
+        apply_dagger(h, q)
+        apply_unitary(h, q)
+
+        # We have to skip this test due to https://github.com/Quantinuum/guppylang/issues/2244
+        # apply_daggerable_and_controllable(custom_unitary, q)
+
+    main.check()
 
 
 def test_struct_unused_param(validate):

@@ -1,7 +1,6 @@
 from guppylang.decorator import guppy
 from guppylang.std.builtins import owned
-from guppylang.std.qsystem.helios import measure
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import measure, qubit
 
 
 @guppy(daggerable=True)

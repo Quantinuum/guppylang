@@ -9,8 +9,9 @@ from hugr import Wire
 from guppylang.decorator import guppy
 from guppylang_internals.decorator import custom_function, custom_type
 from guppylang_internals.definition.custom import CustomCallCompiler
-from guppylang.std.builtins import array, Function
-from guppylang.std.quantum import qubit
+from guppylang.std.builtins import array
+from guppylang.std.quantum import discard, h, qubit
+from guppylang.std.builtins import Function
 
 
 def test_id(validate):
@@ -51,6 +52,57 @@ def test_use_twice(validate):
         foo(y)
 
     validate(main.compile_function())
+
+
+E = guppy.type_var("T")
+
+
+@guppy
+def identity(x: E) -> E:
+    return x
+
+
+@guppy
+def helper(q: qubit, n: int) -> int:
+    h(q)
+    return identity(n)
+
+
+def test_generic_functions_in_unitary_class(validate, use_experimental_features):
+
+    @guppy.unitary
+    class foo:
+        c = guppy.nat_var("c")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            n = identity(1)
+            helper(q, n)
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            n = identity(2)
+            helper(q, n)
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, c]) -> None:
+            n = identity(3)
+            helper(q, n)
+            helper(_controls[0], identity(n))
+
+        @guppy
+        def ctrl_daggered(q: qubit, _controls: array[qubit, c]) -> None:
+            n = identity(4)
+            helper(q, n)
+            helper(_controls[0], identity(n))
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        foo(q)
+        discard(q)
+
+    main.check()
 
 
 def test_define_twice(validate):

@@ -1,10 +1,12 @@
+import ast
 from collections import defaultdict
-from collections.abc import Sequence
-from contextlib import suppress
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, assert_never, cast
+from typing import TYPE_CHECKING, ClassVar, assert_never, cast
 
 import hugr
 import hugr.build.function as hf
@@ -37,6 +39,7 @@ from guppylang_internals.definition.value import (
 from guppylang_internals.diagnostic import Error, Note
 from guppylang_internals.error import (
     GuppyError,
+    InternalGuppyError,
     RequiresMonomorphizationError,
     pretty_errors,
 )
@@ -47,6 +50,7 @@ from guppylang_internals.metadata.debug_info_util import (
 from guppylang_internals.span import SourceMap
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
+    array_type,
     array_type_def,
     bool_type_def,
     callable_protocol_def,
@@ -56,8 +60,12 @@ from guppylang_internals.tys.builtin import (
     frozenarray_type_def,
     function_def_type_def,
     function_type_def,
+    get_array_length,
+    get_element_type,
     int_type_def,
+    is_array_type,
     list_type_def,
+    nat_type,
     nat_type_def,
     none_type_def,
     option_type_def,
@@ -68,22 +76,34 @@ from guppylang_internals.tys.builtin import (
     unitary_protocol_def,
 )
 from guppylang_internals.tys.const import BoundConstVar
-from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.printing import TypePrinter
+from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
 from guppylang_internals.tys.subst import BoundVarFinder, Inst
 from guppylang_internals.tys.ty import (
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
     BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
+    FuncInput,
     FunctionDefType,
     FunctionType,
+    InputFlags,
     NoneType,
     NumericType,
     OpaqueType,
     StructType,
     TupleType,
     Type,
+    unify,
 )
+
+if TYPE_CHECKING:
+    from guppylang_internals.checker.core import Globals
+    from guppylang_internals.definition.function import ParsedFunctionDef
+
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
@@ -109,7 +129,6 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 
-
 #: Identifier for a monomorphized version of a definition.
 #:
 #: Kinds of definitions that are never generic (e.g. constant definitions) and
@@ -117,6 +136,12 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 #: registered with an empty tuple () as `Inst`. Otherwise, `Inst` will be the
 #: instantiation for the generic parameters for the monomorphized version.
 MonoDefId = tuple[DefId, Inst]
+
+
+class CompilationStage(Enum):
+    NONE = "none"
+    CHECK = "check"
+    COMPILE = "compile"
 
 
 class DefinitionStore:
@@ -132,6 +157,8 @@ class DefinitionStore:
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
     sources: SourceMap
+    # Maps a parent definition (usually a function) to its custom modified definitions
+    custom_modified_defs: dict[DefId, list[DefId]]
 
     def __init__(self) -> None:
         self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
@@ -140,6 +167,7 @@ class DefinitionStore:
         self.frames = {}
         self.sources = SourceMap()
         self.wasm_functions = {}
+        self.custom_modified_defs = defaultdict(list)
 
     def register_def(self, defn: RawDef, frame: FrameType) -> None:
         self.raw_defs[defn.id] = defn
@@ -168,6 +196,11 @@ class DefinitionStore:
 
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
+
+    def register_custom_modified_def(
+        self, parent_def_id: DefId, custom_def_id: DefId
+    ) -> None:
+        self.custom_modified_defs[parent_def_id].append(custom_def_id)
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()
@@ -212,10 +245,21 @@ class CompilationEngine:
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
+    _stage: CompilationStage = CompilationStage.NONE
+
     def __init__(self) -> None:
         """Resets the compilation cache."""
         self.reset()
         self.additional_extensions = []
+
+    @contextmanager
+    def _in_stage(self, stage: CompilationStage) -> Generator[None, None, None]:
+        old_stage = self._stage
+        self._stage = stage
+        try:
+            yield
+        finally:
+            self._stage = old_stage
 
     @staticmethod
     def _get_base_resolve_registry() -> ExtensionRegistry:
@@ -248,64 +292,115 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
 
+    def assert_stage(self, stage: CompilationStage, context: str) -> None:
+        if self._stage != stage:
+            raise CompilationStageError(
+                context, actual_stage=self._stage, expected_stage=stage
+            )
+
     @pretty_errors
     def get_parsed(self, id: DefId) -> ParsedDef:
         """Look up the parsed version of a definition by its id.
 
-        Parses the definition if it hasn't been parsed yet. Also makes sure that the
-        definition will be checked and compiled later on.
+        If in checking stage, parses the definition if it hasn't been already.
+        Also makes sure that the definition will be checked and compiled later on.
         """
         from guppylang_internals.checker.core import Globals
 
         if id in self.parsed:
             return self.parsed[id]
+
+        if self._stage == CompilationStage.NONE:
+            with self._in_stage(CompilationStage.CHECK):
+                return self.get_parsed(id)
+
         defn = DEF_STORE.raw_defs[id]
         if isinstance(defn, ParsableDef):
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             defn = defn.parse(Globals(DEF_STORE.frames[defn.id]), DEF_STORE.sources)
 
         self.parsed[id] = defn
         if isinstance(defn, TypeDef):
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.types_to_check_worklist[id] = defn
         elif isinstance(defn, CheckableDef):
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.to_check_worklist[id, ()] = defn
         elif isinstance(defn, CheckableGenericDef) and defn.params:
+            # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
+            # since we don't know the generic instantiation yet. It will be added when
+            # we're checking a use of the definition (e.g. a call). See for example
+            # `ParsedFunctionDef.check_call`.
+            self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.generic_to_check_worklist[id] = defn
-        # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
-        # since we don't know the generic instantiation yet. It will be added when
-        # we're checking a use of the definition (e.g. a call). See for example
-        # `ParsedFunctionDef.check_call`.
+
+        # If `defn` has any custom modified definitions linked to it,
+        # we need to make sure that they are also parsed.
+        custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
+        if custom_modified_ids:
+            # Only CallableDef can have custom modified definitions
+            assert isinstance(defn, CallableDef)
+            for custom_def_id in custom_modified_ids:
+                if custom_def_id not in self.parsed:
+                    custom_defn = DEF_STORE.raw_defs[custom_def_id]
+                    assert isinstance(custom_defn, ParsableDef)
+                    parsed_custom_defn = custom_defn.parse(
+                        Globals(DEF_STORE.frames[custom_defn.id]), DEF_STORE.sources
+                    )
+                    from guppylang_internals.definition.function import (
+                        ParsedFunctionDef,
+                    )
+
+                    assert isinstance(parsed_custom_defn, ParsedFunctionDef)
+                    _check_modified_def_signature(parsed_custom_defn, defn.ty)
+                    self.parsed[custom_def_id] = parsed_custom_defn
         return defn
 
     @pretty_errors
     def get_checked(self, id: DefId, mono_args: Inst) -> CheckedDef:
         """Look up the checked version of a definition by its id.
 
-        Parses and checks the definition if it hasn't been parsed/checked yet. Also
-        makes sure that the definition will be compiled to Hugr later on.
+        If in checking stage, parses & checks the definition if it hasn't been already.
+        Also makes sure that the definition will be compiled to Hugr later on.
         """
         from guppylang_internals.checker.core import Globals
 
         if (id, mono_args) in self.checked:
             return self.checked[id, mono_args]
+
+        if self._stage == CompilationStage.NONE:
+            with self._in_stage(CompilationStage.CHECK):
+                return self.get_checked(id, mono_args)
+
         defn = self.get_parsed(id)
         if isinstance(defn, CheckableDef):
+            self.assert_stage(CompilationStage.CHECK, f"check {defn}")
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
-            try:
-                checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
-            except GuppyError as err:
-                # If this is an error arising from the initial parametric check where
-                # parameters are treated as opaque values, then we can just report the
-                # error as is. However, if the error only shows up once we check a
-                # concrete monomorphic instantiation, then we should also report this
-                # instantiation in the error message to give some additional context.
-                if instantiation_context_is_useful_for_error(mono_args):
-                    err.error.add_sub_diagnostic(
-                        MonoArgsNote(None, defn.params, mono_args)
-                    )
-                raise
-            defn = checked_defn
+            self.assert_stage(CompilationStage.CHECK, f"check {defn}")
+            defn = _check_generic_def_instantiation(
+                defn, mono_args, Globals(DEF_STORE.frames[defn.id])
+            )
         self.checked[id, mono_args] = defn
+
+        custom_modified_ids = DEF_STORE.custom_modified_defs[defn.id]
+        for custom_modified_id in custom_modified_ids:
+            custom_modified_defn = self.get_parsed(custom_modified_id)
+            assert isinstance(custom_modified_defn, CheckableGenericDef)
+            # controlled implematation has an extra parameter for the controllers.
+            # We keep that extra parameter generic, the monomorphization will be
+            # done later.
+            custom_mono_args = mono_args + tuple(
+                param.to_bound()
+                for param in custom_modified_defn.params[len(mono_args) :]
+            )
+            if (custom_modified_id, custom_mono_args) not in self.checked:
+                checked_defn = _check_generic_def_instantiation(
+                    custom_modified_defn,
+                    custom_mono_args,
+                    Globals(DEF_STORE.frames[defn.id]),
+                )
+                self.checked[custom_modified_id, custom_mono_args] = checked_defn
 
         from guppylang_internals.definition.enum import CheckedEnumDef
         from guppylang_internals.definition.struct import CheckedStructDef
@@ -455,7 +550,9 @@ class CompilationEngine:
 
         This is the function that is invoked by e.g. `<guppy-definition>.compile`.
         """
-        pointer, [compiled_def] = self._compile([id])
+        pointer, [compiled_def] = self._compile(
+            [id], f"compile {DEF_STORE.raw_defs[id]}"
+        )
 
         if (
             isinstance(compiled_def, CompiledHugrNodeDef)
@@ -475,13 +572,21 @@ class CompilationEngine:
 
         This is the function that is invoked by e.g. `<guppy-library>.compile`.
         """
-        return self._compile(def_ids, reset=reset)[0]
+        return self._compile(def_ids, context="call compile()", reset=reset)[0]
 
     def _compile(
-        self, def_ids: list[DefId], *, reset: bool = True
+        self, def_ids: list[DefId], context: str, *, reset: bool = True
     ) -> tuple[ModulePointer, list[CompiledDef]]:
+        # Avoid side-effects of checking if we are not going to compile.
+        self.assert_stage(CompilationStage.NONE, context)
         self.check(def_ids, reset=reset)
+        assert self._stage == CompilationStage.NONE, "Checking should have reset stage"
+        with self._in_stage(CompilationStage.COMPILE):
+            return self._compile_impl(def_ids)
 
+    def _compile_impl(
+        self, def_ids: list[DefId]
+    ) -> tuple[ModulePointer, list[CompiledDef]]:
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
@@ -589,6 +694,22 @@ class EntryMonomorphizeError(Error):
         return ", ".join(f"`{p.name}`" for p in self.params)
 
 
+class CompilationStageError(InternalGuppyError):
+    """Raised when the CompilationEngine is requested to do some operation
+    during a stage in which the operation cannot be performed"""
+
+    def __init__(
+        self,
+        context: str,
+        *,
+        actual_stage: CompilationStage,
+        expected_stage: CompilationStage,
+    ) -> None:
+        super().__init__(
+            f"Can only {context} during `{expected_stage}`, not `{actual_stage}`"
+        )
+
+
 @dataclass(frozen=True)
 class EntryCheckMonomorphizeError(Error):
     title: ClassVar[str] = "Invalid check point"
@@ -600,7 +721,7 @@ class EntryCheckMonomorphizeError(Error):
 
     @property
     def thing(self) -> str:
-        return f"{self.defn.description.capitalize()} `{self.defn.name}`"
+        return self.defn.to_caps_str()
 
     @property
     def plural_s(self) -> str:
@@ -622,10 +743,25 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
     """
     if isinstance(defn, CheckableGenericDef) and defn.params:
         assert defn.defined_at is not None
-        description = f"{defn.description.capitalize()} `{defn.name}`"
         raise GuppyError(
-            EntryMonomorphizeError(defn.defined_at, description, defn.params)
+            EntryMonomorphizeError(defn.defined_at, defn.to_caps_str(), defn.params)
         )
+
+
+def _check_generic_def_instantiation(
+    defn: CheckableGenericDef, mono_args: Inst, globals: "Globals"
+) -> CheckedDef:
+    try:
+        return defn.check(mono_args, globals)
+    except GuppyError as err:
+        # If this is an error arising from the initial parametric check where
+        # parameters are treated as opaque values, then we can just report the
+        # error as is. However, if the error only shows up once we check a
+        # concrete monomorphic instantiation, then we should also report this
+        # instantiation in the error message to give some additional context.
+        if instantiation_context_is_useful_for_error(mono_args):
+            err.error.add_sub_diagnostic(MonoArgsNote(None, defn.params, mono_args))
+        raise
 
 
 def instantiation_context_is_useful_for_error(mono_args: Inst) -> bool:
@@ -645,6 +781,129 @@ def instantiation_context_is_useful_for_error(mono_args: Inst) -> bool:
             case _:
                 return True
     return False
+
+
+@dataclass(frozen=True)
+class CustomModifiedDefSignatureError(Error):
+    title: ClassVar[str] = (
+        "Incompatible signature for custom `{implementation}` implementation"
+    )
+    span_label: ClassVar[str] = (
+        "Expected signature `{expected_signature}`, got `{actual_signature}`"
+    )
+    implementation: str
+    expected_signature: str
+    actual_signature: FunctionType
+
+    class DaggeredNote(Note):
+        message: ClassVar[str] = (
+            "A custom `daggered` implementation must have the same signature as its "
+            "parent function."
+        )
+
+    class ControlledNote(Note):
+        message: ClassVar[str] = (
+            "A custom `{implementation}` implementation must have its parent "
+            "function's signature followed by an `array[qubit, n]` input containing "
+            "the control qubits."
+        )
+
+
+def _check_modified_def_signature(
+    parsed_modified_def: "ParsedFunctionDef", parent_ty: FunctionType
+) -> None:
+    """Checks that a custom modified definition has a signature compatible with its
+    parent:
+    - `daggered`: must have exactly the same signature as the parent.
+    - `controlled` / `ctrl_daggered`: must have the parent's signature extended
+      with a `array[qubit, n]` input holding the control qubits.
+    """
+    if parsed_modified_def.name == CALL_DAGGERED_METHOD:
+        daggered_ty = parsed_modified_def.ty
+        if unify(parent_ty, daggered_ty, {}) is None:
+            err = CustomModifiedDefSignatureError(
+                parsed_modified_def.defined_at,
+                implementation=CALL_DAGGERED_METHOD,
+                expected_signature=f"{parent_ty}",
+                actual_signature=daggered_ty,
+            )
+            err.add_sub_diagnostic(CustomModifiedDefSignatureError.DaggeredNote(None))
+            raise GuppyError(err)
+    elif (
+        parsed_modified_def.name == CALL_CONTROLLED_METHOD
+        or parsed_modified_def.name == CALL_CTRL_DAGGERED_METHOD
+    ):
+        _check_controlled_def_signature(
+            parsed_modified_def.ty,
+            parent_ty,
+            parsed_modified_def.defined_at,
+            parsed_modified_def.name,
+        )
+    else:
+        raise InternalGuppyError(
+            f"Unexpected modified def name: {parsed_modified_def.name}"
+        )
+
+
+def _check_controlled_def_signature(
+    modified_ty: FunctionType,
+    parent_ty: FunctionType,
+    defined_at: ast.FunctionDef,
+    implementation: str,
+) -> None:
+    first_part_ty = FunctionType(
+        # last input must be the array of control qubits
+        modified_ty.inputs[:-1],
+        modified_ty.output,
+        # last param must be parameter for the number of control qubits
+        modified_ty.params[:-1],
+        modified_ty.comptime_args,
+        modified_ty.unitary_flags,
+    )
+    invalid_signature = (
+        len(modified_ty.inputs) != len(parent_ty.inputs) + 1
+        or len(modified_ty.params) != len(parent_ty.params) + 1
+        or unify(first_part_ty, parent_ty, {}) is None
+    )
+    if not invalid_signature:
+        last_input_ty = modified_ty.inputs[-1].ty
+        last_param = modified_ty.params[-1]
+        invalid_signature = (
+            not is_array_type(last_input_ty)
+            or not is_qubit_ty(get_element_type(last_input_ty))
+            or modified_ty.inputs[-1].flags != InputFlags.Inout
+            or not isinstance(last_param, ConstParam)
+            or get_array_length(last_input_ty)
+            != BoundConstVar(last_param.ty, last_param.name, last_param.idx)
+        )
+
+    if invalid_signature:
+        control_param = ConstParam(len(parent_ty.params), "n", nat_type())
+        control_input = FuncInput(
+            array_type(
+                qubit_ty(),
+                BoundConstVar(control_param.ty, control_param.name, control_param.idx),
+            ),
+            InputFlags.Inout,
+            "_controls" if parent_ty.input_names is not None else None,
+        )
+        expected_signature = str(
+            FunctionType(
+                [*parent_ty.inputs, control_input],
+                parent_ty.output,
+                [*parent_ty.params, control_param],
+                parent_ty.comptime_args,
+                parent_ty.unitary_flags,
+            )
+        )
+        err = CustomModifiedDefSignatureError(
+            defined_at,
+            implementation=implementation,
+            expected_signature=expected_signature,
+            actual_signature=modified_ty,
+        )
+        err.add_sub_diagnostic(CustomModifiedDefSignatureError.ControlledNote(None))
+        raise GuppyError(err)
 
 
 ENGINE: CompilationEngine = CompilationEngine()

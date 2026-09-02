@@ -142,6 +142,24 @@ def test_emulator_instance_with_event_hook():
     assert new_instance._options._event_hook == event_hook
 
 
+def test_emulator_instance_with_analysis_configuration():
+    """Analysis configuration is immutable and independently toggleable."""
+    instance = EmulatorInstance(_instance=Mock(), _n_qubits=1)
+
+    assert instance.trace_enabled is False
+    assert instance.metrics_enabled is False
+
+    configured = instance.with_trace().with_metrics()
+    assert configured.trace_enabled is True
+    assert configured.metrics_enabled is True
+    assert instance.trace_enabled is False
+    assert instance.metrics_enabled is False
+
+    disabled = configured.with_trace(False).with_metrics(False)
+    assert disabled.trace_enabled is False
+    assert disabled.metrics_enabled is False
+
+
 def test_emulator_instance_with_verbose():
     """Test with_verbose method."""
     mock_selene_instance = Mock()
