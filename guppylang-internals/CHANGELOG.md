@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.2...guppylang-internals-v1.0.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* Raise minimum version of tket to 0.15.7 (#2266)([3733050](https://github.com/Quantinuum/guppylang/commit/3733050b9c6a0d16e4536ebfd068977d92f66524))
+
 ## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.1...guppylang-internals-v1.0.2) (2026-08-27)
 
 
