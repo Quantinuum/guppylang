@@ -127,7 +127,6 @@ def test_staticmethod_overload(validate) -> None:
 
     @guppy.struct
     class HasStaticOverloads:
-
         @guppy
         @staticmethod
         def defined1(a: int) -> int:

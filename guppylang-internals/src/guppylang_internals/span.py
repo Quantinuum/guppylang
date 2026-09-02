@@ -3,7 +3,6 @@
 import ast
 import linecache
 from dataclasses import dataclass
-from typing import TypeAlias
 
 from guppylang_internals.ast_util import get_file, get_line_offset, get_source
 from guppylang_internals.error import InternalGuppyError
@@ -102,7 +101,7 @@ class Span:
 
 
 #: Objects in the compiler that are associated with a source span
-ToSpan: TypeAlias = ast.AST | Span
+type ToSpan = ast.AST | Span
 
 
 def to_span(x: ToSpan) -> Span:
@@ -139,7 +138,11 @@ def function_header_span(func_def: ast.FunctionDef) -> Span:
     assert line_offset is not None
 
     lines = source.splitlines()
-    line_idx = func_def.lineno - 1
+    # `parse_source` wraps indented functions in a synthetic class so that Python can
+    # parse them without changing their column offsets. The wrapper is not included in
+    # `source`, so `func_def.lineno` points 2 lines below the definition line.
+    wrapper_lines = int(source[0].isspace())
+    line_idx = func_def.lineno - wrapper_lines - 1
     paren_depth = 0
     for i, line in enumerate(lines[line_idx:], start=line_idx):
         col_begin = func_def.col_offset if i == line_idx else 0
@@ -149,13 +152,13 @@ def function_header_span(func_def: ast.FunctionDef) -> Span:
             elif char == ")":
                 paren_depth -= 1
             elif char == ":" and paren_depth == 0:
-                return Span(start, Loc(file, i + line_offset, col + 1))
+                return Span(start, Loc(file, i + line_offset + wrapper_lines, col + 1))
 
     raise InternalGuppyError("function_header_span: Could not find header colon")
 
 
 #: List of source lines in a file
-SourceLines: TypeAlias = list[str]
+type SourceLines = list[str]
 
 
 class SourceMap:

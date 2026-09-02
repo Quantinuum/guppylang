@@ -1,15 +1,16 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import ComptimeVariable, Place
-from guppylang_internals.definition.value import ValueDef
+from guppylang_internals.definition.common import CheckableGenericDef, DefId
+from guppylang_internals.definition.value import CallableDef, ValueDef
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.tys.ty import Type
 
 if TYPE_CHECKING:
-    from guppylang_internals.definition.common import DefId
     from guppylang_internals.tys.subst import Inst
 
 
@@ -28,7 +29,7 @@ class TraceWire:
 #: A value usable as an input to an op/call in a trace, i.e. that will be resolved
 #: to a Hugr `Wire` during compilation. (`ComptimeVariable`s are resolved via the
 #: state held in the DFContainer.)
-TraceOutput: TypeAlias = TraceWire | ComptimeVariable
+type TraceOutput = TraceWire | ComptimeVariable
 
 
 @dataclass(frozen=True)
@@ -159,12 +160,16 @@ class TraceRecorder:
         node = get_tracing_state().node
         return self._add(TraceLoad(value, node))
 
-    def record_load_func(self, def_id: "DefId", type_args: "Inst") -> TraceWire:
+    def record_load_func(self, defn: CallableDef, type_args: "Inst") -> TraceWire:
         """Records a load_function to replay during compilation"""
         from guppylang_internals.tracing.state import get_tracing_state
 
         node = get_tracing_state().node
-        return self._add(TraceFunctionLoad(def_id, type_args, node))
+
+        if isinstance(defn, CheckableGenericDef):
+            ENGINE.register_generic_use(defn, type_args)
+
+        return self._add(TraceFunctionLoad(defn.id, type_args, node))
 
     def record_call(
         self,

@@ -11,12 +11,14 @@ Notes:
  7 |         def foo() -> None:
    |         ------------------
  8 |             pass
-   | ---------------- This is of type `def foo() -> None`
+   | ---------------- This is a distinct function `foo` of type `def foo() ->
+   |                  None`
  9 |     else:
 10 |         def foo() -> None:
    |         ------------------
 11 |             pass
-   | ---------------- This is of type `def foo() -> None`
+   | ---------------- This is a distinct function `foo` of type `def foo() ->
+   |                  None`
 
 Help: Consider adding type annotations to coerce them into opaque function
 values: `foo: Function[[], None] = ...`

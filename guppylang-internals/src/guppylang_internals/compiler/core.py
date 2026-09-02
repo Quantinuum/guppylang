@@ -29,7 +29,7 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
-from guppylang_internals.engine import DEF_STORE, ENGINE, MonoDefId
+from guppylang_internals.engine import DEF_STORE, ENGINE, CompilationStage, MonoDefId
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.metadata.debug_info_util import StringTable
 from guppylang_internals.std._internal.compiler.tket_exts import (
@@ -129,6 +129,10 @@ class CompilerContext(ToHugrContext):
         mono_args = type_args or ()
         if (def_id, mono_args) not in self.compiled:
             defn = ENGINE.get_checked(def_id, mono_args)
+            # During compilation stage, get_checked will not have done any checking.
+            # (During checking stage, this will fail, but we might have done more
+            # checking. We could avoid this side effect, but it'd be more work.)
+            ENGINE.assert_stage(CompilationStage.COMPILE, f"build_compiled_def {defn}")
             if isinstance(defn, CompilableDef):
                 defn = defn.compile_outer(self.module, self)
             self.compiled[def_id, mono_args] = defn

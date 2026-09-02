@@ -1,7 +1,7 @@
 import ast
 import builtins
 from collections.abc import Callable
-from typing import Protocol, TypeVar
+from typing import Protocol
 
 from guppylang.defs import GuppyDefinition
 
@@ -24,9 +24,6 @@ from guppylang_internals.tys.ty import (
     NumericType,
 )
 
-T = TypeVar("T")
-T2 = TypeVar("T2", contravariant=True)
-
 
 class CreateTypeDef(Protocol):
     def __call__(
@@ -39,13 +36,13 @@ class CreateTypeDef(Protocol):
     ) -> OpaqueTypeDef: ...
 
 
-class CreateModuleDecorator(Protocol[T2]):
+class CreateModuleDecorator[T2](Protocol):
     def __call__(
         self, filename: str, config_filename: str | None
     ) -> Callable[[builtins.type[T2]], GuppyDefinition]: ...
 
 
-def ext_module_decorator(
+def ext_module_decorator[T](
     create_type_def: CreateTypeDef,
     init_compiler: CustomInoutCallCompiler,
     discard_compiler: CustomInoutCallCompiler,

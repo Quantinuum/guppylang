@@ -1,0 +1,11 @@
+Error: Instance method accessed on class (at $FILE:13:15)
+   | 
+11 | @guppy
+12 | def fun() -> None:
+13 |     a = MyEnum.method
+   |                ^^^^^^ `method` is an instance method of `MyEnum`, not a static
+   |                       method
+
+Help: Access it on an instance instead, e.g. `MyEnum.Left(...).method(...)`
+
+Guppy compilation failed due to 1 previous error

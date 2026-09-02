@@ -2,10 +2,9 @@ import ast
 import copy
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, NamedTuple, NoReturn
+from typing import Any, ClassVar, NamedTuple, NoReturn, override
 
 from hugr import Wire
-from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Context
@@ -32,7 +31,6 @@ from guppylang_internals.definition.value import (
     CompiledCallableDef,
 )
 from guppylang_internals.diagnostic import Error, Note
-from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
     BypassOverloadError,
     GuppyError,
@@ -268,7 +266,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         )
 
 
-def is_overload_static(raw_defn: Definition) -> bool: # NAME NEEDS TO CHANGE
+def is_overload_static(raw_defn: Definition) -> bool:  # NAME NEEDS TO CHANGE
     """Check if a Definition corresponds to a static method."""
     from guppylang_internals.engine import DEF_STORE
 

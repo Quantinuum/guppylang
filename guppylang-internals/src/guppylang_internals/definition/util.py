@@ -4,7 +4,7 @@ import linecache
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from types import FrameType
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, ClassVar, TypeGuard
 
 from guppylang_internals.ast_util import AstNode, annotate_location, parse_source
 from guppylang_internals.checker.core import Globals
@@ -37,9 +37,7 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.struct import ParsedStructDef
 
 
-ParsedRecursiveTypeDef: TypeAlias = (
-    "ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef"
-)
+type ParsedRecursiveTypeDef = "ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef"
 
 
 @dataclass(frozen=True)

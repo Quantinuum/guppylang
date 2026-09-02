@@ -1,7 +1,6 @@
 from abc import ABC
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TypeAlias
 
 from guppylang_internals.checker.errors.type_errors import (
     AmbiguousProtocol,
@@ -56,7 +55,7 @@ class AssumptionImplProof(ImplProofBase):
     ty: BoundTypeVar
 
 
-ImplProof: TypeAlias = ConcreteImplProof | AssumptionImplProof
+type ImplProof = ConcreteImplProof | AssumptionImplProof
 
 
 def _instantiate_self(

@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from guppylang_internals.diagnostic import Error, Fatal
@@ -117,26 +117,26 @@ def saved_exception_hook() -> Iterator[None]:
         sys.excepthook = old_hook
 
 
-FuncT = TypeVar("FuncT", bound=Callable[..., Any])
-
-
-def pretty_errors(f: FuncT) -> FuncT:
+def pretty_errors[**P, T](f: Callable[P, T]) -> Callable[P, T]:
     """Decorator to print custom error banners when a `GuppyError` occurs."""
 
     def hook(
-        excty: type[BaseException], err: BaseException, traceback: TracebackType | None
+        old_handler: ExceptHook,
+        excty: type[BaseException],
+        err: BaseException,
+        traceback: TracebackType | None,
     ) -> None:
         """Custom `excepthook` that intercepts `GuppyExceptions` for pretty printing."""
         if isinstance(err, GuppyError):
             sys.stderr.write(str(err))
             return
 
-        # If it's not a GuppyError, fall back to default hook
-        sys.__excepthook__(excty, err, traceback)
+        # If it's not a GuppyError, fall back to previous hook
+        old_handler(excty, err, traceback)
 
     @functools.wraps(f)
     def pretty_errors_wrapped(*args: Any, **kwargs: Any) -> Any:
-        with exception_hook(hook):
+        with exception_hook(functools.partial(hook, sys.excepthook)):
             return f(*args, **kwargs)
 
-    return cast("FuncT", pretty_errors_wrapped)
+    return cast("Callable[P, Any]", pretty_errors_wrapped)

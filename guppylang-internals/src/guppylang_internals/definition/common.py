@@ -3,7 +3,7 @@ import itertools
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, ClassVar
 
 from hugr.build.dfg import DefinitionBuilder, OpVar
 
@@ -17,9 +17,9 @@ if TYPE_CHECKING:
     from guppylang_internals.tys.subst import Inst
 
 
-RawDef: TypeAlias = "ParsableDef | ParsedDef"
-ParsedDef: TypeAlias = "CheckableDef | CheckableGenericDef | CheckedDef"
-CheckedDef: TypeAlias = "CompilableDef | CompiledDef"
+type RawDef = "ParsableDef | ParsedDef"
+type ParsedDef = "CheckableDef | CheckableGenericDef | CheckedDef"
+type CheckedDef = "CompilableDef | CompiledDef"
 
 
 @dataclass(frozen=True)
@@ -60,6 +60,22 @@ class Definition(ABC):
     id: DefId
     name: str
     defined_at: ast.AST | None
+
+    def __str__(self) -> str:
+        return self.to_str()
+
+    def to_str(self) -> str:
+        """Returns a string identifying this definition and its kind.
+        For example, "function `foo`" or "type `Bar`".
+        For a detailed representation, use `repr(defn)` instead.
+        """
+        return f"{self.description} `{self.name}`"
+
+    def to_caps_str(self) -> str:
+        """Returns a capitalized string identifying this definition and its kind.
+        For example, "Function `foo`" or "Type `Bar`".
+        """
+        return f"{self.description.capitalize()} `{self.name}`"
 
     @property
     @abstractmethod

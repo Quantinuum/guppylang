@@ -2,7 +2,7 @@ import ast
 import textwrap
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 if TYPE_CHECKING:
     from guppylang_internals.tys.ty import Type
@@ -23,10 +23,8 @@ AstNode = (
     | ast.FunctionDef
 )
 
-T = TypeVar("T", covariant=True)
 
-
-class AstVisitor(Generic[T]):
+class AstVisitor[T]:
     """
     Note: This class is based on the implementation of `ast.NodeVisitor` but
     allows extra arguments to be passed to the `visit` functions.
@@ -369,16 +367,13 @@ def get_line_offset(node: AstNode) -> int | None:
         return None
 
 
-A = TypeVar("A", bound=ast.AST)
-
-
-def with_loc(loc: ast.AST, node: A) -> A:
+def with_loc[A: ast.AST](loc: ast.AST, node: A) -> A:
     """Copy source location from one AST node to the other."""
     set_location_from(node, loc)
     return node
 
 
-def with_type(ty: "Type", node: A) -> A:
+def with_type[A: ast.AST](ty: "Type", node: A) -> A:
     """Annotates an AST node with a type."""
     node.type = ty  # type: ignore[attr-defined]
     return node

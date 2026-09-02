@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, cast, override
 
 import hugr.build.function as hf
 from guppylang.defs import GuppyDefinition
@@ -12,12 +12,15 @@ from hugr.debug_info import DILocation, DISubprogram
 from hugr.envelope import EnvelopeConfig
 from hugr.metadata import HugrDebugInfo
 from hugr.std.float import FLOAT_T
-from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode, has_empty_body, with_loc
 from guppylang_internals.checker.core import Context, Globals
 from guppylang_internals.checker.errors.comptime_errors import PytketSignatureMismatch
-from guppylang_internals.checker.expr_checker import check_call, synthesize_call
+from guppylang_internals.checker.expr_checker import (
+    check_call,
+    make_global_call,
+    synthesize_call,
+)
 from guppylang_internals.checker.func_checker import (
     check_signature,
 )
@@ -48,7 +51,6 @@ from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.metadata.common import MetadataUnitaryFlags
 from guppylang_internals.metadata.debug_info_util import make_location_record
-from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap, Span
 from guppylang_internals.std._internal.compiler.array import (
     array_new,
@@ -369,7 +371,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
         args, subst, inst = check_call(self.ty, args, ty, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
     @override
@@ -379,7 +381,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(self.ty, args, node, ctx)
-        node = with_loc(node, GlobalCall(def_id=self.id, args=args, type_args=inst))
+        node = with_loc(node, make_global_call(self, args, inst))
         return node, ty
 
 

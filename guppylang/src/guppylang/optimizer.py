@@ -122,7 +122,6 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
-    Generic,
     ParamSpec,
     TypeVar,
 )
@@ -186,13 +185,12 @@ class OptimizationLevel(Enum):
         """Return the list of HUGR passes ran by this optimization level."""
         match self:
             case OptimizationLevel.Default:
-                # The pytket dependency could be bypassed by using the json
-                # encoding of the passes rather than the pytket objects
-                # themselves.
-                from pytket.passes import RemoveRedundancies
                 from tket import passes
 
-                return [passes.Normalize(), passes.PytketHugrPass(RemoveRedundancies())]
+                return [
+                    passes.Normalize(),
+                    passes.PytketHugrPass(_RemoveRedundanciesPass()),
+                ]
             case OptimizationLevel.Classical:
                 from tket import passes
 
@@ -215,7 +213,7 @@ def _apply_passes(package: Package, passes: Sequence[ComposablePass]) -> Package
 
 
 @dataclass(frozen=True)
-class OptimizerInstance(Generic[P, Out]):
+class OptimizerInstance[**P, Out]:
     """Builder used to configure optimizations for compiling a Guppy program.
 
     Obtained by calling :py:meth:`GuppyFunctionDefinition.with_opt_level` or
@@ -288,3 +286,15 @@ class OptimizerInstance(Generic[P, Out]):
     def compile_function(self, debug_mode: bool = False) -> Package:
         """Compile a function with the configured optimizations."""
         return _apply_passes(self.definition._compile_function(debug_mode), self.passes)
+
+
+@dataclass(frozen=True, slots=True)
+class _RemoveRedundanciesPass:
+    """Clone of pytket's RemoveRedundancies pass definition that does not
+    require pytket to be available."""
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "StandardPass": {"name": "RemoveRedundancies"},
+            "pass_class": "StandardPass",
+        }
