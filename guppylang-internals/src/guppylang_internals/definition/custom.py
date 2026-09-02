@@ -33,7 +33,6 @@ from guppylang_internals.compiler.core import (
     GlobalConstId,
 )
 from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
-from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -146,9 +145,12 @@ class RawCustomFunctionDef(ParsableDef):
         code. The only information we need to access is that it's a function type and
         that there are no unsolved existential vars.
         """
-        from guppylang_internals.definition.function import parse_py_func
+        from guppylang_internals.definition.function import (
+            determine_static,
+            parse_py_func,
+        )
 
-        is_static, unwrapped_if_static = determine_static(self)
+        is_static, unwrapped_if_static = determine_static(self.python_func)
         if unwrapped_if_static is not None:
             py_func = unwrapped_if_static
         else:

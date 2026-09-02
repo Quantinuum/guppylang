@@ -30,12 +30,12 @@ from guppylang_internals.definition.function import (
     PyFunc,
     compile_call,
     default_func_link_name,
+    determine_static,
     load,
     make_subprogram_record,
     monomorphized_link_name,
     parse_py_func,
 )
-from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -98,7 +98,7 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
-        is_static, unwrapped_if_static = determine_static(self)
+        is_static, unwrapped_if_static = determine_static(self.python_func)
         if unwrapped_if_static is not None:
             py_func = unwrapped_if_static
         else:

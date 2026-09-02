@@ -15,13 +15,13 @@ from guppylang_internals.definition.common import (
     DefId,
 )
 from guppylang_internals.definition.custom import CustomFunctionDef
-from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
     CompiledCallableDef,
 )
 from guppylang_internals.diagnostic import Error, Note
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
     BypassOverloadError,
     GuppyError,
@@ -93,6 +93,31 @@ class InternalExpectOverloadError(Error):
 
 
 @dataclass(frozen=True)
+class OverloadInvalidStaticError(Error):
+    title: ClassVar[str] = "Invalid static overloads"
+    function_name: str
+    span_label: ClassVar[str] = (
+        "Some overloads of method `{function_name}` are static but others are not."
+    )
+
+    @dataclass(frozen=True)
+    class StaticMismatchHint(Note):
+        message: ClassVar[str] = """
+            static: {static_overloads_fmt}
+            non-static: {non_static_overloads_fmt}"""
+        static_overloads: list[str]
+        non_static_overloads: list[str]
+
+        @property
+        def static_overloads_fmt(self) -> str:
+            return ", ".join(f"`{name}`" for name in self.static_overloads)
+
+        @property
+        def non_static_overloads_fmt(self) -> str:
+            return ", ".join(f"`{name}`" for name in self.non_static_overloads)
+
+
+@dataclass(frozen=True)
 class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
     description: str = field(default="overloaded function", init=False)
@@ -121,7 +146,7 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     def synthesize_call(
         self, args: list[ast.expr], node: AstNode, ctx: "Context"
     ) -> tuple[ast.expr, Type]:
-        determine_static(self)
+        self.assert_static_consistency(ctx)
         new_node, ty = self._try_overloads(
             args,
             node,
@@ -231,3 +256,28 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         raise InternalGuppyError(
             "OverloadedFunctionDef.compile_call shouldn't be invoked"
         )
+
+    def assert_static_consistency(self, ctx: "Context") -> None:
+        """Assert overloads do not have mixed staticness."""
+
+        func_defs = [ctx.globals[func_id] for func_id in self.func_ids]
+        is_static = [ENGINE.is_def_static(func_id) for func_id in self.func_ids]
+        if all(is_static) or not any(is_static):
+            return
+        else:
+            static_func_names = [
+                func_defs[i].name for i, static in enumerate(is_static) if static
+            ]
+            non_static_func_names = [
+                func_defs[i].name for i, static in enumerate(is_static) if not static
+            ]
+            raise GuppyError(
+                OverloadInvalidStaticError(
+                    self.defined_at,
+                    self.name,
+                ).add_sub_diagnostic(
+                    OverloadInvalidStaticError.StaticMismatchHint(
+                        None, static_func_names, non_static_func_names
+                    )
+                )
+            )

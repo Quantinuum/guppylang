@@ -42,7 +42,6 @@ from guppylang_internals.definition.common import (
     UserProvidedLinkName,
 )
 from guppylang_internals.definition.enum import ParsedEnumDef
-from guppylang_internals.definition.staticness import determine_static
 from guppylang_internals.definition.struct import ParsedStructDef
 from guppylang_internals.definition.value import (
     CallableDef,
@@ -123,7 +122,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        is_static, unwrapped_if_static = determine_static(self)
+        is_static, unwrapped_if_static = determine_static(self.python_func)
         if unwrapped_if_static is not None:
             py_func = unwrapped_if_static
         else:
@@ -382,6 +381,14 @@ def parse_py_func(f: PyFunc, sources: SourceMap) -> tuple[ast.FunctionDef, str |
     if not isinstance(func_ast, ast.FunctionDef):
         raise GuppyError(ExpectedError(func_ast, "a function definition"))
     return parse_function_with_docstring(func_ast)
+
+
+def determine_static(func: PyFunc) -> tuple[bool, PyFunc | None]:
+    """TODO."""
+    if isinstance(func, staticmethod):
+        return True, func.__func__
+    else:
+        return False, None
 
 
 # Note: Defined here as opposed to in `metadata.debug_info` to avoid circular imports
