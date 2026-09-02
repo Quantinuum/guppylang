@@ -229,7 +229,7 @@ class CompilationEngine:
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
     call_graph: dict[MonoDefId, list[MonoDefId]]
-    other_callee_effects: dict[MonoDefId, list["Effect"]]
+    other_callee_effects: dict[MonoDefId, set["Effect"]]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -300,8 +300,7 @@ class CompilationEngine:
 
     def register_effects(self, caller: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a caller."""
-        assert caller in self.other_callee_effects
-        self.other_callee_effects[caller].extend(effects)
+        self.other_callee_effects.setdefault(caller, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -414,9 +413,7 @@ class CompilationEngine:
         (i.e. a user-defined function), even if it doesn't actually contain any.
         """
         assert mono_id not in self.call_graph
-        assert mono_id not in self.other_callee_effects
         self.call_graph[mono_id] = []
-        self.other_callee_effects[mono_id] = []
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.

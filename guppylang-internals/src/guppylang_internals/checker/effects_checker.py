@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 def compute_effects(
     call_graph: CallGraph,
-    other_callee_effects: Mapping["MonoDefId", list[Effect]],
+    other_callee_effects: Mapping["MonoDefId", set[Effect]],
 ) -> Mapping["MonoDefId", frozenset[Effect]]:
     """Computes the effects of functions in the program, checking that they
     respect the declared effect limits. This should be called after a call graph
