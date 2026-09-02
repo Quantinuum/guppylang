@@ -52,14 +52,14 @@ class UnitaryFlagMismatchHint(Note):
 
         if self.actual == UnitaryFlags.NoFlags:
             return (
-                f"Function `{self.name}` is not {self.expected.context()} consider "
+                f"Function `{self.name}` is not {self.expected.context()}. Consider "
                 f"declaring it with `{self.expected.hint_rendering()}` or adding "
                 f"{self.expected.custom_hint_rendering()}"
             )
         missing = self.expected & ~self.actual
         return (
             f"Function `{self.name}` is only "
-            f"{self.actual.context()} consider declaring it with "
+            f"{self.actual.context()}. Consider declaring it with "
             f"`{missing.hint_rendering()}` or adding "
             f"{missing.custom_hint_rendering()}"
         )

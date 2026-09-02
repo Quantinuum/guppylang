@@ -424,7 +424,7 @@ def test_unitary_with_unitary_parameters(use_experimental_features):
 
     @guppy(unitary=True)
     def apply_daggerable_and_controllable[
-        F: (Daggerable[[qubit], None], Controllable[[qubit], None])
+        F: (Daggerable[[qubit], None], Controllable[[qubit], None], Copy, Drop)
     ](f: F, q: qubit) -> None:
         f(q)
 
@@ -437,7 +437,7 @@ def test_unitary_with_unitary_parameters(use_experimental_features):
         apply_unitary(h, q)
 
         # We have to skip this test due to https://github.com/Quantinuum/guppylang/issues/2244
-        # apply_daggerable_and_controllable(custom_unitary, q)
+        apply_daggerable_and_controllable(custom_unitary, q)
 
     main.check()
 
