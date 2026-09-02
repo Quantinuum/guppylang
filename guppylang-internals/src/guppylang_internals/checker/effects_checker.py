@@ -22,10 +22,14 @@ def compute_effects(
     # can compute the effects of a component based on the effects of its callees.
     for component in reversed(call_graph.condensed):
         effects = set.union(
-            *(set(other_callee_effects[func]) for func in component.members)
+            *(other_callee_effects.get(func, set()) for func in component.members),
+            *(
+                # If the callee is in the call graph, use its computed effects;
+                # otherwise (a leaf) use only the effects gathered directly by checking.
+                func_effects[tgt] if cmp is not None else other_callee_effects[tgt]
+                for func, cmp, tgt in component.external_callees
+            ),
         )
-        for _, _, tgt in component.callees:
-            effects.update(func_effects[tgt])
         func_effects.update(dict.fromkeys(component.members, frozenset(effects)))
 
     return func_effects

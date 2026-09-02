@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 
 class CallGraph:
+    _all_calls: Mapping[MonoDefId, Iterable[MonoDefId]]
     _graph: nx.DiGraph[MonoDefId]
 
     @cached_property
@@ -28,13 +29,15 @@ class CallGraph:
         comps: dict[MonoDefId, CallGraphComponent] = {}
         # Process callees first
         for component in reversed(list(nx.topological_sort(condensed))):
-            members = frozenset(condensed.nodes[component]["members"])
+            members: frozenset[MonoDefId] = frozenset(
+                condensed.nodes[component]["members"]
+            )
             cgc = CallGraphComponent(
                 members=members,
-                callees=frozenset(
-                    (src, comps[tgt], tgt)
+                external_callees=frozenset(
+                    (src, comps[tgt] if tgt in self._graph.nodes else None, tgt)
                     for src in members
-                    for tgt in self._graph.successors(src)
+                    for tgt in self._all_calls[src]
                     if tgt not in members
                 ),
             )
@@ -43,22 +46,30 @@ class CallGraph:
         return list(reversed(rev_result))
 
     def __init__(self, calls: Mapping[MonoDefId, Iterable[MonoDefId]]):
+        self._all_calls = calls  # deepcopy?
         self._graph = nx.DiGraph()
         for mono_def_id in calls:
-            finder = BoundVarFinder()
-            (_, args) = mono_def_id
-            # Include only concrete instantiations; the others will not be compiled.
-            for arg in args:
-                arg.visit(finder)
-            if not finder.bound_vars:
+            if is_concrete(
+                mono_def_id
+            ):  # Only concrete functions will actually be compiled
                 self._graph.add_node(mono_def_id)
 
         for mono_def_id, callees in calls.items():
             if mono_def_id not in self._graph.nodes:
                 continue
             for tgt in callees:
-                assert tgt in self._graph.nodes
-                self._graph.add_edge(mono_def_id, tgt)
+                if tgt in self._graph.nodes:
+                    self._graph.add_edge(mono_def_id, tgt)
+
+
+def is_concrete(mono_def_id: MonoDefId) -> bool:
+    """Returns True if the given monomorphized definition is concrete
+    (i.e. does not contain any BoundVar's)."""
+    finder = BoundVarFinder()
+    (_, args) = mono_def_id
+    for arg in args:
+        arg.visit(finder)
+    return not (bool(finder.bound_vars))
 
 
 @dataclass(frozen=True)
@@ -67,8 +78,7 @@ class CallGraphComponent:
 
     members: frozenset[MonoDefId]
 
-    """ Calls from this component to other components.
-    Each tuple is (source, target_component, target). """
-    # ALAN TODO make middle CallGraphComponent | None
-    # so as to include calls to non-callgraph funcs.
-    callees: frozenset[tuple[MonoDefId, CallGraphComponent, MonoDefId]]
+    """ Calls from functions in this component to functions outside it.
+    Each tuple is (source, target component, target), with the target component being
+    None if the target is not in the call graph."""
+    external_callees: frozenset[tuple[MonoDefId, CallGraphComponent | None, MonoDefId]]
