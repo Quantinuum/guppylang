@@ -34,12 +34,13 @@ if TYPE_CHECKING:
 
 def custom_function[**P, T](
     compiler: CustomInoutCallCompiler | None = None,
+    *,
     checker: CustomCallChecker | None = None,
     higher_order_value: bool = True,
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    effects: Iterable[Effect] = (),
+    effects: Iterable[Effect],
     has_var_args: bool = False,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
@@ -123,6 +124,7 @@ def custom_type[T](
 
 def hugr_op[**P, T](
     op: Callable[[ht.FunctionType, Inst, CompilerContext], DataflowOp],
+    *,
     checker: CustomCallChecker | None = None,
     higher_order_value: bool = True,
     name: str = "",
@@ -141,11 +143,11 @@ def hugr_op[**P, T](
         name: The name of the function.
     """
     return custom_function(
-        OpCompiler(op),
-        checker,
-        higher_order_value,
-        name,
-        signature,
+        compiler=OpCompiler(op),
+        checker=checker,
+        higher_order_value=higher_order_value,
+        name=name,
+        signature=signature,
         unitary_flags=unitary_flags,
         effects=effects,
     )
