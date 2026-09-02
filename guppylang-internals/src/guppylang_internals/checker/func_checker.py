@@ -183,6 +183,11 @@ def check_global_func_def(
 def unique_named_generic_args(
     params: Iterable[Parameter], type_args: Inst
 ) -> dict[str, Argument]:
+    """Returns a mapping from parameter names, mangled if necessary to make them unique,
+    to the corresponding type arguments.
+
+    Necessary because for each Protocol arg we add a parameter named after the Protocol
+    containing the actual type implementing said Protocol."""
     result = {}
     for param, arg in zip(params, type_args, strict=True):
         name = param.name
