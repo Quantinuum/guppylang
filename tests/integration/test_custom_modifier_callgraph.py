@@ -19,10 +19,11 @@ from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg
 from guppylang_internals.tys.builtin import nat_type
 from guppylang_internals.tys.const import ConstValue
+from guppylang_internals.tys.subst import is_concrete_inst
 
 
 def test_custom_modifier_monomorphizations(use_experimental_features):
-    """Only concrete custom implementations required by labelled calls are checked."""
+    """Custom methods are checked eagerly and concretely monomorphized on demand."""
 
     @guppy.unitary
     class custom_gate:
@@ -52,10 +53,14 @@ def test_custom_modifier_monomorphizations(use_experimental_features):
         custom_gate(q)
         discard(q)
 
-    unused.check()
-    # todo: check instead that the general
+    unused.with_minimal_opt().compile_function()
+    assert any(
+        def_id == controlled_id and not is_concrete_inst(mono_args)
+        for def_id, mono_args in ENGINE.checked
+    )
     assert concrete_controlled.isdisjoint(ENGINE.checked)
     assert not ENGINE.concrete_custom_uses
+    assert all(def_id != controlled_id for def_id, _ in ENGINE.compiled)
 
     @guppy
     def main() -> None:

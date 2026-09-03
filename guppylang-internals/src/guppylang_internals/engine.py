@@ -429,6 +429,16 @@ class CompilationEngine:
 
                 assert isinstance(parsed_custom_defn, ParsedFunctionDef)
                 _check_modified_def_signature(parsed_custom_defn, defn.ty)
+                # While parameterized custom methods (controlled and ctrl_daggered) are
+                # scheduled for check by `get_parsed`, (see
+                # ```
+                # 412| elif isinstance(defn, CheckableGenericDef) and defn.params:
+                # ```
+                # ), non-parameterized custom methods (daggered) are not scheduled
+                # thus we explicitly schedule them here. This ensure that all custom
+                # methods are checked even if not used.
+                if not parsed_custom_defn.params:
+                    self.to_check_worklist[custom_def_id, ()] = parsed_custom_defn
         return defn
 
     @pretty_errors
@@ -829,15 +839,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(
