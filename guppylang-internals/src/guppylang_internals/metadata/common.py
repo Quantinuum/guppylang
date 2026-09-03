@@ -24,8 +24,8 @@ class MetadataUnitaryFlags(Metadata[int]):
 
 
 class DaggeredImplementation(Metadata[str]):
-    """stub implementation for tket.metadata.DaggeredImplementation to ensure decoupling between
-    guppy and tket. See:
+    """stub implementation for tket.metadata.DaggeredImplementation to ensure decoupling
+    between guppy and tket. See:
     - `tests/test_guppy_decoupled.py:83`
     - https://github.com/Quantinuum/guppylang/issues/1595"""
 
@@ -33,8 +33,8 @@ class DaggeredImplementation(Metadata[str]):
 
 
 class ControlledImplementations(Metadata[list[str]]):
-    """stub implementation for tket.metadata.ControlledImplementations to ensure decoupling between
-    guppy and tket. See:
+    """stub implementation for tket.metadata.ControlledImplementations to ensure
+    decoupling between guppy and tket. See:
     - `tests/test_guppy_decoupled.py:83`
     - https://github.com/Quantinuum/guppylang/issues/1595"""
 
@@ -42,8 +42,8 @@ class ControlledImplementations(Metadata[list[str]]):
 
 
 class CtrlDaggeredImplementations(Metadata[list[str]]):
-    """stub implementation for tket.metadata.CtrlDaggeredImplementations to ensure decoupling between
-    guppy and tket. See:
+    """stub implementation for tket.metadata.CtrlDaggeredImplementations to ensure
+    decoupling between guppy and tket. See:
     - `tests/test_guppy_decoupled.py:83`
     - https://github.com/Quantinuum/guppylang/issues/1595"""
 
@@ -51,8 +51,8 @@ class CtrlDaggeredImplementations(Metadata[list[str]]):
 
 
 class NumControlQubits(Metadata[int]):
-    """stub implementation for tket.metadata.NumControlQubits to ensure decoupling between
-    guppy and tket. See:
+    """stub implementation for tket.metadata.NumControlQubits to ensure decoupling
+    between guppy and tket. See:
     - `tests/test_guppy_decoupled.py:83`
     - https://github.com/Quantinuum/guppylang/issues/1595"""
 
