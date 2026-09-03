@@ -55,7 +55,6 @@ def check_modified_block(
         f"{ctx.modified_block_name_base}."
         f"__WithBlock__{next(ctx.modified_block_counter)}"
     )
-    assert ctx.current_caller is not None
     checked_cfg = check_cfg(
         cfg,
         inputs,

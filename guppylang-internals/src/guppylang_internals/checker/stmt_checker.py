@@ -428,8 +428,6 @@ class StmtChecker(AstVisitor[BBStatement]):
 
         if not self.bb:
             raise InternalGuppyError("BB required to check with block!")
-        if not self.ctx.current_caller:
-            raise InternalGuppyError("current_caller required to check with block!")
 
         # Check modifier arguments.
         for control in node.control:
