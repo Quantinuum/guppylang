@@ -10,12 +10,6 @@ from guppylang_internals.diagnostic import Fatal
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
 
-# Metadata keys for modified definitions (daggered, controlled, ctrl-daggered)
-# To be removed when added to tket
-DAGGERED_KEY = "tket.daggered"
-CONTROLLED_KEY = "tket.controlled"
-CTRL_DAGGERED_KEY = "tket.ctrl_daggered"
-NUM_CONTROL_QUBITS_KEY = "tket.num_control_qubits"
 if TYPE_CHECKING:
     from tket.metadata import InlineAnnotationValue
 
@@ -27,6 +21,50 @@ class MetadataUnitaryFlags(Metadata[int]):
     - https://github.com/Quantinuum/guppylang/issues/1595"""
 
     KEY = "tket.unitary"
+
+
+class DaggeredImplementation(Metadata[str]):
+    """stub implementation for tket.metadata.DaggeredImplementation to ensure decoupling between
+    guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.daggered"
+
+
+class ControlledImplementations(Metadata[list[str]]):
+    """stub implementation for tket.metadata.ControlledImplementations to ensure decoupling between
+    guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.controlled"
+
+
+class CtrlDaggeredImplementations(Metadata[list[str]]):
+    """stub implementation for tket.metadata.CtrlDaggeredImplementations to ensure decoupling between
+    guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.ctrl_daggered"
+
+
+class NumControlQubits(Metadata[int]):
+    """stub implementation for tket.metadata.NumControlQubits to ensure decoupling between
+    guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.num_control_qubits"
+
+
+# Metadata keys for modified definitions (daggered, controlled, ctrl-daggered)
+# To be removed when added to tket
+DAGGERED_KEY = DaggeredImplementation.KEY
+CONTROLLED_KEY = ControlledImplementations.KEY
+CTRL_DAGGERED_KEY = CtrlDaggeredImplementations.KEY
+NUM_CONTROL_QUBITS_KEY = NumControlQubits.KEY
 
 
 @dataclass(frozen=True)
