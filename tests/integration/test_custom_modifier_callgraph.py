@@ -91,7 +91,7 @@ def test_custom_modifier_monomorphizations(use_experimental_features):
     } == {1, 2}
     assert len(ENGINE.modifiers_on_calls[original_edge]) == 3
     assert {
-        ENGINE.resolved_call_targets[(original_edge, modifier_ctx)]
+        ENGINE.resolved_modified_calls[(original_edge, modifier_ctx)]
         for modifier_ctx in ENGINE.modifiers_on_calls[original_edge]
     } == concrete_controlled
     assert set(ENGINE.concrete_custom_uses) == concrete_controlled
@@ -231,9 +231,10 @@ def test_custom_modifier_compilation_metadata(use_experimental_features):
     for custom_use in custom_uses:
         compiled = ENGINE.compiled[custom_use.implementation]
         assert isinstance(compiled, CompiledFunctionDef)
-        links_by_kind.setdefault(custom_use.kind, []).append(
-            (custom_use.control_count, compiled.link_name)
-        )
+        links_by_kind.setdefault(custom_use.kind, []).append((
+            custom_use.control_count,
+            compiled.link_name,
+        ))
         custom_metadata = hugr[compiled.hugr_node].metadata
         if custom_use.control_count is not None:
             assert custom_metadata[NUM_CONTROL_QUBITS_KEY] == custom_use.control_count
