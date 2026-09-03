@@ -125,14 +125,14 @@ class CompilerContext(ToHugrContext):
     effects: Mapping[MonoDefId, frozenset["Effect"]]
 
     #: Concrete custom modifier implementations grouped by parent monomorphization.
-    custom_uses_by_parent: dict[MonoDefId, list[ConcreteCustomUse]]
+    custom_uses_by_call: dict[MonoDefId, list[ConcreteCustomUse]]
 
     def __init__(
         self,
         module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
         effects: Mapping[MonoDefId, frozenset["Effect"]],
-        concrete_custom_uses: Mapping[MonoDefId, ConcreteCustomUse],
+        custom_uses_by_call: dict[MonoDefId, list[ConcreteCustomUse]],
         file_table: StringTable | None = None,
     ) -> None:
         self.module = module
@@ -141,13 +141,7 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
         self.effects = effects
-        self.custom_uses_by_parent = {}
-        # Group concrete custom uses by parent monomorphization.
-        for implementation, custom_use in concrete_custom_uses.items():
-            assert implementation == custom_use.implementation
-            self.custom_uses_by_parent.setdefault(custom_use.parent, []).append(
-                custom_use
-            )
+        self.custom_uses_by_call = custom_uses_by_call
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )
@@ -169,7 +163,7 @@ class CompilerContext(ToHugrContext):
             self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None
 
-            if (def_id, mono_args) in self.custom_uses_by_parent:
+            if (def_id, mono_args) in self.custom_uses_by_call:
                 daggered, controlled, ctrl_daggered = (
                     self._compile_custom_modifier_uses((def_id, mono_args))
                 )
@@ -196,7 +190,7 @@ class CompilerContext(ToHugrContext):
         self, parent: MonoDefId
     ) -> tuple[str | None, list[str] | None, list[str] | None]:
         """Compiles a parent's concrete custom uses and builds its metadata values."""
-        custom_uses = self.custom_uses_by_parent[parent]
+        custom_uses = self.custom_uses_by_call[parent]
 
         # Group custom implementations by modification kind.
         by_kind: dict[CustomModifierKind, list[ConcreteCustomUse]] = {}

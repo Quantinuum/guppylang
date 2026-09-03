@@ -289,13 +289,24 @@ class CompilationEngine:
     #: Cache used for storing resolved modifier-labelled calls during custom modifier
     #: monomorphization.
     resolved_call_targets: dict[ResolvedModifierCall, MonoDefId]
-    #: Concrete custom uses, deduplicated by implementation monomorphization.
+    #: Map from the modified function call to the concrete uses.
     concrete_custom_uses: dict[MonoDefId, ConcreteCustomUse]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
     _stage: CompilationStage = CompilationStage.NONE
+
+    @property
+    def custom_uses_grouped_by_call(
+        self,
+    ) -> dict[MonoDefId, list[ConcreteCustomUse]]:
+        """Custom uses grouped by their function calls."""
+        grouped: dict[MonoDefId, list[ConcreteCustomUse]] = {}
+        for implementation, custom_use in self.concrete_custom_uses.items():
+            assert implementation == custom_use.implementation
+            grouped.setdefault(custom_use.parent, []).append(custom_use)
+        return grouped
 
     def __init__(self) -> None:
         """Resets the compilation cache."""
@@ -798,7 +809,7 @@ class CompilationEngine:
             graph,
             set(def_ids),
             effects,
-            self.concrete_custom_uses,
+            self.custom_uses_grouped_by_call,
             StringTable(),
         )
         requested_defs = []
@@ -840,15 +851,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(

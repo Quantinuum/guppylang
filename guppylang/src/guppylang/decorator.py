@@ -1006,7 +1006,6 @@ def _set_unitary_metadata(
 
     We also check that the combination of custom implementations is valid.
     """
-
     flags = UnitaryFlags(metadata.get_unitary_flags() or UnitaryFlags.NoFlags.value)
     check_modified_def_combinations(
         flags,
