@@ -588,9 +588,10 @@ class CompilationEngine:
                 raise GuppyError(err) from e
 
         # Checking the entrypoint will have populated the worklist, so now we need to
-        # process it. Afterwards, use the modifier-labelled call graph to register the
-        # concrete custom implementations that are actually needed. Their bodies may
-        # contain further modified calls, so repeat to a fixed point.
+        # process it.
+        # We use the modifier-labelled call graph to register the concrete custom
+        # implementations that are actually needed. Their bodies may contain further
+        # modified calls, so repeat to a fixed point.
         self._drain_check_worklists()
         while self._register_custom_modifier_monomorphizations():
             self._drain_check_worklists()
@@ -731,7 +732,7 @@ class CompilationEngine:
                     key = (edge, modifier_ctx)
                     expanded_callees.append(self.resolved_call_targets[key])
 
-            # Multiple call sites can produce the same graph edge. Preserve insertion
+            # Multiple call sites may produce the same graph edge. Preserve insertion
             # order while removing duplicates.
             self.call_graph[caller] = list(dict.fromkeys(expanded_callees))
 
@@ -839,11 +840,15 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend([
-            # TODO: Remove dummy version once optional in Hugr.
-            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
-            for ext_name in used_extensions_result.unresolved_extensions
-        ])
+        used_exts_meta.extend(
+            [
+                # TODO: Remove dummy version once optional in Hugr.
+                ExtensionDesc(
+                    name=ext_name, version=Version(major=0, prerelease="unknown")
+                )
+                for ext_name in used_extensions_result.unresolved_extensions
+            ]
+        )
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(
