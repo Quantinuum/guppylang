@@ -1,0 +1,12 @@
+Error: Diverging controlled recursive custom modifier definition (at $FILE:27:8)
+   | 
+25 | ) -> None:
+26 |     with control(controls), control(extra_control):
+27 |         foo(q)
+   |         ^^^^^^ This recursive call increases the number of controls from 1
+   |                to 2
+
+Custom controlled implementations that recursively increase the number of
+controllers cannot be monomorphized.
+
+Guppy compilation failed due to 1 previous error

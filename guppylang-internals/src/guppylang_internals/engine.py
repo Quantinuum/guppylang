@@ -23,6 +23,9 @@ from guppylang_internals.checker.callgraph import CallGraph
 from guppylang_internals.checker.effects_checker import (
     compute_effects,
 )
+from guppylang_internals.checker.errors.generic import (
+    RecursiveModifierControlCountError,
+)
 from guppylang_internals.checker.modifier import (
     CustomModifierKind,
     ModifierContext,
@@ -158,11 +161,15 @@ CallGraphEdge = tuple[MonoDefId, MonoDefId]
 EdgedWithModContext = tuple[CallGraphEdge, ModifierContext]
 
 
-# NICOLA: there is some redundancy here, ConcreteCustomUse contains implementation but
-# we then store them using the implementation as key
 @dataclass(frozen=True)
 class ConcreteCustomUse:
-    """A concrete custom modifier implementation required by the program."""
+    """A concrete custom modifier implementation required by the program.
+
+    - ``parent`` is the monomorphized definition being modified (i.e. the __call__ in
+      @guppy.unitary).
+    - ``implementation`` is the monomorphized custom definition that implements the
+      modifier.
+    """
 
     parent: MonoDefId
     implementation: MonoDefId
@@ -285,7 +292,7 @@ class CompilationEngine:
     other_callee_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site for future diagnostics.
-    modifiers_on_calls: dict[CallGraphEdge, dict[ModifierContext, "AstNode | None"]]
+    modifiers_ctx_by_edges: dict[CallGraphEdge, dict[ModifierContext, "AstNode"]]
     #: Cache used for storing resolved modifier-labelled calls during custom modifier
     #: monomorphization.
     resolved_modified_calls: dict[EdgedWithModContext, MonoDefId]
@@ -353,7 +360,7 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_graph = {}
-        self.modifiers_on_calls = {}
+        self.modifiers_ctx_by_edges = {}
         self.resolved_modified_calls = {}
         self.concrete_custom_uses = {}
         self.other_callee_effects = {}
@@ -363,6 +370,7 @@ class CompilationEngine:
         ctx: "Context",
         callee: "CallableDef",
         inst: Inst,
+        call: "AstNode",
     ) -> None:
         """Registers a function call in the call graph."""
         # current_caller is not set for e.g. comptime but should be here:
@@ -376,11 +384,8 @@ class CompilationEngine:
             # Effects not known yet, will be computed.
             callee_mono_def_id: MonoDefId = (callee.id, inst)
             edge = (ctx.current_caller, callee_mono_def_id)
-            # We are adding the modifier context to the edge, maybe improve the
-            # readability
-            modifier_contexts = self.modifiers_on_calls.setdefault(edge, {})
-            # adding the key with the ast set to None
-            modifier_contexts.setdefault(ctx.modifier_ctx, None)
+            modifier_contexts = self.modifiers_ctx_by_edges.setdefault(edge, {})
+            modifier_contexts.setdefault(ctx.modifier_ctx, call)
 
     def register_effects(self, caller: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a caller."""
@@ -660,12 +665,18 @@ class CompilationEngine:
     def _discover_concrete_custom_uses(self) -> list[ConcreteCustomUse]:
         """Resolves calls and returns newly discovered concrete custom uses."""
         discovered: list[ConcreteCustomUse] = []
-        for edge, modifier_contexts in list(self.modifiers_on_calls.items()):
+        # The reverse "resolved caller" adjacency only depends on `call_graph` and
+        # `modifiers_ctx_by_edges` (both unchanged during this pass) and on
+        # `resolved_modified_calls`. Build it once here and keep it in sync with the
+        # edges resolved below, instead of rebuilding it from scratch for every ancestor
+        # query in `_check_recursive_control_count_increase`.
+        callers_map = self._build_resolved_callers()
+        for edge, modifier_contexts in list(self.modifiers_ctx_by_edges.items()):
             caller, callee = edge
             if not is_concrete_inst(caller[1]):
                 continue
 
-            for modifier_ctx in modifier_contexts:
+            for modifier_ctx, call in modifier_contexts.items():
                 modified_call = (edge, modifier_ctx)
                 if modified_call in self.resolved_modified_calls:
                     # Already resolved
@@ -676,9 +687,19 @@ class CompilationEngine:
                 )
                 # We cache the result
                 self.resolved_modified_calls[modified_call] = custom_call
+                # If the call require no modification the caller map is already up to
+                # date: _build_resolved_callers insert in the caller map all the
+                # unmodified calls. Otherwise, since at the moment of the building of
+                # the caller map self.resolved_modified_calls was not updated yet, we
+                # need to add the caller of the modified call to the map
+                if modifier_ctx.kind_required() is not None:
+                    callers_map[custom_call].add(caller)
                 # If custom_use is None, it means that the call was not resolved to
                 # custom implementation
                 if custom_use is not None:
+                    self._check_recursive_control_count_increase(
+                        caller, custom_use, call, callers_map
+                    )
                     stored_use = self.concrete_custom_uses.get(custom_call)
                     if stored_use is not None:
                         # Multiple calls may resolve to the same implementation, e.g.
@@ -689,6 +710,87 @@ class CompilationEngine:
                     self.concrete_custom_uses[custom_call] = custom_use
                     discovered.append(custom_use)
         return discovered
+
+    def _check_recursive_control_count_increase(
+        self,
+        caller: MonoDefId,
+        custom_use: ConcreteCustomUse,
+        call: "AstNode",
+        callers: "dict[MonoDefId, set[MonoDefId]]",
+    ) -> None:
+        """Reject recursive custom uses whose control count strictly increases."""
+        if custom_use.control_count is None:
+            return
+
+        previous_control_count: int | None = None
+        for ancestor in self._resolved_call_ancestors(caller, callers):
+            ancestor_use = self.concrete_custom_uses.get(ancestor)
+            if (
+                ancestor_use is None
+                or ancestor_use.parent != custom_use.parent
+                or ancestor_use.kind != custom_use.kind
+                or ancestor_use.control_count is None
+                or custom_use.control_count <= ancestor_use.control_count
+            ):
+                continue
+
+            previous_control_count = max(
+                previous_control_count or 0, ancestor_use.control_count
+            )
+
+        if previous_control_count is not None:
+            raise GuppyError(
+                RecursiveModifierControlCountError(
+                    call,
+                    previous_control_count,
+                    custom_use.control_count,
+                )
+            )
+
+    def _build_resolved_callers(self) -> "defaultdict[MonoDefId, set[MonoDefId]]":
+        """Builds the reverse adjacency of resolved call-graph edges.
+
+        Maps each node to the set of callers that reach it directly on a resolved edge:
+        unmodified edges, plus modified edges that have resolved to a concrete
+        implementation.
+        """
+        callers: defaultdict[MonoDefId, set[MonoDefId]] = defaultdict(set)
+        for caller, raw_callees in self.call_graph.items():
+            for raw_callee in raw_callees:
+                edge = (caller, raw_callee)
+                modifier_contexts = self.modifiers_ctx_by_edges.get(edge)
+                if modifier_contexts is None:
+                    callers[raw_callee].add(caller)
+                    continue
+
+                for modifier_ctx in modifier_contexts:
+                    if modifier_ctx.kind_required() is None:
+                        # If kind_required() is None, the call is not modified
+                        callers[raw_callee].add(caller)
+                        continue
+                    # Otherwise, we check if there is a resolved modified call
+                    resolved = self.resolved_modified_calls.get((edge, modifier_ctx))
+                    if resolved is not None:
+                        callers[resolved].add(caller)
+        return callers
+
+    @staticmethod
+    def _resolved_call_ancestors(
+        callee: MonoDefId, callers: "dict[MonoDefId, set[MonoDefId]]"
+    ) -> set[MonoDefId]:
+        """Returns callers that transitively reach ``callee`` on resolved edges.
+
+        ``callers`` is the reverse adjacency produced by `_build_resolved_callers`.
+        """
+        ancestors: set[MonoDefId] = set()
+        worklist = [callee]
+        while worklist:
+            current = worklist.pop()
+            if current in ancestors:
+                continue
+            ancestors.add(current)
+            worklist.extend(callers.get(current, ()))
+        return ancestors
 
     def _resolve_modified_call(
         self, callee: MonoDefId, modifier_ctx: ModifierContext
@@ -713,6 +815,7 @@ class CompilationEngine:
             return callee, None
 
         control_count = None
+        custom_args = callee_inst
         if kind.takes_controls:
             try:
                 control_count = modifier_ctx.concrete_control_count()
@@ -741,7 +844,7 @@ class CompilationEngine:
             expanded_callees: list[MonoDefId] = []
             for callee in callees:
                 edge = (caller, callee)
-                modifier_contexts = self.modifiers_on_calls.get(edge)
+                modifier_contexts = self.modifiers_ctx_by_edges.get(edge)
                 if modifier_contexts is None:
                     expanded_callees.append(callee)
                     continue

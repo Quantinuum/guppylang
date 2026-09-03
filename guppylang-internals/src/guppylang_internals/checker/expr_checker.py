@@ -1607,7 +1607,7 @@ def synthesize_call(
 
     # Register this call in the callgraph.
     if callee is not None:
-        ENGINE.register_call(ctx, callee, inst)
+        ENGINE.register_call(ctx, callee, inst, node)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1709,7 +1709,7 @@ def check_call(
 
     # Register this call in the callgraph.
     if callee is not None:
-        ENGINE.register_call(ctx, callee, inst)
+        ENGINE.register_call(ctx, callee, inst, node)
 
     return inputs, subst, inst
 

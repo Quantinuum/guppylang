@@ -2,7 +2,7 @@
 
 from guppylang import guppy
 from guppylang.std.array import array
-from guppylang.std.builtins import dagger, control, panic
+from guppylang.std.builtins import control, dagger, nat, panic
 from guppylang.std.quantum import discard, discard_array, qubit
 from guppylang_internals.checker.callgraph import CallGraph
 from guppylang_internals.checker.effects_checker import compute_effects
@@ -20,6 +20,25 @@ from guppylang_internals.tys.arg import ConstArg
 from guppylang_internals.tys.builtin import nat_type
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import is_concrete_inst
+
+
+@guppy.unitary
+class _same_count_recursive_gate:
+    n = guppy.nat_var("n")
+
+    @guppy
+    def __call__(q: qubit) -> None:
+        pass
+
+    @guppy
+    def controlled(q: qubit, controls: array[qubit, n]) -> None:
+        _same_count_helper(q, controls)
+
+
+@guppy
+def _same_count_helper[n: nat](q: qubit, controls: array[qubit, n]) -> None:
+    with control(controls):
+        _same_count_recursive_gate(q)
 
 
 def test_custom_modifier_monomorphizations(use_experimental_features):
@@ -87,12 +106,12 @@ def test_custom_modifier_monomorphizations(use_experimental_features):
     original_edge = (main_id, (custom_gate.id, ()))
     assert {
         modifiers.concrete_control_count()
-        for modifiers in ENGINE.modifiers_on_calls[original_edge]
+        for modifiers in ENGINE.modifiers_ctx_by_edges[original_edge]
     } == {1, 2}
-    assert len(ENGINE.modifiers_on_calls[original_edge]) == 3
+    assert len(ENGINE.modifiers_ctx_by_edges[original_edge]) == 3
     assert {
         ENGINE.resolved_modified_calls[(original_edge, modifier_ctx)]
-        for modifier_ctx in ENGINE.modifiers_on_calls[original_edge]
+        for modifier_ctx in ENGINE.modifiers_ctx_by_edges[original_edge]
     } == concrete_controlled
     assert set(ENGINE.concrete_custom_uses) == concrete_controlled
     assert ENGINE._discover_concrete_custom_uses() == []
@@ -177,6 +196,66 @@ def test_recursive_custom_modifier_effects(use_experimental_features):
     assert implementation in ENGINE.call_graph[implementation]
     assert effects[implementation] == frozenset({Effect.ANY})
     assert effects[main.id, ()] == frozenset({Effect.ANY})
+
+
+def test_recursive_custom_modifier_same_control_count(use_experimental_features):
+    """Indirect recursion at the same control count reaches a fixed point."""
+
+    @guppy
+    def main(q: qubit, c: qubit) -> None:
+        with control(c):
+            _same_count_recursive_gate(q)
+
+    main.check()
+
+    [custom_use] = ENGINE.concrete_custom_uses.values()
+    implementation = custom_use.implementation
+    helper_instantiation = (
+        _same_count_helper.id,
+        (ConstArg(ConstValue(nat_type(), 1)),),
+    )
+
+    assert custom_use.control_count == 1
+    assert helper_instantiation in ENGINE.call_graph[implementation]
+    assert implementation in ENGINE.call_graph[helper_instantiation]
+
+
+def test_non_recursive_control_count_increase_is_allowed(use_experimental_features):
+    """Different non-recursive paths may use increasing control counts."""
+
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy
+    def call_with_one_control(q: qubit, c: qubit) -> None:
+        with control(c):
+            custom_gate(q)
+
+    @guppy
+    def call_with_two_controls(q: qubit, controls: array[qubit, 2]) -> None:
+        with control(controls):
+            custom_gate(q)
+
+    @guppy
+    def main(q: qubit, c: qubit, controls: array[qubit, 2]) -> None:
+        call_with_one_control(q, c)
+        call_with_two_controls(q, controls)
+
+    main.check()
+
+    assert {use.control_count for use in ENGINE.concrete_custom_uses.values()} == {
+        1,
+        2,
+    }
 
 
 def test_custom_modifier_compilation_metadata(use_experimental_features):
@@ -320,7 +399,10 @@ def test_modifier_labels():
 
     root.check()
 
-    modifier_contexts = ENGINE.modifiers_on_calls.get(((root.id, ()), (leaf.id, ())))
+    modifier_contexts = ENGINE.modifiers_ctx_by_edges.get((
+        (root.id, ()),
+        (leaf.id, ()),
+    ))
     assert modifier_contexts is not None
     assert len(modifier_contexts) == 2
     [unmodified] = [m for m in modifier_contexts if not m.control_sizes]
@@ -329,5 +411,5 @@ def test_modifier_labels():
     assert modifiers.daggered
     assert modifiers.control_sizes == (1, 1)
     assert modifiers.concrete_control_count() == 2
-    assert modifier_contexts[unmodified] is None
-    assert modifier_contexts[modifiers] is None
+    assert modifier_contexts[unmodified] is not None
+    assert modifier_contexts[modifiers] is not None
