@@ -40,8 +40,7 @@ from guppylang_internals.engine import (
 )
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.metadata.common import (
-    FunctionMetadata,
-    add_metadata,
+    add_custom_implementations,
     add_num_control_qubits,
 )
 from guppylang_internals.metadata.debug_info_util import StringTable
@@ -172,15 +171,11 @@ class CompilerContext(ToHugrContext):
                 )
 
                 assert isinstance(defn, CompiledFunctionDef)
-                metadata = FunctionMetadata()
-                metadata.set_modified_defs(
+                add_custom_implementations(
+                    self.module.hugr[defn.hugr_node].metadata,
                     daggered=daggered,
                     controlled=controlled,
                     ctrl_daggered=ctrl_daggered,
-                )
-                add_metadata(
-                    self.module.hugr[defn.hugr_node].metadata,
-                    metadata,
                 )
 
         return self.compiled[def_id, mono_args]

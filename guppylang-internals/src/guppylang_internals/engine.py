@@ -677,12 +677,15 @@ class CompilationEngine:
             return callee, None
 
         callee_id, callee_inst = callee
+        if not is_concrete_inst(callee_inst):
+            # Callee is not concrete, we cannot resolve the call target yet.
+            return callee, None
+
         custom_id = DEF_STORE.custom_modified_defs.get(callee_id, {}).get(kind)
         if custom_id is None:
             # No custom implementation available for this kind of modification
             return callee, None
 
-        custom_args = callee_inst
         control_count = None
         if kind.takes_controls:
             try:
@@ -691,12 +694,9 @@ class CompilationEngine:
                 # Control count is not concrete, we cannot resolve the call target yet.
                 return callee, None
             custom_args = (
-                *custom_args,
+                *callee_inst,
                 ConstArg(ConstValue(nat_type(), control_count)),
             )
-        if not is_concrete_inst(custom_args):
-            # Custom arguments are not concrete, we cannot resolve the call target yet.
-            return callee, None
 
         implementation = (custom_id, custom_args)
         return implementation, ConcreteCustomUse(
@@ -851,15 +851,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(

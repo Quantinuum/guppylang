@@ -96,11 +96,6 @@ class Instantiator(Transformer):
             ty.idx - len(self.inst),
             ty.copyable,
             ty.droppable,
-            # NICOLA: TODO:
-            # fix: arg.bound_vars (`BoundTypeVar.bound_vars`(line 178)) evaluates {self}
-            # hashing the frozen dataclass.
-            # The bug was triggered by is_concrete_inst() implementation accesses
-            # arg.bound_vars
             tuple(self.transform(impl) or impl for impl in ty.implements),
         )
 

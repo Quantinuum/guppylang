@@ -65,6 +65,7 @@ def test_unitary_requires_guppy_call_method(use_experimental_features):
             r"`__call__` method"
         ),
     ):
+
         @guppy.unitary
         class Foo:
             pass

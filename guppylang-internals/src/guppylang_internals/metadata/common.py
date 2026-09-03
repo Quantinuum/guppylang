@@ -105,6 +105,10 @@ class FunctionMetadata:
         MetadataExpectedQubitsHint.KEY,
         MetadataUnitaryFlags.KEY,
         "tket.inline",  # InlineAnnotation.KEY # Not possible for decoupled tests
+        DAGGERED_KEY,
+        CONTROLLED_KEY,
+        CTRL_DAGGERED_KEY,
+        NUM_CONTROL_QUBITS_KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -115,23 +119,6 @@ class FunctionMetadata:
 
     def set_expected_qubits(self, expected_qubits: int) -> None:
         self._node_metadata[MetadataExpectedQubitsHint] = expected_qubits
-
-    def set_modified_defs(
-        self,
-        *,
-        daggered: str | None,
-        controlled: list[str] | None,
-        ctrl_daggered: list[str] | None,
-    ) -> None:
-        """
-        Add metadata containing names of the functions implementing custom modifications
-        """
-        if daggered is not None:
-            self._node_metadata[DAGGERED_KEY] = cast("JsonType", daggered)
-        if controlled is not None:
-            self._node_metadata[CONTROLLED_KEY] = cast("JsonType", controlled)
-        if ctrl_daggered is not None:
-            self._node_metadata[CTRL_DAGGERED_KEY] = cast("JsonType", ctrl_daggered)
 
     def set_inline(self, inline: "InlineAnnotationValue") -> None:
         from tket.metadata import InlineAnnotation, InlineAnnotationValue
@@ -215,6 +202,29 @@ def add_unitary_metadata(
     if MetadataUnitaryFlags.KEY in node_metadata:
         raise GuppyError(MetadataAlreadySetError(None, MetadataUnitaryFlags.KEY))
     node_metadata[MetadataUnitaryFlags.KEY] = unitary_flag
+
+
+def add_custom_implementations(
+    node_metadata: NodeMetadata,
+    *,
+    daggered: str | None = None,
+    controlled: list[str] | None = None,
+    ctrl_daggered: list[str] | None = None,
+) -> None:
+    """Adds the names of the functions implementing custom modifications, ensuring
+    reserved keys aren't overwritten."""
+    if daggered is not None:
+        if DAGGERED_KEY in node_metadata:
+            raise GuppyError(MetadataAlreadySetError(None, DAGGERED_KEY))
+        node_metadata[DAGGERED_KEY] = cast("JsonType", daggered)
+    if controlled is not None:
+        if CONTROLLED_KEY in node_metadata:
+            raise GuppyError(MetadataAlreadySetError(None, CONTROLLED_KEY))
+        node_metadata[CONTROLLED_KEY] = cast("JsonType", controlled)
+    if ctrl_daggered is not None:
+        if CTRL_DAGGERED_KEY in node_metadata:
+            raise GuppyError(MetadataAlreadySetError(None, CTRL_DAGGERED_KEY))
+        node_metadata[CTRL_DAGGERED_KEY] = cast("JsonType", ctrl_daggered)
 
 
 def add_num_control_qubits(
