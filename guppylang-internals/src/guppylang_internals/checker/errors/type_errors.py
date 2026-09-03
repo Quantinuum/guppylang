@@ -193,10 +193,16 @@ class InstanceMemberOnClassError(Error):
     attribute: str
     member_kind: str  # "method" or "field"
 
-    @dataclass(frozen=True)
-    class CallOnInstanceHelp(Help):
-        message: ClassVar[str] = "Access it on an instance instead, e.g. `{example}`"
-        example: str
+
+@dataclass(frozen=True)
+class CallOnInstanceHelp(Help):
+    message: ClassVar[str] = (
+        "`{member_name}` is an instance {member_kind}. "
+        "Maybe you mean to access it on an instance, e.g. `{example}`"
+    )
+    member_kind: str  # "method" or "field"
+    member_name: str
+    example: str
 
 
 @dataclass(frozen=True)

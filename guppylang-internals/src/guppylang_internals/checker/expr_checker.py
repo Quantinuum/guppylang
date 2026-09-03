@@ -75,6 +75,7 @@ from guppylang_internals.checker.errors.type_errors import (
     AttributeNotFoundError,
     BadProtocolError,
     BinaryOperatorNotDefinedError,
+    CallOnInstanceHelp,
     ConstMismatchError,
     IllegalConstant,
     InstanceMemberOnClassError,
@@ -385,7 +386,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
-                return defn.check_call(node.args, ty, node, self.ctx)
+                try:
+                    return defn.check_call(node.args, ty, node, self.ctx)
+                except GuppyError as e:
+                    _add_instance_call_on_type_hint(e, node.func)
+                    raise
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -763,21 +768,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     # Not a global name, thus node.value is a instantiated variant
                     is_enum_class = False
             elif method_w_ty := self._check_method(ty, node):
-                if isinstance(node.value, GlobalName):
-                    # Method exists, but on enum instances (since class methods are
-                    # currently unsupported). Fail with a helpful error instead of
-                    # the generic "no variant" message below.
-                    example_variant = next(iter(ty.variants_as_dict))
-                    err = InstanceMemberOnClassError(
-                        attr_span, str(ty), node.attr, "method"
-                    )
-                    err.add_sub_diagnostic(
-                        InstanceMemberOnClassError.CallOnInstanceHelp(
-                            None, f"{ty}.{example_variant}(...).{node.attr}(...)"
-                        )
-                    )
-                    raise GuppyTypeError(err)
-                # Otherwise, we may try to access a method from the enum class
                 return method_w_ty[0], method_w_ty[1]
             else:
                 # If node.value is a GlobalName it corresponds to the enum class
@@ -795,7 +785,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 attr_span, defn.name, node.attr, member_kind
             )
             err.add_sub_diagnostic(
-                InstanceMemberOnClassError.CallOnInstanceHelp(None, example)
+                CallOnInstanceHelp(None, member_kind, node.attr, example)
             )
             raise GuppyTypeError(err)
 
@@ -1129,7 +1119,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
-                return defn.synthesize_call(node.args, node, self.ctx)
+                try:
+                    return defn.synthesize_call(node.args, node, self.ctx)
+                except GuppyError as e:
+                    _add_instance_call_on_type_hint(e, node.func)
+                    raise
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1252,6 +1246,26 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def generic_visit(self, node: ast.expr) -> NoReturn:
         """Called if no explicit visitor function exists for a node."""
         raise GuppyError(UnsupportedError(node, "This expression", singular=True))
+
+
+def _add_instance_call_on_type_hint(guppyerror: GuppyError, func: GlobalName) -> None:
+    """Add hint that the caller might mean to call an instance method on an instance."""
+    if (
+        (parent := DEF_STORE.type_member_parents.get(func.def_id))
+        and not ENGINE.is_def_static(func.def_id)
+        and func.id != "__new__"
+        and isinstance(guppyerror.error, WrongNumberOfArgsError)
+    ):
+        # if this is a non-staticmethod method which is not
+        # a constructor and gets called incorrectly we can add a hint
+        guppyerror.error.add_sub_diagnostic(
+            CallOnInstanceHelp(
+                None,
+                "method",
+                func.id,
+                f"{DEF_STORE.raw_defs[parent].name}(...).{func.id}(...)",
+            )
+        )
 
 
 def check_type_against(
