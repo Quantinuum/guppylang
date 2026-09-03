@@ -5,7 +5,7 @@ from tests.error.util import run_error_test, collect_error_test_cases
 
 files = collect_error_test_cases("modifier_errors")
 
-# No tests require experimental features.
+# Snapshot tests that require experimental features.
 tests_that_require_experimental_features = [
     "captured_classical_modified.py",
     "captured_classical_modified_branch.py",
