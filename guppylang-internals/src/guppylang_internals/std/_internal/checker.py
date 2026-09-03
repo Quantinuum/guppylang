@@ -18,6 +18,7 @@ from guppylang_internals.checker.expr_checker import (
     check_type_against,
     coerce_to_common,
     make_global_call,
+    register_effects,
     synthesize_call,
     synthesize_comprehension,
     try_coerce_to,
@@ -185,7 +186,7 @@ class ArrayCopyChecker(CustomCallChecker):
                     )
                     raise GuppyTypeError(err)
         [array_arg], _, inst = synthesize_call(
-            self.func.ty, args, self.node, self.ctx, self.func.effects
+            self.func.ty, args, self.node, self.ctx, self.func
         )
         node = make_global_call(self.func, [array_arg], inst)
         return with_loc(self.node, node), get_type(array_arg)
@@ -291,7 +292,7 @@ class ArrayIndexChecker(CustomCallChecker):
         """Synthesize-mode: infer return type and perform bounds check."""
         # Run regular type synthesis for the arguments
         args, ty, type_args = synthesize_call(
-            self.func.ty, args, self.node, self.ctx, self.func.effects
+            self.func.ty, args, self.node, self.ctx, self.func
         )
 
         # Check the index bounds (first:index expression, second: length_arg)
@@ -493,8 +494,8 @@ class AbortChecker(CustomCallChecker):
                     values=[val[0] for val in vals],
                     signal=signal,
                 )
-                # Since we don't ExprChecker.check/syn_call:
-                ENGINE.register_call(self.ctx, [Effect.ANY], ())
+                # Since we don't check_call or synthesize_call:
+                register_effects(self.ctx, [Effect.ANY])
                 return with_loc(self.node, node), NoneType()
 
             case args:
@@ -532,7 +533,7 @@ class BarrierChecker(CustomCallChecker):
             NoneType(),
         )
         args, ret_ty, inst = synthesize_call(
-            func_ty, args, self.node, self.ctx, self.func.effects
+            func_ty, args, self.node, self.ctx, self.func
         )
         assert len(inst) == 0, "func_ty is not generic"
         node = BarrierExpr(args=args, func_ty=func_ty)
@@ -555,6 +556,6 @@ class WasmCallChecker(CustomCallChecker):
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
         args, ty, inst = synthesize_call(
-            self.func.ty, args, self.node, self.ctx, self.func.effects
+            self.func.ty, args, self.node, self.ctx, self.func
         )
         return make_global_call(self.func, args, inst), ty

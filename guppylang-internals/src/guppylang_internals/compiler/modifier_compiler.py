@@ -68,7 +68,7 @@ def compile_modified_block(
     # compile body
     cfg = compile_cfg(modified_block.cfg, func_builder, func_builder.inputs(), ctx)
     func_builder.set_outputs(*cfg)
-    effects = func_builder._last_side_effect.keys()
+    effects = func_builder.effects
 
     # Add the LoadFunc node
     call = dfg.builder.load_function(func_builder, hugr_ty)

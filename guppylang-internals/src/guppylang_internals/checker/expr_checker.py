@@ -400,9 +400,8 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         effects: Iterable[Effect]
         if isinstance(func_ty, FunctionType):
             effects = [Effect.ANY]  # worst-case/conservative assumption
-            args, subst, inst = check_call(
-                func_ty, node.args, ty, node, self.ctx, effects
-            )
+            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx, None)
+            register_effects(self.ctx, effects)
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
@@ -416,10 +415,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                         isinstance(a, TypeArg) and isinstance(a.ty, BoundTypeVar)
                         for a in self.ctx.current_caller[1]
                     )
-                    effects = []
                     args, subst, inst = check_call(
-                        protocol.sig, node.args, ty, node, self.ctx, effects
+                        protocol.sig, node.args, ty, node, self.ctx, None
                     )
+                    # register_effects(self.ctx, effects=[]) # Pointless
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
                     return with_loc(node, LocalCall(func=node.func, args=args)), subst
@@ -437,8 +436,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             effects = [Effect.ANY]  # worst-case/conservative assumption
             # (We will probably need to do better if tensors become non-experimental)
             processed_args, subst, inst = check_call(
-                tensor_ty, node.args, ty, node, self.ctx, effects
+                tensor_ty, node.args, ty, node, self.ctx, None
             )
+            register_effects(self.ctx, effects)
             assert len(inst) == 0
             return with_loc(
                 node,
@@ -1071,9 +1071,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         # Otherwise, it must be a function as a higher-order value, or a tensor
         if isinstance(ty, FunctionType):
             effects = [Effect.ANY]  # worst-case/conservative assumption
-            args, return_ty, inst = synthesize_call(
-                ty, node.args, node, self.ctx, effects
-            )
+            args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx, None)
+            register_effects(self.ctx, effects)
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
 
@@ -1084,8 +1083,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 ):
                     effects = []  # Not yet monomorphized, so not to be compiled
                     args, return_ty, inst = synthesize_call(
-                        protocol.sig, node.args, node, self.ctx, effects
+                        protocol.sig, node.args, node, self.ctx, None
                     )
+                    register_effects(self.ctx, effects)
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
                     call = LocalCall(func=node.func, args=args)
@@ -1103,8 +1103,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # become non-experimental:
             effects = [Effect.ANY]
             args, return_ty, inst = synthesize_call(
-                tensor_ty, node.args, node, self.ctx, effects
+                tensor_ty, node.args, node, self.ctx, None
             )
+            register_effects(self.ctx, effects)
             assert len(inst) == 0
 
             return with_loc(
@@ -1562,12 +1563,18 @@ def _identify_callee(node: ast.expr) -> str | None:
             return None
 
 
+def register_effects(ctx: Context, effects: Iterable[Effect]) -> None:
+    """Registers known effects for the function currently being checked."""
+    assert ctx.current_caller is not None
+    ENGINE.register_effects(ctx.current_caller, effects)
+
+
 def synthesize_call(
     func_ty: FunctionType,
     args: list[ast.expr],
     node: AstNode,
     ctx: Context,
-    callee: CallableDef | Iterable[Effect],
+    callee: CallableDef | None,
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1599,7 +1606,8 @@ def synthesize_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    ENGINE.register_call(ctx, callee, inst)
+    if callee is not None:
+        ENGINE.register_call(ctx, callee, inst)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1610,7 +1618,7 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
-    callee: CallableDef | Iterable[Effect],
+    callee: CallableDef | None,
     *,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
@@ -1700,7 +1708,8 @@ def check_call(
     check_inst(func_ty, inst, node)
 
     # Register this call in the callgraph.
-    ENGINE.register_call(ctx, callee, inst)
+    if callee is not None:
+        ENGINE.register_call(ctx, callee, inst)
 
     return inputs, subst, inst
 

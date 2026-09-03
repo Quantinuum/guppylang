@@ -19,8 +19,8 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
+from guppylang_internals.checker.callgraph import CallGraph
 from guppylang_internals.checker.effects_checker import (
-    CallGraphData,
     compute_effects,
 )
 from guppylang_internals.checker.modifier import (
@@ -116,6 +116,7 @@ if TYPE_CHECKING:
     from guppylang_internals.checker.core import Context, Globals
     from guppylang_internals.definition.function import ParsedFunctionDef
     from guppylang_internals.tys import Effect
+
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
@@ -280,7 +281,8 @@ class CompilationEngine:
 
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
-    call_graph: dict[MonoDefId, CallGraphData]
+    call_graph: dict[MonoDefId, list[MonoDefId]]
+    other_callee_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site for future diagnostics.
     modifiers_on_calls: dict[CallGraphEdge, dict[ModifierContext, "AstNode | None"]]
@@ -343,33 +345,35 @@ class CompilationEngine:
         self.modifiers_on_calls = {}
         self.resolved_call_targets = {}
         self.concrete_custom_uses = {}
+        self.other_callee_effects = {}
 
     def register_call(
         self,
         ctx: "Context",
-        callee: "CallableDef | Iterable[Effect]",
+        callee: "CallableDef",
         inst: Inst,
     ) -> None:
         """Registers a function call in the call graph."""
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
-        data = self.call_graph[ctx.current_caller]
+        assert ctx.current_caller in self.call_graph
+        self.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
-            effects = callee.call_effects
+            # ALAN this'll happen a lot, we should switch to a set
+            self.register_effects((callee.id, inst), callee.call_effects)
         elif isinstance(callee, CallableDef):
             # Effects not known yet, will be computed.
             callee_mono_def_id: MonoDefId = (callee.id, inst)
-            data.callee_defs.append(callee_mono_def_id)
             edge = (ctx.current_caller, callee_mono_def_id)
             # We are adding the modifier context to the edge, maybe improve the
             # readability
             modifier_contexts = self.modifiers_on_calls.setdefault(edge, {})
             # adding the key with the ast set to None
             modifier_contexts.setdefault(ctx.modifier_ctx, None)
-            return
-        else:
-            effects = callee
-        data.other_callee_effects.extend(effects)
+
+    def register_effects(self, caller: MonoDefId, effects: "Iterable[Effect]") -> None:
+        """Registers known effects for a caller."""
+        self.other_callee_effects.setdefault(caller, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -476,9 +480,12 @@ class CompilationEngine:
     def register_call_graph_node(self, mono_id: MonoDefId) -> None:
         """Ensures a monomorphized definition is registered in the call graph.
         Required before edges can be added from the node, but not to it.
+
+        Thus, used to indicate the def is of a kind for which we wish to track calls
+        (i.e. a user-defined function), even if it doesn't actually contain any.
         """
         assert mono_id not in self.call_graph
-        self.call_graph[mono_id] = CallGraphData()
+        self.call_graph[mono_id] = []
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.
@@ -698,12 +705,12 @@ class CompilationEngine:
 
     def _expand_custom_modifier_call_graph(self) -> None:
         """Rewrites concrete call-graph edges using cached resolved targets."""
-        for caller, data in self.call_graph.items():
+        for caller, callees in self.call_graph.items():
             if not is_concrete_inst(caller[1]):
                 continue
 
             expanded_callees: list[MonoDefId] = []
-            for callee in data.callee_defs:
+            for callee in callees:
                 edge = (caller, callee)
                 modifier_contexts = self.modifiers_on_calls.get(edge)
                 if modifier_contexts is None:
@@ -716,7 +723,7 @@ class CompilationEngine:
 
             # Multiple call sites can produce the same graph edge. Preserve insertion
             # order while removing duplicates.
-            data.callee_defs = list(dict.fromkeys(expanded_callees))
+            self.call_graph[caller] = list(dict.fromkeys(expanded_callees))
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
@@ -761,8 +768,8 @@ class CompilationEngine:
     def _compile_impl(
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
-        # Run effects checking based on call graph analysis.
-        effects = compute_effects(self.call_graph)
+        callgraph = CallGraph(self.call_graph)
+        effects = compute_effects(callgraph, self.other_callee_effects)
 
         # Prepare Hugr for this module
         graph = hf.Module()

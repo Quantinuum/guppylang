@@ -47,6 +47,7 @@ from guppylang_internals.tracing.unpacking import (
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
     ExistentialTypeVar,
@@ -74,6 +75,7 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
+    inst: Inst,
     generic_args: Mapping[str, Argument],
     node: AstNode,
     func_def: "TracedFunctionDef",
@@ -104,7 +106,6 @@ def trace_function(
     input_count = sum(InputFlags.Comptime not in inp.flags for inp in ty.inputs)
     recorder = TraceRecorder(input_count)
     ctx: ToHugrContext = None
-    inst = tuple(generic_args.values())  # Relying on deterministic ordering of dicts
     mono_id = (func_def.id, inst)
     ENGINE.register_call_graph_node(mono_id)
     state = TracingState(ctx, recorder, node, func_def, current_caller=mono_id)

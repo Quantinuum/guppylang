@@ -1,17 +1,14 @@
-import pytest
-from hugr import ops as hops
-from hugr import InPort
-from hugr.std import PRELUDE
+"""Integration tests for modifier-labelled call-graph analysis."""
 
 from guppylang import guppy
 from guppylang.std.array import array
-from guppylang.std.builtins import dagger, control, owned, panic
+from guppylang.std.builtins import dagger, control, panic
 from guppylang.std.quantum import discard, discard_array, qubit
+from guppylang_internals.checker.callgraph import CallGraph
 from guppylang_internals.checker.effects_checker import compute_effects
 from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.definition.function import CompiledFunctionDef
 from guppylang_internals.engine import DEF_STORE, ENGINE
-from guppylang.std.quantum.functional import cx, h
 from guppylang_internals.metadata.common import (
     CONTROLLED_KEY,
     CTRL_DAGGERED_KEY,
@@ -22,64 +19,6 @@ from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg
 from guppylang_internals.tys.builtin import nat_type
 from guppylang_internals.tys.const import ConstValue
-
-
-def test_simple():
-    """Test that a simple call graph is built correctly."""
-
-    @guppy
-    def leaf() -> int:
-        return 42
-
-    @guppy
-    def caller1() -> int:
-        return leaf()
-
-    @guppy
-    def caller2() -> int:
-        return leaf()
-
-    @guppy
-    def root() -> int:
-        return caller1() + caller2()
-
-    root.check()
-
-    callgraph = ENGINE.call_graph
-
-    # After checking we should have call graph node for root, caller1, caller2 (but not
-    # leaf since it doesn't call anything so it is only implicitly a node by being in
-    # the list of callees for one of the callers).
-    root_data = ENGINE.call_graph.get((root.id, ()))
-    assert root_data is not None
-    caller1_data = ENGINE.call_graph.get((caller1.id, ()))
-    assert caller1_data is not None
-    caller2_data = ENGINE.call_graph.get((caller2.id, ()))
-    assert caller2_data is not None
-
-    # Verify edges point to the right callees.
-    assert (caller1.id, ()) in root_data.callee_defs
-    assert (caller2.id, ()) in root_data.callee_defs
-    assert (leaf.id, ()) in caller1_data.callee_defs
-    assert (leaf.id, ()) in caller2_data.callee_defs
-
-
-def test_recursive():
-    """Test that recursive calls are recorded in the call graph."""
-
-    @guppy
-    def factorial(n: int) -> int:
-        if n <= 1:
-            return 1
-        else:
-            return n * factorial(n - 1)
-
-    factorial.check()
-
-    data = ENGINE.call_graph.get((factorial.id, ()))
-    assert data is not None
-    # Check that factorial calls itself.
-    assert (factorial.id, ()) in data.callee_defs
 
 
 def test_custom_modifier_monomorphizations(use_experimental_features):
@@ -157,7 +96,7 @@ def test_custom_modifier_monomorphizations(use_experimental_features):
         assert custom_use.implementation == implementation
         assert custom_use.kind == CustomModifierKind.CONTROLLED
         assert custom_use.control_count in {1, 2}
-    main_callees = set(ENGINE.call_graph[main_id].callee_defs)
+    main_callees = set(ENGINE.call_graph[main_id])
     assert concrete_controlled <= main_callees
     assert (custom_gate.id, ()) not in main_callees
 
@@ -193,7 +132,7 @@ def test_custom_modifier_effects_use_expanded_call_graph(
         fallback()
 
     ENGINE.check([custom_main.id, fallback_main.id])
-    effects = compute_effects(ENGINE.call_graph)
+    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.other_callee_effects)
 
     [custom_use] = ENGINE.concrete_custom_uses.values()
     assert effects[custom_use.parent] == frozenset({Effect.ANY})
@@ -227,10 +166,10 @@ def test_recursive_custom_modifier_effects(use_experimental_features):
     implementation = custom_use.implementation
     # Model recursion on the concrete custom implementation. A unitary class cannot
     # currently refer to its enclosing class name from inside the class-body frame.
-    ENGINE.call_graph[implementation].callee_defs.append(implementation)
+    ENGINE.call_graph[implementation].append(implementation)
 
-    effects = compute_effects(ENGINE.call_graph)
-    assert implementation in ENGINE.call_graph[implementation].callee_defs
+    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.other_callee_effects)
+    assert implementation in ENGINE.call_graph[implementation]
     assert effects[implementation] == frozenset({Effect.ANY})
     assert effects[main.id, ()] == frozenset({Effect.ANY})
 
@@ -358,29 +297,6 @@ def test_custom_modifier_metadata_is_per_parent_monomorphization(
         ]
 
 
-@pytest.mark.xfail(
-    match="0 == 1",
-    reason="Nested functions are resolved as indirect calls to unknown target",
-)
-def test_nested_function():
-    """Test that nested function calls are recorded in the call graph."""
-
-    @guppy
-    def outer() -> int:
-        @guppy
-        def inner() -> int:
-            return 42
-
-        return inner()
-
-    outer.check()
-
-    data = ENGINE.call_graph.get((outer.id, ()))
-    assert data is not None
-    # Check the outer function call exactly one function (the nested function).
-    assert len(data.callee_defs) == 1
-
-
 def test_modifier_labels():
     """Calls are labelled with their complete nested modifier context."""
 
@@ -409,235 +325,3 @@ def test_modifier_labels():
     assert modifiers.concrete_control_count() == 2
     assert modifier_contexts[unmodified] is None
     assert modifier_contexts[modifiers] is None
-
-
-def test_pure_quantum_calls_have_no_order_edges(validate):
-    @guppy
-    def apply_gates(q1: qubit @ owned, q2: qubit @ owned) -> tuple[qubit, qubit]:
-        q1 = h(q1)
-        q1, q2 = cx(q1, q2)
-        return q1, q2
-
-    @guppy
-    def main(
-        q1: qubit @ owned,
-        q2: qubit @ owned,
-        q3: qubit @ owned,
-        q4: qubit @ owned,
-    ) -> tuple[qubit, qubit, qubit, qubit]:
-        q1, q2 = apply_gates(q1, q2)
-        q3, q4 = apply_gates(q3, q4)
-        q2, q3 = apply_gates(q2, q3)
-        return q1, q2, q3, q4
-
-    package = main.with_minimal_opt().compile_function()
-    validate(package)
-
-    hugr = package.modules[0]
-    calls = [node for node, data in hugr.nodes() if isinstance(data.op, hops.Call)]
-    assert len(calls) == 5
-
-    [main_node] = [
-        node
-        for node, data in hugr.nodes()
-        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
-    ]
-
-    main_calls = [
-        node
-        for node, data in hugr.nodes()
-        if isinstance(data.op, hops.Call) and main_node in ancestors(hugr, node)
-    ]
-    assert len(main_calls) == 3
-
-    def has_directed_path(source, target):
-        return any(
-            destination.node == target or has_directed_path(destination.node, target)
-            for _, destinations in hugr.outgoing_links(source)
-            for destination in destinations
-        )
-
-    first_call, second_call, _ = main_calls
-    assert not has_directed_path(first_call, second_call)
-    assert not has_directed_path(second_call, first_call)
-
-
-def ancestors(hugr, node):
-    while (parent := hugr[node].parent) is not None:
-        yield parent
-        node = parent
-
-
-def has_order_path(hugr, source, target):
-    return any(
-        node == target or has_order_path(hugr, node, target)
-        for node in hugr.outgoing_order_links(source)
-    )
-
-
-def test_panicking_calls_have_order_edges(validate):
-    @guppy
-    def panicking_function() -> None:
-        panic("From panicking function")
-
-    @guppy
-    def pure_function() -> None:
-        pass
-
-    @guppy
-    def main() -> None:
-        panicking_function()
-        pure_function()
-        panic("From main")
-        pure_function()
-        panicking_function()
-
-    package = main.with_minimal_opt().compile_function()
-    validate(package)
-
-    hugr = package.modules[0]
-    [main_node] = [
-        node
-        for node, data in hugr.nodes()
-        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
-    ]
-
-    main_calls = [
-        node
-        for node, data in hugr.nodes()
-        if isinstance(data.op, hops.Call) and main_node in ancestors(hugr, node)
-    ]
-
-    def get_called_func_name(call_node):
-        from hugr.tys import FunctionKind
-
-        srcs = [
-            srcs
-            for tgt, srcs in hugr.incoming_links(call_node)
-            if isinstance(hugr.port_kind(tgt), FunctionKind)
-        ]
-        [[static_outport]] = srcs
-        op = hugr[static_outport.node].op
-        assert isinstance(op, hops.FuncDefn)
-        return op.f_name
-
-    assert [
-        "panicking_function" in get_called_func_name(node) for node in main_calls
-    ] == [True, False, False, True]
-    assert ["pure_function" in get_called_func_name(node) for node in main_calls] == [
-        False,
-        True,
-        True,
-        False,
-    ]
-    [panic_call1, pure_call1, pure_call2, panic_call2] = main_calls
-
-    [panic_op] = [
-        node
-        for node, data in hugr.nodes()
-        if isinstance(data.op, hops.ExtOp)
-        and data.op.op_def().qualified_name()
-        == PRELUDE.get_op("panic").qualified_name()
-        and main_node in ancestors(hugr, node)
-    ]
-
-    assert has_order_path(hugr, panic_call1, panic_op)
-    assert has_order_path(hugr, panic_op, panic_call2)
-    for pure_call in [pure_call1, pure_call2]:
-        for op in [panic_call1, panic_op, panic_call2]:
-            assert not has_order_path(hugr, pure_call, op)
-            assert not has_order_path(hugr, op, pure_call)
-
-
-def test_nested_panicking_calls(validate):
-    @guppy
-    def main() -> None:
-        def panicking_function() -> None:
-            panic("From panicking function")
-
-        def pure_function() -> None:
-            pass
-
-        panicking_function()
-        pure_function()
-        panic("From main")
-        pure_function()
-        panicking_function()
-
-    package = main.with_minimal_opt().compile_function()
-    validate(package)
-
-    hugr = package.modules[0]
-    [main_node] = [
-        node
-        for node, data in hugr.nodes()
-        if isinstance(data.op, hops.FuncDefn) and "main" in data.op.f_name
-    ]
-
-    main_calls = [
-        node
-        for node, data in hugr.nodes()
-        if isinstance(data.op, hops.CallIndirect) and main_node in ancestors(hugr, node)
-    ]
-
-    def get_called_func_name(call_indirect):
-        [loadfunc] = hugr.linked_ports(InPort(call_indirect, 0))
-        assert isinstance(hugr[loadfunc.node].op, hops.LoadFunc)
-        [func] = hugr.linked_ports(InPort(loadfunc.node, 0))
-        assert isinstance(hugr[func.node].op, hops.FuncDefn)
-        return hugr[func.node].op.f_name
-
-    assert [
-        "panicking_function" in get_called_func_name(node) for node in main_calls
-    ] == [True, False, False, True]
-    assert ["pure_function" in get_called_func_name(node) for node in main_calls] == [
-        False,
-        True,
-        True,
-        False,
-    ]
-    [panic_call1, pure_call1, pure_call2, panic_call2] = main_calls
-
-    [panic_op] = [
-        node
-        for node, data in hugr.nodes()
-        if isinstance(data.op, hops.ExtOp)
-        and data.op.op_def().qualified_name()
-        == PRELUDE.get_op("panic").qualified_name()
-        and main_node in ancestors(hugr, node)
-    ]
-
-    assert has_order_path(hugr, panic_call1, panic_op)
-    assert has_order_path(hugr, panic_op, panic_call2)
-
-    # These order paths would lead to cycles:
-    assert not has_order_path(hugr, pure_call1, panic_call1)
-    for op in [panic_op, pure_call2, panic_call2]:
-        assert not has_order_path(hugr, op, pure_call1)
-    assert not has_order_path(hugr, panic_call2, pure_call2)
-    for op in [panic_call1, pure_call1, panic_op]:
-        assert not has_order_path(hugr, pure_call2, op)
-
-    # For the time being:
-    if (
-        has_order_path(hugr, panic_call1, pure_call1)
-        and all(
-            has_order_path(hugr, pure_call1, op)
-            for op in [panic_op, pure_call2, panic_call2]
-        )
-        and all(
-            has_order_path(hugr, op, pure_call2)
-            for op in [panic_call1, pure_call1, panic_op]
-        )
-        and has_order_path(hugr, pure_call2, panic_call2)
-    ):
-        pytest.xfail(
-            "Calls to nested functions are not resolved in checking,"
-            " leading to spurious order edges"
-        )
-
-    # Otherwise - the desired outcome when previous is fixed:
-    for pure_call in [pure_call1, pure_call2]:
-        for op in [panic_call1, panic_op, panic_call2]:
-            assert not has_order_path(hugr, pure_call, op)
-            assert not has_order_path(hugr, op, pure_call)

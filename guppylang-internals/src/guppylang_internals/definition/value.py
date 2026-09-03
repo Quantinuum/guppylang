@@ -51,6 +51,7 @@ class CallableDef(ValueDef):
 
     # Does not inherit CallableEffects as some functions do not know
     # their effects until after checking.
+
     ty: FunctionType
 
     @abstractmethod

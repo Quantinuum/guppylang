@@ -52,6 +52,7 @@ from guppylang_internals.checker.expr_checker import (
     ExprChecker,
     ExprSynthesizer,
     check_place_assignable,
+    register_effects,
     synthesize_comprehension,
 )
 from guppylang_internals.checker.modifier import ModifierContext
@@ -336,7 +337,7 @@ class StmtChecker(AstVisitor[BBStatement]):
                     unpack = ArrayUnpack(pattern, size, elt_ty)
                     # This compiles to an array-unpacking op, which will have
                     # side-effects that we need to account for in checking
-                    ENGINE.register_call(self.ctx, [Effect.ANY], ())
+                    register_effects(self.ctx, [Effect.ANY])
                     return unpack, size * [expr], size * [elt_ty]
                 case BoundConstVar():
                     raise RequiresMonomorphizationError
