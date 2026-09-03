@@ -149,15 +149,16 @@ class RawCustomFunctionDef(ParsableDef):
         that there are no unsolved existential vars.
         """
         from guppylang_internals.definition.function import (
-            determine_static,
             parse_py_func,
         )
 
-        is_static, unwrapped_if_static = determine_static(self.python_func)
-        if unwrapped_if_static is not None:
-            py_func = unwrapped_if_static
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
         else:
+            is_static = False
             py_func = self.python_func
+
         func_ast, _docstring = parse_py_func(py_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))

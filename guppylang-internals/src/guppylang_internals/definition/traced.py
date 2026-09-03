@@ -27,7 +27,6 @@ from guppylang_internals.definition.common import (
     ParsableDef,
 )
 from guppylang_internals.definition.function import (
-    determine_static,
     make_subprogram_record,
     parse_py_func,
 )
@@ -63,11 +62,13 @@ class RawTracedFunctionDef(ParsableDef):
 
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        is_static, unwrapped_if_static = determine_static(self.python_func)
-        if unwrapped_if_static is not None:
-            py_func = unwrapped_if_static
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
         else:
+            is_static = False
             py_func = self.python_func
+
         func_ast, _docstring = parse_py_func(py_func, sources)
         ty = check_signature(
             func_ast,
