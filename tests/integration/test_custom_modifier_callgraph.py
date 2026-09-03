@@ -78,7 +78,7 @@ def test_custom_modifier_monomorphizations(use_experimental_features):
         for def_id, mono_args in ENGINE.checked
     )
     assert concrete_controlled.isdisjoint(ENGINE.checked)
-    assert not ENGINE.concrete_custom_uses
+    assert not ENGINE.custom_uses_by_mono_def
     assert all(def_id != controlled_id for def_id, _ in ENGINE.compiled)
 
     @guppy
@@ -113,11 +113,11 @@ def test_custom_modifier_monomorphizations(use_experimental_features):
         ENGINE.resolved_modified_calls[(original_edge, modifier_ctx)]
         for modifier_ctx in ENGINE.modifiers_ctx_by_edges[original_edge]
     } == concrete_controlled
-    assert set(ENGINE.concrete_custom_uses) == concrete_controlled
+    assert set(ENGINE.custom_uses_by_mono_def) == concrete_controlled
     assert ENGINE._discover_concrete_custom_uses() == []
-    for implementation, custom_use in ENGINE.concrete_custom_uses.items():
-        assert custom_use.parent == (custom_gate.id, ())
-        assert custom_use.implementation == implementation
+    for custom_def, custom_use in ENGINE.custom_uses_by_mono_def.items():
+        assert custom_use.unmodified_callee == (custom_gate.id, ())
+        assert custom_use.custom_def == custom_def
         assert custom_use.kind == CustomModifierKind.CONTROLLED
         assert custom_use.control_count in {1, 2}
     main_callees = set(ENGINE.call_graph[main_id])
@@ -158,15 +158,15 @@ def test_custom_modifier_effects_use_expanded_call_graph(
     ENGINE.check([custom_main.id, fallback_main.id])
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.other_callee_effects)
 
-    [custom_use] = ENGINE.concrete_custom_uses.values()
-    assert effects[custom_use.parent] == frozenset({Effect.ANY})
-    assert effects[custom_use.implementation] == frozenset()
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    assert effects[custom_use.unmodified_callee] == frozenset({Effect.ANY})
+    assert effects[custom_use.custom_def] == frozenset()
     assert effects[custom_main.id, ()] == frozenset()
     assert effects[fallback_main.id, ()] == frozenset({Effect.ANY})
 
 
 def test_recursive_custom_modifier_effects(use_experimental_features):
-    """Recursive custom implementations participate in effect SCC analysis."""
+    """Recursive custom definitions participate in effect SCC analysis."""
 
     @guppy.unitary
     class recursive_gate:
@@ -186,15 +186,15 @@ def test_recursive_custom_modifier_effects(use_experimental_features):
             recursive_gate(q)
 
     main.check()
-    [custom_use] = ENGINE.concrete_custom_uses.values()
-    implementation = custom_use.implementation
-    # Model recursion on the concrete custom implementation. A unitary class cannot
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    custom_def = custom_use.custom_def
+    # Model recursion on the concrete custom definition. A unitary class cannot
     # currently refer to its enclosing class name from inside the class-body frame.
-    ENGINE.call_graph[implementation].append(implementation)
+    ENGINE.call_graph[custom_def].append(custom_def)
 
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.other_callee_effects)
-    assert implementation in ENGINE.call_graph[implementation]
-    assert effects[implementation] == frozenset({Effect.ANY})
+    assert custom_def in ENGINE.call_graph[custom_def]
+    assert effects[custom_def] == frozenset({Effect.ANY})
     assert effects[main.id, ()] == frozenset({Effect.ANY})
 
 
@@ -208,16 +208,16 @@ def test_recursive_custom_modifier_same_control_count(use_experimental_features)
 
     main.check()
 
-    [custom_use] = ENGINE.concrete_custom_uses.values()
-    implementation = custom_use.implementation
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    custom_def = custom_use.custom_def
     helper_instantiation = (
         _same_count_helper.id,
         (ConstArg(ConstValue(nat_type(), 1)),),
     )
 
     assert custom_use.control_count == 1
-    assert helper_instantiation in ENGINE.call_graph[implementation]
-    assert implementation in ENGINE.call_graph[helper_instantiation]
+    assert helper_instantiation in ENGINE.call_graph[custom_def]
+    assert custom_def in ENGINE.call_graph[helper_instantiation]
 
 
 def test_non_recursive_control_count_increase_is_allowed(use_experimental_features):
@@ -252,14 +252,14 @@ def test_non_recursive_control_count_increase_is_allowed(use_experimental_featur
 
     main.check()
 
-    assert {use.control_count for use in ENGINE.concrete_custom_uses.values()} == {
+    assert {use.control_count for use in ENGINE.custom_uses_by_mono_def.values()} == {
         1,
         2,
     }
 
 
 def test_custom_modifier_compilation_metadata(use_experimental_features):
-    """Only discovered custom implementations are compiled and linked in metadata."""
+    """Only discovered custom definitions are compiled and linked in metadata."""
 
     @guppy.unitary
     class custom_gate:
@@ -295,20 +295,20 @@ def test_custom_modifier_compilation_metadata(use_experimental_features):
     package = main.with_minimal_opt().compile_function()
     hugr = package.modules[0]
 
-    parent = ENGINE.compiled[custom_gate.id, ()]
-    assert isinstance(parent, CompiledFunctionDef)
-    parent_metadata = hugr[parent.hugr_node].metadata
+    unmodified_def = ENGINE.compiled[custom_gate.id, ()]
+    assert isinstance(unmodified_def, CompiledFunctionDef)
+    unmodified_metadata = hugr[unmodified_def.hugr_node].metadata
 
-    custom_uses = list(ENGINE.concrete_custom_uses.values())
+    custom_uses = list(ENGINE.custom_uses_by_mono_def.values())
     assert len(custom_uses) == 4
     custom_def_ids = set(DEF_STORE.custom_modified_defs[custom_gate.id].values())
     assert {mono_id for mono_id in ENGINE.compiled if mono_id[0] in custom_def_ids} == {
-        use.implementation for use in custom_uses
+        use.custom_def for use in custom_uses
     }
 
     links_by_kind: dict[CustomModifierKind, list[tuple[int | None, str]]] = {}
     for custom_use in custom_uses:
-        compiled = ENGINE.compiled[custom_use.implementation]
+        compiled = ENGINE.compiled[custom_use.custom_def]
         assert isinstance(compiled, CompiledFunctionDef)
         links_by_kind.setdefault(custom_use.kind, []).append((
             custom_use.control_count,
@@ -319,21 +319,21 @@ def test_custom_modifier_compilation_metadata(use_experimental_features):
             assert custom_metadata[NUM_CONTROL_QUBITS_KEY] == custom_use.control_count
 
     assert (
-        parent_metadata[DAGGERED_KEY]
+        unmodified_metadata[DAGGERED_KEY]
         == links_by_kind[CustomModifierKind.DAGGERED][0][1]
     )
-    assert parent_metadata[CONTROLLED_KEY] == [
+    assert unmodified_metadata[CONTROLLED_KEY] == [
         link for _, link in sorted(links_by_kind[CustomModifierKind.CONTROLLED])
     ]
-    assert parent_metadata[CTRL_DAGGERED_KEY] == [
+    assert unmodified_metadata[CTRL_DAGGERED_KEY] == [
         links_by_kind[CustomModifierKind.CTRL_DAGGERED][0][1]
     ]
 
 
-def test_custom_modifier_metadata_is_per_parent_monomorphization(
+def test_custom_modifier_metadata_is_per_unmodified_callee(
     use_experimental_features,
 ):
-    """Modifier links do not leak between parent monomorphizations."""
+    """Modifier links do not leak between unmodified callee monomorphizations."""
 
     @guppy.unitary
     class custom_gate:
@@ -363,22 +363,22 @@ def test_custom_modifier_metadata_is_per_parent_monomorphization(
     package = main.with_minimal_opt().compile_function()
     hugr = package.modules[0]
 
-    parent_mono_ids = {
+    unmodified_callee_ids = {
         mono_id for mono_id in ENGINE.compiled if mono_id[0] == custom_gate.id
     }
-    assert len(parent_mono_ids) == 2
-    for parent_mono_id in parent_mono_ids:
+    assert len(unmodified_callee_ids) == 2
+    for unmodified_callee in unmodified_callee_ids:
         [custom_use] = [
             use
-            for use in ENGINE.concrete_custom_uses.values()
-            if use.parent == parent_mono_id
+            for use in ENGINE.custom_uses_by_mono_def.values()
+            if use.unmodified_callee == unmodified_callee
         ]
-        parent = ENGINE.compiled[parent_mono_id]
-        implementation = ENGINE.compiled[custom_use.implementation]
-        assert isinstance(parent, CompiledFunctionDef)
-        assert isinstance(implementation, CompiledFunctionDef)
-        assert hugr[parent.hugr_node].metadata[CONTROLLED_KEY] == [
-            implementation.link_name
+        unmodified_def = ENGINE.compiled[unmodified_callee]
+        custom_def = ENGINE.compiled[custom_use.custom_def]
+        assert isinstance(unmodified_def, CompiledFunctionDef)
+        assert isinstance(custom_def, CompiledFunctionDef)
+        assert hugr[unmodified_def.hugr_node].metadata[CONTROLLED_KEY] == [
+            custom_def.link_name
         ]
 
 

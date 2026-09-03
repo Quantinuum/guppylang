@@ -123,15 +123,15 @@ class CompilerContext(ToHugrContext):
     # Info computed from callgraph before compilation begins
     effects: Mapping[MonoDefId, frozenset["Effect"]]
 
-    #: Concrete custom modifier implementations grouped by parent monomorphization.
-    custom_uses_by_call: dict[MonoDefId, list[ConcreteCustomUse]]
+    #: Concrete custom modifier uses grouped by unmodified-callee monomorphization.
+    custom_uses_by_unmodified_callee: dict[MonoDefId, list[ConcreteCustomUse]]
 
     def __init__(
         self,
         module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
         effects: Mapping[MonoDefId, frozenset["Effect"]],
-        concrete_custom_uses: Mapping[MonoDefId, ConcreteCustomUse],
+        custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
         file_table: StringTable | None = None,
     ) -> None:
         self.module = module
@@ -140,7 +140,9 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
         self.effects = effects
-        self.custom_uses_by_call = _group_custom_uses_by_parent(concrete_custom_uses)
+        self.custom_uses_by_unmodified_callee = _group_custom_uses_by_unmodified_callee(
+            custom_uses_by_mono_def
+        )
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )
@@ -162,7 +164,7 @@ class CompilerContext(ToHugrContext):
             self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None
 
-            if (def_id, mono_args) in self.custom_uses_by_call:
+            if (def_id, mono_args) in self.custom_uses_by_unmodified_callee:
                 daggered, controlled, ctrl_daggered = (
                     self._compile_custom_modifier_uses((def_id, mono_args))
                 )
@@ -182,15 +184,15 @@ class CompilerContext(ToHugrContext):
 
     # NICOLA: there are a lot for loop packing and unpacking custom modifier uses, can we avoid this  # noqa: E501
     def _compile_custom_modifier_uses(
-        self, parent: MonoDefId
+        self, unmodified_callee: MonoDefId
     ) -> tuple[str | None, list[str] | None, list[str] | None]:
-        """Compiles a parent's concrete custom uses and builds its metadata values."""
-        custom_uses = self.custom_uses_by_call[parent]
+        """Compiles the custom uses for an unmodified-callee monomorphization."""
+        custom_uses = self.custom_uses_by_unmodified_callee[unmodified_callee]
 
-        # Group custom implementations by modification kind.
+        # Group custom definitions by modification kind.
         by_kind: dict[CustomModifierKind, list[ConcreteCustomUse]] = {}
         for custom_use in custom_uses:
-            assert custom_use.parent == parent
+            assert custom_use.unmodified_callee == unmodified_callee
             by_kind.setdefault(custom_use.kind, []).append(custom_use)
 
         daggered: str | None = None
@@ -198,8 +200,8 @@ class CompilerContext(ToHugrContext):
         ctrl_daggered: list[str] | None = None
         for kind, kind_uses in by_kind.items():
             if kind == CustomModifierKind.DAGGERED:
-                # Daggered implementations is not generic, thus must have exactly one
-                # concrete implementation (i.e. the original one).
+                # A daggered definition is not generic, so there must be exactly one
+                # concrete definition (the original one).
                 assert len(kind_uses) == 1
                 daggered = self._compile_custom_modifier_use(kind_uses[0]).link_name
                 continue
@@ -211,7 +213,7 @@ class CompilerContext(ToHugrContext):
                 assert custom_use.control_count is not None
                 uses_by_control_count.append((custom_use.control_count, custom_use))
 
-            custom_implementation_names: list[str] = []
+            custom_link_names: list[str] = []
             for control_count, custom_use in sorted(
                 uses_by_control_count, key=lambda item: item[0]
             ):
@@ -220,24 +222,24 @@ class CompilerContext(ToHugrContext):
                     self.module.hugr[compiled_custom.hugr_node].metadata,
                     control_count,
                 )
-                custom_implementation_names.append(compiled_custom.link_name)
+                custom_link_names.append(compiled_custom.link_name)
 
             if kind == CustomModifierKind.CONTROLLED:
-                controlled = custom_implementation_names
+                controlled = custom_link_names
             else:
                 assert kind == CustomModifierKind.CTRL_DAGGERED
-                ctrl_daggered = custom_implementation_names
+                ctrl_daggered = custom_link_names
 
         return daggered, controlled, ctrl_daggered
 
     def _compile_custom_modifier_use(
         self, custom_use: ConcreteCustomUse
     ) -> "CompiledFunctionDef":
-        """Compiles one custom implementation already prepared during checking."""
+        """Compiles one custom definition already prepared during checking."""
         from guppylang_internals.definition.function import CompiledFunctionDef
 
-        assert custom_use.implementation in ENGINE.checked
-        custom_id, custom_args = custom_use.implementation
+        assert custom_use.custom_def in ENGINE.checked
+        custom_id, custom_args = custom_use.custom_def
         compiled = self.build_compiled_def(custom_id, custom_args)
         assert isinstance(compiled, CompiledFunctionDef)
         return compiled
@@ -384,14 +386,14 @@ class CompilerBase(ABC):
         self.ctx = ctx
 
 
-def _group_custom_uses_by_parent(
-    concrete_custom_uses: Mapping[MonoDefId, ConcreteCustomUse],
+def _group_custom_uses_by_unmodified_callee(
+    custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
 ) -> dict[MonoDefId, list[ConcreteCustomUse]]:
-    """Groups concrete custom modifier uses by their parent monomorphization."""
+    """Reindexes custom uses by their unmodified-callee monomorphization."""
     grouped: dict[MonoDefId, list[ConcreteCustomUse]] = {}
-    for implementation, custom_use in concrete_custom_uses.items():
-        assert implementation == custom_use.implementation
-        grouped.setdefault(custom_use.parent, []).append(custom_use)
+    for custom_def, custom_use in custom_uses_by_mono_def.items():
+        assert custom_def == custom_use.custom_def
+        grouped.setdefault(custom_use.unmodified_callee, []).append(custom_use)
     return grouped
 
 
