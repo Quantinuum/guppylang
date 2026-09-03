@@ -131,7 +131,7 @@ class CompilerContext(ToHugrContext):
         module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
         effects: Mapping[MonoDefId, frozenset["Effect"]],
-        custom_uses_by_call: dict[MonoDefId, list[ConcreteCustomUse]],
+        concrete_custom_uses: Mapping[MonoDefId, ConcreteCustomUse],
         file_table: StringTable | None = None,
     ) -> None:
         self.module = module
@@ -140,7 +140,7 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
         self.effects = effects
-        self.custom_uses_by_call = custom_uses_by_call
+        self.custom_uses_by_call = _group_custom_uses_by_parent(concrete_custom_uses)
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )
@@ -382,6 +382,17 @@ class CompilerBase(ABC):
 
     def __init__(self, ctx: CompilerContext) -> None:
         self.ctx = ctx
+
+
+def _group_custom_uses_by_parent(
+    concrete_custom_uses: Mapping[MonoDefId, ConcreteCustomUse],
+) -> dict[MonoDefId, list[ConcreteCustomUse]]:
+    """Groups concrete custom modifier uses by their parent monomorphization."""
+    grouped: dict[MonoDefId, list[ConcreteCustomUse]] = {}
+    for implementation, custom_use in concrete_custom_uses.items():
+        assert implementation == custom_use.implementation
+        grouped.setdefault(custom_use.parent, []).append(custom_use)
+    return grouped
 
 
 def return_var(n: int) -> str:

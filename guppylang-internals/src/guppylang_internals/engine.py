@@ -296,24 +296,13 @@ class CompilationEngine:
     #: Cache used for storing resolved modifier-labelled calls during custom modifier
     #: monomorphization.
     resolved_modified_calls: dict[EdgedWithModContext, MonoDefId]
-    #: Map from the modified function call to the concrete uses.
+    #: Map from a concrete custom implementation to its use.
     concrete_custom_uses: dict[MonoDefId, ConcreteCustomUse]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
     _stage: CompilationStage = CompilationStage.NONE
-
-    @property
-    def custom_uses_grouped_by_call(
-        self,
-    ) -> dict[MonoDefId, list[ConcreteCustomUse]]:
-        """Custom uses grouped by their function calls."""
-        grouped: dict[MonoDefId, list[ConcreteCustomUse]] = {}
-        for implementation, custom_use in self.concrete_custom_uses.items():
-            assert implementation == custom_use.implementation
-            grouped.setdefault(custom_use.parent, []).append(custom_use)
-        return grouped
 
     def __init__(self) -> None:
         """Resets the compilation cache."""
@@ -919,7 +908,7 @@ class CompilationEngine:
             graph,
             set(def_ids),
             effects,
-            self.custom_uses_grouped_by_call,
+            self.concrete_custom_uses,
             StringTable(),
         )
         requested_defs = []
