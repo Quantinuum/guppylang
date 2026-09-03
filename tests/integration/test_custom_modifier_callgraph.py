@@ -310,10 +310,12 @@ def test_custom_modifier_compilation_metadata(use_experimental_features):
     for custom_use in custom_uses:
         compiled = ENGINE.compiled[custom_use.custom_def]
         assert isinstance(compiled, CompiledFunctionDef)
-        links_by_kind.setdefault(custom_use.kind, []).append((
-            custom_use.control_count,
-            compiled.link_name,
-        ))
+        links_by_kind.setdefault(custom_use.kind, []).append(
+            (
+                custom_use.control_count,
+                compiled.link_name,
+            )
+        )
         custom_metadata = hugr[compiled.hugr_node].metadata
         if custom_use.control_count is not None:
             assert custom_metadata[NUM_CONTROL_QUBITS_KEY] == custom_use.control_count
@@ -399,10 +401,12 @@ def test_modifier_labels():
 
     root.check()
 
-    modifier_contexts = ENGINE.modifiers_ctx_by_edges.get((
-        (root.id, ()),
-        (leaf.id, ()),
-    ))
+    modifier_contexts = ENGINE.modifiers_ctx_by_edges.get(
+        (
+            (root.id, ()),
+            (leaf.id, ()),
+        )
+    )
     assert modifier_contexts is not None
     assert len(modifier_contexts) == 2
     [unmodified] = [m for m in modifier_contexts if not m.control_sizes]
