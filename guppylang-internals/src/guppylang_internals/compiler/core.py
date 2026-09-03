@@ -20,7 +20,7 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import CustomModifierKind
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.compiler.builder import ops
 from guppylang_internals.definition.common import (
     CompilableDef,

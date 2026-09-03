@@ -4,7 +4,8 @@ import pytest
 
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
-from guppylang_internals.engine import DEF_STORE, ENGINE, CustomModifierKind
+from guppylang_internals.checker.modifier import CustomModifierKind
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang.std.array import array
 
 from guppylang.std.builtins import (

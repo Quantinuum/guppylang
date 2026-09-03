@@ -17,7 +17,7 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import annotate_location
-from guppylang_internals.checker.effects_checker import CustomModifierKind
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.checker.unitary_checker import (
     check_modified_def_combinations,
 )

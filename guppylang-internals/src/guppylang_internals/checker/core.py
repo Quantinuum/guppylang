@@ -14,7 +14,7 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
-from guppylang_internals.checker.effects_checker import (
+from guppylang_internals.checker.modifier import (
     NO_CALL_MODIFIERS,
     ModifierContext,
 )

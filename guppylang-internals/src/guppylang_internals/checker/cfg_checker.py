@@ -22,14 +22,14 @@ from guppylang_internals.checker.core import (
     Place,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import (
-    NO_CALL_MODIFIERS,
-    ModifierContext,
-)
 from guppylang_internals.checker.expr_checker import (
     ExprSynthesizer,
     coerces_to,
     to_bool,
+)
+from guppylang_internals.checker.modifier import (
+    NO_CALL_MODIFIERS,
+    ModifierContext,
 )
 from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Help, Note

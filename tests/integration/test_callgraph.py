@@ -8,8 +8,9 @@ from guppylang.std.array import array
 from guppylang.std.builtins import dagger, control, owned, panic
 from guppylang.std.quantum import discard, discard_array, qubit
 from guppylang_internals.checker.effects_checker import compute_effects
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.definition.function import CompiledFunctionDef
-from guppylang_internals.engine import DEF_STORE, ENGINE, CustomModifierKind
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang.std.quantum.functional import cx, h
 from guppylang_internals.metadata.common import (
     CONTROLLED_KEY,

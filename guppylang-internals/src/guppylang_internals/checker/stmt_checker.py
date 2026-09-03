@@ -33,7 +33,6 @@ from guppylang_internals.checker.core import (
     SubscriptAccess,
     Variable,
 )
-from guppylang_internals.checker.effects_checker import ModifierContext
 from guppylang_internals.checker.errors.generic import UnsupportedError
 from guppylang_internals.checker.errors.type_errors import (
     AssignFieldTypeMismatchError,
@@ -55,6 +54,7 @@ from guppylang_internals.checker.expr_checker import (
     check_place_assignable,
     synthesize_comprehension,
 )
+from guppylang_internals.checker.modifier import ModifierContext
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
     GuppyError,

@@ -21,9 +21,11 @@ from semver import Version
 import guppylang_internals
 from guppylang_internals.checker.effects_checker import (
     CallGraphData,
+    compute_effects,
+)
+from guppylang_internals.checker.modifier import (
     CustomModifierKind,
     ModifierContext,
-    compute_effects,
 )
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
