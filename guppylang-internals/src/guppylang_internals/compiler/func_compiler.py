@@ -26,9 +26,10 @@ def compile_global_func_def(
     cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
     if not ctx.effects[(func.id, func.mono_args)].issuperset(builder.effects):
+        surplus = set(builder.effects) - ctx.effects[(func.id, func.mono_args)]
         raise InternalGuppyError(
-            f"Function {func.name} compiled to have side effects not expected"
-            " during checking; callgraph analysis will be incomplete."
+            f"Function {func.name} compiled to have side effects {surplus}"
+            " not expected during checking; callgraph analysis will be unsound."
         )
     # Inequality (actual effects < expected) does not lead to wrong behaviour,
     # merely unnecessary/extra order edges that may inhibit optimization,
