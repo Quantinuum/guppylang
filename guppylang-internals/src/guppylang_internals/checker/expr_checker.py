@@ -657,32 +657,33 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
 
-            if node.value.id in self.ctx.generic_param_inst:
-                typearg = self.ctx.generic_param_inst[node.value.id]
-                if isinstance(typearg, TypeArg):
-                    match typearg.ty:
-                        case BoundTypeVar() as ty:
-                            # staticmethods on protocols currently unsupported
-                            raise GuppyError(
-                                UnsupportedError(node, "staticmethods on protocols")
-                            )
-                            # return self._check_bound_type_method(ty, node)
-                        case _ as ty:
-                            # case for when the type is known
-                            if func := ENGINE.get_instance_func(ty, node.attr):
-                                return with_loc(
-                                    node, GlobalName(id=node.attr, def_id=func.id)
-                                ), func.ty
-
-            if node.value.id in self.ctx.globals:
-                defn = self.ctx.globals[node.value.id]
-                if (
-                    isinstance(defn, TypeDef)
-                    and (func := ENGINE.get_instance_func(defn, node.attr)) is not None
-                ):
-                    return with_loc(
-                        node, GlobalName(id=node.attr, def_id=func.id)
-                    ), func.ty
+            if node.value.id not in self.ctx.locals:
+                if node.value.id in self.ctx.generic_param_inst:
+                    typearg = self.ctx.generic_param_inst[node.value.id]
+                    if isinstance(typearg, TypeArg):
+                        match typearg.ty:
+                            case BoundTypeVar() as ty:
+                                # staticmethods on protocols currently unsupported
+                                raise GuppyError(
+                                    UnsupportedError(node, "staticmethods on protocols")
+                                )
+                                # return self._check_bound_type_method(ty, node)
+                            case _ as ty:
+                                # case for when the type is known
+                                if func := ENGINE.get_instance_func(ty, node.attr):
+                                    return with_loc(
+                                        node, GlobalName(id=node.attr, def_id=func.id)
+                                    ), func.ty
+                elif node.value.id in self.ctx.globals:
+                    defn = self.ctx.globals[node.value.id]
+                    if (
+                        isinstance(defn, TypeDef)
+                        and (func := ENGINE.get_instance_func(defn, node.attr))
+                        is not None
+                    ):
+                        return with_loc(
+                            node, GlobalName(id=node.attr, def_id=func.id)
+                        ), func.ty
 
             if ty is None:
                 node.value, ty = self._check_name_id(
