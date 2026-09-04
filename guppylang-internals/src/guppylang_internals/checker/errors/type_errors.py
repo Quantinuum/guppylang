@@ -202,7 +202,7 @@ class InstanceMemberOnClassError(Error):
 class CallOnInstanceHelp(Help):
     message: ClassVar[str] = (
         "`{member_name}` is an instance {member_kind}. "
-        "Maybe you mean to access it on an instance, e.g. `{example}`"
+        "Maybe you meant to access it on an instance, e.g. `{example}`?"
     )
     member_kind: str  # "method" or "field"
     member_name: str

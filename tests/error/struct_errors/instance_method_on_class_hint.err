@@ -7,7 +7,7 @@ Error: Not enough arguments (at $FILE:15:16)
 
 Note: Function signature is `MyStruct -> None`
 
-Help: `foo` is an instance method. Maybe you mean to access it on an instance,
-e.g. `MyStruct(...).foo(...)`
+Help: `foo` is an instance method. Maybe you meant to access it on an instance,
+e.g. `MyStruct(...).foo(...)`?
 
 Guppy compilation failed due to 1 previous error
