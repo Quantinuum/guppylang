@@ -49,7 +49,7 @@ class CallGraph:
         self._all_calls = calls  # deepcopy?
         self._graph = nx.DiGraph()
         for mono_def_id in calls:
-            if is_concrete(
+            if _is_concrete(
                 mono_def_id
             ):  # Only concrete functions will actually be compiled
                 self._graph.add_node(mono_def_id)
@@ -62,7 +62,7 @@ class CallGraph:
                     self._graph.add_edge(mono_def_id, tgt)
 
 
-def is_concrete(mono_def_id: MonoDefId) -> bool:
+def _is_concrete(mono_def_id: MonoDefId) -> bool:
     """Returns True if the given monomorphized definition is concrete
     (i.e. does not contain any BoundVar's)."""
     finder = BoundVarFinder()
