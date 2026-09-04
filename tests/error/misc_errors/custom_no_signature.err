@@ -1,7 +1,7 @@
 Error: Type signature missing (at $FILE:5:0)
   | 
 3 | 
-4 | @custom_function()
+4 | @custom_function(effects=())
 5 | def foo(x): ...
   | ^^^^^^^^^^^^^^^ Custom function `foo` requires a type signature
 

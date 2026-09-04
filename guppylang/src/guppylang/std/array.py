@@ -84,7 +84,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @custom_function(
         NewArrayCompiler(),
-        NewArrayChecker(),
+        checker=NewArrayChecker(),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
         effects=(),
@@ -103,7 +103,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @custom_function(
         CopyInoutCompiler(),
-        ArrayCopyChecker(),
+        checker=ArrayCopyChecker(),
         unitary_flags=UnitaryFlags.Dagger,
         effects=(),
     )
