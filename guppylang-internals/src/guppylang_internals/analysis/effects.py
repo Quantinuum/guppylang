@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-from guppylang_internals.checker.callgraph import CallGraph
+from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.tys import Effect
 
 if TYPE_CHECKING:
