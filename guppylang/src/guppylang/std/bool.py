@@ -30,7 +30,7 @@ class bool:
     @hugr_op(logic_op("And"))
     def __and__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __bool__(self: bool) -> bool: ...
 
     @hugr_op(logic_op("Eq"))
@@ -58,6 +58,7 @@ class bool:
         checker=DunderChecker("__bool__"),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __new__(x): ...
 
@@ -67,11 +68,17 @@ class bool:
     @hugr_op(logic_op("Xor"))
     def __xor__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     def __rand__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     def __ror__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     def __rxor__(self: bool, other: bool) -> bool: ...

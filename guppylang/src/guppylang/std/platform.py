@@ -17,7 +17,6 @@ from guppylang_internals.std._internal.compiler.platform import (
     MeasurementOutputChecker,
     OutputCompiler,
 )
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import int_type, string_type
 from guppylang_internals.tys.ty import FuncInput, FunctionType, InputFlags, NoneType
 
@@ -32,51 +31,43 @@ if TYPE_CHECKING:
 n = guppy.nat_var("n")
 
 
-@custom_function(
-    OutputCompiler("result_int", with_int_width=True), effects=[Effect.ANY]
-)
+@custom_function(OutputCompiler("result_int", with_int_width=True))
 def _output_int(tag: str @ comptime, value: int) -> None: ...
 
 
-@custom_function(
-    OutputCompiler("result_uint", with_int_width=True), effects=[Effect.ANY]
-)
+@custom_function(OutputCompiler("result_uint", with_int_width=True))
 def _output_nat(tag: str @ comptime, value: nat) -> None: ...
 
 
-@custom_function(OutputCompiler("result_bool"), effects=[Effect.ANY])
+@custom_function(OutputCompiler("result_bool"))
 def _output_bool(tag: str @ comptime, value: bool) -> None: ...
 
 
-@custom_function(OutputCompiler("result_f64"), effects=[Effect.ANY])
+@custom_function(OutputCompiler("result_f64"))
 def _output_float(tag: str @ comptime, value: float) -> None: ...
 
 
-@custom_function(checker=MeasurementOutputChecker())
+@custom_function(checker=MeasurementOutputChecker(), effects=())
 def _output_measurement(tag: str @ comptime, value: Measurement) -> None: ...
 
 
-@custom_function(
-    ArrayOutputCompiler("result_array_int", with_int_width=True), effects=[Effect.ANY]
-)
+@custom_function(ArrayOutputCompiler("result_array_int", with_int_width=True))
 def _output_int_array(tag: str @ comptime, value: array[int, n]) -> None: ...
 
 
-@custom_function(
-    ArrayOutputCompiler("result_array_uint", with_int_width=True), effects=[Effect.ANY]
-)
+@custom_function(ArrayOutputCompiler("result_array_uint", with_int_width=True))
 def _output_nat_array(tag: str @ comptime, value: array[nat, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_bool"), effects=[Effect.ANY])
+@custom_function(ArrayOutputCompiler("result_array_bool"))
 def _output_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_f64"), effects=[Effect.ANY])
+@custom_function(ArrayOutputCompiler("result_array_f64"))
 def _output_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
 
 
-@custom_function(checker=MeasurementOutputChecker())
+@custom_function(checker=MeasurementOutputChecker(), effects=())
 def _output_measurement_array(
     tag: str @ comptime, value: array[Measurement, n]
 ) -> None: ...
@@ -125,7 +116,6 @@ result = output
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.ANY],
 )
 def _panic(msg: str, *args) -> None: ...
 
@@ -141,7 +131,6 @@ def _panic(msg: str, *args) -> None: ...
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.ANY],
 )
 def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
 
@@ -181,6 +170,7 @@ def panic(msg: str, signal: int = 1, *args):
         NoneType(),
     ),
     has_var_args=True,
+    effects=(),
 )
 def _exit(msg: str, *args) -> None: ...
 
@@ -196,6 +186,7 @@ def _exit(msg: str, *args) -> None: ...
         NoneType(),
     ),
     has_var_args=True,
+    effects=(),
 )
 def _exit_with_signal(msg: str, signal: int, *args) -> None: ...
 
@@ -226,6 +217,7 @@ def exit(msg: str, signal: int = 1, *args):
     checker=BarrierChecker(),
     higher_order_value=False,
     has_var_args=True,
+    effects=(),
 )
 @no_type_check
 def barrier(*args) -> None:

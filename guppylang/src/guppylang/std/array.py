@@ -30,7 +30,6 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.frozenarray import (
     FrozenarrayGetitemCompiler,
 )
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
 
@@ -64,15 +63,13 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes unwrap (compiled separately)
-    )
+    )  # includes unwrap (compiled separately)
     def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes (compiled separately)
-    )
+    )  # includes unwrap (compiled separately)
     def __setitem__[L, n: nat](
         self: array[L, n], idx: int, value: L @ owned
     ) -> None: ...
@@ -84,9 +81,10 @@ class array[T, n: nat](builtins.list[T]):
 
     @custom_function(
         NewArrayCompiler(),
-        NewArrayChecker(),
+        checker=NewArrayChecker(),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __new__(): ...
 
@@ -101,7 +99,10 @@ class array[T, n: nat](builtins.list[T]):
         return SizedIter(ArrayIter(self, 0))
 
     @custom_function(
-        CopyInoutCompiler(), ArrayCopyChecker(), unitary_flags=UnitaryFlags.Dagger
+        CopyInoutCompiler(),
+        checker=ArrayCopyChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def copy[T: Copy, n: nat](self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
@@ -110,6 +111,7 @@ class array[T, n: nat](builtins.list[T]):
         ArrayIsBorrowedCompiler(),
         checker=ArrayIndexChecker(),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def is_borrowed[L, n: nat](self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
@@ -131,6 +133,7 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
+        effects=(),
     )
     def take[L, n: nat](self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
@@ -193,6 +196,7 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
+        effects=(),
     )
     def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
@@ -246,7 +250,7 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler())
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=())
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
@@ -322,7 +326,7 @@ class ArrayIter[L, n: nat]:
         return nothing()
 
 
-@custom_function(ArraySwapCompiler(), effects=[Effect.ANY])
+@custom_function(ArraySwapCompiler())  # unwraps for index-OOB
 def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
@@ -351,10 +355,7 @@ class frozenarray[T, n: nat]:
     """An immutable array of fixed static size."""
 
     # Panics on out-of-range.
-    @custom_function(
-        FrozenarrayGetitemCompiler(),
-        effects=[Effect.ANY],
-    )
+    @custom_function(FrozenarrayGetitemCompiler())
     def __getitem__(self, item: int) -> T: ...
 
     @guppy
