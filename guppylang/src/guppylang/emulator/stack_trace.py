@@ -25,17 +25,24 @@ def render_stack_trace(stack_trace: StackTrace | None, message: str) -> str | No
     blocks: list[str] = []
 
     def append_frame_snippet(span: Span, label: str | None, function_name: str) -> None:
-        renderer = DiagnosticsRenderer(source)
-        renderer.render_snippet(
-            span,
-            label,
-            span.end.line,
-            is_primary=True,
-            prefix_lines=renderer.PREFIX_ERROR_CONTEXT_LINES,
-        )
         header = (
             f'File "{span.start.file}", line {span.start.line}, in {function_name}:'
         )
+        renderer = DiagnosticsRenderer(source)
+        try:
+            renderer.render_snippet(
+                span,
+                label,
+                span.end.line,
+                is_primary=True,
+                prefix_lines=renderer.PREFIX_ERROR_CONTEXT_LINES,
+            )
+        except Exception:  # noqa: BLE001
+            # The source may have changed since compilation, so the recorded
+            # location might no longer be renderable. Fall back to the header
+            # rather than masking the panic we're reporting.
+            blocks.append(header)
+            return
         blocks.append(f"{header}\n" + "\n".join(renderer.buffer))
 
     is_first_frame = True

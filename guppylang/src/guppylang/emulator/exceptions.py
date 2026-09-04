@@ -33,8 +33,21 @@ class EmulatorError(Exception):
             rendered = render_stack_trace(stack_trace, message)
             if rendered is not None:
                 header = EmulatorError._panic_header(underlying_exception)
-                return f"{header}\n{rendered}"
+                logs = EmulatorError._render_logs(underlying_exception)
+                return f"{header}\n{rendered}{logs}"
         return str(underlying_exception)
+
+    @staticmethod
+    def _render_logs(underlying_exception: Exception) -> str:
+        # Renders captured stdout/stderr the way exceptions in Selene do.
+        sections = []
+        for name in ("stdout", "stderr"):
+            contents: str = getattr(underlying_exception, name, "")
+            if contents:
+                sections.append(
+                    f"\n----- {name} -----\n{contents}\n------------------\n"
+                )
+        return "".join(sections)
 
     @staticmethod
     def _panic_header(underlying_exception: Exception) -> str:
