@@ -258,6 +258,7 @@ def check_nested_func_def(
         func_ty,
         func_def.docstring,
         link_name,
+        is_static=False,
     )
     ENGINE.parsed[def_id] = func
 
@@ -309,6 +310,7 @@ def check_nested_func_def(
         link_name,
         mono_args,
         checked_cfg,
+        is_static=False,
     )
     return with_loc(func_def, checked_def)
 
@@ -319,6 +321,7 @@ def check_signature(
     def_id: DefId | None = None,
     param_var_mapping: dict[str, Parameter] | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    is_static: bool = False,
 ) -> FunctionType:
     """Checks the signature of a function definition and returns the corresponding
     Guppy type.
@@ -367,13 +370,24 @@ def check_signature(
     has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
 
     # Check if method doesn't have any arguments.
-    if has_parent and func_def.name != "__new__" and not func_def.args.args:
+    if (
+        has_parent
+        and func_def.name != "__new__"
+        and not is_static
+        and not func_def.args.args
+    ):
         raise GuppyError(MissingSelfError(func_def))
 
     for i, inp in enumerate(func_def.args.args):
-        # Special handling for `self` arguments. Note that `__new__` is excluded here
-        # since it's not a method so doesn't take `self`.
-        if i == 0 and func_def.name != "__new__" and has_parent and def_id is not None:
+        # Special handling for `self` arguments. Note that `__new__` and staticmethods
+        # are excluded here since they do not take `self`.
+        if (
+            i == 0
+            and func_def.name != "__new__"
+            and has_parent
+            and def_id is not None
+            and not is_static
+        ):
             self_def_id = DEF_STORE.type_member_parents[def_id]
             self_defn_untyped = ENGINE.get_checked(self_def_id, mono_args=())
             input: FuncInput

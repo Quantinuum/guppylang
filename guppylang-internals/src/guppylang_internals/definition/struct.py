@@ -240,6 +240,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             name="__new__",
             defined_at=self.defined_at,
             ty=constructor_sig,
+            is_static=True,
             call_checker=OwnedArgumentsCallChecker(),
             call_compiler=ConstructorCompiler(),
             higher_order_value=True,

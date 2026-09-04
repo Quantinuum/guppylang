@@ -53,6 +53,7 @@ class CallableDef(ValueDef):
     # their effects until after checking.
 
     ty: FunctionType
+    is_static: bool = field(kw_only=True)
 
     @abstractmethod
     def check_call(
