@@ -101,6 +101,11 @@ class FunctionMetadata:
         assert qubits is None or isinstance(qubits, int)
         return qubits
 
+    def get_unitary_flags(self) -> int | None:
+        flags = self._node_metadata.get(MetadataUnitaryFlags, None)
+        assert flags is None or isinstance(flags, int)
+        return flags
+
     def get_inline(self) -> "InlineAnnotationValue | None":
         from tket.metadata import InlineAnnotation
 
