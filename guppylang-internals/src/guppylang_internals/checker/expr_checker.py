@@ -407,7 +407,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if isinstance(func_ty, BoundTypeVar):
             for protocol in func_ty.implements:
                 if isinstance(protocol, CallableProtocolInst):
-                    # Not a real instantiation; type-checking only, no compilation.
+                    # Not yet monomorphized, so not to be compiled; effects irrelevant.
                     assert self.ctx.current_caller is not None
                     assert all(
                         isinstance(a, TypeArg) and isinstance(a.ty, BoundTypeVar)
@@ -1076,11 +1076,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if isinstance(
                     protocol, CallableProtocolInst | ModifiableFunctionProtocolInst
                 ):
-                    effects = []  # Not yet monomorphized, so not to be compiled
+                    # Not yet monomorphized, so not to be compiled; effects irrelevant.
                     args, return_ty, inst = synthesize_call(
                         protocol.sig, node.args, node, self.ctx, None
                     )
-                    register_effects(self.ctx, effects)
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
                     call = LocalCall(func=node.func, args=args)
