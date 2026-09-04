@@ -35,7 +35,6 @@ dependencies = [
     "pytket>=2.18.1",
     "tket[pytket]~=0.15.7",
     "networkx>=3.4.2",
-    "types-networkx>=3.6.1.20260612",
 ]
 
 [build-system]
