@@ -18,7 +18,6 @@ from guppylang_internals.std._internal.util import (
     int_op,
     unsupported_op,
 )
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import float_type_def, int_type_def, nat_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
 
@@ -439,7 +438,6 @@ class float:
             int_op("trunc_s", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
         unitary_flags=UnitaryFlags.Dagger,
-        effects=[Effect.ANY],
     )
     def __int__(self: float) -> int: ...
 
@@ -463,7 +461,6 @@ class float:
             int_op("trunc_u", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
         unitary_flags=UnitaryFlags.Dagger,
-        effects=[Effect.ANY],
     )
     def __nat__(self: float) -> nat: ...
 

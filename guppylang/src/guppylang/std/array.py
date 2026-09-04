@@ -30,7 +30,6 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.frozenarray import (
     FrozenarrayGetitemCompiler,
 )
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
 
@@ -64,15 +63,13 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes unwrap (compiled separately)
-    )
+    )  # includes unwrap (compiled separately)
     def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes (compiled separately)
-    )
+    )  # includes unwrap (compiled separately)
     def __setitem__[L, n: nat](
         self: array[L, n], idx: int, value: L @ owned
     ) -> None: ...
@@ -329,7 +326,7 @@ class ArrayIter[L, n: nat]:
         return nothing()
 
 
-@custom_function(ArraySwapCompiler(), effects=[Effect.ANY])
+@custom_function(ArraySwapCompiler())  # unwraps for index-OOB
 def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
@@ -358,10 +355,7 @@ class frozenarray[T, n: nat]:
     """An immutable array of fixed static size."""
 
     # Panics on out-of-range.
-    @custom_function(
-        FrozenarrayGetitemCompiler(),
-        effects=[Effect.ANY],
-    )
+    @custom_function(FrozenarrayGetitemCompiler())
     def __getitem__(self, item: int) -> T: ...
 
     @guppy
