@@ -38,8 +38,10 @@ def render_stack_trace(stack_trace: StackTrace | None, message: str) -> str | No
         )
         blocks.append(f"{header}\n" + "\n".join(renderer.buffer))
 
+    is_first_frame = True
+
     for entry in stack_trace.entries:
-        for i, symbol in enumerate(entry.symbols):
+        for symbol in entry.symbols:
             if symbol.filename not in source.sources:
                 source.add_file(symbol.filename)
             if not source.sources[symbol.filename]:
@@ -49,8 +51,9 @@ def render_stack_trace(stack_trace: StackTrace | None, message: str) -> str | No
             loc = Loc(symbol.filename, symbol.line, symbol.column)
             span = Span(loc, loc.shift_right(1))
             append_frame_snippet(
-                span, message if i == 0 else None, symbol.function_name
+                span, message if is_first_frame else None, symbol.function_name
             )
+            is_first_frame = False
 
     if not blocks:
         return None
