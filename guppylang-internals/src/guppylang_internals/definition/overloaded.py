@@ -266,8 +266,8 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         )
 
 
-def is_overload_static(raw_defn: Definition) -> bool:  # NAME NEEDS TO CHANGE
-    """Check if a Definition corresponds to a static method."""
+def is_overload_static(raw_defn: Definition) -> bool:
+    """Recursively checks if a Definition corresponds to a static method."""
     from guppylang_internals.engine import DEF_STORE
 
     match raw_defn:
