@@ -24,7 +24,7 @@ import ast
 import copy
 import sys
 import traceback
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
@@ -130,6 +130,7 @@ from guppylang_internals.nodes import (
     TypeApply,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableProtocolInst,
@@ -400,9 +401,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType, a generic parameter with a `Callable`
-        # bound, or a Tuple of FunctionTypes
+        # bound, or a Tuple of FunctionTypes. Try each in turn...
         if isinstance(func_ty, FunctionType):
-            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx, None)
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
@@ -410,8 +412,14 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if isinstance(func_ty, BoundTypeVar):
             for protocol in func_ty.implements:
                 if isinstance(protocol, CallableProtocolInst):
+                    # Not yet monomorphized, so not to be compiled; effects irrelevant.
+                    assert self.ctx.current_caller is not None
+                    assert all(
+                        isinstance(a, TypeArg) and isinstance(a.ty, BoundTypeVar)
+                        for a in self.ctx.current_caller[1]
+                    )
                     args, subst, inst = check_call(
-                        protocol.sig, node.args, ty, node, self.ctx
+                        protocol.sig, node.args, ty, node, self.ctx, None
                     )
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
@@ -427,10 +435,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 )
 
             tensor_ty = function_tensor_signature(function_elements)
-
+            # (We will probably need to do better if tensors become non-experimental)
             processed_args, subst, inst = check_call(
-                tensor_ty, node.args, ty, node, self.ctx
+                tensor_ty, node.args, ty, node, self.ctx, None
             )
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             assert len(inst) == 0
             return with_loc(
                 node,
@@ -1134,7 +1143,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Otherwise, it must be a function as a higher-order value, or a tensor
         if isinstance(ty, FunctionType):
-            args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
+            args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx, None)
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
 
@@ -1143,8 +1153,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if isinstance(
                     protocol, CallableProtocolInst | ModifiableFunctionProtocolInst
                 ):
+                    # Not yet monomorphized, so not to be compiled; effects irrelevant.
                     args, return_ty, inst = synthesize_call(
-                        protocol.sig, node.args, node, self.ctx
+                        protocol.sig, node.args, node, self.ctx, None
                     )
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
@@ -1160,8 +1171,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
             tensor_ty = function_tensor_signature(function_elems)
             args, return_ty, inst = synthesize_call(
-                tensor_ty, node.args, node, self.ctx
+                tensor_ty, node.args, node, self.ctx, None
             )
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
+            # (we'll need to do better if tensored functions become non-experimental)
             assert len(inst) == 0
 
             return with_loc(
@@ -1631,8 +1644,18 @@ def check_comptime_arg(
     return subst
 
 
+def register_effects(ctx: Context, effects: Iterable[Effect]) -> None:
+    """Registers known effects for the function currently being checked."""
+    assert ctx.current_caller is not None
+    ENGINE.register_effects(ctx.current_caller, effects)
+
+
 def synthesize_call(
-    func_ty: FunctionType, args: list[ast.expr], node: AstNode, ctx: Context
+    func_ty: FunctionType,
+    args: list[ast.expr],
+    node: AstNode,
+    ctx: Context,
+    callee: CallableDef | None,
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1663,6 +1686,10 @@ def synthesize_call(
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
 
+    # Register this call in the callgraph.
+    if callee is not None:
+        ENGINE.register_call(ctx, callee, inst)
+
     return args, unquantified.output.substitute(subst), inst
 
 
@@ -1672,6 +1699,8 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
+    callee: CallableDef | None,
+    *,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
     """Checks the return type of a function call against a given type.
@@ -1707,7 +1736,7 @@ def check_call(
     inputs_copy = copy.deepcopy(inputs)
 
     try:
-        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx)
+        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx, callee)
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
@@ -1758,6 +1787,10 @@ def check_call(
 
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
+
+    # Register this call in the callgraph.
+    if callee is not None:
+        ENGINE.register_call(ctx, callee, inst)
 
     return inputs, subst, inst
 
@@ -1910,7 +1943,12 @@ def check_generator(
     # The rest is checked in a new nested context to ensure that variables don't escape
     # their scope
     inner_locals: Locals[str, Variable] = Locals({}, parent_scope=ctx.locals)
-    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_param_inst)
+    inner_ctx = Context(
+        ctx.globals,
+        inner_locals,
+        ctx.generic_param_inst,
+        current_caller=ctx.current_caller,
+    )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
     gen.iter = with_type(iter_ty, gen.iter)

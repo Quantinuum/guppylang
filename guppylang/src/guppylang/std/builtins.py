@@ -194,7 +194,6 @@ __all__ = (  # noqa: RUF022
     "slice",
     "some",
     "sorted",
-    "staticmethod",
     "str",
     "sum",
     "super",
