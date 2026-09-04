@@ -16,6 +16,7 @@ from tests.resources.debug_info_example import (
     bar,
     baz,
     comptime_bar,
+    inc,
     non_guppy_function,
     pytket_bar_load,
     pytket_bar_stub,
@@ -212,6 +213,7 @@ def test_comptime_call_location():
         non_guppy_function()  # not a hugr call
         comptime_bar()  # call 2  # MARKER:ct_call_comptime_bar
         _ = (bar(), comptime_bar())  # MARKER:ct_calls_same_line
+        inc(inc(1))  # MARKER:ct_call_inc_nested
 
     # Compile with minimal optimization to preserve call ordering in the graph.
     hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
@@ -222,6 +224,8 @@ def test_comptime_call_location():
         _marker_loc(Path(__file__), "ct_call_comptime_bar", "comptime_bar()"),
         _marker_loc(Path(__file__), "ct_calls_same_line", "bar()"),
         _marker_loc(Path(__file__), "ct_calls_same_line", "comptime_bar()"),
+        _marker_loc(Path(__file__), "ct_call_inc_nested", "inc(1)"),
+        _marker_loc(Path(__file__), "ct_call_inc_nested", "inc(inc(1))"),
     ]
     assert len(calls) == len(expected_info)
     for i, call in enumerate(calls):

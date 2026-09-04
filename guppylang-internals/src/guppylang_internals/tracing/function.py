@@ -31,7 +31,7 @@ from guppylang_internals.error import (
 )
 from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.nodes import PlaceNode
-from guppylang_internals.span import Loc, Span, to_span
+from guppylang_internals.span import to_span
 from guppylang_internals.tracing.builtins_mock import mock_builtins
 from guppylang_internals.tracing.object import GuppyObject
 from guppylang_internals.tracing.recorder import (
@@ -89,25 +89,21 @@ def _find_call_site(calling_func_node: AstNode) -> AstNode:
     ):
         return calling_func_node
 
-    try:
-        calling_func_span = to_span(calling_func_node)
-    except (AssertionError, AttributeError):
-        return calling_func_node
+    active_start = (positions.lineno, positions.col_offset)
+    active_end = (positions.end_lineno, positions.end_col_offset)
 
-    active_call_span = Span(
-        Loc(calling_func_span.file, positions.lineno, positions.col_offset),
-        Loc(calling_func_span.file, positions.end_lineno, positions.end_col_offset),
-    )
+    def contains_active_call(call: ast.Call) -> bool:
+        span = to_span(call)
+        start = (span.start.line, span.start.column)
+        end = (span.end.line, span.end.column)
+        return start <= active_start and active_end <= end
+
     candidates = [
         call
         for call in ast.walk(calling_func_node)
-        if isinstance(call, ast.Call)
-        and (call_span := to_span(call)).start <= active_call_span.start
-        and active_call_span.end <= call_span.end
+        if isinstance(call, ast.Call) and contains_active_call(call)
     ]
-    # Choose inner-most call - this may be incorrect, however the debug information
-    # should be the same for both and for any other use we should also be fine
-    # with the calling function node, so this should not be a problem.
+    # Choose innermost call that spans the position given in the frame.
     return min(
         candidates,
         key=lambda call: len(list(ast.walk(call))),
