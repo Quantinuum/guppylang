@@ -13,5 +13,5 @@ from guppylang_internals.tys.builtin import string_type_def
 class str:
     """A string, i.e. immutable sequences of Unicode code points."""
 
-    @custom_function(checker=UnsupportedChecker(), higher_order_value=False)
+    @custom_function(checker=UnsupportedChecker(), higher_order_value=False, effects=())
     def __new__(x): ...

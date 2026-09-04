@@ -457,7 +457,7 @@ def test_custom_higher_order():
 
     T = guppy.type_var("T")
 
-    @custom_function(CustomCompiler())
+    @custom_function(CustomCompiler(), effects=())
     def foo(x: T) -> T: ...
 
     @guppy

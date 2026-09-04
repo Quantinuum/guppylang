@@ -34,15 +34,15 @@ class SizedIter:
         # positions that are evaluated by the Python interpreter
         return cls
 
-    @custom_function(NoopCompiler())
+    @custom_function(NoopCompiler(), effects=())
     def __new__(iterator: L @ owned) -> SizedIter[L, n]:  # type: ignore[type-arg]
         """Casts an iterator into a `SizedIter`."""
 
-    @custom_function(NoopCompiler())
+    @custom_function(NoopCompiler(), effects=())
     def unwrap_iter(self: SizedIter[L, n] @ owned) -> L:
         """Extracts the actual iterator."""
 
-    @custom_function(NoopCompiler())
+    @custom_function(NoopCompiler(), effects=())
     def __iter__(self: SizedIter[L, n] @ owned) -> SizedIter[L, n]:  # type: ignore[type-arg]
         """Dummy implementation making sized iterators iterable themselves."""
 

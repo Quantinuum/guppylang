@@ -42,19 +42,21 @@ class list[T]:
     @custom_function(ListSetitemCompiler(), effects=[Effect.ANY])
     def __setitem__(self: list[L], idx: int, value: L @ owned) -> None: ...
 
-    @custom_function(ListLengthCompiler())
+    @custom_function(ListLengthCompiler(), effects=())
     def __len__(self: list[L]) -> int: ...
 
-    @custom_function(checker=UnsupportedChecker(), higher_order_value=False)
+    @custom_function(checker=UnsupportedChecker(), higher_order_value=False, effects=())
     def __new__(x): ...
 
-    @custom_function(NoopCompiler())  # TODO: define via Guppy source instead
+    @custom_function(
+        NoopCompiler(), effects=()
+    )  # TODO: define via Guppy source instead
     def __iter__(self: list[L] @ owned) -> list[L]: ...
 
     @hugr_op(unsupported_op("pop"))
     def __next__(self: list[L] @ owned) -> Option[tuple[L, list[L]]]: ...
 
-    @custom_function(ListPushCompiler())
+    @custom_function(ListPushCompiler(), effects=())
     def append(self: list[L], item: L @ owned) -> None: ...
 
     @custom_function(ListPopCompiler(), effects=[Effect.ANY])  # panics if list empty

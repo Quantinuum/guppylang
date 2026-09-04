@@ -24,12 +24,16 @@ L = guppy.type_var("T", copyable=False, droppable=False)
 class Option[L]:
     """Represents an optional value."""
 
-    @custom_function(OptionTestCompiler(0), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        OptionTestCompiler(0), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     @no_type_check
     def is_nothing(self: "Option[L]") -> bool:
         """Returns `True` if the option is a `nothing` value."""
 
-    @custom_function(OptionTestCompiler(1), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        OptionTestCompiler(1), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     @no_type_check
     def is_some(self: "Option[L]") -> bool:
         """Returns `True` if the option is a `some` value."""
@@ -42,7 +46,7 @@ class Option[L]:
         Panics if the option is a `nothing` value.
         """
 
-    @custom_function(OptionUnwrapNothingCompiler())
+    @custom_function(OptionUnwrapNothingCompiler(), effects=())
     @no_type_check
     def unwrap_nothing(self: "Option[L]" @ owned) -> None:
         """Returns `None` if the option is a `nothing` value, consuming `self`.
