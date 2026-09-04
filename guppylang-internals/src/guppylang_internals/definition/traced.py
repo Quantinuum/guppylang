@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, override
 
@@ -16,9 +16,7 @@ from guppylang_internals.checker.expr_checker import (
     make_global_call,
     synthesize_call,
 )
-from guppylang_internals.checker.func_checker import (
-    check_signature,
-)
+from guppylang_internals.checker.func_checker import check_signature
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
@@ -101,6 +99,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
         trace = trace_function(
             self.python_func,
             mono_ty,
+            type_args,
             generic_args,
             self.defined_at,
             self,
@@ -111,6 +110,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             self.defined_at,
             mono_ty,
             self.python_func,
+            type_args,
             trace,
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
@@ -122,7 +122,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.ty, args, ty, node, ctx)
+        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self)
         node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
@@ -132,13 +132,14 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
     ) -> tuple[ast.expr, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.ty, args, node, ctx)
+        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self)
         node = with_loc(node, make_global_call(self, args, inst))
         return node, ty
 
 
 @dataclass(frozen=True)
 class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
+    inst: Inst
     trace: "Trace"
 
     @override
@@ -169,8 +170,10 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             self.defined_at,
             self.ty,
             self.python_func,
+            self.inst,
             self.trace,
             func_def,
+            ctx.effects[(self.id, self.inst)],
             unitary_flags=self.unitary_flags,
             metadata=self.metadata,
         )
@@ -181,14 +184,13 @@ class CompiledTracedFunctionDef(
     TracedMonoFunctionDef, CompiledCallableDef, CompiledHugrNodeDef
 ):
     func_def: hf.Function
+    effects: Iterable[Effect]
 
     @override
     @property
-    def call_effects(self) -> frozenset[Effect]:
+    def call_effects(self) -> Iterable[Effect]:
         """The maximum set of effects that may occur when calling the function."""
-        # For now, an approximation. (We said, may occur.)
-        # TODO refine via callgraph: https://github.com/Quantinuum/guppylang/issues/1748
-        return frozenset([Effect.ANY])
+        return self.effects
 
     @property
     def hugr_node(self) -> Node:

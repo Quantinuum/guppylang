@@ -19,6 +19,8 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
+from guppylang_internals.analysis.callgraph import CallGraph
+from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -33,6 +35,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
@@ -101,8 +104,11 @@ from guppylang_internals.tys.ty import (
 )
 
 if TYPE_CHECKING:
-    from guppylang_internals.checker.core import Globals
+    from collections.abc import Iterable
+
+    from guppylang_internals.checker.core import Context, Globals
     from guppylang_internals.definition.function import ParsedFunctionDef
+    from guppylang_internals.tys import Effect
 
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
@@ -242,6 +248,11 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
+    #: Call graph mapping from caller to list of callees. Populated during type checking
+    # as calls are checked, to be then used for effects checking.
+    call_graph: dict[MonoDefId, list[MonoDefId]]
+    func_effects: dict[MonoDefId, set["Effect"]]
+
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
 
@@ -291,6 +302,28 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
+        self.call_graph = {}
+        self.func_effects = {}
+
+    def register_call(
+        self,
+        ctx: "Context",
+        callee: "CallableDef",
+        inst: Inst,
+    ) -> None:
+        """Registers a function call in the call graph. If the callee is a
+        `CallableEffects` then also registers those effects for that callee."""
+        # current_caller is not set for e.g. comptime but should be here:
+        assert ctx.current_caller is not None
+        assert ctx.current_caller in self.call_graph
+        self.call_graph[ctx.current_caller].append((callee.id, inst))
+        if isinstance(callee, CallableEffects):
+            self.register_effects((callee.id, inst), callee.call_effects)
+
+    def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
+        """Registers known effects for a function, for when the effects cannot be
+        attributed to some concrete callee (i.e. with its own MonoDefId)."""
+        self.func_effects.setdefault(func, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -423,6 +456,16 @@ class CompilationEngine:
             arg.visit(finder)
         if not finder.bound_vars:
             self.to_check_worklist[defn.id, type_args] = defn
+
+    def register_call_graph_node(self, mono_id: MonoDefId) -> None:
+        """Ensures a monomorphized definition is registered in the call graph.
+        Required before edges can be added from the node, but not to it.
+
+        Thus, used to indicate the def is of a kind for which we wish to track calls
+        (i.e. a user-defined function), even if it doesn't actually contain any.
+        """
+        assert mono_id not in self.call_graph
+        self.call_graph[mono_id] = []
 
     def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
         """Looks up an instance function with a given name for a type.
@@ -587,6 +630,9 @@ class CompilationEngine:
     def _compile_impl(
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
+        callgraph = CallGraph(self.call_graph)
+        effects = compute_effects(callgraph, self.func_effects)
+
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
@@ -599,7 +645,7 @@ class CompilationEngine:
         frame = get_calling_frame()
         filename = frame.f_code.co_filename
 
-        ctx = CompilerContext(graph, set(def_ids), StringTable())
+        ctx = CompilerContext(graph, set(def_ids), effects, StringTable())
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
