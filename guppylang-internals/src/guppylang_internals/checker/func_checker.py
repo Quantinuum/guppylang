@@ -237,7 +237,7 @@ def check_nested_func_def(
     def_id = DefId.fresh()
     mono_args: Inst = ()
 
-    # Store nested functions in the call graph under their own DefIDs,
+    # Store nested functions in the call graph under their own DefIDs.
     ENGINE.register_call_graph_node((def_id, mono_args))
     globals = ctx.globals
 
