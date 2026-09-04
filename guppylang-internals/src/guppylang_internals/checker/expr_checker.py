@@ -1430,9 +1430,8 @@ def function_def_value_to_function_value(
             return with_type(ty.sig, expr)
         except GuppyError:
             # Capturing closures disabled
-            name = ENGINE.get_parsed(ty.def_id).name
-    else:
-        name = DEF_STORE.raw_defs[ty.def_id].name
+            pass
+    name = ENGINE.get_parsed(ty.def_id).name
     return with_type(ty.sig, with_loc(expr, make_global_name(name, ty.def_id)))
 
 
