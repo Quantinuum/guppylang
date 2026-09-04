@@ -16,6 +16,8 @@ from tests.resources.debug_info_example import (
     bar,
     baz,
     comptime_bar,
+    inc,
+    non_guppy_function,
     pytket_bar_load,
     pytket_bar_stub,
 )
@@ -197,6 +199,35 @@ def test_call_location():
             "pytket_bar_load",
         ),
     ]
+    for i, call in enumerate(calls):
+        call_metadata = hugr[call].metadata
+        assert HugrDebugInfo in call_metadata
+        debug_info = DILocation.from_json(call_metadata[HugrDebugInfo.KEY])
+        assert (debug_info.line_no, debug_info.column) == expected_info[i]
+
+
+def test_comptime_call_location():
+    @guppy.comptime
+    def foo() -> None:
+        bar()  # call 1  # MARKER:ct_call_bar
+        non_guppy_function()  # not a hugr call
+        comptime_bar()  # call 2  # MARKER:ct_call_comptime_bar
+        _ = (bar(), comptime_bar())  # MARKER:ct_calls_same_line
+        inc(inc(1))  # MARKER:ct_call_inc_nested
+
+    # Compile with minimal optimization to preserve call ordering in the graph.
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
+    calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
+
+    expected_info = [
+        _marker_loc(Path(__file__), "ct_call_bar", "bar()"),
+        _marker_loc(Path(__file__), "ct_call_comptime_bar", "comptime_bar()"),
+        _marker_loc(Path(__file__), "ct_calls_same_line", "bar()"),
+        _marker_loc(Path(__file__), "ct_calls_same_line", "comptime_bar()"),
+        _marker_loc(Path(__file__), "ct_call_inc_nested", "inc(1)"),
+        _marker_loc(Path(__file__), "ct_call_inc_nested", "inc(inc(1))"),
+    ]
+    assert len(calls) == len(expected_info)
     for i, call in enumerate(calls):
         call_metadata = hugr[call].metadata
         assert HugrDebugInfo in call_metadata
