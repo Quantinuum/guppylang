@@ -1425,9 +1425,11 @@ def function_def_value_to_function_value(
 
         try:
             check_capturing_closures_enabled(expr)
-            # Expression must be preserved to retain a possible closure.
+            # We don't record whether individual nested functions capture anything,
+            # so conservatively assume it might.
             return with_type(ty.sig, expr)
         except GuppyError:
+            # Capturing closures disabled
             name = ENGINE.get_parsed(ty.def_id).name
     else:
         name = DEF_STORE.raw_defs[ty.def_id].name
