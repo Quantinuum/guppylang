@@ -99,19 +99,39 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Look for generic parameters from Python 3.12 style syntax
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
+        from guppylang.defs import GuppyDefinition
+
+        from guppylang_internals.definition.function import RawFunctionDef
+
         # We look for variants in the class body
         variants: dict[str, EnumVariant[UncheckedField]] = {}
-        used_func_names: dict[str, ast.FunctionDef] = {}
+        used_func_names: dict[str, ast.FunctionDef | ast.ClassDef] = {}
         variant_index = 0
         for i, node in enumerate(cls_def.body):
             match i, node:
-                # TODO: do we allow `pass` statements to define empty enum?
                 case _, ast.Pass():
                     pass
                 # Docstrings are also fine if they occur at the start
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
                 case _, ast.FunctionDef(name=name) as node:
+                    used_func_names[name] = node
+                # A `@guppy.unitary` method is written as a class, but the decorator
+                # replaces it with its `__call__` Guppy function definition.
+                case _, ast.ClassDef(name=name) as node:
+                    v = getattr(self.python_class, name)
+                    if not (
+                        isinstance(v, GuppyDefinition)
+                        and isinstance(v.wrapped, RawFunctionDef)
+                        and v.wrapped.unitary_class_at is not None
+                    ):
+                        err = UnexpectedError(
+                            node,
+                            "statement",
+                            unexpected_in="enum definition",
+                        )
+                        err.add_sub_diagnostic(VariantFormHint(None))
+                        raise GuppyError(err)
                     used_func_names[name] = node
                 # Enum variants are declared via a dictionary, where keys are the
                 # variant fields and values are types:
@@ -177,8 +197,6 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Ensure that functions do not override enum variants
         # and that all functions are Guppy functions
         for func_name, func_def in used_func_names.items():
-            from guppylang.defs import GuppyDefinition
-
             if func_name in variants:
                 raise GuppyError(
                     DuplicateVariantError(

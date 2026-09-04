@@ -618,6 +618,89 @@ def test_struct_custom_modifier_impls_are_executed(
     run_int_fn(main_ctrl_daggered, expected=1, num_qubits=2)
 
 
+def test_enum_custom_modifier_impls_are_executed(use_experimental_features, run_int_fn):
+    @guppy.enum
+    class CustomGates:
+        Enabled = {}
+
+        @guppy.unitary
+        class apply:
+            n = guppy.nat_var("n")
+
+            @guppy
+            def __call__(self, q: qubit) -> None:
+                pass
+
+            @guppy
+            def daggered(self, q: qubit) -> None:
+                x(q)
+
+            @guppy
+            def controlled(
+                self,
+                q: qubit,
+                _controls: array[qubit, n],
+            ) -> None:
+                x(q)
+
+            @guppy
+            def ctrl_daggered(
+                self,
+                q: qubit,
+                _controls: array[qubit, n],
+            ) -> None:
+                x(q)
+
+    @guppy
+    def apply_daggered(gates: CustomGates, target: qubit) -> None:
+        with dagger:
+            gates.apply(target)
+
+    @guppy
+    def apply_controlled(
+        gates: CustomGates, control_qubit: qubit, target: qubit
+    ) -> None:
+        with control(control_qubit):
+            gates.apply(target)
+
+    @guppy
+    def apply_ctrl_daggered(
+        gates: CustomGates, control_qubit: qubit, target: qubit
+    ) -> None:
+        with control(control_qubit), dagger:
+            gates.apply(target)
+
+    @guppy
+    def main_daggered() -> int:
+        target = qubit()
+        apply_daggered(CustomGates.Enabled(), target)
+        return 1 if measure(target).read() else 0
+
+    @guppy
+    def main_controlled() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        apply_controlled(CustomGates.Enabled(), control_qubit, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    @guppy
+    def main_ctrl_daggered() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        apply_ctrl_daggered(CustomGates.Enabled(), control_qubit, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main_daggered, expected=1, num_qubits=1)
+    run_int_fn(main_controlled, expected=1, num_qubits=2)
+    run_int_fn(main_ctrl_daggered, expected=1, num_qubits=2)
+
+
 def test_two_control_counts_distinct_runtime(use_experimental_features, run_int_fn):
     @guppy.unitary
     class custom_gate:
