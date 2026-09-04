@@ -26,9 +26,10 @@ def compile_global_func_def(
     cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
     if not ctx.effects[(func.id, func.mono_args)].issuperset(builder.effects):
+        surplus = set(builder.effects) - ctx.effects[(func.id, func.mono_args)]
         raise InternalGuppyError(
-            f"Function {func.name} compiled to have side effects not expected"
-            " during checking; callgraph analysis will be incomplete."
+            f"Function {func.name} compiled to have side effects {surplus}"
+            " not expected during checking; callgraph analysis will be unsound."
         )
     # Inequality (actual effects < expected) does not lead to wrong behaviour,
     # merely unnecessary/extra order edges that may inhibit optimization,
@@ -72,7 +73,7 @@ def compile_local_func_def(
 
     # If we have captured variables and the body contains a recursive occurrence of
     # the function itself, then we provide the partially applied function as a local
-    # variable.
+    # variable
     if len(captured) > 0 and recursive:
         call_args: list[Wire] = list(func_builder.inputs())
         check_partial_functions_enabled()
