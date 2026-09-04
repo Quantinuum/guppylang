@@ -10,6 +10,7 @@ from guppylang_internals.std._internal.compiler.either import (
     EitherUnwrapCompiler,
     either_to_hugr,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import TypeParam
 from guppylang_internals.tys.ty import UnitaryFlags
 
@@ -37,7 +38,7 @@ class Result[T, E]:
     def is_err(self: "Result[T, E]") -> bool:
         """Returns `True` for an `err` value."""
 
-    @custom_function(EitherUnwrapCompiler(0))
+    @custom_function(EitherUnwrapCompiler(0), effects=[Effect.ANY])
     @no_type_check
     def unwrap(self: "Result[T, E]" @ owned) -> T:
         """Returns the contained `ok` value, consuming `self`.
@@ -45,7 +46,7 @@ class Result[T, E]:
         Panics if `self` is an `err` value.
         """
 
-    @custom_function(EitherUnwrapCompiler(1))
+    @custom_function(EitherUnwrapCompiler(1), effects=[Effect.ANY])
     @no_type_check
     def unwrap_err(self: "Result[T, E]" @ owned) -> E:
         """Returns the contained `err` value, consuming `self`.

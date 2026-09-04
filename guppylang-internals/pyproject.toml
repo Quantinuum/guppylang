@@ -34,6 +34,7 @@ dependencies = [
     "wasmtime>=38.0,<48.1",
     "pytket>=2.18.1",
     "tket[pytket]~=0.15.7",
+    "networkx>=3.4.2",
 ]
 
 [build-system]

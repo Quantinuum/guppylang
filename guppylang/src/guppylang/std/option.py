@@ -34,7 +34,7 @@ class Option[L]:
     def is_some(self: "Option[L]") -> bool:
         """Returns `True` if the option is a `some` value."""
 
-    @custom_function(OptionUnwrapCompiler())
+    @custom_function(OptionUnwrapCompiler(), effects=[Effect.ANY])
     @no_type_check
     def unwrap(self: "Option[L]" @ owned) -> L:
         """Returns the contained `some` value, consuming `self`.

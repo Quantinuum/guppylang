@@ -34,6 +34,7 @@ dev = [
     { name = "pytest-snapshot", specifier = ">=0.9.0,<1" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = "~=0.16.4" },
+    { name = "types-networkx", specifier = ">=3.6.1.20260612" },
 ]
 docs = [
     { name = "furo", specifier = ">=2024.8.6" },
@@ -47,6 +48,7 @@ lint = [
     { name = "mypy", specifier = "~=2.1.0" },
     { name = "pre-commit", specifier = ">=4.6.2,<5" },
     { name = "ruff", specifier = "~=0.16.4" },
+    { name = "types-networkx", specifier = ">=3.6.1.20260612" },
 ]
 test = [
     { name = "ipykernel", specifier = ">=6.29.5,<8" },
@@ -958,6 +960,7 @@ version = "1.0.1"
 source = { editable = "guppylang-internals" }
 dependencies = [
     { name = "hugr" },
+    { name = "networkx" },
     { name = "pytket" },
     { name = "tket", extra = ["pytket"] },
     { name = "tket-exts" },
@@ -968,6 +971,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "hugr", specifier = "~=0.18.5" },
+    { name = "networkx", specifier = ">=3.4.2" },
     { name = "pytket", specifier = ">=2.18.1" },
     { name = "tket", extras = ["pytket"], specifier = "~=0.15.7" },
     { name = "tket-exts", specifier = "~=0.14.0" },
@@ -3315,6 +3319,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/2c/2e/a7fbfe268c8a3b32546930c0297c101d65a4a14c304ad5790a9f478f0e4e/traitlets-5.16.1.tar.gz", hash = "sha256:ed900c2b631aa3a112811139fa97b8d2c3bad5e989656bba4b7e52c7852c18c1", size = 166137, upload-time = "2026-08-03T08:32:36.848Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ad/66/0d785f0bc5e4315a96c989bb476d0fc07ea4f85132550c7b156ca2035d52/traitlets-5.16.1-py3-none-any.whl", hash = "sha256:f775618166caa0396c8e337099240f2bd3e5e917d203b2e6fbe21a58d3cb1f6b", size = 86211, upload-time = "2026-08-03T08:32:34.48Z" },
+]
+
+[[package]]
+name = "types-networkx"
+version = "3.6.1.20260903"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/2c/17de8f83bc78984f5113d1eae1c0a3d7166a6acd1d7dc26acbc1dfbd4c33/types_networkx-3.6.1.20260903.tar.gz", hash = "sha256:31446a57554e593bffdf9078fef045df3084e6b8b31902e75cd512622142504d", size = 76061, upload-time = "2026-09-03T06:36:46.04Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a2/24/059e78512f3613d5fa34fc917c6c9e372d874875a063e6b47b33716f2f5e/types_networkx-3.6.1.20260903-py3-none-any.whl", hash = "sha256:4875cb5e87923b24347a126d23e3e66bb1f7d51d111d17312c1667b26710d9a8", size = 167151, upload-time = "2026-09-03T06:36:44.83Z" },
 ]
 
 [[package]]

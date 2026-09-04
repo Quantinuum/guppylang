@@ -18,7 +18,7 @@ from guppylang_internals.definition.custom import CustomFunctionDef
 from guppylang_internals.definition.overloaded import OverloadedFunctionDef
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error
-from guppylang_internals.engine import DEF_STORE
+from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import (
     GuppyComptimeError,
     GuppyError,
@@ -47,6 +47,7 @@ from guppylang_internals.tracing.unpacking import (
 from guppylang_internals.tracing.util import capture_guppy_errors, tracing_except_hook
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
     ExistentialTypeVar,
@@ -74,6 +75,7 @@ class TracingReturnError(Error):
 def trace_function(
     python_func: Callable[..., Any],
     ty: FunctionType,
+    inst: Inst,
     generic_args: Mapping[str, Argument],
     node: AstNode,
     func_def: "TracedFunctionDef",
@@ -104,7 +106,10 @@ def trace_function(
     input_count = sum(InputFlags.Comptime not in inp.flags for inp in ty.inputs)
     recorder = TraceRecorder(input_count)
     ctx: ToHugrContext = None
-    state = TracingState(ctx, recorder, node, func_def)
+    mono_id = (func_def.id, inst)
+    ENGINE.register_call_graph_node(mono_id)
+    state = TracingState(ctx, recorder, node, func_def, current_caller=mono_id)
+
     with set_tracing_state(state):
         generic_values = {
             x: val.value
@@ -243,7 +248,12 @@ def trace_call(func: CallableDef, *args: Any) -> Any:
         arg_exprs: list[ast.expr] = [
             with_loc(state.node, with_type(var.ty, PlaceNode(var))) for var in arg_vars
         ]
-        ctx = Context(Globals(DEF_STORE.frames[func.id]), locals, {})
+        ctx = Context(
+            Globals(DEF_STORE.frames[func.id]),
+            locals,
+            {},
+            current_caller=state.current_caller,
+        )
         call_node, ret_ty = func.synthesize_call(arg_exprs, state.node, ctx)
 
         # Here we check if unitary constraints are respected in the function body

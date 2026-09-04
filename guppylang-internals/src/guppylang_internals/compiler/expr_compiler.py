@@ -426,9 +426,8 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             num_returns = len(type_to_row(func_ty.output))
             consumed_args, other_args = args[0:input_len], args[input_len:]
             consumed_wires = self._compile_call_args(consumed_args, func_ty)
-            # This is terrible - we'll need to do better if tensored functions
-            # become non-experimental:
-            effects = [Effect.ANY]
+            effects = [Effect.ANY]  # worst-case/conservative assumption
+            # (we'll need to do better if tensored functions become non-experimental)
             call = self.builder.add_op(
                 (hops.CallIndirect(func_ty.to_hugr(self.ctx)), effects),
                 func,
