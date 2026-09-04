@@ -418,7 +418,6 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                     args, subst, inst = check_call(
                         protocol.sig, node.args, ty, node, self.ctx, None
                     )
-                    # register_effects(self.ctx, effects=[]) # Pointless
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
                     return with_loc(node, LocalCall(func=node.func, args=args)), subst

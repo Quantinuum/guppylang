@@ -40,7 +40,6 @@ class list[T]:
     def __getitem__(self: list[L], idx: int) -> L: ...
 
     @custom_function(ListSetitemCompiler(), effects=[Effect.ANY])
-    # ALAN couldn't write a test that triggered this, setting not supported??
     def __setitem__(self: list[L], idx: int, value: L @ owned) -> None: ...
 
     @custom_function(ListLengthCompiler())
