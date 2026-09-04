@@ -197,6 +197,8 @@ class DefinitionStore:
     sources: SourceMap
     # Maps a parent definition (usually a function) to its custom modified definitions
     custom_modified_defs: dict[DefId, dict[CustomModifierKind, DefId]]
+    # Reverse mapping for custom modified definitions to their unmodified definition
+    custom_modified_def_parents: dict[DefId, DefId]
 
     def __init__(self) -> None:
         self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
@@ -206,17 +208,29 @@ class DefinitionStore:
         self.sources = SourceMap()
         self.wasm_functions = {}
         self.custom_modified_defs = defaultdict(dict)
+        self.custom_modified_def_parents = {}
 
     def register_def(self, defn: RawDef, frame: FrameType) -> None:
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
 
     def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
-        assert member_id not in self.type_member_parents, "Already a type member"
         self.type_members[ty_id][name] = member_id
+        self._register_type_member_parent(ty_id, member_id, adjust_frame=True)
+
+        # When a `@guppy.unitary` class is used as method, the custom implementations
+        # are member too: their  first argument is the same `self` as the unmodified
+        # definition, i.e. the struct or enum instance.
+        for custom_id in self.custom_modified_defs.get(member_id, {}).values():
+            self._register_type_member_parent(ty_id, custom_id, adjust_frame=False)
+
+    def _register_type_member_parent(
+        self, ty_id: DefId, member_id: DefId, *, adjust_frame: bool
+    ) -> None:
+        assert member_id not in self.type_member_parents, "Already a type member"
         self.type_member_parents[member_id] = ty_id
         # Update the frame of the definition to the frame of the defining class
-        if member_id in self.frames:
+        if adjust_frame and member_id in self.frames:
             frame = self.frames[member_id].f_back
             if frame:
                 self.frames[member_id] = frame
@@ -244,6 +258,14 @@ class DefinitionStore:
         custom_defs = self.custom_modified_defs[parent_def_id]
         assert kind not in custom_defs, f"Custom {kind.value} already registered"
         custom_defs[kind] = custom_def_id
+        assert custom_def_id not in self.custom_modified_def_parents
+        self.custom_modified_def_parents[custom_def_id] = parent_def_id
+
+        # Usually custom definitions are registered before the unitary function is
+        # attached to a type. Keep this correct if registration happens in the other
+        # order as well.
+        if ty_id := self.type_member_parents.get(parent_def_id):
+            self._register_type_member_parent(ty_id, custom_def_id, adjust_frame=False)
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()
