@@ -143,7 +143,6 @@ def test_methods(validate):
     validate(main.compile_function())
 
 
-# todo: use the emulator to check that the method is solved properly
 def test_unitary_method(validate, use_experimental_features):
     T = guppy.type_var("T")
 

@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, NoReturn
 
 from hugr import Wire
 
@@ -118,13 +118,7 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                         and isinstance(v.wrapped, RawFunctionDef)
                         and v.wrapped.unitary_class_at is not None
                     ):
-                        err = UnexpectedError(
-                            node,
-                            "statement",
-                            unexpected_in="struct definition",
-                        )
-                        err.add_sub_diagnostic(FieldFormHint(None))
-                        raise GuppyError(err)
+                        _raise_unexpected_struct_statement(node)
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
@@ -145,14 +139,7 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     fields.append(UncheckedField(field_name, node.annotation))
                     used_field_names.add(field_name)
                 case _, node:
-                    # todo: this code is called twice we should use an helper
-                    err = UnexpectedError(
-                        node,
-                        "statement",
-                        unexpected_in="struct definition",
-                    )
-                    err.add_sub_diagnostic(FieldFormHint(None))
-                    raise GuppyError(err)
+                    _raise_unexpected_struct_statement(node)
 
         # Ensure that functions don't override struct fields
         if overridden := used_field_names.intersection(used_func_names.keys()):
@@ -313,3 +300,13 @@ def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Paramet
                 continue
         raise GuppyError(ExpectedError(node, "a type parameter"))
     return params
+
+
+def _raise_unexpected_struct_statement(node: ast.stmt) -> NoReturn:
+    err = UnexpectedError(
+        node,
+        "statement",
+        unexpected_in="struct definition",
+    )
+    err.add_sub_diagnostic(FieldFormHint(None))
+    raise GuppyError(err)
