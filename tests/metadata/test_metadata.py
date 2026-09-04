@@ -3,6 +3,9 @@
 import pytest
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import (
+    CONTROLLED_KEY,
+    CTRL_DAGGERED_KEY,
+    DAGGERED_KEY,
     NUM_CONTROL_QUBITS_KEY,
     FunctionMetadata,
     MetadataAlreadySetError,
@@ -108,6 +111,17 @@ def test_add_num_control_qubits_rejects_duplicate():
         ),
     ):
         add_num_control_qubits(node_metadata, 2)
+
+
+@pytest.mark.parametrize("key", [DAGGERED_KEY, CONTROLLED_KEY, CTRL_DAGGERED_KEY])
+def test_add_metadata_custom_implementation_names_reserved(key: str):
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError) and e.error.keys == {key}
+        ),
+    ):
+        add_metadata(NodeMetadata(), additional_metadata={key: "custom_name"})
 
 
 def test_add_metadata_property_inline():

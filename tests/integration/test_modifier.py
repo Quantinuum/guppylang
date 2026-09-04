@@ -4,8 +4,6 @@ import pytest
 
 from guppylang.decorator import guppy
 from guppylang.defs import GuppyFunctionDefinition
-from guppylang_internals.checker.modifier import CustomModifierKind
-from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang.std.array import array
 
 from guppylang.std.builtins import (
@@ -378,7 +376,7 @@ def test_higher_order_unitary_callable(validate):
     validate(main.compile_function())
 
 
-def test_custom_unitary_higher_order_callables(use_experimental_features):
+def test_custom_unitary_higher_order_callables(validate, use_experimental_features):
     """Custom modifier methods determine higher-order callable capabilities."""
 
     @guppy.unitary
@@ -463,7 +461,7 @@ def test_custom_unitary_higher_order_callables(use_experimental_features):
         apply_plain2(custom_unitary, q)
         apply_plain2(custom_call, q)
 
-    main.check()
+    validate(main.compile())
 
 
 @pytest.mark.xfail(reason="Returning protocols not supported")
@@ -703,11 +701,9 @@ def test_custom_modifier(validate, use_experimental_features):
         discard_array(qs)
         measure(c)
 
-    main.check()
-
-    custom_defs = DEF_STORE.custom_modified_defs[foo.id]
-    assert set(custom_defs) == set(CustomModifierKind)
-    assert set(custom_defs.values()) <= set(ENGINE.parsed)
+    # Test compilation with and without passes
+    validate(main.with_minimal_opt().compile())
+    validate(main.compile())
 
 
 def test_hugr_stability():
