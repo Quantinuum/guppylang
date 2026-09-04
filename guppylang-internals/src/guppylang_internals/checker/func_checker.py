@@ -143,6 +143,8 @@ def check_global_func_def(
     type_args: Inst,
     globals: Globals,
     link_name: str,
+    def_id: DefId,
+    decorator_unitary_flags: UnitaryFlags,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -151,8 +153,10 @@ def check_global_func_def(
     returns_none = isinstance(ty.output, NoneType)
     assert all(inp.name is not None for inp in ty.inputs)
 
-    check_invalid_under_dagger(func_def, ty.unitary_flags)
-    cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
+    check_invalid_under_dagger(func_def, decorator_unitary_flags)
+    cfg = CFGBuilder().build(
+        func_def.body, returns_none, globals, decorator_unitary_flags
+    )
     inputs = [
         Variable(cast("str", inp.name), inp.ty, loc, inp.flags, is_func_input=True)
         for inp, loc in zip(ty.inputs, args, strict=True)
@@ -162,6 +166,10 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
+
+    current_caller = (def_id, type_args)
+    ENGINE.register_call_graph_node(current_caller)
+
     return check_cfg(
         cfg,
         inputs,
@@ -170,6 +178,7 @@ def check_global_func_def(
         func_def.name,
         globals,
         modified_block_name_base=link_name,
+        current_caller=current_caller,
     )
 
 
@@ -226,6 +235,12 @@ def check_nested_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     def_id = DefId.fresh()
+    mono_args: Inst = ()
+
+    # Store nested functions in the call graph under their own DefIDs,
+    # although calls to them are not resolved yet
+    # (https://github.com/Quantinuum/guppylang/issues/2272)
+    ENGINE.register_call_graph_node((def_id, mono_args))
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,
@@ -243,6 +258,7 @@ def check_nested_func_def(
         func_ty,
         func_def.docstring,
         link_name,
+        is_static=False,
     )
     ENGINE.parsed[def_id] = func
 
@@ -261,7 +277,15 @@ def check_nested_func_def(
             # Otherwise, we treat it like a local name
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
-    checked_cfg = check_cfg(cfg, inputs, func_ty.output, {}, func_def.name, globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        current_caller=(def_id, ()),
+    )
     checked_def = CheckedNestedFunctionDef(
         def_id,
         checked_cfg,
@@ -277,14 +301,16 @@ def check_nested_func_def(
 
     from guppylang_internals.definition.function import CheckedFunctionDef
 
-    ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
+    ENGINE.checked[(def_id, mono_args)] = CheckedFunctionDef(
         def_id,
         func_def.name,
         func_def,
         func_ty,
         func_def.docstring,
         link_name,
+        mono_args,
         checked_cfg,
+        is_static=False,
     )
     return with_loc(func_def, checked_def)
 
@@ -295,6 +321,7 @@ def check_signature(
     def_id: DefId | None = None,
     param_var_mapping: dict[str, Parameter] | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    is_static: bool = False,
 ) -> FunctionType:
     """Checks the signature of a function definition and returns the corresponding
     Guppy type.
@@ -343,13 +370,24 @@ def check_signature(
     has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
 
     # Check if method doesn't have any arguments.
-    if has_parent and func_def.name != "__new__" and not func_def.args.args:
+    if (
+        has_parent
+        and func_def.name != "__new__"
+        and not is_static
+        and not func_def.args.args
+    ):
         raise GuppyError(MissingSelfError(func_def))
 
     for i, inp in enumerate(func_def.args.args):
-        # Special handling for `self` arguments. Note that `__new__` is excluded here
-        # since it's not a method so doesn't take `self`.
-        if i == 0 and func_def.name != "__new__" and has_parent and def_id is not None:
+        # Special handling for `self` arguments. Note that `__new__` and staticmethods
+        # are excluded here since they do not take `self`.
+        if (
+            i == 0
+            and func_def.name != "__new__"
+            and has_parent
+            and def_id is not None
+            and not is_static
+        ):
             self_def_id = DEF_STORE.type_member_parents[def_id]
             self_defn_untyped = ENGINE.get_checked(self_def_id, mono_args=())
             input: FuncInput

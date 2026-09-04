@@ -43,6 +43,7 @@ from guppylang_internals.definition.function import (
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CallReturnWires,
     CompiledCallableDef,
     CompiledHugrNodeDef,
@@ -123,6 +124,7 @@ class RawPytketDef(ParsableDef):
             False,
             None,
             unitary_flags_value=unitary_flags.value,
+            is_static=False,
         )
 
 
@@ -162,11 +164,12 @@ class RawLoadPytketDef(ParsableDef):
             self.use_arrays,
             self.source_span,
             unitary_flags.value,
+            is_static=False,
         )
 
 
 @dataclass(frozen=True)
-class ParsedPytketDef(CallableDef, CompilableDef):
+class ParsedPytketDef(CallableDef, CompilableDef, CallableEffects):
     """A circuit definition with signature.
 
     Args:
@@ -187,6 +190,12 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     unitary_flags_value: int
 
     description: str = field(default="pytket circuit", init=False)
+
+    @override
+    @property
+    def call_effects(self) -> Iterable[Effect]:
+        # borrow-array unpacks can panic
+        return [Effect.ANY] if self.use_arrays else []
 
     @override
     def compile_outer(
@@ -299,9 +308,10 @@ class ParsedPytketDef(CallableDef, CompilableDef):
 
         # Pass all arguments to call node.
         # Pytket circuits can contain `unwrap` operations which can panic.
-        # (This should match `def call_effects` in `CompiledPytketDef` below.)
         call_node = outer_func.call(
-            hugr_func, *(input_list + bool_wires + param_wires), effects=[Effect.ANY]
+            hugr_func,
+            *(input_list + bool_wires + param_wires),
+            effects=self.call_effects,
         )
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():
@@ -359,6 +369,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
             self.source_span,
             self.unitary_flags_value,
             outer_func,
+            is_static=False,
         )
 
     @override
@@ -367,7 +378,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.ty, args, ty, node, ctx)
+        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self)
         node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
@@ -377,7 +388,7 @@ class ParsedPytketDef(CallableDef, CompilableDef):
     ) -> tuple[ast.expr, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.ty, args, node, ctx)
+        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self)
         node = with_loc(node, make_global_call(self, args, inst))
         return node, ty
 
@@ -399,11 +410,6 @@ class CompiledPytketDef(ParsedPytketDef, CompiledCallableDef, CompiledHugrNodeDe
     """
 
     func_def: hf.Function
-
-    @property
-    def call_effects(self) -> Iterable[Effect]:
-        # Pytket circuits may contain borrow-array unpacks, which can panic.
-        return [Effect.ANY]
 
     @property
     def hugr_node(self) -> Node:

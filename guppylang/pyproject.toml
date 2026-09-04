@@ -34,7 +34,7 @@ dependencies = [
     "selene-sim~=0.3.0",
     "tqdm>=4.70.0",
     "pytket>=2.7.0",
-    "types-tqdm>=4.67.0.20250809",
+    "types-tqdm>=4.70.0.20260805",
 ]
 
 [project.urls]

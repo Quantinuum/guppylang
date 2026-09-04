@@ -24,7 +24,7 @@ import ast
 import copy
 import sys
 import traceback
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from types import ModuleType
@@ -75,6 +75,7 @@ from guppylang_internals.checker.errors.type_errors import (
     AttributeNotFoundError,
     BadProtocolError,
     BinaryOperatorNotDefinedError,
+    CallOnInstanceHelp,
     ConstMismatchError,
     IllegalConstant,
     InstanceMemberOnClassError,
@@ -129,6 +130,7 @@ from guppylang_internals.nodes import (
     TypeApply,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     CallableProtocolInst,
@@ -160,6 +162,7 @@ from guppylang_internals.tys.param import (
     check_all_args,
 )
 from guppylang_internals.tys.parsing import arg_from_ast
+from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
@@ -186,7 +189,6 @@ from guppylang_internals.tys.var import ExistentialVar
 
 if TYPE_CHECKING:
     from guppylang_internals.diagnostic import SubDiagnostic
-    from guppylang_internals.tys.protocol import ProtocolInst
 
 
 # Mapping from unary AST op to dunder method and display name
@@ -359,9 +361,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     ) -> tuple[ast.expr, Subst]:
         if not is_list_type(ty):
             return self._fail(ty, node)
+        # Check the append method now, before we need it during compilation
+        func = ENGINE.get_instance_func(ty, "append")
+        assert isinstance(func, CheckableGenericDef)
         node.generators, node.elt, elt_ty = synthesize_comprehension(
             node, node.generators, node.elt, self.ctx
         )
+        ENGINE.register_generic_use(func, (TypeArg(elt_ty),))
         subst = unify(get_element_type(ty), elt_ty, {})
         if subst is None:
             actual = list_type(elt_ty)
@@ -381,7 +387,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
-                return defn.check_call(node.args, ty, node, self.ctx)
+                try:
+                    return defn.check_call(node.args, ty, node, self.ctx)
+                except GuppyError as e:
+                    _add_instance_call_on_type_hint(e, node.func)
+                    raise
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -391,9 +401,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
 
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType, a generic parameter with a `Callable`
-        # bound, or a Tuple of FunctionTypes
+        # bound, or a Tuple of FunctionTypes. Try each in turn...
         if isinstance(func_ty, FunctionType):
-            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx)
+            args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx, None)
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
@@ -401,8 +412,14 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if isinstance(func_ty, BoundTypeVar):
             for protocol in func_ty.implements:
                 if isinstance(protocol, CallableProtocolInst):
+                    # Not yet monomorphized, so not to be compiled; effects irrelevant.
+                    assert self.ctx.current_caller is not None
+                    assert all(
+                        isinstance(a, TypeArg) and isinstance(a.ty, BoundTypeVar)
+                        for a in self.ctx.current_caller[1]
+                    )
                     args, subst, inst = check_call(
-                        protocol.sig, node.args, ty, node, self.ctx
+                        protocol.sig, node.args, ty, node, self.ctx, None
                     )
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
@@ -418,10 +435,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 )
 
             tensor_ty = function_tensor_signature(function_elements)
-
+            # (We will probably need to do better if tensors become non-experimental)
             processed_args, subst, inst = check_call(
-                tensor_ty, node.args, ty, node, self.ctx
+                tensor_ty, node.args, ty, node, self.ctx, None
             )
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             assert len(inst) == 0
             return with_loc(
                 node,
@@ -647,6 +665,35 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # manually need to call the helper instead of relying on the standard
             # visit_Name (that is called through synthesize)
             ty = get_type_opt(node.value)
+
+            if node.value.id not in self.ctx.locals:
+                if node.value.id in self.ctx.generic_param_inst:
+                    typearg = self.ctx.generic_param_inst[node.value.id]
+                    if isinstance(typearg, TypeArg):
+                        match typearg.ty:
+                            case BoundTypeVar() as ty:
+                                # staticmethods on protocols currently unsupported
+                                raise GuppyError(
+                                    UnsupportedError(node, "staticmethods on protocols")
+                                )
+                                # return self._check_bound_type_method(ty, node)
+                            case _ as ty:
+                                # case for when the type is known
+                                if func := ENGINE.get_instance_func(ty, node.attr):
+                                    return with_loc(
+                                        node, make_global_name(node.attr, func.id)
+                                    ), func.ty
+                elif node.value.id in self.ctx.globals:
+                    defn = self.ctx.globals[node.value.id]
+                    if (
+                        isinstance(defn, TypeDef)
+                        and (func := ENGINE.get_instance_func(defn, node.attr))
+                        is not None
+                    ):
+                        return with_loc(
+                            node, make_global_name(node.attr, func.id)
+                        ), func.ty
+
             if ty is None:
                 node.value, ty = self._check_name_id(
                     node.value.id, node.value, allow_enum=True
@@ -674,13 +721,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         elif isinstance(ty, BoundTypeVar):
             from guppylang_internals.definition.protocol import CheckedProtocolDef
 
-            # Protocols implemented by `ty` that have the method we want.
-            valid_proto_impls: list[ProtocolInst] = []
-            for proto in ty.implements:
-                proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
-                assert isinstance(proto_def, CheckedProtocolDef)
-                if node.attr in proto_def.member_defs:
-                    valid_proto_impls.append(proto)
+            valid_proto_impls = self._protos_with_method_impl_by_ty(ty, node.attr)
             match valid_proto_impls:
                 case []:
                     raise GuppyError(AttributeNotFoundError(node, ty, node.attr))
@@ -691,18 +732,30 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     assert isinstance(proto_def, CheckedProtocolDef)
                     member_ty = proto_def.member_sig(node.attr)
 
-                    name_node = with_type(
-                        member_ty,
-                        with_loc(
-                            node,
-                            make_global_name(
-                                node.attr, proto_def.member_defs[node.attr]
+                    if ENGINE.is_def_static(proto_def.member_defs[node.attr]):
+                        # return with_loc(
+                        #     node,
+                        #     GlobalName(
+                        #         id=node.attr, def_id=proto_def.member_defs[node.attr]
+                        #     ),
+                        # ), member_ty
+                        raise GuppyError(
+                            UnsupportedError(node, "staticmethods on protocols")
+                        )
+                    else:
+                        name_node = with_type(
+                            member_ty,
+                            with_loc(
+                                node,
+                                make_global_name(
+                                    node.attr,
+                                    proto_def.member_defs[node.attr],
+                                ),
                             ),
-                        ),
-                    )
-                    ty_without_self = FunctionType(
-                        member_ty.inputs[1:], member_ty.output, member_ty.params
-                    )
+                        )
+                        ty_without_self = FunctionType(
+                            member_ty.inputs[1:], member_ty.output, member_ty.params
+                        )
                     return with_loc(
                         node, PartialApply(func=name_node, args=[node.value])
                     ), ty_without_self
@@ -725,21 +778,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                     # Not a global name, thus node.value is a instantiated variant
                     is_enum_class = False
             elif method_w_ty := self._check_method(ty, node):
-                if isinstance(node.value, GlobalName):
-                    # Method exists, but on enum instances (since class methods are
-                    # currently unsupported). Fail with a helpful error instead of
-                    # the generic "no variant" message below.
-                    example_variant = next(iter(ty.variants_as_dict))
-                    err = InstanceMemberOnClassError(
-                        attr_span, str(ty), node.attr, "method"
-                    )
-                    err.add_sub_diagnostic(
-                        InstanceMemberOnClassError.CallOnInstanceHelp(
-                            None, f"{ty}.{example_variant}(...).{node.attr}(...)"
-                        )
-                    )
-                    raise GuppyTypeError(err)
-                # Otherwise, we may try to access a method from the enum class
                 return method_w_ty[0], method_w_ty[1]
             else:
                 # If node.value is a GlobalName it corresponds to the enum class
@@ -757,7 +795,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 attr_span, defn.name, node.attr, member_kind
             )
             err.add_sub_diagnostic(
-                InstanceMemberOnClassError.CallOnInstanceHelp(None, example)
+                CallOnInstanceHelp(None, member_kind, node.attr, example)
             )
             raise GuppyTypeError(err)
 
@@ -801,18 +839,66 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def _check_method(
         self, ty: Type, node: ast.Attribute
-    ) -> tuple[PartialApply, FunctionType] | None:
+    ) -> tuple[ast.expr, FunctionType] | None:
         """Helper method to check if an attribute access corresponds to a method call"""
         if func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, make_global_name(func.name, func.id))
             )
-            # Make a closure by partially applying the `self` argument
             # TODO: Try to infer some type args based on `self`
-            result_ty = FunctionType(func.ty.inputs[1:], func.ty.output, func.ty.params)
-            return with_loc(node, PartialApply(func=name, args=[node.value])), result_ty
+            if ENGINE.is_def_static(func.id):
+                # if this is a staticmethod do not partially apply `self`
+                return with_loc(node, make_global_name(node.attr, func.id)), func.ty
+            else:
+                # Make a closure by partially applying the `self` argument
+                # TODO: Try to infer some type args based on `self`
+                result_ty = FunctionType(
+                    func.ty.inputs[1:], func.ty.output, func.ty.params
+                )
+                return with_loc(
+                    node, PartialApply(func=name, args=[node.value])
+                ), result_ty
         else:
             return None
+
+    def _protos_with_method_impl_by_ty(
+        self, ty: BoundTypeVar, method_name: str
+    ) -> Sequence[ProtocolInst]:
+        from guppylang_internals.definition.protocol import CheckedProtocolDef
+
+        valid_proto_impls: list[ProtocolInst] = []
+        for proto in ty.implements:
+            proto_def = ENGINE.get_checked(proto.def_id, proto.type_args)
+            assert isinstance(proto_def, CheckedProtocolDef)
+            if method_name in proto_def.member_defs:
+                valid_proto_impls.append(proto)
+        return valid_proto_impls
+
+    def _check_bound_type_method(
+        self, ty: BoundTypeVar, node: ast.Attribute
+    ) -> tuple[ast.expr, FunctionType]:
+        from guppylang_internals.definition.protocol import (
+            CheckedProtocolDef,
+        )
+
+        # check for protocol methods called on the type
+        valid_proto_impls = self._protos_with_method_impl_by_ty(ty, node.attr)
+        match valid_proto_impls:
+            case []:
+                raise GuppyError(AttributeNotFoundError(node, ty, node.attr))
+            case [proto_impl]:
+                proto_def = ENGINE.get_checked(proto_impl.def_id, proto_impl.type_args)
+                assert isinstance(proto_def, CheckedProtocolDef)
+                member_ty = proto_def.member_sig(node.attr)
+                return with_loc(
+                    node,
+                    GlobalName(
+                        id=node.attr,
+                        def_id=proto_def.member_defs[node.attr],
+                    ),
+                ), member_ty
+            case _:
+                raise RequiresMonomorphizationError
 
     def _is_python_module(self, node: ast.expr) -> ModuleType | None:
         """Checks whether an AST node corresponds to a Python module in scope."""
@@ -849,6 +935,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             node, node.generators, node.elt, self.ctx
         )
         result_ty = list_type(elt_ty)
+        # Check the append method now, before we need it during compilation
+        func = ENGINE.get_instance_func(result_ty, "append")
+        assert isinstance(func, CheckableGenericDef)
+        ENGINE.register_generic_use(func, (TypeArg(elt_ty),))
         return node, result_ty
 
     def visit_DesugaredGeneratorExpr(
@@ -1039,7 +1129,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         if isinstance(node.func, GlobalName):
             defn = self.ctx.globals[node.func.def_id]
             if isinstance(defn, CallableDef):
-                return defn.synthesize_call(node.args, node, self.ctx)
+                try:
+                    return defn.synthesize_call(node.args, node, self.ctx)
+                except GuppyError as e:
+                    _add_instance_call_on_type_hint(e, node.func)
+                    raise
 
         # When calling a `PartialApply` node, we just move the args into this call
         if isinstance(node.func, PartialApply):
@@ -1049,7 +1143,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Otherwise, it must be a function as a higher-order value, or a tensor
         if isinstance(ty, FunctionType):
-            args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx)
+            args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx, None)
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
 
@@ -1058,8 +1153,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if isinstance(
                     protocol, CallableProtocolInst | ModifiableFunctionProtocolInst
                 ):
+                    # Not yet monomorphized, so not to be compiled; effects irrelevant.
                     args, return_ty, inst = synthesize_call(
-                        protocol.sig, node.args, node, self.ctx
+                        protocol.sig, node.args, node, self.ctx, None
                     )
                     assert inst == (), "Callables are not generic"
                     node.func = instantiate_poly(node.func, protocol.sig, inst)
@@ -1075,8 +1171,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
             tensor_ty = function_tensor_signature(function_elems)
             args, return_ty, inst = synthesize_call(
-                tensor_ty, node.args, node, self.ctx
+                tensor_ty, node.args, node, self.ctx, None
             )
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
+            # (we'll need to do better if tensored functions become non-experimental)
             assert len(inst) == 0
 
             return with_loc(
@@ -1162,6 +1260,26 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def generic_visit(self, node: ast.expr) -> NoReturn:
         """Called if no explicit visitor function exists for a node."""
         raise GuppyError(UnsupportedError(node, "This expression", singular=True))
+
+
+def _add_instance_call_on_type_hint(guppyerror: GuppyError, func: GlobalName) -> None:
+    """Add hint that the caller might mean to call an instance method on an instance."""
+    if (
+        (parent := DEF_STORE.type_member_parents.get(func.def_id))
+        and not ENGINE.is_def_static(func.def_id)
+        and func.id != "__new__"
+        and isinstance(guppyerror.error, WrongNumberOfArgsError)
+    ):
+        # if this is a non-staticmethod method which is not
+        # a constructor and gets called incorrectly we can add a hint
+        guppyerror.error.add_sub_diagnostic(
+            CallOnInstanceHelp(
+                None,
+                "method",
+                func.id,
+                f"{DEF_STORE.raw_defs[parent].name}(...).{func.id}(...)",
+            )
+        )
 
 
 def check_type_against(
@@ -1526,8 +1644,18 @@ def check_comptime_arg(
     return subst
 
 
+def register_effects(ctx: Context, effects: Iterable[Effect]) -> None:
+    """Registers known effects for the function currently being checked."""
+    assert ctx.current_caller is not None
+    ENGINE.register_effects(ctx.current_caller, effects)
+
+
 def synthesize_call(
-    func_ty: FunctionType, args: list[ast.expr], node: AstNode, ctx: Context
+    func_ty: FunctionType,
+    args: list[ast.expr],
+    node: AstNode,
+    ctx: Context,
+    callee: CallableDef | None,
 ) -> tuple[list[ast.expr], Type, Inst]:
     """Synthesizes the return type of a function call.
 
@@ -1558,6 +1686,10 @@ def synthesize_call(
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
 
+    # Register this call in the callgraph.
+    if callee is not None:
+        ENGINE.register_call(ctx, callee, inst)
+
     return args, unquantified.output.substitute(subst), inst
 
 
@@ -1567,6 +1699,8 @@ def check_call(
     ty: Type,
     node: AstNode,
     ctx: Context,
+    callee: CallableDef | None,
+    *,
     kind: str = "expression",
 ) -> tuple[list[ast.expr], Subst, Inst]:
     """Checks the return type of a function call against a given type.
@@ -1602,7 +1736,7 @@ def check_call(
     inputs_copy = copy.deepcopy(inputs)
 
     try:
-        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx)
+        inputs, synth, inst = synthesize_call(func_ty, inputs, node, ctx, callee)
         subst = unify(ty, synth, {})
         if subst is None:
             raise GuppyTypeError(TypeMismatchError(node, ty, synth, kind))
@@ -1653,6 +1787,10 @@ def check_call(
 
     # Finally, check that the instantiation respects the linearity requirements
     check_inst(func_ty, inst, node)
+
+    # Register this call in the callgraph.
+    if callee is not None:
+        ENGINE.register_call(ctx, callee, inst)
 
     return inputs, subst, inst
 
@@ -1805,7 +1943,12 @@ def check_generator(
     # The rest is checked in a new nested context to ensure that variables don't escape
     # their scope
     inner_locals: Locals[str, Variable] = Locals({}, parent_scope=ctx.locals)
-    inner_ctx = Context(ctx.globals, inner_locals, ctx.generic_param_inst)
+    inner_ctx = Context(
+        ctx.globals,
+        inner_locals,
+        ctx.generic_param_inst,
+        current_caller=ctx.current_caller,
+    )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
     gen.iter = with_type(iter_ty, gen.iter)
