@@ -1555,14 +1555,6 @@ def check_comptime_arg(
     return subst
 
 
-def _identify_callee(node: ast.expr) -> str | None:
-    match node:
-        case PlaceNode(place=Variable(name=n)):
-            return n
-        case _:
-            return None
-
-
 def register_effects(ctx: Context, effects: Iterable[Effect]) -> None:
     """Registers known effects for the function currently being checked."""
     assert ctx.current_caller is not None
