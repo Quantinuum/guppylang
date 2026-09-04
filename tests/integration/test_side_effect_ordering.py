@@ -2,11 +2,9 @@
 side-effects.
 """
 
-import pytest
 from hugr import ops, Hugr, Node
 from hugr.std import PRELUDE
 from hugr import ops as hops
-from hugr import InPort
 
 from guppylang import guppy
 from guppylang.std.builtins import owned, panic
@@ -412,25 +410,15 @@ def test_nested_panicking_calls(validate):
     main_calls = [
         node
         for node, data in hugr.nodes()
-        if isinstance(data.op, hops.CallIndirect) and main_node in ancestors(hugr, node)
+        if isinstance(data.op, hops.Call) and main_node in ancestors(hugr, node)
     ]
-
-    def get_called_func_name(call_indirect):
-        [loadfunc] = hugr.linked_ports(InPort(call_indirect, 0))
-        assert isinstance(hugr[loadfunc.node].op, hops.LoadFunc)
-        [func] = hugr.linked_ports(InPort(loadfunc.node, 0))
-        assert isinstance(hugr[func.node].op, hops.FuncDefn)
-        return hugr[func.node].op.f_name
 
     assert [
-        "panicking_function" in get_called_func_name(node) for node in main_calls
+        "panicking_function" in get_called_func_name(hugr, node) for node in main_calls
     ] == [True, False, False, True]
-    assert ["pure_function" in get_called_func_name(node) for node in main_calls] == [
-        False,
-        True,
-        True,
-        False,
-    ]
+    assert [
+        "pure_function" in get_called_func_name(hugr, node) for node in main_calls
+    ] == [False, True, True, False]
     [panic_call1, pure_call1, pure_call2, panic_call2] = main_calls
 
     [panic_op] = [
@@ -452,15 +440,6 @@ def test_nested_panicking_calls(validate):
     for op in [panic_call1, pure_call1, panic_op]:
         assert not has_order_path(hugr, pure_call2, op)
 
-    # For the time being:
-    check_order(hugr, [panic_call1, pure_call1, panic_op, pure_call2, panic_call2])
-    pytest.xfail(
-        "Calls to nested functions are not resolved in checking,"
-        " leading to spurious order edges - see"
-        " https://github.com/Quantinuum/guppylang/issues/2272"
-    )
-
-    # Otherwise - the desired outcome when previous is fixed:
     for pure_call in [pure_call1, pure_call2]:
         for op in [panic_call1, panic_op, panic_call2]:
             assert not has_order_path(hugr, pure_call, op)

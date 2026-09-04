@@ -4,8 +4,8 @@ from guppylang import guppy
 from guppylang.std.array import array
 from guppylang.std.builtins import control, dagger, nat, panic
 from guppylang.std.quantum import qubit
-from guppylang_internals.checker.callgraph import CallGraph
-from guppylang_internals.checker.effects_checker import compute_effects
+from guppylang_internals.analysis.callgraph import CallGraph
+from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.tys import Effect
@@ -64,7 +64,7 @@ def test_custom_modifier_effects_use_expanded_call_graph(
         fallback()
 
     ENGINE.check([custom_main.id, fallback_main.id])
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.other_callee_effects)
+    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
 
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
     assert effects[custom_use.unmodified_callee] == frozenset({Effect.ANY})
@@ -100,7 +100,7 @@ def test_recursive_custom_modifier_effects(use_experimental_features):
     # currently refer to its enclosing class name from inside the class-body frame.
     ENGINE.call_graph[custom_def].append(custom_def)
 
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.other_callee_effects)
+    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
     assert custom_def in ENGINE.call_graph[custom_def]
     assert effects[custom_def] == frozenset({Effect.ANY})
     assert effects[main.id, ()] == frozenset({Effect.ANY})

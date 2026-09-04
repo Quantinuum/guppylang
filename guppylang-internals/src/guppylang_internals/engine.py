@@ -285,8 +285,8 @@ class CompilationEngine:
 
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
+    call_graph: dict[MonoDefId, list[MonoDefId]]
     func_effects: dict[MonoDefId, set["Effect"]]
-    other_callee_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site for future diagnostics.
     modifiers_ctx_by_edges: dict[CallGraphEdge, dict[ModifierContext, "AstNode"]]
@@ -345,11 +345,11 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
+        self.call_graph = {}
         self.func_effects = {}
         self.modifiers_ctx_by_edges = {}
         self.resolved_modified_calls = {}
         self.custom_uses_by_mono_def = {}
-        self.other_callee_effects = {}
 
     def register_call(
         self,
