@@ -706,7 +706,7 @@ class CompilationEngine:
             return
 
         previous_control_count: int | None = None
-        for ancestor in self._resolved_call_ancestors(caller, callers):
+        for ancestor in _resolved_call_ancestors(caller, callers):
             ancestor_use = self.custom_uses_by_mono_def.get(ancestor)
             if (
                 ancestor_use is None
@@ -756,24 +756,6 @@ class CompilationEngine:
                     if resolved is not None:
                         callers[resolved].add(caller)
         return callers
-
-    @staticmethod
-    def _resolved_call_ancestors(
-        callee: MonoDefId, callers: "dict[MonoDefId, set[MonoDefId]]"
-    ) -> set[MonoDefId]:
-        """Returns callers that transitively reach ``callee`` on resolved edges.
-
-        ``callers`` is the reverse adjacency produced by `_build_resolved_callers`.
-        """
-        ancestors: set[MonoDefId] = set()
-        worklist = [callee]
-        while worklist:
-            current = worklist.pop()
-            if current in ancestors:
-                continue
-            ancestors.add(current)
-            worklist.extend(callers.get(current, ()))
-        return ancestors
 
     def _resolve_modified_call(
         self, callee: MonoDefId, modifier_ctx: ModifierContext
@@ -971,6 +953,25 @@ class CompilationEngine:
             ),
             requested_defs,
         )
+
+
+def _resolved_call_ancestors(
+    callee: MonoDefId, callers: "dict[MonoDefId, set[MonoDefId]]"
+) -> set[MonoDefId]:
+    """Returns callers that transitively reach ``callee`` on resolved edges.
+
+    ``callers`` is the reverse adjacency produced by
+    `CompilationEngine._build_resolved_callers`.
+    """
+    ancestors: set[MonoDefId] = set()
+    worklist = [callee]
+    while worklist:
+        current = worklist.pop()
+        if current in ancestors:
+            continue
+        ancestors.add(current)
+        worklist.extend(callers.get(current, ()))
+    return ancestors
 
 
 @dataclass(frozen=True)
