@@ -358,7 +358,7 @@ class CompilationEngine:
         ctx: "Context",
         callee: "CallableDef",
         inst: Inst,
-        call: "AstNode",
+        call_node: "AstNode",
     ) -> None:
         """Registers a function call in the call graph."""
         # current_caller is not set for e.g. comptime but should be here:
@@ -373,7 +373,7 @@ class CompilationEngine:
             callee_mono_def_id: MonoDefId = (callee.id, inst)
             edge = (ctx.current_caller, callee_mono_def_id)
             modifier_contexts = self.modifiers_ctx_by_edges.setdefault(edge, {})
-            modifier_contexts.setdefault(ctx.modifier_ctx, call)
+            modifier_contexts.setdefault(ctx.modifier_ctx, call_node)
 
     def register_effects(self, caller: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a caller."""
