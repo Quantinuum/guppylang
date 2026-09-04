@@ -27,7 +27,7 @@ class CallGraph:
 
         rev_result = []
         comps: dict[MonoDefId, CallGraphComponent] = {}
-        # Process callees first
+        # Topsort puts callers first - reverse so we compute callees ready for caller.
         for component in reversed(list(nx.topological_sort(condensed))):
             members: frozenset[MonoDefId] = frozenset(
                 condensed.nodes[component]["members"]
@@ -46,10 +46,10 @@ class CallGraph:
         return list(reversed(rev_result))
 
     def __init__(self, calls: Mapping[MonoDefId, Iterable[MonoDefId]]):
-        self._all_calls = calls  # deepcopy?
+        self._all_calls = calls
         self._graph = nx.DiGraph()
         for mono_def_id in calls:
-            if is_concrete(
+            if _is_concrete(
                 mono_def_id
             ):  # Only concrete functions will actually be compiled
                 self._graph.add_node(mono_def_id)
@@ -62,7 +62,7 @@ class CallGraph:
                     self._graph.add_edge(mono_def_id, tgt)
 
 
-def is_concrete(mono_def_id: MonoDefId) -> bool:
+def _is_concrete(mono_def_id: MonoDefId) -> bool:
     """Returns True if the given monomorphized definition is concrete
     (i.e. does not contain any BoundVar's)."""
     finder = BoundVarFinder()
@@ -78,7 +78,7 @@ class CallGraphComponent:
 
     members: frozenset[MonoDefId]
 
-    """ Calls from functions in this component to functions outside it.
+    """Calls from functions in this component to functions outside it.
     Each tuple is (source, target component, target), with the target component being
-    None if the target is not in the call graph."""
+    None if the target is not a node (was not passed to `register_call_graph_node`)."""
     external_callees: frozenset[tuple[MonoDefId, CallGraphComponent | None, MonoDefId]]

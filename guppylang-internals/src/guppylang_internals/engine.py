@@ -19,10 +19,8 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
-from guppylang_internals.checker.callgraph import CallGraph
-from guppylang_internals.checker.effects_checker import (
-    compute_effects,
-)
+from guppylang_internals.analysis.callgraph import CallGraph
+from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.checker.errors.generic import (
     RecursiveModifierControlCountError,
 )
@@ -310,7 +308,7 @@ class CompilationEngine:
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
     call_graph: dict[MonoDefId, list[MonoDefId]]
-    other_callee_effects: dict[MonoDefId, set["Effect"]]
+    func_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site for future diagnostics.
     modifiers_ctx_by_edges: dict[CallGraphEdge, dict[ModifierContext, "AstNode"]]
@@ -370,36 +368,37 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_graph = {}
+        self.func_effects = {}
         self.modifiers_ctx_by_edges = {}
         self.resolved_modified_calls = {}
         self.custom_uses_by_mono_def = {}
-        self.other_callee_effects = {}
 
     def register_call(
         self,
         ctx: "Context",
         callee: "CallableDef",
         inst: Inst,
-        call: "AstNode",
+        call_node: "AstNode",
     ) -> None:
-        """Registers a function call in the call graph."""
+        """Registers a function call in the call graph. If the callee is a
+        `CallableEffects` then also registers those effects for that callee."""
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
         assert ctx.current_caller in self.call_graph
         self.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
-            # ALAN this'll happen a lot, we should switch to a set
             self.register_effects((callee.id, inst), callee.call_effects)
         elif isinstance(callee, CallableDef):
             # Effects not known yet, will be computed.
             callee_mono_def_id: MonoDefId = (callee.id, inst)
             edge = (ctx.current_caller, callee_mono_def_id)
             modifier_contexts = self.modifiers_ctx_by_edges.setdefault(edge, {})
-            modifier_contexts.setdefault(ctx.modifier_ctx, call)
+            modifier_contexts.setdefault(ctx.modifier_ctx, call_node)
 
-    def register_effects(self, caller: MonoDefId, effects: "Iterable[Effect]") -> None:
-        """Registers known effects for a caller."""
-        self.other_callee_effects.setdefault(caller, set()).update(effects)
+    def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
+        """Registers known effects for a function, for when the effects cannot be
+        attributed to some concrete callee (i.e. with its own MonoDefId)."""
+        self.func_effects.setdefault(func, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -728,7 +727,7 @@ class CompilationEngine:
             return
 
         previous_control_count: int | None = None
-        for ancestor in self._resolved_call_ancestors(caller, callers):
+        for ancestor in _resolved_call_ancestors(caller, callers):
             ancestor_use = self.custom_uses_by_mono_def.get(ancestor)
             if (
                 ancestor_use is None
@@ -778,24 +777,6 @@ class CompilationEngine:
                     if resolved is not None:
                         callers[resolved].add(caller)
         return callers
-
-    @staticmethod
-    def _resolved_call_ancestors(
-        callee: MonoDefId, callers: "dict[MonoDefId, set[MonoDefId]]"
-    ) -> set[MonoDefId]:
-        """Returns callers that transitively reach ``callee`` on resolved edges.
-
-        ``callers`` is the reverse adjacency produced by `_build_resolved_callers`.
-        """
-        ancestors: set[MonoDefId] = set()
-        worklist = [callee]
-        while worklist:
-            current = worklist.pop()
-            if current in ancestors:
-                continue
-            ancestors.add(current)
-            worklist.extend(callers.get(current, ()))
-        return ancestors
 
     def _resolve_modified_call(
         self, callee: MonoDefId, modifier_ctx: ModifierContext
@@ -903,7 +884,7 @@ class CompilationEngine:
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
         callgraph = CallGraph(self.call_graph)
-        effects = compute_effects(callgraph, self.other_callee_effects)
+        effects = compute_effects(callgraph, self.func_effects)
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -993,6 +974,25 @@ class CompilationEngine:
             ),
             requested_defs,
         )
+
+
+def _resolved_call_ancestors(
+    callee: MonoDefId, callers: "dict[MonoDefId, set[MonoDefId]]"
+) -> set[MonoDefId]:
+    """Returns callers that transitively reach ``callee`` on resolved edges.
+
+    ``callers`` is the reverse adjacency produced by
+    `CompilationEngine._build_resolved_callers`.
+    """
+    ancestors: set[MonoDefId] = set()
+    worklist = [callee]
+    while worklist:
+        current = worklist.pop()
+        if current in ancestors:
+            continue
+        ancestors.add(current)
+        worklist.extend(callers.get(current, ()))
+    return ancestors
 
 
 @dataclass(frozen=True)

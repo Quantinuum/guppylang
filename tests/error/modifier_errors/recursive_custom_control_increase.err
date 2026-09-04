@@ -1,10 +1,10 @@
-Error: Diverging controlled recursive custom modifier definition (at $FILE:19:12)
+Error: Diverging controlled recursive custom modifier definition (at $FILE:29:12)
    | 
-17 |         extra_control = qubit()
-18 |         with control(controls), control(extra_control):
-19 |             foo(q)
+27 |         extra_control = qubit()
+28 |         with control(controls), control(extra_control):
+29 |             foo(q)
    |             ^^^^^^ This recursive call increases the number of controls from 1
-   |                    to 2
+   |                    to 3
 
 Custom controlled implementations that recursively increase the number of
 controllers cannot be monomorphized.

@@ -802,7 +802,7 @@ requires-dist = [
     { name = "guppylang-internals", editable = "guppylang-internals" },
     { name = "numpy", specifier = ">=2.2.6,<3" },
     { name = "pytket", specifier = ">=2.7.0" },
-    { name = "selene-hugr-qis-compiler", git = "https://github.com/quantinuum/tket2?subdirectory=qis-compiler&rev=abfaaa4" },
+    { name = "selene-hugr-qis-compiler", git = "https://github.com/quantinuum/tket2?subdirectory=qis-compiler&rev=cecdc83" },
     { name = "selene-sim", specifier = "~=0.3.0" },
     { name = "tqdm", specifier = ">=4.70.0" },
     { name = "types-tqdm", specifier = ">=4.70.0.20260805" },
@@ -828,7 +828,7 @@ requires-dist = [
     { name = "hugr", specifier = "~=0.18.5" },
     { name = "networkx", specifier = ">=3.4.2" },
     { name = "pytket", specifier = ">=2.18.1" },
-    { name = "tket", extras = ["pytket"], git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=abfaaa4" },
+    { name = "tket", extras = ["pytket"], git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=cecdc83" },
     { name = "tket-exts", specifier = "~=0.14.0" },
     { name = "types-networkx", specifier = ">=3.6.1.20260612" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
@@ -2784,7 +2784,7 @@ wheels = [
 [[package]]
 name = "selene-hugr-qis-compiler"
 version = "0.4.2"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=qis-compiler&rev=abfaaa4#abfaaa4e863d8ddde1c6d6dddb62c0d18a2bd72d" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=qis-compiler&rev=cecdc83#cecdc839cfbdb7988d1b09924a77287b40280ea5" }
 
 [[package]]
 name = "selene-sim"
@@ -3016,7 +3016,7 @@ wheels = [
 [[package]]
 name = "tket"
 version = "0.15.7"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=abfaaa4#abfaaa4e863d8ddde1c6d6dddb62c0d18a2bd72d" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-py&rev=cecdc83#cecdc839cfbdb7988d1b09924a77287b40280ea5" }
 dependencies = [
     { name = "hugr" },
     { name = "tket-eccs" },
@@ -3031,12 +3031,12 @@ pytket = [
 [[package]]
 name = "tket-eccs"
 version = "0.6.0"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-eccs&rev=abfaaa4#abfaaa4e863d8ddde1c6d6dddb62c0d18a2bd72d" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-eccs&rev=cecdc83#cecdc839cfbdb7988d1b09924a77287b40280ea5" }
 
 [[package]]
 name = "tket-exts"
 version = "0.14.1"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-exts&rev=abfaaa4#abfaaa4e863d8ddde1c6d6dddb62c0d18a2bd72d" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket-exts&rev=cecdc83#cecdc839cfbdb7988d1b09924a77287b40280ea5" }
 dependencies = [
     { name = "hugr" },
 ]

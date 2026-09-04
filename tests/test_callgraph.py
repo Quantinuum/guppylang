@@ -6,17 +6,20 @@ from guppylang_internals.engine import ENGINE
 def test_simple():
     """Test that a simple call graph is built correctly."""
 
+    @guppy.declare
+    def leaf_decl() -> int: ...
+
     @guppy
     def leaf() -> int:
         return 42
 
     @guppy
     def caller1() -> int:
-        return leaf()
+        return leaf() + leaf_decl()
 
     @guppy
     def caller2() -> int:
-        return leaf()
+        return leaf() + leaf_decl()
 
     @guppy
     def root() -> int:
@@ -24,8 +27,8 @@ def test_simple():
 
     root.check()
 
-    # After checking we should have call graph node for root, caller1, caller2 (but not
-    # leaf since it doesn't call anything so it is only implicitly a node by being in
+    # After checking we should have call graph nodes for root, caller1, caller2 and leaf
+    # (leaf since it doesn't call anything so it is only implicitly a node by being in
     # the list of callees for one of the callers).
     root_data = ENGINE.call_graph.get((root.id, ()))
     assert root_data is not None
@@ -33,12 +36,16 @@ def test_simple():
     assert caller1_data is not None
     caller2_data = ENGINE.call_graph.get((caller2.id, ()))
     assert caller2_data is not None
+    assert (leaf.id, ()) in ENGINE.call_graph
+    assert ENGINE.call_graph.get((leaf_decl.id, ())) is None
 
     # Verify edges point to the right callees.
     assert (caller1.id, ()) in root_data
     assert (caller2.id, ()) in root_data
     assert (leaf.id, ()) in caller1_data
+    assert (leaf_decl.id, ()) in caller1_data
     assert (leaf.id, ()) in caller2_data
+    assert (leaf_decl.id, ()) in caller2_data
 
 
 def test_recursive():

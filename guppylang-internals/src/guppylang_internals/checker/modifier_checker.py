@@ -19,9 +19,7 @@ from guppylang_internals.tys.ty import (
 
 
 def check_modified_block(
-    modified_block: ModifiedBlock,
-    bb: BB,
-    ctx: Context,
+    modified_block: ModifiedBlock, bb: BB, ctx: Context
 ) -> CheckedModifiedBlock:
     """Type checks a modifier definition."""
     cfg = modified_block.cfg

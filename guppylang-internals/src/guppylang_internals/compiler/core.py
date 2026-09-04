@@ -123,8 +123,11 @@ class CompilerContext(ToHugrContext):
     # Info computed from callgraph before compilation begins
     effects: Mapping[MonoDefId, frozenset["Effect"]]
 
-    #: Concrete custom modifier uses grouped by unmodified-callee monomorphization.
-    custom_uses_by_unmodified_callee: dict[MonoDefId, list[ConcreteCustomUse]]
+    #: Concrete custom modifier uses grouped first by unmodified-callee
+    #: monomorphization, then by modifier kind.
+    custom_uses_by_unmodified_callee: dict[
+        MonoDefId, dict[CustomModifierKind, list[ConcreteCustomUse]]
+    ]
 
     def __init__(
         self,
@@ -140,8 +143,8 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
         self.effects = effects
-        self.custom_uses_by_unmodified_callee = _group_custom_uses_by_unmodified_callee(
-            custom_uses_by_mono_def
+        self.custom_uses_by_unmodified_callee = (
+            _group_custom_uses_by_unmodified_callee_and_kind(custom_uses_by_mono_def)
         )
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
@@ -182,55 +185,48 @@ class CompilerContext(ToHugrContext):
 
         return self.compiled[def_id, mono_args]
 
-    # NICOLA: there are a lot for loop packing and unpacking custom modifier uses, can we avoid this  # noqa: E501
     def _compile_custom_modifier_uses(
         self, unmodified_callee: MonoDefId
     ) -> tuple[str | None, list[str] | None, list[str] | None]:
         """Compiles the custom uses for an unmodified-callee monomorphization."""
-        custom_uses = self.custom_uses_by_unmodified_callee[unmodified_callee]
-
-        # Group custom definitions by modification kind.
-        by_kind: dict[CustomModifierKind, list[ConcreteCustomUse]] = {}
-        for custom_use in custom_uses:
-            assert custom_use.unmodified_callee == unmodified_callee
-            by_kind.setdefault(custom_use.kind, []).append(custom_use)
+        by_kind = self.custom_uses_by_unmodified_callee[unmodified_callee]
 
         daggered: str | None = None
-        controlled: list[str] | None = None
-        ctrl_daggered: list[str] | None = None
-        for kind, kind_uses in by_kind.items():
-            if kind == CustomModifierKind.DAGGERED:
-                # A daggered definition is not generic, so there must be exactly one
-                # concrete definition (the original one).
-                assert len(kind_uses) == 1
-                daggered = self._compile_custom_modifier_use(kind_uses[0]).link_name
-                continue
+        if daggered_uses := by_kind.get(CustomModifierKind.DAGGERED):
+            # A daggered definition is not generic, so there must be exactly one
+            # concrete definition (the original one).
+            assert len(daggered_uses) == 1
+            daggered = self._compile_custom_modifier_use(daggered_uses[0]).link_name
 
-            assert kind.takes_controls
-            # Group uses by number of control qubits required
-            uses_by_control_count: list[tuple[int, ConcreteCustomUse]] = []
-            for custom_use in kind_uses:
-                assert custom_use.control_count is not None
-                uses_by_control_count.append((custom_use.control_count, custom_use))
-
-            custom_link_names: list[str] = []
-            for control_count, custom_use in sorted(
-                uses_by_control_count, key=lambda item: item[0]
-            ):
-                compiled_custom = self._compile_custom_modifier_use(custom_use)
-                add_num_control_qubits(
-                    self.module.hugr[compiled_custom.hugr_node].metadata,
-                    control_count,
-                )
-                custom_link_names.append(compiled_custom.link_name)
-
-            if kind == CustomModifierKind.CONTROLLED:
-                controlled = custom_link_names
-            else:
-                assert kind == CustomModifierKind.CTRL_DAGGERED
-                ctrl_daggered = custom_link_names
+        controlled_uses = by_kind.get(CustomModifierKind.CONTROLLED)
+        controlled = (
+            self._compile_controlled_uses(controlled_uses)
+            if controlled_uses is not None
+            else None
+        )
+        ctrl_daggered_uses = by_kind.get(CustomModifierKind.CTRL_DAGGERED)
+        ctrl_daggered = (
+            self._compile_controlled_uses(ctrl_daggered_uses)
+            if ctrl_daggered_uses is not None
+            else None
+        )
 
         return daggered, controlled, ctrl_daggered
+
+    def _compile_controlled_uses(
+        self, custom_uses: list[ConcreteCustomUse]
+    ) -> list[str]:
+        """Compiles control-parameterised uses in ascending control-count order."""
+        custom_link_names: list[str] = []
+        for custom_use in sorted(custom_uses, key=_control_count):
+            control_count = _control_count(custom_use)
+            compiled_custom = self._compile_custom_modifier_use(custom_use)
+            add_num_control_qubits(
+                self.module.hugr[compiled_custom.hugr_node].metadata,
+                control_count,
+            )
+            custom_link_names.append(compiled_custom.link_name)
+        return custom_link_names
 
     def _compile_custom_modifier_use(
         self, custom_use: ConcreteCustomUse
@@ -386,15 +382,22 @@ class CompilerBase(ABC):
         self.ctx = ctx
 
 
-def _group_custom_uses_by_unmodified_callee(
+def _group_custom_uses_by_unmodified_callee_and_kind(
     custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
-) -> dict[MonoDefId, list[ConcreteCustomUse]]:
-    """Reindexes custom uses by their unmodified-callee monomorphization."""
-    grouped: dict[MonoDefId, list[ConcreteCustomUse]] = {}
+) -> dict[MonoDefId, dict[CustomModifierKind, list[ConcreteCustomUse]]]:
+    """Reindexes custom uses by unmodified callee and modifier kind."""
+    grouped: dict[MonoDefId, dict[CustomModifierKind, list[ConcreteCustomUse]]] = {}
     for custom_def, custom_use in custom_uses_by_mono_def.items():
         assert custom_def == custom_use.custom_def
-        grouped.setdefault(custom_use.unmodified_callee, []).append(custom_use)
+        by_kind = grouped.setdefault(custom_use.unmodified_callee, {})
+        by_kind.setdefault(custom_use.kind, []).append(custom_use)
     return grouped
+
+
+def _control_count(custom_use: ConcreteCustomUse) -> int:
+    """Returns the concrete control count for a control-parameterised custom use."""
+    assert custom_use.control_count is not None
+    return custom_use.control_count
 
 
 def return_var(n: int) -> str:
