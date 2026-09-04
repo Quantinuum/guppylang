@@ -251,7 +251,7 @@ class CompilationEngine:
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
     call_graph: dict[MonoDefId, list[MonoDefId]]
-    other_callee_effects: dict[MonoDefId, set["Effect"]]
+    func_effects: dict[MonoDefId, set["Effect"]]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -303,7 +303,7 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_graph = {}
-        self.other_callee_effects = {}
+        self.func_effects = {}
 
     def register_call(
         self,
@@ -322,7 +322,7 @@ class CompilationEngine:
 
     def register_effects(self, caller: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a caller."""
-        self.other_callee_effects.setdefault(caller, set()).update(effects)
+        self.func_effects.setdefault(caller, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -630,7 +630,7 @@ class CompilationEngine:
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
         callgraph = CallGraph(self.call_graph)
-        effects = compute_effects(callgraph, self.other_callee_effects)
+        effects = compute_effects(callgraph, self.func_effects)
 
         # Prepare Hugr for this module
         graph = hf.Module()
