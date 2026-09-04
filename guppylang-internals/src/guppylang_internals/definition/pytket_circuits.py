@@ -124,6 +124,7 @@ class RawPytketDef(ParsableDef):
             False,
             None,
             unitary_flags_value=unitary_flags.value,
+            is_static=False,
         )
 
 
@@ -163,6 +164,7 @@ class RawLoadPytketDef(ParsableDef):
             self.use_arrays,
             self.source_span,
             unitary_flags.value,
+            is_static=False,
         )
 
 
@@ -367,6 +369,7 @@ class ParsedPytketDef(CallableDef, CompilableDef, CallableEffects):
             self.source_span,
             self.unitary_flags_value,
             outer_func,
+            is_static=False,
         )
 
     @override

@@ -500,11 +500,8 @@ class CompilationEngine:
         assert mono_id not in self.call_graph
         self.call_graph[mono_id] = []
 
-    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
-        """Looks up an instance function with a given name for a type.
-
-        Returns `None` if the name doesn't exist or isn't a function.
-        """
+    def get_type_defn(self, ty: Type | TypeDef) -> TypeDef | None:
+        """Convert a Type | TypeDef to a TypeDef."""
         type_defn: TypeDef
         match ty:
             case TypeDef() as type_defn:
@@ -539,6 +536,16 @@ class CompilationEngine:
                 return assert_never(ty)
 
         type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
+        return type_defn
+
+    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
+        """Looks up an instance function with a given name for a type.
+
+        Returns `None` if the name doesn't exist or isn't a function.
+        """
+        type_defn = self.get_type_defn(ty)
+        if type_defn is None:
+            return None
         if (
             type_defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[type_defn.id]
@@ -548,6 +555,27 @@ class CompilationEngine:
             if isinstance(defn, CallableDef):
                 return defn
         return None
+
+    def get_type_member(self, ty: Type | TypeDef, name: str) -> DefId | None:
+        """Looks up a type member with a given name for a type.
+
+        Returns `None` if the name doesn't exist
+        """
+        type_defn = self.get_type_defn(ty)
+        if type_defn is None:
+            return None
+        if (
+            type_defn.id in DEF_STORE.type_members
+            and name in DEF_STORE.type_members[type_defn.id]
+        ):
+            return DEF_STORE.type_members[type_defn.id][name]
+        return None
+
+    def is_def_static(self, func_id: DefId) -> bool:
+        """Get staticness of parsed definition if it can be static."""
+
+        parsed = self.get_parsed(func_id)
+        return isinstance(parsed, CallableDef) and parsed.is_static
 
     @pretty_errors
     def check_single(self, id: DefId) -> None:

@@ -175,10 +175,21 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
+        else:
+            is_static = False
+            py_func = self.python_func
+
+        func_ast, docstring = parse_py_func(py_func, sources)
         func_ast.type_params = [*self.unitary_class_params, *func_ast.type_params]
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
 
@@ -189,6 +200,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             ty,
             docstring,
             link_name,
+            is_static=is_static,
             decorator_unitary_flags=(
                 self.unitary_flags
                 if self.decorator_unitary_flags is None
@@ -259,6 +271,7 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             mono_link_name,
             type_args,
             cfg,
+            is_static=self.is_static,
             decorator_unitary_flags=self.decorator_unitary_flags,
             metadata=self.metadata,
         )
@@ -348,6 +361,7 @@ class CheckedFunctionDef(ParsedFunctionDef, CompilableDef):
             self.mono_args,
             self.cfg,
             FunctionBuilder(func_def),
+            is_static=self.is_static,
             decorator_unitary_flags=self.decorator_unitary_flags,
             metadata=self.metadata,
             effects=ctx.effects[(self.id, self.mono_args)],

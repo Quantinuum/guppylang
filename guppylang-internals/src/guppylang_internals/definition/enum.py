@@ -315,6 +315,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 name=variant_name,
                 defined_at=self.defined_at,
                 ty=constructor_sig,
+                is_static=True,
                 call_checker=OwnedArgumentsCallChecker(),
                 call_compiler=ConstructorCompiler(variant.index, enum_type),
                 higher_order_value=True,
