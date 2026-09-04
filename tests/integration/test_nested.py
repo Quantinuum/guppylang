@@ -2,19 +2,19 @@ from guppylang import guppy
 from tests.util import compile_guppy
 
 
-def test_basic(validate):
-    @compile_guppy
+def test_basic(run_int_fn):
+    @guppy
     def foo(x: int) -> int:
         def bar(y: int) -> int:
-            return y
+            return y * 2
 
         return bar(x + 1)
 
-    validate(foo)
+    run_int_fn(foo, expected=12, args=[5])
 
 
-def test_call_twice(validate):
-    @compile_guppy
+def test_call_twice(run_int_fn):
+    @guppy
     def foo(x: int) -> int:
         def bar(y: int) -> int:
             return y + 3
@@ -24,11 +24,12 @@ def test_call_twice(validate):
         else:
             return bar(2 * x)
 
-    validate(foo)
+    run_int_fn(foo, expected=13, args=[5])
+    run_int_fn(foo, expected=9, args=[6])
 
 
-def test_redefine(validate):
-    @compile_guppy
+def test_redefine(run_int_fn):
+    @guppy
     def foo(x: int) -> int:
         def bar(y: int) -> int:
             return y + 3
@@ -41,13 +42,13 @@ def test_redefine(validate):
         b = bar(0)
         return a + b
 
-    validate(foo)
+    run_int_fn(foo, expected=5, args=[2])
 
 
-def test_define_twice(validate):
+def test_define_twice(run_int_fn):
     from guppylang.std.builtins import Function  # noqa: TC002
 
-    @compile_guppy
+    @guppy
     def foo(x: int) -> int:
         if x == 0:
 
@@ -64,11 +65,12 @@ def test_define_twice(validate):
 
         return bar(x)
 
-    validate(foo)
+    run_int_fn(foo, expected=3, args=[0])
+    run_int_fn(foo, expected=1, args=[43])
 
 
-def test_nested_deep(validate):
-    @compile_guppy
+def test_nested_deep(run_int_fn):
+    @guppy
     def foo(x: int) -> int:
         def bar(y: int) -> int:
             def baz(z: int) -> int:
@@ -78,20 +80,20 @@ def test_nested_deep(validate):
 
         return bar(x + 1)
 
-    validate(foo)
+    run_int_fn(foo, expected=29, args=[5])
 
 
-def test_recurse(validate):
-    @compile_guppy
+def test_recurse(run_int_fn):
+    @guppy
     def foo(x: int) -> int:
         def bar(y: int) -> int:
             if y == 0:
-                return 0
+                return 1
             return 2 * bar(y - 1)
 
         return bar(x)
 
-    validate(foo)
+    run_int_fn(foo, expected=32, args=[5])
 
 
 def test_capture_arg(validate, use_experimental_features):
