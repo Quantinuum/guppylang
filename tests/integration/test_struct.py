@@ -153,31 +153,36 @@ def test_unitary_method(validate, use_experimental_features):
         @guppy.unitary
         class apply_h:
             n = guppy.nat_var("n")
+            c = guppy.nat_var("c")
 
             @guppy
-            def __call__(self, q: qubit) -> None:
-                h(q)
+            def __call__(self, qs: array[qubit, n]) -> None:
+                h(qs[0])
 
             @guppy
-            def daggered(self, q: qubit) -> None:
-                h(q)
+            def daggered(self, qs: array[qubit, n]) -> None:
+                h(qs[0])
 
             @guppy
-            def controlled(self, q: qubit, controls: array[qubit, n]) -> None:
+            def controlled(
+                self, qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
                 h(controls[0])
 
             @guppy
-            def ctrl_daggered(self, q: qubit, controls: array[qubit, n]) -> None:
+            def ctrl_daggered(
+                self, qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
                 h(controls[0])
 
     @guppy
-    def main(s: Struct[int], ctrl: qubit, q: qubit) -> None:
+    def main(s: Struct[int], ctrl: qubit, qs: array[qubit, 2]) -> None:
         with dagger:
-            s.apply_h(q)
+            s.apply_h(qs)
         with control(ctrl):
-            s.apply_h(q)
+            s.apply_h(qs)
         with dagger, control(ctrl):
-            s.apply_h(q)
+            s.apply_h(qs)
 
     validate(main.compile_function())
 

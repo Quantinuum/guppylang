@@ -213,8 +213,20 @@ class DefinitionStore:
         self.frames[defn.id] = frame
 
     def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
+        from guppylang_internals.definition.function import RawFunctionDef
+
         self.type_members[ty_id][name] = member_id
-        self._register_type_member_parent(ty_id, member_id, adjust_frame=True)
+        member = self.raw_defs[member_id]
+        # Ordinary methods are defined directly in the type's class body, so their
+        # frame must be advanced out of that scope. A unitary method's `__call__` is
+        # defined one class scope deeper and needs to retain that frame to resolve
+        # unitary-class locals such as `n = guppy.nat_var("n")`.
+        is_unitary_call = (
+            isinstance(member, RawFunctionDef) and member.unitary_class_at is not None
+        )
+        self._register_type_member_parent(
+            ty_id, member_id, adjust_frame=not is_unitary_call
+        )
 
         # When a `@guppy.unitary` class is used as method, the custom implementations
         # are member too: their  first argument is the same `self` as the unmodified
