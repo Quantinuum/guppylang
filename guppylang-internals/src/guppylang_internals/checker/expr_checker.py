@@ -397,11 +397,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         # Otherwise, it must be a function as a higher-order value - something
         # whose type is either a FunctionType, a generic parameter with a `Callable`
         # bound, or a Tuple of FunctionTypes. Try each in turn...
-        effects: Iterable[Effect]
         if isinstance(func_ty, FunctionType):
-            effects = [Effect.ANY]  # worst-case/conservative assumption
             args, subst, inst = check_call(func_ty, node.args, ty, node, self.ctx, None)
-            register_effects(self.ctx, effects)
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             check_inst(func_ty, inst, node)
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
@@ -432,12 +430,11 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
                 )
 
             tensor_ty = function_tensor_signature(function_elements)
-            effects = [Effect.ANY]  # worst-case/conservative assumption
             # (We will probably need to do better if tensors become non-experimental)
             processed_args, subst, inst = check_call(
                 tensor_ty, node.args, ty, node, self.ctx, None
             )
-            register_effects(self.ctx, effects)
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             assert len(inst) == 0
             return with_loc(
                 node,
@@ -1069,9 +1066,8 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
         # Otherwise, it must be a function as a higher-order value, or a tensor
         if isinstance(ty, FunctionType):
-            effects = [Effect.ANY]  # worst-case/conservative assumption
             args, return_ty, inst = synthesize_call(ty, node.args, node, self.ctx, None)
-            register_effects(self.ctx, effects)
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
 
@@ -1098,13 +1094,11 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 )
 
             tensor_ty = function_tensor_signature(function_elems)
-            # This is terrible - we'll need to do better if tensored functions
-            # become non-experimental:
-            effects = [Effect.ANY]
             args, return_ty, inst = synthesize_call(
                 tensor_ty, node.args, node, self.ctx, None
             )
-            register_effects(self.ctx, effects)
+            register_effects(self.ctx, [Effect.ANY])  # worst-case safe approximation
+            # (we'll need to do better if tensored functions become non-experimental)
             assert len(inst) == 0
 
             return with_loc(
