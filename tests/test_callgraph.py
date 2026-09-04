@@ -1,6 +1,47 @@
 import pytest
 from guppylang import guppy
+from guppylang_internals.checker.callgraph import CallGraph, is_concrete
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.engine import ENGINE
+from guppylang_internals.tys.arg import ConstArg
+from guppylang_internals.tys.builtin import nat_type
+from guppylang_internals.tys.const import BoundConstVar, ConstValue
+
+
+def test_is_concrete():
+    def_id = DefId.fresh()
+
+    assert is_concrete((def_id, (ConstArg(ConstValue(nat_type(), 1)),)))
+    assert not is_concrete((def_id, (ConstArg(BoundConstVar(nat_type(), "n", 0)),)))
+
+
+def test_condensed_topological_and_external_callees():
+    a = (DefId.fresh(), ())
+    b = (DefId.fresh(), ())
+    c = (DefId.fresh(), ())
+    d = (DefId.fresh(), ())
+    external = (DefId.fresh(), ())
+    callgraph = CallGraph(
+        {
+            a: [b],
+            b: [c, external],
+            c: [b, d],
+            d: [],
+        }
+    )
+
+    component_a, component_bc, component_d = callgraph.condensed
+    assert component_a.members == frozenset({a})
+    assert component_bc.members == frozenset({b, c})
+    assert component_d.members == frozenset({d})
+    assert component_a.external_callees == frozenset({(a, component_bc, b)})
+    assert component_bc.external_callees == frozenset(
+        {
+            (b, None, external),
+            (c, component_d, d),
+        }
+    )
+    assert not component_d.external_callees
 
 
 def test_simple():

@@ -93,6 +93,7 @@ def test_unitary_rejects_keyword_arguments():
         TypeError,
         match=r"does not accept keyword arguments.*`__call__` method",
     ):
+
         @guppy.unitary(daggerable=True)
         class Foo:
             pass
@@ -103,6 +104,7 @@ def test_unitary_rejects_unrecognised_guppy_method(use_experimental_features):
         TypeError,
         match=r"Only guppy function named .* are allowed .* Found `other`",
     ):
+
         @guppy.unitary
         class Foo:
             @guppy

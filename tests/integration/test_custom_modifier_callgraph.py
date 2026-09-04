@@ -1,14 +1,20 @@
 """Integration tests for modifier-labelled call-graph analysis."""
 
+import pytest
+
 from guppylang import guppy
 from guppylang.std.array import array
 from guppylang.std.builtins import control, dagger, nat, panic
 from guppylang.std.quantum import discard, discard_array, qubit
 from guppylang_internals.checker.callgraph import CallGraph
 from guppylang_internals.checker.effects_checker import compute_effects
+from guppylang_internals.checker.errors.generic import (
+    RecursiveModifierControlCountError,
+)
 from guppylang_internals.checker.modifier import CustomModifierKind
-from guppylang_internals.definition.function import CompiledFunctionDef
+from guppylang_internals.definition.function import CompiledFunctionDef, RawFunctionDef
 from guppylang_internals.engine import DEF_STORE, ENGINE
+from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import (
     CONTROLLED_KEY,
     CTRL_DAGGERED_KEY,
@@ -20,6 +26,7 @@ from guppylang_internals.tys.arg import ConstArg
 from guppylang_internals.tys.builtin import nat_type
 from guppylang_internals.tys.const import ConstValue
 from guppylang_internals.tys.subst import is_concrete_inst
+from guppylang_internals.tys.ty import UnitaryFlags
 
 
 @guppy.unitary
@@ -39,6 +46,22 @@ class _same_count_recursive_gate:
 def _same_count_helper[n: nat](q: qubit, controls: array[qubit, n]) -> None:
     with control(controls):
         _same_count_recursive_gate(q)
+
+
+@guppy.unitary
+class _increasing_control_recursive_gate:
+    n = guppy.nat_var("n")
+
+    @guppy
+    def __call__(q: qubit) -> None:
+        pass
+
+    @guppy
+    def controlled(q: qubit, controls: array[qubit, n]) -> None:
+        extra_control = qubit()
+        with control(controls), control(extra_control):
+            _increasing_control_recursive_gate(q)
+        discard(extra_control)
 
 
 def test_custom_modifier_monomorphizations(use_experimental_features):
@@ -123,6 +146,39 @@ def test_custom_modifier_monomorphizations(use_experimental_features):
     main_callees = set(ENGINE.call_graph[main_id])
     assert concrete_controlled <= main_callees
     assert (custom_gate.id, ()) not in main_callees
+
+
+def test_control_sizes_dedupe_to_same_impl(use_experimental_features):
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy
+    def main(q: qubit, c1: qubit, c2: qubit, controls: array[qubit, 2]) -> None:
+        with control(c1), control(c2):
+            custom_gate(q)
+        with control(controls):
+            custom_gate(q)
+
+    main.check()
+
+    edge = ((main.id, ()), (custom_gate.id, ()))
+    contexts = list(ENGINE.modifiers_ctx_by_edges[edge])
+    assert {len(context.control_sizes) for context in contexts} == {1, 2}
+    assert {context.concrete_control_count() for context in contexts} == {2}
+    assert (
+        len({ENGINE.resolved_modified_calls[edge, context] for context in contexts})
+        == 1
+    )
+    assert len(ENGINE.custom_uses_by_mono_def) == 1
 
 
 def test_custom_modifier_effects_use_expanded_call_graph(
@@ -220,6 +276,19 @@ def test_recursive_custom_modifier_same_control_count(use_experimental_features)
     assert custom_def in ENGINE.call_graph[helper_instantiation]
 
 
+def test_increasing_control_recursion(use_experimental_features):
+    @guppy
+    def main(q: qubit, control_qubit: qubit) -> None:
+        with control(control_qubit):
+            _increasing_control_recursive_gate(q)
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda error: isinstance(error.error, RecursiveModifierControlCountError),
+    ):
+        main.check()
+
+
 def test_non_recursive_control_count_increase_is_allowed(use_experimental_features):
     """Different non-recursive paths may use increasing control counts."""
 
@@ -256,6 +325,104 @@ def test_non_recursive_control_count_increase_is_allowed(use_experimental_featur
         1,
         2,
     }
+
+
+def test_partial_impls_set_flags_and_keys(use_experimental_features):
+    @guppy.unitary
+    class dagger_only:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+    @guppy.unitary
+    class controlled_only:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy
+    def main(q1: qubit, q2: qubit, control_qubit: qubit) -> None:
+        with dagger:
+            dagger_only(q1)
+        with control(control_qubit):
+            controlled_only(q2)
+
+    hugr = main.with_minimal_opt().compile_function().modules[0]
+    custom_keys = {DAGGERED_KEY, CONTROLLED_KEY, CTRL_DAGGERED_KEY}
+    cases = [
+        (dagger_only.id, UnitaryFlags.Dagger, {DAGGERED_KEY}),
+        (controlled_only.id, UnitaryFlags.Control, {CONTROLLED_KEY}),
+    ]
+    for def_id, expected_flags, expected_keys in cases:
+        raw_def = DEF_STORE.raw_defs[def_id]
+        assert isinstance(raw_def, RawFunctionDef)
+        assert raw_def.metadata is not None
+        metadata_flags = raw_def.metadata.get_unitary_flags()
+        assert metadata_flags is not None
+        assert UnitaryFlags(metadata_flags) == expected_flags
+
+        compiled_def = ENGINE.compiled[def_id, ()]
+        assert isinstance(compiled_def, CompiledFunctionDef)
+        compiled_metadata = hugr[compiled_def.hugr_node].metadata.as_dict()
+        assert custom_keys & compiled_metadata.keys() == expected_keys
+
+
+def test_ctrl_daggered_promotes_to_unitary(use_experimental_features):
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy(controllable=True)
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    raw_def = DEF_STORE.raw_defs[custom_gate.id]
+    assert isinstance(raw_def, RawFunctionDef)
+    assert raw_def.decorator_unitary_flags == UnitaryFlags.Control
+    assert raw_def.unitary_flags == UnitaryFlags.Unitary
+    assert raw_def.metadata is not None
+    metadata_flags = raw_def.metadata.get_unitary_flags()
+    assert metadata_flags is not None
+    assert UnitaryFlags(metadata_flags) == UnitaryFlags.Unitary
+
+
+def test_num_control_qubits_absent_for_dagger(use_experimental_features):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+    @guppy
+    def main(q: qubit) -> None:
+        with dagger:
+            custom_gate(q)
+
+    hugr = main.with_minimal_opt().compile_function().modules[0]
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    assert custom_use.kind == CustomModifierKind.DAGGERED
+    assert custom_use.control_count is None
+    compiled_custom = ENGINE.compiled[custom_use.custom_def]
+    assert isinstance(compiled_custom, CompiledFunctionDef)
+    assert NUM_CONTROL_QUBITS_KEY not in hugr[compiled_custom.hugr_node].metadata
 
 
 def test_custom_modifier_compilation_metadata(use_experimental_features):
@@ -330,6 +497,48 @@ def test_custom_modifier_compilation_metadata(use_experimental_features):
     assert unmodified_metadata[CTRL_DAGGERED_KEY] == [
         links_by_kind[CustomModifierKind.CTRL_DAGGERED][0][1]
     ]
+
+
+def test_expanded_edges_replace_unmodified_callee(use_experimental_features):
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy
+    def main(q: qubit, control_qubit: qubit) -> None:
+        with dagger:
+            custom_gate(q)
+        with control(control_qubit):
+            custom_gate(q)
+        with control(control_qubit), dagger:
+            custom_gate(q)
+
+    main.check()
+
+    resolved_custom_defs = {
+        custom_use.custom_def for custom_use in ENGINE.custom_uses_by_mono_def.values()
+    }
+    assert {use.kind for use in ENGINE.custom_uses_by_mono_def.values()} == set(
+        CustomModifierKind
+    )
+    assert resolved_custom_defs <= set(ENGINE.call_graph[main.id, ()])
+    assert (custom_gate.id, ()) not in ENGINE.call_graph[main.id, ()]
 
 
 def test_custom_modifier_metadata_is_per_unmodified_callee(

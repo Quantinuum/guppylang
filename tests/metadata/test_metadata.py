@@ -3,10 +3,12 @@
 import pytest
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import (
+    NUM_CONTROL_QUBITS_KEY,
     FunctionMetadata,
     MetadataAlreadySetError,
     ReservedMetadataKeysError,
     add_metadata,
+    add_num_control_qubits,
 )
 from hugr.metadata import NodeMetadata
 from tket.metadata import InlineAnnotation
@@ -92,6 +94,20 @@ def test_add_metadata_metadata_already_set():
         ),
     ):
         add_metadata(node_metadata, additional_metadata={"preset-key": "preset-value"})
+
+
+def test_add_num_control_qubits_rejects_duplicate():
+    node_metadata = NodeMetadata()
+    add_num_control_qubits(node_metadata, 1)
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == NUM_CONTROL_QUBITS_KEY
+        ),
+    ):
+        add_num_control_qubits(node_metadata, 2)
 
 
 def test_add_metadata_property_inline():
