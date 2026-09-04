@@ -55,6 +55,7 @@ from guppylang_internals.checker.expr_checker import (
     register_effects,
     synthesize_comprehension,
 )
+from guppylang_internals.definition.common import CheckableGenericDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
     GuppyError,
@@ -66,6 +67,7 @@ from guppylang_internals.nodes import (
     AnyUnpack,
     ArrayUnpack,
     DesugaredArrayComp,
+    GlobalName,
     IterableUnpack,
     MakeIter,
     ModifiedBlock,
@@ -144,8 +146,15 @@ class StmtChecker(AstVisitor[BBStatement]):
 
     @_check_assign.register
     def _check_variable_assign(
-        self, lhs: ast.Name, _rhs: ast.expr, rhs_ty: Type
+        self, lhs: ast.Name, rhs: ast.expr, rhs_ty: Type
     ) -> PlaceNode:
+        if isinstance(rhs, GlobalName):
+            defn = ENGINE.get_parsed(rhs.def_id)
+            if isinstance(defn, CheckableGenericDef) and defn.params:
+                err = UnsupportedError(
+                    rhs, "Polymorphic functions as dynamic higher-order values"
+                )
+                raise GuppyError(err)
         x = lhs.id
         var = Variable(x, rhs_ty, lhs)
         self.ctx.locals[x] = var
