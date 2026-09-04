@@ -672,7 +672,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                                 # case for when the type is known
                                 if func := ENGINE.get_instance_func(ty, node.attr):
                                     return with_loc(
-                                        node, GlobalName(id=node.attr, def_id=func.id)
+                                        node, make_global_name(node.attr, func.id)
                                     ), func.ty
                 elif node.value.id in self.ctx.globals:
                     defn = self.ctx.globals[node.value.id]
@@ -682,7 +682,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         is not None
                     ):
                         return with_loc(
-                            node, GlobalName(id=node.attr, def_id=func.id)
+                            node, make_global_name(node.attr, func.id)
                         ), func.ty
 
             if ty is None:
@@ -839,7 +839,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             # TODO: Try to infer some type args based on `self`
             if ENGINE.is_def_static(func.id):
                 # if this is a staticmethod do not partially apply `self`
-                return with_loc(node, GlobalName(id=node.attr, def_id=func.id)), func.ty
+                return with_loc(node, make_global_name(node.attr, func.id)), func.ty
             else:
                 # Make a closure by partially applying the `self` argument
                 # TODO: Try to infer some type args based on `self`
