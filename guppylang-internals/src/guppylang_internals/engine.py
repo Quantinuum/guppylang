@@ -358,13 +358,13 @@ class CompilationEngine:
         inst: Inst,
         call_node: "AstNode",
     ) -> None:
-        """Registers a function call in the call graph."""
+        """Registers a function call in the call graph. If the callee is a
+        `CallableEffects` then also registers those effects for that callee."""
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
         assert ctx.current_caller in self.call_graph
         self.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
-            # ALAN this'll happen a lot, we should switch to a set
             self.register_effects((callee.id, inst), callee.call_effects)
         elif isinstance(callee, CallableDef):
             # Effects not known yet, will be computed.
@@ -373,9 +373,10 @@ class CompilationEngine:
             modifier_contexts = self.modifiers_ctx_by_edges.setdefault(edge, {})
             modifier_contexts.setdefault(ctx.modifier_ctx, call_node)
 
-    def register_effects(self, caller: MonoDefId, effects: "Iterable[Effect]") -> None:
-        """Registers known effects for a caller."""
-        self.func_effects.setdefault(caller, set()).update(effects)
+    def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
+        """Registers known effects for a function, for when the effects cannot be
+        attributed to some concrete callee (i.e. with its own MonoDefId)."""
+        self.func_effects.setdefault(func, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:

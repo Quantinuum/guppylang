@@ -306,9 +306,10 @@ class ParsedPytketDef(CallableDef, CompilableDef, CallableEffects):
 
         # Pass all arguments to call node.
         # Pytket circuits can contain `unwrap` operations which can panic.
-        # ALAN TODO this should match `def call_effects` in `CompiledPytketDef` below.
         call_node = outer_func.call(
-            hugr_func, *(input_list + bool_wires + param_wires), effects=[Effect.ANY]
+            hugr_func,
+            *(input_list + bool_wires + param_wires),
+            effects=self.call_effects,
         )
         # Add debug info metadata to the call node inside the outer function definition.
         if debug_mode_enabled():

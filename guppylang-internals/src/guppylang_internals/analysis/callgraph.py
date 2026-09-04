@@ -27,7 +27,7 @@ class CallGraph:
 
         rev_result = []
         comps: dict[MonoDefId, CallGraphComponent] = {}
-        # Process callees first
+        # Topsort puts callers first - reverse so we compute callees ready for caller.
         for component in reversed(list(nx.topological_sort(condensed))):
             members: frozenset[MonoDefId] = frozenset(
                 condensed.nodes[component]["members"]
@@ -46,7 +46,7 @@ class CallGraph:
         return list(reversed(rev_result))
 
     def __init__(self, calls: Mapping[MonoDefId, Iterable[MonoDefId]]):
-        self._all_calls = calls  # deepcopy?
+        self._all_calls = calls
         self._graph = nx.DiGraph()
         for mono_def_id in calls:
             if _is_concrete(
@@ -78,7 +78,7 @@ class CallGraphComponent:
 
     members: frozenset[MonoDefId]
 
-    """ Calls from functions in this component to functions outside it.
+    """Calls from functions in this component to functions outside it.
     Each tuple is (source, target component, target), with the target component being
-    None if the target is not in the call graph."""
+    None if the target is not a node (was not passed to `register_call_graph_node`)."""
     external_callees: frozenset[tuple[MonoDefId, CallGraphComponent | None, MonoDefId]]

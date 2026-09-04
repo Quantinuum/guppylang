@@ -22,8 +22,8 @@ def compute_effects(
     # Start in the leaves of the condensed graph and work up to the roots, so that we
     # can compute the effects of a component based on the effects of its callees.
     for component in reversed(call_graph.condensed):
-        # Every node in a component will receive the same effects (the tightest-possible
-        # least-upper-bound if we assume every call may occur).
+        # Every node in a component will receive the same effects
+        # (the least upper bound, assuming every call may occur).
         effects = set.union(
             *(func_effects.get(func, set()) for func in component.members),
             *(
