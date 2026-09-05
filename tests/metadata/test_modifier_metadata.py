@@ -2,8 +2,15 @@
 
 from guppylang import guppy
 from guppylang.std.angles import angle
+from guppylang.std.array import array
 from guppylang.std.builtins import control, dagger, power, qubit
 from guppylang.std.quantum import discard, rx
+from guppylang_internals.metadata.common import (
+    CONTROLLED_KEY,
+    CTRL_DAGGERED_KEY,
+    DAGGERED_KEY,
+    NUM_CONTROL_QUBITS_KEY,
+)
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr.hugr.base import Hugr
 from hugr.ops import FuncDecl, FuncDefn
@@ -248,3 +255,76 @@ def test_unitary_metadata_function_definition(use_experimental_features):
                 data.metadata[TketUnitaryFlags.KEY]
                 == expected_unitary_flags[data.op.f_name]
             )
+
+
+def test_custom_modifier_metadata(use_experimental_features):
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy
+    def main(
+        target: qubit,
+        control_one: qubit,
+        controls_two: array[qubit, 2],
+        controls_three: array[qubit, 3],
+    ) -> None:
+        with dagger:
+            custom_gate(target)
+        with control(control_one):
+            custom_gate(target)
+        with control(controls_two):
+            custom_gate(target)
+        with control(control_one), dagger:
+            custom_gate(target)
+        with control(controls_three), dagger:
+            custom_gate(target)
+
+    hugr = main.with_minimal_opt().compile_function().modules[0]
+    metadata_by_link_name = {
+        data.op.f_name: data.metadata
+        for _, data in hugr.nodes()
+        if isinstance(data.op, FuncDefn)
+    }
+
+    custom_keys = {DAGGERED_KEY, CONTROLLED_KEY, CTRL_DAGGERED_KEY}
+    [unmodified_metadata] = [
+        metadata
+        for metadata in metadata_by_link_name.values()
+        if all(key in metadata for key in custom_keys)
+    ]
+
+    daggered_link = unmodified_metadata[DAGGERED_KEY]
+    assert isinstance(daggered_link, str)
+    assert NUM_CONTROL_QUBITS_KEY not in metadata_by_link_name[daggered_link]
+
+    controlled_links = unmodified_metadata[CONTROLLED_KEY]
+    assert isinstance(controlled_links, list)
+    assert all(isinstance(link, str) for link in controlled_links)
+    assert [
+        metadata_by_link_name[link][NUM_CONTROL_QUBITS_KEY] for link in controlled_links
+    ] == [1, 2]
+
+    ctrl_daggered_links = unmodified_metadata[CTRL_DAGGERED_KEY]
+    assert isinstance(ctrl_daggered_links, list)
+    assert all(isinstance(link, str) for link in ctrl_daggered_links)
+    assert [
+        metadata_by_link_name[link][NUM_CONTROL_QUBITS_KEY]
+        for link in ctrl_daggered_links
+    ] == [1, 3]

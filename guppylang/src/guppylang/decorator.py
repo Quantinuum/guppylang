@@ -2,7 +2,6 @@ import ast
 import builtins
 import inspect
 import linecache
-from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import replace
 from types import FrameType
@@ -19,6 +18,7 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import annotate_location
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.checker.unitary_checker import (
     check_modified_def_combinations,
 )
@@ -62,9 +62,6 @@ from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsH
 from guppylang_internals.span import Loc, SourceMap, Span, to_span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
-    CALL_CONTROLLED_METHOD,
-    CALL_CTRL_DAGGERED_METHOD,
-    CALL_DAGGERED_METHOD,
     FunctionType,
     NoneType,
     NumericType,
@@ -84,6 +81,7 @@ if TYPE_CHECKING:
     from tket.metadata import InlineAnnotationValue
 
 type Decorator[S, T] = Callable[[S], T]
+type CustomModifierDefinitions = dict[CustomModifierKind, RawFunctionDef]
 
 AnyRawFunctionDef = (
     RawFunctionDef,
@@ -390,28 +388,33 @@ class _Guppy:
         object.__setattr__(call_raw_func, "name", cls.__name__)
 
         # Update the unitary metadata according to the custom implementations
-        custom_modified_definition = _get_custom_methods(cls)
+        custom_modified_definitions = _get_custom_methods(cls)
         definition_span = call_raw_func.set_unitary_class(
             cls,
             frame,
             DEF_STORE.sources,
         )
-
-        for custom_def in custom_modified_definition:
-            if custom_def is not None:
-                object.__setattr__(
-                    custom_def,
-                    "unitary_class_params",
-                    definition_span.type_params,
-                )
-                DEF_STORE.register_custom_modified_def(call_raw_func.id, custom_def.id)
+        for kind in CustomModifierKind:
+            custom_def = custom_modified_definitions.get(kind)
+            if custom_def is None:
+                continue
+            # We forward the type parameters of the unitary class to the custom method
+            object.__setattr__(
+                custom_def,
+                "unitary_class_params",
+                definition_span.type_params,
+            )
+            DEF_STORE.register_custom_modified_def(
+                call_raw_func.id, kind, custom_def.id
+            )
         assert call_raw_func.metadata is not None
-        daggered, controlled, ctrl_daggered = custom_modified_definition
         combined_flags = _set_unitary_metadata(
             call_raw_func.metadata,
-            daggered=daggered,
-            controlled=controlled,
-            ctrl_daggered=ctrl_daggered,
+            daggered=custom_modified_definitions.get(CustomModifierKind.DAGGERED),
+            controlled=custom_modified_definitions.get(CustomModifierKind.CONTROLLED),
+            ctrl_daggered=custom_modified_definitions.get(
+                CustomModifierKind.CTRL_DAGGERED
+            ),
             definition_span=to_span(definition_span),
         )
         object.__setattr__(
@@ -941,20 +944,16 @@ def _get_unitary_call_def(cls: object) -> GuppyDefinition:
 
 def _get_custom_methods[T](
     cls: builtins.type[T],
-) -> tuple[RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None]:
+) -> CustomModifierDefinitions:
     """Returns the `@guppy`-annotated `daggered`, `controlled`, and `ctrl_daggered`"""
-    custom_methods: dict[str, RawFunctionDef | None] = defaultdict(lambda: None)
-    custom_methods_names = (
-        CALL_DAGGERED_METHOD,
-        CALL_CONTROLLED_METHOD,
-        CALL_CTRL_DAGGERED_METHOD,
-    )
+    custom_methods: CustomModifierDefinitions = {}
+    custom_methods_names = tuple(kind.value for kind in CustomModifierKind)
 
     for method_name, method in cls.__dict__.items():
         if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
             if isinstance(method.wrapped, RawFunctionDef):
                 _check_custom_method_metadata(method_name, method.wrapped, cls.__name__)
-                custom_methods[method_name] = method.wrapped
+                custom_methods[CustomModifierKind(method_name)] = method.wrapped
             else:
                 raise TypeError(
                     f"`{method_name}` in the `@guppy.unitary` class "
@@ -979,11 +978,7 @@ def _get_custom_methods[T](
                 "be a guppy function"
             )
 
-    return (
-        custom_methods[CALL_DAGGERED_METHOD],
-        custom_methods[CALL_CONTROLLED_METHOD],
-        custom_methods[CALL_CTRL_DAGGERED_METHOD],
-    )
+    return custom_methods
 
 
 @hide_trace

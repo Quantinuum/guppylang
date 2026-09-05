@@ -56,7 +56,6 @@ from guppylang_internals.definition.value import (
 )
 from guppylang_internals.engine import DEF_STORE, ENGINE
 from guppylang_internals.error import GuppyError
-from guppylang_internals.experimental import check_unitary_classes_enabled
 from guppylang_internals.metadata.common import (
     FunctionMetadata,
     add_metadata,
@@ -183,8 +182,6 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
             is_static = False
             py_func = self.python_func
 
-        if self.unitary_class_at is not None:
-            check_unitary_classes_enabled(self.unitary_class_at)
         func_ast, docstring = parse_py_func(py_func, sources)
         func_ast.type_params = [*self.unitary_class_params, *func_ast.type_params]
         ty = check_signature(
@@ -261,8 +258,8 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             type_args,
             globals,
             mono_link_name,
-            def_id=self.id,
-            decorator_unitary_flags=self.decorator_unitary_flags,
+            self.id,
+            self.decorator_unitary_flags,
         )
         mono_ty = self.ty.instantiate_partial(type_args)
         return CheckedFunctionDef(

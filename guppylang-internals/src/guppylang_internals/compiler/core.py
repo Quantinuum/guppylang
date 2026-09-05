@@ -13,6 +13,7 @@ from hugr.ops import Module
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
+from guppylang_internals.analysis.modifier_callgraph import ConcreteCustomUse
 from guppylang_internals.checker.core import (
     FieldAccess,
     Place,
@@ -20,6 +21,7 @@ from guppylang_internals.checker.core import (
     TupleAccess,
     Variable,
 )
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.compiler.builder import ops
 from guppylang_internals.definition.common import (
     CompilableDef,
@@ -30,8 +32,17 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import CompiledCallableDef
-from guppylang_internals.engine import DEF_STORE, ENGINE, CompilationStage, MonoDefId
+from guppylang_internals.engine import (
+    DEF_STORE,
+    ENGINE,
+    CompilationStage,
+    MonoDefId,
+)
 from guppylang_internals.error import InternalGuppyError
+from guppylang_internals.metadata.common import (
+    add_custom_implementations,
+    add_num_control_qubits,
+)
 from guppylang_internals.metadata.debug_info_util import StringTable
 from guppylang_internals.std._internal.compiler.tket_exts import (
     DEBUG_EXTENSION as TKET_DEBUG_EXTENSION,
@@ -55,6 +66,7 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.compiler.builder import DFBuilder
+    from guppylang_internals.definition.function import CompiledFunctionDef
     from guppylang_internals.tys import Effect
 
 CompiledLocals = dict[PlaceId, Wire]
@@ -111,11 +123,18 @@ class CompilerContext(ToHugrContext):
     # Info computed from callgraph before compilation begins
     effects: Mapping[MonoDefId, frozenset["Effect"]]
 
+    #: Concrete custom modifier uses grouped first by unmodified-callee
+    #: monomorphization, then by modifier kind.
+    custom_uses_by_unmodified_callee: dict[
+        MonoDefId, dict[CustomModifierKind, list[ConcreteCustomUse]]
+    ]
+
     def __init__(
         self,
         module: DefinitionBuilder[Module],
         exported_defs: set[DefId],
         effects: Mapping[MonoDefId, frozenset["Effect"]],
+        custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
         file_table: StringTable | None = None,
     ) -> None:
         self.module = module
@@ -124,6 +143,9 @@ class CompilerContext(ToHugrContext):
         self.global_funcs = {}
         self.exported_defs: set[DefId] = exported_defs
         self.effects = effects
+        self.custom_uses_by_unmodified_callee = (
+            _group_custom_uses_by_unmodified_callee_and_kind(custom_uses_by_mono_def)
+        )
         self.metadata_file_table = (
             file_table if file_table is not None else StringTable([])
         )
@@ -144,7 +166,79 @@ class CompilerContext(ToHugrContext):
                 defn = defn.compile_outer(self.module, self)
             self.compiled[def_id, mono_args] = defn
             self.worklist[def_id, mono_args] = None
+
+            if (def_id, mono_args) in self.custom_uses_by_unmodified_callee:
+                daggered, controlled, ctrl_daggered = (
+                    self._compile_custom_modifier_uses((def_id, mono_args))
+                )
+                from guppylang_internals.definition.function import (
+                    CompiledFunctionDef,
+                )
+
+                assert isinstance(defn, CompiledFunctionDef)
+                add_custom_implementations(
+                    self.module.hugr[defn.hugr_node].metadata,
+                    daggered=daggered,
+                    controlled=controlled,
+                    ctrl_daggered=ctrl_daggered,
+                )
+
         return self.compiled[def_id, mono_args]
+
+    def _compile_custom_modifier_uses(
+        self, unmodified_callee: MonoDefId
+    ) -> tuple[str | None, list[str] | None, list[str] | None]:
+        """Compiles the custom uses for an unmodified-callee monomorphization."""
+        by_kind = self.custom_uses_by_unmodified_callee[unmodified_callee]
+
+        daggered: str | None = None
+        if daggered_uses := by_kind.get(CustomModifierKind.DAGGERED):
+            # A daggered definition is not generic, so there must be exactly one
+            # concrete definition (the original one).
+            assert len(daggered_uses) == 1
+            daggered = self._compile_custom_modifier_use(daggered_uses[0]).link_name
+
+        controlled_uses = by_kind.get(CustomModifierKind.CONTROLLED)
+        controlled = (
+            self._compile_controlled_uses(controlled_uses)
+            if controlled_uses is not None
+            else None
+        )
+        ctrl_daggered_uses = by_kind.get(CustomModifierKind.CTRL_DAGGERED)
+        ctrl_daggered = (
+            self._compile_controlled_uses(ctrl_daggered_uses)
+            if ctrl_daggered_uses is not None
+            else None
+        )
+
+        return daggered, controlled, ctrl_daggered
+
+    def _compile_controlled_uses(
+        self, custom_uses: list[ConcreteCustomUse]
+    ) -> list[str]:
+        """Compiles control-parameterised uses in ascending control-count order."""
+        custom_link_names: list[str] = []
+        for custom_use in sorted(custom_uses, key=_control_count):
+            control_count = _control_count(custom_use)
+            compiled_custom = self._compile_custom_modifier_use(custom_use)
+            add_num_control_qubits(
+                self.module.hugr[compiled_custom.hugr_node].metadata,
+                control_count,
+            )
+            custom_link_names.append(compiled_custom.link_name)
+        return custom_link_names
+
+    def _compile_custom_modifier_use(
+        self, custom_use: ConcreteCustomUse
+    ) -> "CompiledFunctionDef":
+        """Compiles one custom definition already prepared during checking."""
+        from guppylang_internals.definition.function import CompiledFunctionDef
+
+        assert custom_use.custom_def in ENGINE.checked
+        custom_id, custom_args = custom_use.custom_def
+        compiled = self.build_compiled_def(custom_id, custom_args)
+        assert isinstance(compiled, CompiledFunctionDef)
+        return compiled
 
     def iterate_worklist(self) -> None:
         while self.worklist:
@@ -286,6 +380,24 @@ class CompilerBase(ABC):
 
     def __init__(self, ctx: CompilerContext) -> None:
         self.ctx = ctx
+
+
+def _group_custom_uses_by_unmodified_callee_and_kind(
+    custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
+) -> dict[MonoDefId, dict[CustomModifierKind, list[ConcreteCustomUse]]]:
+    """Reindexes custom uses by unmodified callee and modifier kind."""
+    grouped: dict[MonoDefId, dict[CustomModifierKind, list[ConcreteCustomUse]]] = {}
+    for custom_def, custom_use in custom_uses_by_mono_def.items():
+        assert custom_def == custom_use.custom_def
+        by_kind = grouped.setdefault(custom_use.unmodified_callee, {})
+        by_kind.setdefault(custom_use.kind, []).append(custom_use)
+    return grouped
+
+
+def _control_count(custom_use: ConcreteCustomUse) -> int:
+    """Returns the concrete control count for a control-parameterised custom use."""
+    assert custom_use.control_count is not None
+    return custom_use.control_count
 
 
 def return_var(n: int) -> str:

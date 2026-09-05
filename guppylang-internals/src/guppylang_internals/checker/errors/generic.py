@@ -76,6 +76,21 @@ class UnknownModifierError(Error):
 
 
 @dataclass(frozen=True)
+class RecursiveModifierControlCountError(Error):
+    title: ClassVar[str] = "Diverging controlled recursive custom modifier definition"
+    span_label: ClassVar[str] = (
+        "This recursive call increases the number of controls from "
+        "{previous_count} to {control_count}"
+    )
+    message: ClassVar[str] = (
+        "Custom controlled implementations that recursively increase the number of "
+        "controllers cannot be monomorphized. "
+    )
+    previous_count: int
+    control_count: int
+
+
+@dataclass(frozen=True)
 class UnexpectedInWithBlockError(Error):
     title: ClassVar[str] = "Unexpected {kind}"
     span_label: ClassVar[str] = "{things} found in a `With` block"

@@ -1421,8 +1421,16 @@ def function_def_value_to_function_value(
     their expression must be preserved to retain a possible closure.
     """
     if isinstance(ty, NestedFunctionDefType):
-        return with_type(ty.sig, expr)
-    name = DEF_STORE.raw_defs[ty.def_id].name
+        from guppylang_internals.experimental import check_capturing_closures_enabled
+
+        try:
+            check_capturing_closures_enabled(expr)
+            # Expression must be preserved to retain a possible closure.
+            return with_type(ty.sig, expr)
+        except GuppyError:
+            name = ENGINE.get_parsed(ty.def_id).name
+    else:
+        name = DEF_STORE.raw_defs[ty.def_id].name
     return with_type(ty.sig, with_loc(expr, make_global_name(name, ty.def_id)))
 
 
@@ -1688,7 +1696,7 @@ def synthesize_call(
 
     # Register this call in the callgraph.
     if callee is not None:
-        ENGINE.register_call(ctx, callee, inst)
+        ENGINE.register_call(ctx, callee, inst, node)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1790,7 +1798,7 @@ def check_call(
 
     # Register this call in the callgraph.
     if callee is not None:
-        ENGINE.register_call(ctx, callee, inst)
+        ENGINE.register_call(ctx, callee, inst, node)
 
     return inputs, subst, inst
 
@@ -1948,6 +1956,7 @@ def check_generator(
         inner_locals,
         ctx.generic_param_inst,
         current_caller=ctx.current_caller,
+        modifier_ctx=ctx.modifier_ctx,
     )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)
