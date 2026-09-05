@@ -2,7 +2,8 @@ from typing import Generic, TYPE_CHECKING
 
 from guppylang import comptime, qubit, array
 from guppylang.decorator import guppy
-from guppylang.std.quantum import discard_array
+from guppylang.std.builtins import control, dagger
+from guppylang.std.quantum import discard_array, h
 
 from tests.integration.modules import struct_scope_defs
 
@@ -138,6 +139,50 @@ def test_methods(validate):
     @guppy
     def main(a: StructA, b: StructB) -> tuple[int, float]:
         return a.foo(1), b.bar(a)
+
+    validate(main.compile_function())
+
+
+def test_unitary_method(validate, use_experimental_features):
+    T = guppy.type_var("T")
+
+    @guppy.struct(frozen=True)
+    class Struct(Generic[T]):
+        x: T
+
+        @guppy.unitary
+        class apply_h:
+            n = guppy.nat_var("n")
+            c = guppy.nat_var("c")
+
+            @guppy
+            def __call__(self, qs: array[qubit, n]) -> None:
+                h(qs[0])
+
+            @guppy
+            def daggered(self, qs: array[qubit, n]) -> None:
+                h(qs[0])
+
+            @guppy
+            def controlled(
+                self, qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
+                h(controls[0])
+
+            @guppy
+            def ctrl_daggered(
+                self, qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
+                h(controls[0])
+
+    @guppy
+    def main(s: Struct[int], ctrl: qubit, qs: array[qubit, 2]) -> None:
+        with dagger:
+            s.apply_h(qs)
+        with control(ctrl):
+            s.apply_h(qs)
+        with dagger, control(ctrl):
+            s.apply_h(qs)
 
     validate(main.compile_function())
 
