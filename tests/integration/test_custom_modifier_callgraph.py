@@ -2,11 +2,14 @@
 
 from guppylang import guppy
 from guppylang.std.array import array
-from guppylang.std.builtins import control, dagger, nat, panic
+from guppylang.std.builtins import Controllable, control, dagger, nat, panic
 from guppylang.std.quantum import qubit
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
-from guppylang_internals.checker.modifier import CustomModifierKind
+from guppylang_internals.checker.modifier import (
+    NO_CALL_MODIFIERS,
+    CustomModifierKind,
+)
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg
@@ -206,3 +209,96 @@ def test_expanded_edges_replace_unmodified_callee(use_experimental_features):
     )
     assert resolved_custom_defs <= set(ENGINE.call_graph[main.id, ()])
     assert (custom_gate.id, ()) not in ENGINE.call_graph[main.id, ()]
+
+
+def test_modifier_context_propagates_through_higher_order_call(
+    use_experimental_features,
+):
+    """An outer control reaches a custom gate through a monomorphized callable."""
+
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy(controllable=True)
+    def apply(f: Controllable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main(q: qubit, control_qubit: qubit) -> None:
+        with control(control_qubit):
+            apply(custom_gate, q)
+
+    main.check()
+
+    # The higher-order argument identifies one concrete apply monomorphization.
+    apply_mono = next(
+        callee for callee in ENGINE.call_graph[main.id, ()] if callee[0] == apply.id
+    )
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    gate_mono = (custom_gate.id, ())
+
+    # Checking records only the empty context local to `f(q)` in apply's body.
+    assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
+        NO_CALL_MODIFIERS
+    }
+    # Analysis propagates main's control into apply and resolves the custom target.
+    assert custom_use.unmodified_callee == gate_mono
+    assert custom_use.kind == CustomModifierKind.CONTROLLED
+    assert custom_use.control_count == 1
+    assert custom_use.custom_def in ENGINE.call_graph[apply_mono]
+    assert gate_mono not in ENGINE.call_graph[apply_mono]
+
+
+def test_propagated_context_does_not_change_unmodified_invocation(
+    use_experimental_features,
+):
+    """The same callable specialization can be invoked with two contexts."""
+
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy(controllable=True)
+    def apply(f: Controllable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main(q1: qubit, q2: qubit, control_qubit: qubit) -> None:
+        apply(custom_gate, q1)
+        with control(control_qubit):
+            apply(custom_gate, q2)
+
+    main.check()
+
+    # Both call sites share the same monomorphized higher-order function.
+    [apply_mono] = {
+        callee for callee in ENGINE.call_graph[main.id, ()] if callee[0] == apply.id
+    }
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    gate_mono = (custom_gate.id, ())
+
+    # Projecting contextual states keeps both valid targets: the unmodified invocation
+    # reaches __call__, while the controlled invocation reaches controlled[1].
+    assert gate_mono in ENGINE.call_graph[apply_mono]
+    assert custom_use.custom_def in ENGINE.call_graph[apply_mono]
+    # Propagation must not mutate the empty local label checked inside apply.
+    assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
+        NO_CALL_MODIFIERS
+    }

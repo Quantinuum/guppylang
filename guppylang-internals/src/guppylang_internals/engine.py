@@ -21,8 +21,10 @@ from semver import Version
 import guppylang_internals
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
-from guppylang_internals.checker.errors.generic import (
-    RecursiveModifierControlCountError,
+from guppylang_internals.analysis.modifier_callgraph import (
+    ConcreteCustomUse,
+    EdgeWithModifierContext,
+    analyze_modifier_calls,
 )
 from guppylang_internals.checker.modifier import (
     CustomModifierKind,
@@ -154,25 +156,6 @@ MonoDefId = tuple[DefId, Inst]
 #: An edge in the monomorphized call graph, represented as `(caller, callee)`.
 CallGraphEdge = tuple[MonoDefId, MonoDefId]
 
-#: A modifier-labelled call-graph edge that has been resolved to its concrete custom
-#: definition.
-EdgedWithModContext = tuple[CallGraphEdge, ModifierContext]
-
-
-@dataclass(frozen=True)
-class ConcreteCustomUse:
-    """A concrete use of a custom modifier definition required by the program.
-
-    - ``unmodified_callee`` is the monomorphized call target before modifier resolution
-      (i.e. the __call__ in @guppy.unitary).
-    - ``custom_def`` is the monomorphized custom definition used for the modifier.
-    """
-
-    unmodified_callee: MonoDefId
-    custom_def: MonoDefId
-    kind: CustomModifierKind
-    control_count: int | None
-
 
 class CompilationStage(Enum):
     NONE = "none"
@@ -289,10 +272,9 @@ class CompilationEngine:
     func_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site for future diagnostics.
-    modifiers_ctx_by_edges: dict[CallGraphEdge, dict[ModifierContext, "AstNode"]]
-    #: Cache used for storing resolved modifier-labelled calls during custom modifier
-    #: monomorphization.
-    resolved_modified_calls: dict[EdgedWithModContext, MonoDefId]
+    local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, "AstNode"]]
+    #: Resolved calls indexed by their raw edge and effective propagated context.
+    resolved_modified_calls: dict[EdgeWithModifierContext, MonoDefId]
     #: Concrete custom modifier uses indexed by custom-definition monomorphization.
     custom_uses_by_mono_def: dict[MonoDefId, ConcreteCustomUse]
 
@@ -347,7 +329,7 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
         self.call_graph = {}
         self.func_effects = {}
-        self.modifiers_ctx_by_edges = {}
+        self.local_modifiers_by_edge = {}
         self.resolved_modified_calls = {}
         self.custom_uses_by_mono_def = {}
 
@@ -370,7 +352,7 @@ class CompilationEngine:
             # Effects not known yet, will be computed.
             callee_mono_def_id: MonoDefId = (callee.id, inst)
             edge = (ctx.current_caller, callee_mono_def_id)
-            modifier_contexts = self.modifiers_ctx_by_edges.setdefault(edge, {})
+            modifier_contexts = self.local_modifiers_by_edge.setdefault(edge, {})
             modifier_contexts.setdefault(ctx.modifier_ctx, call_node)
 
     def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
@@ -600,12 +582,14 @@ class CompilationEngine:
         # We allow generic functions as checking entrypoints as long as we don't run
         # into a check that requires monomorphization. For this, we check a version
         # where all parameters are instantiated to opaque `BoundVariable`s.
+        entry_points: list[MonoDefId] = []
         for def_id in def_ids:
             entry_defn = self.get_parsed(def_id)
             entry_params = (
                 entry_defn.params if isinstance(entry_defn, CheckableGenericDef) else []
             )
             entry_mono_args = tuple(param.to_bound() for param in entry_params)
+            entry_points.append((def_id, entry_mono_args))
             try:
                 self.checked[def_id, entry_mono_args] = self.get_checked(
                     def_id, entry_mono_args
@@ -620,13 +604,26 @@ class CompilationEngine:
 
         # Checking the entrypoint will have populated the worklist, so now we need to
         # process it.
-        # We use the modifier-labelled call graph to register the concrete custom
-        # definitions that are actually needed. Their bodies may contain further
-        # modified calls, so repeat to a fixed point.
+        # Propagate the locally checked modifier labels through the call graph. A
+        # resolved custom implementation can introduce more checked graph nodes, so
+        # repeat the complete contextual analysis until monomorphization reaches a
+        # fixed point.
         self._drain_check_worklists()
-        while self._register_custom_modifier_monomorphizations():
+        while True:
+            modifier_analysis = analyze_modifier_calls(
+                entry_points,
+                self.call_graph,
+                self.local_modifiers_by_edge,
+                self._resolve_modified_call,
+            )
+            self.resolved_modified_calls = modifier_analysis.resolved_calls
+            self.custom_uses_by_mono_def = modifier_analysis.custom_uses_by_mono_def
+            if not self._register_custom_modifier_monomorphizations(
+                self.custom_uses_by_mono_def.values()
+            ):
+                self.call_graph = modifier_analysis.expanded_calls
+                break
             self._drain_check_worklists()
-        self._expand_custom_modifier_call_graph()
 
     def _drain_check_worklists(self) -> None:
         """Checks all definitions currently queued on the checking worklists."""
@@ -658,14 +655,16 @@ class CompilationEngine:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
                 self.checked[id, mono_args] = self.get_checked(id, mono_args)
 
-    def _register_custom_modifier_monomorphizations(self) -> bool:
+    def _register_custom_modifier_monomorphizations(
+        self, custom_uses: "Iterable[ConcreteCustomUse]"
+    ) -> bool:
         """Adds required custom-definition monomorphizations to the checking worklist.
 
-        Discovers new custom uses and returns whether at least one corresponding
-        monomorphization was added to the checking worklist.
+        Returns whether at least one corresponding monomorphization was added to the
+        checking worklist.
         """
         added = False
-        for custom_use in self._discover_concrete_custom_uses():
+        for custom_use in custom_uses:
             custom_def = custom_use.custom_def
             if custom_def in self.checked or custom_def in self.to_check_worklist:
                 continue
@@ -676,113 +675,6 @@ class CompilationEngine:
             self.register_generic_use(custom_defn, custom_args)
             added = True
         return added
-
-    def _discover_concrete_custom_uses(self) -> list[ConcreteCustomUse]:
-        """Resolves calls and returns newly discovered concrete custom uses."""
-        discovered: list[ConcreteCustomUse] = []
-        # Build the reverse resolved-call adjacency once, then update it as modifier
-        # calls are resolved below. This avoids rebuilding it for every ancestor query
-        # in `_check_recursive_control_count_increase`.
-        callers_map = self._build_resolved_callers()
-        for edge, modifier_contexts in list(self.modifiers_ctx_by_edges.items()):
-            caller, callee = edge
-            if not is_concrete_inst(caller[1]):
-                continue
-
-            for modifier_ctx, call in modifier_contexts.items():
-                modified_call_key = (edge, modifier_ctx)
-                if modified_call_key in self.resolved_modified_calls:
-                    # Already resolved
-                    continue
-
-                resolved_callee, custom_use = self._resolve_modified_call(
-                    callee, modifier_ctx
-                )
-                self.resolved_modified_calls[modified_call_key] = resolved_callee
-                # `_build_resolved_callers` already inserted unmodified calls. Add
-                # newly resolved modifier calls to keep the adjacency up to date.
-                if modifier_ctx.kind_required() is not None:
-                    callers_map[resolved_callee].add(caller)
-                # Only custom-definition monomorphizations have a use to register.
-                if custom_use is not None:
-                    custom_def = custom_use.custom_def
-                    assert resolved_callee == custom_def
-                    self._check_recursive_control_count_increase(
-                        caller, custom_use, call, callers_map
-                    )
-                    existing_use = self.custom_uses_by_mono_def.get(custom_def)
-                    if existing_use is not None:
-                        # Multiple calls may resolve to the same custom-definition
-                        # monomorphization, e.g. control layouts (1, 1) and (2,). Their
-                        # descriptions must agree.
-                        assert existing_use == custom_use
-                        continue
-                    self.custom_uses_by_mono_def[custom_def] = custom_use
-                    discovered.append(custom_use)
-        return discovered
-
-    def _check_recursive_control_count_increase(
-        self,
-        caller: MonoDefId,
-        custom_use: ConcreteCustomUse,
-        call: "AstNode",
-        callers: "dict[MonoDefId, set[MonoDefId]]",
-    ) -> None:
-        """Reject recursive custom uses whose control count strictly increases."""
-        if custom_use.control_count is None:
-            return
-
-        previous_control_count: int | None = None
-        for ancestor in _resolved_call_ancestors(caller, callers):
-            ancestor_use = self.custom_uses_by_mono_def.get(ancestor)
-            if (
-                ancestor_use is None
-                or ancestor_use.unmodified_callee != custom_use.unmodified_callee
-                or ancestor_use.kind != custom_use.kind
-                or ancestor_use.control_count is None
-                or custom_use.control_count <= ancestor_use.control_count
-            ):
-                continue
-
-            previous_control_count = max(
-                previous_control_count or 0, ancestor_use.control_count
-            )
-
-        if previous_control_count is not None:
-            raise GuppyError(
-                RecursiveModifierControlCountError(
-                    call,
-                    previous_control_count,
-                    custom_use.control_count,
-                )
-            )
-
-    def _build_resolved_callers(self) -> "defaultdict[MonoDefId, set[MonoDefId]]":
-        """Builds the reverse adjacency of resolved call-graph edges.
-
-        Maps each node to the set of callers that reach it directly on a resolved edge:
-        unmodified edges, plus modified edges that have resolved to a concrete custom
-        definition.
-        """
-        callers: defaultdict[MonoDefId, set[MonoDefId]] = defaultdict(set)
-        for caller, raw_callees in self.call_graph.items():
-            for raw_callee in raw_callees:
-                edge = (caller, raw_callee)
-                modifier_contexts = self.modifiers_ctx_by_edges.get(edge)
-                if modifier_contexts is None:
-                    callers[raw_callee].add(caller)
-                    continue
-
-                for modifier_ctx in modifier_contexts:
-                    if modifier_ctx.kind_required() is None:
-                        # If kind_required() is None, the call is not modified
-                        callers[raw_callee].add(caller)
-                        continue
-                    # Otherwise, we check if there is a resolved modified call
-                    resolved = self.resolved_modified_calls.get((edge, modifier_ctx))
-                    if resolved is not None:
-                        callers[resolved].add(caller)
-        return callers
 
     def _resolve_modified_call(
         self, callee: MonoDefId, modifier_ctx: ModifierContext
@@ -823,28 +715,6 @@ class CompilationEngine:
             kind=kind,
             control_count=control_count,
         )
-
-    def _expand_custom_modifier_call_graph(self) -> None:
-        """Rewrites concrete call-graph edges using cached modified calls."""
-        for caller, callees in self.call_graph.items():
-            if not is_concrete_inst(caller[1]):
-                continue
-
-            expanded_callees: list[MonoDefId] = []
-            for callee in callees:
-                edge = (caller, callee)
-                modifier_contexts = self.modifiers_ctx_by_edges.get(edge)
-                if modifier_contexts is None:
-                    expanded_callees.append(callee)
-                    continue
-
-                for modifier_ctx in modifier_contexts:
-                    key = (edge, modifier_ctx)
-                    expanded_callees.append(self.resolved_modified_calls[key])
-
-            # Multiple call sites may produce the same graph edge. Preserve insertion
-            # order while removing duplicates.
-            self.call_graph[caller] = list(dict.fromkeys(expanded_callees))
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
@@ -980,25 +850,6 @@ class CompilationEngine:
             ),
             requested_defs,
         )
-
-
-def _resolved_call_ancestors(
-    callee: MonoDefId, callers: "dict[MonoDefId, set[MonoDefId]]"
-) -> set[MonoDefId]:
-    """Returns callers that transitively reach ``callee`` on resolved edges.
-
-    ``callers`` is the reverse adjacency produced by
-    `CompilationEngine._build_resolved_callers`.
-    """
-    ancestors: set[MonoDefId] = set()
-    worklist = [callee]
-    while worklist:
-        current = worklist.pop()
-        if current in ancestors:
-            continue
-        ancestors.add(current)
-        worklist.extend(callers.get(current, ()))
-    return ancestors
 
 
 @dataclass(frozen=True)

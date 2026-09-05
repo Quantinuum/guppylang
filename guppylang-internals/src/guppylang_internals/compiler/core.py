@@ -13,6 +13,7 @@ from hugr.ops import Module
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 
+from guppylang_internals.analysis.modifier_callgraph import ConcreteCustomUse
 from guppylang_internals.checker.core import (
     FieldAccess,
     Place,
@@ -35,7 +36,6 @@ from guppylang_internals.engine import (
     DEF_STORE,
     ENGINE,
     CompilationStage,
-    ConcreteCustomUse,
     MonoDefId,
 )
 from guppylang_internals.error import InternalGuppyError
