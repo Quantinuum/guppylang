@@ -1,6 +1,5 @@
 from collections import deque
 from collections.abc import Iterator
-from typing import Generic, TypeVar
 
 from guppylang_internals.cfg.analysis import (
     AssignmentAnalysis,
@@ -14,10 +13,8 @@ from guppylang_internals.cfg.bb import BB, BBStatement, VariableStats
 from guppylang_internals.nodes import InoutReturnSentinel
 from guppylang_internals.tys.ty import UnitaryFlags
 
-T = TypeVar("T", bound=BB)
 
-
-class BaseCFG(Generic[T]):
+class BaseCFG[T: BB]:
     """Abstract base class for control-flow graphs."""
 
     bbs: list[T]

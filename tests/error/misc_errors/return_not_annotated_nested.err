@@ -1,0 +1,11 @@
+Error: Missing type annotation (at $FILE:7:4)
+  | 
+5 | def _wrapper():
+6 |     @guppy
+7 |     def wrapper():
+  |     ^^^^^^^^^^^^^^ Return type must be annotated
+
+Help: Looks like `wrapper` doesn't return anything. Consider annotating it with
+`-> None`.
+
+Guppy compilation failed due to 1 previous error

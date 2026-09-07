@@ -1,8 +1,8 @@
-Error: Type mismatch (at $FILE:11:15)
+Error: Type mismatch (at $FILE:10:15)
    | 
- 9 |         return f()
-10 | 
-11 |     return bar(foo)
+ 8 |         return f()
+ 9 | 
+10 |     return bar(foo)
    |                ^^^ Expected argument of type `() -> int`, got `int -> int`
 
 Guppy compilation failed due to 1 previous error

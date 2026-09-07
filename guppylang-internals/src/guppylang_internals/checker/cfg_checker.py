@@ -6,33 +6,44 @@ Operates on CFGs produced by the `CFGBuilder`. Produces a `CheckedCFG` consistin
 
 import ast
 import collections
+import itertools
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic, TypeVar
+from typing import ClassVar
 
 from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
+from guppylang_internals.cfg.builder import is_tmp_var
 from guppylang_internals.cfg.cfg import CFG, BaseCFG
 from guppylang_internals.checker.core import (
     Context,
     Globals,
     Locals,
     Place,
-    V,
     Variable,
 )
-from guppylang_internals.checker.expr_checker import ExprSynthesizer, to_bool
+from guppylang_internals.checker.expr_checker import (
+    ExprSynthesizer,
+    coerces_to,
+    to_bool,
+)
 from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.ty import InputFlags, Type
+from guppylang_internals.tys.ty import (
+    FunctionDefType,
+    InputFlags,
+    NestedFunctionDefType,
+    Type,
+)
 
-Row = Sequence[V]
+type Row[V] = Sequence[V]
 
 
 @dataclass(frozen=True)
-class Signature(Generic[V]):
+class Signature[V]:
     """The signature of a basic block.
 
     Stores the input/output variables with their types. Generic over the representation
@@ -50,7 +61,7 @@ class Signature(Generic[V]):
 
 
 @dataclass(eq=False)  # Disable equality to recover hash from `object`
-class CheckedBB(BB, Generic[V]):
+class CheckedBB[V](BB):
     """Basic block annotated with an input and output type signature.
 
     The signature is generic over the representation of program variables.
@@ -59,7 +70,7 @@ class CheckedBB(BB, Generic[V]):
     sig: Signature[V] = field(default_factory=Signature.empty)
 
 
-class CheckedCFG(BaseCFG[CheckedBB[V]], Generic[V]):
+class CheckedCFG[V](BaseCFG[CheckedBB[V]]):
     input_tys: list[Type]
     output_ty: Type
 
@@ -76,7 +87,10 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
+    current_caller: MonoDefId,
     first_modifier_node: ast.expr | None = None,
+    modified_block_name_base: str | None = None,
+    modified_block_counter: Iterator[int] | None = None,
 ) -> CheckedCFG[Place]:
     """Instantiates a control-flow graph with the given `generic_args` and then type
     checks it.
@@ -92,6 +106,11 @@ def check_cfg(
     Otherwise, it's the AST node of the first modifier, used in error reporting.
     """
 
+    if modified_block_counter is None:
+        modified_block_counter = itertools.count()
+    if modified_block_name_base is None:
+        modified_block_name_base = func_name
+
     # First, we need to run program analysis
     ass_before = {v.name for v in inputs}
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
@@ -100,7 +119,15 @@ def check_cfg(
     # We start by compiling the entry BB
     checked_cfg: CheckedCFG[Variable] = CheckedCFG([v.ty for v in inputs], return_ty)
     checked_cfg.entry_bb = check_bb(
-        cfg.entry_bb, checked_cfg, inputs, return_ty, generic_args, globals
+        cfg.entry_bb,
+        checked_cfg,
+        inputs,
+        return_ty,
+        generic_args,
+        globals,
+        modified_block_name_base,
+        modified_block_counter,
+        current_caller=current_caller,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -127,7 +154,15 @@ def check_cfg(
         else:
             # Otherwise, check the BB and enqueue its successors
             checked_bb = check_bb(
-                bb, checked_cfg, input_row, return_ty, generic_args, globals
+                bb,
+                checked_cfg,
+                input_row,
+                return_ty,
+                generic_args,
+                globals,
+                modified_block_name_base,
+                modified_block_counter,
+                current_caller=current_caller,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -208,8 +243,40 @@ class BranchTypeError(Error):
 
     @dataclass(frozen=True)
     class TypeHint(Note):
-        span_label: ClassVar[str] = "This is of type `{ty}`"
+        var: str
         ty: Type
+
+        @property
+        def rendered_span_label(self) -> str:
+            if isinstance(self.ty, NestedFunctionDefType):
+                return f"This is a distinct function `{self.var}` of type `{self.ty}`"
+            return f"This is of type `{self.ty}`"
+
+    @dataclass(frozen=True)
+    class CoerceOneHint(Help):
+        var: str
+        ty: Type
+
+        @property
+        def rendered_span_label(self) -> str:
+            if is_tmp_var(self.var):
+                return f"Consider coercing this value to `{self.ty}`"
+            return f"Consider adding a type annotation: `{self.var}: {self.ty} = ...`"
+
+    @dataclass(frozen=True)
+    class CoerceBothHint(Help):
+        var: str
+        ty: str
+        extra: str = ""
+
+        @property
+        def rendered_message(self) -> str:
+            if is_tmp_var(self.var):
+                return f"Consider coercing both values to `{self.ty}`"
+            return (
+                f"Consider adding type annotations{self.extra}: "
+                f"`{self.var}: {self.ty} = ...`"
+            )
 
 
 @dataclass(frozen=True)
@@ -237,6 +304,9 @@ def check_bb(
     return_ty: Type,
     generic_args: dict[str, Argument],
     globals: Globals,
+    modified_block_name_base: str,
+    modified_block_counter: Iterator[int],
+    current_caller: MonoDefId,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -261,7 +331,14 @@ def check_bb(
         raise GuppyError(_assigned_in_modifier_error(x, use, assignment))
 
     # Check the basic block
-    ctx = Context(globals, Locals({v.name: v for v in inputs}), generic_args)
+    ctx = Context(
+        globals,
+        Locals({v.name: v for v in inputs}),
+        generic_args,
+        modified_block_name_base=modified_block_name_base,
+        modified_block_counter=modified_block_counter,
+        current_caller=current_caller,
+    )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
     # If we branch, we also have to check the branch predicate
@@ -364,9 +441,38 @@ def check_rows_match(row1: Row[Variable], row2: Row[Variable], bb: BB) -> None:
             # We don't add a location to the type hint for the global variable,
             # since it could lead to cross-file diagnostics (which are not
             # supported) or refer to long function definitions.
-            err.add_sub_diagnostic(BranchTypeError.TypeHint(v1.defined_at, v1.ty))
-            err.add_sub_diagnostic(BranchTypeError.TypeHint(v2.defined_at, v2.ty))
+            err.add_sub_diagnostic(
+                BranchTypeError.TypeHint(v1.defined_at, v1.name, v1.ty)
+            )
+            err.add_sub_diagnostic(
+                BranchTypeError.TypeHint(v2.defined_at, v2.name, v2.ty)
+            )
+            if hint := maybe_coerce_hint(v1, v2):
+                err.add_sub_diagnostic(hint)
             raise GuppyError(err)
+
+
+def maybe_coerce_hint(v1: Variable, v2: Variable) -> Help | None:
+    """Generates a help message telling the user to add type annotations to trigger
+    coercions that fix a type mismatch across different control-flow paths."""
+    assert v1.name == v2.name
+    assert v1.ty != v2.ty
+    if coerces_to(v1.ty, v2.ty):
+        return BranchTypeError.CoerceOneHint(v1.defined_at, v1.name, v2.ty)
+    if coerces_to(v2.ty, v1.ty):
+        return BranchTypeError.CoerceOneHint(v2.defined_at, v2.name, v1.ty)
+    # Suggest to coerce function definition types into opaque function types
+    if (
+        isinstance(v1.ty, FunctionDefType)
+        and isinstance(v2.ty, FunctionDefType)
+        and v1.ty.sig == v2.ty.sig
+    ):
+        unquantified, _ = v1.ty.sig.unquantified()
+        args = ", ".join(str(inp.ty) for inp in unquantified.inputs)
+        fn_str = f"Function[[{args}], {unquantified.output}]"
+        extra = " to coerce them into opaque function values"
+        return BranchTypeError.CoerceBothHint(None, v1.name, fn_str, extra)
+    return None
 
 
 def diagnose_maybe_undefined(
@@ -397,10 +503,7 @@ def diagnose_maybe_undefined(
     return None
 
 
-T = TypeVar("T")
-
-
-def reverse_enumerate(xs: list[T]) -> Iterator[tuple[int, T]]:
+def reverse_enumerate[T](xs: list[T]) -> Iterator[tuple[int, T]]:
     """Enumerates a list in reverse order.
 
     Equivalent to `reversed(list(enumerate(data)))` without creating an intermediate

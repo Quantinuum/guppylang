@@ -140,7 +140,7 @@ def test_control_flow(validate):
     validate(test.compile_function())
 
 
-def test_tensor(validate):
+def test_tensor(validate, use_experimental_features):
     @guppy.struct
     class A:
         q: qubit
@@ -343,7 +343,7 @@ def test_self_qubit(validate):
         result = q0.project_z()
         q0.measure()
         qubit().discard()
-        return result
+        return result.read()
 
     validate(test.compile_function())
 

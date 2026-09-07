@@ -3,7 +3,7 @@
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle, pi
 from guppylang.std.quantum import qubit, discard_array, discard, measure
-from guppylang.std.builtins import array, output
+from guppylang.std.builtins import array, control, dagger, output
 from pytket import Circuit, OpType
 from pytket.passes import AutoRebase
 from sympy import Symbol, sympify
@@ -370,3 +370,25 @@ def test_qsystem_exec():
     res = main.emulator(n_qubits=2).run()
     for r in res.results:
         assert r.entries == [("a", 0), ("b", 0)]
+
+
+def test_pytket_modified(validate):
+    circ = Circuit(1)
+    circ.H(0)
+
+    @guppy.pytket(circ)
+    def guppy_circ_1(q1: qubit) -> None: ...
+
+    guppy_circ_2 = guppy.load_pytket("guppy_circ_2", circ, use_arrays=False)
+
+    @guppy(unitary=True)
+    def goo(q: qubit) -> None:
+        guppy_circ_2(q)
+
+    @guppy
+    def foo(c: qubit, q: qubit) -> None:
+        with control(c), dagger:
+            guppy_circ_1(q)
+            goo(q)
+
+    validate(foo.compile_function())

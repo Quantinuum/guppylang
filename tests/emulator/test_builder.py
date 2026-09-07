@@ -63,7 +63,7 @@ def test_emulator_builder_build(mock_emulator_instance, mock_selene_sim):
 
     # Check that EmulatorInstance was created correctly
     mock_emulator_instance.assert_called_once_with(
-        _instance=mock_selene_instance, _n_qubits=n_qubits
+        _instance=mock_selene_instance, _n_qubits=n_qubits, _arg_specs=()
     )
 
     assert result == mock_emulator_result
@@ -114,7 +114,7 @@ def test_emulator_builder_build_with_custom_parameters(
 
     # Check that EmulatorInstance was created correctly
     mock_emulator_instance.assert_called_once_with(
-        _instance=mock_selene_instance, _n_qubits=n_qubits
+        _instance=mock_selene_instance, _n_qubits=n_qubits, _arg_specs=()
     )
 
     assert result == mock_emulator_result
@@ -219,3 +219,21 @@ def test_emulator_builder_reuse():
         assert calls[1].kwargs["name"] == "reusable"
         assert calls[0].kwargs["verbose"] is True
         assert calls[1].kwargs["verbose"] is True
+
+
+def test_link_utility_appends():
+    """link_utility appends utilities, preserving immutability."""
+    util1 = Mock()
+    util2 = Mock()
+
+    builder = EmulatorBuilder()
+    assert builder._utilities is None
+
+    b1 = builder.link_utility(util1)
+    assert b1._utilities == [util1]
+    # original is unchanged
+    assert builder._utilities is None
+
+    b2 = b1.link_utility(util2)
+    assert b2._utilities == [util1, util2]
+    assert b1._utilities == [util1]

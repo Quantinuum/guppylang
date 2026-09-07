@@ -1,12 +1,11 @@
 from guppylang.decorator import guppy
+from guppylang.emulator import EmulatorError
 from guppylang.std.array import array
 from guppylang.std.either import Either, left, right
 from guppylang.std.platform import panic, output
+from guppylang.std.quantum import qubit
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from guppylang.std.quantum import qubit
+import pytest
 
 
 def test_left(run_int_fn):
@@ -23,7 +22,7 @@ def test_left(run_int_fn):
 def test_right(run_int_fn):
     @guppy
     def main() -> int:
-        x: Either[qubit, int] = right(100)
+        x: Either[qubit, int] = right[qubit, int](100)
         is_left = 1 if x.is_left() else 0
         is_right = 10 if x.is_right() else 0
         return is_left + is_right + x.unwrap_right()
@@ -87,3 +86,33 @@ def test_either_comprehension(validate):
             return right(0)
 
     validate(main.compile_function())
+
+
+def test_comptime_unwrap_left(run_int_fn):
+    @guppy
+    def max(i: int, f: float) -> Either[int, float]:
+        return left[int, float](i) if float(i) > f else right[int, float](f)
+
+    @guppy.comptime
+    def main(i: int) -> int:
+        return max(i, 3.14).unwrap_left()
+
+    run_int_fn(main, 4, args=[4])
+    with pytest.raises(EmulatorError):
+        run_int_fn(main, 0xDEADBEEF, args=[3])
+
+
+def test_comptime_into_right(run_int_fn):
+    @guppy.comptime
+    def foo(e: Either[float, int]) -> int:
+        return e.try_into_right().unwrap()
+
+    @guppy
+    def main(i: int) -> int:
+        r: Either[float, int] = right[float, int](i)
+        e = left[float, int](3.14) if i < 0 else r
+        return foo(e)
+
+    run_int_fn(main, 3, args=[3])
+    with pytest.raises(EmulatorError, match=r"Option.unwrap: value is `Nothing`"):
+        run_int_fn(main, 0xDEADBEEF, args=[-3])

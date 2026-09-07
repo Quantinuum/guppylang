@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, TypeAlias
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Self
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.generic import ExpectedError
@@ -29,7 +27,7 @@ if TYPE_CHECKING:
 # Note that this might become obsolete in case the `@sealed` decorator is added:
 #  * https://peps.python.org/pep-0622/#sealed-classes-as-algebraic-data-types
 #  * https://github.com/johnthagen/sealed-typing-pep
-Parameter: TypeAlias = "TypeParam | ConstParam"
+type Parameter = "TypeParam | ConstParam"
 
 
 @dataclass(frozen=True)
@@ -134,14 +132,9 @@ class TypeParam(ParameterBase):
                         got=f"type `{ty}` which is not implicitly droppable",
                     )
                     raise GuppyTypeError(err)
-                if self.must_implement:
-                    from guppylang_internals.checker.protocol_checker import (
-                        check_protocol,
-                    )
-
-                    for proto in self.must_implement:
-                        _, proto_subst = check_protocol(ty, proto, loc)
-                        subst |= proto_subst
+                for proto in self.must_implement:
+                    _, proto_subst = proto.check_implemented_by(ty, loc)
+                    subst |= proto_subst
                 return arg, subst
 
     def to_existential(self) -> tuple[Argument, ExistentialVar]:

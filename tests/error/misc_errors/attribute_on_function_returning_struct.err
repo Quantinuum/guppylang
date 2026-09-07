@@ -1,0 +1,8 @@
+Error: Attribute not found (at $FILE:24:14)
+   | 
+22 |     # Must be the plain "attribute not found" error, not "instance method
+23 |     # accessed on class" - `mk_struct` genuinely has no `foo` attribute.
+24 |     mk_struct.foo
+   |               ^^^ `int -> MyStruct` has no attribute `foo`
+
+Guppy compilation failed due to 1 previous error

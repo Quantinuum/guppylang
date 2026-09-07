@@ -1,3 +1,6 @@
+![](https://raw.githubusercontent.com/quantinuum/guppylang/refs/heads/main/assets/guppy_logo.svg)
+
+
 # Guppy
 
 [![pypi][]](https://pypi.org/project/guppylang/)
@@ -33,12 +36,21 @@ def teleport(src: qubit @ owned, tgt: qubit) -> None:
     if measure(tmp):
         x(tgt)
 
+
 teleport.check()
 ```
 
-More examples and tutorials are available [here][examples].
+## Documentation
+
+🌐 [Guppy website][website]
+
+📖 [Language guide][guide]
+
+📒 [Example notebooks][examples]
 
 [examples]: https://github.com/quantinuum/guppylang/tree/main/examples
+[guide]: https://docs.quantinuum.com/guppy/language_guide/language_guide_index.html
+[website]: https://guppylang.org
 
 ## Install
 
@@ -48,11 +60,10 @@ Guppy can be installed via `pip`. Requires Python >= 3.10.
 pip install guppylang
 ```
 
-## Development
 
-See [DEVELOPMENT.md] information on how to develop and contribute to this package.
+## Attribution
 
-  [DEVELOPMENT.md]: https://github.com/quantinuum/guppylang/blob/main/DEVELOPMENT.md
+If you use this software, please cite it using [CITATIONS.bib](https://github.com/quantinuum/guppylang/blob/main/CITATIONS.bib) or [CITATION.cff](https://github.com/quantinuum/guppylang/blob/main/CITATION.cff) (click "Cite this repository" in the About section of the repository landing page).
 
 ## License
 

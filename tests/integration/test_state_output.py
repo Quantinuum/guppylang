@@ -119,3 +119,17 @@ def test_deprecated_state_result_alias_still_compiles(validate):
         discard(q2)
 
     validate(main)
+
+
+def test_comptime(validate):
+    @guppy.comptime
+    def main() -> None:
+        qs = array(qubit() for _ in range(2))
+
+        for i in range(2):
+            state_output("tag", qs[i])
+
+        for q in qs:
+            discard(q)
+
+    validate(main.compile_function())

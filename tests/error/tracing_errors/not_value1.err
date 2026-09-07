@@ -3,4 +3,4 @@ Traceback (most recent call last):
     test.compile()
   File "$FILE", line 17, in test
     foo(T)
-guppylang_internals.error.GuppyComptimeError: Type `T` is not a value
+guppylang_internals.error.GuppyComptimeError: Type `T` has no constructor and cannot be instantiated

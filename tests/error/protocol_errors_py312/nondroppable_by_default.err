@@ -1,0 +1,10 @@
+Error: Drop violation (at $FILE:10:8)
+   | 
+ 8 | 
+ 9 | @guppy
+10 | def foo(x: Proto @ owned) -> None:
+   |         ^^^^^^^^^^^^^^^^ Variable `x` with non-droppable type `Proto` is leaked
+
+Help: Make sure that `x` is consumed or returned to avoid the leak
+
+Guppy compilation failed due to 1 previous error

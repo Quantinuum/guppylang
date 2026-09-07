@@ -1,7 +1,7 @@
 from guppylang.decorator import guppy
 from guppylang.std.builtins import owned
 from guppylang.std.option import Option
-from guppylang.std.quantum import qubit, measure
+from guppylang.std.quantum import qubit, measure, Measurement
 
 from guppylang.std.quantum.functional import cx, t, h, project_z
 from guppylang_internals.decorator import custom_type
@@ -30,7 +30,7 @@ def test_linear_return_order(validate):
     # See https://github.com/quantinuum/guppy/issues/35
 
     @guppy
-    def test(q: qubit @ owned) -> tuple[qubit, bool]:
+    def test(q: qubit @ owned) -> tuple[qubit, Measurement]:
         return project_z(q)
 
     validate(test.compile_function())
@@ -348,6 +348,44 @@ def test_mutate_classical_field5(validate):
     validate(main.compile_function())
 
 
+def test_mutate_classical_field6(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct:
+        x: int
+
+    @guppy
+    def main(s: MyStruct @ owned, b: bool) -> int:
+        if b:
+            t = s
+        # Test that linearity checker accepts reassignments
+        s = MyStruct(42)
+        s.x = 1
+        return s.x
+
+    validate(main.compile_function())
+
+
+def test_mutate_classical_field7(validate):
+    @guppy.struct(frozen=False)
+    class MyStruct1:
+        y: int
+
+    @guppy.struct(frozen=False)
+    class MyStruct2:
+        x: MyStruct1
+
+    @guppy
+    def main(s: MyStruct2 @ owned, b: bool) -> int:
+        if b:
+            t = s.x
+        # Test that linearity checker accepts reassignments
+        s.x = MyStruct1(42)
+        s.x.y = 1
+        return s.x.y
+
+    validate(main.compile_function())
+
+
 def test_measure(validate):
     @guppy
     def test(q: qubit @ owned, x: int) -> int:
@@ -438,7 +476,7 @@ def test_while_move_back(validate):
     validate(test.compile_function())
 
 
-def test_for(validate):
+def test_for(validate, use_experimental_features):
     @guppy
     def test(qs: list[tuple[qubit, qubit]] @ owned) -> list[qubit]:
         rs: list[qubit] = []
@@ -451,7 +489,7 @@ def test_for(validate):
     validate(test.compile_function())
 
 
-def test_for_measure(validate):
+def test_for_measure(validate, use_experimental_features):
     @guppy
     def test(qs: list[qubit] @ owned) -> bool:
         parity = False
@@ -462,7 +500,7 @@ def test_for_measure(validate):
     validate(test.compile_function())
 
 
-def test_for_continue(validate):
+def test_for_continue(validate, use_experimental_features):
     @guppy
     def test(qs: list[qubit] @ owned) -> int:
         x = 0
@@ -475,7 +513,7 @@ def test_for_continue(validate):
     validate(test.compile_function())
 
 
-def test_for_nonlinear_break(validate):
+def test_for_nonlinear_break(validate, use_experimental_features):
     @custom_type(lambda _, ctx: NoneType().to_hugr(ctx))
     class MyIter:
         """An iterator that yields linear values but is not linear itself."""
@@ -516,7 +554,7 @@ def test_rus(validate):
     validate(repeat_until_success.compile_function())
 
 
-def test_list_iter_arg(validate):
+def test_list_iter_arg(validate, use_experimental_features):
     @guppy
     def owned_arg(qs: list[qubit] @ owned) -> list[qubit]:
         qs = [h(q) for q in qs]
@@ -525,7 +563,7 @@ def test_list_iter_arg(validate):
     validate(owned_arg.compile_function())
 
 
-def test_list_iter(validate):
+def test_list_iter(validate, use_experimental_features):
     @guppy
     def owned_arg() -> list[qubit]:
         qs = [qubit() for _ in [0, 1, 2]]

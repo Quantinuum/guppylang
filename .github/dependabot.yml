@@ -28,6 +28,7 @@ updates:
     labels:
       - "C-maintenance"
       - "X-dependabot"
+    versioning-strategy: "widen"
 
   - package-ecosystem: "github-actions"
     directory: "/"

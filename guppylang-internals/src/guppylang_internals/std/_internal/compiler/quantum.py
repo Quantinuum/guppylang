@@ -9,6 +9,8 @@ from hugr import ext as he
 from hugr import tys as ht
 from hugr.std.float import FLOAT_T
 
+from guppylang_internals.compiler.builder import OpWithEffects, pure
+from guppylang_internals.compiler.builder.ops import unpack_tuple
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.std._internal.compiler.tket_exts import (
@@ -30,10 +32,12 @@ ROTATION_T_DEF = ROTATION_EXTENSION.get_type("rotation")
 ROTATION_T = ht.ExtType(ROTATION_T_DEF)
 
 
-def from_halfturns_unchecked() -> ops.ExtOp:
-    return ops.ExtOp(
-        ROTATION_EXTENSION.get_op("from_halfturns_unchecked"),
-        ht.FunctionType([FLOAT_T], [ROTATION_T]),
+def from_halfturns_unchecked() -> OpWithEffects:
+    return pure(
+        ops.ExtOp(
+            ROTATION_EXTENSION.get_op("from_halfturns_unchecked"),
+            ht.FunctionType([FLOAT_T], [ROTATION_T]),
+        ),
     )
 
 
@@ -79,8 +83,10 @@ class InoutMeasureCompiler(CustomInoutCallCompiler):
         )
         [q] = args
         [q, bit] = self.builder.add_op(
-            quantum_op(self.opname, ext=self.ext)(
-                ht.FunctionType([ht.Qubit], [ht.Qubit, return_ty]), (), self.ctx
+            pure(
+                quantum_op(self.opname, ext=self.ext)(
+                    ht.FunctionType([ht.Qubit], [ht.Qubit, return_ty]), (), self.ctx
+                )
             ),
             q,
         )
@@ -97,16 +103,18 @@ class RotationCompiler(CustomInoutCallCompiler):
         from guppylang_internals.std._internal.util import quantum_op
 
         [*qs, angle] = args
-        [halfturns] = self.builder.add_op(ops.UnpackTuple([FLOAT_T]), angle)
+        [halfturns] = self.builder.add_op(unpack_tuple([FLOAT_T]), angle)
         [rotation] = self.builder.add_op(from_halfturns_unchecked(), halfturns)
 
         qs = self.builder.add_op(
-            quantum_op(self.opname)(
-                ht.FunctionType(
-                    [ht.Qubit for _ in qs] + [ROTATION_T], [ht.Qubit for _ in qs]
-                ),
-                (),
-                self.ctx,
+            pure(
+                quantum_op(self.opname)(
+                    ht.FunctionType(
+                        [ht.Qubit for _ in qs] + [ROTATION_T], [ht.Qubit for _ in qs]
+                    ),
+                    (),
+                    self.ctx,
+                )
             ),
             *qs,
             rotation,

@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from guppylang_internals.diagnostic import Error, Fatal
@@ -16,6 +16,17 @@ class GuppyError(Exception):
 
     error: "Error | Fatal"
 
+    def __str__(self) -> str:
+        from guppylang_internals.diagnostic import DiagnosticsRenderer
+        from guppylang_internals.engine import DEF_STORE
+
+        renderer = DiagnosticsRenderer(DEF_STORE.sources)
+        renderer.render_diagnostic(self.error)
+        return (
+            "\n".join(renderer.buffer)
+            + "\n\nGuppy compilation failed due to 1 previous error\n"
+        )
+
 
 class GuppyTypeError(GuppyError):
     """Special Guppy exception for type errors."""
@@ -23,6 +34,10 @@ class GuppyTypeError(GuppyError):
 
 class GuppyTypeInferenceError(GuppyError):
     """Special Guppy exception for type inference errors."""
+
+
+class BypassOverloadError(GuppyError):
+    """A Guppy error that should bypass overload error suppression."""
 
 
 class MissingModuleError(Exception):
@@ -102,32 +117,26 @@ def saved_exception_hook() -> Iterator[None]:
         sys.excepthook = old_hook
 
 
-FuncT = TypeVar("FuncT", bound=Callable[..., Any])
-
-
-def pretty_errors(f: FuncT) -> FuncT:
+def pretty_errors[**P, T](f: Callable[P, T]) -> Callable[P, T]:
     """Decorator to print custom error banners when a `GuppyError` occurs."""
 
     def hook(
-        excty: type[BaseException], err: BaseException, traceback: TracebackType | None
+        old_handler: ExceptHook,
+        excty: type[BaseException],
+        err: BaseException,
+        traceback: TracebackType | None,
     ) -> None:
         """Custom `excepthook` that intercepts `GuppyExceptions` for pretty printing."""
         if isinstance(err, GuppyError):
-            from guppylang_internals.diagnostic import DiagnosticsRenderer
-            from guppylang_internals.engine import DEF_STORE
-
-            renderer = DiagnosticsRenderer(DEF_STORE.sources)
-            renderer.render_diagnostic(err.error)
-            sys.stderr.write("\n".join(renderer.buffer))
-            sys.stderr.write("\n\nGuppy compilation failed due to 1 previous error\n")
+            sys.stderr.write(str(err))
             return
 
-        # If it's not a GuppyError, fall back to default hook
-        sys.__excepthook__(excty, err, traceback)
+        # If it's not a GuppyError, fall back to previous hook
+        old_handler(excty, err, traceback)
 
     @functools.wraps(f)
     def pretty_errors_wrapped(*args: Any, **kwargs: Any) -> Any:
-        with exception_hook(hook):
+        with exception_hook(functools.partial(hook, sys.excepthook)):
             return f(*args, **kwargs)
 
-    return cast("FuncT", pretty_errors_wrapped)
+    return cast("Callable[P, Any]", pretty_errors_wrapped)

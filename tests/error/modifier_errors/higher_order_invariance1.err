@@ -1,0 +1,11 @@
+Error: Missing protocol implementation (at $FILE:25:24)
+   | 
+23 | def main(q: qubit) -> None:
+24 |     # consumer must accept any function, but `apply_dagger` only accepts daggerable
+25 |     take_plain_consumer(apply_dagger, q)
+   |                         ^^^^^^^^^^^^ Type `qubit -> None` does not implement protocol
+   |                                      `Daggerable[[qubit], None]`
+
+Note: Only statically known functions can be modified
+
+Guppy compilation failed due to 1 previous error

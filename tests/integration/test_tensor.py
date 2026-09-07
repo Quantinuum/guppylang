@@ -1,17 +1,16 @@
 # ^ Stop ruff complaining about not knowing what "tensor" is
 
-from collections.abc import Callable
-
 from guppylang.decorator import guppy
+from guppylang.std.builtins import Function
 
 
-def test_check_callable(validate):
+def test_check_callable(validate, use_experimental_features):
     @guppy
-    def bar(f: Callable[[int], bool]) -> Callable[[int], bool]:
+    def bar(f: Function[[int], bool]) -> Function[[int], bool]:
         return f
 
     @guppy
-    def foo(f: Callable[[int], bool]) -> tuple[Callable[[int], bool]]:
+    def foo(f: Function[[int], bool]) -> tuple[Function[[int], bool]]:
         return (f,)
 
     @guppy
@@ -23,7 +22,7 @@ def test_check_callable(validate):
         return foo(is_42)(x)
 
     @guppy
-    def baz1() -> tuple[Callable[[int], bool]]:
+    def baz1() -> tuple[Function[[int], bool]]:
         return foo(is_42)
 
     @guppy
@@ -35,7 +34,7 @@ def test_check_callable(validate):
     validate(baz2.compile_function())
 
 
-def test_call(validate):
+def test_call(validate, use_experimental_features):
     @guppy
     def foo() -> int:
         return 42
@@ -45,11 +44,11 @@ def test_call(validate):
         return True
 
     @guppy
-    def baz_ho() -> tuple[Callable[[], int], Callable[[], bool]]:
+    def baz_ho() -> tuple[Function[[], int], Function[[], bool]]:
         return (foo, bar)
 
     @guppy
-    def baz_ho_id() -> tuple[Callable[[], int], Callable[[], bool]]:
+    def baz_ho_id() -> tuple[Function[[], int], Function[[], bool]]:
         return baz_ho()
 
     @guppy
@@ -71,15 +70,15 @@ def test_call(validate):
     validate(call_var.compile_function())
 
 
-def test_call_inplace(validate):
+def test_call_inplace(validate, use_experimental_features):
     @guppy
-    def local(f: Callable[[int], bool], g: Callable[[bool], int]) -> tuple[bool, int]:
+    def local(f: Function[[int], bool], g: Function[[bool], int]) -> tuple[bool, int]:
         return (f, g)(42, True)
 
     validate(local.compile_function())
 
 
-def test_singleton(validate):
+def test_singleton(validate, use_experimental_features):
     @guppy
     def foo(x: int, y: int) -> tuple[int, int]:
         return y, x
@@ -91,7 +90,7 @@ def test_singleton(validate):
     validate(baz.compile_function())
 
 
-def test_call_back(validate):
+def test_call_back(validate, use_experimental_features):
     @guppy
     def foo(x: int) -> int:
         return x
@@ -137,7 +136,7 @@ def test_higher_order(validate):
             return 1
 
     @guppy
-    def baz() -> tuple[Callable[[int], bool], Callable[[float], int]]:
+    def baz() -> tuple[Function[[int], bool], Function[[float], int]]:
         return foo, bar
 
     # For the future:
@@ -155,7 +154,7 @@ def test_higher_order(validate):
     validate(baz.compile_function())
 
 
-def test_nesting(validate):
+def test_nesting(validate, use_experimental_features):
     @guppy
     def foo(x: int, y: int) -> int:
         return x + y

@@ -13,7 +13,7 @@ import functools
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from itertools import takewhile
-from typing import TypeVar, cast
+from typing import cast
 
 from guppylang_internals.ast_util import (
     AstVisitor,
@@ -52,6 +52,7 @@ from guppylang_internals.checker.expr_checker import (
     ExprChecker,
     ExprSynthesizer,
     check_place_assignable,
+    register_effects,
     synthesize_comprehension,
 )
 from guppylang_internals.engine import ENGINE
@@ -74,6 +75,7 @@ from guppylang_internals.nodes import (
     UnpackPattern,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import (
     array_type,
     get_array_length,
@@ -327,6 +329,9 @@ class StmtChecker(AstVisitor[BBStatement]):
                 case ConstValue(value=int(size)):
                     elt_ty = get_element_type(ty)
                     unpack = ArrayUnpack(pattern, size, elt_ty)
+                    # This compiles to an array-unpacking op, which will have
+                    # side-effects that we need to account for in checking
+                    register_effects(self.ctx, [Effect.ANY])
                     return unpack, size * [expr], size * [elt_ty]
                 case BoundConstVar():
                     raise RequiresMonomorphizationError
@@ -407,7 +412,9 @@ class StmtChecker(AstVisitor[BBStatement]):
             raise InternalGuppyError("BB required to check nested function def!")
 
         func_def = check_nested_func_def(node, self.bb, self.ctx)
-        self.ctx.locals[func_def.name] = Variable(func_def.name, func_def.ty, func_def)
+        self.ctx.locals[func_def.name] = Variable(
+            func_def.name, func_def.def_ty, func_def
+        )
         return func_def
 
     def visit_ModifiedBlock(self, node: ModifiedBlock) -> ast.stmt:
@@ -482,10 +489,7 @@ class StmtChecker(AstVisitor[BBStatement]):
         raise InternalGuppyError("Control-flow statement should not be present here.")
 
 
-T = TypeVar("T")
-
-
-def all_equal(xs: Iterable[T]) -> bool:
+def all_equal[T](xs: Iterable[T]) -> bool:
     """Checks if all elements yielded from an iterable are equal."""
     it = iter(xs)
     try:

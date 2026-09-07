@@ -2,11 +2,14 @@ from typing import TYPE_CHECKING
 
 from hugr import Wire
 from hugr import tys as ht
+from hugr.metadata import HugrDebugInfo
 
 from guppylang_internals.compiler.builder import FunctionBuilder
 from guppylang_internals.compiler.cfg_compiler import compile_cfg
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.compiler.hugr_extension import PartialOp
+from guppylang_internals.debug_mode import debug_mode_enabled
+from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef
 
@@ -22,6 +25,15 @@ def compile_global_func_def(
     """Compiles a top-level function definition to Hugr."""
     cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
+    if not ctx.effects[(func.id, func.mono_args)].issuperset(builder.effects):
+        surplus = set(builder.effects) - ctx.effects[(func.id, func.mono_args)]
+        raise InternalGuppyError(
+            f"Function {func.name} compiled to have side effects {surplus}"
+            " not expected during checking; callgraph analysis will be unsound."
+        )
+    # Inequality (actual effects < expected) does not lead to wrong behaviour,
+    # merely unnecessary/extra order edges that may inhibit optimization,
+    # so do not break here.
 
 
 def compile_local_func_def(
@@ -48,6 +60,13 @@ def compile_local_func_def(
     func_builder = dfg.builder.define_function(
         func.name, closure_ty.input, closure_ty.output
     )
+
+    if debug_mode_enabled():
+        from guppylang_internals.definition.function import make_subprogram_record
+
+        ctx.module.hugr[func_builder].metadata[HugrDebugInfo] = make_subprogram_record(
+            func, ctx
+        )
 
     # Nested functions are not generic, so no need to worry about monomorphization
     mono_args = ()
@@ -84,8 +103,11 @@ def compile_local_func_def(
             # Even though global, this function will be private to the built hugr,
             # so the hugr name does not really matter.
             func.name,
+            mono_args,
             func.cfg,
             func_builder,
+            is_static=False,
+            effects=ctx.effects[(func.def_id, mono_args)],
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later
 

@@ -6,6 +6,7 @@ from guppylang_internals.tys.const import Const, ConstValue
 from guppylang_internals.tys.param import ConstParam, TypeParam
 from guppylang_internals.tys.ty import (
     EnumType,
+    FunctionDefType,
     FunctionType,
     InputFlags,
     NoneType,
@@ -106,6 +107,13 @@ class TypePrinter:
             del self.bound_names[: -len(ty.params)]
             return _wrap(f"forall {quantified}. {inputs} -> {output}", inside_row)
         return _wrap(f"{inputs} -> {output}", inside_row)
+
+    @_visit.register
+    def _visit_FunctionItemType(self, ty: FunctionDefType, inside_row: bool) -> str:
+        from guppylang_internals.engine import ENGINE
+
+        defn = ENGINE.get_parsed(ty.def_id)
+        return _wrap(signature_to_str(defn.name, ty.sig), inside_row)
 
     @_visit.register(OpaqueType)
     @_visit.register(StructType)

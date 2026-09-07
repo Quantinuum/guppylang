@@ -1,6 +1,4 @@
-from typing import Any
-
-from typing_extensions import Self
+from typing import Any, Self
 
 from guppylang_internals.error import GuppyComptimeError
 

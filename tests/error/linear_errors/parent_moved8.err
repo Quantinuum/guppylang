@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:13:4)
+   | 
+11 | def foo(s: MyStruct @owned) -> None:
+12 |     t = s
+13 |     s.x = 1
+   |     ^^^ Field `s.x` cannot be mutated ...
+
+Note:
+   | 
+11 | def foo(s: MyStruct @owned) -> None:
+12 |     t = s
+   |         - ... since variable `s` with non-copyable type `MyStruct` was
+   |           already moved here
+
+Guppy compilation failed due to 1 previous error

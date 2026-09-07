@@ -1,14 +1,15 @@
 import ast
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
+from enum import Enum, auto
+from typing import TYPE_CHECKING, ClassVar, override
 
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
+from hugr.ops import DataflowOp
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
-from typing_extensions import override
 
 from guppylang_internals.ast_util import (
     AstNode,
@@ -18,9 +19,17 @@ from guppylang_internals.ast_util import (
     with_type,
 )
 from guppylang_internals.checker.core import Context, Globals
-from guppylang_internals.checker.expr_checker import check_call, synthesize_call
+from guppylang_internals.checker.expr_checker import (
+    check_call,
+    make_global_call,
+    synthesize_call,
+)
 from guppylang_internals.checker.func_checker import check_signature
-from guppylang_internals.compiler.builder import DFBuilder, FunctionBuilder
+from guppylang_internals.compiler.builder import (
+    DFBuilder,
+    FunctionBuilder,
+    pure,
+)
 from guppylang_internals.compiler.core import (
     CompilerContext,
     DFContainer,
@@ -29,6 +38,7 @@ from guppylang_internals.compiler.core import (
 from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CallReturnWires,
     CompiledCallableDef,
 )
@@ -36,6 +46,7 @@ from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.nodes import GlobalCall
 from guppylang_internals.span import SourceMap
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.subst import Inst, Subst
 from guppylang_internals.tys.ty import (
@@ -114,6 +125,7 @@ class RawCustomFunctionDef(ParsableDef):
     higher_order_value: bool
 
     signature: FunctionType | None
+    effects: Iterable[Effect]
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags)
 
@@ -137,9 +149,18 @@ class RawCustomFunctionDef(ParsableDef):
         code. The only information we need to access is that it's a function type and
         that there are no unsolved existential vars.
         """
-        from guppylang_internals.definition.function import parse_py_func
+        from guppylang_internals.definition.function import (
+            parse_py_func,
+        )
 
-        func_ast, _docstring = parse_py_func(self.python_func, sources)
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
+        else:
+            is_static = False
+            py_func = self.python_func
+
+        func_ast, _docstring = parse_py_func(py_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         sig = self.signature or self._get_signature(func_ast, globals)
@@ -156,6 +177,8 @@ class RawCustomFunctionDef(ParsableDef):
             GlobalConstId.fresh(self.name),
             sig is not None,
             self.has_var_args,
+            self.effects,
+            is_static=is_static,
         )
 
     def _get_signature(
@@ -187,7 +210,7 @@ class RawCustomFunctionDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class CustomFunctionDef(CallableDef, CheckableGenericDef):
+class CustomFunctionDef(CallableDef, CheckableGenericDef, CallableEffects):
     """A custom function with parsed and checked signature.
 
     Args:
@@ -213,8 +236,14 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     higher_order_func_id: GlobalConstId
     has_signature: bool
     has_var_args: bool
+    effects: Iterable[Effect]
 
     description: str = field(default="function", init=False)
+
+    @property
+    @override
+    def call_effects(self) -> Iterable[Effect]:
+        return self.effects
 
     @property
     def params(self) -> Sequence[Parameter]:
@@ -234,7 +263,9 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             self.higher_order_func_id,
             self.has_signature,
             self.has_var_args,
+            self.effects,
             type_args,
+            is_static=self.is_static,
         )
 
     @override
@@ -342,12 +373,24 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
             return compiler.compile_with_inouts(args)
 
 
+class InputFlagDefaultMode(Enum):
+    """Controls the default behaviour of `compute_input_flags` for linear arguments."""
+
+    RAISE = auto()  # raise InternalGuppyError (current default)
+    INOUT = auto()  # borrow all linear args
+    OWNED = auto()  # consume all linear args
+
+
 class CustomCallChecker(ABC):
     """Abstract base class for custom function call type checkers."""
 
     ctx: Context
     node: AstNode
     func: CustomFunctionDef
+
+    # If `func` has no or an incomplete signature and `compute_input_flags` is not
+    # overridden, this controls the default behaviour of `compute_input_flags`.
+    input_flag_mode: ClassVar[InputFlagDefaultMode] = InputFlagDefaultMode.RAISE
 
     _depth = 0
 
@@ -393,6 +436,27 @@ class CustomCallChecker(ABC):
         Also returns a (possibly) transformed and annotated argument list.
         """
 
+    def compute_input_flags(self, args: list[ast.expr]) -> list[InputFlags]:
+        flags: list[InputFlags] = []
+        for arg in args:
+            ty = get_type(arg)
+            if ty.linear:
+                match self.input_flag_mode:
+                    case InputFlagDefaultMode.INOUT:
+                        flags.append(InputFlags.Inout)
+                    case InputFlagDefaultMode.OWNED:
+                        flags.append(InputFlags.Owned)
+                    case InputFlagDefaultMode.RAISE:
+                        raise InternalGuppyError(
+                            "Missing implementation of `compute_input_flags` for linear"
+                            f" argument of type `{ty}` for custom function "
+                            f"`{self.func.name}`. Add an implementation or a signature"
+                            " to the function definition."
+                        )
+            else:
+                flags.append(InputFlags.NoFlags)
+        return flags
+
 
 class CustomInoutCallCompiler(ABC):
     """Abstract base class for custom function call compilers with borrowed args.
@@ -410,7 +474,7 @@ class CustomInoutCallCompiler(ABC):
     ctx: CompilerContext
     node: AstNode
     ty: ht.FunctionType
-    func: CustomMonoFunctionDef | None
+    func: CustomMonoFunctionDef
 
     _depth = 0
 
@@ -422,7 +486,7 @@ class CustomInoutCallCompiler(ABC):
         ctx: CompilerContext,
         node: AstNode,
         hugr_ty: ht.FunctionType,
-        func: CustomMonoFunctionDef | None,
+        func: CustomMonoFunctionDef,
     ) -> Generator["CustomInoutCallCompiler", None, None]:
         """
         A context manager to temporarily set up the compiler with required arguments,
@@ -488,14 +552,24 @@ class DefaultCallChecker(CustomCallChecker):
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), subst
+        args, subst, inst = check_call(
+            self.func.ty, args, ty, self.node, self.ctx, self.func
+        )
+        return make_global_call(self.func, args, inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
-        return GlobalCall(def_id=self.func.id, args=args, type_args=inst), ty
+        args, ty, inst = synthesize_call(
+            self.func.ty, args, self.node, self.ctx, self.func
+        )
+        return make_global_call(self.func, args, inst), ty
+
+
+class OwnedArgumentsCallChecker(DefaultCallChecker):
+    """Same as `DefaultCallChecker`, but assumes all input arguments are owned."""
+
+    input_flag_mode = InputFlagDefaultMode.OWNED
 
 
 class NotImplementedCallCompiler(CustomCallCompiler):
@@ -519,17 +593,17 @@ class OpCompiler(CustomInoutCallCompiler):
             the monomorphic function type, and returns a concrete HUGR op.
     """
 
-    op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp]
+    op: Callable[[ht.FunctionType, Inst, CompilerContext], DataflowOp]
 
     def __init__(
-        self, op: Callable[[ht.FunctionType, Inst, CompilerContext], ops.DataflowOp]
+        self, op: Callable[[ht.FunctionType, Inst, CompilerContext], DataflowOp]
     ) -> None:
         self.op = op
 
     @override
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         op = self.op(self.ty, self.type_args, self.ctx)
-        node = self.builder.add_op(op, *args)
+        node = self.builder.add_op((op, self.func.call_effects), *args)
         num_returns = (
             len(type_to_row(self.func.ty.output)) if self.func else len(self.ty.output)
         )
@@ -579,7 +653,8 @@ class CopyInoutCompiler(CustomInoutCallCompiler):
                         type_args,
                         ht.FunctionType(self.ty.input, self.ty.output),
                     )
-                    return list(self.builder.add_op(clone_op, arg))
+                    # We never borrow copyable elements, so this never panics
+                    return list(self.builder.add_op(pure(clone_op), arg))
             case _:
                 pass
         raise InternalGuppyError(

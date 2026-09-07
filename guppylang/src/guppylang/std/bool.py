@@ -11,6 +11,7 @@ from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.std._internal.checker import DunderChecker, ReversingChecker
 from guppylang_internals.std._internal.util import logic_op
 from guppylang_internals.tys.builtin import bool_type_def
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.num import nat
@@ -29,7 +30,7 @@ class bool:
     @hugr_op(logic_op("And"))
     def __and__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(NoopCompiler())
+    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
     def __bool__(self: bool) -> bool: ...
 
     @hugr_op(logic_op("Eq"))
@@ -53,7 +54,11 @@ class bool:
         #  See https://github.com/quantinuum/guppylang/issues/707
         return nat(1) if self else nat(0)
 
-    @custom_function(checker=DunderChecker("__bool__"), higher_order_value=False)
+    @custom_function(
+        checker=DunderChecker("__bool__"),
+        higher_order_value=False,
+        unitary_flags=UnitaryFlags.Dagger,
+    )
     def __new__(x): ...
 
     @hugr_op(logic_op("Or"))
@@ -62,11 +67,11 @@ class bool:
     @hugr_op(logic_op("Xor"))
     def __xor__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker())
+    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
     def __rand__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker())
+    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
     def __ror__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker())
+    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
     def __rxor__(self: bool, other: bool) -> bool: ...

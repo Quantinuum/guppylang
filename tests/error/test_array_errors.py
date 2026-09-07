@@ -1,14 +1,11 @@
-import pathlib
+from pathlib import Path
+
 import pytest
 
-from tests.error.util import run_error_test
+from tests.error.util import run_error_test, collect_error_test_cases
 
-path = pathlib.Path(__file__).parent.resolve() / "array_errors"
-files = [
-    x
-    for x in path.iterdir()
-    if x.is_file() and x.suffix == ".py" and x.name != "__init__.py"
-]
+
+files = collect_error_test_cases("array_errors")
 
 skipped_files = {
     "array_index_equal_size.py",
@@ -21,14 +18,14 @@ skipped_files = {
     "array_index_put.py",
     "array_index_set.py",
     "array_index_take.py",
+    "non_array_subscript.py",
 }
 
-# Turn paths into strings, otherwise pytest doesn't display the names
 files = [
-    pytest.param(str(f), marks=pytest.mark.skip(reason="The index bounds checking is currently disabled (https://github.com/Quantinuum/guppylang/issues/1669)."))
-    if f.name in skipped_files
-    else str(f)
-    for f in files
+    pytest.param(file, marks=pytest.mark.skip(reason="The index bounds checking is currently disabled (https://github.com/Quantinuum/guppylang/issues/1669)."))
+    if any(skipped_name in Path(file).name for skipped_name in skipped_files)
+    else file
+    for file in files
 ]
 
 

@@ -58,9 +58,15 @@ class AlreadyUsedError(Error):
 @dataclass(frozen=True)
 class ParentAlreadyUsedError(Error):
     title: ClassVar[str] = "Copy violation"
-    span_label: ClassVar[str] = "{place.describe} cannot be {kind.subjunctive} ..."
+    span_label: ClassVar[str] = "{place.describe} cannot be {kind_str} ..."
     place: Place
-    kind: UseKind
+    kind: UseKind | str
+
+    @property
+    def kind_str(self) -> str:
+        from guppylang_internals.checker.linearity_checker import UseKind
+
+        return self.kind.subjunctive if isinstance(self.kind, UseKind) else self.kind
 
     @dataclass(frozen=True)
     class ParentUse(Note):

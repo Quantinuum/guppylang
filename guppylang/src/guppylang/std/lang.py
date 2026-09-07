@@ -1,7 +1,7 @@
 """Provides Python objects for builtin language keywords."""
 
-from collections.abc import Generator
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, Protocol, TypeVar
+from collections.abc import Callable, Generator
+from typing import TYPE_CHECKING, Any, ParamSpec, Protocol, TypeVar
 
 from guppylang_internals.error import GuppyComptimeError
 
@@ -15,7 +15,7 @@ _MODIFIER_COMPTIME_ERROR = (
 class _Comptime:
     """Dummy class to support `@comptime` annotations and `comptime(...)` expressions"""
 
-    def __call__(self, v: T) -> T:
+    def __call__[T](self, v: T) -> T:
         return v
 
     def __rmatmul__(self, other: Any) -> Any:
@@ -43,6 +43,10 @@ class _Owned:
 owned = _Owned()
 
 
+#: The type of function values.
+Function = Callable  # type: ignore[type-arg]
+
+
 class Copy(Protocol):
     """Bound to mark generic type parameters as being implicitly copyable."""
 
@@ -62,7 +66,12 @@ def dagger(*args: Any, **kwargs: Any) -> Generator[None]:
 
 
 def power(*args: Any, **kwargs: Any) -> Generator[None]:
-    """Dummy function to support `with power(...):` blocks in Guppy code."""
+    """Dummy function to support `with power(...):` blocks in Guppy code.
+
+    .. warning::
+
+        ``power`` is an experimental feature and is not fully operational yet.
+    """
     raise GuppyComptimeError(_MODIFIER_COMPTIME_ERROR.format(modifier="power"))
 
 
@@ -70,19 +79,19 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-class Unitary(Generic[P, R]):
+class Unitary[**P, R]:
     if TYPE_CHECKING:
 
         def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
-class Daggerable(Generic[P, R]):
+class Daggerable[**P, R]:
     if TYPE_CHECKING:
 
         def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
-class Controllable(Generic[P, R]):
+class Controllable[**P, R]:
     if TYPE_CHECKING:
 
         def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R: ...

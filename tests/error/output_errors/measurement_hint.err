@@ -1,0 +1,22 @@
+Error: Unsupported output value type (at $FILE:12:4)
+   | 
+10 |     q = qubit()
+11 |     m = measure(q)
+12 |     output("m", m)
+   |     ^^^^^^^^^^^^^^ Values of type `Measurement` cannot be passed to `output`
+   |                    directly
+
+Help: Use `.read()` on the value to get a bool (this will block execution until
+the measurement result is available)
+
+Note: Available overloads are:
+  def output(tag: str @comptime, value: int) -> None
+  def output(tag: str @comptime, value: nat) -> None
+  def output(tag: str @comptime, value: bool) -> None
+  def output(tag: str @comptime, value: float) -> None
+  def output(tag: str @comptime, value: array[int, n]) -> None
+  def output(tag: str @comptime, value: array[nat, n]) -> None
+  def output(tag: str @comptime, value: array[bool, n]) -> None
+  def output(tag: str @comptime, value: array[float, n]) -> None
+
+Guppy compilation failed due to 1 previous error

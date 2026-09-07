@@ -1,0 +1,82 @@
+[
+  {
+    "emulator": {
+      "shot_number": 0
+    },
+    "post_runtime": {
+      "custom_op_batch_count": 0,
+      "custom_op_individual_count": 0,
+      "measure_batch_count": 1,
+      "measure_individual_count": 1,
+      "measure_leaked_batch_count": 0,
+      "measure_leaked_individual_count": 0,
+      "reset_batch_count": 1,
+      "reset_individual_count": 1,
+      "rxy_batch_count": 1,
+      "rxy_individual_count": 1,
+      "rz_batch_count": 1,
+      "rz_individual_count": 1,
+      "rzz_batch_count": 0,
+      "rzz_individual_count": 0,
+      "total_duration_ns": 0
+    },
+    "simulator": {
+      "observed_bias": 0.0
+    },
+    "user_program": {
+      "currently_allocated": 0,
+      "global_barrier_count": 0,
+      "local_barrier_count": 0,
+      "max_allocated": 1,
+      "measure_leaked_request_count": 0,
+      "measure_read_count": 1,
+      "measure_request_count": 1,
+      "qalloc_count": 1,
+      "qfree_count": 1,
+      "reset_count": 1,
+      "rxy_count": 1,
+      "rz_count": 1,
+      "rzz_count": 0
+    }
+  },
+  {
+    "emulator": {
+      "shot_number": 1
+    },
+    "post_runtime": {
+      "custom_op_batch_count": 0,
+      "custom_op_individual_count": 0,
+      "measure_batch_count": 2,
+      "measure_individual_count": 2,
+      "measure_leaked_batch_count": 0,
+      "measure_leaked_individual_count": 0,
+      "reset_batch_count": 2,
+      "reset_individual_count": 2,
+      "rxy_batch_count": 1,
+      "rxy_individual_count": 1,
+      "rz_batch_count": 1,
+      "rz_individual_count": 1,
+      "rzz_batch_count": 0,
+      "rzz_individual_count": 0,
+      "total_duration_ns": 0
+    },
+    "simulator": {
+      "observed_bias": 1.0
+    },
+    "user_program": {
+      "currently_allocated": 0,
+      "global_barrier_count": 0,
+      "local_barrier_count": 0,
+      "max_allocated": 1,
+      "measure_leaked_request_count": 0,
+      "measure_read_count": 2,
+      "measure_request_count": 2,
+      "qalloc_count": 2,
+      "qfree_count": 2,
+      "reset_count": 2,
+      "rxy_count": 1,
+      "rz_count": 1,
+      "rzz_count": 0
+    }
+  }
+]

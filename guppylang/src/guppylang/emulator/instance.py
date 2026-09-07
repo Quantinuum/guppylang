@@ -4,31 +4,58 @@ Configuring and executing emulator instances for guppy programs.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Self, cast
 
 from hugr.qsystem.result import QsysShot
+from selene_argreader_plugin import ArgProvider
 from selene_sim.backends.bundled_error_models import IdealErrorModel
 from selene_sim.backends.bundled_runtimes import SimpleRuntime
 from selene_sim.backends.bundled_simulators import Coinflip, Quest, Stim
-from selene_sim.event_hooks import EventHook, NoEventHook
+from selene_sim.event_hooks.event_hook import EventHook, MultiEventHook, NoEventHook
 from tqdm import tqdm
-from typing_extensions import Self
 
+from ._args import (
+    ArgValue,
+    EntrypointArgValueError,
+    validate_per_shot_args,
+    validate_record,
+)
 from .exceptions import EmulatorError
 from .result import EmulatorResult
 
 if TYPE_CHECKING:
     import datetime
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Mapping
     from pathlib import Path
 
     from hugr.qsystem.result import TaggedResult
     from selene_core.error_model import ErrorModel
     from selene_core.runtime import Runtime
     from selene_core.simulator import Simulator
+    from selene_sim.event_hooks.instruction_log import CircuitExtractor
+    from selene_sim.event_hooks.metrics import MetricStore
     from selene_sim.instance import SeleneInstance
+
+    from ._args import EntrypointArgSpec
+
+
+def _to_provider_args(args: Mapping[str, ArgValue]) -> dict[str, ArgValue]:
+    """Convert a mapping of argument values to a dict suitable for ``ArgProvider``.
+
+    ``ArgProvider`` requires array arguments to be plain ``list``; this converts
+    any other sequence (tuple, numpy array, etc.) to ``list``.
+    """
+
+    def _coerce(v: ArgValue) -> ArgValue:
+        if isinstance(v, (bool, int, float)):
+            return v
+        if isinstance(v, Sequence):
+            return list(v)
+        raise TypeError(f"Unexpected argument value type: {type(v).__name__!r}")
+
+    return {k: _coerce(v) for k, v in args.items()}
 
 
 @dataclass(frozen=True)
@@ -36,7 +63,7 @@ class _Options:
     _simulator: Simulator = field(default_factory=Quest)
     _runtime: Runtime = field(default_factory=SimpleRuntime)
     _error_model: ErrorModel = field(default_factory=IdealErrorModel)
-    _shots: int = 1
+    _shots: int | None = None
     _shot_increment: int = 1
     _shot_offset: int = 0
     _seed: int | None = None
@@ -47,6 +74,8 @@ class _Options:
     # unstable:
     _results_logfile: Path | None = None
     _display_progress_bar: bool = False
+    _trace_enabled: bool = False
+    _metrics_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -62,6 +91,7 @@ class EmulatorInstance:
     _instance: SeleneInstance
     _n_qubits: int
     _options: _Options = field(default_factory=_Options)
+    _arg_specs: tuple[EntrypointArgSpec, ...] = ()
 
     def _with_option(self, **kwargs: Any) -> Self:
         """Helper method to simplify setting options."""
@@ -74,8 +104,11 @@ class EmulatorInstance:
 
     @property
     def shots(self) -> int:
-        """Number of shots to run for each execution."""
-        return self._options._shots
+        """Number of shots to run for each execution.
+
+        Defaults to 1 when unset (``with_shots`` was never called).
+        """
+        return self._options._shots if self._options._shots is not None else 1
 
     @property
     def simulator(self) -> Simulator:
@@ -127,6 +160,16 @@ class EmulatorInstance:
         Defaults to 1, meaning no parallelisation."""
         return self._options._n_processes
 
+    @property
+    def trace_enabled(self) -> bool:
+        """Whether instruction tracing is enabled for emulator executions."""
+        return self._options._trace_enabled
+
+    @property
+    def metrics_enabled(self) -> bool:
+        """Whether metric collection is enabled for emulator executions."""
+        return self._options._metrics_enabled
+
     def with_n_qubits(self, value: int) -> Self:
         """Set the number of qubits available in the emulator instance."""
         return replace(self, _n_qubits=value)
@@ -152,9 +195,35 @@ class EmulatorInstance:
         return self._with_option(_error_model=value)
 
     def with_event_hook(self, value: EventHook) -> Self:
-        """Set the event hook used for the emulator instance.
-        Defaults to NoEventHook."""
+        """Set a custom Selene event hook for the emulator instance.
+
+        When :meth:`with_trace` or :meth:`with_metrics` is enabled, the custom
+        hook is composed with fresh, result-owned analysis hooks for each
+        execution. All hooks receive each event, even when the custom hook
+        handles it, so custom event processing cannot prevent trace or metric
+        collection. Analysis hooks supplied explicitly here remain caller-owned
+        and are not exposed through :class:`EmulatorResult` accessors.
+
+        Defaults to :class:`~selene_sim.event_hooks.event_hook.NoEventHook`.
+        """
         return self._with_option(_event_hook=value)
+
+    def with_trace(self, value: bool = True) -> Self:
+        """Enable collection of per-shot instruction traces.
+
+        Traces can be retrieved from the :class:`EmulatorResult` returned by
+        :meth:`run` or :meth:`run_per_shot`. The same instruction log can also be
+        converted to circuits with :meth:`EmulatorResult.circuits`.
+        """
+        return self._with_option(_trace_enabled=value)
+
+    def with_metrics(self, value: bool = True) -> Self:
+        """Enable collection of per-shot emulator metrics.
+
+        Metrics can be retrieved from the :class:`EmulatorResult` returned by
+        :meth:`run` or :meth:`run_per_shot`.
+        """
+        return self._with_option(_metrics_enabled=value)
 
     def with_verbose(self, value: bool) -> Self:
         """Set whether to print verbose output during the emulator execution.
@@ -211,11 +280,126 @@ class EmulatorInstance:
         This only works for clifford circuits but is very fast."""
         return self.with_simulator(Stim())
 
-    def run(self) -> EmulatorResult:
+    def run(self, **args: ArgValue) -> EmulatorResult:
         """Run the emulator instance and return the results.
-        By default runs one shot, this can be configured with `with_shots()`."""
-        result_stream = self._run_instance()
 
+        By default runs one shot, this can be configured with `with_shots()`.
+
+        If the entrypoint takes runtime arguments, their values must be passed as
+        keyword arguments. Only ``bool``, signed ``int``, ``float``, and arrays of
+        those types are supported. The same values are used for every shot. For
+        example::
+
+            main.emulator(n_qubits=2).run(theta=1.5, n=3)
+
+        To vary arguments per shot, use :meth:`run_per_shot` instead.
+        """
+        if not self._arg_specs:
+            if args:
+                raise EntrypointArgValueError(
+                    "This entrypoint takes no runtime arguments, but got: "
+                    + ", ".join(f"`{name}`" for name in args)
+                )
+            return self._run_and_collect_results()
+
+        validate_record(self._arg_specs, args)
+        provider = ArgProvider()
+        provider.set_constant_args(**_to_provider_args(args))
+        with provider:
+            return self._run_and_collect_results()
+
+    def run_per_shot(self, args: Sequence[Mapping[str, ArgValue]]) -> EmulatorResult:
+        """Run the emulator with a different set of runtime arguments per shot.
+
+        ``args`` is a sequence with one mapping of argument values per shot, so
+        the number of shots run is ``len(args)``. For example::
+
+            main.emulator(n_qubits=2).run_per_shot(
+                [{"theta": 1.0, "n": 10}, {"theta": 2.5, "n": 20}]
+            )
+
+        Because each record corresponds to exactly one shot, the shot count is
+        fixed by ``args``. If ``with_shots`` has been set explicitly to a value
+        that disagrees with ``len(args)`` this raises, rather than silently
+        picking one; not calling ``with_shots`` at all is always fine.
+
+        For constant arguments shared across all shots, use :meth:`run` instead.
+        """
+        if not self._arg_specs:
+            raise EntrypointArgValueError(
+                "This entrypoint takes no runtime arguments; `run_per_shot` is not "
+                "applicable."
+            )
+        validate_per_shot_args(self._arg_specs, args)
+        if self.shot_offset != 0:
+            raise ValueError(
+                "`run_per_shot` is not compatible with a non-zero shot offset "
+                f"(got {self.shot_offset}); per-shot arguments are indexed from 0."
+            )
+        set_shots = self._options._shots
+        if set_shots is not None and set_shots != len(args):
+            raise ValueError(
+                f"`with_shots` was set to {set_shots}, but `run_per_shot` was given "
+                f"{len(args)} argument record(s); the shot count is fixed by the "
+                "number of records. Remove the conflicting `with_shots` call."
+            )
+
+        instance = self.with_shots(len(args))
+        provider = ArgProvider()
+        provider.set_variable_args([_to_provider_args(record) for record in args])
+        with provider:
+            return instance._run_and_collect_results()
+
+    def _run_and_collect_results(self) -> EmulatorResult:
+        """Run the instance and retain any configured analysis collectors."""
+        event_hook, circuit_extractor, metric_store = self._analysis_event_hook()
+        return self._collect_results(
+            self._run_instance(event_hook),
+            circuit_extractor=circuit_extractor,
+            metric_store=metric_store,
+        )
+
+    def _analysis_event_hook(
+        self,
+    ) -> tuple[EventHook, CircuitExtractor | None, MetricStore | None]:
+        """Construct fresh analysis hooks for one emulator execution."""
+        circuit_extractor: CircuitExtractor | None = None
+        metric_store: MetricStore | None = None
+        event_hooks: list[EventHook] = []
+
+        if type(self._options._event_hook) is not NoEventHook:
+            event_hooks.append(self._options._event_hook)
+
+        if self.trace_enabled:
+            from selene_sim.event_hooks.instruction_log import CircuitExtractor
+
+            circuit_extractor = CircuitExtractor()  # type: ignore[no-untyped-call]
+            event_hooks.append(circuit_extractor)
+
+        if self.metrics_enabled:
+            from selene_sim.event_hooks.metrics import MetricStore
+
+            metric_store = MetricStore()  # type: ignore[no-untyped-call]
+            event_hooks.append(metric_store)
+
+        if not event_hooks:
+            return NoEventHook(), circuit_extractor, metric_store
+        if len(event_hooks) == 1:
+            return event_hooks[0], circuit_extractor, metric_store
+        return (
+            MultiEventHook(event_hooks=event_hooks, short_circuit=False),
+            circuit_extractor,
+            metric_store,
+        )
+
+    def _collect_results(
+        self,
+        result_stream: Iterator[Iterator[TaggedResult]],
+        *,
+        circuit_extractor: CircuitExtractor | None = None,
+        metric_store: MetricStore | None = None,
+    ) -> EmulatorResult:
+        """Drain a shot result stream into an :class:`EmulatorResult`."""
         all_results: list[QsysShot] = []
         for shot in self._iterate_shots(result_stream):
             shot_results = QsysShot()
@@ -226,21 +410,33 @@ class EmulatorInstance:
                 # In this case, casting a wide net on exceptions is
                 # suitable.
                 raise EmulatorError(
-                    completed_shots=EmulatorResult(all_results),
+                    completed_shots=EmulatorResult(
+                        all_results,
+                        _circuit_extractor=circuit_extractor,
+                        _metric_store=metric_store,
+                    ),
                     failing_shot=shot_results,
                     underlying_exception=e,
                 ) from None
             all_results.append(shot_results)
-        return EmulatorResult(all_results)
+        return EmulatorResult(
+            all_results,
+            _circuit_extractor=circuit_extractor,
+            _metric_store=metric_store,
+        )
 
-    def _run_instance(self) -> Iterator[Iterator[TaggedResult]]:
+    def _run_instance(
+        self, event_hook: EventHook | None = None
+    ) -> Iterator[Iterator[TaggedResult]]:
         """Run the Selene instance with the given simulator lazily."""
         return self._instance.run_shots(
             simulator=self.simulator,
             runtime=self.runtime,
             n_qubits=self.n_qubits,
             n_shots=self.shots,
-            event_hook=self._options._event_hook,
+            event_hook=(
+                event_hook if event_hook is not None else self._options._event_hook
+            ),
             error_model=self.error_model,
             verbose=self.verbose,
             timeout=self.timeout,

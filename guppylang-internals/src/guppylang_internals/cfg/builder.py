@@ -29,7 +29,7 @@ from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.experimental import (
     check_lists_enabled,
-    check_modifiers_enabled,
+    check_power_modifier_enabled,
 )
 from guppylang_internals.nodes import (
     ComptimeExpr,
@@ -78,13 +78,22 @@ class CFGBuilder(AstVisitor[BB | None]):
 
     cfg: CFG
     globals: Globals
+    # The unitary flags correspond to flags declared via the `@guppy` decorator on the
+    # function. When the builder is constructing a `with` block, this field contains the
+    # flags corresponding to the outer function. This allows us to prevent accumulated
+    # flags from nullifying the outer-function flags (e.g. an even number of daggers).
+    function_unitary_flags: UnitaryFlags
+    # The accumulated unitary flags correspond to the flags accumulated inside a
+    # function via the modifier `block`.
+    accumulated_flags: UnitaryFlags
 
     def build(
         self,
         nodes: list[ast.stmt],
         returns_none: bool,
         globals: Globals,
-        unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        function_unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+        accumulated_flags: UnitaryFlags | None = None,
     ) -> CFG:
         """Builds a CFG from a list of ast nodes.
 
@@ -93,7 +102,17 @@ class CFGBuilder(AstVisitor[BB | None]):
         variables.
         """
         self.cfg = CFG()
-        self.cfg.unitary_flags = unitary_flags
+        self.function_unitary_flags = function_unitary_flags
+        if accumulated_flags is None:
+            # If accumulated_flags is None, we are building the CFG for a function, thus
+            # the flag declared in the decorator counts.
+            self.cfg.unitary_flags = function_unitary_flags
+            self.accumulated_flags = UnitaryFlags.NoFlags
+        else:
+            # Otherwise, we are building the CFG for with a block and the unitary flags
+            # of the cfg correspond to the accumulated flags.
+            self.cfg.unitary_flags = accumulated_flags
+            self.accumulated_flags = accumulated_flags
         self.globals = globals
 
         final_bb = self.visit_stmts(
@@ -348,7 +367,6 @@ class CFGBuilder(AstVisitor[BB | None]):
         return bb
 
     def visit_With(self, node: ast.With, bb: BB, jumps: Jumps) -> BB | None:
-        check_modifiers_enabled(node)
         self._validate_modified_block(node)
 
         # Build context expressions and extract modifiers before constructing the inner
@@ -357,7 +375,16 @@ class CFGBuilder(AstVisitor[BB | None]):
         for item in node.items:
             item.context_expr, bb = ExprBuilder.build(item.context_expr, self.cfg, bb)
             modifiers.push(self._handle_withitem(item))
-        accumulated_flags = self.cfg.unitary_flags.accumulate(modifiers.flags())
+
+        # `accumulated_flags` accumulates flags to handle nested dagger blocks (an even
+        # number of daggers cancels out).
+        accumulated_flags = self.accumulated_flags.accumulate(modifiers.flags())
+        # Preserve flags declared via the `@guppy` decorator so they cannot be cancelled
+        # out by nested modifier blocks. This ensures that a modifier block inside a
+        # `@guppy(daggerable=True)` function is treated as daggerable by the type
+        # checker.
+        accumulated_flags |= self.function_unitary_flags
+
         if UnitaryFlags.Dagger in accumulated_flags:
             # `original_ast_body` is only needed for checking invalid constructs under
             # dagger, so we only need to save it if dagger is present.
@@ -365,7 +392,13 @@ class CFGBuilder(AstVisitor[BB | None]):
         else:
             original_ast_body = None
 
-        cfg = CFGBuilder().build(node.body, True, self.globals, accumulated_flags)
+        cfg = CFGBuilder().build(
+            node.body,
+            True,
+            self.globals,
+            self.function_unitary_flags,
+            accumulated_flags,
+        )
         new_node = ModifiedBlock(
             cfg,
             modifiers,
@@ -404,6 +437,7 @@ class CFGBuilder(AstVisitor[BB | None]):
                     raise GuppyError(WrongNumberOfArgsError(span, 1, len(e.args)))
                 modifier = Control(e, e.args)
             case ast.Call(func=ast.Name(id="power")):
+                check_power_modifier_enabled(e.func)
                 if len(e.args) == 0:
                     span = Span(to_span(e.func).end, to_span(e).end)
                     raise GuppyError(WrongNumberOfArgsError(span, 1, len(e.args)))

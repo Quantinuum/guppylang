@@ -45,16 +45,22 @@ def test_redefine(validate):
 
 
 def test_define_twice(validate):
+    from guppylang.std.builtins import Function  # noqa: TC002
+
     @compile_guppy
     def foo(x: int) -> int:
         if x == 0:
 
             def bar(y: int) -> int:
                 return y + 3
+
+            bar: Function[[int], int] = bar
         else:
 
             def bar(y: int) -> int:
                 return y - 42
+
+            bar: Function[[int], int] = bar
 
         return bar(x)
 
@@ -88,7 +94,7 @@ def test_recurse(validate):
     validate(foo)
 
 
-def test_capture_arg(validate):
+def test_capture_arg(validate, use_experimental_features):
     @compile_guppy
     def foo(x: int) -> int:
         def bar() -> int:
@@ -99,7 +105,7 @@ def test_capture_arg(validate):
     validate(foo)
 
 
-def test_capture_assigned(validate):
+def test_capture_assigned(validate, use_experimental_features):
     @compile_guppy
     def foo(x: int) -> int:
         y = x + 1
@@ -112,7 +118,7 @@ def test_capture_assigned(validate):
     validate(foo)
 
 
-def test_capture_multiple(validate):
+def test_capture_multiple(validate, use_experimental_features):
     @compile_guppy
     def foo(x: int) -> int:
         if x > 5:
@@ -130,7 +136,7 @@ def test_capture_multiple(validate):
     validate(foo)
 
 
-def test_capture_fn(validate):
+def test_capture_fn(validate, use_experimental_features):
     @compile_guppy
     def foo() -> bool:
         def f(x: bool) -> bool:
@@ -144,7 +150,7 @@ def test_capture_fn(validate):
     validate(foo)
 
 
-def test_capture_cfg(validate):
+def test_capture_cfg(validate, use_experimental_features):
     @compile_guppy
     def foo(x: int) -> int:
         a = x + 4
@@ -160,7 +166,7 @@ def test_capture_cfg(validate):
     validate(foo)
 
 
-def test_capture_deep(validate):
+def test_capture_deep(validate, use_experimental_features):
     @compile_guppy
     def foo(x: int) -> int:
         a = x * 2
@@ -179,7 +185,7 @@ def test_capture_deep(validate):
     validate(foo)
 
 
-def test_capture_recurse(validate):
+def test_capture_recurse(validate, use_experimental_features):
     @compile_guppy
     def foo(x: int) -> int:
         def bar(y: int, z: int) -> int:
@@ -192,7 +198,7 @@ def test_capture_recurse(validate):
     validate(foo)
 
 
-def test_capture_recurse_nested(validate):
+def test_capture_recurse_nested(validate, use_experimental_features):
     @guppy
     def foo(x: int) -> int:
         def bar(y: int, z: int) -> int:
@@ -211,7 +217,7 @@ def test_capture_recurse_nested(validate):
     validate(foo.compile_function())
 
 
-def test_capture_while(validate):
+def test_capture_while(validate, use_experimental_features):
     @compile_guppy
     def foo(x: int) -> int:
         a = 0

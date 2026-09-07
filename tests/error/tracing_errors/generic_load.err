@@ -1,10 +1,10 @@
-Error: Error in comptime function return (at $FILE:14:0)
+Error: Error in comptime function return (at $FILE:13:0)
    | 
-12 | 
-13 | @guppy.comptime
-14 | def main() -> Callable[[int], int]:
+11 | 
+12 | @guppy.comptime
+13 | def main() -> Function[[int], int]:
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-15 |     return generic_func
+14 |     return generic_func
    | ^^^^^^^^^^^^^^^^^^^^^^^
 
 Cannot infer type parameters of generic function `generic_func`

@@ -3,14 +3,15 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, Flag, auto
 from functools import cached_property, total_ordering
-from typing import TYPE_CHECKING, ClassVar, Literal, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeGuard, assert_never, cast
 
 import hugr.std.float
 import hugr.std.int
 from hugr import tys as ht
-from typing_extensions import assert_never
 
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.span import DUMMY_SPAN
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
     ToHugr,
@@ -19,7 +20,11 @@ from guppylang_internals.tys.common import (
     Transformer,
     Visitor,
 )
-from guppylang_internals.tys.const import Const, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.const import (
+    Const,
+    ConstValue,
+    ExistentialConstVar,
+)
 from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.protocol import ProtocolInst
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
@@ -29,7 +34,14 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.struct import CheckedStructDef
     from guppylang_internals.definition.ty import OpaqueTypeDef
     from guppylang_internals.definition.util import CheckedField
+    from guppylang_internals.definition.value import CallableDef
     from guppylang_internals.tys.subst import Inst, PartialInst, Subst
+
+
+# Names of the custom modified definition methods. Used in the @guppy.unitary decorator.
+CALL_DAGGERED_METHOD = "daggered"
+CALL_CONTROLLED_METHOD = "controlled"
+CALL_CTRL_DAGGERED_METHOD = "ctrl_daggered"
 
 
 @dataclass(frozen=True)
@@ -123,40 +135,6 @@ class ParametrizedTypeBase(TypeBase, ABC):
                     raise InternalGuppyError(
                         "Tried to construct a higher-rank polymorphic type!"
                     )
-
-    @property
-    @abstractmethod
-    def intrinsically_copyable(self) -> bool:
-        """Whether this type is copyable, independent of the arguments.
-
-        For example, a parametrized struct containing a qubit is never copyable, even if
-        all its arguments are.
-        """
-
-    @cached_property
-    def copyable(self) -> bool:
-        """Whether this type should be treated as copyable."""
-        # Either an argument isn't a type argument, or it must be copyable.
-        return self.intrinsically_copyable and all(
-            not isinstance(arg, TypeArg) or arg.ty.copyable for arg in self.args
-        )
-
-    @property
-    @abstractmethod
-    def intrinsically_droppable(self) -> bool:
-        """Whether this type is droppable, independent of the arguments.
-
-        For example, a parametrized struct containing a qubit is never droppable, even
-        if all its arguments are.
-        """
-
-    @cached_property
-    def droppable(self) -> bool:
-        """Whether this type should be treated as copyable."""
-        # Either an argument isn't a type argument, or it must be droppable.
-        return self.intrinsically_droppable and all(
-            not isinstance(arg, TypeArg) or arg.ty.droppable for arg in self.args
-        )
 
     @cached_property
     def unsolved_vars(self) -> set[ExistentialVar]:
@@ -436,7 +414,7 @@ class UnitaryFlags(Flag):
     def callable_name(
         self,
     ) -> Literal[
-        "Callable",
+        "Function",
         "Unitary",
         "Daggerable",
         "Controllable",
@@ -444,7 +422,7 @@ class UnitaryFlags(Flag):
         """Returns the name of the corresponding Callable variant for this flag."""
         match self:
             case UnitaryFlags.NoFlags:
-                return "Callable"
+                return "Function"
             case UnitaryFlags.Unitary:
                 return "Unitary"
             case UnitaryFlags.Dagger:
@@ -453,6 +431,35 @@ class UnitaryFlags(Flag):
                 return "Controllable"
             case _:
                 assert_never(self)
+
+    def custom_implementation_names(self) -> list[str]:
+        """Returns the name of the corresponding custom implementation for this flag."""
+        match self:
+            case UnitaryFlags.Unitary:
+                return [CALL_CTRL_DAGGERED_METHOD, CALL_CONTROLLED_METHOD]
+            case UnitaryFlags.Dagger:
+                return [CALL_DAGGERED_METHOD]
+            case UnitaryFlags.Control:
+                return [CALL_CONTROLLED_METHOD]
+            case UnitaryFlags.NoFlags:
+                raise AssertionError("Expected a non-empty unitary flag")
+            case _:
+                assert_never(self)
+
+    def custom_hint_rendering(self) -> str:
+        """Render the custom implementations required by this flag for a hint."""
+        names = self.custom_implementation_names()
+        if len(names) == 1:
+            return f"a custom `{names[0]}` implementation"
+        if len(names) == 2:
+            return (
+                "custom "
+                + " and ".join(f"`{name}`" for name in names)
+                + " implementations"
+            )
+        raise AssertionError(
+            f"Unexpected number of custom implementation names: {len(names)}"
+        )
 
 
 @dataclass(frozen=True)
@@ -476,11 +483,11 @@ class FunctionType(ParametrizedTypeBase):
     params: Sequence[Parameter]
     comptime_args: Sequence[ConstArg]
 
+    # Contains a list of TypeArgs (corresponding to the function inputs and output) and
+    # ConstArgs (corresponding to the comptime arguments)
     args: Sequence[Argument] = field(init=False)
     copyable: bool = field(default=True, init=True)
     droppable: bool = field(default=True, init=True)
-    intrinsically_copyable: bool = field(default=True, init=True)
-    intrinsically_droppable: bool = field(default=True, init=True)
     hugr_bound: ht.TypeBound = field(default=ht.TypeBound.Copyable, init=False)
 
     unitary_flags: UnitaryFlags = field(default=UnitaryFlags.NoFlags, init=True)
@@ -669,6 +676,108 @@ class FunctionType(ParametrizedTypeBase):
         )
 
 
+@dataclass(frozen=True)
+class FunctionDefType(TypeBase):
+    """The type of function values associated with a concrete definition.
+
+    Unlike the `Function` type, which denotes an opaque function value, function def
+    types are unique to one definition. For example, two functions `foo` and `bar` with
+    the same signature will still have two different item types. However, function def
+    types can be implicitly coerced into opaque `Function` values.
+
+    The equivalent concept in Rust are "function item types":
+    https://doc.rust-lang.org/reference/types/function-item.html
+
+    Finally, users are not able to write out the type of a function item, they can only
+    be produced by the compiler. In error messages, they are printed out in the
+    following style: `def name(arg: ty) -> return`
+    """
+
+    def_id: DefId
+    args: "Inst" = ()
+
+    copyable: bool = field(default=True, init=True)
+    droppable: bool = field(default=True, init=True)
+
+    @property
+    def defn(self) -> "CallableDef":
+        """The definition object associated with this function def type."""
+        from guppylang_internals.definition.value import CallableDef
+        from guppylang_internals.engine import ENGINE
+
+        defn = ENGINE.get_parsed(self.def_id)
+        assert isinstance(defn, CallableDef)
+        return defn
+
+    @property
+    def sig(self) -> FunctionType:
+        """The signature of this function def type."""
+        generic_sig = self.defn.ty
+        return generic_sig.instantiate(self.args) if self.args else generic_sig
+
+    @property
+    def parametrized(self) -> bool:
+        """Whether the function is parametrized."""
+        return self.sig.parametrized and not self.args
+
+    def cast(self) -> "Type":
+        """Casts an implementor of `TypeBase` into a `Type`."""
+        return self
+
+    def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
+        """Computes the Hugr representation of the type."""
+        # We can compile function items into trivial Hugr types since all required
+        # information is available statically
+        return ht.Unit
+
+    def visit(self, visitor: Visitor) -> None:
+        """Accepts a visitor on this type."""
+        if not visitor.visit(self):
+            for arg in self.args:
+                visitor.visit(arg)
+
+    def _with_args(self, args: "Inst") -> "FunctionDefType":
+        """Reconstructs this function definition type with new type arguments."""
+        return type(self)(self.def_id, args)
+
+    def transform(self, transformer: Transformer) -> "Type":
+        """Accepts a transformer on this type."""
+        return transformer.transform(self) or self._with_args(
+            tuple(arg.transform(transformer) for arg in self.args)
+        )
+
+    def unquantified(self) -> tuple["FunctionDefType", Sequence[ExistentialVar]]:
+        """Instantiates all parameters with existential variables.
+
+        The returned type is still a `FunctionDefType`, so we remember which definition
+        this instantiation came from.
+        """
+        from guppylang_internals.tys.subst import Instantiator
+
+        args: list[Argument] = []
+        exes = []
+        for param in self.defn.ty.params:
+            arg, ex = param.to_existential()
+            inst = Instantiator(args)
+            exes.append(ex.transform(inst))
+            args.append(arg.transform(inst))
+
+        return self._with_args(tuple(args)), exes
+
+
+@dataclass(frozen=True)
+class NestedFunctionDefType(FunctionDefType):
+    """Definition-specific type of a nested function materialised at runtime.
+
+    Unlike global function items, we cannot compile nested function items into
+    trivial Hugr types, thus we need a specific `to_hugr` implementation.
+    """
+
+    def to_hugr(self, ctx: ToHugrContext) -> ht.Type:
+        """Uses the callable signature as the runtime representation."""
+        return self.sig.to_hugr(ctx)
+
+
 @dataclass(frozen=True, init=False)
 class TupleType(ParametrizedTypeBase):
     """Type of tuples."""
@@ -682,14 +791,14 @@ class TupleType(ParametrizedTypeBase):
         object.__setattr__(self, "element_types", element_types)
 
     @property
-    def intrinsically_copyable(self) -> bool:
+    def copyable(self) -> bool:
         """Whether objects of this type can be implicitly copied."""
-        return True
+        return all(ty.copyable for ty in self.element_types)
 
     @property
-    def intrinsically_droppable(self) -> bool:
+    def droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
-        return True
+        return all(ty.droppable for ty in self.element_types)
 
     def cast(self) -> "Type":
         """Casts an implementor of `TypeBase` into a `Type`."""
@@ -717,14 +826,18 @@ class OpaqueType(ParametrizedTypeBase):
     defn: "OpaqueTypeDef"
 
     @property
-    def intrinsically_copyable(self) -> bool:
+    def copyable(self) -> bool:
         """Whether objects of this type can be implicitly copied."""
-        return not self.defn.never_copyable
+        return not self.defn.never_copyable and all(
+            arg.ty.copyable for arg in self.args if isinstance(arg, TypeArg)
+        )
 
     @property
-    def intrinsically_droppable(self) -> bool:
+    def droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
-        return not self.defn.never_droppable
+        return not self.defn.never_droppable and all(
+            arg.ty.droppable for arg in self.args if isinstance(arg, TypeArg)
+        )
 
     @property
     def hugr_bound(self) -> ht.TypeBound:
@@ -754,6 +867,9 @@ class StructType(ParametrizedTypeBase):
 
     defn: "CheckedStructDef"
 
+    intrinsically_copyable: bool = field(default=True, init=False)
+    intrinsically_droppable: bool = field(default=True, init=False)
+
     @cached_property
     def fields(self) -> list["CheckedField"]:
         """The fields of this struct type."""
@@ -769,12 +885,12 @@ class StructType(ParametrizedTypeBase):
         return {field.name: field for field in self.fields}
 
     @cached_property
-    def intrinsically_copyable(self) -> bool:
+    def copyable(self) -> bool:
         """Whether objects of this type can be implicitly copied."""
         return self.frozen and all(f.ty.copyable for f in self.fields)
 
     @cached_property
-    def intrinsically_droppable(self) -> bool:
+    def droppable(self) -> bool:
         """Whether objects of this type can be dropped."""
         return all(f.ty.droppable for f in self.fields)
 
@@ -830,7 +946,7 @@ class EnumType(ParametrizedTypeBase):
         return self.defn.variants
 
     @cached_property
-    def intrinsically_copyable(self) -> bool:
+    def copyable(self) -> bool:
         """Whether objects of this type can be implicitly copied.
 
         An enum is copyable only if ALL payload types in ALL variants are copyable.
@@ -838,7 +954,7 @@ class EnumType(ParametrizedTypeBase):
         return all(all(f.ty.copyable for f in v.fields) for v in self.variants_as_list)
 
     @cached_property
-    def intrinsically_droppable(self) -> bool:
+    def droppable(self) -> bool:
         """Whether objects of this type can be dropped.
 
         An enum is droppable only if ALL payload types in ALL variants are droppable.
@@ -861,9 +977,7 @@ class EnumType(ParametrizedTypeBase):
 
 
 #: The type of parametrized Guppy types.
-ParametrizedType: TypeAlias = (
-    FunctionType | TupleType | OpaqueType | StructType | EnumType
-)
+type ParametrizedType = FunctionType | TupleType | OpaqueType | StructType | EnumType
 
 
 #: The type of Guppy types.
@@ -875,12 +989,36 @@ ParametrizedType: TypeAlias = (
 #: This might become obsolete in case the @sealed decorator is added:
 #:   * https://peps.python.org/pep-0622/#sealed-classes-as-algebraic-data-types
 #:   * https://github.com/johnthagen/sealed-typing-pep
-Type: TypeAlias = (
-    BoundTypeVar | ExistentialTypeVar | NumericType | NoneType | ParametrizedType
+type Type = (
+    BoundTypeVar
+    | ExistentialTypeVar
+    | NumericType
+    | NoneType
+    | FunctionDefType
+    | ParametrizedType
 )
 
+
+def is_type(t: Any) -> TypeGuard[Type]:
+    return isinstance(
+        t,
+        (
+            BoundTypeVar,
+            ExistentialTypeVar,
+            NumericType,
+            NoneType,
+            FunctionDefType,
+            FunctionType,
+            TupleType,
+            OpaqueType,
+            StructType,
+            EnumType,
+        ),
+    )
+
+
 #: An immutable row of Guppy types.
-TypeRow: TypeAlias = Sequence[Type]
+type TypeRow = Sequence[Type]
 
 
 def row_to_type(row: TypeRow) -> Type:
@@ -912,30 +1050,23 @@ def rows_to_hugr(rows: Sequence[TypeRow], ctx: ToHugrContext) -> list[ht.TypeRow
     return [row_to_hugr(row, ctx) for row in rows]
 
 
-def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | None":
+def unify(s: Type, t: Type, subst: "Subst | None") -> "Subst | None":
     """Computes a most general unifier for two types or constants.
 
     Return a substitutions `subst` such that `s[subst] == t[subst]` or `None` if this
     not possible.
     """
     # Make sure that s and t are either both constants or both types
-    assert isinstance(s, TypeBase) == isinstance(t, TypeBase)
     if subst is None:
         return None
     match s, t:
         case ExistentialVar(id=s_id), ExistentialVar(id=t_id) if s_id == t_id:
             return subst
-        case ExistentialTypeVar() as s_var, t if isinstance(t, Type):
+        case ExistentialTypeVar() as s_var, t:
             return _unify_type_var(s_var, t, subst)
-        case ExistentialConstVar() as s_var, t if isinstance(t, Const):
-            return _unify_const_var(s_var, t, subst)
-        case s, ExistentialTypeVar() as t_var if isinstance(s, Type):
+        case s, ExistentialTypeVar() as t_var:
             return _unify_type_var(t_var, s, subst)
-        case s, ExistentialConstVar() as t_var if isinstance(s, Const):
-            return _unify_const_var(t_var, s, subst)
         case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
-            return subst
-        case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
             return subst
         case NumericType(kind=s_kind), NumericType(kind=t_kind) if s_kind == t_kind:
             return subst
@@ -960,25 +1091,48 @@ def unify(s: Type | Const, t: Type | Const, subst: "Subst | None") -> "Subst | N
             return None
 
 
+def unify_const(s: Const, t: Const, subst: "Subst | None") -> "Subst | None":
+    if subst is None:
+        return None
+
+    match s, t:
+        case ExistentialConstVar() as s_var, t:
+            return _unify_const_var(s_var, t, subst)
+        case s, ExistentialConstVar() as t_var:
+            return _unify_const_var(t_var, s, subst)
+        case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
+            return subst
+        case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
+            return subst
+        case _:
+            return None
+
+
 def _unify_type_var(var: ExistentialTypeVar, t: Type, subst: "Subst") -> "Subst | None":
     """Helper function for unification of type variables."""
     if var in subst:
-        return unify(subst[var], t, subst)
+        s = subst[var]
+        assert is_type(s)
+        return unify(s, t, subst)
     if isinstance(t, ExistentialTypeVar) and t in subst:
-        return unify(var, subst[t], subst)
+        s = subst[t]
+        assert is_type(s)
+        return unify(var, s, subst)
     if var in t.unsolved_vars:
         return None
     # Check that `t` implements all protocols required by `var`.
     if var.implements:
-        from guppylang_internals.checker.protocol_checker import check_protocol
-
-        try:
-            for proto in var.implements:
-                _, proto_subst = check_protocol(t, proto)
+        for proto in var.implements:
+            try:
+                loc = DUMMY_SPAN  # We catch the error later so the span doesn't matter
+                _, proto_subst = proto.check_implemented_by(t, loc)
                 subst |= proto_subst
-        except GuppyError:
-            return None
-    return {var: t, **subst}
+            except GuppyError:
+                # At this point, we only use protocol checking to infer types. If the
+                # protocol is not satisfied, we still keep going. The error will be
+                # raised later when we check the inferred instantiation.
+                pass
+    return {var: t.substitute(subst), **subst}
 
 
 def _unify_const_var(
@@ -994,7 +1148,7 @@ def _unify_const_var(
     var = replace(var, ty=var.ty.transform(Substituter(subst)))
     t = t.transform(Substituter(subst))
     if var in subst:
-        return unify(subst[var], t, subst)
+        return unify_const(cast("Const", subst[var]), t, subst)
 
     if var in t.unsolved_vars:
         return None
@@ -1015,7 +1169,7 @@ def _unify_args(
                     return None
                 subst = res
             case ConstArg(const=sa_const), ConstArg(const=ta_const):
-                res = unify(sa_const, ta_const, subst)
+                res = unify_const(sa_const, ta_const, subst)
                 if res is None:
                     return None
                 subst = res
@@ -1032,7 +1186,7 @@ def unify_type_args(
             case TypeArg(), TypeArg():
                 subst = unify(s.ty, t.ty, subst)
             case ConstArg(), ConstArg():
-                subst = unify(s.const, t.const, subst)
+                subst = unify_const(s.const, t.const, subst)
             case _:
                 return None
     return subst
@@ -1047,6 +1201,8 @@ def parse_function_tensor(ty: TupleType) -> list[FunctionType] | None:
     for el in ty.element_types:
         if isinstance(el, FunctionType):
             result.append(el)
+        elif isinstance(el, FunctionDefType):
+            result.append(el.sig)
         elif isinstance(el, TupleType):
             funcs = parse_function_tensor(el)
             if funcs:

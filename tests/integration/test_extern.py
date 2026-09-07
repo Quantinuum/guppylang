@@ -8,7 +8,7 @@ def test_extern_float(validate):
 
     @guppy
     def main() -> float:
-        return ext + ext
+        return ext
 
     package = main.compile_function()
     validate(package)

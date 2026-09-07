@@ -1,0 +1,26 @@
+Error: Different types (at $FILE:12:4)
+   | 
+10 |         def foo() -> None:
+11 |             pass
+12 |     foo()
+   |     ^^^ Variable `foo` may refer to different types
+
+Notes:
+   | 
+ 6 |     if b:
+ 7 |         def foo() -> None:
+   |         ------------------
+ 8 |             pass
+   | ---------------- This is a distinct function `foo` of type `def foo() ->
+   |                  None`
+ 9 |     else:
+10 |         def foo() -> None:
+   |         ------------------
+11 |             pass
+   | ---------------- This is a distinct function `foo` of type `def foo() ->
+   |                  None`
+
+Help: Consider adding type annotations to coerce them into opaque function
+values: `foo: Function[[], None] = ...`
+
+Guppy compilation failed due to 1 previous error

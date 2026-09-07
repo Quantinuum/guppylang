@@ -21,6 +21,7 @@ test *PYTEST_FLAGS:
 
 # Export the integration test cases to a directory.
 export-integration-tests directory="guppy-exports":
+    rm -rf {{ directory }}/*.hugr
     uv run pytest -n auto --export-test-cases="{{ directory }}"
 
 # test-exported-hugrs *PYTEST_FLAGS: export-integration-tests

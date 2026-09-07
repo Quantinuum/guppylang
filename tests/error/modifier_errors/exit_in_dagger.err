@@ -1,0 +1,9 @@
+Error: Dagger constraint violation (at $FILE:8:8)
+  | 
+6 | def test() -> None:
+7 |     with dagger():
+8 |         exit("a")
+  |         ^^^^^^^^^ This function cannot be called in a daggerable context
+  |                   because it is not daggerable itself
+
+Guppy compilation failed due to 1 previous error

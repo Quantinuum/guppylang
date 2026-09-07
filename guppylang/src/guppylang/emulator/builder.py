@@ -5,10 +5,9 @@ Compiling and building emulator instances for guppy programs.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 import selene_sim
-from typing_extensions import Self
 
 from .instance import EmulatorInstance
 
@@ -18,6 +17,8 @@ if TYPE_CHECKING:
 
     from hugr.package import Package
     from selene_core import BuildPlanner, QuantumInterface, Utility
+
+    from ._args import EntrypointArgSpec
 
 
 #: The quantum platform to target when building an emulator instance.
@@ -97,6 +98,14 @@ class EmulatorBuilder:
         """
         return replace(self, _platform=value)
 
+    def link_utility(self, utility: Utility) -> Self:
+        """Link a selene ``Utility`` into the emulator build.
+
+        May be called multiple times to link additional utilities.
+        """
+        utilities = [*(self._utilities or []), utility]
+        return replace(self, _utilities=utilities)
+
     def with_build_arg(self, key: str, value: Any) -> Self:
         """Selene builds may support additional customisable arguments,
         e.g. to override the choice of compilation route. This is passed
@@ -122,12 +131,24 @@ class EmulatorBuilder:
         else:
             return replace(self, _custom_args=self._custom_args | {key: value})
 
-    def build(self, package: Package, n_qubits: int) -> EmulatorInstance:
+    def build(
+        self,
+        package: Package,
+        n_qubits: int,
+        arg_specs: Sequence[EntrypointArgSpec] = (),
+    ) -> EmulatorInstance:
         """Build an EmulatorInstance from a compiled package.
 
         Args:
-            package: The compiled HUGR package to build the emulator from.
-            n_qubits: The number of qubits to allocate for the emulator instance.
+            package:
+                The compiled HUGR package to build the emulator from.
+
+            n_qubits:
+                The number of qubits to allocate for the emulator instance.
+
+            arg_specs:
+                The runtime argument schema of the (wrapped) entrypoint, if
+                it takes arguments. Used to validate values passed to ``run``.
 
         Returns:
             An EmulatorInstance that can be used to run the compiled program.
@@ -149,4 +170,6 @@ class EmulatorBuilder:
             **custom_args,
         )
 
-        return EmulatorInstance(_instance=instance, _n_qubits=n_qubits)
+        return EmulatorInstance(
+            _instance=instance, _n_qubits=n_qubits, _arg_specs=tuple(arg_specs)
+        )

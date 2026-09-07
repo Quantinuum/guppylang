@@ -9,4 +9,7 @@ Help: Experimental features are currently disabled. You can enable them by
 calling `guppylang.enable_experimental_features()`, however note that these
 features are unstable and might break in the future.
 
+Help: You may be looking for `array` from `guppylang.std.array` or native Python
+tuples.
+
 Guppy compilation failed due to 1 previous error

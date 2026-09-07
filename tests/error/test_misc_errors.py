@@ -1,21 +1,14 @@
-import pathlib
 import pytest
 
 from guppylang import guppy
-from tests.error.util import run_error_test
+from tests.error.util import run_error_test, collect_error_test_cases
 
-path = pathlib.Path(__file__).parent.resolve() / "misc_errors"
-files = [
-    x
-    for x in path.iterdir()
-    if x.is_file() and x.suffix == ".py" and x.name != "__init__.py"
-]
 
-# TODO: Skip functional tests for now
-files = [f for f in files if "functional" not in f.name]
-
-# Turn paths into strings, otherwise pytest doesn't display the names
-files = [str(f) for f in files]
+files = collect_error_test_cases(
+    "misc_errors",
+    # TODO: Skip functional tests for now
+    exclude=lambda path: path.is_file() and "functional" in path.name,
+)
 
 
 @pytest.mark.parametrize("file", files)

@@ -1,10 +1,11 @@
 from abc import ABC
 from collections.abc import Sequence
 
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
 from hugr import val as hv
 
+from guppylang_internals.compiler.builder.ops import tag
 from guppylang_internals.compiler.expr_compiler import unpack_wire
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
@@ -60,18 +61,12 @@ class EitherConstructor(EitherCompiler, CustomCallCompiler):
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         ty = self.either_ty
-        if self.tag == 1:
-            # In the `right` case, the type args are swapped around since `R` occurs
-            # first in the signature :(
-            ty.variant_rows = [ty.variant_rows[1], ty.variant_rows[0]]
-        # For the same reason, the type of the input corresponds to the first type
-        # variable
-        inp_arg = self.type_args[0]
+        inp_arg = self.type_args[self.tag]
         assert isinstance(inp_arg, TypeArg)
         [inp] = args
         # Unpack the single input into a row
         inp_row = unpack_wire(inp, inp_arg.ty, self.builder, self.ctx, self.node)
-        return [self.builder.add_op(ops.Tag(self.tag, ty), *inp_row)]
+        return [self.builder.add_op(tag(self.tag, ty), *inp_row)]
 
 
 class EitherTestCompiler(EitherCompiler):
@@ -86,7 +81,7 @@ class EitherTestCompiler(EitherCompiler):
         for i in [0, 1]:
             case = cond.add_case(i)
             val = hv.TRUE if i == self.tag else hv.FALSE
-            either = case.add_op(ops.Tag(i, self.either_ty), *case.inputs())
+            either = case.add_op(tag(i, self.either_ty), *case.inputs())
             case.set_outputs(case.load(val), either)
         [res, either] = cond.outputs()
         return CallReturnWires(regular_returns=[res], inout_returns=[either])
@@ -105,9 +100,9 @@ class EitherToOptionCompiler(EitherCompiler, CustomCallCompiler):
         for i in [0, 1]:
             case = cond.add_case(i)
             if i == self.tag:
-                out = case.add_op(ops.Tag(1, ht.Option(*target_tys)), *case.inputs())
+                out = case.add_op(tag(1, ht.Option(*target_tys)), *case.inputs())
             else:
-                out = case.add_op(ops.Tag(0, ht.Option(*target_tys)))
+                out = case.add_op(tag(0, ht.Option(*target_tys)))
             case.set_outputs(out)
         return list(cond.outputs())
 

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from hugr import val
+from hugr import ext, val
 from tket_exts import (
     debug,
     futures,
@@ -8,7 +8,6 @@ from tket_exts import (
     guppy,
     measurement,
     modifier,
-    qsystem,
     qsystem_helios,
     qsystem_random,
     qsystem_sol,
@@ -25,7 +24,6 @@ GLOBAL_PHASE_EXTENSION = global_phase()
 GUPPY_EXTENSION = guppy()
 MEASUREMENT_EXTENSION = measurement()
 MODIFIER_EXTENSION = modifier()
-QSYSTEM_EXTENSION = qsystem()
 QSYSTEM_HELIOS_EXTENSION = qsystem_helios()
 QSYSTEM_SOL_EXTENSION = qsystem_sol()
 QSYSTEM_RANDOM_EXTENSION = qsystem_random()
@@ -42,7 +40,6 @@ TKET_EXTENSIONS = [
     GUPPY_EXTENSION,
     MEASUREMENT_EXTENSION,
     MODIFIER_EXTENSION,
-    QSYSTEM_EXTENSION,
     QSYSTEM_HELIOS_EXTENSION,
     QSYSTEM_SOL_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
@@ -69,3 +66,10 @@ class ConstWasmModule(val.ExtensionValue):
 
     def __str__(self) -> str:
         return f"tket.wasm.module(module_filename={self.wasm_file})"
+
+    def _resolve_used_extensions_inplace(
+        self,
+        resolver: ext.UsedExtensionResolver,
+        registry: ext.ExtensionRegistry | None = None,
+    ) -> None:
+        resolver.register(WASM_EXTENSION)
