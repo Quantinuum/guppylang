@@ -93,8 +93,4 @@ def _gpu_helper[**P, T](
 if not TYPE_CHECKING and sphinx_running():
     gpu_module = _dummy_custom_decorator
 
-    # Support both forms of the decorator
-    def gpu(*args: object, **kwargs: object):  # type: ignore[no-redef]
-        if len(args) == 1 and callable(args[0]) and not kwargs:
-            return args[0]
-        return _dummy_custom_decorator(*args, **kwargs)
+    gpu = _dummy_custom_decorator()

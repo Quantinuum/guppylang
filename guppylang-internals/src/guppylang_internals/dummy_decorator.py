@@ -66,6 +66,7 @@ class _DummyGuppy:
 
 def _dummy_custom_decorator(*args: Any, **kwargs: Any) -> Any:
     """Dummy version of custom decorators that are used during Sphinx builds."""
+
     def decorator(*decorator_args: Any, **decorator_kwargs: Any) -> Any:
         if (
             len(decorator_args) == 1
