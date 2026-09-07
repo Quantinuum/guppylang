@@ -613,6 +613,42 @@ def test_ctrl_daggered_impl_is_executed(use_experimental_features, run_int_fn):
     run_int_fn(main, expected=1, num_qubits=2)
 
 
+def test_double_daggered_is_properly_solved(use_experimental_features, run_int_fn):
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy(controllable=True)
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+        @guppy
+        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy(unitary=True)
+    def helper(c: qubit, q: qubit) -> None:
+        with control(c), dagger:
+            custom_gate(q)
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with dagger:
+            helper(control_qubit, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
 def test_two_control_counts_distinct_runtime(use_experimental_features, run_int_fn):
     @guppy.unitary
     class custom_gate:
