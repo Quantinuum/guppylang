@@ -92,5 +92,4 @@ def _gpu_helper[**P, T](
 # Override decorators with dummy versions if we're running a sphinx build
 if not TYPE_CHECKING and sphinx_running():
     gpu_module = _dummy_custom_decorator
-
     gpu = _dummy_custom_decorator()
