@@ -84,7 +84,7 @@ class RecursiveModifierControlCountError(Error):
     )
     message: ClassVar[str] = (
         "Custom controlled implementations that recursively increase the number of "
-        "controllers cannot be monomorphized. "
+        "controllers cannot be monomorphized."
     )
     previous_count: int
     control_count: int

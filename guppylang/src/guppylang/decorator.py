@@ -81,7 +81,7 @@ if TYPE_CHECKING:
     from tket.metadata import InlineAnnotationValue
 
 type Decorator[S, T] = Callable[[S], T]
-type CustomModifierDefinitions = dict[CustomModifierKind, RawFunctionDef]
+type _CustomModifierDefinitions = dict[CustomModifierKind, RawFunctionDef]
 
 AnyRawFunctionDef = (
     RawFunctionDef,
@@ -388,14 +388,14 @@ class _Guppy:
         object.__setattr__(call_raw_func, "name", cls.__name__)
 
         # Update the unitary metadata according to the custom implementations
-        custom_modified_definitions = _get_custom_methods(cls)
+        custom_methods_definitions = _get_custom_methods_definitions(cls)
         definition_span = call_raw_func.set_unitary_class(
             cls,
             frame,
             DEF_STORE.sources,
         )
         for kind in CustomModifierKind:
-            custom_def = custom_modified_definitions.get(kind)
+            custom_def = custom_methods_definitions.get(kind)
             if custom_def is None:
                 continue
             # We forward the type parameters of the unitary class to the custom method
@@ -410,9 +410,9 @@ class _Guppy:
         assert call_raw_func.metadata is not None
         combined_flags = _set_unitary_metadata(
             call_raw_func.metadata,
-            daggered=custom_modified_definitions.get(CustomModifierKind.DAGGERED),
-            controlled=custom_modified_definitions.get(CustomModifierKind.CONTROLLED),
-            ctrl_daggered=custom_modified_definitions.get(
+            daggered=custom_methods_definitions.get(CustomModifierKind.DAGGERED),
+            controlled=custom_methods_definitions.get(CustomModifierKind.CONTROLLED),
+            ctrl_daggered=custom_methods_definitions.get(
                 CustomModifierKind.CTRL_DAGGERED
             ),
             definition_span=to_span(definition_span),
@@ -942,11 +942,11 @@ def _get_unitary_call_def(cls: object) -> GuppyDefinition:
     )
 
 
-def _get_custom_methods[T](
+def _get_custom_methods_definitions[T](
     cls: builtins.type[T],
-) -> CustomModifierDefinitions:
+) -> _CustomModifierDefinitions:
     """Returns the `@guppy`-annotated `daggered`, `controlled`, and `ctrl_daggered`"""
-    custom_methods: CustomModifierDefinitions = {}
+    custom_methods: _CustomModifierDefinitions = {}
     custom_methods_names = tuple(kind.value for kind in CustomModifierKind)
 
     for method_name, method in cls.__dict__.items():

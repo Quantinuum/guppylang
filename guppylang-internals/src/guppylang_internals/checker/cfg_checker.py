@@ -28,7 +28,7 @@ from guppylang_internals.checker.expr_checker import (
     to_bool,
 )
 from guppylang_internals.checker.modifier import (
-    NO_CALL_MODIFIERS,
+    UNMODIFIED_CALL,
     ModifierContext,
 )
 from guppylang_internals.checker.stmt_checker import StmtChecker
@@ -92,7 +92,7 @@ def check_cfg(
     func_name: str,
     globals: Globals,
     current_caller: MonoDefId,
-    modifier_ctx: ModifierContext = NO_CALL_MODIFIERS,
+    modifier_ctx: ModifierContext = UNMODIFIED_CALL,
     first_modifier_node: ast.expr | None = None,
     modified_block_name_base: str | None = None,
     modified_block_counter: Iterator[int] | None = None,

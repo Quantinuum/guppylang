@@ -21,7 +21,7 @@ from semver import Version
 import guppylang_internals
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
-from guppylang_internals.analysis.modifier_callgraph import (
+from guppylang_internals.analysis.modifier import (
     ConcreteCustomUse,
     EdgeWithModifierContext,
     analyze_modifier_calls,
@@ -59,7 +59,7 @@ from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.metadata.debug_info_util import (
     StringTable,
 )
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type,
@@ -271,8 +271,9 @@ class CompilationEngine:
     call_graph: dict[MonoDefId, list[MonoDefId]]
     func_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
-    #: stores one representative call site for future diagnostics.
-    local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, "AstNode"]]
+    #: stores one representative call site span for diagnostics in
+    #: analysis.modifier._check_recursive_custom_uses
+    local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, Span]]
     #: Resolved calls indexed by their raw edge and effective propagated context.
     resolved_modified_calls: dict[EdgeWithModifierContext, MonoDefId]
     #: Concrete custom modifier uses indexed by custom-definition monomorphization.
@@ -348,12 +349,11 @@ class CompilationEngine:
         self.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
             self.register_effects((callee.id, inst), callee.call_effects)
-        elif isinstance(callee, CallableDef):
-            # Effects not known yet, will be computed.
-            callee_mono_def_id: MonoDefId = (callee.id, inst)
-            edge = (ctx.current_caller, callee_mono_def_id)
-            modifier_contexts = self.local_modifiers_by_edge.setdefault(edge, {})
-            modifier_contexts.setdefault(ctx.modifier_ctx, call_node)
+        # We record the modifier context under the call is performed.
+        callee_mono_def_id: MonoDefId = (callee.id, inst)
+        edge = (ctx.current_caller, callee_mono_def_id)
+        modifier_contexts = self.local_modifiers_by_edge.setdefault(edge, {})
+        modifier_contexts.setdefault(ctx.modifier_ctx, to_span(call_node))
 
     def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a function, for when the effects cannot be

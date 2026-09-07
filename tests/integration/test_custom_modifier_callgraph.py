@@ -7,7 +7,7 @@ from guppylang.std.quantum import qubit
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.checker.modifier import (
-    NO_CALL_MODIFIERS,
+    UNMODIFIED_CALL,
     CustomModifierKind,
 )
 from guppylang_internals.engine import ENGINE
@@ -36,10 +36,8 @@ def _same_count_helper[n: nat](q: qubit, controls: array[qubit, n]) -> None:
         _same_count_recursive_gate(q)
 
 
-def test_effects_after_custom_modifier_resolution(
-    use_experimental_features,
-):
-    """Effects are computed according to custom modifier calls"""
+def test_effects_after_custom_modifier_resolution_1():
+    """Effects are propagated through custom modifier calls."""
 
     @guppy.unitary
     class custom_gate:
@@ -68,6 +66,10 @@ def test_effects_after_custom_modifier_resolution(
     assert effects[custom_use.unmodified_callee] == frozenset({Effect.ANY})
     assert effects[custom_use.custom_def] == frozenset()
     assert effects[custom_main.id, ()] == frozenset()
+
+
+def test_effects_after_custom_modifier_resolution_2():
+    """Effects are propagated through custom modifier calls 2"""
 
     @guppy.unitary
     class custom_gate_2:
@@ -227,10 +229,10 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls(
 
     # Checking records only the empty contexts local to each helper body.
     assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
-        NO_CALL_MODIFIERS
+        UNMODIFIED_CALL
     }
     assert set(ENGINE.local_modifiers_by_edge[helper_mono, gate_mono]) == {
-        NO_CALL_MODIFIERS
+        UNMODIFIED_CALL
     }
 
     # Analysis resolves both inherited contexts to the matching custom definitions.
@@ -288,5 +290,5 @@ def test_propagated_context_does_not_change_unmodified_invocation(
     assert custom_use.custom_def in ENGINE.call_graph[apply_mono]
     # Propagation must not mutate the empty local label checked inside apply.
     assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
-        NO_CALL_MODIFIERS
+        UNMODIFIED_CALL
     }

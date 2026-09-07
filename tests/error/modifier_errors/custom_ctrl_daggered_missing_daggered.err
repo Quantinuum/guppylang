@@ -8,8 +8,8 @@ Error: Invalid `@guppy.unitary` implementation (at $FILE:7:0)
 14 |         pass
    | ^^^^^^^^^^^^
 
-A `@guppy.unitary` class declared as controllable and implementing
-`ctrl_daggered` requires either a `daggered` implementation or `daggerable=True`
-on `__call__`
+A `@guppy.unitary` class implementing `ctrl_daggered` with `__call__` declared
+as `controllable=True` requires either a `daggered` implementation or
+`daggerable=True` on `__call__`
 
 Guppy compilation failed due to 1 previous error

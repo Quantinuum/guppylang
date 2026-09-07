@@ -376,7 +376,7 @@ def test_higher_order_unitary_callable(validate):
     validate(main.compile_function())
 
 
-def test_custom_unitary_higher_order_callables(validate, use_experimental_features):
+def test_custom_unitary_higher_order_callables(validate):
     """Custom modifier methods determine higher-order callable capabilities."""
 
     @guppy.unitary
@@ -464,7 +464,7 @@ def test_custom_unitary_higher_order_callables(validate, use_experimental_featur
     validate(main.compile_function())
 
 
-def test_controlled_impl_is_executed(use_experimental_features, run_int_fn):
+def test_controlled_impl_is_executed(run_int_fn):
     @guppy.unitary
     class custom_gate:
         n = guppy.nat_var("n")
@@ -491,10 +491,8 @@ def test_controlled_impl_is_executed(use_experimental_features, run_int_fn):
     run_int_fn(main, expected=1, num_qubits=2)
 
 
-def test_controlled_impl_through_higher_order_call_is_executed(
-    use_experimental_features, run_int_fn
-):
-    """A propagated control selects custom metadata through a callable wrapper."""
+def test_controlled_impl_through_higher_order_call_is_executed(run_int_fn):
+    """Control is propagated through higher order function calls."""
 
     @guppy.unitary
     class custom_gate:
@@ -527,9 +525,7 @@ def test_controlled_impl_through_higher_order_call_is_executed(
     run_int_fn(main, expected=1, num_qubits=2)
 
 
-def test_controlled_impl_through_helper_is_executed(
-    use_experimental_features, run_int_fn
-):
+def test_controlled_impl_through_helper_is_executed(run_int_fn):
     """A propagated control selects a custom implementation through a helper."""
 
     @guppy.unitary
@@ -565,7 +561,7 @@ def test_controlled_impl_through_helper_is_executed(
     run_int_fn(main, expected=1, num_qubits=2)
 
 
-def test_daggered_impl_is_executed(use_experimental_features, run_int_fn):
+def test_daggered_impl_is_executed(run_int_fn):
     @guppy.unitary
     class custom_gate:
         @guppy
@@ -586,7 +582,7 @@ def test_daggered_impl_is_executed(use_experimental_features, run_int_fn):
     run_int_fn(main, expected=1, num_qubits=1)
 
 
-def test_ctrl_daggered_impl_is_executed(use_experimental_features, run_int_fn):
+def test_ctrl_daggered_impl_is_executed(run_int_fn):
     @guppy.unitary
     class custom_gate:
         n = guppy.nat_var("n")
@@ -613,9 +609,7 @@ def test_ctrl_daggered_impl_is_executed(use_experimental_features, run_int_fn):
     run_int_fn(main, expected=1, num_qubits=2)
 
 
-def test_custom_modifier_use_default_when_missing_implementation(
-    use_experimental_features, run_int_fn
-):
+def test_custom_modifier_use_default_when_missing_implementation(run_int_fn):
     @guppy.unitary
     class controllable_gate:
         n = guppy.nat_var("n")
@@ -624,14 +618,6 @@ def test_custom_modifier_use_default_when_missing_implementation(
         def __call__(q: qubit) -> None:
             x(q)
 
-        @guppy
-        def daggered(q: qubit) -> None:
-            pass
-
-        @guppy
-        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
-            pass
-
     @guppy.unitary
     class daggerable_gate:
         n = guppy.nat_var("n")
@@ -639,14 +625,6 @@ def test_custom_modifier_use_default_when_missing_implementation(
         @guppy(daggerable=True)
         def __call__(q: qubit) -> None:
             x(q)
-
-        @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
-            pass
-
-        @guppy
-        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
-            pass
 
     @guppy
     def main() -> int:
@@ -668,7 +646,7 @@ def test_custom_modifier_use_default_when_missing_implementation(
     run_int_fn(main, expected=3, num_qubits=3)
 
 
-def test_double_daggered_is_properly_solved(use_experimental_features, run_int_fn):
+def test_double_daggered(run_int_fn):
     @guppy.unitary
     class custom_gate:
         n = guppy.nat_var("n")
@@ -704,7 +682,7 @@ def test_double_daggered_is_properly_solved(use_experimental_features, run_int_f
     run_int_fn(main, expected=1, num_qubits=2)
 
 
-def test_two_control_counts_distinct_runtime(use_experimental_features, run_int_fn):
+def test_two_control_counts_distinct_runtime(run_int_fn):
     @guppy.unitary
     class custom_gate:
         n = guppy.nat_var("n")
@@ -936,7 +914,7 @@ def helper(q: qubit) -> None:
     h(q)
 
 
-def test_custom_modifier(validate, use_experimental_features):
+def test_custom_modifier(validate):
 
     @guppy.unitary
     class foo:
