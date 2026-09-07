@@ -463,7 +463,7 @@ class float:
     @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
     def __rmul__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fround"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("froundeven"), unitary_flags=UnitaryFlags.Dagger)
     def ___round__hugr(self: float) -> float: ...
 
     @guppy
