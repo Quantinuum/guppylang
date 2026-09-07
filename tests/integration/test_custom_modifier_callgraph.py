@@ -7,7 +7,7 @@ from guppylang.std.quantum import qubit
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.checker.modifier import (
-    UNMODIFIED_CALL,
+    NO_CALL_MODIFIERS,
     CustomModifierKind,
 )
 from guppylang_internals.engine import ENGINE
@@ -229,10 +229,10 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls(
 
     # Checking records only the empty contexts local to each helper body.
     assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
-        UNMODIFIED_CALL
+        NO_CALL_MODIFIERS
     }
     assert set(ENGINE.local_modifiers_by_edge[helper_mono, gate_mono]) == {
-        UNMODIFIED_CALL
+        NO_CALL_MODIFIERS
     }
 
     # Analysis resolves both inherited contexts to the matching custom definitions.
@@ -290,5 +290,5 @@ def test_propagated_context_does_not_change_unmodified_invocation(
     assert custom_use.custom_def in ENGINE.call_graph[apply_mono]
     # Propagation must not mutate the empty local label checked inside apply.
     assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
-        UNMODIFIED_CALL
+        NO_CALL_MODIFIERS
     }

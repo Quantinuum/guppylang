@@ -11,7 +11,7 @@ from guppylang_internals.checker.errors.generic import (
     RecursiveModifierControlCountError,
 )
 from guppylang_internals.checker.modifier import (
-    UNMODIFIED_CALL,
+    NO_CALL_MODIFIERS,
     CustomModifierKind,
     ModifierContext,
 )
@@ -109,7 +109,7 @@ def analyze_modifier_calls(
 
     # Entry points begin without an inherited modifier.
     worklist = [
-        ModifierCallState(entry_point, UNMODIFIED_CALL)
+        ModifierCallState(entry_point, NO_CALL_MODIFIERS)
         for entry_point in entry_points
         if is_concrete_inst(entry_point[1])
     ]
@@ -134,7 +134,7 @@ def analyze_modifier_calls(
             if local_contexts is None:
                 # If no modifier context is registered for this edge, assume unmodified
                 # call.
-                calls = ((UNMODIFIED_CALL, None),)
+                calls = ((NO_CALL_MODIFIERS, None),)
             else:
                 calls = tuple(local_contexts.items())
 
@@ -167,7 +167,7 @@ def analyze_modifier_calls(
                 # required to custom implementation body.
                 assert call_site_span is not None
                 assert resolved_callee == custom_use.custom_def
-                next_state = ModifierCallState(resolved_callee, UNMODIFIED_CALL)
+                next_state = ModifierCallState(resolved_callee, NO_CALL_MODIFIERS)
                 contextual_callers[next_state].add(state)
                 custom_calls.append(
                     ResolvedCustomCall(state, next_state, custom_use, call_site_span)

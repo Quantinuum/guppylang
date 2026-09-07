@@ -65,4 +65,4 @@ class ModifierContext:
         return None
 
 
-UNMODIFIED_CALL = ModifierContext()
+NO_CALL_MODIFIERS = ModifierContext()
