@@ -149,9 +149,18 @@ class RawCustomFunctionDef(ParsableDef):
         code. The only information we need to access is that it's a function type and
         that there are no unsolved existential vars.
         """
-        from guppylang_internals.definition.function import parse_py_func
+        from guppylang_internals.definition.function import (
+            parse_py_func,
+        )
 
-        func_ast, _docstring = parse_py_func(self.python_func, sources)
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
+        else:
+            is_static = False
+            py_func = self.python_func
+
+        func_ast, _docstring = parse_py_func(py_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         sig = self.signature or self._get_signature(func_ast, globals)
@@ -169,6 +178,7 @@ class RawCustomFunctionDef(ParsableDef):
             sig is not None,
             self.has_var_args,
             self.effects,
+            is_static=is_static,
         )
 
     def _get_signature(
@@ -255,6 +265,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef, CallableEffects):
             self.has_var_args,
             self.effects,
             type_args,
+            is_static=self.is_static,
         )
 
     @override

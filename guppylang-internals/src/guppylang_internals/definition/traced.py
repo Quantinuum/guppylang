@@ -60,17 +60,29 @@ class RawTracedFunctionDef(ParsableDef):
 
     def parse(self, globals: Globals, sources: SourceMap) -> "TracedFunctionDef":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, _docstring = parse_py_func(self.python_func, sources)
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
+        else:
+            is_static = False
+            py_func = self.python_func
+
+        func_ast, _docstring = parse_py_func(py_func, sources)
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
         )
         return TracedFunctionDef(
             self.id,
             self.name,
             func_ast,
             ty,
-            self.python_func,
+            py_func,
             unitary_flags=self.unitary_flags,
+            is_static=is_static,
             metadata=self.metadata,
         )
 
@@ -113,6 +125,7 @@ class TracedFunctionDef(RawTracedFunctionDef, CallableDef, CheckableGenericDef):
             type_args,
             trace,
             unitary_flags=self.unitary_flags,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -175,6 +188,7 @@ class TracedMonoFunctionDef(TracedFunctionDef, CompilableDef):
             func_def,
             ctx.effects[(self.id, self.inst)],
             unitary_flags=self.unitary_flags,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 

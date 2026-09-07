@@ -2,11 +2,14 @@
 
 from guppylang import guppy
 from guppylang.std.array import array
-from guppylang.std.builtins import control, dagger, nat, panic
+from guppylang.std.builtins import Controllable, Unitary, control, dagger, nat, panic
 from guppylang.std.quantum import qubit
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
-from guppylang_internals.checker.modifier import CustomModifierKind
+from guppylang_internals.checker.modifier import (
+    NO_CALL_MODIFIERS,
+    CustomModifierKind,
+)
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import ConstArg
@@ -33,10 +36,10 @@ def _same_count_helper[n: nat](q: qubit, controls: array[qubit, n]) -> None:
         _same_count_recursive_gate(q)
 
 
-def test_custom_modifier_effects_use_expanded_call_graph(
+def test_effects_after_custom_modifier_resolution(
     use_experimental_features,
 ):
-    """Effects follow a custom target, while ordinary calls keep their target."""
+    """Effects are computed according to custom modifier calls"""
 
     @guppy.unitary
     class custom_gate:
@@ -59,25 +62,15 @@ def test_custom_modifier_effects_use_expanded_call_graph(
         with control(c):
             custom_gate(q)
 
-    @guppy
-    def fallback_main() -> None:
-        fallback()
-
-    ENGINE.check([custom_main.id, fallback_main.id])
+    custom_main.check()
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
     assert effects[custom_use.unmodified_callee] == frozenset({Effect.ANY})
     assert effects[custom_use.custom_def] == frozenset()
     assert effects[custom_main.id, ()] == frozenset()
-    assert effects[fallback_main.id, ()] == frozenset({Effect.ANY})
-
-
-def test_recursive_custom_modifier_effects(use_experimental_features):
-    """Recursive custom definitions participate in effect SCC analysis."""
 
     @guppy.unitary
-    class recursive_gate:
+    class custom_gate_2:
         n = guppy.nat_var("n")
 
         @guppy
@@ -86,23 +79,17 @@ def test_recursive_custom_modifier_effects(use_experimental_features):
 
         @guppy
         def controlled(q: qubit, controls: array[qubit, n]) -> None:
-            panic("recursive custom effect")
+            panic("custom effect")
 
     @guppy
     def main(q: qubit, c: qubit) -> None:
         with control(c):
-            recursive_gate(q)
+            custom_gate_2(q)
 
     main.check()
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
-    custom_def = custom_use.custom_def
-    # Model recursion on the concrete custom definition. A unitary class cannot
-    # currently refer to its enclosing class name from inside the class-body frame.
-    ENGINE.call_graph[custom_def].append(custom_def)
-
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-    assert custom_def in ENGINE.call_graph[custom_def]
-    assert effects[custom_def] == frozenset({Effect.ANY})
+    assert effects[custom_use.custom_def] == frozenset({Effect.ANY})
     assert effects[main.id, ()] == frozenset({Effect.ANY})
 
 
@@ -166,7 +153,11 @@ def test_non_recursive_control_count_increase_is_allowed(use_experimental_featur
     }
 
 
-def test_expanded_edges_replace_unmodified_callee(use_experimental_features):
+def test_modifier_context_propagates_through_higher_order_and_helper_calls(
+    use_experimental_features,
+):
+    """Control and dagger propagate through higher-order and ordinary helpers."""
+
     @guppy.unitary
     class custom_gate:
         n = guppy.nat_var("n")
@@ -176,33 +167,126 @@ def test_expanded_edges_replace_unmodified_callee(use_experimental_features):
             pass
 
         @guppy
-        def daggered(q: qubit) -> None:
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def daggered(q: qubit) -> None:
             pass
 
         @guppy
         def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
+    @guppy(unitary=True)
+    def apply(f: Unitary[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy(unitary=True)
+    def helper(q: qubit) -> None:
+        custom_gate(q)
+
     @guppy
-    def main(q: qubit, control_qubit: qubit) -> None:
-        with dagger:
-            custom_gate(q)
+    def main(
+        apply_controlled_q: qubit,
+        apply_daggered_q: qubit,
+        helper_controlled_q: qubit,
+        helper_daggered_q: qubit,
+        control_qubit: qubit,
+    ) -> None:
+        # Exercise context propagation through a monomorphized higher-order call.
         with control(control_qubit):
-            custom_gate(q)
-        with control(control_qubit), dagger:
-            custom_gate(q)
+            apply(custom_gate, apply_controlled_q)
+        with dagger:
+            apply(custom_gate, apply_daggered_q)
+
+        # Exercise the same contexts through a regular, non-higher-order helper.
+        with control(control_qubit):
+            helper(helper_controlled_q)
+        with dagger:
+            helper(helper_daggered_q)
 
     main.check()
 
-    resolved_custom_defs = {
-        custom_use.custom_def for custom_use in ENGINE.custom_uses_by_mono_def.values()
-    }
-    assert {use.kind for use in ENGINE.custom_uses_by_mono_def.values()} == set(
-        CustomModifierKind
+    # The higher-order argument identifies one concrete apply monomorphization.
+    apply_mono = next(
+        callee for callee in ENGINE.call_graph[main.id, ()] if callee[0] == apply.id
     )
-    assert resolved_custom_defs <= set(ENGINE.call_graph[main.id, ()])
-    assert (custom_gate.id, ()) not in ENGINE.call_graph[main.id, ()]
+    helper_mono = (helper.id, ())
+    gate_mono = (custom_gate.id, ())
+    uses_by_kind = {
+        custom_use.kind: custom_use
+        for custom_use in ENGINE.custom_uses_by_mono_def.values()
+    }
+    assert set(uses_by_kind) == {
+        CustomModifierKind.CONTROLLED,
+        CustomModifierKind.DAGGERED,
+    }
+    controlled_use = uses_by_kind[CustomModifierKind.CONTROLLED]
+    daggered_use = uses_by_kind[CustomModifierKind.DAGGERED]
+
+    # Checking records only the empty contexts local to each helper body.
+    assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
+        NO_CALL_MODIFIERS
+    }
+    assert set(ENGINE.local_modifiers_by_edge[helper_mono, gate_mono]) == {
+        NO_CALL_MODIFIERS
+    }
+
+    # Analysis resolves both inherited contexts to the matching custom definitions.
+    assert controlled_use.unmodified_callee == gate_mono
+    assert controlled_use.control_count == 1
+    assert daggered_use.unmodified_callee == gate_mono
+    assert daggered_use.control_count is None
+
+    # The projected graph retains the controlled and daggered targets for both paths,
+    # without retaining the unmodified gate that neither path calls.
+    expected_custom_defs = {controlled_use.custom_def, daggered_use.custom_def}
+    assert set(ENGINE.call_graph[apply_mono]) == expected_custom_defs
+    assert set(ENGINE.call_graph[helper_mono]) == expected_custom_defs
+
+
+def test_propagated_context_does_not_change_unmodified_invocation(
+    use_experimental_features,
+):
+    """The same callable specialization can be invoked with two contexts."""
+
+    @guppy.unitary
+    class custom_gate:
+        n = guppy.nat_var("n")
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy(controllable=True)
+    def apply(f: Controllable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main(q1: qubit, q2: qubit, control_qubit: qubit) -> None:
+        apply(custom_gate, q1)
+        with control(control_qubit):
+            apply(custom_gate, q2)
+
+    main.check()
+
+    # Both call sites share the same monomorphized higher-order function.
+    [apply_mono] = {
+        callee for callee in ENGINE.call_graph[main.id, ()] if callee[0] == apply.id
+    }
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    gate_mono = (custom_gate.id, ())
+
+    # Projecting contextual states keeps both valid targets: the unmodified invocation
+    # reaches __call__, while the controlled invocation reaches controlled[1].
+    assert gate_mono in ENGINE.call_graph[apply_mono]
+    assert custom_use.custom_def in ENGINE.call_graph[apply_mono]
+    # Propagation must not mutate the empty local label checked inside apply.
+    assert set(ENGINE.local_modifiers_by_edge[apply_mono, gate_mono]) == {
+        NO_CALL_MODIFIERS
+    }

@@ -106,6 +106,7 @@ def compile_local_func_def(
             mono_args,
             func.cfg,
             func_builder,
+            is_static=False,
             effects=ctx.effects[(func.def_id, mono_args)],
         )
         ctx.worklist[func.def_id, mono_args] = None  # will compile the CFG later

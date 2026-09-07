@@ -6,6 +6,7 @@ Error: Instance field accessed on class (at $FILE:17:20)
    |                     ^^^^^ `field` is an instance field of `MyStruct`, not a static
    |                           field
 
-Help: Access it on an instance instead, e.g. `MyStruct(...).field`
+Help: `field` is an instance field. Maybe you meant to access it on an instance,
+e.g. `MyStruct(...).field`?
 
 Guppy compilation failed due to 1 previous error
