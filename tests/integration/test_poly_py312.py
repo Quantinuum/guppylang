@@ -329,7 +329,7 @@ def test_generic_tuple_chain(validate):
     validate(main.compile_function())
 
 
-def test_unitary(validate, use_experimental_features):
+def test_unitary(validate):
     @guppy.unitary
     class MyGate:
         @guppy
@@ -351,7 +351,7 @@ def test_unitary(validate, use_experimental_features):
     validate(main.compile())
 
 
-def test_unitary_generic(validate, use_experimental_features):
+def test_unitary_generic(validate):
     @guppy.unitary
     class MyGate[n: nat]:
         @guppy
@@ -371,7 +371,7 @@ def test_unitary_generic(validate, use_experimental_features):
     validate(main.compile())
 
 
-def test_unitary_with_unitary_parameters(validate, use_experimental_features):
+def test_unitary_with_unitary_parameters(validate):
     @guppy.unitary
     class custom_dagger:
         @guppy
