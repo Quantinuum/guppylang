@@ -1,0 +1,37 @@
+Panic (#1001): No more qubits available to allocate.
+Guppy traceback (most recent call last):
+   File "$PATH_TO_FILE/recursive.py", line 7, in stack_traces.recursive.recursive_allocate:
+     | 
+   5 | @guppy
+   6 | def recursive_allocate(source: qubit) -> None:
+   7 |     q = qubit()
+     |         ^ No more qubits available to allocate.
+   
+   File "$PATH_TO_FILE/recursive.py", line 9, in stack_traces.recursive.recursive_allocate:
+     | 
+   7 |     q = qubit()
+   8 |     cx(source, q)
+   9 |     recursive_allocate(q)
+     |     ^
+   
+   File "$PATH_TO_FILE/recursive.py", line 9, in stack_traces.recursive.recursive_allocate:
+     | 
+   7 |     q = qubit()
+   8 |     cx(source, q)
+   9 |     recursive_allocate(q)
+     |     ^
+   
+   File "$PATH_TO_FILE/recursive.py", line 9, in stack_traces.recursive.recursive_allocate:
+     | 
+   7 |     q = qubit()
+   8 |     cx(source, q)
+   9 |     recursive_allocate(q)
+     |     ^
+   
+   File "$PATH_TO_FILE/recursive.py", line 16, in stack_traces.recursive.main:
+      | 
+   14 | def main() -> None:
+   15 |     q = qubit()
+   16 |     recursive_allocate(q)
+      |     ^
+

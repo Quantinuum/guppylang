@@ -1,0 +1,9 @@
+Panic (#1002): Float value too big to convert to int of given width (64)
+Guppy traceback (most recent call last):
+   File "$PATH_TO_FILE/global_panic_unwrap_error.py", line 10, in stack_traces.global_panic_unwrap_error.main:
+      | 
+    8 |     # through a global compiler function, therefore testing stack traces for panics
+    9 |     # that are not directly annotated.
+   10 |     return int(0.0 / 0.0)
+      |            ^ Float value too big to convert to int of given width (64)
+
