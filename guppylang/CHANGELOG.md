@@ -12,7 +12,56 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 ## Versioning Policy
 
-As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#101-2026-08-03).
+As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
+
+## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.3...guppylang-v1.0.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* Round floats with a tie-break to even instead of away from zero (#2293)([1da77fa](https://github.com/Quantinuum/guppylang/commit/1da77fa48d82b6e37cf24b2631e30fe635b5f7f3))
+
+
+### Performance Improvements
+
+* Upgrade hugr to v0.18.6, tket to v0.15.8, qis-compiler to v0.4.3 (#2289)([0345e72](https://github.com/Quantinuum/guppylang/commit/0345e729fb0b945be50ee0a4dc9e1b17ce05b4a1))
+
+## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.2...guppylang-v1.0.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* Raise minimum version of tket to 0.15.7 (#2266)([3733050](https://github.com/Quantinuum/guppylang/commit/3733050b9c6a0d16e4536ebfd068977d92f66524))
+
+
+### Documentation
+
+* Warn about using barrier with `state_output` (#2260)([a9ace7c](https://github.com/Quantinuum/guppylang/commit/a9ace7c43ede6fe839c2717ef15eca30c140a24a))
+* Fix emulator argument formatting (#2260)([a9ace7c](https://github.com/Quantinuum/guppylang/commit/a9ace7c43ede6fe839c2717ef15eca30c140a24a))
+
+
+### Features
+
+* Lower minimal numpy version to 2.2.6 (#2247)([e102475](https://github.com/Quantinuum/guppylang/commit/e102475799464154948ae36a9d2472dc3211d7ce))
+
+## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.1...guppylang-v1.0.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* Update `guppylang/pyproject.toml` to use the proper `README.md` (#2220)([5d16455](https://github.com/Quantinuum/guppylang/commit/5d1645599f7da775abf2f9b7e9d680d25a21997d))
+* Update broken v1 changelog links (#2167)([2c71962](https://github.com/Quantinuum/guppylang/commit/2c71962d4f7bd2782e917a57fe56c85107f5930f))
+* Improve error message for missing return annotations on nested functions (#2222)([f7e3648](https://github.com/Quantinuum/guppylang/commit/f7e36483b98d94f0de7f726da48bf20a71c58c06))
+
+
+### Documentation
+
+* State that `power` is experimental in the API docs (#2221)([37859fd](https://github.com/Quantinuum/guppylang/commit/37859fdb664043bd83f428ee04b79c52b1cad405))
+
+
+### Features
+
+* Make `__truediv__` daggerable (#2177)([f619ccd](https://github.com/Quantinuum/guppylang/commit/f619ccdfbbfdbe296be50d26a1d6bd7530e526d4))
 
 ## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.16...guppylang-v1.0.1) (2026-08-03)
 
@@ -41,7 +90,7 @@ from guppylang.decorator import guppy
 from guppylang.std.quantum import s, qubit
 from guppylang.std.builtins import control, dagger
 
-
+ 
 @guppy
 def controlled_inverse(c: qubit, q: qubit) -> None:
     with control(c), dagger:

@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.3...guppylang-internals-v1.0.4) (2026-09-08)
+
+
+### Performance Improvements
+
+* Upgrade hugr to v0.18.6, tket to v0.15.8, qis-compiler to v0.4.3 (#2289)([0345e72](https://github.com/Quantinuum/guppylang/commit/0345e729fb0b945be50ee0a4dc9e1b17ce05b4a1))
+
+## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.2...guppylang-internals-v1.0.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* Raise minimum version of tket to 0.15.7 (#2266)([3733050](https://github.com/Quantinuum/guppylang/commit/3733050b9c6a0d16e4536ebfd068977d92f66524))
+
+## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.1...guppylang-internals-v1.0.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* Prevent mutation of projections of moved values (#2241)([aeb8598](https://github.com/Quantinuum/guppylang/commit/aeb8598df206fcedf4e0582b6eeeb4cc854cf59d))
+* Internal error in generating function span for missing return annotation error on nested functions (#2222)([f7e3648](https://github.com/Quantinuum/guppylang/commit/f7e36483b98d94f0de7f726da48bf20a71c58c06))
+
 ## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.36.1...guppylang-internals-v1.0.1) (2026-08-03)
 
 
