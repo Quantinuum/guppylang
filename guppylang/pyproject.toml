@@ -28,7 +28,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "guppylang-internals==1.0.3",
+    "guppylang-internals==1.0.4",
     "numpy>=2.2.6,<3",
     "selene-hugr-qis-compiler~=0.4.3",
     "selene-sim~=0.3.0a2",
