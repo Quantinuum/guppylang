@@ -416,10 +416,10 @@ class CompilationEngine:
                 _check_modified_def_signature(parsed_custom_defn, defn.ty)
                 # Guppy normally checks only definitions that are called. Custom
                 # modifier methods, however, are resolved implicitly by the compiler.
-                # Thus, to prevent accepting a `@guppy.unitary` class containing a,
+                # Thus, to prevent accepting a `@guppy.unitary` class containing an
                 # ill-typed custom implementation, we check every custom modifier
                 # method. We enforce this because these methods are part of the class
-                # definition. and every custom method in a well-typed `@guppy.unitary`
+                # definition and every custom method in a well-typed `@guppy.unitary`
                 # class must itself be well-typed.
                 #
                 # Parameterized methods (`controlled` and `ctrl_daggered`) are generic

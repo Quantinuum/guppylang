@@ -161,7 +161,7 @@ def analyze_modifier_calls(
                         worklist.append(next_state)
                     continue
 
-                # An custom implementation exists for this modifier context. A custom
+                # A custom implementation exists for this modifier context. A custom
                 # implementation requires resetting the modifier context since the body
                 # of the implementation should be taken as an as-is implementation,
                 # without any modifiers applied to it.
