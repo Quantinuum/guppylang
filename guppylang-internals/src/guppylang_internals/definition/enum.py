@@ -68,7 +68,8 @@ class DuplicateVariantError(Error):
 class VariantFormHint(Help):
     message: ClassVar[str] = (
         "Enums can only contain variants of the form "
-        '`VariantName = {{"var1": Type1, ...}}` or `@guppy` annotated methods'
+        '`VariantName = {{"var1": Type1, ...}}`, `@guppy` annotated methods or '
+        "`@guppy.unitary` classes"
     )
 
 

@@ -254,12 +254,6 @@ class DefinitionStore:
         assert custom_def_id not in self.custom_modified_def_parents
         self.custom_modified_def_parents[custom_def_id] = parent_def_id
 
-        # Usually custom definitions are registered before the unitary function is
-        # attached to a type. Keep this correct if registration happens in the other
-        # order as well.
-        if ty_id := self.type_member_parents.get(parent_def_id):
-            self._register_type_member_parent(ty_id, custom_def_id, adjust_frame=False)
-
 
 DEF_STORE: DefinitionStore = DefinitionStore()
 

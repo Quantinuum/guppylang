@@ -2,8 +2,10 @@ Error: Unexpected statement (at $FILE:6:4)
   | 
 4 | @guppy.enum
 5 | class MyEnum:
-6 |     v1: int
-  |     ^^^^^^^ Unexpected statement in enum definition
+6 |     class MyEnum:
+  |     ^^^^^^^^^^^^^
+7 |         VALUE = 1
+  | ^^^^^^^^^^^^^^^^^ Unexpected statement in enum definition
 
 Help: Enums can only contain variants of the form `VariantName = {"var1": Type1,
 ...}`, `@guppy` annotated methods or `@guppy.unitary` classes

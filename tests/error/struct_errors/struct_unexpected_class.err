@@ -1,9 +1,11 @@
-Error: Unexpected statement (at $FILE:7:4)
+Error: Unexpected statement (at $FILE:6:4)
   | 
+4 | @guppy.struct
 5 | class MyStruct:
-6 |     x: int
-7 |     """Docstring in wrong position"""
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unexpected statement in struct definition
+6 |     class MyEnum:
+  |     ^^^^^^^^^^^^^
+7 |         VALUE = 1
+  | ^^^^^^^^^^^^^^^^^ Unexpected statement in struct definition
 
 Help: Struct can contain only fields of the form `name: Type` `@guppy` annotated
 methods or `@guppy.unitary` classes
