@@ -449,7 +449,7 @@ class Context(NamedTuple):
     together with the AST node that gives rise to said constraint."""
     current_caller: MonoDefId | None = None
 
-    #: Stores under which modifiers context a function is being called.
+    #: Active modifiers the function is being called with
     modifier_ctx: ModifierContext = NO_CALL_MODIFIERS
 
     @property

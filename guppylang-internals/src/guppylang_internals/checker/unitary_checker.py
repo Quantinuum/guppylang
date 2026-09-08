@@ -50,11 +50,11 @@ class InvalidUnitaryError(Error):
         declaration = (
             ""
             if self.flag_on_call == UnitaryFlags.NoFlags
-            else f" declared as {self.flag_on_call.context()} and"
+            else f" with `__call__` declared as `{self.flag_on_call.hint_rendering()}`"
         )
 
         return (
-            f"A `@guppy.unitary` class{declaration} implementing {implementations} "
+            f"A `@guppy.unitary` class implementing {implementations}{declaration} "
             f"requires either {required} or "
             f"`{self.required_flag_on_call.hint_rendering()}` on `__call__`"
         )

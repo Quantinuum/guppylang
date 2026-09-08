@@ -439,6 +439,7 @@ def test_unitary_with_unitary_parameters(validate, use_experimental_features):
         # We have to skip this test due to https://github.com/Quantinuum/guppylang/issues/2244
         # apply_daggerable_and_controllable(custom_unitary, q)
 
+    # Checking that the hugr is valid before and after modifier+optimization passes
     validate(main.with_minimal_opt().compile_function())
     validate(main.compile_function())
 

@@ -6,10 +6,10 @@ from guppylang.std.array import array
 from guppylang.std.builtins import control, dagger, power, qubit
 from guppylang.std.quantum import discard, rx
 from guppylang_internals.metadata.common import (
-    CONTROLLED_KEY,
-    CTRL_DAGGERED_KEY,
-    DAGGERED_KEY,
-    NUM_CONTROL_QUBITS_KEY,
+    ControlledImplementations,
+    CtrlDaggeredImplementations,
+    DaggeredImplementation,
+    NumControlQubits,
 )
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr.hugr.base import Hugr
@@ -303,28 +303,32 @@ def test_custom_modifier_metadata(use_experimental_features):
         if isinstance(data.op, FuncDefn)
     }
 
-    custom_keys = {DAGGERED_KEY, CONTROLLED_KEY, CTRL_DAGGERED_KEY}
+    custom_keys = {
+        DaggeredImplementation.KEY,
+        ControlledImplementations.KEY,
+        CtrlDaggeredImplementations.KEY,
+    }
     [unmodified_metadata] = [
         metadata
         for metadata in metadata_by_link_name.values()
         if all(key in metadata for key in custom_keys)
     ]
 
-    daggered_link = unmodified_metadata[DAGGERED_KEY]
+    daggered_link = unmodified_metadata[DaggeredImplementation.KEY]
     assert isinstance(daggered_link, str)
-    assert NUM_CONTROL_QUBITS_KEY not in metadata_by_link_name[daggered_link]
+    assert NumControlQubits.KEY not in metadata_by_link_name[daggered_link]
 
-    controlled_links = unmodified_metadata[CONTROLLED_KEY]
+    controlled_links = unmodified_metadata[ControlledImplementations.KEY]
     assert isinstance(controlled_links, list)
     assert all(isinstance(link, str) for link in controlled_links)
     assert [
-        metadata_by_link_name[link][NUM_CONTROL_QUBITS_KEY] for link in controlled_links
+        metadata_by_link_name[link][NumControlQubits.KEY] for link in controlled_links
     ] == [1, 2]
 
-    ctrl_daggered_links = unmodified_metadata[CTRL_DAGGERED_KEY]
+    ctrl_daggered_links = unmodified_metadata[CtrlDaggeredImplementations.KEY]
     assert isinstance(ctrl_daggered_links, list)
     assert all(isinstance(link, str) for link in ctrl_daggered_links)
     assert [
-        metadata_by_link_name[link][NUM_CONTROL_QUBITS_KEY]
+        metadata_by_link_name[link][NumControlQubits.KEY]
         for link in ctrl_daggered_links
     ] == [1, 3]

@@ -36,10 +36,13 @@ def _same_count_helper[n: nat](q: qubit, controls: array[qubit, n]) -> None:
         _same_count_recursive_gate(q)
 
 
-def test_effects_after_custom_modifier_resolution(
-    use_experimental_features,
-):
-    """Effects are computed according to custom modifier calls"""
+def test_effects_after_custom_modifier_resolution_is_removed():
+    """
+    Effects are propagated through custom modifier calls:
+
+    We check that after updating the call graph with custom modifier resolution,
+    the effects in `__call__` is not included in the effects of `custom_main`.
+    """
 
     @guppy.unitary
     class custom_gate:
@@ -69,8 +72,17 @@ def test_effects_after_custom_modifier_resolution(
     assert effects[custom_use.custom_def] == frozenset()
     assert effects[custom_main.id, ()] == frozenset()
 
+
+def test_effects_after_custom_modifier_resolution_is_added():
+    """
+    Effects are propagated through custom modifier calls:
+
+    We check that after updating the call graph with custom modifier resolution,
+    `main` includes the effects of the controlled version of `custom_gate`.
+    """
+
     @guppy.unitary
-    class custom_gate_2:
+    class custom_gate:
         n = guppy.nat_var("n")
 
         @guppy
@@ -84,7 +96,7 @@ def test_effects_after_custom_modifier_resolution(
     @guppy
     def main(q: qubit, c: qubit) -> None:
         with control(c):
-            custom_gate_2(q)
+            custom_gate(q)
 
     main.check()
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
@@ -93,7 +105,7 @@ def test_effects_after_custom_modifier_resolution(
     assert effects[main.id, ()] == frozenset({Effect.ANY})
 
 
-def test_recursive_custom_modifier_same_control_count(use_experimental_features):
+def test_recursive_custom_modifier_same_control_count():
     """Indirect recursion at the same control count reaches a fixed point."""
 
     @guppy
@@ -115,7 +127,7 @@ def test_recursive_custom_modifier_same_control_count(use_experimental_features)
     assert custom_def in ENGINE.call_graph[helper_instantiation]
 
 
-def test_non_recursive_control_count_increase_is_allowed(use_experimental_features):
+def test_non_recursive_control_count_increase_is_allowed():
     """Different non-recursive paths may use increasing control counts."""
 
     @guppy.unitary
@@ -153,9 +165,7 @@ def test_non_recursive_control_count_increase_is_allowed(use_experimental_featur
     }
 
 
-def test_modifier_context_propagates_through_higher_order_and_helper_calls(
-    use_experimental_features,
-):
+def test_modifier_context_propagates_through_higher_order_and_helper_calls():
     """Control and dagger propagate through higher-order and ordinary helpers."""
 
     @guppy.unitary
@@ -246,9 +256,7 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls(
     assert set(ENGINE.call_graph[helper_mono]) == expected_custom_defs
 
 
-def test_propagated_context_does_not_change_unmodified_invocation(
-    use_experimental_features,
-):
+def test_propagated_context_does_not_change_unmodified_invocation():
     """The same callable specialization can be invoked with two contexts."""
 
     @guppy.unitary

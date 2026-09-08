@@ -21,7 +21,7 @@ from semver import Version
 import guppylang_internals
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
-from guppylang_internals.analysis.modifier_callgraph import (
+from guppylang_internals.analysis.modifier import (
     ConcreteCustomUse,
     EdgeWithModifierContext,
     analyze_modifier_calls,
@@ -59,7 +59,7 @@ from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.metadata.debug_info_util import (
     StringTable,
 )
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
     array_type,
@@ -305,8 +305,9 @@ class CompilationEngine:
     call_graph: dict[MonoDefId, list[MonoDefId]]
     func_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
-    #: stores one representative call site for future diagnostics.
-    local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, "AstNode"]]
+    #: stores one representative call site span for diagnostics in
+    #: analysis.modifier._check_recursive_custom_uses
+    local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, Span]]
     #: Resolved calls indexed by their raw edge and effective propagated context.
     resolved_modified_calls: dict[EdgeWithModifierContext, MonoDefId]
     #: Concrete custom modifier uses indexed by custom-definition monomorphization.
@@ -382,12 +383,11 @@ class CompilationEngine:
         self.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
             self.register_effects((callee.id, inst), callee.call_effects)
-        elif isinstance(callee, CallableDef):
-            # Effects not known yet, will be computed.
-            callee_mono_def_id: MonoDefId = (callee.id, inst)
-            edge = (ctx.current_caller, callee_mono_def_id)
-            modifier_contexts = self.local_modifiers_by_edge.setdefault(edge, {})
-            modifier_contexts.setdefault(ctx.modifier_ctx, call_node)
+        # Record the modifier context under which the call is performed
+        callee_mono_def_id: MonoDefId = (callee.id, inst)
+        edge = (ctx.current_caller, callee_mono_def_id)
+        modifier_contexts = self.local_modifiers_by_edge.setdefault(edge, {})
+        modifier_contexts.setdefault(ctx.modifier_ctx, to_span(call_node))
 
     def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a function, for when the effects cannot be
@@ -448,14 +448,16 @@ class CompilationEngine:
 
                 assert isinstance(parsed_custom_defn, ParsedFunctionDef)
                 _check_modified_def_signature(parsed_custom_defn, defn.ty)
-                # While parameterized custom methods (controlled and ctrl_daggered) are
-                # scheduled for check by `get_parsed`, (see
-                # ```
-                # 412| elif isinstance(defn, CheckableGenericDef) and defn.params:
-                # ```
-                # ), non-parameterized custom methods (daggered) are not scheduled
-                # thus we explicitly schedule them here. This ensure that all custom
-                # methods are checked even if not used.
+                # Ensure that all custom methods are checked, even if they are not
+                # directly used.
+                # Parameterized custom methods (`controlled` and `ctrl_daggered`) are
+                # generic, so they are always added to `generic_to_check_worklist` and
+                # checked later. Non-parameterized custom methods (`daggered`) are not
+                # generic and therefore are not added to `generic_to_check_worklist`.
+                # Normally, non-generic functions are added to `to_check_worklist` only
+                # when they are explicitly called. To ensure that `daggered` methods are
+                # checked even when they are not called, we explicitly add them to
+                # `to_check_worklist`.
                 if not parsed_custom_defn.params:
                     self.to_check_worklist[custom_def_id, ()] = parsed_custom_defn
         return defn

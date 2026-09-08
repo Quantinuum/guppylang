@@ -59,7 +59,7 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import pretty_errors
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
-from guppylang_internals.span import Loc, SourceMap, Span, to_span
+from guppylang_internals.span import Loc, SourceMap, Span, class_header_span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
     FunctionType,
@@ -81,7 +81,7 @@ if TYPE_CHECKING:
     from tket.metadata import InlineAnnotationValue
 
 type Decorator[S, T] = Callable[[S], T]
-type CustomModifierDefinitions = dict[CustomModifierKind, RawFunctionDef]
+type _CustomModifiedDefinitions = dict[CustomModifierKind, RawFunctionDef]
 
 AnyRawFunctionDef = (
     RawFunctionDef,
@@ -388,7 +388,7 @@ class _Guppy:
         object.__setattr__(call_raw_func, "name", cls.__name__)
 
         # Update the unitary metadata according to the custom implementations
-        custom_modified_definitions = _get_custom_methods(cls)
+        custom_modified_definitions = _get_custom_modified_definitions(cls)
         definition_span = call_raw_func.set_unitary_class(
             cls,
             frame,
@@ -415,7 +415,7 @@ class _Guppy:
             ctrl_daggered=custom_modified_definitions.get(
                 CustomModifierKind.CTRL_DAGGERED
             ),
-            definition_span=to_span(definition_span),
+            definition_span=class_header_span(definition_span),
         )
         object.__setattr__(
             call_raw_func, "decorator_unitary_flags", call_raw_func.unitary_flags
@@ -942,11 +942,11 @@ def _get_unitary_call_def(cls: object) -> GuppyDefinition:
     )
 
 
-def _get_custom_methods[T](
+def _get_custom_modified_definitions[T](
     cls: builtins.type[T],
-) -> CustomModifierDefinitions:
+) -> _CustomModifiedDefinitions:
     """Returns the `@guppy`-annotated `daggered`, `controlled`, and `ctrl_daggered`"""
-    custom_methods: CustomModifierDefinitions = {}
+    custom_methods: _CustomModifiedDefinitions = {}
     custom_methods_names = tuple(kind.value for kind in CustomModifierKind)
 
     for method_name, method in cls.__dict__.items():
@@ -1012,11 +1012,9 @@ def _set_unitary_metadata(
     definition_span: Span,
 ) -> UnitaryFlags:
     """Set unitary metadata based on the available custom implementations:
-    - `daggered`: The custom implementation for the daggered modifier, None if absent.
-    - `controlled`: The custom implementation for the controlled modifier,
-      None if absent.
-    - `ctrl_daggered`: The custom implementation for the ctrl_daggered modifier,
-      None if absent.
+    - `daggered`: The implementation of the custom daggered, None if absent.
+    - `controlled`: The implementation of the custom controlled, None if absent.
+    - `ctrl_daggered`: The implementation of the custom ctrl_daggered, None if absent.
 
     We also check that the combination of custom implementations is valid.
     """

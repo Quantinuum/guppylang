@@ -3,13 +3,14 @@
 import pytest
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import (
-    CONTROLLED_KEY,
-    CTRL_DAGGERED_KEY,
-    DAGGERED_KEY,
-    NUM_CONTROL_QUBITS_KEY,
+    ControlledImplementations,
+    CtrlDaggeredImplementations,
+    DaggeredImplementation,
     FunctionMetadata,
     MetadataAlreadySetError,
+    NumControlQubits,
     ReservedMetadataKeysError,
+    add_custom_implementations,
     add_metadata,
     add_num_control_qubits,
 )
@@ -107,13 +108,68 @@ def test_add_num_control_qubits_rejects_duplicate():
         GuppyError,
         check=lambda e: (
             isinstance(e.error, MetadataAlreadySetError)
-            and e.error.key == NUM_CONTROL_QUBITS_KEY
+            and e.error.key == NumControlQubits.KEY
         ),
     ):
         add_num_control_qubits(node_metadata, 2)
 
 
-@pytest.mark.parametrize("key", [DAGGERED_KEY, CONTROLLED_KEY, CTRL_DAGGERED_KEY])
+def test_add_metadata_rejects_duplicate():
+    node_metadata = NodeMetadata()
+    add_custom_implementations(
+        node_metadata,
+        daggered="custom_name",
+        controlled="custom_name",
+        ctrl_daggered="custom_name",
+    )
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == DaggeredImplementation.KEY
+        ),
+    ):
+        add_custom_implementations(node_metadata, daggered="another_name")
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == ControlledImplementations.KEY
+        ),
+    ):
+        add_custom_implementations(node_metadata, controlled="another_name")
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == CtrlDaggeredImplementations.KEY
+        ),
+    ):
+        add_custom_implementations(node_metadata, ctrl_daggered="another_name")
+
+
+def test_add_metadata_num_control_qubits_key_reserved():
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError)
+            and e.error.keys == {NumControlQubits.KEY}
+        ),
+    ):
+        add_metadata(NodeMetadata(), additional_metadata={NumControlQubits.KEY: 1})
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        DaggeredImplementation.KEY,
+        ControlledImplementations.KEY,
+        CtrlDaggeredImplementations.KEY,
+    ],
+)
 def test_add_metadata_custom_implementation_names_reserved(key: str):
     with pytest.raises(
         GuppyError,

@@ -20,7 +20,7 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.subst import Inst, is_concrete_inst
 
 if TYPE_CHECKING:
-    from guppylang_internals.ast_util import AstNode
+    from guppylang_internals.span import Span
 
 
 MonoDefId = tuple[DefId, Inst]
@@ -53,12 +53,21 @@ class ResolvedCustomCall:
     caller: ModifierCallState
     callee: ModifierCallState
     custom_use: ConcreteCustomUse
-    call: AstNode
+    call: Span
 
 
 @dataclass(frozen=True)
-class ModifierCallGraphAnalysis:
-    """Result of propagating modifiers through a monomorphized call graph."""
+class ModifierAnalysisResult:
+    """Result of propagating modifiers through a monomorphized call graph.
+
+    Args:
+        expanded_calls: Call graph after propagating modifiers and resolving calls to
+            custom modified implementations.
+        resolved_calls: Called function's ``MonoDefId`` for each call edge and modifier
+            context.
+        custom_uses_by_mono_def: Concrete custom modifier uses keyed by custom
+            definition ``MonoDefId``.
+    """
 
     expanded_calls: dict[MonoDefId, list[MonoDefId]]
     resolved_calls: dict[EdgeWithModifierContext, MonoDefId]
@@ -73,9 +82,9 @@ ResolveModifiedCall = Callable[
 def analyze_modifier_calls(
     entry_points: Iterable[MonoDefId],
     raw_calls: Mapping[MonoDefId, Sequence[MonoDefId]],
-    local_modifiers_by_edge: Mapping[CallGraphEdge, Mapping[ModifierContext, AstNode]],
+    local_modifiers_by_edge: Mapping[CallGraphEdge, Mapping[ModifierContext, Span]],
     resolve_modified_call: ResolveModifiedCall,
-) -> ModifierCallGraphAnalysis:
+) -> ModifierAnalysisResult:
     """Propagate local modifier labels and resolve concrete custom calls.
 
     For ``main --control(1)--> wrapper --empty--> gate``, visit ``wrapper`` with
@@ -123,15 +132,13 @@ def analyze_modifier_calls(
             edge = (caller, raw_callee)
             local_contexts = local_modifiers_by_edge.get(edge)
             if local_contexts is None:
-                # `register_call` also records calls to definitions such as `panic`
-                # whose effects are supplied directly in `func_effects`. They have no
-                # checked body and therefore no local modifier label. Just preserve
-                # their edge: there is no body to analyze.
+                # If no modifier context is registered for this edge, assume unmodified
+                # call.
                 calls = ((NO_CALL_MODIFIERS, None),)
             else:
                 calls = tuple(local_contexts.items())
 
-            for local_context, call_node in calls:
+            for local_context, call_site_span in calls:
                 # Combine modifiers inherited from the caller with those surrounding
                 # this particular call in the checked function body.
                 effective_context = state.inherited_context.compose(local_context)
@@ -154,14 +161,15 @@ def analyze_modifier_calls(
                         worklist.append(next_state)
                     continue
 
-                # A custom implementation consumes the effective modifier context. Its
-                # body is consequently analyzed with an empty inherited context.
-                assert call_node is not None
+                # When calling a custom implementation, we reset the modifier context
+                # because the custom call implements all required modifications. No
+                # further modifications need to be applied to its body.
+                assert call_site_span is not None
                 assert resolved_callee == custom_use.custom_def
                 next_state = ModifierCallState(resolved_callee, NO_CALL_MODIFIERS)
                 contextual_callers[next_state].add(state)
                 custom_calls.append(
-                    ResolvedCustomCall(state, next_state, custom_use, call_node)
+                    ResolvedCustomCall(state, next_state, custom_use, call_site_span)
                 )
                 existing_use = custom_uses_by_mono_def.setdefault(
                     custom_use.custom_def, custom_use
@@ -179,7 +187,7 @@ def analyze_modifier_calls(
     _check_recursive_custom_uses(
         custom_calls, custom_uses_by_mono_def, contextual_callers
     )
-    return ModifierCallGraphAnalysis(
+    return ModifierAnalysisResult(
         expanded_calls,
         resolved_calls,
         custom_uses_by_mono_def,
