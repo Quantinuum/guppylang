@@ -257,7 +257,7 @@ def test_unitary_metadata_function_definition(use_experimental_features):
             )
 
 
-def test_custom_modifier_metadata(use_experimental_features):
+def test_custom_modifier_metadata():
     @guppy.unitary
     class custom_gate:
         n = guppy.nat_var("n")

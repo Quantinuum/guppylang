@@ -68,7 +68,7 @@ def helper(q: qubit, n: int) -> int:
     return identity(n)
 
 
-def test_generic_functions_in_unitary_class(validate, use_experimental_features):
+def test_generic_functions_in_unitary_class(validate):
 
     @guppy.unitary
     class foo:

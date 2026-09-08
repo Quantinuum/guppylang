@@ -21,6 +21,11 @@ def comptime_bar() -> None:  # MARKER:def_comptime_bar
     pass  # MARKER:scope_comptime_bar
 
 
+@guppy
+def inc(x: int) -> int:  # MARKER:def_inc
+    return x + 1  # MARKER:scope_inc
+
+
 circ = Circuit(1)
 circ.H(0)
 
@@ -31,3 +36,7 @@ pytket_bar_load = guppy.load_pytket(  # MARKER:def_pytket_bar_load
 
 @guppy.pytket(circ)
 def pytket_bar_stub(q1: qubit) -> None: ...  # MARKER:def_pytket_bar_stub
+
+
+def non_guppy_function() -> None:
+    pass
