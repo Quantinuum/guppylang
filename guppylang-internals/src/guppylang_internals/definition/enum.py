@@ -115,24 +115,7 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
                 # Docstrings are also fine if they occur at the start
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
-                case _, ast.FunctionDef(name=name) as node:
-                    used_func_names[name] = node
-                # A `@guppy.unitary` method is written as a class, but the decorator
-                # replaces it with its `__call__` Guppy function definition.
-                case _, ast.ClassDef(name=name) as node:
-                    v = getattr(self.python_class, name)
-                    if not (
-                        isinstance(v, GuppyDefinition)
-                        and isinstance(v.wrapped, RawFunctionDef)
-                        and v.wrapped.unitary_class_at is not None
-                    ):
-                        err = UnexpectedError(
-                            class_header_span(node),
-                            "statement",
-                            unexpected_in="enum definition",
-                        )
-                        err.add_sub_diagnostic(VariantFormHint(None))
-                        raise GuppyError(err)
+                case _, ast.FunctionDef(name=name) | ast.ClassDef(name=name) as node:
                     used_func_names[name] = node
                 # Enum variants are declared via a dictionary, where keys are the
                 # variant fields and values are types:
@@ -198,24 +181,37 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Ensure that functions do not override enum variants
         # and that all functions are Guppy functions
         for func_name, func_def in used_func_names.items():
-            if isinstance(func_def, ast.ClassDef):
-                header_span = class_header_span(func_def)
-            elif isinstance(func_def, ast.FunctionDef):
-                header_span = function_header_span(func_def)
-            else:
-                raise InternalGuppyError(f"Unexpected definition: {type(func_def)}")
+            match func_def:
+                case ast.ClassDef() as node:
+                    header_span = class_header_span(node)
+                case ast.FunctionDef() as node:
+                    header_span = function_header_span(node)
+
             if func_name in variants:
                 raise GuppyError(
                     DuplicateVariantError(header_span, self.name, func_name)
                 )
 
             v = getattr(self.python_class, func_name)
-            if not isinstance(v, GuppyDefinition):
-                raise GuppyError(
-                    NonGuppyMethodError(
-                        func_def, self.name, func_name, "enum", "@guppy"
+            match func_def:
+                case ast.FunctionDef() if not isinstance(v, GuppyDefinition):
+                    raise GuppyError(
+                        NonGuppyMethodError(
+                            header_span, self.name, func_name, "enum", "@guppy"
+                        )
                     )
-                )
+                case ast.ClassDef() if not (
+                    isinstance(v, GuppyDefinition)
+                    and isinstance(v.wrapped, RawFunctionDef)
+                    and v.wrapped.unitary_class_at is not None
+                ):
+                    err = UnexpectedError(
+                        node,
+                        "statement",
+                        unexpected_in="enum definition",
+                    )
+                    err.add_sub_diagnostic(VariantFormHint(None))
+                    raise GuppyError(err)
 
         link_name_prefix = (
             self._user_set_link_name
