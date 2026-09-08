@@ -14,6 +14,18 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
+## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.3...guppylang-v1.0.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* Use froundeven for lowering float roundings (#2293)([1da77fa](https://github.com/Quantinuum/guppylang/commit/1da77fa48d82b6e37cf24b2631e30fe635b5f7f3))
+
+
+### Performance Improvements
+
+* Upgrade hugr to v0.18.6, tket to v0.15.8, qis-compiler to v0.4.3 (#2289)([0345e72](https://github.com/Quantinuum/guppylang/commit/0345e729fb0b945be50ee0a4dc9e1b17ce05b4a1))
+
 ## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.2...guppylang-v1.0.3) (2026-09-01)
 
 
