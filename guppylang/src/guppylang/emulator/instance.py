@@ -242,7 +242,7 @@ class EmulatorInstance:
         return self._with_option(_timeout=value)
 
     def with_seed(
-        self, value: int | None, mode: Literal["default", "legacy"] = "default"
+        self, value: int | None, *, mode: Literal["default", "legacy"] = "default"
     ) -> Self:
         """Set the random seed for the emulator instance.
         Defaults to None.
