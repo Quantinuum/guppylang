@@ -40,7 +40,7 @@ from guppylang_internals.definition.util import (
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, class_header_span, function_header_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
@@ -107,7 +107,9 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
-                            DuplicateFieldError(node, self.name, name, "struct")
+                            DuplicateFieldError(
+                                function_header_span(node), self.name, name, "struct"
+                            )
                         )
                 # A `@guppy.unitary` method is written as a class, but the decorator
                 # replaces it with its `__call__` Guppy function definition.
@@ -122,7 +124,9 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
-                            DuplicateFieldError(node, self.name, name, "struct")
+                            DuplicateFieldError(
+                                class_header_span(node), self.name, name, "struct"
+                            )
                         )
                 # Struct fields are declared via annotated assignments without value
                 case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:

@@ -143,7 +143,7 @@ def test_methods(validate):
     validate(main.compile_function())
 
 
-def test_unitary_method(validate, use_experimental_features):
+def test_unitary_method(validate):
     T = guppy.type_var("T")
 
     @guppy.struct(frozen=True)

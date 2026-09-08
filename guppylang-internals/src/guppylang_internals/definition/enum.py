@@ -39,7 +39,7 @@ from guppylang_internals.definition.util import (
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, class_header_span, function_header_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
@@ -127,7 +127,7 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
                         and v.wrapped.unitary_class_at is not None
                     ):
                         err = UnexpectedError(
-                            node,
+                            class_header_span(node),
                             "statement",
                             unexpected_in="enum definition",
                         )
@@ -198,12 +198,17 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Ensure that functions do not override enum variants
         # and that all functions are Guppy functions
         for func_name, func_def in used_func_names.items():
+            if isinstance(func_def, ast.ClassDef):
+                header_span = class_header_span(func_def)
+            elif isinstance(func_def, ast.FunctionDef):
+                header_span = function_header_span(func_def)
+            else:
+                raise InternalGuppyError(f"Unexpected definition: {type(func_def)}")
             if func_name in variants:
                 raise GuppyError(
-                    DuplicateVariantError(
-                        used_func_names[func_name], self.name, func_name
-                    )
+                    DuplicateVariantError(header_span, self.name, func_name)
                 )
+
             v = getattr(self.python_class, func_name)
             if not isinstance(v, GuppyDefinition):
                 raise GuppyError(

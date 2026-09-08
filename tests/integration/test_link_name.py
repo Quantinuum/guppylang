@@ -141,7 +141,7 @@ def test_struct_member_link_name_inferred(qualifier):
     }
 
 
-def test_struct_unitary_member_link_name_inferred(qualifier, use_experimental_features):
+def test_struct_unitary_member_link_name_inferred(qualifier):
     @guppy.struct(frozen=True)
     class Struct:
         @guppy.unitary

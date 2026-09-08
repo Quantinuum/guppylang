@@ -721,9 +721,7 @@ def test_two_control_counts_distinct_runtime(run_int_fn):
     run_int_fn(main, expected=3, num_qubits=5)
 
 
-def test_struct_custom_modifier_impls_are_executed(
-    use_experimental_features, run_int_fn
-):
+def test_struct_custom_modifier_impls_are_executed(run_int_fn):
     @guppy.struct(frozen=True)
     class CustomGates:
         enabled: bool
@@ -742,20 +740,12 @@ def test_struct_custom_modifier_impls_are_executed(
                     x(q)
 
             @guppy
-            def controlled(
-                self,
-                q: qubit,
-                _controls: array[qubit, n],
-            ) -> None:
+            def controlled(self, q: qubit, _controls: array[qubit, n]) -> None:
                 if self.enabled:
                     x(q)
 
             @guppy
-            def ctrl_daggered(
-                self,
-                q: qubit,
-                _controls: array[qubit, n],
-            ) -> None:
+            def ctrl_daggered(self, q: qubit, _controls: array[qubit, n]) -> None:
                 if self.enabled:
                     x(q)
 
@@ -800,7 +790,7 @@ def test_struct_custom_modifier_impls_are_executed(
     run_int_fn(main_ctrl_daggered, expected=1, num_qubits=2)
 
 
-def test_enum_custom_modifier_impls_are_executed(use_experimental_features, run_int_fn):
+def test_enum_custom_modifier_impls_are_executed(run_int_fn):
     @guppy.enum
     class CustomGates:
         Enabled = {}
@@ -818,19 +808,11 @@ def test_enum_custom_modifier_impls_are_executed(use_experimental_features, run_
                 x(q)
 
             @guppy
-            def controlled(
-                self,
-                q: qubit,
-                _controls: array[qubit, n],
-            ) -> None:
+            def controlled(self, q: qubit, _controls: array[qubit, n]) -> None:
                 x(q)
 
             @guppy
-            def ctrl_daggered(
-                self,
-                q: qubit,
-                _controls: array[qubit, n],
-            ) -> None:
+            def ctrl_daggered(self, q: qubit, _controls: array[qubit, n]) -> None:
                 x(q)
 
     @guppy
