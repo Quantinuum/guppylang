@@ -258,8 +258,8 @@ class ParsedFunctionDef(CheckableGenericDef, CallableDef):
             type_args,
             globals,
             mono_link_name,
-            self.id,
-            self.decorator_unitary_flags,
+            def_id=self.id,
+            decorator_unitary_flags=self.decorator_unitary_flags,
         )
         mono_ty = self.ty.instantiate_partial(type_args)
         return CheckedFunctionDef(

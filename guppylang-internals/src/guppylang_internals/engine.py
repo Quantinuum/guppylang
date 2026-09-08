@@ -349,7 +349,7 @@ class CompilationEngine:
         self.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
             self.register_effects((callee.id, inst), callee.call_effects)
-        # We record the modifier context under the call is performed.
+        # Record the modifier context under which the call is performed
         callee_mono_def_id: MonoDefId = (callee.id, inst)
         edge = (ctx.current_caller, callee_mono_def_id)
         modifier_contexts = self.local_modifiers_by_edge.setdefault(edge, {})
@@ -414,14 +414,16 @@ class CompilationEngine:
 
                 assert isinstance(parsed_custom_defn, ParsedFunctionDef)
                 _check_modified_def_signature(parsed_custom_defn, defn.ty)
-                # While parameterized custom methods (controlled and ctrl_daggered) are
-                # scheduled for check by `get_parsed`, (see
-                # ```
-                # 412| elif isinstance(defn, CheckableGenericDef) and defn.params:
-                # ```
-                # ), non-parameterized custom methods (daggered) are not scheduled
-                # thus we explicitly schedule them here. This ensure that all custom
-                # methods are checked even if not used.
+                # Ensure that all custom methods are checked, even if they are not
+                # directly used.
+                # Parameterized custom methods (`controlled` and `ctrl_daggered`) are
+                # generic, so they are always added to `generic_to_check_worklist` and
+                # checked later. Non-parameterized custom methods (`daggered`) are not
+                # generic and therefore are not added to `generic_to_check_worklist`.
+                # Normally, non-generic functions are added to `to_check_worklist` only
+                # when they are explicitly called. To ensure that `daggered` methods are
+                # checked even when they are not called, we explicitly add them to
+                # `to_check_worklist`.
                 if not parsed_custom_defn.params:
                     self.to_check_worklist[custom_def_id, ()] = parsed_custom_defn
         return defn
@@ -819,15 +821,11 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
         ]
         # Add unresolved extensions as well, but we only have the names
-        used_exts_meta.extend(
-            [
-                # TODO: Remove dummy version once optional in Hugr.
-                ExtensionDesc(
-                    name=ext_name, version=Version(major=0, prerelease="unknown")
-                )
-                for ext_name in used_extensions_result.unresolved_extensions
-            ]
-        )
+        used_exts_meta.extend([
+            # TODO: Remove dummy version once optional in Hugr.
+            ExtensionDesc(name=ext_name, version=Version(major=0, prerelease="unknown"))
+            for ext_name in used_extensions_result.unresolved_extensions
+        ])
         root_metadata = graph.hugr[graph.hugr.module_root].metadata
         root_metadata[HugrUsedExtensions] = used_exts_meta
         root_metadata[HugrGenerator] = GeneratorDesc(

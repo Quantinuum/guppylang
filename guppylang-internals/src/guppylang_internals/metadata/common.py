@@ -59,12 +59,6 @@ class NumControlQubits(Metadata[int]):
     KEY = "tket.num_control_qubits"
 
 
-# DAGGERED_KEY = DaggeredImplementation.KEY
-# CONTROLLED_KEY = ControlledImplementations.KEY
-# CTRL_DAGGERED_KEY = CtrlDaggeredImplementations.KEY
-# NUM_CONTROL_QUBITS_KEY = NumControlQubits.KEY
-
-
 @dataclass(frozen=True)
 class MetadataAlreadySetError(Fatal):
     title: ClassVar[str] = "Metadata key already set"

@@ -161,10 +161,9 @@ def analyze_modifier_calls(
                         worklist.append(next_state)
                     continue
 
-                # When we call custom implementation, the modifier context under we
-                # reset the modifier context since the custom call fully implement all
-                # the modification that are needed, and no further modifications are
-                # required to custom implementation body.
+                # When calling a custom implementation, we reset the modifier context
+                # because the custom call implements all required modifications. No
+                # further modifications need to be applied to its body.
                 assert call_site_span is not None
                 assert resolved_callee == custom_use.custom_def
                 next_state = ModifierCallState(resolved_callee, NO_CALL_MODIFIERS)

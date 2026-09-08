@@ -77,14 +77,15 @@ class UnknownModifierError(Error):
 
 @dataclass(frozen=True)
 class RecursiveModifierControlCountError(Error):
-    title: ClassVar[str] = "Diverging controlled recursive custom modifier definition"
+    title: ClassVar[str] = "Increasing control count in recursive custom modifier"
     span_label: ClassVar[str] = (
         "This recursive call increases the number of controls from "
         "{previous_count} to {control_count}"
     )
     message: ClassVar[str] = (
-        "Custom controlled implementations that recursively increase the number of "
-        "controllers cannot be monomorphized."
+        "A recursive custom controlled implementation that increases the number "
+        "of controls prevents the compiler from determining the required control "
+        "count."
     )
     previous_count: int
     control_count: int

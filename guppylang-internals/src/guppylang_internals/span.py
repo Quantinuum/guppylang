@@ -125,6 +125,40 @@ def to_span(x: ToSpan) -> Span:
     return Span(start, end)
 
 
+def class_header_span(class_def: ast.ClassDef) -> Span:
+    """Returns a span covering only the name of a class definition."""
+    source = get_source(class_def)
+    class_span = to_span(class_def)
+    assert source is not None
+
+    lines = source.splitlines()
+    wrapper_lines = int(source[0].isspace())
+    line_idx = class_def.lineno - wrapper_lines - 1
+    definition_line_idx = line_idx
+    col = class_def.col_offset
+
+    while True:
+        source_line = lines[line_idx]
+        while col < len(source_line) and source_line[col].isspace():
+            col += 1
+        if col < len(source_line) and source_line[col] != "\\":
+            break
+        line_idx += 1
+        col = 0
+
+    name_end = col
+    while name_end < len(source_line) and source_line[name_end] != "\n":
+        name_end += 1
+
+    source_line_num = class_span.start.line + line_idx - definition_line_idx
+    start_col = len(source_line[:col].encode())
+    end_col = len(source_line[:name_end].encode())
+    return Span(
+        Loc(class_span.file, source_line_num, start_col),
+        Loc(class_span.file, source_line_num, end_col),
+    )
+
+
 def function_header_span(func_def: ast.FunctionDef) -> Span:
     """Returns a span covering only the function header up to and including `:`."""
     start = to_span(func_def).start
