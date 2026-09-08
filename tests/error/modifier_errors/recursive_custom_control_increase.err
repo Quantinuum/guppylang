@@ -1,0 +1,12 @@
+Error: Increasing control count in recursive custom modifier (at $FILE:29:12)
+   | 
+27 |         extra_control = qubit()
+28 |         with control(controls), control(extra_control):
+29 |             foo(q)
+   |             ^^^^^^ This recursive call increases the number of controls from 1
+   |                    to 3
+
+A recursive custom controlled implementation that increases the number of
+controls prevents the compiler from determining the required control count.
+
+Guppy compilation failed due to 1 previous error

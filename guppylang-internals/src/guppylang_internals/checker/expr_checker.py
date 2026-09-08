@@ -1688,7 +1688,7 @@ def synthesize_call(
 
     # Register this call in the callgraph.
     if callee is not None:
-        ENGINE.register_call(ctx, callee, inst)
+        ENGINE.register_call(ctx, callee, inst, node)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1790,7 +1790,7 @@ def check_call(
 
     # Register this call in the callgraph.
     if callee is not None:
-        ENGINE.register_call(ctx, callee, inst)
+        ENGINE.register_call(ctx, callee, inst, node)
 
     return inputs, subst, inst
 
@@ -1948,6 +1948,7 @@ def check_generator(
         inner_locals,
         ctx.generic_param_inst,
         current_caller=ctx.current_caller,
+        modifier_ctx=ctx.modifier_ctx,
     )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)

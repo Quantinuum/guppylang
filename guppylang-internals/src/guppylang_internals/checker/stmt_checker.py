@@ -55,6 +55,7 @@ from guppylang_internals.checker.expr_checker import (
     register_effects,
     synthesize_comprehension,
 )
+from guppylang_internals.checker.modifier import ModifierContext
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import (
     GuppyError,
@@ -85,7 +86,12 @@ from guppylang_internals.tys.builtin import (
     is_sized_iter_type,
     nat_type,
 )
-from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
+from guppylang_internals.tys.const import (
+    BoundConstVar,
+    Const,
+    ConstValue,
+    ExistentialConstVar,
+)
 from guppylang_internals.tys.parsing import type_from_ast
 from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
 from guppylang_internals.tys.subst import Subst
@@ -423,11 +429,8 @@ class StmtChecker(AstVisitor[BBStatement]):
         if not self.bb:
             raise InternalGuppyError("BB required to check with block!")
 
-        # check the body of the modified block
-        checked_modified_block = check_modified_block(node, self.bb, self.ctx)
-
-        # check the arguments of the control and power.
-        for control in checked_modified_block.control:
+        # Check modifier arguments.
+        for control in node.control:
             ctrl = control.ctrl
             # This case is handled during CFG construction.
             assert len(ctrl) > 0
@@ -468,13 +471,27 @@ class StmtChecker(AstVisitor[BBStatement]):
                         )
                 control.qubit_num = len(ctrl)
 
-        for power in checked_modified_block.power:
+        for power in node.power:
             power.iter, subst = self._check_expr(
                 power.iter, NumericType(NumericType.Kind.Nat)
             )
             assert len(subst) == 0
 
-        return checked_modified_block
+        control_sizes: list[int | Const] = []
+        for control in node.control:
+            assert control.qubit_num is not None
+            control_sizes.append(control.qubit_num)
+
+        local_modifiers = ModifierContext(
+            daggered=node.has_dagger(),
+            control_sizes=tuple(control_sizes),
+        )
+
+        body_ctx = self.ctx._replace(
+            modifier_ctx=self.ctx.modifier_ctx.compose(local_modifiers)
+        )
+
+        return check_modified_block(node, self.bb, body_ctx)
 
     def visit_If(self, node: ast.If) -> None:
         raise InternalGuppyError("Control-flow statement should not be present here.")

@@ -76,6 +76,22 @@ class UnknownModifierError(Error):
 
 
 @dataclass(frozen=True)
+class RecursiveModifierControlCountError(Error):
+    title: ClassVar[str] = "Increasing control count in recursive custom modifier"
+    span_label: ClassVar[str] = (
+        "This recursive call increases the number of controls from "
+        "{previous_count} to {control_count}"
+    )
+    message: ClassVar[str] = (
+        "A recursive custom controlled implementation that increases the number "
+        "of controls prevents the compiler from determining the required control "
+        "count."
+    )
+    previous_count: int
+    control_count: int
+
+
+@dataclass(frozen=True)
 class UnexpectedInWithBlockError(Error):
     title: ClassVar[str] = "Unexpected {kind}"
     span_label: ClassVar[str] = "{things} found in a `With` block"
