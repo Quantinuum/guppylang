@@ -19,7 +19,7 @@ As of version `1.0.0`, the Guppy language is considered stable. An extended chan
 
 ### Bug Fixes
 
-* Use froundeven for lowering float roundings (#2293)([1da77fa](https://github.com/Quantinuum/guppylang/commit/1da77fa48d82b6e37cf24b2631e30fe635b5f7f3))
+* Round floats with a tie-break to even instead of away from zero (#2293)([1da77fa](https://github.com/Quantinuum/guppylang/commit/1da77fa48d82b6e37cf24b2631e30fe635b5f7f3))
 
 
 ### Performance Improvements
