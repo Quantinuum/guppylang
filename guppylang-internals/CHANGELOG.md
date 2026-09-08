@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.3...guppylang-internals-v1.0.4) (2026-09-08)
+
+
+### Performance Improvements
+
+* Upgrade hugr to v0.18.6, tket to v0.15.8, qis-compiler to v0.4.3 (#2289)([0345e72](https://github.com/Quantinuum/guppylang/commit/0345e729fb0b945be50ee0a4dc9e1b17ce05b4a1))
+
 ## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.2...guppylang-internals-v1.0.3) (2026-09-01)
 
 
