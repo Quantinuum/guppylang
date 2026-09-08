@@ -3,6 +3,7 @@ dev = [
   { include-group = "examples" },
   { include-group = "lint" },
   { include-group = "test" },
+  "setuptools<81.0.0",
 ]
 docs = ["furo>=2024.8.6", "sphinx >=7.2.6,<9"]
 examples = ["matplotlib>=3.11.1", "networkx>=2.6,<4"]
