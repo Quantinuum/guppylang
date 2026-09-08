@@ -1012,9 +1012,9 @@ def _set_unitary_metadata(
     definition_span: Span,
 ) -> UnitaryFlags:
     """Set unitary metadata based on the available custom implementations:
-    - `daggered`: The implementation of the custom daggered, None if absent.
-    - `controlled`: The implementation of the custom controlled, None if absent.
-    - `ctrl_daggered`: The implementation of the custom ctrl_daggered, None if absent.
+    - `daggered`: The custom implementation of `daggered`, None if absent.
+    - `controlled`: The custom implementation of `controlled`, None if absent.
+    - `ctrl_daggered`: The custom implementation of `ctrl_daggered`, None if absent.
 
     We also check that the combination of custom implementations is valid.
     """

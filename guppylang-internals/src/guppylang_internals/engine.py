@@ -414,16 +414,18 @@ class CompilationEngine:
 
                 assert isinstance(parsed_custom_defn, ParsedFunctionDef)
                 _check_modified_def_signature(parsed_custom_defn, defn.ty)
-                # Ensure that all custom methods are checked, even if they are not
-                # directly used.
-                # Parameterized custom methods (`controlled` and `ctrl_daggered`) are
-                # generic, so they are always added to `generic_to_check_worklist` and
-                # checked later. Non-parameterized custom methods (`daggered`) are not
-                # generic and therefore are not added to `generic_to_check_worklist`.
-                # Normally, non-generic functions are added to `to_check_worklist` only
-                # when they are explicitly called. To ensure that `daggered` methods are
-                # checked even when they are not called, we explicitly add them to
-                # `to_check_worklist`.
+                # Guppy normally checks only definitions that are called. Custom
+                # modifier methods, however, are resolved implicitly by the compiler.
+                # Thus, to prevent accepting a `@guppy.unitary` class containing a,
+                # ill-typed custom implementation, we check every custom modifier
+                # method. We enforce this because these methods are part of the class
+                # definition. and every custom method in a well-typed `@guppy.unitary`
+                # class must itself be well-typed.
+                #
+                # Parameterized methods (`controlled` and `ctrl_daggered`) are generic
+                # and already added to `generic_to_check_worklist`. Non-parameterized
+                # methods (`daggered`) are normally added to `to_check_worklist` only
+                # when called, so we explicitly add them here.
                 if not parsed_custom_defn.params:
                     self.to_check_worklist[custom_def_id, ()] = parsed_custom_defn
         return defn
