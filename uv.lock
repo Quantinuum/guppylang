@@ -16,6 +16,7 @@ members = [
     "guppylang-internals",
     "miette-py",
 ]
+constraints = [{ name = "llvmlite", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = ">0.45.1" }]
 
 [manifest.dependency-groups]
 dev = [
