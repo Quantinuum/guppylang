@@ -63,7 +63,18 @@ class _DummyGuppy:
 
 def _dummy_custom_decorator(*args: Any, **kwargs: Any) -> Any:
     """Dummy version of custom decorators that are used during Sphinx builds."""
-    return lambda f: f
+
+    def decorator(*decorator_args: Any, **decorator_kwargs: Any) -> Any:
+        if (
+            len(decorator_args) == 1
+            and callable(decorator_args[0])
+            and not decorator_kwargs
+        ):
+            return decorator_args[0]
+
+        return lambda f: f
+
+    return decorator
 
 
 def sphinx_running() -> bool:
