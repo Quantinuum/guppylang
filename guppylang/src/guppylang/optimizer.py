@@ -270,6 +270,8 @@ class OptimizerInstance[**P, Out]:
 
         Emulation in debug mode (enabling panic traces) requires minimal optimization.
         """
+        # TODO: Consider changing this to a warning instead of an error after
+        # https://github.com/Quantinuum/tket2/issues/1964 is resolved.
         if debug_mode and self.passes:
             raise EmulatorBuildError(
                 ValueError(
