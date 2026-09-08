@@ -107,6 +107,9 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: Install Guppy
         run: uv sync --frozen --python ${{ env.PYTHON_VERSION }}
 
