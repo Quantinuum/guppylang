@@ -89,6 +89,7 @@ def _find_call_site(calling_func_node: AstNode) -> AstNode:
     ):
         return calling_func_node
 
+    # Use `tuple` rather than `Loc` to avoid needing a filename.
     active_start = (positions.lineno, positions.col_offset)
     active_end = (positions.end_lineno, positions.end_col_offset)
 
