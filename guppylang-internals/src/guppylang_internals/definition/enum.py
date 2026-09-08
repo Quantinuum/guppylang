@@ -206,7 +206,7 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     and v.wrapped.unitary_class_at is not None
                 ):
                     err = UnexpectedError(
-                        node,
+                        header_span,
                         "statement",
                         unexpected_in="enum definition",
                     )
