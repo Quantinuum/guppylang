@@ -351,6 +351,7 @@ def test_emulator_instance_run_instance():
         shot_offset=instance.shot_offset,
         shot_increment=instance.shot_increment,
         n_processes=instance.n_processes,
+        seed_mode="default",
     )
 
     assert result_stream == mock_result_stream
