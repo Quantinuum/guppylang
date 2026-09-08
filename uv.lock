@@ -34,7 +34,6 @@ dev = [
     { name = "pytest-snapshot", specifier = ">=0.9.0,<1" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = "~=0.16.4" },
-    { name = "setuptools", specifier = "<81.0.0" },
     { name = "types-networkx", specifier = ">=3.6.1.20260612" },
 ]
 docs = [
