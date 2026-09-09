@@ -21,6 +21,7 @@ from guppylang_internals.ast_util import annotate_location
 from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.checker.unitary_checker import (
     check_modified_def_combinations,
+    check_unitary_method,
 )
 from guppylang_internals.definition.alias import RawTypeAliasDef
 from guppylang_internals.definition.common import DefId
@@ -81,7 +82,6 @@ if TYPE_CHECKING:
     from tket.metadata import InlineAnnotationValue
 
 type Decorator[S, T] = Callable[[S], T]
-type _CustomModifiedDefinitions = dict[CustomModifierKind, RawFunctionDef]
 
 AnyRawFunctionDef = (
     RawFunctionDef,
@@ -387,13 +387,13 @@ class _Guppy:
         # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(call_raw_func, "name", cls.__name__)
 
-        # Update the unitary metadata according to the custom implementations
-        custom_modified_definitions = _get_custom_modified_definitions(cls)
         definition_span = call_raw_func.set_unitary_class(
             cls,
             frame,
             DEF_STORE.sources,
         )
+        # Update the unitary metadata according to the custom implementations
+        custom_modified_definitions = check_unitary_method(cls, definition_span)
         for kind in CustomModifierKind:
             custom_def = custom_modified_definitions.get(kind)
             if custom_def is None:
@@ -940,66 +940,6 @@ def _get_unitary_call_def(cls: object) -> GuppyDefinition:
         f"The `@guppy.unitary` class `{cls.__name__}` requires a `@guppy` "
         f"annotated `__call__` method"
     )
-
-
-def _get_custom_modified_definitions[T](
-    cls: builtins.type[T],
-) -> _CustomModifiedDefinitions:
-    """Returns the `@guppy`-annotated `daggered`, `controlled`, and `ctrl_daggered`"""
-    custom_methods: _CustomModifiedDefinitions = {}
-    custom_methods_names = tuple(kind.value for kind in CustomModifierKind)
-
-    for method_name, method in cls.__dict__.items():
-        if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
-            if isinstance(method.wrapped, RawFunctionDef):
-                _check_custom_method_metadata(method_name, method.wrapped, cls.__name__)
-                custom_methods[CustomModifierKind(method_name)] = method.wrapped
-            else:
-                raise TypeError(
-                    f"`{method_name}` in the `@guppy.unitary` class "
-                    f"`{cls.__name__}` must be a guppy function."
-                )
-        elif (
-            isinstance(method, GuppyDefinition)
-            and not isinstance(method, GuppyTypeVarDefinition)
-            and method_name not in custom_methods_names
-            and method_name != "__call__"
-        ):
-            raise TypeError(
-                f"Only guppy function named {custom_methods_names} are allowed as a "
-                f"method in a `@guppy.unitary` class. Found `{method_name}`.",
-            )
-        elif (
-            not isinstance(method, GuppyDefinition)
-            and method_name in custom_methods_names
-        ):
-            raise TypeError(
-                f"`{method_name}` in the `@guppy.unitary` class `{cls.__name__}` must "
-                "be a guppy function"
-            )
-
-    return custom_methods
-
-
-@hide_trace
-def _check_custom_method_metadata(
-    method_name: str, method: RawFunctionDef, class_name: str
-) -> None:
-    """Reject metadata that is only meaningful on a unitary class's ``__call__``."""
-    if method.unitary_flags != UnitaryFlags.NoFlags:
-        raise TypeError(
-            f"`{method_name}` in the `@guppy.unitary` class `{class_name}` cannot "
-            "set unitary flags; only `__call__` can set them"
-        )
-
-    if (
-        method.metadata is not None
-        and method.metadata.get_expected_qubits() is not None
-    ):
-        raise TypeError(
-            f"`{method_name}` in the `@guppy.unitary` class `{class_name}` cannot "
-            "use `@expected_qubits`; only `__call__` can use it"
-        )
 
 
 @pretty_errors
