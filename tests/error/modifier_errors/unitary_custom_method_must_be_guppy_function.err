@@ -1,0 +1,13 @@
+Error: Unexpected statement (at $FILE:11:4)
+   | 
+ 9 | 
+10 |     @guppy.struct
+11 |     class daggered:
+   |     ^^^^^^^^^^^^^^^
+12 |         value: int
+   | ^^^^^^^^^^^^^^^^^^ Unexpected statement in in a `@guppy.unitary` class
+
+Help: Only guppy functions named: '__call__', 'controlled', 'ctrl_daggered' or
+'daggered' are allowed as methods in a `@guppy.unitary` class.
+
+Guppy compilation failed due to 1 previous error

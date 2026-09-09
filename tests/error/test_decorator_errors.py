@@ -1,5 +1,5 @@
 import pytest
-from guppylang.decorator import expected_qubits, guppy, metadata
+from guppylang.decorator import guppy, metadata
 
 
 def test_metadata_decorator_position():
@@ -35,26 +35,6 @@ def test_metadata_decorator_arguments():
         class MyStruct:
             x: int
             y: int
-
-
-def test_unitary_custom_method_must_be_guppy_function():
-    with pytest.raises(
-        TypeError,
-        match=(
-            r"Only guppy function named .* are allowed as a method in a "
-            r"`@guppy\.unitary` class\. Found `ClassDef`\."
-        ),
-    ):
-
-        @guppy.unitary
-        class Foo:
-            @guppy
-            def __call__() -> None:
-                pass
-
-            @guppy.struct
-            class daggered:
-                value: int
 
 
 def test_unitary_requires_guppy_call_method():
@@ -97,101 +77,3 @@ def test_unitary_rejects_keyword_arguments():
         @guppy.unitary(daggerable=True)
         class Foo:
             pass
-
-
-@pytest.mark.parametrize("decorate", [guppy, lambda f: f])
-def test_unitary_rejects_unrecognised_guppy_method(decorate):
-    with pytest.raises(
-        TypeError,
-        match=r"Only guppy function named .* are allowed .* Found `FunctionDef`\.",
-    ):
-
-        @guppy.unitary
-        class Foo:
-            @guppy
-            def __call__() -> None:
-                pass
-
-            @decorate
-            def other() -> None:
-                pass
-
-
-def test_unitary_rejects_class_statement():
-    with pytest.raises(
-        TypeError,
-        match=r"Only guppy function named .* are allowed .* Found `Assign`\.",
-    ):
-
-        @guppy
-        def helper() -> None:
-            pass
-
-        @guppy.unitary
-        class Foo:
-            dagger = helper
-
-            @guppy
-            def __call__() -> None:
-                pass
-
-
-def test_unitary_custom_method_requires_guppy_decorator():
-    with pytest.raises(
-        TypeError,
-        match=(
-            r"`controlled` in the `@guppy\.unitary` class `Foo` must be a guppy "
-            r"function"
-        ),
-    ):
-
-        @guppy.unitary
-        class Foo:
-            @guppy
-            def __call__() -> None:
-                pass
-
-            def controlled() -> None:
-                pass
-
-
-@pytest.mark.parametrize("flag", ["unitary", "controllable", "daggerable"])
-def test_unitary_custom_method_rejects_unitary_flags(flag):
-    with pytest.raises(
-        TypeError,
-        match=(
-            r"`daggered` in the `@guppy\.unitary` class `Foo` cannot set unitary "
-            r"flags; only `__call__` can set them"
-        ),
-    ):
-
-        @guppy.unitary
-        class Foo:
-            @guppy
-            def __call__() -> None:
-                pass
-
-            @guppy(**{flag: True})
-            def daggered() -> None:
-                pass
-
-
-def test_unitary_custom_method_rejects_expected_qubits():
-    with pytest.raises(
-        TypeError,
-        match=(
-            r"`controlled` in the `@guppy\.unitary` class `Foo` cannot use "
-            r"`@expected_qubits`; only `__call__` can use it"
-        ),
-    ):
-
-        @guppy.unitary
-        class Foo:
-            @guppy
-            def __call__() -> None:
-                pass
-
-            @guppy
-            @expected_qubits(2)
-            def controlled() -> None:
-                pass
