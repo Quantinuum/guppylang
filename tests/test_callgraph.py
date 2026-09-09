@@ -1,4 +1,3 @@
-import pytest
 from guppylang import guppy
 from guppylang_internals.engine import ENGINE
 
@@ -64,11 +63,6 @@ def test_recursive():
     assert mono_id in ENGINE.call_graph[mono_id]  # factorial calls itself
 
 
-@pytest.mark.xfail(
-    match="0 == 1",
-    reason="Nested functions are resolved as indirect calls to unknown target"
-    " (see https://github.com/Quantinuum/guppylang/issues/2272)",
-)
 def test_nested_function():
     """Test that nested function calls are recorded in the call graph."""
 
