@@ -844,6 +844,22 @@ def find_missing_return_point(
     """
     final_statement = None
 
+    def branch_index(branch_bb: BB, target_bb: BB) -> int | None:
+        """Finds the unique branch leading to a target without looping back."""
+        ancestors = {target_bb}
+        worklist = [target_bb]
+        while worklist:
+            for predecessor in worklist.pop().predecessors:
+                if predecessor is not branch_bb and predecessor not in ancestors:
+                    ancestors.add(predecessor)
+                    worklist.append(predecessor)
+        branches = [
+            i
+            for i, successor in enumerate(branch_bb.successors)
+            if successor in ancestors
+        ]
+        return branches[0] if len(branches) == 1 else None
+
     # walk up the ancestors in the CFG
     # to find the nearest block with statements
     # (ancestors contain the final_bb as first element)
@@ -853,25 +869,26 @@ def find_missing_return_point(
             # we can stop the search and look for the condition in the branch
             # that leads to final_bb.
             final_statement = fbb_ancestor.statements[-1]
-            # A statement-bearing ancestor that also owns a branch predicate
-            # is a loop/if header whose condition got desugared into a
-            # side-effecting statement (e.g. a walrus `(b := b)` whose
-            # `Assign` ends up in the header BB next to the bare-`b`
-            # `branch_pred`). The last statement alone is a poor error span
-            # (it only covers the condition), so fall back to the loop-header
-            # path: the caller uses the whole enclosing statement
-            # (`nodes[-1]`) as the span and we point the help note at the
-            # desugared condition with `truth_value=False`.
+            # An assignment and a branch on one of its targets can share a BB,
+            # for example after desugaring a walrus expression.
             if (
-                fbb_ancestor.branch_pred is not None
+                isinstance(fbb_ancestor.branch_pred, ast.Name)
                 and isinstance(final_statement, ast.Assign)
-                and len(final_statement.targets) == 1
-                and isinstance(final_statement.targets[0], ast.Name)
-                and isinstance(fbb_ancestor.branch_pred, ast.Name)
-                and final_statement.targets[0].id == fbb_ancestor.branch_pred.id
-                and final_statement.lineno == fbb_ancestor.branch_pred.lineno
+                and any(
+                    isinstance(target, ast.Name)
+                    and isinstance(target.ctx, ast.Store)
+                    and target.id == fbb_ancestor.branch_pred.id
+                    for assign_target in final_statement.targets
+                    for target in ast.walk(assign_target)
+                )
+                and (idx := branch_index(fbb_ancestor, final_bb)) is not None
             ):
-                return None, (final_statement, 0)
+                branch_expr = (
+                    final_statement
+                    if final_statement.lineno == fbb_ancestor.branch_pred.lineno
+                    else fbb_ancestor.branch_pred
+                )
+                return None, (branch_expr, idx)
             # To have a better error message, we also look for the condition
             # of the branch without return.
             # However, there may be nested branches without returns.
@@ -881,33 +898,23 @@ def find_missing_return_point(
             # finds the closest branch condition that distinguishes between
             # the statement block and another branch.
             for cond_ancestor in itertools.islice(cfg.ancestors(fbb_ancestor), 1, None):
-                if cond_ancestor.branch_pred is not None:
+                if (
+                    cond_ancestor.branch_pred is not None
+                    and (idx := branch_index(cond_ancestor, fbb_ancestor)) is not None
+                ):
                     # Check in which branch the final statement is
-                    in_branches = [
-                        i
-                        for i, cond_succ in enumerate(cond_ancestor.successors)
-                        if any(
-                            succ == fbb_ancestor for succ in cfg.successors(cond_succ)
-                        )
-                    ]
-                    # Only return if the branch is unique
-                    if len(in_branches) == 1:
-                        return final_statement, (
-                            cond_ancestor.branch_pred,
-                            # Give us the index of the branch, so we can point
-                            # to the correct condition in the error message
-                            in_branches[0],
-                        )
+                    return final_statement, (
+                        cond_ancestor.branch_pred,
+                        # Give us the index of the branch, so we can point
+                        # to the correct condition in the error message
+                        idx,
+                    )
             return final_statement, None
         if fbb_ancestor.branch_pred is not None:
             # We have found a branch condition before finding any statement,
-            # this happens with return inside loops.
-            # Best solution here is give up on finding the missing return point,
-            # considering node[-1] as error point
-            # together with the help on the branch condition.
-            # Since the return statement is inside a loop, we suggest to add a return
-            # when the loop condition is false, thus we point to the false branch
-            # (returning 0)
-            return None, (fbb_ancestor.branch_pred, 0)
+            # so use the enclosing statement and determine the missing branch
+            # from the CFG rather than assuming it is the false branch.
+            idx = branch_index(fbb_ancestor, final_bb)
+            return None, ((fbb_ancestor.branch_pred, idx) if idx is not None else None)
 
     return None, None
