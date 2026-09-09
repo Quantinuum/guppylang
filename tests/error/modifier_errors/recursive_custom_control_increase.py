@@ -6,8 +6,6 @@ from guppylang.std.quantum import measure, qubit
 
 @guppy.unitary
 class foo:
-    n = guppy.nat_var("n")
-
     @guppy
     def __call__(q: qubit) -> None:
         pass
@@ -17,13 +15,13 @@ class foo:
         pass
 
     @guppy
-    def controlled(q: qubit, controls: array[qubit, n]) -> None:
+    def controlled[n: nat](q: qubit, controls: array[qubit, n]) -> None:
         extra_control = qubit()
         helper(q, controls, extra_control)
         measure(extra_control)
 
     @guppy
-    def ctrl_daggered(q: qubit, controls: array[qubit, n]) -> None:
+    def ctrl_daggered[n: nat](q: qubit, controls: array[qubit, n]) -> None:
         extra_control = qubit()
         with control(controls), control(extra_control):
             foo(q)

@@ -1,8 +1,8 @@
-Error: Control constraint violation (at $FILE:17:8)
+Error: Control constraint violation (at $FILE:15:8)
    | 
-15 |     @guppy(controllable=True)
-16 |     def __call__(q: qubit) -> None:
-17 |         helper(q)
+13 |     @guppy(controllable=True)
+14 |     def __call__(q: qubit) -> None:
+15 |         helper(q)
    |         ^^^^^^^^^ This function cannot be called in a controllable context
 
 Help: Consider adding the flag `(controllable=True)` to the decorator of the
