@@ -708,8 +708,6 @@ def test_struct_custom_modifier_impls_are_executed(run_int_fn):
 
         @guppy.unitary
         class apply:
-            n = guppy.nat_var("n")
-
             @guppy
             def __call__(self, q: qubit) -> None:
                 pass
@@ -720,12 +718,14 @@ def test_struct_custom_modifier_impls_are_executed(run_int_fn):
                     x(q)
 
             @guppy
-            def controlled(self, q: qubit, _controls: array[qubit, n]) -> None:
+            def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
                 if self.enabled:
                     x(q)
 
             @guppy
-            def ctrl_daggered(self, q: qubit, _controls: array[qubit, n]) -> None:
+            def ctrl_daggered[n: nat](
+                self, q: qubit, _controls: array[qubit, n]
+            ) -> None:
                 if self.enabled:
                     x(q)
 
@@ -777,8 +777,6 @@ def test_enum_custom_modifier_impls_are_executed(run_int_fn):
 
         @guppy.unitary
         class apply:
-            n = guppy.nat_var("n")
-
             @guppy
             def __call__(self, q: qubit) -> None:
                 pass
@@ -788,11 +786,13 @@ def test_enum_custom_modifier_impls_are_executed(run_int_fn):
                 x(q)
 
             @guppy
-            def controlled(self, q: qubit, _controls: array[qubit, n]) -> None:
+            def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
                 x(q)
 
             @guppy
-            def ctrl_daggered(self, q: qubit, _controls: array[qubit, n]) -> None:
+            def ctrl_daggered[n: nat](
+                self, q: qubit, _controls: array[qubit, n]
+            ) -> None:
                 x(q)
 
     @guppy

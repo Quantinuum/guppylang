@@ -3,6 +3,7 @@ from guppylang.decorator import guppy
 from guppylang.std.builtins import array
 from guppylang.std.quantum import discard, qubit
 
+n = guppy.nat_var("n")
 
 @guppy.struct
 class FooStruct:
@@ -10,7 +11,6 @@ class FooStruct:
 
     @guppy.unitary
     class foo:
-        n = guppy.nat_var("n")
 
         @guppy
         def __call__(self,q: qubit) -> None:

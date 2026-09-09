@@ -2,7 +2,7 @@ from typing import Generic, TYPE_CHECKING
 
 from guppylang import comptime, qubit, array
 from guppylang.decorator import guppy
-from guppylang.std.builtins import control, dagger
+from guppylang.std.builtins import control, dagger, nat
 from guppylang.std.quantum import discard_array, h
 
 from tests.integration.modules import struct_scope_defs
@@ -152,25 +152,22 @@ def test_unitary_method(validate):
 
         @guppy.unitary
         class apply_h:
-            n = guppy.nat_var("n")
-            c = guppy.nat_var("c")
-
             @guppy
-            def __call__(self, qs: array[qubit, n]) -> None:
+            def __call__[n: nat](self, qs: array[qubit, n]) -> None:
                 h(qs[0])
 
             @guppy
-            def daggered(self, qs: array[qubit, n]) -> None:
+            def daggered[n: nat](self, qs: array[qubit, n]) -> None:
                 h(qs[0])
 
             @guppy
-            def controlled(
+            def controlled[n: nat, c: nat](
                 self, qs: array[qubit, n], controls: array[qubit, c]
             ) -> None:
                 h(controls[0])
 
             @guppy
-            def ctrl_daggered(
+            def ctrl_daggered[n: nat, c: nat](
                 self, qs: array[qubit, n], controls: array[qubit, c]
             ) -> None:
                 h(controls[0])

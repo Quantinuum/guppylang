@@ -22,7 +22,7 @@ fn main() {
 
 from guppylang import array, guppy, qubit
 from guppylang.std.quantum import x
-from guppylang.std.builtins import control, dagger
+from guppylang.std.builtins import control, dagger, nat
 from tests.util import compile_guppy
 
 from typing import Generic, TYPE_CHECKING
@@ -356,8 +356,6 @@ def test_enum_custom_modifier_impls_are_executed(validate):
 
         @guppy.unitary
         class apply:
-            n = guppy.nat_var("n")
-
             @guppy
             def __call__(self, q: qubit) -> None:
                 pass
@@ -367,11 +365,13 @@ def test_enum_custom_modifier_impls_are_executed(validate):
                 x(q)
 
             @guppy
-            def controlled(self, q: qubit, _controls: array[qubit, n]) -> None:
+            def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
                 x(q)
 
             @guppy
-            def ctrl_daggered(self, q: qubit, _controls: array[qubit, n]) -> None:
+            def ctrl_daggered[n: nat](
+                self, q: qubit, _controls: array[qubit, n]
+            ) -> None:
                 x(q)
 
     @guppy
