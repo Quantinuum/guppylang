@@ -1,15 +1,20 @@
 import ast
+import builtins
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Place
-from guppylang_internals.checker.errors.generic import InvalidUnderDagger
+from guppylang_internals.checker.errors.generic import (
+    InvalidUnderDagger,
+    UnexpectedError,
+)
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.definition.value import CallableDef
-from guppylang_internals.diagnostic import Error
-from guppylang_internals.error import GuppyError, GuppyTypeError
+from guppylang_internals.diagnostic import Error, Help
+from guppylang_internals.error import GuppyError, GuppyTypeError, pretty_errors
 from guppylang_internals.nodes import (
     AbortExpr,
     AnyCall,
@@ -21,13 +26,21 @@ from guppylang_internals.nodes import (
     StateOutputExpr,
     TensorCall,
 )
-from guppylang_internals.span import ToSpan
+from guppylang_internals.span import ToSpan, function_header_span
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import (
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
     FunctionType,
     UnitaryFlags,
 )
+
+if TYPE_CHECKING:
+    from guppylang_internals.definition.function import RawFunctionDef
+
+type CustomModifiedDefinitions = dict[CustomModifierKind, RawFunctionDef]
 
 
 @dataclass(frozen=True)
@@ -388,3 +401,98 @@ def check_modified_def_combinations(
                     required_flag,
                 )
             )
+
+
+@dataclass(frozen=True)
+class InvalidUnitaryMethodError(Error):
+    title: ClassVar[str] = "Invalid `@guppy.unitary` method"
+    node_name: str
+    class_name: str
+    span_label: ClassVar[str] = (
+        "`{node_name}` in the `@guppy.unitary` class `{class_name}`"
+        " must be a guppy function"
+    )
+
+
+@dataclass(frozen=True)
+class InvalidUnitaryMetadataHelp(Help):
+    message: ClassVar[str] = (
+        "This method cannot set unitary flags. To set unitary flag "
+        "to the unitary class, use the decorator on top of `__call__`."
+    )
+
+
+@dataclass(frozen=True)
+class InvalidExpectedQubit(Help):
+    message: ClassVar[str] = (
+        "This method cannot cannot use `@expected_qubits`; Use the decorator on top of "
+        "`__call__` to set the expected qubits."
+    )
+
+
+@dataclass(frozen=True)
+class InvalidUnitaryMethodHelp(Help):
+    message: ClassVar[str] = (
+        f"Only Guppy functions named: '__call__', '{CALL_CONTROLLED_METHOD}', "
+        f"'{CALL_CTRL_DAGGERED_METHOD}' or '{CALL_DAGGERED_METHOD}' are "
+        "allowed as methods in a `@guppy.unitary` class. "
+    )
+
+
+@pretty_errors
+def check_unitary_method[T](
+    cls: builtins.type[T],
+    class_ast: ast.ClassDef,
+) -> CustomModifiedDefinitions:
+    """Validate a unitary class body and return its custom modifier methods.
+
+    ``methods`` contains the class's own Guppy-decorated raw function definitions.
+    The caller must already have validated ``__call__``.
+    """
+    from guppylang.defs import GuppyDefinition
+
+    from guppylang_internals.definition.function import RawFunctionDef
+
+    custom_methods: dict[CustomModifierKind, RawFunctionDef] = {}
+    valid_method_names = [kind.value for kind in CustomModifierKind] + ["__call__"]
+    for node in class_ast.body:
+        if not isinstance(node, ast.FunctionDef) or node.name not in valid_method_names:
+            raise GuppyError(
+                UnexpectedError(
+                    node, "statement", unexpected_in="in a `@guppy.unitary` class"
+                ).add_sub_diagnostic(InvalidUnitaryMethodHelp(None))
+            )
+        method_name = node.name
+        # `__call__` has already been checked in `decorator._get_unitary_call_def`
+        if method_name == "__call__":
+            continue
+        method = cls.__dict__.get(method_name)
+
+        if not (
+            isinstance(method, GuppyDefinition)
+            and isinstance(method.wrapped, RawFunctionDef)
+        ):
+            raise GuppyError(InvalidUnitaryMethodError(node, node.name, class_ast.name))
+
+        # Check that no invalid metadata is present
+        method_raw_def = method.wrapped
+        if method_raw_def.unitary_flags != UnitaryFlags.NoFlags:
+            raise GuppyError(
+                UnexpectedError(
+                    function_header_span(node),
+                    "unitary flags",
+                    unexpected_in="in the method `@guppy` decorator",
+                ).add_sub_diagnostic(InvalidUnitaryMetadataHelp(None))
+            )
+
+        if (
+            method_raw_def.metadata is not None
+            and method_raw_def.metadata.get_expected_qubits() is not None
+        ):
+            raise GuppyError(
+                UnexpectedError(
+                    function_header_span(node), "`@expected_qubits` decorator"
+                ).add_sub_diagnostic(InvalidExpectedQubit(None))
+            )
+        custom_methods[CustomModifierKind(node.name)] = method_raw_def
+    return custom_methods

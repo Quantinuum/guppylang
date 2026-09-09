@@ -3,7 +3,7 @@
 from guppylang import guppy
 from guppylang.std.angles import angle
 from guppylang.std.array import array
-from guppylang.std.builtins import control, dagger, power, qubit
+from guppylang.std.builtins import control, dagger, nat, power, qubit
 from guppylang.std.quantum import discard, rx
 from guppylang_internals.metadata.common import (
     ControlledImplementations,
@@ -260,8 +260,6 @@ def test_unitary_metadata_function_definition(use_experimental_features):
 def test_custom_modifier_metadata():
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
@@ -271,11 +269,11 @@ def test_custom_modifier_metadata():
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
         @guppy
-        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy
