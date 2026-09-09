@@ -433,7 +433,7 @@ class InvalidExpectedQubit(Help):
 @dataclass(frozen=True)
 class InvalidUnitaryMethodHelp(Help):
     message: ClassVar[str] = (
-        f"Only guppy functions named: '__call__', '{CALL_CONTROLLED_METHOD}', "
+        f"Only Guppy functions named: '__call__', '{CALL_CONTROLLED_METHOD}', "
         f"'{CALL_CTRL_DAGGERED_METHOD}' or '{CALL_DAGGERED_METHOD}' are "
         "allowed as methods in a `@guppy.unitary` class. "
     )
@@ -474,7 +474,7 @@ def check_unitary_method[T](
         ):
             raise GuppyError(InvalidUnitaryMethodError(node, node.name, class_ast.name))
 
-        # Check that no invalid metadata are present
+        # Check that no invalid metadata is present
         method_raw_def = method.wrapped
         if method_raw_def.unitary_flags != UnitaryFlags.NoFlags:
             raise GuppyError(
