@@ -107,6 +107,7 @@ from guppylang_internals.error import (
     saved_exception_hook,
 )
 from guppylang_internals.experimental import (
+    are_capturing_closures_enabled,
     check_function_tensors_enabled,
     check_lists_enabled,
 )
@@ -1420,9 +1421,11 @@ def function_def_value_to_function_value(
     uniquely identifies them. Nested functions are materialised as local values, so
     their expression must be preserved to retain a possible closure.
     """
-    if isinstance(ty, NestedFunctionDefType):
+    if isinstance(ty, NestedFunctionDefType) and are_capturing_closures_enabled():
+        # We don't record whether individual nested functions capture anything,
+        # so conservatively assume it might.
         return with_type(ty.sig, expr)
-    name = DEF_STORE.raw_defs[ty.def_id].name
+    name = ENGINE.get_parsed(ty.def_id).name
     return with_type(ty.sig, with_loc(expr, make_global_name(name, ty.def_id)))
 
 
