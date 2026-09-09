@@ -49,6 +49,9 @@ on:
           - alpha-major
           - beta
           - rc
+          - rc-patch
+          - rc-minor
+          - rc-major
           - stable
           - patch
           - minor
