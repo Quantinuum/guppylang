@@ -1,8 +1,8 @@
-Error: Increasing control count in recursive custom modifier (at $FILE:29:12)
+Error: Increasing control count in recursive custom modifier (at $FILE:27:12)
    | 
-27 |         extra_control = qubit()
-28 |         with control(controls), control(extra_control):
-29 |             foo(q)
+25 |         extra_control = qubit()
+26 |         with control(controls), control(extra_control):
+27 |             foo(q)
    |             ^^^^^^ This recursive call increases the number of controls from 1
    |                    to 3
 

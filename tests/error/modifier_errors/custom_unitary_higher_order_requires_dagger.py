@@ -1,17 +1,16 @@
 from guppylang import guppy, qubit
-from guppylang.std.builtins import Daggerable, array
+from guppylang.std.builtins import Daggerable, array, nat
 
 
 @guppy.unitary
 class control_only:
-    n = guppy.nat_var("n")
 
     @guppy
     def __call__(q: qubit) -> None:
         pass
 
     @guppy
-    def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+    def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
         pass
 
 
