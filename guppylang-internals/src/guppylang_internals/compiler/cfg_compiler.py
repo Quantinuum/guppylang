@@ -154,7 +154,9 @@ def compile_bb(
                 branch_val = tgt_builder.add_op(
                     ops.tag(0, ht.UnitSum(1)), set_debug_info=False
                 )
-                tgt_builder.set_block_outputs(branch_val, *(input_map[p.id] for p in r))
+                tgt_builder.set_block_outputs(
+                    branch_val, *(input_map[p.id] for p in sort_vars(r))
+                )
                 succ_adaptors[i] = tgt_block
 
     block.set_block_outputs(branch_port, *(dfg[v] for v in outputs))
