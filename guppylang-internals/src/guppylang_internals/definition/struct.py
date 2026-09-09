@@ -148,9 +148,13 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Ensure that functions don't override struct fields
         if overridden := used_field_names.intersection(used_func_names.keys()):
             x = overridden.pop()
-            raise GuppyError(
-                DuplicateFieldError(used_func_names[x], self.name, x, "struct")
+            error_ast = used_func_names[x]
+            error_span = (
+                function_header_span(error_ast)
+                if isinstance(error_ast, ast.FunctionDef)
+                else class_header_span(error_ast)
             )
+            raise GuppyError(DuplicateFieldError(error_span, self.name, x, "struct"))
 
         link_name_prefix = (
             self._user_set_link_name
