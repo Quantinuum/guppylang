@@ -1,5 +1,5 @@
 import functools
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from hugr import Wire
 from hugr import tys as ht
@@ -12,7 +12,7 @@ from guppylang_internals.checker.cfg_checker import (
     Row,
     Signature,
 )
-from guppylang_internals.checker.core import Place, Variable
+from guppylang_internals.checker.core import Place, PlaceId, Variable
 from guppylang_internals.compiler.builder import BlockBuilder, DFBuilder, ops
 from guppylang_internals.compiler.core import (
     CompilerContext,
@@ -57,12 +57,18 @@ def compile_cfg(
         builder.parent_node, len(out_tys)
     )
 
-    blocks: dict[CheckedBB[Place], ToNode] = {}
+    blocks: dict[CheckedBB[Place], tuple[ToNode, Sequence[hc.Block | None]]] = {}
     for bb in cfg.bbs:
         blocks[bb] = compile_bb(bb, builder, container, bb == cfg.entry_bb, ctx)
     for bb in cfg.bbs:
-        for i, succ in enumerate(bb.successors):
-            builder.branch(blocks[bb][i], blocks[succ])
+        block, adaptors = blocks[bb]
+        for i, (succ, adaptor) in enumerate(zip(bb.successors, adaptors, strict=True)):
+            (tgt, _) = blocks[succ]
+            if adaptor is None:
+                builder.branch(block[i], tgt)
+            else:
+                builder.branch(block[i], adaptor)
+                builder.branch(adaptor, tgt)
 
     return builder
 
@@ -73,15 +79,15 @@ def compile_bb(
     outer: DFBuilder,
     is_entry: bool,
     ctx: CompilerContext,
-) -> ToNode:
-    """Compiles a single basic block to Hugr.
-
-    If the basic block is the output block, returns `None`.
+) -> tuple[ToNode, Sequence[hc.Block | None]]:
+    """Compiles a single basic block to Hugr. Returns the block,
+    and for each successor an optional extra block which must intervene
+    on the edge to that successor.
     """
     # The exit BB is completely empty
     if bb.is_exit:
         assert len(bb.statements) == 0
-        return builder.exit
+        return builder.exit, []
 
     # Unreachable BBs (besides the exit) should have been removed by now
     assert bb.reachable
@@ -112,50 +118,47 @@ def compile_bb(
             ops.tag(0, ht.UnitSum(1)), set_debug_info=False
         )
 
-    # Finally, we have to add the block output.
+    # Finally, we have to add the block output, generating adaptor blocks
+    # to filter outputs down to those required by each successor if necessary.
     outputs: Sequence[Place]
+    succ_adaptors: list[hc.Block | None] = [None for _ in bb.successors]
     if len(bb.successors) == 1:
         # The easy case is if we don't branch: We just output all variables that are
         # specified by the signature
         [outputs] = bb.sig.output_rows
+        if not bb.successors[0].is_exit:
+            outputs = sort_vars(outputs)  # Keep consistent with successor
     else:
         # CFG building ensures that branching BBs don't branch to the exit (exit jumps
         # must always be unconditional)
         assert not any(succ.is_exit for succ in bb.successors)
 
-        # If we branch and the branches use the same places, then we can use a
-        # regular output
-        first, *rest = bb.sig.output_rows
-        if all({p.id for p in first} == {p.id for p in r} for r in rest):
-            outputs = first
-        else:
-            # Otherwise, we have to output a TupleSum: We put all non-linear variables
-            # into the branch TupleSum and all linear variables in the normal output
-            # (since they are shared between all successors). This is in line with the
-            # ordering on variables which puts linear variables at the end.
-            # We don't need to worry about the order of return vars since this isn't
-            # a branch to an exit (see assert above).
-            branch_port = choose_vars_for_tuple_sum(
-                unit_sum=branch_port,
-                output_vars=[
-                    [v for v in sort_vars(row) if v.ty.droppable]
-                    for row in bb.sig.output_rows
-                ],
-                dfg=dfg,
-            )
-            outputs = [v for v in first if not v.ty.droppable]
-
-    # If this is *not* a jump to the exit BB, we need to sort the outputs to make the
-    # signature consistent with what the next BB expects
-    if not any(succ.is_exit for succ in bb.successors):
-        outputs = sort_vars(outputs)
-    else:
-        # Exit variables are not allowed to be sorted since their order corresponds to
-        # the function outputs
-        assert len(bb.successors) == 1, "Exit jumps are always unconditional"
+        # Identify all variables used by any successor block
+        var_map: Mapping[PlaceId, Place] = {
+            p.id: p for row in bb.sig.output_rows for p in row
+        }
+        outputs = sort_vars(list(var_map.values()))
+        # Can we use 'Dom` edges for droppable outputs? I think no - each output is
+        # used by some BB as an actual input, so we must pass them as explicit outputs.
+        for i, r in enumerate(bb.sig.output_rows):
+            if len(r) == len(var_map):
+                assert {p.id for p in r} == {p.id for p in var_map.values()}
+                # Can jump directly
+            else:
+                # Add a basic block that discards the unused ones
+                tgt_block = builder.add_block(*(v.ty.to_hugr(ctx) for v in outputs))
+                tgt_builder = BlockBuilder(tgt_block, builder, outer)
+                input_map = {
+                    v.id: p for v, p in zip(outputs, tgt_block.input_node, strict=True)
+                }
+                branch_val = tgt_builder.add_op(
+                    ops.tag(0, ht.UnitSum(1)), set_debug_info=False
+                )
+                tgt_builder.set_block_outputs(branch_val, *(input_map[p.id] for p in r))
+                succ_adaptors[i] = tgt_block
 
     block.set_block_outputs(branch_port, *(dfg[v] for v in outputs))
-    return block
+    return block, succ_adaptors
 
 
 def insert_return_vars(cfg: CheckedCFG[Place]) -> None:
@@ -179,36 +182,6 @@ def insert_return_vars(cfg: CheckedCFG[Place]) -> None:
         assert len(pred.sig.output_rows) == 1
         [out_row] = pred.sig.output_rows
         pred.sig = Signature(pred.sig.input_row, [[*return_vars, *out_row]])
-
-
-def choose_vars_for_tuple_sum(
-    unit_sum: Wire, output_vars: list[Row[Place]], dfg: DFContainer
-) -> Wire:
-    """Selects an output based on a TupleSum.
-
-    Given `unit_sum: Sum(*(), *(), ...)` and output variable rows `#s1, #s2, ...`,
-    constructs a TupleSum value of type `Sum(#s1, #s2, ...)`.
-    """
-    assert all(v.ty.droppable for var_row in output_vars for v in var_row)
-    sum_type = ht.Sum(
-        [[v.ty.to_hugr(dfg.ctx) for v in var_row] for var_row in output_vars]
-    )
-
-    # We pass all values into the conditional instead of relying on non-local edges.
-    # This is because we can't handle them in lower parts of the stack yet :/
-    # TODO: Reinstate use of non-local edges.
-    #  See https://github.com/quantinuum/guppylang/issues/963
-    all_vars = {v.id: dfg[v] for var_row in output_vars for v in var_row}
-    all_vars_wires = list(all_vars.values())
-    all_vars_idxs = {x: i for i, x in enumerate(all_vars.keys())}
-
-    with dfg.builder.add_conditional(unit_sum, *all_vars_wires) as conditional:
-        for i, var_row in enumerate(output_vars):
-            case = conditional.add_case(i)
-            outputs = [case.inputs()[all_vars_idxs[v.id]] for v in var_row]
-            tag = case.add_op(ops.tag(i, sum_type), *outputs)
-            case.set_outputs(tag)
-        return conditional
 
 
 def compare_var(p1: Place, p2: Place) -> int:
