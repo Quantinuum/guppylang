@@ -409,7 +409,7 @@ class InvalidUnitaryMethodError(Error):
     node_name: str
     class_name: str
     span_label: ClassVar[str] = (
-        "{node_name}` in the `@guppy.unitary` class `{class_name}`"
+        "`{node_name}` in the `@guppy.unitary` class `{class_name}`"
         " must be a guppy function"
     )
 
