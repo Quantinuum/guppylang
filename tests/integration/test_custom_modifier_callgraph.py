@@ -19,14 +19,12 @@ from guppylang_internals.tys.const import ConstValue
 
 @guppy.unitary
 class _same_count_recursive_gate:
-    n = guppy.nat_var("n")
-
     @guppy
     def __call__(q: qubit) -> None:
         pass
 
     @guppy
-    def controlled(q: qubit, controls: array[qubit, n]) -> None:
+    def controlled[n: nat](q: qubit, controls: array[qubit, n]) -> None:
         _same_count_helper(q, controls)
 
 
@@ -46,14 +44,12 @@ def test_effects_after_custom_modifier_resolution_is_removed():
 
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             panic("parent effect")
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy
@@ -83,14 +79,12 @@ def test_effects_after_custom_modifier_resolution_is_added():
 
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, controls: array[qubit, n]) -> None:
             panic("custom effect")
 
     @guppy
@@ -132,14 +126,12 @@ def test_non_recursive_control_count_increase_is_allowed():
 
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy
@@ -170,14 +162,12 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls():
 
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
         @guppy
@@ -185,7 +175,7 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls():
             pass
 
         @guppy
-        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy(unitary=True)
@@ -261,14 +251,12 @@ def test_propagated_context_does_not_change_unmodified_invocation():
 
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy(controllable=True)

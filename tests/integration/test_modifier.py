@@ -391,20 +391,16 @@ def test_custom_unitary_higher_order_callables(validate):
 
     @guppy.unitary
     class custom_control:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy.unitary
     class custom_unitary:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
@@ -414,11 +410,11 @@ def test_custom_unitary_higher_order_callables(validate):
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
         @guppy
-        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy.unitary
@@ -467,14 +463,12 @@ def test_custom_unitary_higher_order_callables(validate):
 def test_controlled_impl_is_executed(run_int_fn):
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             x(q)
 
     @guppy
@@ -496,14 +490,12 @@ def test_controlled_impl_through_higher_order_call_is_executed(run_int_fn):
 
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             x(q)
 
     @guppy(controllable=True)
@@ -530,14 +522,12 @@ def test_controlled_impl_through_helper_is_executed(run_int_fn):
 
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             x(q)
 
     @guppy(controllable=True)
@@ -585,14 +575,12 @@ def test_daggered_impl_is_executed(run_int_fn):
 def test_ctrl_daggered_impl_is_executed(run_int_fn):
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy(unitary=True)
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             x(q)
 
     @guppy
@@ -612,16 +600,12 @@ def test_ctrl_daggered_impl_is_executed(run_int_fn):
 def test_custom_modifier_use_default_when_missing_implementation(run_int_fn):
     @guppy.unitary
     class controllable_gate:
-        n = guppy.nat_var("n")
-
         @guppy(controllable=True)
         def __call__(q: qubit) -> None:
             x(q)
 
     @guppy.unitary
     class daggerable_gate:
-        n = guppy.nat_var("n")
-
         @guppy(daggerable=True)
         def __call__(q: qubit) -> None:
             x(q)
@@ -649,18 +633,16 @@ def test_custom_modifier_use_default_when_missing_implementation(run_int_fn):
 def test_double_daggered(run_int_fn):
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy(unitary=True)
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             x(q)
 
         @guppy
-        def ctrl_daggered(q: qubit, _controls: array[qubit, n]) -> None:
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             pass
 
     @guppy(unitary=True)
@@ -685,14 +667,12 @@ def test_double_daggered(run_int_fn):
 def test_two_control_counts_distinct_runtime(run_int_fn):
     @guppy.unitary
     class custom_gate:
-        n = guppy.nat_var("n")
-
         @guppy
         def __call__(q: qubit) -> None:
             pass
 
         @guppy
-        def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
             x(q)
 
     @guppy
@@ -918,11 +898,8 @@ def test_custom_modifier(validate):
 
     @guppy.unitary
     class foo:
-        n = guppy.nat_var("n")
-        c = guppy.nat_var("c")
-
         @guppy
-        def __call__(q1: array[qubit, n]) -> None:
+        def __call__[n: nat](q1: array[qubit, n]) -> None:
             # since we have custom implementations of the modifiers, there are no
             # restrictions on the body of the function
             q = qubit()
@@ -934,15 +911,19 @@ def test_custom_modifier(validate):
             measure(q)
 
         @guppy
-        def daggered(q1: array[qubit, n]) -> None:
+        def daggered[n: nat](q1: array[qubit, n]) -> None:
             ext_helper(q1[0])
 
         @guppy
-        def controlled(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
+        def controlled[n: nat, c: nat](
+            q1: array[qubit, n], _controls: array[qubit, c]
+        ) -> None:
             h(_controls[0])
 
         @guppy
-        def ctrl_daggered(q1: array[qubit, n], _controls: array[qubit, c]) -> None:
+        def ctrl_daggered[n: nat, c: nat](
+            q1: array[qubit, n], _controls: array[qubit, c]
+        ) -> None:
             h(_controls[0])
 
     @guppy
@@ -1009,7 +990,6 @@ def test_std(validate):
     from guppylang.std.option import Option
 
     y = 42
-
     n = guppy.nat_var("n")
 
     @guppy.comptime(daggerable=True)

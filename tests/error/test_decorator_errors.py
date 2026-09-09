@@ -37,12 +37,12 @@ def test_metadata_decorator_arguments():
             y: int
 
 
-def test_unitary_custom_method_must_be_guppy_function(use_experimental_features):
+def test_unitary_custom_method_must_be_guppy_function():
     with pytest.raises(
         TypeError,
         match=(
-            r"`daggered` in the `@guppy\.unitary` class `Foo` must be a guppy "
-            r"function"
+            r"Only guppy function named .* are allowed as a method in a "
+            r"`@guppy\.unitary` class\. Found `ClassDef`\."
         ),
     ):
 
@@ -57,7 +57,7 @@ def test_unitary_custom_method_must_be_guppy_function(use_experimental_features)
                 value: int
 
 
-def test_unitary_requires_guppy_call_method(use_experimental_features):
+def test_unitary_requires_guppy_call_method():
     with pytest.raises(
         TypeError,
         match=(
@@ -99,10 +99,11 @@ def test_unitary_rejects_keyword_arguments():
             pass
 
 
-def test_unitary_rejects_unrecognised_guppy_method(use_experimental_features):
+@pytest.mark.parametrize("decorate", [guppy, lambda f: f])
+def test_unitary_rejects_unrecognised_guppy_method(decorate):
     with pytest.raises(
         TypeError,
-        match=r"Only guppy function named .* are allowed .* Found `other`",
+        match=r"Only guppy function named .* are allowed .* Found `FunctionDef`\.",
     ):
 
         @guppy.unitary
@@ -111,12 +112,31 @@ def test_unitary_rejects_unrecognised_guppy_method(use_experimental_features):
             def __call__() -> None:
                 pass
 
-            @guppy
+            @decorate
             def other() -> None:
                 pass
 
 
-def test_unitary_custom_method_requires_guppy_decorator(use_experimental_features):
+def test_unitary_rejects_class_statement():
+    with pytest.raises(
+        TypeError,
+        match=r"Only guppy function named .* are allowed .* Found `Assign`\.",
+    ):
+
+        @guppy
+        def helper() -> None:
+            pass
+
+        @guppy.unitary
+        class Foo:
+            dagger = helper
+
+            @guppy
+            def __call__() -> None:
+                pass
+
+
+def test_unitary_custom_method_requires_guppy_decorator():
     with pytest.raises(
         TypeError,
         match=(
@@ -136,7 +156,7 @@ def test_unitary_custom_method_requires_guppy_decorator(use_experimental_feature
 
 
 @pytest.mark.parametrize("flag", ["unitary", "controllable", "daggerable"])
-def test_unitary_custom_method_rejects_unitary_flags(flag, use_experimental_features):
+def test_unitary_custom_method_rejects_unitary_flags(flag):
     with pytest.raises(
         TypeError,
         match=(
@@ -156,7 +176,7 @@ def test_unitary_custom_method_rejects_unitary_flags(flag, use_experimental_feat
                 pass
 
 
-def test_unitary_custom_method_rejects_expected_qubits(use_experimental_features):
+def test_unitary_custom_method_rejects_expected_qubits():
     with pytest.raises(
         TypeError,
         match=(

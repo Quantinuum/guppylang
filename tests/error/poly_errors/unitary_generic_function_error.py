@@ -1,9 +1,9 @@
 from guppylang.decorator import guppy
 
+T = guppy.type_var("T")
 
 @guppy.unitary
 class identity:
-    T = guppy.type_var("T")
 
     @guppy
     def __call__(x: T) -> T:

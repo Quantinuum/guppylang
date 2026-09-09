@@ -387,12 +387,14 @@ class _Guppy:
         # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(call_raw_func, "name", cls.__name__)
 
-        # Update the unitary metadata according to the custom implementations
-        custom_modified_definitions = _get_custom_modified_definitions(cls)
         definition_span = call_raw_func.set_unitary_class(
             cls,
             frame,
             DEF_STORE.sources,
+        )
+        # Update the unitary metadata according to the custom implementations
+        custom_modified_definitions = _get_custom_modified_definitions(
+            cls, definition_span
         )
         for kind in CustomModifierKind:
             custom_def = custom_modified_definitions.get(kind)
@@ -944,39 +946,37 @@ def _get_unitary_call_def(cls: object) -> GuppyDefinition:
 
 def _get_custom_modified_definitions[T](
     cls: builtins.type[T],
+    class_ast: ast.ClassDef,
 ) -> _CustomModifiedDefinitions:
-    """Returns the `@guppy`-annotated `daggered`, `controlled`, and `ctrl_daggered`"""
+    """Validate the class body and collect its custom modifier methods."""
     custom_methods: _CustomModifiedDefinitions = {}
-    custom_methods_names = tuple(kind.value for kind in CustomModifierKind)
+    valid_methods_names = [kind.value for kind in CustomModifierKind] + ["__call__"]
+    valid_methods_names_str = ", ".join(valid_methods_names)
 
-    for method_name, method in cls.__dict__.items():
-        if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
-            if isinstance(method.wrapped, RawFunctionDef):
-                _check_custom_method_metadata(method_name, method.wrapped, cls.__name__)
-                custom_methods[CustomModifierKind(method_name)] = method.wrapped
-            else:
-                raise TypeError(
-                    f"`{method_name}` in the `@guppy.unitary` class "
-                    f"`{cls.__name__}` must be a guppy function."
-                )
-        elif (
-            isinstance(method, GuppyDefinition)
-            and not isinstance(method, GuppyTypeVarDefinition)
-            and method_name not in custom_methods_names
-            and method_name != "__call__"
+    for node in class_ast.body:
+        print(f"Inspecting: {node}")
+        if not isinstance(node, ast.FunctionDef) or (
+            node.name not in valid_methods_names
         ):
             raise TypeError(
-                f"Only guppy function named {custom_methods_names} are allowed as a "
-                f"method in a `@guppy.unitary` class. Found `{method_name}`.",
+                f"Only guppy function named {valid_methods_names_str} are allowed as a "
+                f"method in a `@guppy.unitary` class. Found `{type(node).__name__}`.",
             )
-        elif (
-            not isinstance(method, GuppyDefinition)
-            and method_name in custom_methods_names
+        method_name = node.name
+        if method_name == "__call__":
+            # `__call__` has already been checked in `_get_unitary_call_def`
+            continue
+        method = cls.__dict__.get(method_name)
+        if not (
+            isinstance(method, GuppyDefinition)
+            and isinstance(method.wrapped, RawFunctionDef)
         ):
             raise TypeError(
                 f"`{method_name}` in the `@guppy.unitary` class `{cls.__name__}` must "
                 "be a guppy function"
             )
+        _check_custom_method_metadata(method_name, method.wrapped, cls.__name__)
+        custom_methods[CustomModifierKind(method_name)] = method.wrapped
 
     return custom_methods
 
