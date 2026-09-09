@@ -14,6 +14,42 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
+## [1.1.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.4...guppylang-v1.1.0-rc0) (2026-09-09)
+
+Note: With #2294 we have raised the minimum supported version of the `selene-hugr-qis-compiler` to `v0.5.0`, which has
+changed the default seeding behaviour and may result in different outputs. Pass `mode=legacy` when building the emulator
+to restore the original seeding behaviour.
+
+### Bug Fixes
+
+* Order RNG context lifetimes with effects (#2234)([790bbd3](https://github.com/Quantinuum/guppylang/commit/790bbd3492481a95db67c4bb006e48b444d1f0c5))
+* Unsupported inheritance error for guppy-defined bases (#2211)([5fb7ce4](https://github.com/Quantinuum/guppylang/commit/5fb7ce4610e8c7aed8595332b3e35f01f42f7ef6))
+
+
+### Documentation
+
+* More specific std.qsystem documentation including ion identity (#2105)([91eeb62](https://github.com/Quantinuum/guppylang/commit/91eeb62ef4a7626b275be6ef38689e767b3d9bc5))
+* Document expected qubits in emulator API (#2099)([d182404](https://github.com/Quantinuum/guppylang/commit/d182404fb0d1b87b88016745a70675a4e380a040))
+
+
+### Features
+
+* Compilation for custom modifier implementations (#2274)([79478f3](https://github.com/Quantinuum/guppylang/commit/79478f3ec31e02d3b957942d837b501c79f92d1f))
+* Enable panic stack traces in the emulator (#2271)([38538ff](https://github.com/Quantinuum/guppylang/commit/38538ff9208e81d233eddd74c269e03b293e0565))
+* Upgrade to qis-compiler v0.5.0 and selene-sim v0.3.1 (#2294)([c698034](https://github.com/Quantinuum/guppylang/commit/c698034c5ea8eb812a130bfbba1e67de72f02ac5))
+* Support static methods on types (#1699)([702bcb0](https://github.com/Quantinuum/guppylang/commit/702bcb09d2aae7c918c0311c6ff4bc5ed6abdb45))
+* Analyse call graph and use it to infer effects to reduce order edges (#2035)([58b8e28](https://github.com/Quantinuum/guppylang/commit/58b8e2897b3a3fc56c94c52716c5a4e8144c15a8))
+* Checking for custom modifier implementations (#2192)([b96b18f](https://github.com/Quantinuum/guppylang/commit/b96b18fea772671f1d89747369e0ed25e9cd2920))
+* Allow default running optimization level without pytket (#2246)([1f76a78](https://github.com/Quantinuum/guppylang/commit/1f76a7894efbc90e4656bd9738d526fffcf9e14d))
+* Add traces and metrics to EmulatorResult (#2233)([6965a57](https://github.com/Quantinuum/guppylang/commit/6965a5757bbc7b15c0f4582320e07898e5b99f07))
+* Add @inline decorator (#1976)([0f79ee4](https://github.com/Quantinuum/guppylang/commit/0f79ee49fa367a2991b3dfa6c30dcf2a35a28dfa))
+* Add target platform configuration for optimizer and emulator (#2180)([20a7af6](https://github.com/Quantinuum/guppylang/commit/20a7af6def72f047977d8af2f70eb462e5ad34f2))
+* Add `Range.__reversed__ ` and panic on range step=0 (#2092)([801aa64](https://github.com/Quantinuum/guppylang/commit/801aa640bdeebbad776d09f0fe7075cb85b1aa4c))
+* Make `__truediv__` daggerable (#2176)([edd3417](https://github.com/Quantinuum/guppylang/commit/edd34171996d16f6aeafc77fbb463146b8a62a22))
+* Add optional `debug_mode` argument to `compile` and `emulator` (#2126)([bb886d2](https://github.com/Quantinuum/guppylang/commit/bb886d296922ac878c73b98a9f884ac3a54ca575))
+* Add in-place array reverse (#1949)([6433f28](https://github.com/Quantinuum/guppylang/commit/6433f284d442b957b90b0efc50c79c9f9c1685f5))
+
+
 ## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.3...guppylang-v1.0.4) (2026-09-08)
 
 
@@ -203,7 +239,7 @@ Alongside the platform random number generator (found in `std.qsystem.random`), 
 
 ### ⚠ BREAKING CHANGES
 
-* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)
+* Raise an error if non daggerable classical functions are used in dagger context (#2066)
 
 
 ### Bug Fixes
@@ -216,7 +252,7 @@ Alongside the platform random number generator (found in `std.qsystem.random`), 
 
 * Update tket to `0.15.4` (#2072)([f34cf4b](https://github.com/Quantinuum/guppylang/commit/f34cf4bf8513159038faa9594c2477bac355d877))
 * Update hugr to `0.18.2` (#2064)([a3e80a5](https://github.com/Quantinuum/guppylang/commit/a3e80a5b0245b89eae10bda3170d6a7011a30344))
-* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)([61044cb](https://github.com/Quantinuum/guppylang/commit/61044cb9d55e0e2c82b51b0abd44682dc0d6b5df))
+* Raise an error if non daggerable classical functions are used in dagger context (#2066)([61044cb](https://github.com/Quantinuum/guppylang/commit/61044cb9d55e0e2c82b51b0abd44682dc0d6b5df))
 * Emit hint when branch type mismatch can be fixed via coercions (#2055)([86d5814](https://github.com/Quantinuum/guppylang/commit/86d5814af5aad411100acd8405d59b697bf8b90c))
 
 ## [1.0.0-rc1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc0...guppylang-v1.0.0-rc1) (2026-07-07)

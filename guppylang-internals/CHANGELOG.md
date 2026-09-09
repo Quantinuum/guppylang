@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.1.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.4...guppylang-internals-v1.1.0-rc0) (2026-09-09)
+
+
+### Bug Fixes
+
+* Add correct location debug info to calls inside comptime functions (#2229)([4bfd142](https://github.com/Quantinuum/guppylang/commit/4bfd142e9851c39b0dbfe8ae84ed2906b495fed2))
+* Check+trace more functions before compilation starts (#2210)([f98a63c](https://github.com/Quantinuum/guppylang/commit/f98a63c9608e70a8a2dcc291b4e75608fc7e56b5))
+* Unsupported inheritance error for guppy-defined bases (#2211)([5fb7ce4](https://github.com/Quantinuum/guppylang/commit/5fb7ce4610e8c7aed8595332b3e35f01f42f7ef6))
+* Add debug info to nested function definitions (#2112)([2bca2da](https://github.com/Quantinuum/guppylang/commit/2bca2da08625dd0b92ea293fcf058454c49bec9c))
+* Don't emit coercion hint for temporary variables (#2025)([75ed748](https://github.com/Quantinuum/guppylang/commit/75ed748103d984f9f756567161bf43121fc3c02c))
+
+
+### Code Refactoring
+
+* Enforce barrier between checking and compilation stages (#2224)([a018d8c](https://github.com/Quantinuum/guppylang/commit/a018d8c1caa84c15709ce9a5d8a46bf0a81fb330))
+* Extract stringifiers for internal definitions (#2243)([805644d](https://github.com/Quantinuum/guppylang/commit/805644d3005bb55029514a415e8227f52974ff97))
+* Update codebase to python 3.12 (#1991)([d6ef163](https://github.com/Quantinuum/guppylang/commit/d6ef16382b5f18a2dc867b35f9747e3c0ef8bd56))
+* Split unification of consts into a separate function (#2219)([0606a79](https://github.com/Quantinuum/guppylang/commit/0606a7989b7ccdf27e78302a8b6cdd06f9c30509))
+* Reduce verbosity of unitary checker (#2223)([c7692f9](https://github.com/Quantinuum/guppylang/commit/c7692f9c26fa27e41aed8c80da9267356c023167))
+* Remove redundant checks for function type unitary flags (#2203)([4f47823](https://github.com/Quantinuum/guppylang/commit/4f478235a7fef29b20de60c38767a0990d46321e))
+* Do tracing during checking (#2104)([28fffa6](https://github.com/Quantinuum/guppylang/commit/28fffa6b22516d7afa3b3c10075f372b1183d122))
+* Remove EXTENSION_OPS_WITH_SIDE_EFFECTS, pass effects alongside DataflowOp (#2024)([47205e9](https://github.com/Quantinuum/guppylang/commit/47205e950e86cce0acd73a9f57a85a46df3a4078))
+* Remove inheritance of CompiledCallableDef from CallableDef (#2037)([c8fa3b4](https://github.com/Quantinuum/guppylang/commit/c8fa3b436a002962b037e122105a6420feb05939))
+* Remove ProtocolCall (#2034)([218651f](https://github.com/Quantinuum/guppylang/commit/218651f0e33ab9dc0e742fb80155ef3ef0c0821d))
+
+
+### Features
+
+* Compilation for custom modifier implementations (#2274)([79478f3](https://github.com/Quantinuum/guppylang/commit/79478f3ec31e02d3b957942d837b501c79f92d1f))
+* Support static methods on types (#1699)([702bcb0](https://github.com/Quantinuum/guppylang/commit/702bcb09d2aae7c918c0311c6ff4bc5ed6abdb45))
+* Analyse call graph and use it to infer effects to reduce order edges (#2035)([58b8e28](https://github.com/Quantinuum/guppylang/commit/58b8e2897b3a3fc56c94c52716c5a4e8144c15a8))
+* Checking custom modifiers (#2192)([b96b18f](https://github.com/Quantinuum/guppylang/commit/b96b18fea772671f1d89747369e0ed25e9cd2920))
+* Better Error when calling method on Struct class   (#2093)([ed54651](https://github.com/Quantinuum/guppylang/commit/ed546512c15995f0b6011652f893b70cbc935d3a))
+* Add @inline decorator (#1976)([0f79ee4](https://github.com/Quantinuum/guppylang/commit/0f79ee49fa367a2991b3dfa6c30dcf2a35a28dfa))
+* Add better error message for distinct nested functions. (#2208)([2c32ca6](https://github.com/Quantinuum/guppylang/commit/2c32ca67e819b48cfad2da0cf046dbaf519129fd))
+* Support for GPU modules (#1854)([df1bd0c](https://github.com/Quantinuum/guppylang/commit/df1bd0c06efb07dd42869dcca790d881b2f61c3b))
+* Add error message for missing self args (#2188)([08de37a](https://github.com/Quantinuum/guppylang/commit/08de37adec3e0a2df14da599aadce2df8efe3c84))
+* Add target platform configuration for optimizer and emulator (#2180)([20a7af6](https://github.com/Quantinuum/guppylang/commit/20a7af6def72f047977d8af2f70eb462e5ad34f2))
+* Add optional `debug_mode` argument to `compile` and `emulator` (#2126)([bb886d2](https://github.com/Quantinuum/guppylang/commit/bb886d296922ac878c73b98a9f884ac3a54ca575))
+* Add quantum pass to default opt level (#2063)([2970cb5](https://github.com/Quantinuum/guppylang/commit/2970cb5ce9445896c12e3cbc84d76368dd7f4d7d))
+
+
 ## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.3...guppylang-internals-v1.0.4) (2026-09-08)
 
 
@@ -62,7 +104,7 @@
 
 ### ⚠ BREAKING CHANGES
 
-* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)
+* Raise an error if non daggerable classical functions are used in dagger context (#2066)
 
 
 ### Bug Fixes
@@ -78,7 +120,7 @@
 ### Features
 
 * Update hugr to `0.18.2`, implement value ext resolution (#2064)([a3e80a5](https://github.com/Quantinuum/guppylang/commit/a3e80a5b0245b89eae10bda3170d6a7011a30344))
-* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)([61044cb](https://github.com/Quantinuum/guppylang/commit/61044cb9d55e0e2c82b51b0abd44682dc0d6b5df))
+* Raise an error if non daggerable classical functions are used in dagger context (#2066)([61044cb](https://github.com/Quantinuum/guppylang/commit/61044cb9d55e0e2c82b51b0abd44682dc0d6b5df))
 * Emit hint when branch type mismatch can be fixed via coercions (#2055)([86d5814](https://github.com/Quantinuum/guppylang/commit/86d5814af5aad411100acd8405d59b697bf8b90c))
 
 ## [1.0.0-rc1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc0...guppylang-internals-v1.0.0-rc1) (2026-07-07)
