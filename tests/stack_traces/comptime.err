@@ -1,0 +1,16 @@
+Panic (#1001): Always panics
+Guppy traceback (most recent call last):
+   File "$PATH_TO_FILE/comptime.py", line 7, in __hugr__.panicking_func.7:
+     | 
+   5 | @guppy.comptime
+   6 | def panicking_func() -> None:
+   7 |     panic("Always panics")
+     |     ^ Always panics
+   
+   File "$PATH_TO_FILE/comptime.py", line 12, in __hugr__.main.1:
+      | 
+   10 | @guppy.comptime
+   11 | def main() -> None:
+   12 |     panicking_func()
+      |     ^
+
