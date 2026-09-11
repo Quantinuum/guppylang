@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "$FILE", line 4, in <module>
+    @guppy.unitary(daggerable=True)
+TypeError: `@guppy.unitary` does not accept keyword arguments. Put them on the `@guppy` decorator of the `__call__` method instead.
