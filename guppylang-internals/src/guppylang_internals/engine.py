@@ -713,7 +713,8 @@ class CompilationEngine:
             assert isinstance(custom_defn, ParsedFunctionDef)
             control_param = get_array_length(custom_defn.ty.inputs[-1].ty)
             assert isinstance(control_param, BoundConstVar)
-            # We insert the concrete control count at the position of the control parameter.
+            # We insert the concrete control count at the position of the control
+            # parameter.
             custom_args = (
                 *callee_inst[: control_param.idx],
                 ConstArg(ConstValue(nat_type(), control_count)),
@@ -1044,54 +1045,8 @@ def _check_controlled_def_signature(
     defined_at: ast.FunctionDef,
     implementation: str,
 ) -> None:
-    invalid_signature = (
-        len(modified_ty.inputs) != len(parent_ty.inputs) + 1
-        or len(modified_ty.params) != len(parent_ty.params) + 1
-    )
-    if not invalid_signature:
-        last_input_ty = modified_ty.inputs[-1].ty
-        invalid_signature = (
-            not is_array_type(last_input_ty)
-            or not is_qubit_ty(get_element_type(last_input_ty))
-            or modified_ty.inputs[-1].flags != InputFlags.Inout
-        )
-        if not invalid_signature:
-            control_count = get_array_length(last_input_ty)
-            invalid_signature = (
-                not isinstance(control_count, BoundConstVar)
-                or not 0 <= control_count.idx < len(modified_ty.params)
-                or not isinstance(modified_ty.params[control_count.idx], ConstParam)
-                or modified_ty.params[control_count.idx].to_bound()
-                != ConstArg(control_count)
-            )
-            if not invalid_signature:
-                assert isinstance(control_count, BoundConstVar)
-                # Remove the control parameter and renumber the remaining ones.
-                # Keep its references distinct from every parent parameter so
-                # they cannot accidentally match in the rest of the signature.
-                normalized_ty = modified_ty.instantiate_partial(
-                    [
-                        param.to_bound(len(parent_ty.params))
-                        if i == control_count.idx
-                        else None
-                        for i, param in enumerate(modified_ty.params)
-                    ]
-                )
-                first_part_ty = FunctionType(
-                    normalized_ty.inputs[:-1],
-                    normalized_ty.output,
-                    normalized_ty.params,
-                    normalized_ty.comptime_args,
-                    normalized_ty.unitary_flags,
-                )
-                normalized_parent_ty = parent_ty.instantiate_partial(
-                    [None] * len(parent_ty.params)
-                )
-                invalid_signature = (
-                    unify(first_part_ty, normalized_parent_ty, {}) is None
-                )
 
-    if invalid_signature:
+    def signature_error() -> GuppyError:
         control_param = ConstParam(len(parent_ty.params), "n", nat_type())
         control_input = FuncInput(
             array_type(
@@ -1117,7 +1072,61 @@ def _check_controlled_def_signature(
             actual_signature=modified_ty,
         )
         err.add_sub_diagnostic(CustomModifiedDefSignatureError.ControlledNote(None))
-        raise GuppyError(err)
+        return GuppyError(err)
+
+    if (
+        len(modified_ty.inputs) != len(parent_ty.inputs) + 1
+        or len(modified_ty.params) != len(parent_ty.params) + 1
+    ):
+        # Wrong number of inputs or parameters
+        raise signature_error()
+
+    last_input_ty = modified_ty.inputs[-1].ty
+    if (
+        not is_array_type(last_input_ty)
+        or not is_qubit_ty(get_element_type(last_input_ty))
+        or modified_ty.inputs[-1].flags != InputFlags.Inout
+    ):
+        # The last input must be an array of qubits with Inout flags
+        raise signature_error()
+
+    control_count = get_array_length(last_input_ty)
+    if not isinstance(control_count, BoundConstVar):
+        # The array length must be a bound constant variable
+        # (i.e. the array length is generic)
+        raise signature_error()
+
+    assert 0 <= control_count.idx < len(modified_ty.params)
+    control_param = modified_ty.params[control_count.idx]
+    if not isinstance(
+        control_param, ConstParam
+    ) or control_param.to_bound() != ConstArg(control_count):
+        # `control_count` is the number of control qubits;
+        # `control_param` is the parameter in the implementation's signature.
+        # `control_param` must be a constant parameter with the same type and
+        # index as `control_count`.
+        raise signature_error()
+
+    # Renumber the remaining parameters, keeping control references
+    # outside their range so they cannot match a parent parameter.
+    normalized_ty = modified_ty.instantiate_partial(
+        [
+            param.to_bound(len(parent_ty.params)) if i == control_count.idx else None
+            for i, param in enumerate(modified_ty.params)
+        ]
+    )
+    ty_wo_controllers = FunctionType(
+        normalized_ty.inputs[:-1],
+        normalized_ty.output,
+        normalized_ty.params,
+        normalized_ty.comptime_args,
+        normalized_ty.unitary_flags,
+    )
+    # Apply the same normalization without removing parent parameters.
+    normalized_parent_ty = parent_ty.instantiate_partial([None] * len(parent_ty.params))
+    if unify(ty_wo_controllers, normalized_parent_ty, {}) is None:
+        # The function type without controllers must unify with the __call__ type
+        raise signature_error()
 
 
 ENGINE: CompilationEngine = CompilationEngine()
