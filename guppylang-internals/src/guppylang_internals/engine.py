@@ -702,14 +702,22 @@ class CompilationEngine:
         control_count = None
         custom_args = callee_inst
         if kind.takes_controls:
+            from guppylang_internals.definition.function import ParsedFunctionDef
+
             try:
                 control_count = modifier_ctx.concrete_control_count()
             except ValueError:
                 # Control count is not concrete, we cannot resolve the call yet.
                 return callee, None
+            custom_defn = self.get_parsed(custom_id)
+            assert isinstance(custom_defn, ParsedFunctionDef)
+            control_param = get_array_length(custom_defn.ty.inputs[-1].ty)
+            assert isinstance(control_param, BoundConstVar)
+            # We insert the concrete control count at the position of the control parameter.
             custom_args = (
-                *callee_inst,
+                *callee_inst[: control_param.idx],
                 ConstArg(ConstValue(nat_type(), control_count)),
+                *callee_inst[control_param.idx :],
             )
 
         custom_def = (custom_id, custom_args)
@@ -1036,31 +1044,52 @@ def _check_controlled_def_signature(
     defined_at: ast.FunctionDef,
     implementation: str,
 ) -> None:
-    first_part_ty = FunctionType(
-        # last input must be the array of control qubits
-        modified_ty.inputs[:-1],
-        modified_ty.output,
-        # last param must be parameter for the number of control qubits
-        modified_ty.params[:-1],
-        modified_ty.comptime_args,
-        modified_ty.unitary_flags,
-    )
     invalid_signature = (
         len(modified_ty.inputs) != len(parent_ty.inputs) + 1
         or len(modified_ty.params) != len(parent_ty.params) + 1
-        or unify(first_part_ty, parent_ty, {}) is None
     )
     if not invalid_signature:
         last_input_ty = modified_ty.inputs[-1].ty
-        last_param = modified_ty.params[-1]
         invalid_signature = (
             not is_array_type(last_input_ty)
             or not is_qubit_ty(get_element_type(last_input_ty))
             or modified_ty.inputs[-1].flags != InputFlags.Inout
-            or not isinstance(last_param, ConstParam)
-            or get_array_length(last_input_ty)
-            != BoundConstVar(last_param.ty, last_param.name, last_param.idx)
         )
+        if not invalid_signature:
+            control_count = get_array_length(last_input_ty)
+            invalid_signature = (
+                not isinstance(control_count, BoundConstVar)
+                or not 0 <= control_count.idx < len(modified_ty.params)
+                or not isinstance(modified_ty.params[control_count.idx], ConstParam)
+                or modified_ty.params[control_count.idx].to_bound()
+                != ConstArg(control_count)
+            )
+            if not invalid_signature:
+                assert isinstance(control_count, BoundConstVar)
+                # Remove the control parameter and renumber the remaining ones.
+                # Keep its references distinct from every parent parameter so
+                # they cannot accidentally match in the rest of the signature.
+                normalized_ty = modified_ty.instantiate_partial(
+                    [
+                        param.to_bound(len(parent_ty.params))
+                        if i == control_count.idx
+                        else None
+                        for i, param in enumerate(modified_ty.params)
+                    ]
+                )
+                first_part_ty = FunctionType(
+                    normalized_ty.inputs[:-1],
+                    normalized_ty.output,
+                    normalized_ty.params,
+                    normalized_ty.comptime_args,
+                    normalized_ty.unitary_flags,
+                )
+                normalized_parent_ty = parent_ty.instantiate_partial(
+                    [None] * len(parent_ty.params)
+                )
+                invalid_signature = (
+                    unify(first_part_ty, normalized_parent_ty, {}) is None
+                )
 
     if invalid_signature:
         control_param = ConstParam(len(parent_ty.params), "n", nat_type())
