@@ -184,6 +184,49 @@ def test_unitary_method(validate):
     validate(main.compile_function())
 
 
+def test_unitary_method_enclosing_scope(validate):
+    """Test that the scoping of unitary methods solve Gates."""
+
+    @guppy.struct(frozen=True)
+    class Gates:
+        @guppy.unitary
+        class apply_h[n: nat]:
+            @guppy
+            def __call__(self: "Gates", qs: array[qubit, n]) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def daggered(self: "Gates", qs: array[qubit, n]) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def controlled[c: nat](
+                self: "Gates", qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def ctrl_daggered[c: nat](
+                self: "Gates", qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
+                apply_gate(qs[0])
+
+    @guppy
+    def apply_gate(q: qubit) -> None:
+        h(q)
+
+    @guppy
+    def main(s: Gates, ctrl: qubit, qs: array[qubit, 2]) -> None:
+        with dagger:
+            s.apply_h(qs)
+        with control(ctrl):
+            s.apply_h(qs)
+        with dagger, control(ctrl):
+            s.apply_h(qs)
+
+    validate(main.compile_function())
+
+
 def test_method_call_on_param_shadowing_struct_name(validate):
     """Regression test: a local parameter that shadows the name of an unrelated global
     struct must still resolve to the local instance, not be misdiagnosed as an instance

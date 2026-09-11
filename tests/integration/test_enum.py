@@ -354,29 +354,34 @@ def test_enum_custom_modifier_impls_are_executed(validate):
     class CustomGates:
         Enabled = {}
 
+        @guppy
+        def flip(self: "CustomGates", q: qubit) -> None:
+            x(q)
+
         @guppy.unitary
         class apply:
             @guppy
-            def __call__(self, q: qubit) -> None:
+            def __call__(self: "CustomGates", q: qubit) -> None:
                 pass
 
             @guppy
             def daggered(self, q: qubit) -> None:
-                x(q)
+                self.flip(q)
 
             @guppy
             def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
-                x(q)
+                self.flip(q)
 
             @guppy
             def ctrl_daggered[n: nat](
-                self, q: qubit, _controls: array[qubit, n]
+                self: "CustomGates", q: qubit, _controls: array[qubit, n]
             ) -> None:
-                x(q)
+                self.flip(q)
 
     @guppy
     def main(control_qubit: qubit, target: qubit) -> None:
         gates = CustomGates.Enabled()
+        gates.apply(target)
         with dagger:
             gates.apply(target)
         with control(control_qubit):

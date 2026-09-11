@@ -202,28 +202,30 @@ class DefinitionStore:
         member = self.raw_defs[member_id]
         # Ordinary methods are defined directly in the type's class body, so their
         # frame must be advanced out of that scope. A unitary method's `__call__` is
-        # defined one class scope deeper and needs to retain that frame to resolve
-        # unitary-class locals such as `n = guppy.nat_var("n")`.
+        # defined one class scope deeper, so skip both classes to resolve names in
+        # the enclosing definition scope.
         is_unitary_call = (
             isinstance(member, RawFunctionDef) and member.unitary_class_at is not None
         )
         self._register_type_member_parent(
-            ty_id, member_id, adjust_frame=not is_unitary_call
+            ty_id, member_id, class_scopes=2 if is_unitary_call else 1
         )
 
         # When a `@guppy.unitary` class is used as method, the custom implementations
         # are members too: their first argument is the same `self` as the unmodified
         # definition, i.e. the struct or enum instance.
         for custom_id in self.custom_modified_defs.get(member_id, {}).values():
-            self._register_type_member_parent(ty_id, custom_id, adjust_frame=False)
+            self._register_type_member_parent(ty_id, custom_id, class_scopes=2)
 
     def _register_type_member_parent(
-        self, ty_id: DefId, member_id: DefId, *, adjust_frame: bool
+        self, ty_id: DefId, member_id: DefId, *, class_scopes: int
     ) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
         self.type_member_parents[member_id] = ty_id
-        # Update the frame of the definition to the frame of the defining class
-        if adjust_frame and member_id in self.frames:
+        # Advance past each class and its optional annotation scope.
+        if member_id not in self.frames:
+            return
+        for _ in range(class_scopes):
             frame = self.frames[member_id].f_back
             if frame:
                 self.frames[member_id] = frame
