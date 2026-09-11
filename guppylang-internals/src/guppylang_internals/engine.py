@@ -212,7 +212,7 @@ class DefinitionStore:
         )
 
         # When a `@guppy.unitary` class is used as method, the custom implementations
-        # are member too: their  first argument is the same `self` as the unmodified
+        # are members too: their first argument is the same `self` as the unmodified
         # definition, i.e. the struct or enum instance.
         for custom_id in self.custom_modified_defs.get(member_id, {}).values():
             self._register_type_member_parent(ty_id, custom_id, adjust_frame=False)

@@ -58,8 +58,8 @@ from guppylang_internals.tys.ty import (
 @dataclass(frozen=True)
 class FieldFormHint(Help):
     message: ClassVar[str] = (
-        "Struct can contain only fields of the form `name: Type` "
-        "`@guppy`, annotated methods or `@guppy.unitary` classes"
+        "Struct can contain only fields of the form `name: Type`, "
+        "`@guppy` annotated methods or `@guppy.unitary` classes"
     )
 
 
