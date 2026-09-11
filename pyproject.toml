@@ -26,7 +26,7 @@ test = [
 ]
 
 [tool.uv]
-prerelease = "if-necessary-or-explicit"
+prerelease = "if-necessary"
 
 # See https://github.com/Quantinuum/selene/commit/0e8aea3f930b33f437f744306258c4bc501f0834
 constraint-dependencies = [
