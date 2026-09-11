@@ -2,7 +2,8 @@ from typing import Generic, TYPE_CHECKING
 
 from guppylang import comptime, qubit, array
 from guppylang.decorator import guppy
-from guppylang.std.quantum import discard_array
+from guppylang.std.builtins import control, dagger, nat
+from guppylang.std.quantum import discard_array, h
 
 from tests.integration.modules import struct_scope_defs
 
@@ -138,6 +139,51 @@ def test_methods(validate):
     @guppy
     def main(a: StructA, b: StructB) -> tuple[int, float]:
         return a.foo(1), b.bar(a)
+
+    validate(main.compile_function())
+
+
+def test_unitary_method_enclosing_scope(validate):
+    T = guppy.type_var("T")
+
+    @guppy.struct(frozen=True)
+    class Gates[T]:
+        x: T
+
+        @guppy.unitary
+        class apply_h[n: nat]:
+            @guppy
+            def __call__(self: "Gates[T]", qs: array[qubit, n]) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def daggered(self: "Gates[T]", qs: array[qubit, n]) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def controlled[c: nat](
+                self: "Gates[T]", qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
+                apply_gate(qs[0])
+
+            @guppy
+            def ctrl_daggered[c: nat](
+                self: "Gates[T]", qs: array[qubit, n], controls: array[qubit, c]
+            ) -> None:
+                apply_gate(qs[0])
+
+    @guppy
+    def apply_gate(q: qubit) -> None:
+        h(q)
+
+    @guppy
+    def main(s: Gates[int], ctrl: qubit, qs: array[qubit, 2]) -> None:
+        with dagger:
+            s.apply_h(qs)
+        with control(ctrl):
+            s.apply_h(qs)
+        with dagger, control(ctrl):
+            s.apply_h(qs)
 
     validate(main.compile_function())
 

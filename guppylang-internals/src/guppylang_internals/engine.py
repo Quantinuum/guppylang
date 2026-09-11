@@ -178,6 +178,8 @@ class DefinitionStore:
     sources: SourceMap
     # Maps a parent definition (usually a function) to its custom modified definitions
     custom_modified_defs: dict[DefId, dict[CustomModifierKind, DefId]]
+    # Reverse mapping for custom modified definitions to their unmodified definition
+    custom_modified_def_parents: dict[DefId, DefId]
 
     def __init__(self) -> None:
         self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
@@ -187,17 +189,43 @@ class DefinitionStore:
         self.sources = SourceMap()
         self.wasm_functions = {}
         self.custom_modified_defs = defaultdict(dict)
+        self.custom_modified_def_parents = {}
 
     def register_def(self, defn: RawDef, frame: FrameType) -> None:
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
 
     def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
-        assert member_id not in self.type_member_parents, "Already a type member"
+        from guppylang_internals.definition.function import RawFunctionDef
+
         self.type_members[ty_id][name] = member_id
+        member = self.raw_defs[member_id]
+        # Ordinary methods are defined directly in the type's class body, so their
+        # frame must be advanced out of that scope. A unitary method's `__call__` is
+        # defined one class scope deeper, so skip both classes to resolve names in
+        # the enclosing definition scope.
+        is_unitary_call = (
+            isinstance(member, RawFunctionDef) and member.unitary_class_at is not None
+        )
+        self._register_type_member_parent(
+            ty_id, member_id, class_scopes=2 if is_unitary_call else 1
+        )
+
+        # When a `@guppy.unitary` class is used as method, the custom implementations
+        # are members too: their first argument is the same `self` as the unmodified
+        # definition, i.e. the struct or enum instance.
+        for custom_id in self.custom_modified_defs.get(member_id, {}).values():
+            self._register_type_member_parent(ty_id, custom_id, class_scopes=2)
+
+    def _register_type_member_parent(
+        self, ty_id: DefId, member_id: DefId, *, class_scopes: int
+    ) -> None:
+        assert member_id not in self.type_member_parents, "Already a type member"
         self.type_member_parents[member_id] = ty_id
-        # Update the frame of the definition to the frame of the defining class
-        if member_id in self.frames:
+        # Advance past each class and its optional annotation scope.
+        if member_id not in self.frames:
+            return
+        for _ in range(class_scopes):
             frame = self.frames[member_id].f_back
             if frame:
                 self.frames[member_id] = frame
@@ -225,6 +253,8 @@ class DefinitionStore:
         custom_defs = self.custom_modified_defs[parent_def_id]
         assert kind not in custom_defs, f"Custom {kind.value} already registered"
         custom_defs[kind] = custom_def_id
+        assert custom_def_id not in self.custom_modified_def_parents
+        self.custom_modified_def_parents[custom_def_id] = parent_def_id
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()
@@ -1030,6 +1060,7 @@ def _check_modified_def_signature(
         )
 
 
+# todo: the extra parameter for the number of control qubits is currently assumed to be the last one. It may be in other positions
 def _check_controlled_def_signature(
     modified_ty: FunctionType,
     parent_ty: FunctionType,
