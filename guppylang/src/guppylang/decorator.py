@@ -1073,7 +1073,7 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
 
 
 @hide_trace
-def _check_there_are_no_kwargs(kwargs: GuppyKwargs) -> None:
+def _check_there_are_no_kwargs(kwargs: dict[str, Any]) -> None:
     if kwargs:
         raise TypeError(
             "`@guppy.unitary` does not accept keyword arguments. Put them on "
