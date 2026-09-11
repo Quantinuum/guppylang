@@ -706,6 +706,10 @@ def test_struct_custom_modifier_impls_are_executed(run_int_fn):
     class CustomGates:
         enabled: bool
 
+        @guppy
+        def flip(self, q: qubit) -> None:
+            x(q)
+
         @guppy.unitary
         class apply:
             @guppy
@@ -715,19 +719,19 @@ def test_struct_custom_modifier_impls_are_executed(run_int_fn):
             @guppy
             def daggered(self, q: qubit) -> None:
                 if self.enabled:
-                    x(q)
+                    self.flip(q)
 
             @guppy
             def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
                 if self.enabled:
-                    x(q)
+                    self.flip(q)
 
             @guppy
             def ctrl_daggered[n: nat](
                 self, q: qubit, _controls: array[qubit, n]
             ) -> None:
                 if self.enabled:
-                    x(q)
+                    self.flip(q)
 
     @guppy
     def main_plain() -> int:

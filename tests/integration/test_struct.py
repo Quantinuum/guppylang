@@ -143,71 +143,32 @@ def test_methods(validate):
     validate(main.compile_function())
 
 
-def test_unitary_method(validate):
+def test_unitary_method_enclosing_scope(validate):
     T = guppy.type_var("T")
 
     @guppy.struct(frozen=True)
-    class Struct(Generic[T]):
+    class Gates[T]:
         x: T
 
         @guppy.unitary
-        class apply_h:
-            @guppy
-            def __call__[n: nat](self, qs: array[qubit, n]) -> None:
-                h(qs[0])
-
-            @guppy
-            def daggered[n: nat](self, qs: array[qubit, n]) -> None:
-                h(qs[0])
-
-            @guppy
-            def controlled[n: nat, c: nat](
-                self, qs: array[qubit, n], controls: array[qubit, c]
-            ) -> None:
-                h(controls[0])
-
-            @guppy
-            def ctrl_daggered[n: nat, c: nat](
-                self, qs: array[qubit, n], controls: array[qubit, c]
-            ) -> None:
-                h(controls[0])
-
-    @guppy
-    def main(s: Struct[int], ctrl: qubit, qs: array[qubit, 2]) -> None:
-        with dagger:
-            s.apply_h(qs)
-        with control(ctrl):
-            s.apply_h(qs)
-        with dagger, control(ctrl):
-            s.apply_h(qs)
-
-    validate(main.compile_function())
-
-
-def test_unitary_method_enclosing_scope(validate):
-    """Test that the scoping of unitary methods solve Gates."""
-
-    @guppy.struct(frozen=True)
-    class Gates:
-        @guppy.unitary
         class apply_h[n: nat]:
             @guppy
-            def __call__(self: "Gates", qs: array[qubit, n]) -> None:
+            def __call__(self: "Gates[T]", qs: array[qubit, n]) -> None:
                 apply_gate(qs[0])
 
             @guppy
-            def daggered(self: "Gates", qs: array[qubit, n]) -> None:
+            def daggered(self: "Gates[T]", qs: array[qubit, n]) -> None:
                 apply_gate(qs[0])
 
             @guppy
             def controlled[c: nat](
-                self: "Gates", qs: array[qubit, n], controls: array[qubit, c]
+                self: "Gates[T]", qs: array[qubit, n], controls: array[qubit, c]
             ) -> None:
                 apply_gate(qs[0])
 
             @guppy
             def ctrl_daggered[c: nat](
-                self: "Gates", qs: array[qubit, n], controls: array[qubit, c]
+                self: "Gates[T]", qs: array[qubit, n], controls: array[qubit, c]
             ) -> None:
                 apply_gate(qs[0])
 
@@ -216,7 +177,7 @@ def test_unitary_method_enclosing_scope(validate):
         h(q)
 
     @guppy
-    def main(s: Gates, ctrl: qubit, qs: array[qubit, 2]) -> None:
+    def main(s: Gates[int], ctrl: qubit, qs: array[qubit, 2]) -> None:
         with dagger:
             s.apply_h(qs)
         with control(ctrl):

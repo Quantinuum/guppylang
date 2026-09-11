@@ -1060,6 +1060,7 @@ def _check_modified_def_signature(
         )
 
 
+# todo: the extra parameter for the number of control qubits is currently assumed to be the last one. It may be in other positions
 def _check_controlled_def_signature(
     modified_ty: FunctionType,
     parent_ty: FunctionType,

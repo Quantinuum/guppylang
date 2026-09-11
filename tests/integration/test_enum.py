@@ -365,11 +365,13 @@ def test_enum_custom_modifier_impls_are_executed(validate):
                 pass
 
             @guppy
-            def daggered(self, q: qubit) -> None:
+            def daggered(self: "CustomGates", q: qubit) -> None:
                 self.flip(q)
 
             @guppy
-            def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
+            def controlled[n: nat](
+                self: "CustomGates", q: qubit, _controls: array[qubit, n]
+            ) -> None:
                 self.flip(q)
 
             @guppy
