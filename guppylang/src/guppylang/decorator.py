@@ -374,11 +374,7 @@ class _Guppy:
                     myGate(q) # using the `myGate.daggered` implementation
 
         """
-        if kwargs:
-            raise TypeError(
-                "`@guppy.unitary` does not accept keyword arguments. Put them on "
-                "the `@guppy` decorator of the `__call__` method instead."
-            )
+        _check_there_are_no_kwargs(kwargs)
         call_guppy_def = _get_unitary_call_def(cls)
         cls = cast("builtins.type[T]", cls)
         frame = get_calling_frame()
@@ -1074,6 +1070,15 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         flags=flags,
         metadata=metadata,
     )
+
+
+@hide_trace
+def _check_there_are_no_kwargs(kwargs: GuppyKwargs) -> None:
+    if kwargs:
+        raise TypeError(
+            "`@guppy.unitary` does not accept keyword arguments. Put them on "
+            "the `@guppy` decorator of the `__call__` method instead."
+        )
 
 
 @hide_trace
