@@ -141,7 +141,7 @@ def test_comptime_overload_call(validate):
 def test_everything_can_be_overloaded(validate):
     """Test that all kinds of functions can be overloaded."""
 
-    @custom_function(NoopCompiler())
+    @custom_function(NoopCompiler(), effects=())
     def custom(a: int) -> int: ...
 
     @hugr_op(int_op("iadd"))

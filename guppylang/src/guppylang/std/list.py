@@ -18,7 +18,6 @@ from guppylang_internals.std._internal.compiler.list import (
     ListSetitemCompiler,
 )
 from guppylang_internals.std._internal.util import unsupported_op
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import list_type_def
 
 from guppylang import guppy
@@ -36,26 +35,28 @@ L = guppy.type_var("L", copyable=False, droppable=False)
 class list[T]:
     """Mutable sequence items with homogeneous types."""
 
-    @custom_function(ListGetitemCompiler(), effects=[Effect.ANY])
+    @custom_function(ListGetitemCompiler())
     def __getitem__(self: list[L], idx: int) -> L: ...
 
-    @custom_function(ListSetitemCompiler(), effects=[Effect.ANY])
+    @custom_function(ListSetitemCompiler())
     def __setitem__(self: list[L], idx: int, value: L @ owned) -> None: ...
 
-    @custom_function(ListLengthCompiler())
+    @custom_function(ListLengthCompiler(), effects=())
     def __len__(self: list[L]) -> int: ...
 
-    @custom_function(checker=UnsupportedChecker(), higher_order_value=False)
+    @custom_function(checker=UnsupportedChecker(), higher_order_value=False, effects=())
     def __new__(x): ...
 
-    @custom_function(NoopCompiler())  # TODO: define via Guppy source instead
+    @custom_function(
+        NoopCompiler(), effects=()
+    )  # TODO: define via Guppy source instead
     def __iter__(self: list[L] @ owned) -> list[L]: ...
 
     @hugr_op(unsupported_op("pop"))
     def __next__(self: list[L] @ owned) -> Option[tuple[L, list[L]]]: ...
 
-    @custom_function(ListPushCompiler())
+    @custom_function(ListPushCompiler(), effects=())
     def append(self: list[L], item: L @ owned) -> None: ...
 
-    @custom_function(ListPopCompiler(), effects=[Effect.ANY])  # panics if list empty
+    @custom_function(ListPopCompiler())  # panics if list empty
     def pop(self: list[L]) -> L: ...

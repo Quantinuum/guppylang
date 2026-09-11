@@ -10,6 +10,7 @@ from guppylang_internals.std._internal.debug import StateOutputChecker
     checker=StateOutputChecker(),
     higher_order_value=False,
     has_var_args=True,
+    effects=(),
 )
 def state_output(tag, *args) -> None:
     """Report the quantum state of the specified qubits.

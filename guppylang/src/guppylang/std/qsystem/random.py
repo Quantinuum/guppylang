@@ -66,7 +66,7 @@ class RNG:
     def discard(self: "RNG" @ owned) -> None:
         """Discard the random number generator."""
 
-    @custom_function(RandomIntCompiler())
+    @custom_function(RandomIntCompiler(), effects=())
     @no_type_check
     def random_int(self: "RNG") -> int:
         """Generate a random 32-bit signed integer."""
@@ -76,7 +76,7 @@ class RNG:
     def random_float(self: "RNG") -> float:
         """Generate a random floating point value in the range [0,1)."""
 
-    @custom_function(RandomIntBoundedCompiler())
+    @custom_function(RandomIntBoundedCompiler(), effects=())
     @no_type_check
     def random_int_bounded(self: "RNG", bound: int) -> int:
         """Generate a random 32-bit integer in the range [0, bound).
