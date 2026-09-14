@@ -24,8 +24,6 @@ from guppylang.std.quantum import (
     x,
     measure_array,
 )
-from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.std._internal.compiler.array import EmptyArrayCompiler
 
 
 def test_len_execute(validate, run_int_fn):

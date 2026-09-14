@@ -12,7 +12,7 @@ import builtins
 from types import GeneratorType
 from typing import TYPE_CHECKING, no_type_check
 
-from guppylang_internals.decorator import custom_function, extend_type
+from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import CopyInoutCompiler
 from guppylang_internals.std._internal.checker import (
     ArrayCopyChecker,
@@ -25,15 +25,17 @@ from guppylang_internals.std._internal.compiler.array import (
     ArrayIsBorrowedCompiler,
     ArraySetitemCompiler,
     ArraySwapCompiler,
-    EmptyArrayCompiler,
     NewArrayCompiler,
 )
 from guppylang_internals.std._internal.compiler.frozenarray import (
     FrozenarrayGetitemCompiler,
 )
+from guppylang_internals.std._internal.util import external_op, type_arg
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
+from hugr import tys as ht
+from hugr.std.collections.borrow_array import EXTENSION
 
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
@@ -303,7 +305,13 @@ class array[T, n: nat](builtins.list[T]):
             mem_swap(self[i], self[n - i - 1])
 
 
-@custom_function(EmptyArrayCompiler())
+@hugr_op(
+    external_op(
+        "new_all_borrowed",
+        [ht.VariableArg(idx=1, param=ht.BoundedNatParam()), type_arg(0)],
+        EXTENSION,
+    ),
+)
 def empty_array[T, n: nat]() -> array[T, n]:
     """Construct an array with all elements borrowed.
 

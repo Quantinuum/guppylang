@@ -333,17 +333,6 @@ class NewArrayCompiler(ArrayCompiler):
             return [self.build_classical_array(args)]
 
 
-class EmptyArrayCompiler(NewArrayCompiler):
-    """Compiler for the `empty_array` function."""
-
-    def compile(self, args: list[Wire]) -> list[Wire]:
-        return [
-            self.builder.add_op(
-                barray_new_all_borrowed(self.elem_ty, self.length),
-            )
-        ]
-
-
 class ArrayGetitemCompiler(ArrayCompiler):
     """Compiler for the `array.__getitem__` function."""
 
