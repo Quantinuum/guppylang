@@ -1,4 +1,3 @@
-import functools
 from collections.abc import Sequence
 from dataclasses import replace
 from typing import Any
@@ -38,11 +37,15 @@ class Substituter(Transformer):
     def __init__(self, subst: Subst) -> None:
         self.subst = subst
 
-    @functools.singledispatchmethod
     def transform(self, ty: Any) -> Any | None:
-        return None
+        match ty:
+            case ExistentialTypeVar():
+                return self._transform_ExistentialTypeVar(ty)
+            case ExistentialConstVar():
+                return self._transform_ExistentialConstVar(ty)
+            case _:
+                return None
 
-    @transform.register
     def _transform_ExistentialTypeVar(self, ty: ExistentialTypeVar) -> Type | None:
         if s := self.subst.get(ty, None):
             assert not isinstance(s, ConstBase)
@@ -56,7 +59,6 @@ class Substituter(Transformer):
             )
         return None
 
-    @transform.register
     def _transform_ExistentialConstVar(self, c: ExistentialConstVar) -> Const | None:
         s = self.subst.get(c, None)
         assert not isinstance(s, TypeBase)
@@ -70,17 +72,26 @@ class Instantiator(Transformer):
         self.allow_partial = allow_partial
         self.inst = inst
 
-    @functools.singledispatchmethod
     def transform(self, ty: Any) -> Any | None:
-        return None
+        match ty:
+            case ExistentialTypeVar():
+                return self._transform_ExistentialTypeVar(ty)
+            case BoundTypeVar():
+                return self._transform_BoundTypeVar(ty)
+            case BoundConstVar():
+                return self._transform_BoundConstVar(ty)
+            case FunctionType():
+                return self._transform_FunctionType(ty)
+            case ProtocolInst():
+                return self._transform_ProtocolInst(ty)
+            case _:
+                return None
 
-    @transform.register
     def _transform_ExistentialTypeVar(self, ty: ExistentialTypeVar) -> Type | None:
         return replace(
             ty, implements=tuple(self.transform(impl) or impl for impl in ty.implements)
         )
 
-    @transform.register
     def _transform_BoundTypeVar(self, ty: BoundTypeVar) -> Type | None:
         # Instantiate if type for the index is available
         if ty.idx < len(self.inst):
@@ -99,7 +110,6 @@ class Instantiator(Transformer):
             tuple(self.transform(impl) or impl for impl in ty.implements),
         )
 
-    @transform.register
     def _transform_BoundConstVar(self, c: BoundConstVar) -> Const | None:
         # Instantiate if const value for the index is available
         if c.idx < len(self.inst):
@@ -114,13 +124,11 @@ class Instantiator(Transformer):
             self.transform(c.ty) or c.ty, c.display_name, c.idx - len(self.inst)
         )
 
-    @transform.register
     def _transform_FunctionType(self, ty: FunctionType) -> Type | None:
         if ty.parametrized:
             raise InternalGuppyError("Tried to instantiate under binder")
         return None
 
-    @transform.register
     def _transform_ProtocolInst(self, inst: ProtocolInst) -> ProtocolInst | None:
         return inst.transform(self)
 
