@@ -14,6 +14,20 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
+## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.0-rc0...guppylang-v1.1.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* Compilation error with classical array.take  (#2330)([c33a3bd](https://github.com/Quantinuum/guppylang/commit/c33a3bd1840c2b73e5ee0a40720ca4dfe24cd697))
+* Hide trace in @guppy.unitary decorator error (#2325)([97a3463](https://github.com/Quantinuum/guppylang/commit/97a3463c637516838a61eb1cedb92667c1336068))
+* Reject unsupported statements in @guppy.unitary classes (#2312)([7d91c17](https://github.com/Quantinuum/guppylang/commit/7d91c17243becdc914e5d68da2b9b5325386ed66))
+
+
+### Features
+
+* Accept bytes into emulator builder (#2315)([a9e93a2](https://github.com/Quantinuum/guppylang/commit/a9e93a261cc03dea2bc04db5e9cd419aef17672d))
+
 ## [1.1.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.4...guppylang-v1.1.0-rc0) (2026-09-09)
 
 Note: With #2294 we have raised the minimum supported version of the `selene-hugr-qis-compiler` to `v0.5.0`, which has
