@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.0-rc0...guppylang-internals-v1.1.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* Controlled implementation signature check is not more order-sensitive (#2326)([997c555](https://github.com/Quantinuum/guppylang/commit/997c555692b4c420e2caaa6e0fa29d01c22bda07))
+* Reject unsupported statements in @guppy.unitary classes (#2312)([7d91c17](https://github.com/Quantinuum/guppylang/commit/7d91c17243becdc914e5d68da2b9b5325386ed66))
+
 ## [1.1.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.4...guppylang-internals-v1.1.0-rc0) (2026-09-09)
 
 
