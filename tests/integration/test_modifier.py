@@ -30,6 +30,8 @@ from guppylang.std.quantum import (
     x,
 )
 
+c = guppy.nat_var("c")
+
 
 def test_dagger_simple(validate):
     @guppy
@@ -942,6 +944,68 @@ def test_custom_modifier(validate):
     # Test compilation with and without passes
     validate(main.with_minimal_opt().compile())
     validate(main.compile())
+
+
+def test_custom_control_input_order(validate):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__[k: nat](a: array[qubit, k], b: array[qubit, c]) -> None:
+            pass
+
+        @guppy
+        def daggered[k: nat](a: array[qubit, k], b: array[qubit, c]) -> None:
+            pass
+
+        @guppy
+        def controlled[k: nat, n: nat](
+            a: array[qubit, k], b: array[qubit, c], ctrls: array[qubit, n]
+        ) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered[n: nat, k: nat](
+            a: array[qubit, k], b: array[qubit, c], ctrls: array[qubit, n]
+        ) -> None:
+            pass
+
+    @guppy
+    def main(a: array[qubit, 2], b: array[qubit, 3], ctrl: qubit) -> None:
+        with control(ctrl):
+            custom_gate(a, b)
+        with control(ctrl), dagger:
+            custom_gate(a, b)
+
+    validate(main.compile_function())
+
+
+def test_custom_control_input_order_emulator(run_int_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(targets: array[qubit, c]) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](
+            targets: array[qubit, c], ctrls: array[qubit, n]
+        ) -> None:
+            cx(ctrls[0], targets[1])
+
+    @guppy
+    def main() -> int:
+        targets = array(qubit(), qubit())
+        ctrl = qubit()
+        x(ctrl)
+        with control(ctrl):
+            custom_gate(targets)
+        result0 = measure(targets.take(0)).read()
+        result1 = measure(targets.take(1)).read()
+        discard_array(targets)
+        discard(ctrl)
+        return 1 if result1 and not result0 else 0
+
+    run_int_fn(main, expected=1, num_qubits=3)
 
 
 def test_hugr_stability():
