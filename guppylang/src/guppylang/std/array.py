@@ -305,7 +305,7 @@ class array[T, n: nat](builtins.list[T]):
 
 @custom_function(EmptyArrayCompiler())
 def empty_array[T, n: nat]() -> array[T, n]:
-    """Construct an array with all elements taken.
+    """Construct an array with all elements borrowed.
 
     Elements must be added with `array.put` before they can be accessed. Since no
     elements are present initially, `array.discard_all_taken` may be called immediately.
