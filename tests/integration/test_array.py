@@ -834,6 +834,20 @@ def test_discard_all_taken(validate):
     assert res == [("after_discard", 1)]
 
 
+def test_discard_all_taken_classical(validate):
+    @guppy
+    def main() -> None:
+        arr = array(1, 2)
+        arr.take(0)
+        arr.take(1)
+        output("is_borrowed", int(arr.is_borrowed(0)) + int(arr.is_borrowed(1)))
+        arr.discard_all_taken()
+        output("after_discard", 42)
+
+    res = main.emulator(n_qubits=1).run().results[0].entries
+    assert res == [("is_borrowed", 0), ("after_discard", 42)]
+
+
 def test_discard_not_all_taken(validate):
     @guppy
     def main() -> None:
