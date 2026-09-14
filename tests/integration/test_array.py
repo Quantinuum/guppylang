@@ -761,7 +761,7 @@ def test_take2(validate):
         output("after_put", arr.is_borrowed(idx2))
 
     @guppy
-    def test_main(idx1: int, idx2: int, linear: bool) -> None:
+    def main(idx1: int, idx2: int, linear: bool) -> None:
         if linear:
             q_arr = array(qubit(), qubit(), qubit())
             do_take(q_arr, idx1, idx2)
@@ -770,38 +770,25 @@ def test_take2(validate):
             i_arr = array(1, 2, 3)
             do_take(i_arr, idx1, idx2)
 
-    validate(test_main.compile_function())
+    validate(main.compile_function())
 
-    res = (
-        test_main.emulator(3)
-        .coinflip_sim()
-        .run(idx1=0, idx2=1, linear=True)
-        .results[0]
-        .entries
-    )
-    assert res == [("after_borrow", 1), ("after_put", 0)]
+    res = main.emulator(3).coinflip_sim().run(idx1=0, idx2=1, linear=True).results[0]
+
+    assert res.entries == [("after_borrow", 1), ("after_put", 0)]
     # emulator with n_qubits=0 causes an error
-    res = (
-        test_main.emulator(n_qubits=1)
-        .run(idx1=0, idx2=1, linear=False)
-        .results[0]
-        .entries
-    )
-    assert res == [
-        ("after_borrow", 0),
-        ("after_put", 0),
-    ]  # Classical things don't get borrowed
+    res = main.emulator(1).run(idx1=0, idx2=1, linear=False).results[0]
+    # Classical things don't get borrowed
+    assert res.entries == [("after_borrow", 0), ("after_put", 0)]
 
     with pytest.raises(EmulatorError, match="Array element is already borrowed"):
-        test_main.emulator(3).coinflip_sim().run(idx1=0, idx2=0, linear=True)
+        main.emulator(3).coinflip_sim().run(idx1=0, idx2=0, linear=True)
 
-    res = (
-        test_main.emulator(n_qubits=1)
-        .run(idx1=0, idx2=0, linear=False)
-        .results[0]
-        .entries
-    )
-    assert res == [("after_borrow", 0), ("after_put", 0)]
+    res = main.emulator(1).run(idx1=0, idx2=0, linear=False).results[0]
+    assert res.entries == [("after_borrow", 0), ("after_put", 0)]
+
+    for linear in [True, False]:
+        with pytest.raises(EmulatorError, match="Index out of bounds"):
+            main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=linear)
 
 
 def test_discard_borrowed(validate):
