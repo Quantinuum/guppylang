@@ -131,6 +131,7 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
+        effects=[Effect.ANY],
     )
     def take[L, n: nat](self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.

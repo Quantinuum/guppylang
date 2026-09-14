@@ -746,6 +746,64 @@ def test_take_put(validate):
     validate(main.compile())
 
 
+def test_take2(validate):
+    # Tests actual panicking variants produce panics; and verifies behaviour
+    # of quantum vs classical variants
+    T = guppy.type_var("T", copyable=False, droppable=False)
+
+    @guppy
+    def do_take(arr: array[T, 3], idx1: int, idx2: int) -> None:
+        v = arr.take(idx1)
+        output("after_borrow", arr.is_borrowed(idx1))
+        v2 = arr.take(idx2)  # panic if idx1 == idx2
+        arr.put(v, idx1)
+        arr.put(v2, idx2)
+        output("after_put", arr.is_borrowed(idx2))
+
+    @guppy
+    def test_main(idx1: int, idx2: int, linear: bool) -> None:
+        if linear:
+            q_arr = array(qubit(), qubit(), qubit())
+            do_take(q_arr, idx1, idx2)
+            discard_array(q_arr)
+        else:
+            i_arr = array(1, 2, 3)
+            do_take(i_arr, idx1, idx2)
+
+    validate(test_main.compile_function())
+
+    res = (
+        test_main.emulator(3)
+        .coinflip_sim()
+        .run(idx1=0, idx2=1, linear=True)
+        .results[0]
+        .entries
+    )
+    assert res == [("after_borrow", 1), ("after_put", 0)]
+    # emulator with n_qubits=0 causes an error
+    res = (
+        test_main.emulator(n_qubits=1)
+        .run(idx1=0, idx2=1, linear=False)
+        .results[0]
+        .entries
+    )
+    assert res == [
+        ("after_borrow", 0),
+        ("after_put", 0),
+    ]  # Classical things don't get borrowed
+
+    with pytest.raises(EmulatorError, match="Array element is already borrowed"):
+        test_main.emulator(3).coinflip_sim().run(idx1=0, idx2=0, linear=True)
+
+    res = (
+        test_main.emulator(n_qubits=1)
+        .run(idx1=0, idx2=0, linear=False)
+        .results[0]
+        .entries
+    )
+    assert res == [("after_borrow", 0), ("after_put", 0)]
+
+
 def test_discard_borrowed(validate):
     @guppy
     def main() -> None:
