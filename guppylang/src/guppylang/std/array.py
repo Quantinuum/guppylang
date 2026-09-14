@@ -25,6 +25,7 @@ from guppylang_internals.std._internal.compiler.array import (
     ArrayIsBorrowedCompiler,
     ArraySetitemCompiler,
     ArraySwapCompiler,
+    EmptyArrayCompiler,
     NewArrayCompiler,
 )
 from guppylang_internals.std._internal.compiler.frozenarray import (
@@ -300,6 +301,15 @@ class array[T, n: nat](builtins.list[T]):
         """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
+
+
+@custom_function(EmptyArrayCompiler())
+def empty_array[T, n: nat]() -> array[T, n]:
+    """Construct an array with all elements taken.
+
+    Elements must be added with `array.put` before they can be accessed. Since no
+    elements are present initially, `array.discard_all_taken` may be called immediately.
+    """
 
 
 @guppy.struct
