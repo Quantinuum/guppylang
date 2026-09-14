@@ -12,12 +12,12 @@ from guppylang.decorator import guppy
 # mypy: disable-error-code="empty-body, misc, valid-type"
 from guppylang.std.angles import angle
 from guppylang.std.lang import owned
-from guppylang.std.quantum import Measurement, qubit
+from guppylang.std.quantum import AbstractQubit, Measurement
 
 
 @guppy
 @no_type_check
-def h(q: qubit @ owned) -> qubit:
+def h[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional Hadamard gate command."""
     quantum.h(q)
     return q
@@ -25,7 +25,7 @@ def h(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def cz(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
+def cz[Q: AbstractQubit](control: Q @ owned, target: Q @ owned) -> tuple[Q, Q]:
     """Functional CZ gate command."""
     quantum.cz(control, target)
     return control, target
@@ -33,7 +33,7 @@ def cz(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
 
 @guppy
 @no_type_check
-def cx(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
+def cx[Q: AbstractQubit](control: Q @ owned, target: Q @ owned) -> tuple[Q, Q]:
     """Functional CX gate command."""
     quantum.cx(control, target)
     return control, target
@@ -41,7 +41,7 @@ def cx(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
 
 @guppy
 @no_type_check
-def cy(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
+def cy[Q: AbstractQubit](control: Q @ owned, target: Q @ owned) -> tuple[Q, Q]:
     """Functional CY gate command."""
     quantum.cy(control, target)
     return control, target
@@ -49,7 +49,7 @@ def cy(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
 
 @guppy
 @no_type_check
-def t(q: qubit @ owned) -> qubit:
+def t[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional T gate command."""
     quantum.t(q)
     return q
@@ -57,7 +57,7 @@ def t(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def s(q: qubit @ owned) -> qubit:
+def s[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional S gate command."""
     quantum.s(q)
     return q
@@ -65,7 +65,7 @@ def s(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def v(q: qubit @ owned) -> qubit:
+def v[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional V gate command."""
     quantum.v(q)
     return q
@@ -73,7 +73,7 @@ def v(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def x(q: qubit @ owned) -> qubit:
+def x[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional X gate command."""
     quantum.x(q)
     return q
@@ -81,7 +81,7 @@ def x(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def y(q: qubit @ owned) -> qubit:
+def y[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional Y gate command."""
     quantum.y(q)
     return q
@@ -89,7 +89,7 @@ def y(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def z(q: qubit @ owned) -> qubit:
+def z[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional Z gate command."""
     quantum.z(q)
     return q
@@ -97,7 +97,7 @@ def z(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def tdg(q: qubit @ owned) -> qubit:
+def tdg[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional Tdg gate command."""
     quantum.tdg(q)
     return q
@@ -105,7 +105,7 @@ def tdg(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def sdg(q: qubit @ owned) -> qubit:
+def sdg[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional Sdg gate command."""
     quantum.sdg(q)
     return q
@@ -113,7 +113,7 @@ def sdg(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def vdg(q: qubit @ owned) -> qubit:
+def vdg[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional Vdg gate command."""
     quantum.vdg(q)
     return q
@@ -121,7 +121,7 @@ def vdg(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def rz(q: qubit @ owned, angle: angle) -> qubit:
+def rz[Q: AbstractQubit](q: Q @ owned, angle: angle) -> Q:
     """Functional Rz gate command."""
     quantum.rz(q, angle)
     return q
@@ -129,7 +129,7 @@ def rz(q: qubit @ owned, angle: angle) -> qubit:
 
 @guppy
 @no_type_check
-def rx(q: qubit @ owned, angle: angle) -> qubit:
+def rx[Q: AbstractQubit](q: Q @ owned, angle: angle) -> Q:
     """Functional Rx gate command."""
     quantum.rx(q, angle)
     return q
@@ -137,7 +137,7 @@ def rx(q: qubit @ owned, angle: angle) -> qubit:
 
 @guppy
 @no_type_check
-def ry(q: qubit @ owned, angle: angle) -> qubit:
+def ry[Q: AbstractQubit](q: Q @ owned, angle: angle) -> Q:
     """Functional Ry gate command."""
     quantum.ry(q, angle)
     return q
@@ -145,9 +145,9 @@ def ry(q: qubit @ owned, angle: angle) -> qubit:
 
 @guppy
 @no_type_check
-def crz(
-    control: qubit @ owned, target: qubit @ owned, angle: angle
-) -> tuple[qubit, qubit]:
+def crz[Q: AbstractQubit](
+    control: Q @ owned, target: Q @ owned, angle: angle
+) -> tuple[Q, Q]:
     """Functional CRz gate command."""
     quantum.crz(control, target, angle)
     return control, target
@@ -155,9 +155,9 @@ def crz(
 
 @guppy
 @no_type_check
-def toffoli(
-    control1: qubit @ owned, control2: qubit @ owned, target: qubit @ owned
-) -> tuple[qubit, qubit, qubit]:
+def toffoli[Q: AbstractQubit](
+    control1: Q @ owned, control2: Q @ owned, target: Q @ owned
+) -> tuple[Q, Q, Q]:
     """Functional Toffoli gate command."""
     quantum.toffoli(control1, control2, target)
     return control1, control2, target
@@ -165,7 +165,7 @@ def toffoli(
 
 @guppy
 @no_type_check
-def reset(q: qubit @ owned) -> qubit:
+def reset[Q: AbstractQubit](q: Q @ owned) -> Q:
     """Functional Reset command."""
     quantum.reset(q)
     return q
@@ -173,7 +173,7 @@ def reset(q: qubit @ owned) -> qubit:
 
 @guppy
 @no_type_check
-def project_z(q: qubit @ owned) -> tuple[qubit, Measurement]:
+def project_z[Q: AbstractQubit](q: Q @ owned) -> tuple[Q, Measurement]:
     """Functional project_z command."""
     b = quantum.project_z(q)
     return q, b
@@ -184,7 +184,7 @@ def project_z(q: qubit @ owned) -> tuple[qubit, Measurement]:
 
 @guppy
 @no_type_check
-def ch(control: qubit @ owned, target: qubit @ owned) -> tuple[qubit, qubit]:
+def ch[Q: AbstractQubit](control: Q @ owned, target: Q @ owned) -> tuple[Q, Q]:
     """Functional Controlled-H gate command."""
     quantum.ch(control, target)
     return control, target
