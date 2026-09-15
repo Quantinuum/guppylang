@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, NoReturn
 
 from hugr import Wire
 
@@ -40,7 +40,7 @@ from guppylang_internals.definition.util import (
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, class_header_span, function_header_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
@@ -58,8 +58,8 @@ from guppylang_internals.tys.ty import (
 @dataclass(frozen=True)
 class FieldFormHint(Help):
     message: ClassVar[str] = (
-        "Struct can contain only fields of the form `name: Type` "
-        "or `@guppy` annotated methods"
+        "Struct can contain only fields of the form `name: Type`, "
+        "`@guppy` annotated methods or `@guppy.unitary` classes"
     )
 
 
@@ -80,9 +80,13 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
 
         params = extract_generic_params(cls_def, self.name, globals, "Struct")
 
+        from guppylang.defs import GuppyDefinition
+
+        from guppylang_internals.definition.function import RawFunctionDef
+
         fields: list[UncheckedField] = []
         used_field_names: set[str] = set()
-        used_func_names: dict[str, ast.FunctionDef] = {}
+        used_func_names: dict[str, ast.FunctionDef | ast.ClassDef] = {}
         for i, node in enumerate(cls_def.body):
             match i, node:
                 # We allow `pass` statements to define empty structs
@@ -93,8 +97,6 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     pass
                 # Ensure that all function definitions are Guppy functions
                 case _, ast.FunctionDef(name=name) as node:
-                    from guppylang.defs import GuppyDefinition
-
                     v = getattr(self.python_class, name)
                     if not isinstance(v, GuppyDefinition):
                         raise GuppyError(
@@ -105,7 +107,26 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
-                            DuplicateFieldError(node, self.name, name, "struct")
+                            DuplicateFieldError(
+                                function_header_span(node), self.name, name, "struct"
+                            )
+                        )
+                # A `@guppy.unitary` method is written as a class, but the decorator
+                # replaces it with its `__call__` Guppy function definition.
+                case _, ast.ClassDef(name=name) as node:
+                    v = getattr(self.python_class, name)
+                    if not (
+                        isinstance(v, GuppyDefinition)
+                        and isinstance(v.wrapped, RawFunctionDef)
+                        and v.wrapped.unitary_class_at is not None
+                    ):
+                        _raise_unexpected_struct_statement(node)
+                    used_func_names[name] = node
+                    if name in used_field_names:
+                        raise GuppyError(
+                            DuplicateFieldError(
+                                class_header_span(node), self.name, name, "struct"
+                            )
                         )
                 # Struct fields are declared via annotated assignments without value
                 case _, ast.AnnAssign(target=ast.Name(id=field_name)) as node:
@@ -122,20 +143,18 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     fields.append(UncheckedField(field_name, node.annotation))
                     used_field_names.add(field_name)
                 case _, node:
-                    err = UnexpectedError(
-                        node,
-                        "statement",
-                        unexpected_in="struct definition",
-                    )
-                    err.add_sub_diagnostic(FieldFormHint(None))
-                    raise GuppyError(err)
+                    _raise_unexpected_struct_statement(node)
 
         # Ensure that functions don't override struct fields
         if overridden := used_field_names.intersection(used_func_names.keys()):
             x = overridden.pop()
-            raise GuppyError(
-                DuplicateFieldError(used_func_names[x], self.name, x, "struct")
+            error_ast = used_func_names[x]
+            error_span = (
+                function_header_span(error_ast)
+                if isinstance(error_ast, ast.FunctionDef)
+                else class_header_span(error_ast)
             )
+            raise GuppyError(DuplicateFieldError(error_span, self.name, x, "struct"))
 
         link_name_prefix = (
             self._user_set_link_name
@@ -290,3 +309,13 @@ def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Paramet
                 continue
         raise GuppyError(ExpectedError(node, "a type parameter"))
     return params
+
+
+def _raise_unexpected_struct_statement(node: ast.stmt) -> NoReturn:
+    err = UnexpectedError(
+        node,
+        "statement",
+        unexpected_in="struct definition",
+    )
+    err.add_sub_diagnostic(FieldFormHint(None))
+    raise GuppyError(err)

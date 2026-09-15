@@ -39,7 +39,7 @@ from guppylang_internals.definition.util import (
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, class_header_span, function_header_span
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
@@ -68,7 +68,8 @@ class DuplicateVariantError(Error):
 class VariantFormHint(Help):
     message: ClassVar[str] = (
         "Enums can only contain variants of the form "
-        '`VariantName = {{"var1": Type1, ...}}` or `@guppy` annotated methods'
+        '`VariantName = {{"var1": Type1, ...}}`, `@guppy` annotated methods or '
+        "`@guppy.unitary` classes"
     )
 
 
@@ -99,19 +100,22 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Look for generic parameters from Python 3.12 style syntax
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
+        from guppylang.defs import GuppyDefinition
+
+        from guppylang_internals.definition.function import RawFunctionDef
+
         # We look for variants in the class body
         variants: dict[str, EnumVariant[UncheckedField]] = {}
-        used_func_names: dict[str, ast.FunctionDef] = {}
+        used_func_names: dict[str, ast.FunctionDef | ast.ClassDef] = {}
         variant_index = 0
         for i, node in enumerate(cls_def.body):
             match i, node:
-                # TODO: do we allow `pass` statements to define empty enum?
                 case _, ast.Pass():
                     pass
                 # Docstrings are also fine if they occur at the start
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
-                case _, ast.FunctionDef(name=name) as node:
+                case _, ast.FunctionDef(name=name) | ast.ClassDef(name=name) as node:
                     used_func_names[name] = node
                 # Enum variants are declared via a dictionary, where keys are the
                 # variant fields and values are types:
@@ -177,21 +181,37 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Ensure that functions do not override enum variants
         # and that all functions are Guppy functions
         for func_name, func_def in used_func_names.items():
-            from guppylang.defs import GuppyDefinition
+            match func_def:
+                case ast.ClassDef() as node:
+                    header_span = class_header_span(node)
+                case ast.FunctionDef() as node:
+                    header_span = function_header_span(node)
 
             if func_name in variants:
                 raise GuppyError(
-                    DuplicateVariantError(
-                        used_func_names[func_name], self.name, func_name
-                    )
+                    DuplicateVariantError(header_span, self.name, func_name)
                 )
+
             v = getattr(self.python_class, func_name)
-            if not isinstance(v, GuppyDefinition):
-                raise GuppyError(
-                    NonGuppyMethodError(
-                        func_def, self.name, func_name, "enum", "@guppy"
+            match func_def:
+                case ast.FunctionDef() if not isinstance(v, GuppyDefinition):
+                    raise GuppyError(
+                        NonGuppyMethodError(
+                            header_span, self.name, func_name, "enum", "@guppy"
+                        )
                     )
-                )
+                case ast.ClassDef() if not (
+                    isinstance(v, GuppyDefinition)
+                    and isinstance(v.wrapped, RawFunctionDef)
+                    and v.wrapped.unitary_class_at is not None
+                ):
+                    err = UnexpectedError(
+                        header_span,
+                        "statement",
+                        unexpected_in="enum definition",
+                    )
+                    err.add_sub_diagnostic(VariantFormHint(None))
+                    raise GuppyError(err)
 
         link_name_prefix = (
             self._user_set_link_name

@@ -20,7 +20,9 @@ fn main() {
 }
 """
 
-from guppylang import guppy
+from guppylang import array, guppy, qubit
+from guppylang.std.quantum import x
+from guppylang.std.builtins import control, dagger, nat
 from tests.util import compile_guppy
 
 from typing import Generic, TYPE_CHECKING
@@ -343,5 +345,50 @@ def test_enum_passed_through_functions(validate):
         _ = pt2.scale_factor(1.5)
 
         _, _, _ = chain(Shape.Circle(5.0))
+
+    validate(main.compile_function())
+
+
+def test_enum_custom_modifier_impls_are_executed(validate):
+    @guppy.enum
+    class CustomGates:
+        Enabled = {}
+
+        @guppy
+        def flip(self: "CustomGates", q: qubit) -> None:
+            x(q)
+
+        @guppy.unitary
+        class apply:
+            @guppy
+            def __call__(self: "CustomGates", q: qubit) -> None:
+                pass
+
+            @guppy
+            def daggered(self: "CustomGates", q: qubit) -> None:
+                self.flip(q)
+
+            @guppy
+            def controlled[n: nat](
+                self: "CustomGates", q: qubit, _controls: array[qubit, n]
+            ) -> None:
+                self.flip(q)
+
+            @guppy
+            def ctrl_daggered[n: nat](
+                self: "CustomGates", q: qubit, _controls: array[qubit, n]
+            ) -> None:
+                self.flip(q)
+
+    @guppy
+    def main(control_qubit: qubit, target: qubit) -> None:
+        gates = CustomGates.Enabled()
+        gates.apply(target)
+        with dagger:
+            gates.apply(target)
+        with control(control_qubit):
+            gates.apply(target)
+        with control(control_qubit), dagger:
+            gates.apply(target)
 
     validate(main.compile_function())
