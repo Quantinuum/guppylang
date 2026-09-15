@@ -17,7 +17,6 @@ from guppylang_internals.definition.ty import OpaqueTypeDef
 from guppylang_internals.dummy_decorator import _dummy_custom_decorator, sphinx_running
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.frame_util import get_calling_frame
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.ty import FunctionType, UnitaryFlags
 
 if TYPE_CHECKING:
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
     from hugr.ops import DataflowOp
 
     from guppylang_internals.compiler.core import CompilerContext
+    from guppylang_internals.tys import Effect
     from guppylang_internals.tys.arg import Argument
     from guppylang_internals.tys.param import Parameter
     from guppylang_internals.tys.subst import Inst
@@ -40,7 +40,7 @@ def custom_function[**P, T](
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    effects: Iterable[Effect] = [Effect.ANY],  # Worst-case, safe, sub-optimal default
+    effects: Iterable[Effect],
     has_var_args: bool = False,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
