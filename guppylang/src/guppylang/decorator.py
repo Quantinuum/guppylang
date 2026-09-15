@@ -2,7 +2,6 @@ import ast
 import builtins
 import inspect
 import linecache
-from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import replace
 from types import FrameType
@@ -19,8 +18,10 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import annotate_location
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.checker.unitary_checker import (
     check_modified_def_combinations,
+    check_unitary_method,
 )
 from guppylang_internals.definition.alias import RawTypeAliasDef
 from guppylang_internals.definition.common import DefId
@@ -59,12 +60,9 @@ from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import pretty_errors
 from guppylang_internals.metadata.common import FunctionMetadata
 from guppylang_internals.metadata.expected_qubits import MetadataExpectedQubitsHint
-from guppylang_internals.span import Loc, SourceMap, Span, to_span
+from guppylang_internals.span import Loc, SourceMap, Span, class_header_span
 from guppylang_internals.tracing.util import hide_trace
 from guppylang_internals.tys.ty import (
-    CALL_CONTROLLED_METHOD,
-    CALL_CTRL_DAGGERED_METHOD,
-    CALL_DAGGERED_METHOD,
     FunctionType,
     NoneType,
     NumericType,
@@ -376,11 +374,7 @@ class _Guppy:
                     myGate(q) # using the `myGate.daggered` implementation
 
         """
-        if kwargs:
-            raise TypeError(
-                "`@guppy.unitary` does not accept keyword arguments. Put them on "
-                "the `@guppy` decorator of the `__call__` method instead."
-            )
+        _check_there_are_no_kwargs(kwargs)
         call_guppy_def = _get_unitary_call_def(cls)
         cls = cast("builtins.type[T]", cls)
         frame = get_calling_frame()
@@ -389,30 +383,35 @@ class _Guppy:
         # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(call_raw_func, "name", cls.__name__)
 
-        # Update the unitary metadata according to the custom implementations
-        custom_modified_definition = _get_custom_methods(cls)
         definition_span = call_raw_func.set_unitary_class(
             cls,
             frame,
             DEF_STORE.sources,
         )
-
-        for custom_def in custom_modified_definition:
-            if custom_def is not None:
-                object.__setattr__(
-                    custom_def,
-                    "unitary_class_params",
-                    definition_span.type_params,
-                )
-                DEF_STORE.register_custom_modified_def(call_raw_func.id, custom_def.id)
+        # Update the unitary metadata according to the custom implementations
+        custom_modified_definitions = check_unitary_method(cls, definition_span)
+        for kind in CustomModifierKind:
+            custom_def = custom_modified_definitions.get(kind)
+            if custom_def is None:
+                continue
+            # We forward the type parameters of the unitary class to the custom method
+            object.__setattr__(
+                custom_def,
+                "unitary_class_params",
+                definition_span.type_params,
+            )
+            DEF_STORE.register_custom_modified_def(
+                call_raw_func.id, kind, custom_def.id
+            )
         assert call_raw_func.metadata is not None
-        daggered, controlled, ctrl_daggered = custom_modified_definition
         combined_flags = _set_unitary_metadata(
             call_raw_func.metadata,
-            daggered=daggered,
-            controlled=controlled,
-            ctrl_daggered=ctrl_daggered,
-            definition_span=to_span(definition_span),
+            daggered=custom_modified_definitions.get(CustomModifierKind.DAGGERED),
+            controlled=custom_modified_definitions.get(CustomModifierKind.CONTROLLED),
+            ctrl_daggered=custom_modified_definitions.get(
+                CustomModifierKind.CTRL_DAGGERED
+            ),
+            definition_span=class_header_span(definition_span),
         )
         object.__setattr__(
             call_raw_func, "decorator_unitary_flags", call_raw_func.unitary_flags
@@ -939,74 +938,6 @@ def _get_unitary_call_def(cls: object) -> GuppyDefinition:
     )
 
 
-def _get_custom_methods[T](
-    cls: builtins.type[T],
-) -> tuple[RawFunctionDef | None, RawFunctionDef | None, RawFunctionDef | None]:
-    """Returns the `@guppy`-annotated `daggered`, `controlled`, and `ctrl_daggered`"""
-    custom_methods: dict[str, RawFunctionDef | None] = defaultdict(lambda: None)
-    custom_methods_names = (
-        CALL_DAGGERED_METHOD,
-        CALL_CONTROLLED_METHOD,
-        CALL_CTRL_DAGGERED_METHOD,
-    )
-
-    for method_name, method in cls.__dict__.items():
-        if isinstance(method, GuppyDefinition) and method_name in custom_methods_names:
-            if isinstance(method.wrapped, RawFunctionDef):
-                _check_custom_method_metadata(method_name, method.wrapped, cls.__name__)
-                custom_methods[method_name] = method.wrapped
-            else:
-                raise TypeError(
-                    f"`{method_name}` in the `@guppy.unitary` class "
-                    f"`{cls.__name__}` must be a guppy function."
-                )
-        elif (
-            isinstance(method, GuppyDefinition)
-            and not isinstance(method, GuppyTypeVarDefinition)
-            and method_name not in custom_methods_names
-            and method_name != "__call__"
-        ):
-            raise TypeError(
-                f"Only guppy function named {custom_methods_names} are allowed as a "
-                f"method in a `@guppy.unitary` class. Found `{method_name}`.",
-            )
-        elif (
-            not isinstance(method, GuppyDefinition)
-            and method_name in custom_methods_names
-        ):
-            raise TypeError(
-                f"`{method_name}` in the `@guppy.unitary` class `{cls.__name__}` must "
-                "be a guppy function"
-            )
-
-    return (
-        custom_methods[CALL_DAGGERED_METHOD],
-        custom_methods[CALL_CONTROLLED_METHOD],
-        custom_methods[CALL_CTRL_DAGGERED_METHOD],
-    )
-
-
-@hide_trace
-def _check_custom_method_metadata(
-    method_name: str, method: RawFunctionDef, class_name: str
-) -> None:
-    """Reject metadata that is only meaningful on a unitary class's ``__call__``."""
-    if method.unitary_flags != UnitaryFlags.NoFlags:
-        raise TypeError(
-            f"`{method_name}` in the `@guppy.unitary` class `{class_name}` cannot "
-            "set unitary flags; only `__call__` can set them"
-        )
-
-    if (
-        method.metadata is not None
-        and method.metadata.get_expected_qubits() is not None
-    ):
-        raise TypeError(
-            f"`{method_name}` in the `@guppy.unitary` class `{class_name}` cannot "
-            "use `@expected_qubits`; only `__call__` can use it"
-        )
-
-
 @pretty_errors
 def _set_unitary_metadata(
     metadata: FunctionMetadata,
@@ -1017,11 +948,9 @@ def _set_unitary_metadata(
     definition_span: Span,
 ) -> UnitaryFlags:
     """Set unitary metadata based on the available custom implementations:
-    - `daggered`: The custom implementation for the daggered modifier, None if absent.
-    - `controlled`: The custom implementation for the controlled modifier,
-      None if absent.
-    - `ctrl_daggered`: The custom implementation for the ctrl_daggered modifier,
-      None if absent.
+    - `daggered`: The custom implementation of `daggered`, None if absent.
+    - `controlled`: The custom implementation of `controlled`, None if absent.
+    - `ctrl_daggered`: The custom implementation of `ctrl_daggered`, None if absent.
 
     We also check that the combination of custom implementations is valid.
     """
@@ -1141,6 +1070,15 @@ def _parse_kwargs(kwargs: GuppyKwargs) -> ParsedGuppyKwargs:
         flags=flags,
         metadata=metadata,
     )
+
+
+@hide_trace
+def _check_there_are_no_kwargs(kwargs: dict[str, Any]) -> None:
+    if kwargs:
+        raise TypeError(
+            "`@guppy.unitary` does not accept keyword arguments. Put them on "
+            "the `@guppy` decorator of the `__call__` method instead."
+        )
 
 
 @hide_trace

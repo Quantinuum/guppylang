@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, cast, get_args
 
 from hugr.debug_info import DebugRecord
 from hugr.metadata import HugrDebugInfo, Metadata, NodeMetadata
@@ -21,6 +21,42 @@ class MetadataUnitaryFlags(Metadata[int]):
     - https://github.com/Quantinuum/guppylang/issues/1595"""
 
     KEY = "tket.unitary"
+
+
+class DaggeredImplementation(Metadata[str]):
+    """stub implementation for tket.metadata.DaggeredImplementation to ensure decoupling
+    between guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.daggered"
+
+
+class ControlledImplementations(Metadata[list[str]]):
+    """stub implementation for tket.metadata.ControlledImplementations to ensure
+    decoupling between guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.controlled"
+
+
+class CtrlDaggeredImplementations(Metadata[list[str]]):
+    """stub implementation for tket.metadata.CtrlDaggeredImplementations to ensure
+    decoupling between guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.ctrl_daggered"
+
+
+class NumControlQubits(Metadata[int]):
+    """stub implementation for tket.metadata.NumControlQubits to ensure decoupling
+    between guppy and tket. See:
+    - `tests/test_guppy_decoupled.py:83`
+    - https://github.com/Quantinuum/guppylang/issues/1595"""
+
+    KEY = "tket.num_control_qubits"
 
 
 @dataclass(frozen=True)
@@ -61,6 +97,10 @@ class FunctionMetadata:
         MetadataExpectedQubitsHint.KEY,
         MetadataUnitaryFlags.KEY,
         "tket.inline",  # InlineAnnotation.KEY # Not possible for decoupled tests
+        DaggeredImplementation.KEY,
+        ControlledImplementations.KEY,
+        CtrlDaggeredImplementations.KEY,
+        NumControlQubits.KEY,
     }
 
     def as_dict(self) -> dict[str, JsonType]:
@@ -154,3 +194,40 @@ def add_unitary_metadata(
     if MetadataUnitaryFlags.KEY in node_metadata:
         raise GuppyError(MetadataAlreadySetError(None, MetadataUnitaryFlags.KEY))
     node_metadata[MetadataUnitaryFlags.KEY] = unitary_flag
+
+
+def add_custom_implementations(
+    node_metadata: NodeMetadata,
+    *,
+    daggered: str | None = None,
+    controlled: list[str] | None = None,
+    ctrl_daggered: list[str] | None = None,
+) -> None:
+    """Adds the names of the functions implementing custom modifications, ensuring
+    reserved keys aren't overwritten."""
+    if daggered is not None:
+        if DaggeredImplementation.KEY in node_metadata:
+            raise GuppyError(MetadataAlreadySetError(None, DaggeredImplementation.KEY))
+        node_metadata[DaggeredImplementation.KEY] = daggered
+    if controlled is not None:
+        if ControlledImplementations.KEY in node_metadata:
+            raise GuppyError(
+                MetadataAlreadySetError(None, ControlledImplementations.KEY)
+            )
+        node_metadata[ControlledImplementations.KEY] = cast("JsonType", controlled)
+    if ctrl_daggered is not None:
+        if CtrlDaggeredImplementations.KEY in node_metadata:
+            raise GuppyError(
+                MetadataAlreadySetError(None, CtrlDaggeredImplementations.KEY)
+            )
+        node_metadata[CtrlDaggeredImplementations.KEY] = cast("JsonType", ctrl_daggered)
+
+
+def add_num_control_qubits(
+    node_metadata: NodeMetadata,
+    num_control_qubits: int,
+) -> None:
+    """Adds the number of control qubits, ensuring it isn't overwritten."""
+    if NumControlQubits.KEY in node_metadata:
+        raise GuppyError(MetadataAlreadySetError(None, NumControlQubits.KEY))
+    node_metadata[NumControlQubits.KEY] = num_control_qubits

@@ -1,10 +1,10 @@
-Error: Incompatible signature for custom `controlled` implementation (at $FILE:15:4)
+Error: Incompatible signature for custom `controlled` implementation (at $FILE:14:4)
    | 
-13 | 
-14 |     @guppy
-15 |     def controlled(q: qubit, controls: array[qubit, n] @ owned) -> None:
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-16 |         pass
+12 | 
+13 |     @guppy
+14 |     def controlled[n:nat](q: qubit, controls: array[qubit, n] @ owned) -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |         pass
    | ^^^^^^^^^^^^ Expected signature `forall n: nat. (qubit, array[qubit, n])
    |              -> None`, got `forall n: nat. (qubit, array[qubit, n]
    |              @owned) -> None`

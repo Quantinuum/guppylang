@@ -107,6 +107,7 @@ from guppylang_internals.error import (
     saved_exception_hook,
 )
 from guppylang_internals.experimental import (
+    are_capturing_closures_enabled,
     check_function_tensors_enabled,
     check_lists_enabled,
 )
@@ -1420,9 +1421,11 @@ def function_def_value_to_function_value(
     uniquely identifies them. Nested functions are materialised as local values, so
     their expression must be preserved to retain a possible closure.
     """
-    if isinstance(ty, NestedFunctionDefType):
+    if isinstance(ty, NestedFunctionDefType) and are_capturing_closures_enabled():
+        # We don't record whether individual nested functions capture anything,
+        # so conservatively assume it might.
         return with_type(ty.sig, expr)
-    name = DEF_STORE.raw_defs[ty.def_id].name
+    name = ENGINE.get_parsed(ty.def_id).name
     return with_type(ty.sig, with_loc(expr, make_global_name(name, ty.def_id)))
 
 
@@ -1688,7 +1691,7 @@ def synthesize_call(
 
     # Register this call in the callgraph.
     if callee is not None:
-        ENGINE.register_call(ctx, callee, inst)
+        ENGINE.register_call(ctx, callee, inst, node)
 
     return args, unquantified.output.substitute(subst), inst
 
@@ -1790,7 +1793,7 @@ def check_call(
 
     # Register this call in the callgraph.
     if callee is not None:
-        ENGINE.register_call(ctx, callee, inst)
+        ENGINE.register_call(ctx, callee, inst, node)
 
     return inputs, subst, inst
 
@@ -1948,6 +1951,7 @@ def check_generator(
         inner_locals,
         ctx.generic_param_inst,
         current_caller=ctx.current_caller,
+        modifier_ctx=ctx.modifier_ctx,
     )
     expr_sth, stmt_chk = ExprSynthesizer(inner_ctx), StmtChecker(inner_ctx)
     gen.iter, iter_ty = expr_sth.visit(gen.iter)

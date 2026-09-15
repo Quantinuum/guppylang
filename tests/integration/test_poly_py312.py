@@ -329,7 +329,7 @@ def test_generic_tuple_chain(validate):
     validate(main.compile_function())
 
 
-def test_unitary(validate, use_experimental_features):
+def test_unitary(validate):
     @guppy.unitary
     class MyGate:
         @guppy
@@ -348,10 +348,10 @@ def test_unitary(validate, use_experimental_features):
         MyGate(qs)
         discard_array(qs)
 
-    main.check()
+    validate(main.compile())
 
 
-def test_unitary_generic(validate, use_experimental_features):
+def test_unitary_generic(validate):
     @guppy.unitary
     class MyGate[n: nat]:
         @guppy
@@ -368,10 +368,10 @@ def test_unitary_generic(validate, use_experimental_features):
         MyGate[2](qs)
         discard_array(qs)
 
-    main.check()
+    validate(main.compile())
 
 
-def test_unitary_with_unitary_parameters(use_experimental_features):
+def test_unitary_with_unitary_parameters(validate):
     @guppy.unitary
     class custom_dagger:
         @guppy
@@ -439,7 +439,9 @@ def test_unitary_with_unitary_parameters(use_experimental_features):
         # We have to skip this test due to https://github.com/Quantinuum/guppylang/issues/2244
         # apply_daggerable_and_controllable(custom_unitary, q)
 
-    main.check()
+    # Checking that the hugr is valid before and after modifier+optimization passes
+    validate(main.with_minimal_opt().compile_function())
+    validate(main.compile_function())
 
 
 def test_struct_unused_param(validate):

@@ -520,7 +520,9 @@ class float:
     )
     def __rmul__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fround"), unitary_flags=UnitaryFlags.Dagger, effects=())  # TODO
+    @hugr_op(
+        float_op("froundeven"), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )  # TODO
     def __round__(self: float) -> float: ...
 
     @custom_function(

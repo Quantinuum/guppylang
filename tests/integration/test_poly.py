@@ -14,6 +14,9 @@ from guppylang.std.quantum import discard, h, qubit
 from guppylang.std.builtins import Function
 
 
+c = guppy.nat_var("c")
+
+
 def test_id(validate):
     T = guppy.type_var("T")
 
@@ -68,12 +71,10 @@ def helper(q: qubit, n: int) -> int:
     return identity(n)
 
 
-def test_generic_functions_in_unitary_class(validate, use_experimental_features):
+def test_generic_functions_in_unitary_class(validate):
 
     @guppy.unitary
     class foo:
-        c = guppy.nat_var("c")
-
         @guppy
         def __call__(q: qubit) -> None:
             n = identity(1)
@@ -102,7 +103,7 @@ def test_generic_functions_in_unitary_class(validate, use_experimental_features)
         foo(q)
         discard(q)
 
-    main.check()
+    validate(main.compile())
 
 
 def test_define_twice(validate):
