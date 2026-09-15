@@ -6,5 +6,5 @@ from guppylang_internals.decorator import custom_function
 from guppylang_internals.std._internal.checker import CallableChecker
 
 
-@custom_function(checker=CallableChecker(), higher_order_value=False)
+@custom_function(checker=CallableChecker(), higher_order_value=False, effects=())
 def callable(x): ...

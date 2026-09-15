@@ -260,7 +260,8 @@ def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...
 @custom_function(
     InoutMeasureCompiler(
         "LazyMeasureReset", ext=QSYSTEM_SOL_EXTENSION, return_future=True
-    )
+    ),
+    effects=(),
 )
 @no_type_check
 def _lazy_measure_and_reset(q: qubit) -> Future[bool]: ...

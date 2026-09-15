@@ -28,12 +28,16 @@ _params = [TypeParam(0, "T", False, False), TypeParam(1, "E", False, False)]
 class Result[T, E]:
     """Represents a union of either an `ok(T)` or an `err(E)` value."""
 
-    @custom_function(EitherTestCompiler(0), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        EitherTestCompiler(0), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     @no_type_check
     def is_ok(self: "Result[T, E]") -> bool:
         """Returns `True` for an `ok` value."""
 
-    @custom_function(EitherTestCompiler(1), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        EitherTestCompiler(1), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     @no_type_check
     def is_err(self: "Result[T, E]") -> bool:
         """Returns `True` for an `err` value."""
@@ -54,19 +58,19 @@ class Result[T, E]:
         Panics if `self` is an `ok` value.
         """
 
-    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     @no_type_check
     def into_either(self: "Result[T, E]" @ owned) -> Either[T, E]:
         """Casts a `Result` value into an `Either` value."""
 
 
-@custom_function(EitherConstructor(0), unitary_flags=UnitaryFlags.Dagger)
+@custom_function(EitherConstructor(0), unitary_flags=UnitaryFlags.Dagger, effects=())
 @no_type_check
 def ok(val: T @ owned) -> Result[T, E]:
     """Constructs an `ok` result value."""
 
 
-@custom_function(EitherConstructor(1), unitary_flags=UnitaryFlags.Dagger)
+@custom_function(EitherConstructor(1), unitary_flags=UnitaryFlags.Dagger, effects=())
 @no_type_check
 def err[T, E](err: E @ owned) -> Result[T, E]:
     """Constructs an `err` result value."""

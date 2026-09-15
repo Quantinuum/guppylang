@@ -84,9 +84,10 @@ class array[T, n: nat](builtins.list[T]):
 
     @custom_function(
         NewArrayCompiler(),
-        NewArrayChecker(),
+        checker=NewArrayChecker(),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __new__(): ...
 
@@ -101,7 +102,10 @@ class array[T, n: nat](builtins.list[T]):
         return SizedIter(ArrayIter(self, 0))
 
     @custom_function(
-        CopyInoutCompiler(), ArrayCopyChecker(), unitary_flags=UnitaryFlags.Dagger
+        CopyInoutCompiler(),
+        checker=ArrayCopyChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def copy[T: Copy, n: nat](self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
@@ -110,6 +114,7 @@ class array[T, n: nat](builtins.list[T]):
         ArrayIsBorrowedCompiler(),
         checker=ArrayIndexChecker(),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),  # Can panic, but preserving legacy behaviour (https://github.com/Quantinuum/guppylang/issues/2122)
     )
     def is_borrowed[L, n: nat](self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
@@ -194,6 +199,7 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
+        effects=(),
     )
     def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
@@ -247,7 +253,7 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler())
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=())
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
