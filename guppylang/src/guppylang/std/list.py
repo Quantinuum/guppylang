@@ -53,7 +53,7 @@ class list[T]:
     )  # TODO: define via Guppy source instead
     def __iter__(self: list[L] @ owned) -> list[L]: ...
 
-    @hugr_op(unsupported_op("pop"))
+    @hugr_op(unsupported_op("pop"), effects=[Effect.ANY])  # Effects unused
     def __next__(self: list[L] @ owned) -> Option[tuple[L, list[L]]]: ...
 
     @custom_function(ListPushCompiler(), effects=())

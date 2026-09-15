@@ -32,10 +32,10 @@ class nat:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __abs__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("iadd"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("iadd"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __add__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("iand"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("iand"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __and__(self: nat, other: nat) -> nat: ...
 
     @guppy
@@ -46,55 +46,58 @@ class nat:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ceil__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("idivmod_u", n_vars=2), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(
+        int_op("idivmod_u", n_vars=2), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     def __divmod__(self: nat, other: nat) -> tuple[nat, nat]: ...
 
-    @hugr_op(int_op("ieq"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ieq"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __eq__(self: nat, other: nat) -> bool: ...
 
     @hugr_op(
         int_op("convert_u", hugr.std.int.CONVERSIONS_EXTENSION),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __float__(self: nat) -> float: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __floor__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("idiv_u"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("idiv_u"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __floordiv__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("ige_u"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ige_u"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ge__(self: nat, other: nat) -> bool: ...
 
-    @hugr_op(int_op("igt_u"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("igt_u"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __gt__(self: nat, other: nat) -> bool: ...
 
-    @hugr_op(int_op("iu_to_s"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("iu_to_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __int__(self: nat) -> int: ...
 
-    @hugr_op(int_op("inot"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("inot"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __invert__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("ile_u"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ile_u"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __le__(self: nat, other: nat) -> bool: ...
 
-    @hugr_op(int_op("ishl"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ishl"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __lshift__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("ilt_u"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ilt_u"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __lt__(self: nat, other: nat) -> bool: ...
 
-    @hugr_op(int_op("imod_u"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("imod_u"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __mod__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("imul"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("imul"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __mul__(self: nat, other: nat) -> nat: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __nat__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("ine"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ine"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ne__(self: nat, other: nat) -> bool: ...
 
     @custom_function(
@@ -105,13 +108,13 @@ class nat:
     )
     def __new__(x): ...
 
-    @hugr_op(int_op("ior"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ior"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __or__(self: nat, other: nat) -> nat: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __pos__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("ipow"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ipow"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __pow__(self: nat, other: nat) -> nat: ...
 
     @custom_function(
@@ -167,7 +170,7 @@ class nat:
     )
     def __rrshift__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("ishr"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ishr"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __rshift__(self: nat, other: nat) -> nat: ...
 
     @custom_function(
@@ -185,7 +188,7 @@ class nat:
     )
     def __rxor__(self: nat, other: nat) -> nat: ...
 
-    @hugr_op(int_op("isub"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("isub"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __sub__(self: nat, other: nat) -> nat: ...
 
     @guppy(daggerable=True)
@@ -196,7 +199,7 @@ class nat:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __trunc__(self: nat) -> nat: ...
 
-    @hugr_op(int_op("ixor"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ixor"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __xor__(self: nat, other: nat) -> nat: ...
 
 
@@ -205,14 +208,14 @@ class int:
     """A 64-bit signed integer."""
 
     @hugr_op(
-        int_op("iabs"), unitary_flags=UnitaryFlags.Dagger
+        int_op("iabs"), unitary_flags=UnitaryFlags.Dagger, effects=()
     )  # TODO: Maybe wrong? (signed vs unsigned!)
     def __abs__(self: int) -> int: ...
 
-    @hugr_op(int_op("iadd"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("iadd"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __add__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("iand"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("iand"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __and__(self: int, other: int) -> int: ...
 
     @guppy
@@ -223,58 +226,61 @@ class int:
     @custom_function(NoopCompiler(), effects=())
     def __ceil__(self: int) -> int: ...
 
-    @hugr_op(int_op("idivmod_s"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("idivmod_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __divmod__(self: int, other: int) -> tuple[int, int]: ...
 
-    @hugr_op(int_op("ieq"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ieq"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __eq__(self: int, other: int) -> bool: ...
 
     @hugr_op(
         int_op("convert_s", hugr.std.int.CONVERSIONS_EXTENSION),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __float__(self: int) -> float: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __floor__(self: int) -> int: ...
 
-    @hugr_op(int_op("idiv_s"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("idiv_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __floordiv__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("ige_s"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ige_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ge__(self: int, other: int) -> bool: ...
 
-    @hugr_op(int_op("igt_s"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("igt_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __gt__(self: int, other: int) -> bool: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __int__(self: int) -> int: ...
 
-    @hugr_op(int_op("inot"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("inot"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __invert__(self: int) -> int: ...
 
-    @hugr_op(int_op("ile_s"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ile_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __le__(self: int, other: int) -> bool: ...
 
-    @hugr_op(int_op("ishl"), unitary_flags=UnitaryFlags.Dagger)  # TODO: RHS is unsigned
+    @hugr_op(
+        int_op("ishl"), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )  # TODO: RHS is unsigned
     def __lshift__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("ilt_s"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ilt_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __lt__(self: int, other: int) -> bool: ...
 
-    @hugr_op(int_op("imod_s"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("imod_s"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __mod__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("imul"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("imul"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __mul__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("is_to_u"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("is_to_u"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __nat__(self: int) -> nat: ...
 
-    @hugr_op(int_op("ine"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ine"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ne__(self: int, other: int) -> bool: ...
 
-    @hugr_op(int_op("ineg"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ineg"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __neg__(self: int) -> int: ...
 
     @custom_function(
@@ -285,7 +291,7 @@ class int:
     )
     def __new__(x): ...
 
-    @hugr_op(int_op("ior"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ior"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __or__(self: int, other: int) -> int: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
@@ -301,7 +307,7 @@ class int:
             )
         return self.__pow_impl(exponent)
 
-    @hugr_op(int_op("ipow"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ipow"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __pow_impl(self: int, exponent: int) -> int: ...
 
     @custom_function(
@@ -357,7 +363,9 @@ class int:
     )  # TODO: RHS is unsigned
     def __rrshift__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("ishr"), unitary_flags=UnitaryFlags.Dagger)  # TODO: RHS is unsigned
+    @hugr_op(
+        int_op("ishr"), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )  # TODO: RHS is unsigned
     def __rshift__(self: int, other: int) -> int: ...
 
     @custom_function(
@@ -375,7 +383,7 @@ class int:
     )
     def __rxor__(self: int, other: int) -> int: ...
 
-    @hugr_op(int_op("isub"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("isub"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __sub__(self: int, other: int) -> int: ...
 
     @guppy(daggerable=True)
@@ -386,7 +394,7 @@ class int:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __trunc__(self: int) -> int: ...
 
-    @hugr_op(int_op("ixor"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(int_op("ixor"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __xor__(self: int, other: int) -> int: ...
 
 
@@ -394,10 +402,10 @@ class int:
 class float:
     """An IEEE754 double-precision floating point value."""
 
-    @hugr_op(float_op("fabs"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fabs"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __abs__(self: float) -> float: ...
 
-    @hugr_op(float_op("fadd"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fadd"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __add__(self: float, other: float) -> float: ...
 
     @guppy
@@ -405,7 +413,7 @@ class float:
     def __bool__(self: float) -> bool:
         return self != 0.0
 
-    @hugr_op(float_op("fceil"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fceil"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ceil__(self: float) -> float: ...
 
     @guppy
@@ -413,13 +421,13 @@ class float:
     def __divmod__(self: float, other: float) -> tuple[float, float]:
         return self // other, self.__mod__(other)
 
-    @hugr_op(float_op("feq"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("feq"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __eq__(self: float, other: float) -> bool: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __float__(self: float) -> float: ...
 
-    @hugr_op(float_op("ffloor"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("ffloor"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __floor__(self: float) -> float: ...
 
     @guppy
@@ -427,10 +435,10 @@ class float:
     def __floordiv__(self: float, other: float) -> float:
         return (self / other).__floor__()
 
-    @hugr_op(float_op("fge"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fge"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ge__(self: float, other: float) -> bool: ...
 
-    @hugr_op(float_op("fgt"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fgt"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __gt__(self: float, other: float) -> bool: ...
 
     @custom_function(
@@ -443,10 +451,10 @@ class float:
     )
     def __int__(self: float) -> int: ...
 
-    @hugr_op(float_op("fle"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fle"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __le__(self: float, other: float) -> bool: ...
 
-    @hugr_op(float_op("flt"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("flt"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __lt__(self: float, other: float) -> bool: ...
 
     @guppy
@@ -454,7 +462,7 @@ class float:
     def __mod__(self: float, other: float) -> float:
         return self - (self // other) * other
 
-    @hugr_op(float_op("fmul"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fmul"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __mul__(self: float, other: float) -> float: ...
 
     @custom_function(
@@ -467,10 +475,10 @@ class float:
     )
     def __nat__(self: float) -> nat: ...
 
-    @hugr_op(float_op("fne"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fne"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __ne__(self: float, other: float) -> bool: ...
 
-    @hugr_op(float_op("fneg"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fneg"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __neg__(self: float) -> float: ...
 
     @custom_function(
@@ -484,7 +492,7 @@ class float:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __pos__(self: float) -> float: ...
 
-    @hugr_op(float_op("fpow"), unitary_flags=UnitaryFlags.Dagger)  # TODO
+    @hugr_op(float_op("fpow"), unitary_flags=UnitaryFlags.Dagger, effects=())  # TODO
     def __pow__(self: float, other: float) -> float: ...
 
     @custom_function(
@@ -512,7 +520,7 @@ class float:
     )
     def __rmul__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fround"), unitary_flags=UnitaryFlags.Dagger)  # TODO
+    @hugr_op(float_op("fround"), unitary_flags=UnitaryFlags.Dagger, effects=())  # TODO
     def __round__(self: float) -> float: ...
 
     @custom_function(
@@ -530,14 +538,14 @@ class float:
     )
     def __rtruediv__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fsub"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fsub"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __sub__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fdiv"), unitary_flags=UnitaryFlags.Dagger)
+    @hugr_op(float_op("fdiv"), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __truediv__(self: float, other: float) -> float: ...
 
     @hugr_op(
-        unsupported_op("trunc_s"), unitary_flags=UnitaryFlags.Dagger
+        unsupported_op("trunc_s"), unitary_flags=UnitaryFlags.Dagger, effects=()
     )  # TODO `trunc_s` returns an option
     def __trunc__(self: float) -> float: ...
 
@@ -557,6 +565,7 @@ def abs(x): ...
         "bytecast_int64_to_float64", args=[], ext=hugr.std.int.CONVERSIONS_EXTENSION
     ),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def bytecast_nat_to_float(n: nat) -> float: ...
 
@@ -566,6 +575,7 @@ def bytecast_nat_to_float(n: nat) -> float: ...
         "bytecast_float64_to_int64", args=[], ext=hugr.std.int.CONVERSIONS_EXTENSION
     ),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def bytecast_float_to_nat(f: float) -> nat: ...
 

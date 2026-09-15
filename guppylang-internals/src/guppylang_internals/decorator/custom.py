@@ -130,7 +130,7 @@ def hugr_op[**P, T](
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    effects: Iterable[Effect] = (),
+    effects: Iterable[Effect],
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to annotate function declarations as HUGR ops.
 
