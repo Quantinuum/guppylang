@@ -14,6 +14,20 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#101-2026-08-03).
 
+## [1.1.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.1...guppylang-v1.1.0-a0) (2026-09-15)
+
+
+### Bug Fixes
+
+* Compilation error with classical array.take (#2328)([e8bbd48](https://github.com/Quantinuum/guppylang/commit/e8bbd48d97b37de400c5f0d241101274b192ab09))
+* Hide trace in @guppy.unitary decorator error (#2318)([ab9f598](https://github.com/Quantinuum/guppylang/commit/ab9f598706c3e633b749f4f2da5fe531f9582eff))
+* Reject unsupported statements in @guppy.unitary classes (#2310)([456c0d9](https://github.com/Quantinuum/guppylang/commit/456c0d9cba867a9b0bc23fc8688447d81f36d808))
+
+
+### Features
+
+* Accept bytes into emulator builder (#2314)([24dc1a5](https://github.com/Quantinuum/guppylang/commit/24dc1a5747ac259a2e42925c75676b3da663fec5))
+
 ## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.0-rc0...guppylang-v1.1.1) (2026-09-14)
 
 
