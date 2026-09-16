@@ -94,7 +94,13 @@ def test_pcg32_motivating_example() -> None:
         output("other_first", other_first)
         output("other_second", other_second)
 
-    results = main.emulator(0).coinflip_sim().with_seed(42).run().collated_shots()[0]
+    results = (
+        main.emulator(0)
+        .coinflip_sim()
+        .with_seed(4, mode="legacy")
+        .run()
+        .collated_shots()[0]
+    )
     assert results["first"] == results["other_first"] == [1307692281]
     assert results["second"] == results["other_second"] == [-444364974]
 
@@ -119,7 +125,13 @@ def test_pcg32_matches_qsystem_random() -> None:
         output("qsys_bnd100", qsys.random_int_bounded(100))
         qsys.discard()
 
-    results = main.emulator(0).coinflip_sim().with_seed(42).run().collated_shots()[0]
+    results = (
+        main.emulator(0)
+        .coinflip_sim()
+        .with_seed(42, mode="legacy")
+        .run()
+        .collated_shots()[0]
+    )
     assert results["pcg_int"] == results["qsys_int"] == [636174845]
     assert results["pcg_bnd2"] == results["qsys_bnd2"] == [1]
     assert results["pcg_bnd6"] == results["qsys_bnd6"] == [0]

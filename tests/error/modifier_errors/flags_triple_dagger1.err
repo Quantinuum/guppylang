@@ -6,6 +6,7 @@ Error: Dagger constraint violation (at $FILE:13:8)
    |         ^^^^^^ This function cannot be called in a daggerable context
 
 Help: Consider adding the flag `(daggerable=True)` to the decorator of the
-function `foo`
+function `foo` or adding a custom `daggered` implementation using the
+`@guppy.unitary` decorator
 
 Guppy compilation failed due to 1 previous error

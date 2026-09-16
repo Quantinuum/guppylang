@@ -18,6 +18,7 @@ from guppylang_internals.std._internal.util import (
     int_op,
     unsupported_op,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import float_type_def, int_type_def, nat_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
 
@@ -388,6 +389,7 @@ class float:
             int_op("trunc_s", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=[Effect.ANY],
     )
     def __int__(self: float) -> int: ...
 
@@ -411,6 +413,7 @@ class float:
             int_op("trunc_u", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=[Effect.ANY],
     )
     def __nat__(self: float) -> nat: ...
 
@@ -448,8 +451,13 @@ class float:
     @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
     def __rmul__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fround"), unitary_flags=UnitaryFlags.Dagger)  # TODO
-    def __round__(self: float) -> float: ...
+    @hugr_op(float_op("froundeven"), unitary_flags=UnitaryFlags.Dagger)  # TODO
+    def ___round__hugr(self: float) -> float: ...
+
+    @guppy
+    @no_type_check
+    def __round__(self: float) -> int:
+        return int(self.___round__hugr())
 
     @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
     def __rpow__(self: float, other: float) -> float: ...

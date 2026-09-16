@@ -81,8 +81,12 @@ def check_lists_enabled(loc: AstNode | None = None) -> None:
         raise GuppyError(err)
 
 
+def are_capturing_closures_enabled() -> bool:
+    return EXPERIMENTAL_FEATURES_ENABLED
+
+
 def check_capturing_closures_enabled(loc: AstNode | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
+    if not are_capturing_closures_enabled():
         raise GuppyError(UnsupportedError(loc, "Capturing closures"))
 
 

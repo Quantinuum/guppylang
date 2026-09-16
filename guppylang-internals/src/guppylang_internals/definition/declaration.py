@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, override
 
@@ -40,6 +40,7 @@ from guppylang_internals.definition.function import (
 )
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CallReturnWires,
     CompiledCallableDef,
     CompiledHugrNodeDef,
@@ -99,9 +100,20 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
     @override
     def parse(self, globals: Globals, sources: SourceMap) -> "ParsedFunctionDecl":
         """Parses and checks the user-provided signature of the function."""
-        func_ast, docstring = parse_py_func(self.python_func, sources)
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
+        else:
+            is_static = False
+            py_func = self.python_func
+
+        func_ast, docstring = parse_py_func(py_func, sources)
         ty = check_signature(
-            func_ast, globals, self.id, unitary_flags=self.unitary_flags
+            func_ast,
+            globals,
+            self.id,
+            unitary_flags=self.unitary_flags,
+            is_static=is_static,
         )
         link_name = self._user_set_link_name or default_func_link_name(self)
 
@@ -117,12 +129,13 @@ class RawFunctionDecl(ParsableDef, UserProvidedLinkName):
             ty=ty,
             docstring=docstring,
             link_name=link_name,
+            is_static=is_static,
             metadata=self.metadata,
         )
 
 
 @dataclass(frozen=True)
-class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
+class ParsedFunctionDecl(CheckableGenericDef, CallableDef, CallableEffects):
     """A function declaration with parsed and checked signature.
 
     In particular, this means that we have determined a type for the function.
@@ -143,6 +156,13 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     metadata: FunctionMetadata | None = field(default=None, kw_only=True)
 
     @property
+    @override
+    def call_effects(self) -> Iterable[Effect]:
+        # Assume all external function calls are side-effecting; we could improve
+        # by allowing explicit annotation on declarations, but this is a safe default.
+        return [Effect.ANY]
+
+    @property
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
@@ -158,6 +178,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
             docstring=self.docstring,
             link_name=mono_link_name,
             type_args=type_args,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -167,7 +188,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     ) -> tuple[ast.expr, Subst]:
         """Checks the return type of a function call against a given type."""
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.ty, args, ty, node, ctx)
+        args, subst, inst = check_call(self.ty, args, ty, node, ctx, self)
         node = with_loc(node, make_global_call(self, args, inst))
         return node, subst
 
@@ -177,7 +198,7 @@ class ParsedFunctionDecl(CheckableGenericDef, CallableDef):
     ) -> tuple[GlobalCall, Type]:
         """Synthesizes the return type of a function call."""
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.ty, args, node, ctx)
+        args, ty, inst = synthesize_call(self.ty, args, node, ctx, self)
         node = with_loc(node, make_global_call(self, args, inst))
         return with_type(ty, node), ty
 
@@ -225,6 +246,7 @@ class CheckedFunctionDecl(ParsedFunctionDecl, CompilableDef):
             link_name=self.link_name,
             type_args=self.type_args,
             declaration=node,
+            is_static=self.is_static,
             metadata=self.metadata,
         )
 
@@ -247,13 +269,6 @@ class CompiledFunctionDecl(
     """
 
     declaration: Node
-
-    @override
-    @property
-    def call_effects(self) -> frozenset[Effect]:
-        # Assume all external function calls are side-effecting; we could improve
-        # by allowing explicit annotation on declarations, but this is a safe default.
-        return frozenset([Effect.ANY])
 
     @property
     def hugr_node(self) -> Node:

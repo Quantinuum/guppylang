@@ -1,3 +1,4 @@
+import ast
 from collections import defaultdict
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager, suppress
@@ -5,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from types import FrameType
-from typing import ClassVar, assert_never, cast
+from typing import TYPE_CHECKING, ClassVar, assert_never, cast
 
 import hugr
 import hugr.build.function as hf
@@ -18,6 +19,17 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
+from guppylang_internals.analysis.callgraph import CallGraph
+from guppylang_internals.analysis.effects import compute_effects
+from guppylang_internals.analysis.modifier import (
+    ConcreteCustomUse,
+    EdgeWithModifierContext,
+    analyze_modifier_calls,
+)
+from guppylang_internals.checker.modifier import (
+    CustomModifierKind,
+    ModifierContext,
+)
 from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -32,6 +44,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CompiledCallableDef,
     CompiledHugrNodeDef,
 )
@@ -46,9 +59,10 @@ from guppylang_internals.frame_util import get_calling_frame
 from guppylang_internals.metadata.debug_info_util import (
     StringTable,
 )
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.arg import ConstArg, TypeArg
 from guppylang_internals.tys.builtin import (
+    array_type,
     array_type_def,
     bool_type_def,
     callable_protocol_def,
@@ -58,8 +72,12 @@ from guppylang_internals.tys.builtin import (
     frozenarray_type_def,
     function_def_type_def,
     function_type_def,
+    get_array_length,
+    get_element_type,
     int_type_def,
+    is_array_type,
     list_type_def,
+    nat_type,
     nat_type_def,
     none_type_def,
     option_type_def,
@@ -69,23 +87,39 @@ from guppylang_internals.tys.builtin import (
     tuple_type_def,
     unitary_protocol_def,
 )
-from guppylang_internals.tys.const import BoundConstVar
-from guppylang_internals.tys.param import Parameter
+from guppylang_internals.tys.const import BoundConstVar, ConstValue
+from guppylang_internals.tys.param import ConstParam, Parameter
 from guppylang_internals.tys.printing import TypePrinter
-from guppylang_internals.tys.subst import BoundVarFinder, Inst
+from guppylang_internals.tys.qubit import is_qubit_ty, qubit_ty
+from guppylang_internals.tys.subst import Inst, is_concrete_inst
 from guppylang_internals.tys.ty import (
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
     BoundTypeVar,
     EnumType,
     ExistentialTypeVar,
+    FuncInput,
     FunctionDefType,
     FunctionType,
+    InputFlags,
     NoneType,
     NumericType,
     OpaqueType,
     StructType,
     TupleType,
     Type,
+    unify,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from guppylang_internals.ast_util import AstNode
+    from guppylang_internals.checker.core import Context, Globals
+    from guppylang_internals.definition.function import ParsedFunctionDef
+    from guppylang_internals.tys import Effect
+
 
 BUILTIN_DEFS_LIST: list[RawDef] = [
     function_type_def,
@@ -111,7 +145,6 @@ BUILTIN_DEFS_LIST: list[RawDef] = [
 
 BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 
-
 #: Identifier for a monomorphized version of a definition.
 #:
 #: Kinds of definitions that are never generic (e.g. constant definitions) and
@@ -119,6 +152,9 @@ BUILTIN_DEFS = {defn.name: defn for defn in BUILTIN_DEFS_LIST}
 #: registered with an empty tuple () as `Inst`. Otherwise, `Inst` will be the
 #: instantiation for the generic parameters for the monomorphized version.
 MonoDefId = tuple[DefId, Inst]
+
+#: An edge in the monomorphized call graph, represented as `(caller, callee)`.
+CallGraphEdge = tuple[MonoDefId, MonoDefId]
 
 
 class CompilationStage(Enum):
@@ -140,6 +176,8 @@ class DefinitionStore:
     wasm_functions: dict[DefId, FunctionType]
     frames: dict[DefId, FrameType]
     sources: SourceMap
+    # Maps a parent definition (usually a function) to its custom modified definitions
+    custom_modified_defs: dict[DefId, dict[CustomModifierKind, DefId]]
 
     def __init__(self) -> None:
         self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
@@ -148,6 +186,7 @@ class DefinitionStore:
         self.frames = {}
         self.sources = SourceMap()
         self.wasm_functions = {}
+        self.custom_modified_defs = defaultdict(dict)
 
     def register_def(self, defn: RawDef, frame: FrameType) -> None:
         self.raw_defs[defn.id] = defn
@@ -176,6 +215,16 @@ class DefinitionStore:
 
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig
+
+    def register_custom_modified_def(
+        self,
+        parent_def_id: DefId,
+        kind: CustomModifierKind,
+        custom_def_id: DefId,
+    ) -> None:
+        custom_defs = self.custom_modified_defs[parent_def_id]
+        assert kind not in custom_defs, f"Custom {kind.value} already registered"
+        custom_defs[kind] = custom_def_id
 
 
 DEF_STORE: DefinitionStore = DefinitionStore()
@@ -216,6 +265,19 @@ class CompilationEngine:
     to_check_worklist: dict[MonoDefId, ParsedDef]
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
+
+    #: Call graph mapping from caller to list of callees. Populated during type checking
+    # as calls are checked, to be then used for effects checking.
+    call_graph: dict[MonoDefId, list[MonoDefId]]
+    func_effects: dict[MonoDefId, set["Effect"]]
+    #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
+    #: stores one representative call site span for diagnostics in
+    #: analysis.modifier._check_recursive_custom_uses
+    local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, Span]]
+    #: Resolved calls indexed by their raw edge and effective propagated context.
+    resolved_modified_calls: dict[EdgeWithModifierContext, MonoDefId]
+    #: Concrete custom modifier uses indexed by custom-definition monomorphization.
+    custom_uses_by_mono_def: dict[MonoDefId, ConcreteCustomUse]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -266,6 +328,37 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
+        self.call_graph = {}
+        self.func_effects = {}
+        self.local_modifiers_by_edge = {}
+        self.resolved_modified_calls = {}
+        self.custom_uses_by_mono_def = {}
+
+    def register_call(
+        self,
+        ctx: "Context",
+        callee: "CallableDef",
+        inst: Inst,
+        call_node: "AstNode",
+    ) -> None:
+        """Registers a function call in the call graph. If the callee is a
+        `CallableEffects` then also registers those effects for that callee."""
+        # current_caller is not set for e.g. comptime but should be here:
+        assert ctx.current_caller is not None
+        assert ctx.current_caller in self.call_graph
+        self.call_graph[ctx.current_caller].append((callee.id, inst))
+        if isinstance(callee, CallableEffects):
+            self.register_effects((callee.id, inst), callee.call_effects)
+        # Record the modifier context under which the call is performed
+        callee_mono_def_id: MonoDefId = (callee.id, inst)
+        edge = (ctx.current_caller, callee_mono_def_id)
+        modifier_contexts = self.local_modifiers_by_edge.setdefault(edge, {})
+        modifier_contexts.setdefault(ctx.modifier_ctx, to_span(call_node))
+
+    def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
+        """Registers known effects for a function, for when the effects cannot be
+        attributed to some concrete callee (i.e. with its own MonoDefId)."""
+        self.func_effects.setdefault(func, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -302,12 +395,39 @@ class CompilationEngine:
             self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.to_check_worklist[id, ()] = defn
         elif isinstance(defn, CheckableGenericDef) and defn.params:
+            # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
+            # since we don't know the generic instantiation yet. It will be added when
+            # we're checking a use of the definition (e.g. a call). See for example
+            # `ParsedFunctionDef.check_call`.
             self.assert_stage(CompilationStage.CHECK, f"parse {defn}")
             self.generic_to_check_worklist[id] = defn
-        # If `defn` is a `CheckableGenericDef`, we can't add it to the worklist yet
-        # since we don't know the generic instantiation yet. It will be added when
-        # we're checking a use of the definition (e.g. a call). See for example
-        # `ParsedFunctionDef.check_call`.
+
+        # If `defn` has any custom modified definitions linked to it,
+        # we need to make sure that they are also parsed.
+        custom_modified_defs = DEF_STORE.custom_modified_defs.get(defn.id, {})
+        if custom_modified_defs:
+            # Only CallableDef can have custom modified definitions
+            assert isinstance(defn, CallableDef)
+            for custom_def_id in custom_modified_defs.values():
+                parsed_custom_defn = self.get_parsed(custom_def_id)
+                from guppylang_internals.definition.function import ParsedFunctionDef
+
+                assert isinstance(parsed_custom_defn, ParsedFunctionDef)
+                _check_modified_def_signature(parsed_custom_defn, defn.ty)
+                # Guppy normally checks only definitions that are called. Custom
+                # modifier methods, however, are resolved implicitly by the compiler.
+                # Thus, to prevent accepting a `@guppy.unitary` class containing an
+                # ill-typed custom implementation, we check every custom modifier
+                # method. We enforce this because these methods are part of the class
+                # definition and every custom method in a well-typed `@guppy.unitary`
+                # class must itself be well-typed.
+                #
+                # Parameterized methods (`controlled` and `ctrl_daggered`) are generic
+                # and already added to `generic_to_check_worklist`. Non-parameterized
+                # methods (`daggered`) are normally added to `to_check_worklist` only
+                # when called, so we explicitly add them here.
+                if not parsed_custom_defn.params:
+                    self.to_check_worklist[custom_def_id, ()] = parsed_custom_defn
         return defn
 
     @pretty_errors
@@ -332,20 +452,9 @@ class CompilationEngine:
             defn = defn.check(Globals(DEF_STORE.frames[defn.id]))
         elif isinstance(defn, CheckableGenericDef):
             self.assert_stage(CompilationStage.CHECK, f"check {defn}")
-            try:
-                checked_defn = defn.check(mono_args, Globals(DEF_STORE.frames[defn.id]))
-            except GuppyError as err:
-                # If this is an error arising from the initial parametric check where
-                # parameters are treated as opaque values, then we can just report the
-                # error as is. However, if the error only shows up once we check a
-                # concrete monomorphic instantiation, then we should also report this
-                # instantiation in the error message to give some additional context.
-                if instantiation_context_is_useful_for_error(mono_args):
-                    err.error.add_sub_diagnostic(
-                        MonoArgsNote(None, defn.params, mono_args)
-                    )
-                raise
-            defn = checked_defn
+            defn = _check_generic_def_instantiation(
+                defn, mono_args, Globals(DEF_STORE.frames[defn.id])
+            )
         self.checked[id, mono_args] = defn
 
         from guppylang_internals.definition.enum import CheckedEnumDef
@@ -364,17 +473,21 @@ class CompilationEngine:
 
         Adds the instantiation to the worklist and ensures that it will be checked.
         """
-        finder = BoundVarFinder()
-        for arg in type_args:
-            arg.visit(finder)
-        if not finder.bound_vars:
+        if is_concrete_inst(type_args):
             self.to_check_worklist[defn.id, type_args] = defn
 
-    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
-        """Looks up an instance function with a given name for a type.
+    def register_call_graph_node(self, mono_id: MonoDefId) -> None:
+        """Ensures a monomorphized definition is registered in the call graph.
+        Required before edges can be added from the node, but not to it.
 
-        Returns `None` if the name doesn't exist or isn't a function.
+        Thus, used to indicate the def is of a kind for which we wish to track calls
+        (i.e. a user-defined function), even if it doesn't actually contain any.
         """
+        assert mono_id not in self.call_graph
+        self.call_graph[mono_id] = []
+
+    def get_type_defn(self, ty: Type | TypeDef) -> TypeDef | None:
+        """Convert a Type | TypeDef to a TypeDef."""
         type_defn: TypeDef
         match ty:
             case TypeDef() as type_defn:
@@ -409,6 +522,16 @@ class CompilationEngine:
                 return assert_never(ty)
 
         type_defn = cast("TypeDef", ENGINE.get_checked(type_defn.id, mono_args=()))
+        return type_defn
+
+    def get_instance_func(self, ty: Type | TypeDef, name: str) -> CallableDef | None:
+        """Looks up an instance function with a given name for a type.
+
+        Returns `None` if the name doesn't exist or isn't a function.
+        """
+        type_defn = self.get_type_defn(ty)
+        if type_defn is None:
+            return None
         if (
             type_defn.id in DEF_STORE.type_members
             and name in DEF_STORE.type_members[type_defn.id]
@@ -418,6 +541,27 @@ class CompilationEngine:
             if isinstance(defn, CallableDef):
                 return defn
         return None
+
+    def get_type_member(self, ty: Type | TypeDef, name: str) -> DefId | None:
+        """Looks up a type member with a given name for a type.
+
+        Returns `None` if the name doesn't exist
+        """
+        type_defn = self.get_type_defn(ty)
+        if type_defn is None:
+            return None
+        if (
+            type_defn.id in DEF_STORE.type_members
+            and name in DEF_STORE.type_members[type_defn.id]
+        ):
+            return DEF_STORE.type_members[type_defn.id][name]
+        return None
+
+    def is_def_static(self, func_id: DefId) -> bool:
+        """Get staticness of parsed definition if it can be static."""
+
+        parsed = self.get_parsed(func_id)
+        return isinstance(parsed, CallableDef) and parsed.is_static
 
     @pretty_errors
     def check_single(self, id: DefId) -> None:
@@ -442,12 +586,14 @@ class CompilationEngine:
         # We allow generic functions as checking entrypoints as long as we don't run
         # into a check that requires monomorphization. For this, we check a version
         # where all parameters are instantiated to opaque `BoundVariable`s.
+        entry_points: list[MonoDefId] = []
         for def_id in def_ids:
             entry_defn = self.get_parsed(def_id)
             entry_params = (
                 entry_defn.params if isinstance(entry_defn, CheckableGenericDef) else []
             )
             entry_mono_args = tuple(param.to_bound() for param in entry_params)
+            entry_points.append((def_id, entry_mono_args))
             try:
                 self.checked[def_id, entry_mono_args] = self.get_checked(
                     def_id, entry_mono_args
@@ -461,7 +607,30 @@ class CompilationEngine:
                 raise GuppyError(err) from e
 
         # Checking the entrypoint will have populated the worklist, so now we need to
-        # process it
+        # process it.
+        # Propagate the locally checked modifier labels through the call graph. A
+        # resolved custom implementation can introduce more checked graph nodes, so
+        # repeat the complete contextual analysis until monomorphization reaches a
+        # fixed point.
+        self._drain_check_worklists()
+        while True:
+            modifier_analysis = analyze_modifier_calls(
+                entry_points,
+                self.call_graph,
+                self.local_modifiers_by_edge,
+                self._resolve_modified_call,
+            )
+            self.resolved_modified_calls = modifier_analysis.resolved_calls
+            self.custom_uses_by_mono_def = modifier_analysis.custom_uses_by_mono_def
+            if not self._register_custom_modifier_monomorphizations(
+                self.custom_uses_by_mono_def.values()
+            ):
+                self.call_graph = modifier_analysis.expanded_calls
+                break
+            self._drain_check_worklists()
+
+    def _drain_check_worklists(self) -> None:
+        """Checks all definitions currently queued on the checking worklists."""
         while (
             self.types_to_check_worklist
             or self.generic_to_check_worklist
@@ -489,6 +658,76 @@ class CompilationEngine:
             else:
                 (id, mono_args), _ = self.to_check_worklist.popitem()
                 self.checked[id, mono_args] = self.get_checked(id, mono_args)
+
+    def _register_custom_modifier_monomorphizations(
+        self, custom_uses: "Iterable[ConcreteCustomUse]"
+    ) -> bool:
+        """Adds required custom-definition monomorphizations to the checking worklist.
+
+        Returns whether at least one corresponding monomorphization was added to the
+        checking worklist.
+        """
+        added = False
+        for custom_use in custom_uses:
+            custom_def = custom_use.custom_def
+            if custom_def in self.checked or custom_def in self.to_check_worklist:
+                continue
+            custom_id, custom_args = custom_def
+            custom_defn = self.get_parsed(custom_id)
+            assert isinstance(custom_defn, CheckableGenericDef)
+            assert len(custom_args) == len(custom_defn.params)
+            self.register_generic_use(custom_defn, custom_args)
+            added = True
+        return added
+
+    def _resolve_modified_call(
+        self, callee: MonoDefId, modifier_ctx: ModifierContext
+    ) -> tuple[MonoDefId, ConcreteCustomUse | None]:
+        """Returns the resolved callee and its custom use, if one is required."""
+        kind = modifier_ctx.kind_required()
+        if kind is None:
+            # No modification required
+            return callee, None
+
+        callee_id, callee_inst = callee
+        if not is_concrete_inst(callee_inst):
+            # Callee is not concrete, we cannot resolve the call yet.
+            return callee, None
+
+        custom_id = DEF_STORE.custom_modified_defs.get(callee_id, {}).get(kind)
+        if custom_id is None:
+            # No custom definition available for this kind of modification
+            return callee, None
+
+        control_count = None
+        custom_args = callee_inst
+        if kind.takes_controls:
+            from guppylang_internals.definition.function import ParsedFunctionDef
+
+            try:
+                control_count = modifier_ctx.concrete_control_count()
+            except ValueError:
+                # Control count is not concrete, we cannot resolve the call yet.
+                return callee, None
+            custom_defn = self.get_parsed(custom_id)
+            assert isinstance(custom_defn, ParsedFunctionDef)
+            control_param = get_array_length(custom_defn.ty.inputs[-1].ty)
+            assert isinstance(control_param, BoundConstVar)
+            # We insert the concrete control count at the position of the control
+            # parameter.
+            custom_args = (
+                *callee_inst[: control_param.idx],
+                ConstArg(ConstValue(nat_type(), control_count)),
+                *callee_inst[control_param.idx :],
+            )
+
+        custom_def = (custom_id, custom_args)
+        return custom_def, ConcreteCustomUse(
+            unmodified_callee=callee,
+            custom_def=custom_def,
+            kind=kind,
+            control_count=control_count,
+        )
 
     @pretty_errors
     def compile_single(self, id: DefId) -> ModulePointer:
@@ -533,6 +772,9 @@ class CompilationEngine:
     def _compile_impl(
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
+        callgraph = CallGraph(self.call_graph)
+        effects = compute_effects(callgraph, self.func_effects)
+
         # Prepare Hugr for this module
         graph = hf.Module()
         graph.metadata["name"] = "__main__"  # entrypoint metadata
@@ -545,7 +787,13 @@ class CompilationEngine:
         frame = get_calling_frame()
         filename = frame.f_code.co_filename
 
-        ctx = CompilerContext(graph, set(def_ids), StringTable())
+        ctx = CompilerContext(
+            graph,
+            set(def_ids),
+            effects,
+            self.custom_uses_by_mono_def,
+            StringTable(),
+        )
         requested_defs = []
         for def_id in def_ids:
             check_entry_point_non_generic(self.get_parsed(def_id))
@@ -694,6 +942,22 @@ def check_entry_point_non_generic(defn: ParsedDef) -> None:
         )
 
 
+def _check_generic_def_instantiation(
+    defn: CheckableGenericDef, mono_args: Inst, globals: "Globals"
+) -> CheckedDef:
+    try:
+        return defn.check(mono_args, globals)
+    except GuppyError as err:
+        # If this is an error arising from the initial parametric check where
+        # parameters are treated as opaque values, then we can just report the
+        # error as is. However, if the error only shows up once we check a
+        # concrete monomorphic instantiation, then we should also report this
+        # instantiation in the error message to give some additional context.
+        if instantiation_context_is_useful_for_error(mono_args):
+            err.error.add_sub_diagnostic(MonoArgsNote(None, defn.params, mono_args))
+        raise
+
+
 def instantiation_context_is_useful_for_error(mono_args: Inst) -> bool:
     """Checks if the given instantiation should be attached as context to an error.
 
@@ -711,6 +975,158 @@ def instantiation_context_is_useful_for_error(mono_args: Inst) -> bool:
             case _:
                 return True
     return False
+
+
+@dataclass(frozen=True)
+class CustomModifiedDefSignatureError(Error):
+    title: ClassVar[str] = (
+        "Incompatible signature for custom `{implementation}` implementation"
+    )
+    span_label: ClassVar[str] = (
+        "Expected signature `{expected_signature}`, got `{actual_signature}`"
+    )
+    implementation: str
+    expected_signature: str
+    actual_signature: FunctionType
+
+    class DaggeredNote(Note):
+        message: ClassVar[str] = (
+            "A custom `daggered` implementation must have the same signature as its "
+            "parent function."
+        )
+
+    class ControlledNote(Note):
+        message: ClassVar[str] = (
+            "A custom `{implementation}` implementation must have its parent "
+            "function's signature followed by an `array[qubit, n]` input containing "
+            "the control qubits."
+        )
+
+
+def _check_modified_def_signature(
+    parsed_modified_def: "ParsedFunctionDef", parent_ty: FunctionType
+) -> None:
+    """Checks that a custom modified definition has a signature compatible with its
+    parent:
+    - `daggered`: must have exactly the same signature as the parent.
+    - `controlled` / `ctrl_daggered`: must have the parent's signature extended
+      with a `array[qubit, n]` input holding the control qubits.
+    """
+    if parsed_modified_def.name == CALL_DAGGERED_METHOD:
+        daggered_ty = parsed_modified_def.ty
+        if unify(parent_ty, daggered_ty, {}) is None:
+            err = CustomModifiedDefSignatureError(
+                parsed_modified_def.defined_at,
+                implementation=CALL_DAGGERED_METHOD,
+                expected_signature=f"{parent_ty}",
+                actual_signature=daggered_ty,
+            )
+            err.add_sub_diagnostic(CustomModifiedDefSignatureError.DaggeredNote(None))
+            raise GuppyError(err)
+    elif (
+        parsed_modified_def.name == CALL_CONTROLLED_METHOD
+        or parsed_modified_def.name == CALL_CTRL_DAGGERED_METHOD
+    ):
+        _check_controlled_def_signature(
+            parsed_modified_def.ty,
+            parent_ty,
+            parsed_modified_def.defined_at,
+            parsed_modified_def.name,
+        )
+    else:
+        raise InternalGuppyError(
+            f"Unexpected modified def name: {parsed_modified_def.name}"
+        )
+
+
+def _check_controlled_def_signature(
+    modified_ty: FunctionType,
+    parent_ty: FunctionType,
+    defined_at: ast.FunctionDef,
+    implementation: str,
+) -> None:
+
+    def signature_error() -> GuppyError:
+        control_param = ConstParam(len(parent_ty.params), "n", nat_type())
+        control_input = FuncInput(
+            array_type(
+                qubit_ty(),
+                BoundConstVar(control_param.ty, control_param.name, control_param.idx),
+            ),
+            InputFlags.Inout,
+            "_controls" if parent_ty.input_names is not None else None,
+        )
+        expected_signature = str(
+            FunctionType(
+                [*parent_ty.inputs, control_input],
+                parent_ty.output,
+                [*parent_ty.params, control_param],
+                parent_ty.comptime_args,
+                parent_ty.unitary_flags,
+            )
+        )
+        err = CustomModifiedDefSignatureError(
+            defined_at,
+            implementation=implementation,
+            expected_signature=expected_signature,
+            actual_signature=modified_ty,
+        )
+        err.add_sub_diagnostic(CustomModifiedDefSignatureError.ControlledNote(None))
+        return GuppyError(err)
+
+    if (
+        len(modified_ty.inputs) != len(parent_ty.inputs) + 1
+        or len(modified_ty.params) != len(parent_ty.params) + 1
+    ):
+        # Wrong number of inputs or parameters
+        raise signature_error()
+
+    last_input_ty = modified_ty.inputs[-1].ty
+    if (
+        not is_array_type(last_input_ty)
+        or not is_qubit_ty(get_element_type(last_input_ty))
+        or modified_ty.inputs[-1].flags != InputFlags.Inout
+    ):
+        # The last input must be an array of qubits with Inout flags
+        raise signature_error()
+
+    control_count = get_array_length(last_input_ty)
+    if not isinstance(control_count, BoundConstVar):
+        # The array length must be a bound constant variable
+        # (i.e. the array length is generic)
+        raise signature_error()
+
+    assert 0 <= control_count.idx < len(modified_ty.params)
+    control_param = modified_ty.params[control_count.idx]
+    if not isinstance(
+        control_param, ConstParam
+    ) or control_param.to_bound() != ConstArg(control_count):
+        # `control_count` is the number of control qubits;
+        # `control_param` is the parameter in the implementation's signature.
+        # `control_param` must be a constant parameter with the same type and
+        # index as `control_count`.
+        raise signature_error()
+
+    # Renumber the remaining parameters, keeping control references
+    # outside their range so they cannot match a parent parameter.
+    normalized_ty = modified_ty.instantiate_partial(
+        [
+            param.to_bound(len(parent_ty.params)) if i == control_count.idx else None
+            for i, param in enumerate(modified_ty.params)
+        ]
+    )
+    ty_wo_controllers = FunctionType(
+        normalized_ty.inputs[:-1],
+        normalized_ty.output,
+        normalized_ty.params,
+        normalized_ty.comptime_args,
+        normalized_ty.unitary_flags,
+    )
+    # Apply the same normalization without removing parent parameters.
+    normalized_parent_ty = parent_ty.instantiate_partial([None] * len(parent_ty.params))
+    if unify(ty_wo_controllers, normalized_parent_ty, {}) is None:
+        # The function type without controllers must unify with the __call__ type
+        raise signature_error()
 
 
 ENGINE: CompilationEngine = CompilationEngine()

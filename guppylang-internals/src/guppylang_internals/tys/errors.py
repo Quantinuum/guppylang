@@ -219,6 +219,10 @@ class UnitaryCallError(Error):
         `unitary=True`"""
         return self.flags.hint_rendering()
 
+    @property
+    def custom_hint_rendering(self) -> str:
+        return self.flags.custom_hint_rendering()
+
     @dataclass(frozen=True)
     class QubitAllocationNote(Note):
         message: ClassVar[str] = (
@@ -227,11 +231,12 @@ class UnitaryCallError(Error):
         )
 
     @dataclass(frozen=True)
-    class Hint(Help):
+    class MissingFlagHint(Help):
         func_name: str
         message: ClassVar[str] = (
             "Consider adding the flag `({hint_rendering})` to the decorator of "
-            "the function `{func_name}`"
+            "the function `{func_name}` or adding {custom_hint_rendering} using the "
+            "`@guppy.unitary` decorator"
         )
 
     @dataclass(frozen=True)

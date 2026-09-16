@@ -41,6 +41,10 @@ class DFBuilder(ABC, ToNode):
     current_ast_node: AstNode | None = field(default=None, kw_only=True)
     _last_side_effect: dict[Effect, Node] = field(default_factory=dict, init=False)
 
+    @property
+    def effects(self) -> Iterable[Effect]:
+        return self._last_side_effect.keys()
+
     @abstractproperty
     def _raw(self) -> hf.Function | Case | TailLoop | Block:
         """The underlying Hugr dataflow graph builder."""

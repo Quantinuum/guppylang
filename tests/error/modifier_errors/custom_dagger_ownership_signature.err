@@ -1,0 +1,14 @@
+Error: Incompatible signature for custom `daggered` implementation (at $FILE:13:4)
+   | 
+11 | 
+12 |     @guppy
+13 |     def daggered(q: qubit @ owned) -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+14 |         pass
+   | ^^^^^^^^^^^^ Expected signature `qubit -> None`, got `qubit @owned ->
+   |              None`
+
+Note: A custom `daggered` implementation must have the same signature as its
+parent function.
+
+Guppy compilation failed due to 1 previous error

@@ -98,6 +98,7 @@ def ext_module_decorator[T](
                 effects=[Effect.ANY],
                 has_signature=True,
                 has_var_args=False,
+                is_static=True,
             )
             discard = CustomFunctionDef(
                 DefId.fresh(),
@@ -111,6 +112,7 @@ def ext_module_decorator[T](
                 effects=[Effect.ANY],
                 has_signature=True,
                 has_var_args=False,
+                is_static=False,
             )
             DEF_STORE.register_def(call_method, get_calling_frame())
             DEF_STORE.register_type_member(ext_module.id, "__new__", call_method.id)

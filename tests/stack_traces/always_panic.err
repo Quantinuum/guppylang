@@ -1,0 +1,9 @@
+Panic (#1001): Always panics
+Guppy traceback (most recent call last):
+   File "$PATH_TO_FILE/always_panic.py", line 7, in stack_traces.always_panic.main:
+     | 
+   5 | @guppy
+   6 | def main() -> None:
+   7 |     panic("Always panics")
+     |     ^ Always panics
+
