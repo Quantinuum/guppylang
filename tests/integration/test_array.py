@@ -776,6 +776,51 @@ def test_discard_empty_array(validate):
     validate(main.compile())
 
 
+def test_take2(validate):
+    # Tests actual panicking variants produce panics; and verifies behaviour
+    # of quantum vs classical variants
+    T = guppy.type_var("T", copyable=False, droppable=False)
+
+    @guppy
+    def do_take(arr: array[T, 3], idx1: int, idx2: int) -> None:
+        v = arr.take(idx1)
+        output("after_borrow", arr.is_borrowed(idx1))
+        v2 = arr.take(idx2)  # panic if idx1 == idx2
+        arr.put(v, idx1)
+        arr.put(v2, idx2)
+        output("after_put", arr.is_borrowed(idx2))
+
+    @guppy
+    def main(idx1: int, idx2: int, linear: bool) -> None:
+        if linear:
+            q_arr = array(qubit(), qubit(), qubit())
+            do_take(q_arr, idx1, idx2)
+            discard_array(q_arr)
+        else:
+            i_arr = array(1, 2, 3)
+            do_take(i_arr, idx1, idx2)
+
+    validate(main.compile_function())
+
+    res = main.emulator(3).coinflip_sim().run(idx1=0, idx2=1, linear=True).results[0]
+
+    assert res.entries == [("after_borrow", 1), ("after_put", 0)]
+    # emulator with n_qubits=0 causes an error
+    res = main.emulator(1).run(idx1=0, idx2=1, linear=False).results[0]
+    # Classical things don't get borrowed
+    assert res.entries == [("after_borrow", 0), ("after_put", 0)]
+
+    with pytest.raises(EmulatorError, match="Array element is already borrowed"):
+        main.emulator(3).coinflip_sim().run(idx1=0, idx2=0, linear=True)
+
+    res = main.emulator(1).run(idx1=0, idx2=0, linear=False).results[0]
+    assert res.entries == [("after_borrow", 0), ("after_put", 0)]
+
+    for linear in [True, False]:
+        with pytest.raises(EmulatorError, match="Index out of bounds"):
+            main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=linear)
+
+
 def test_discard_borrowed(validate):
     @guppy
     def main() -> None:
@@ -804,6 +849,20 @@ def test_discard_all_taken(validate):
 
     res = main.emulator(2).coinflip_sim().run().results[0].entries
     assert res == [("after_discard", 1)]
+
+
+def test_discard_all_taken_classical(validate):
+    @guppy
+    def main() -> None:
+        arr = array(1, 2)
+        arr.take(0)
+        arr.take(1)
+        output("is_borrowed", int(arr.is_borrowed(0)) + int(arr.is_borrowed(1)))
+        arr.discard_all_taken()
+        output("after_discard", 42)
+
+    res = main.emulator(n_qubits=1).run().results[0].entries
+    assert res == [("is_borrowed", 0), ("after_discard", 42)]
 
 
 def test_discard_not_all_taken(validate):
