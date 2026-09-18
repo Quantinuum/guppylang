@@ -613,6 +613,7 @@ class CompilationEngine:
         # repeat the complete contextual analysis until monomorphization reaches a
         # fixed point.
         self._drain_check_worklists()
+        self.print_call_graph()
         while True:
             modifier_analysis = analyze_modifier_calls(
                 entry_points,
@@ -628,6 +629,36 @@ class CompilationEngine:
                 self.call_graph = modifier_analysis.expanded_calls
                 break
             self._drain_check_worklists()
+
+        resolved_contexts: dict[CallGraphEdge, dict[ModifierContext, None]] = {}
+        for ((caller, _), context), callee in self.resolved_modified_calls.items():
+            resolved_contexts.setdefault((caller, callee), {})[context] = None
+
+        print("Call graph edges after analysis:")
+        self.print_call_graph()
+
+    def print_call_graph(self) -> None:
+        for (caller_id, caller_mono), callees in self.call_graph.items():
+            caller_name = self.get_parsed(caller_id).name
+            for id, mono_args in callees:
+                callee_name = self.get_parsed(id).name
+                edge = ((caller_id, caller_mono), (id, mono_args))
+                contexts = tuple(self.local_modifiers_by_edge.get(edge, ())) or (
+                    ModifierContext(),
+                )
+                print(
+                    f"  ({caller_id}, {caller_name})"
+                    f" -- {self.str_context(contexts)} -->"
+                    f" ({id}, {callee_name})"
+                )
+
+    def str_context(self, contexts: tuple[ModifierContext, ...]) -> str:
+
+        strings = []
+        for context in contexts:
+            strings.append(f"({context.concrete_control_count()},{context.daggered})")
+
+        return ", ".join(s for s in strings)
 
     def _drain_check_worklists(self) -> None:
         """Checks all definitions currently queued on the checking worklists."""
