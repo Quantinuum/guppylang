@@ -559,8 +559,8 @@ class FunctionType(ParametrizedTypeBase):
         """Computes the Hugr `PolyFuncType` representation of the type."""
         if self.parametrized:
             raise InternalGuppyError(
-                "Tried to convert parameterized function type to Hugr. This should have "
-                "been monomorphized away."
+                "Tried to convert parameterized function type to Hugr. This should "
+                "have been monomorphized away."
             )
         func_ty = self._to_hugr_function_type(ctx)
         return ht.PolyFuncType(params=[], body=func_ty)
