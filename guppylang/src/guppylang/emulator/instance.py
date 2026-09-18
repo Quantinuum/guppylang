@@ -157,8 +157,8 @@ class EmulatorInstance:
 
     @property
     def n_processes(self) -> int:
-        """Number of processes to parallelise the emulator execution across.
-        Defaults to 1, meaning no parallelisation."""
+        """Number of processes to parallelize the emulator execution across.
+        Defaults to 1, meaning no parallelization."""
         return self._options._n_processes
 
     @property
@@ -270,8 +270,8 @@ class EmulatorInstance:
         return self._with_option(_shot_increment=value)
 
     def with_n_processes(self, value: int) -> Self:
-        """Set the number of processes to parallelise the emulator execution across.
-        Defaults to 1, meaning no parallelisation."""
+        """Set the number of processes to parallelize the emulator execution across.
+        Defaults to 1, meaning no parallelization."""
         return self._with_option(_n_processes=value)
 
     def statevector_sim(self) -> Self:
