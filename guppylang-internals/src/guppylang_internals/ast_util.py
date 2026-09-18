@@ -40,7 +40,7 @@ class AstVisitor[T]:
 
     Per default the visitor functions for the nodes are ``'visit_'`` +
     class name of the node.  So a `TryFinally` node visit function would
-    be `visit_TryFinally`.  This behavior can be changed by overriding
+    be `visit_TryFinally`.  This behaviour can be changed by overriding
     the `visit` method.  If no visitor function exists for a node
     (return value `None`) the `generic_visit` visitor is used instead.
 

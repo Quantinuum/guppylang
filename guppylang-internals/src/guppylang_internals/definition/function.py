@@ -153,7 +153,7 @@ class RawFunctionDef(ParsableDef, UserProvidedLinkName):
         sources: SourceMap,
     ) -> ast.ClassDef:
         """
-        Initialise for this definition the location and the type parameters of the
+        Initialize for this definition the location and the type parameters of the
         `@guppy.unitary` class
         """
         unitary_class_span = parse_py_class(cls, defining_frame, sources)

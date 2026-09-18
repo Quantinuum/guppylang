@@ -21,7 +21,7 @@ from guppylang_internals.tys.ty import (
 
 
 class WasmModuleInitCompiler(CustomInoutCallCompiler):
-    """Compiler for initialising WASM modules.
+    """Compiler for initializing WASM modules.
     Calls tket's "get_context" and unwraps the `Option` result.
     Returns a `tket.wasm.context` wire.
     """
