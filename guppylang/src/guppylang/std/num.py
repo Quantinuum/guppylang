@@ -140,7 +140,9 @@ class nat:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
     def ___round__no_digits(self: nat) -> nat: ...
 
-    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        NoopCompiler(ret_slice=slice(0, 1)), unitary_flags=UnitaryFlags.Dagger
+    )
     def ___round__digits(self: nat, ndigits: int) -> nat: ...
 
     @guppy.overload(___round__no_digits, ___round__digits)
@@ -311,7 +313,9 @@ class int:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
     def ___round__no_digits(self: int) -> int: ...
 
-    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        NoopCompiler(ret_slice=slice(0, 1)), unitary_flags=UnitaryFlags.Dagger
+    )
     def ___round__digits(self: int, ndigits: int) -> int: ...
 
     @guppy.overload(___round__no_digits, ___round__digits)
@@ -557,6 +561,18 @@ def pow(x, y): ...
     higher_order_value=False,
     unitary_flags=UnitaryFlags.Dagger,
 )
+def ___round__no_digits(x): ...
+
+
+@custom_function(
+    checker=DunderChecker("__round__", num_args=2),
+    higher_order_value=False,
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def ___round__digits(x, ndigits): ...
+
+
+@guppy.overload(___round__no_digits, ___round__digits)
 def round(x): ...
 
 
