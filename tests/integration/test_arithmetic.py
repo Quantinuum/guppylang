@@ -437,8 +437,12 @@ def test_round(run_int_fn, run_float_fn_approx) -> None:
         return round(nat(2), 2)
 
     @guppy
-    def float_round_digits() -> float:
-        return round(1.1234, 2)
+    def float_round_digits_tie_down() -> float:
+        return round(1.125, 2)
+
+    @guppy
+    def float_round_digits_tie_up() -> float:
+        return round(1.135, 2)
 
     run_int_fn(int_round, 1)
     run_int_fn(nat_round, 2)
@@ -446,4 +450,5 @@ def test_round(run_int_fn, run_float_fn_approx) -> None:
     run_int_fn(float_round_tie_up, 4)
     run_int_fn(int_round_digits, 1)
     run_int_fn(nat_round_digits, 2)
-    run_float_fn_approx(float_round_digits, 1.12)
+    run_float_fn_approx(float_round_digits_tie_down, 1.12)
+    run_float_fn_approx(float_round_digits_tie_up, 1.14)
