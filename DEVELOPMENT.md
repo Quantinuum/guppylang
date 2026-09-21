@@ -159,7 +159,7 @@ We use Rust-style release branches, one per minor series:
 
 - `main` develops the **next minor** as an alpha series (e.g. `1.6.0-a0`,
   `1.6.0-a1`, …).
-- When a minor is ready to stabilise (feature-freeze), a long-lived
+- When a minor is ready to stabilize (feature-freeze), a long-lived
   `release/<major>.<minor>` branch is cut from `main` (e.g. `release/1.6`). The
   `rc → stable → patch` lifecycle then happens **on that branch** (`1.6.0-rc0`,
   …, `1.6.0`, `1.6.1`, …).
