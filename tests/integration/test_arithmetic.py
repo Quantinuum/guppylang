@@ -4,7 +4,6 @@ from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
 from guppylang.std.angles import angle, pi
 from guppylang.std.builtins import nat
-
 from tests.util import compile_guppy
 
 
