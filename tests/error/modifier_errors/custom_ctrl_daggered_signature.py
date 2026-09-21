@@ -5,7 +5,7 @@ from guppylang.std.quantum import qubit
 
 @guppy.unitary
 class foo:
-    @guppy(controllable=True)
+    @guppy(unitary=True)
     def __call__(q: qubit) -> None:
         pass
 

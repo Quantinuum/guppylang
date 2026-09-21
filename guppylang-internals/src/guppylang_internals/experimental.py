@@ -81,8 +81,12 @@ def check_lists_enabled(loc: AstNode | None = None) -> None:
         raise GuppyError(err)
 
 
+def are_capturing_closures_enabled() -> bool:
+    return EXPERIMENTAL_FEATURES_ENABLED
+
+
 def check_capturing_closures_enabled(loc: AstNode | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
+    if not are_capturing_closures_enabled():
         raise GuppyError(UnsupportedError(loc, "Capturing closures"))
 
 
@@ -90,11 +94,4 @@ def check_power_modifier_enabled(loc: AstNode | None = None) -> None:
     if not EXPERIMENTAL_FEATURES_ENABLED:
         raise GuppyError(
             ExperimentalFeatureError(loc, "`power` modifier", singular_things=True)
-        )
-
-
-def check_unitary_classes_enabled(loc: AstNode | None = None) -> None:
-    if not EXPERIMENTAL_FEATURES_ENABLED:
-        raise GuppyError(
-            ExperimentalFeatureError(loc, "`@guppy.unitary`", singular_things=True)
         )

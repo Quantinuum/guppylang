@@ -1,16 +1,20 @@
 import ast
+import builtins
 from dataclasses import dataclass
-from enum import Enum, auto
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
 from guppylang_internals.checker.core import Place
-from guppylang_internals.checker.errors.generic import InvalidUnderDagger
+from guppylang_internals.checker.errors.generic import (
+    InvalidUnderDagger,
+    UnexpectedError,
+)
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.definition.value import CallableDef
-from guppylang_internals.diagnostic import Error
-from guppylang_internals.error import GuppyError, GuppyTypeError
+from guppylang_internals.diagnostic import Error, Help
+from guppylang_internals.error import GuppyError, GuppyTypeError, pretty_errors
 from guppylang_internals.nodes import (
     AbortExpr,
     AnyCall,
@@ -22,52 +26,50 @@ from guppylang_internals.nodes import (
     StateOutputExpr,
     TensorCall,
 )
-from guppylang_internals.span import ToSpan
+from guppylang_internals.span import ToSpan, function_header_span
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import (
+    CALL_CONTROLLED_METHOD,
+    CALL_CTRL_DAGGERED_METHOD,
+    CALL_DAGGERED_METHOD,
     FunctionType,
     UnitaryFlags,
 )
 
+if TYPE_CHECKING:
+    from guppylang_internals.definition.function import RawFunctionDef
 
-class InvalidUnitaryKind(Enum):
-    MissingCtrlDaggered = auto()
-    MissingCtrlDaggeredForFlag = auto()
-    MissingCtrl = auto()
+type CustomModifiedDefinitions = dict[CustomModifierKind, RawFunctionDef]
 
 
 @dataclass(frozen=True)
 class InvalidUnitaryError(Error):
     title: ClassVar[str] = "Invalid `@guppy.unitary` implementation"
-    kind: InvalidUnitaryKind
-    implementation: str | None = None
-    flag: str | None = None
+    implementations: tuple[str, ...]
+    required_implementations: tuple[str, ...]
+    flag_on_call: UnitaryFlags
+    required_flag_on_call: UnitaryFlags
 
     @property
     def rendered_message(self) -> str:
-        match self.kind:
-            case InvalidUnitaryKind.MissingCtrlDaggered:
-                implementation = "`daggered` and `controlled`"
-                required_implementation = "`ctrl_daggered`"
-                required_flag = "unitary"
-            case InvalidUnitaryKind.MissingCtrlDaggeredForFlag:
-                assert self.implementation is not None
-                assert self.flag is not None
-                implementation = (
-                    f"`{self.implementation}` for a function marked `{self.flag}=True`"
-                )
-                required_implementation = "`ctrl_daggered`"
-                required_flag = "unitary"
-            case InvalidUnitaryKind.MissingCtrl:
-                implementation = "`ctrl_daggered`"
-                required_implementation = "`controlled`"
-                required_flag = "controllable"
+        implementations = " and ".join(f"`{name}`" for name in self.implementations)
+        required = " and ".join(f"`{name}`" for name in self.required_implementations)
+        required = (
+            f"a {required} implementation"
+            if len(self.required_implementations) == 1
+            else f"{required} implementations"
+        )
+        declaration = (
+            ""
+            if self.flag_on_call == UnitaryFlags.NoFlags
+            else f" with `__call__` declared as `{self.flag_on_call.hint_rendering()}`"
+        )
 
         return (
-            f"A `@guppy.unitary` class implementing {implementation} "
-            f"requires either a {required_implementation} implementation or "
-            f"`{required_flag}=True` on `__call__`"
+            f"A `@guppy.unitary` class implementing {implementations}{declaration} "
+            f"requires either {required} or "
+            f"`{self.required_flag_on_call.hint_rendering()}` on `__call__`"
         )
 
 
@@ -310,10 +312,26 @@ def check_modified_def_combinations(
     - If `__call__` is marked as `daggerable=True` and the function has a
       `controlled` implementation, it must also have a `ctrl_daggered` implementation
       or `__call__` is marked as `unitary=True`.
-    - If a `@guppy.unitary` class has a `ctrl_daggered` implementation, it must also
-      have  a `controlled` implementation, unless `__call__` is marked as
-      `controllable=True`.
+    - If a `@guppy.unitary` class has a `ctrl_daggered` implementation and `__call__`
+      has no unitary flags, it must also have `controlled` and `daggered`
+      implementations.
+    - If a `@guppy.unitary` class has a `ctrl_daggered` implementation and is marked as
+      `controllable=True`, it must also have a `daggered` implementation, unless
+      `__call__` is marked as `daggerable=True`.
+    - If a `@guppy.unitary` class has a `ctrl_daggered` implementation and is marked as
+      `daggerable=True`, it must also have a `controlled` implementation, unless
+      `__call__` is marked as `controllable=True`.
     """
+    implementations = tuple(
+        name
+        for name, present in (
+            ("daggered", has_daggered),
+            ("controlled", has_controlled),
+            ("ctrl_daggered", has_ctrl_daggered),
+        )
+        if present
+    )
+
     # Custom daggered and controlled implementations require ctrl_daggered support.
     if (
         has_daggered
@@ -322,7 +340,13 @@ def check_modified_def_combinations(
         and unitary_flags != UnitaryFlags.Unitary
     ):
         raise GuppyError(
-            InvalidUnitaryError(definition_span, InvalidUnitaryKind.MissingCtrlDaggered)
+            InvalidUnitaryError(
+                definition_span,
+                implementations,
+                ("ctrl_daggered",),
+                unitary_flags,
+                UnitaryFlags.Unitary,
+            )
         )
     if not has_ctrl_daggered and unitary_flags != UnitaryFlags.Unitary:
         # Controllable plus a custom daggered implementation requires ctrl_daggered.
@@ -330,9 +354,10 @@ def check_modified_def_combinations(
             raise GuppyError(
                 InvalidUnitaryError(
                     definition_span,
-                    InvalidUnitaryKind.MissingCtrlDaggeredForFlag,
-                    "daggered",
-                    "controllable",
+                    implementations,
+                    ("ctrl_daggered",),
+                    unitary_flags,
+                    UnitaryFlags.Unitary,
                 )
             )
         # Daggerable plus a custom controlled implementation requires ctrl_daggered.
@@ -340,18 +365,134 @@ def check_modified_def_combinations(
             raise GuppyError(
                 InvalidUnitaryError(
                     definition_span,
-                    InvalidUnitaryKind.MissingCtrlDaggeredForFlag,
-                    "controlled",
-                    "daggerable",
+                    implementations,
+                    ("ctrl_daggered",),
+                    unitary_flags,
+                    UnitaryFlags.Unitary,
                 )
             )
 
-    # A custom ctrl_daggered implementation requires controllable support.
-    if (
-        has_ctrl_daggered
-        and not has_controlled
-        and UnitaryFlags.Control not in unitary_flags
-    ):
-        raise GuppyError(
-            InvalidUnitaryError(definition_span, InvalidUnitaryKind.MissingCtrl)
-        )
+    # A custom ctrl_daggered implementation needs both modifier capabilities. Each
+    # capability may be provided by a custom implementation or declared on __call__.
+    if has_ctrl_daggered:
+        missing_implementations = [
+            name
+            for name, supported in (
+                (
+                    "controlled",
+                    has_controlled or UnitaryFlags.Control in unitary_flags,
+                ),
+                ("daggered", has_daggered or UnitaryFlags.Dagger in unitary_flags),
+            )
+            if not supported
+        ]
+        if missing_implementations:
+            required_flag = UnitaryFlags.NoFlags
+            if "controlled" in missing_implementations:
+                required_flag |= UnitaryFlags.Control
+            if "daggered" in missing_implementations:
+                required_flag |= UnitaryFlags.Dagger
+            raise GuppyError(
+                InvalidUnitaryError(
+                    definition_span,
+                    implementations,
+                    tuple(missing_implementations),
+                    unitary_flags,
+                    required_flag,
+                )
+            )
+
+
+@dataclass(frozen=True)
+class InvalidUnitaryMethodError(Error):
+    title: ClassVar[str] = "Invalid `@guppy.unitary` method"
+    node_name: str
+    class_name: str
+    span_label: ClassVar[str] = (
+        "`{node_name}` in the `@guppy.unitary` class `{class_name}`"
+        " must be a guppy function"
+    )
+
+
+@dataclass(frozen=True)
+class InvalidUnitaryMetadataHelp(Help):
+    message: ClassVar[str] = (
+        "This method cannot set unitary flags. To set unitary flag "
+        "to the unitary class, use the decorator on top of `__call__`."
+    )
+
+
+@dataclass(frozen=True)
+class InvalidExpectedQubit(Help):
+    message: ClassVar[str] = (
+        "This method cannot cannot use `@expected_qubits`; Use the decorator on top of "
+        "`__call__` to set the expected qubits."
+    )
+
+
+@dataclass(frozen=True)
+class InvalidUnitaryMethodHelp(Help):
+    message: ClassVar[str] = (
+        f"Only Guppy functions named: '__call__', '{CALL_CONTROLLED_METHOD}', "
+        f"'{CALL_CTRL_DAGGERED_METHOD}' or '{CALL_DAGGERED_METHOD}' are "
+        "allowed as methods in a `@guppy.unitary` class. "
+    )
+
+
+@pretty_errors
+def check_unitary_method[T](
+    cls: builtins.type[T],
+    class_ast: ast.ClassDef,
+) -> CustomModifiedDefinitions:
+    """Validate a unitary class body and return its custom modifier methods.
+
+    ``methods`` contains the class's own Guppy-decorated raw function definitions.
+    The caller must already have validated ``__call__``.
+    """
+    from guppylang.defs import GuppyDefinition
+
+    from guppylang_internals.definition.function import RawFunctionDef
+
+    custom_methods: dict[CustomModifierKind, RawFunctionDef] = {}
+    valid_method_names = [kind.value for kind in CustomModifierKind] + ["__call__"]
+    for node in class_ast.body:
+        if not isinstance(node, ast.FunctionDef) or node.name not in valid_method_names:
+            raise GuppyError(
+                UnexpectedError(
+                    node, "statement", unexpected_in="in a `@guppy.unitary` class"
+                ).add_sub_diagnostic(InvalidUnitaryMethodHelp(None))
+            )
+        method_name = node.name
+        # `__call__` has already been checked in `decorator._get_unitary_call_def`
+        if method_name == "__call__":
+            continue
+        method = cls.__dict__.get(method_name)
+
+        if not (
+            isinstance(method, GuppyDefinition)
+            and isinstance(method.wrapped, RawFunctionDef)
+        ):
+            raise GuppyError(InvalidUnitaryMethodError(node, node.name, class_ast.name))
+
+        # Check that no invalid metadata is present
+        method_raw_def = method.wrapped
+        if method_raw_def.unitary_flags != UnitaryFlags.NoFlags:
+            raise GuppyError(
+                UnexpectedError(
+                    function_header_span(node),
+                    "unitary flags",
+                    unexpected_in="in the method `@guppy` decorator",
+                ).add_sub_diagnostic(InvalidUnitaryMetadataHelp(None))
+            )
+
+        if (
+            method_raw_def.metadata is not None
+            and method_raw_def.metadata.get_expected_qubits() is not None
+        ):
+            raise GuppyError(
+                UnexpectedError(
+                    function_header_span(node), "`@expected_qubits` decorator"
+                ).add_sub_diagnostic(InvalidExpectedQubit(None))
+            )
+        custom_methods[CustomModifierKind(node.name)] = method_raw_def
+    return custom_methods

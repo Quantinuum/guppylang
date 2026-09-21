@@ -367,15 +367,6 @@ class UnitaryFlags(Flag):
 
     Unitary = Control | Dagger
 
-    def is_weaker_than(self, other: "UnitaryFlags") -> bool:
-        """Whether this flag is weaker than `other`,
-        i.e. whether this flag allows more contexts than `other`."""
-
-        if self == UnitaryFlags.NoFlags:
-            return True
-        else:
-            return self in other
-
     def hint_rendering(self) -> str:
         """Return the corresponding decorator flag"""
         match self:
@@ -530,7 +521,7 @@ class FunctionType(ParametrizedTypeBase):
 
     @property
     def parametrized(self) -> bool:
-        """Whether the function is parametrized."""
+        """Whether the function is parameterized."""
         return len(self.params) > 0
 
     @cached_property
@@ -559,7 +550,7 @@ class FunctionType(ParametrizedTypeBase):
         """Computes the Hugr representation of the type."""
         if self.parametrized:
             raise InternalGuppyError(
-                "Tried to convert parametrised function type to Hugr. Use "
+                "Tried to convert parameterized function type to Hugr. Use "
                 "`to_hugr_poly` instead"
             )
         return self._to_hugr_function_type(ctx)
@@ -568,8 +559,8 @@ class FunctionType(ParametrizedTypeBase):
         """Computes the Hugr `PolyFuncType` representation of the type."""
         if self.parametrized:
             raise InternalGuppyError(
-                "Tried to convert parametrised function type to Hugr. This should have "
-                "been monomorphized away."
+                "Tried to convert parameterized function type to Hugr. This should "
+                "have been monomorphized away."
             )
         func_ty = self._to_hugr_function_type(ctx)
         return ht.PolyFuncType(params=[], body=func_ty)
@@ -717,7 +708,7 @@ class FunctionDefType(TypeBase):
 
     @property
     def parametrized(self) -> bool:
-        """Whether the function is parametrized."""
+        """Whether the function is parameterized."""
         return self.sig.parametrized and not self.args
 
     def cast(self) -> "Type":
@@ -767,7 +758,7 @@ class FunctionDefType(TypeBase):
 
 @dataclass(frozen=True)
 class NestedFunctionDefType(FunctionDefType):
-    """Definition-specific type of a nested function materialised at runtime.
+    """Definition-specific type of a nested function materialized at runtime.
 
     Unlike global function items, we cannot compile nested function items into
     trivial Hugr types, thus we need a specific `to_hugr` implementation.
@@ -1158,7 +1149,7 @@ def _unify_const_var(
 def _unify_args(
     s: ParametrizedType, t: ParametrizedType, subst: "Subst"
 ) -> "Subst | None":
-    """Helper function for unification of type arguments of parametrised types."""
+    """Helper function for unification of type arguments of parameterized types."""
     if len(s.args) != len(t.args):
         return None
     for sa, ta in zip(s.args, t.args, strict=True):

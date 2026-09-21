@@ -1,5 +1,5 @@
 from guppylang.decorator import guppy
-from guppylang.std.builtins import array
+from guppylang.std.builtins import array, nat
 from guppylang.std.quantum import qubit
 
 
@@ -10,14 +10,12 @@ def helper(q: qubit) -> None:
 
 @guppy.unitary
 class foo:
-    n = guppy.nat_var("n")
-
     @guppy(controllable=True)
     def __call__(q: qubit) -> None:
         helper(q)
 
     @guppy
-    def controlled(q: qubit, _controls: array[qubit, n]) -> None:
+    def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
         pass
 
 
