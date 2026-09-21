@@ -440,6 +440,10 @@ def test_round(run_int_fn, run_float_fn_approx) -> None:
         return round(135, -1)
 
     @guppy
+    def int_round_neg_large() -> int:
+        return round(9_223_372_036_854_775_704, -1)
+
+    @guppy
     def nat_round_digits() -> int:
         return round(nat(2), 2)
 
@@ -450,6 +454,10 @@ def test_round(run_int_fn, run_float_fn_approx) -> None:
     @guppy
     def nat_round_neg_digits_tie_up() -> int:
         return round(nat(135), -1)
+
+    @guppy
+    def nat_round_neg_large() -> nat:
+        return round(nat(9_223_372_036_854_775_704), -1)
 
     @guppy
     def float_round_digits_tie_down() -> float:
@@ -467,6 +475,10 @@ def test_round(run_int_fn, run_float_fn_approx) -> None:
     def float_round_neg_digits_tie_up() -> float:
         return round(135.0, -1)
 
+    @guppy
+    def float_round_neg_large() -> float:
+        return round(9_223_372_036_854_775_704.0, -1)
+
     run_int_fn(int_round, 1)
     run_int_fn(nat_round, 2)
     run_int_fn(float_round_tie_down, 2)
@@ -474,10 +486,13 @@ def test_round(run_int_fn, run_float_fn_approx) -> None:
     run_int_fn(int_round_digits, 1)
     run_int_fn(int_round_neg_digits_tie_down, 120)
     run_int_fn(int_round_neg_digits_tie_up, 140)
+    run_int_fn(int_round_neg_large, 9_223_372_036_854_775_700)
     run_int_fn(nat_round_digits, 2)
     run_int_fn(nat_round_neg_digits_tie_down, 120)
     run_int_fn(nat_round_neg_digits_tie_up, 140)
+    run_int_fn(nat_round_neg_large, 9_223_372_036_854_775_700)
     run_float_fn_approx(float_round_digits_tie_down, 1.12)
     run_float_fn_approx(float_round_digits_tie_up, 1.14)
     run_float_fn_approx(float_round_neg_digits_tie_down, 120.0)
     run_float_fn_approx(float_round_neg_digits_tie_up, 140.0)
+    run_float_fn_approx(float_round_neg_large, 9_223_372_036_854_775_700.0)

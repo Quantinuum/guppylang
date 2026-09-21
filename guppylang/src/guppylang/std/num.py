@@ -146,7 +146,7 @@ class nat:
         if ndigits >= 0:
             return self
 
-        return nat(round(float(self), ndigits))
+        return nat(___round__inv(int(self), -ndigits))
 
     @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: nat) -> nat: ...
@@ -322,7 +322,7 @@ class int:
         if ndigits >= 0:
             return self
 
-        return int(round(float(self), ndigits))
+        return ___round__inv(self, -ndigits)
 
     @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: int) -> int: ...
@@ -560,6 +560,21 @@ def len(x): ...
     unitary_flags=UnitaryFlags.Dagger,
 )
 def pow(x, y): ...
+
+
+@guppy
+@no_type_check
+def ___round__inv(x: int, ndigits: int) -> int:
+    """Implements 'inverted' rounding for `x`, by effectively shifting right `ndigits`,
+    applying a rounding, and shifting left `ndigits`. Contains an adapted algorithm to
+    handle very large integers. `ndigits` is assumed to be strictly positive."""
+    factor = 10**ndigits
+    quotient = x // factor
+    remainder = x % factor
+    half = factor // 2
+    if remainder > half or (remainder == half and quotient % 2 != 0):
+        return (quotient + 1) * factor
+    return quotient * factor
 
 
 @custom_function(
