@@ -140,10 +140,13 @@ class nat:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
     def ___round__no_digits(self: nat) -> nat: ...
 
-    @custom_function(
-        NoopCompiler(ret_slice=slice(0, 1)), unitary_flags=UnitaryFlags.Dagger
-    )
-    def ___round__digits(self: nat, ndigits: int) -> nat: ...
+    @guppy
+    @no_type_check
+    def ___round__digits(self: nat, ndigits: int) -> nat:
+        if ndigits >= 0:
+            return self
+
+        return nat(round(float(self), ndigits))
 
     @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: nat) -> nat: ...
@@ -313,10 +316,13 @@ class int:
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
     def ___round__no_digits(self: int) -> int: ...
 
-    @custom_function(
-        NoopCompiler(ret_slice=slice(0, 1)), unitary_flags=UnitaryFlags.Dagger
-    )
-    def ___round__digits(self: int, ndigits: int) -> int: ...
+    @guppy
+    @no_type_check
+    def ___round__digits(self: int, ndigits: int) -> int:
+        if ndigits >= 0:
+            return self
+
+        return int(round(float(self), ndigits))
 
     @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: int) -> int: ...
