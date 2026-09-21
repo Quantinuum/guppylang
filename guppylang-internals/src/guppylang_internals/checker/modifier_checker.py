@@ -1,7 +1,6 @@
 """Type checking code for modifiers."""
 
 import ast
-from dataclasses import replace
 
 from guppylang_internals.ast_util import with_loc
 from guppylang_internals.cfg.bb import BB
@@ -86,7 +85,7 @@ def _set_inout_if_non_copyable(var: Variable) -> Variable:
     if not var.ty.copyable:
         return var.add_flags(InputFlags.Inout)
     # if copyable capture then not Inout, retaining any other flags
-    return replace(var, flags=var.flags & ~InputFlags.Inout)
+    return var.remove_flags(InputFlags.Inout)
 
 
 def check_modified_block_signature(
