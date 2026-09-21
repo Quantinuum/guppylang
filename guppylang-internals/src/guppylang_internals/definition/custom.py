@@ -613,12 +613,18 @@ class OpCompiler(CustomInoutCallCompiler):
         )
 
 
+@dataclass
 class NoopCompiler(CustomCallCompiler):
-    """Call compiler for functions that are noops."""
+    """Call compiler for functions that are noops.
+
+    Optionally select the argument range to return with `return`. Defaults to all
+    arguments."""
+
+    ret_slice: slice = slice(None)
 
     @override
     def compile(self, args: list[Wire]) -> list[Wire]:
-        return args
+        return args[self.ret_slice]
 
 
 class CopyInoutCompiler(CustomInoutCallCompiler):
