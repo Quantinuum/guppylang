@@ -84,7 +84,7 @@ def _set_inout_if_non_copyable(var: Variable) -> Variable:
     """Set the `inout` flag if the variable is non-copyable."""
     if not var.ty.copyable:
         return var.add_flags(InputFlags.Inout)
-    # if copyable capture then not Inout, retaining any other flags
+    # Copiable variables may retain the Inout flag.
     return var.remove_flags(InputFlags.Inout)
 
 
