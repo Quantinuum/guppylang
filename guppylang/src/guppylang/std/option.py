@@ -46,7 +46,7 @@ class Option[L]:
         Panics if the option is a `nothing` value.
         """
 
-    @custom_function(OptionUnwrapNothingCompiler(), effects=())
+    @custom_function(OptionUnwrapNothingCompiler(), effects=[Effect.PANIC])
     @no_type_check
     def unwrap_nothing(self: "Option[L]" @ owned) -> None:
         """Returns `None` if the option is a `nothing` value, consuming `self`.
