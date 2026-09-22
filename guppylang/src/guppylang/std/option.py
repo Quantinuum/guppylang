@@ -68,17 +68,13 @@ class Option[L]:
         return self.swap(nothing())
 
 
-# EFFECTS this can + probably should be pure, but preserving behaviour for now
-@custom_function(
-    OptionConstructor(0), effects=[Effect.ANY], unitary_flags=UnitaryFlags.Dagger
-)
+@custom_function(OptionConstructor(0), effects=(), unitary_flags=UnitaryFlags.Dagger)
 @no_type_check
 def nothing() -> Option[L]:
     """Constructs a `nothing` optional value."""
 
 
-# EFFECTS this can + probably should be pure, but preserving behaviour for now
-@custom_function(OptionConstructor(1), effects=[Effect.ANY])
+@custom_function(OptionConstructor(1), effects=())
 @no_type_check
 def some(value: L @ owned) -> Option[L]:
     """Constructs a `some` optional value."""
