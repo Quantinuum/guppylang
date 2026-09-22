@@ -1,4 +1,3 @@
-import itertools
 from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
@@ -63,10 +62,10 @@ class DFBuilder(ABC, ToNode):
 
     @property
     def effects(self) -> Iterable[EffectType]:
-        return itertools.chain(
-            (StronglyOrdered(e) for e in self._last_side_effect),
-            (WeaklyOrdered(e) for e in self._last_partial_effect),
-        )
+        return [
+            *[StronglyOrdered(e) for e in self._last_side_effect],
+            *[WeaklyOrdered(e) for e in self._last_partial_effect],
+        ]
 
     @abstractproperty
     def _raw(self) -> hf.Function | Case | TailLoop | Block:
