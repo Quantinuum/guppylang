@@ -156,6 +156,10 @@ class DFBuilder(ABC, ToNode):
                 ):
                     to_propagate.add(e)
                 last = self.input_node
+            elif last is node:
+                # WeaklyOrdered after StronglyOrdered for same node.
+                # StronglyOrdered should have cleaned out all partially-ordered nodes:
+                assert e.base not in self._last_partial_effect
             else:
                 assert not isinstance(self._raw.hugr[last].op, Output)
             if isinstance(e, StronglyOrdered):
