@@ -90,7 +90,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2.87.15
+        uses: taiki-e/install-action@v2.87.16
         with:
           tool: git-cliff
 
