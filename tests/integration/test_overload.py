@@ -144,7 +144,7 @@ def test_everything_can_be_overloaded(validate):
     @custom_function(NoopCompiler(), effects=())
     def custom(a: int) -> int: ...
 
-    @hugr_op(int_op("iadd"))
+    @hugr_op(int_op("iadd"), effects=())
     def my_hugr_op(a: int, b: int) -> int: ...
 
     @guppy.declare
