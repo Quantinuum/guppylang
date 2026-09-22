@@ -20,11 +20,11 @@ from guppylang_internals.metadata.debug_info_util import (
     make_location_record,
 )
 from guppylang_internals.tys import (
+    BaseEffect,
     Effect,
     EffectType,
-    _BaseEffect,
-    _StronglyOrdered,
-    _WeaklyOrdered,
+    StronglyOrdered,
+    WeaklyOrdered,
 )
 
 type OpWithEffects = tuple[DataflowOp, Iterable[Effect]]
@@ -50,18 +50,18 @@ class DFBuilder(ABC, ToNode):
     """
 
     current_ast_node: AstNode | None = field(default=None, kw_only=True)
-    _last_side_effect: dict[_BaseEffect, Node] = field(default_factory=dict, init=False)
+    _last_side_effect: dict[BaseEffect, Node] = field(default_factory=dict, init=False)
     # The nodes which have had a partially-ordered effect on the key
     # since the last totally-ordered effect.
-    _last_partial_effect: dict[_BaseEffect, list[Node]] = field(
+    _last_partial_effect: dict[BaseEffect, list[Node]] = field(
         default_factory=dict, init=False
     )
 
     @property
     def effects(self) -> Iterable[EffectType]:
         return itertools.chain(
-            (_StronglyOrdered(e) for e in self._last_side_effect),
-            (_WeaklyOrdered(e) for e in self._last_partial_effect),
+            (StronglyOrdered(e) for e in self._last_side_effect),
+            (WeaklyOrdered(e) for e in self._last_partial_effect),
         )
 
     @abstractproperty
@@ -148,14 +148,14 @@ class DFBuilder(ABC, ToNode):
                 # Not had a total effect of this type before.
                 # May have had a partial effect - this does not set _last_side_effect.
                 if (
-                    isinstance(e, _StronglyOrdered)
+                    isinstance(e, StronglyOrdered)
                     or self._last_partial_effect.get(e.base) is None
                 ):
                     to_propagate.add(e)
                 last = self.input_node
             else:
                 assert not isinstance(self._raw.hugr[last].op, Output)
-            if isinstance(e, _StronglyOrdered):
+            if isinstance(e, StronglyOrdered):
                 # Also put after any partial-order effects (all in parallel)
                 partial_preds = self._last_partial_effect.pop(e.base, [])
                 for n in partial_preds:
