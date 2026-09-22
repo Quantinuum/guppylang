@@ -27,15 +27,19 @@ from guppylang_internals.tys import (
     WeaklyOrdered,
 )
 
-type OpWithEffects = tuple[DataflowOp, Iterable[Effect]]
+type OpWithEffects = tuple[DataflowOp, Iterable[Effect | EffectType]]
 
 
 def pure(op: DataflowOp) -> OpWithEffects:
     return (op, [])
 
 
-def get_underlying(e: Iterable[Effect]) -> Iterable[EffectType]:
-    return (et for effect in e for et in effect._values())
+def get_underlying(e: Iterable[Effect | EffectType]) -> Iterable[EffectType]:
+    return (
+        et
+        for effect in e
+        for et in (effect._values() if isinstance(effect, Effect) else [effect])
+    )
 
 
 @dataclass
