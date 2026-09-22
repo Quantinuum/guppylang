@@ -33,7 +33,7 @@ DISCRETE_N = guppy.nat_var("DISCRETE_N")
 
 @hugr_op(
     external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
-    effects=[Effect.ANY],
+    effects=[Effect.ANY],  # ALAN do we need an RNG effect?
 )
 @no_type_check
 def _new_rng_context(seed: int) -> Option["RNG"]: ...
@@ -60,7 +60,7 @@ class RNG:
 
     @hugr_op(
         external_op("DeleteRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
-        effects=[Effect.ANY],
+        effects=[Effect.ANY],  # ALAN ?? can this be pure?
     )
     @no_type_check
     def discard(self: "RNG" @ owned) -> None:
