@@ -24,6 +24,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_HELIOS_EXTENSION,
 )
 from guppylang_internals.std._internal.util import quantum_op
+from guppylang_internals.tys import Effect
 
 from guppylang import guppy
 from guppylang.std.angles import angle, pi
@@ -168,13 +169,13 @@ def measure_and_reset(q: qubit) -> Measurement:
     return lazy_measure_and_reset(q)
 
 
-@hugr_op(quantum_op("Reset", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(quantum_op("Reset", ext=QSYSTEM_HELIOS_EXTENSION), effects=())
 @no_type_check
 def reset(q: qubit) -> None:
     """Reset a qubit to the :math:`|0\\rangle` state."""
 
 
-@hugr_op(quantum_op("QFree", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(quantum_op("QFree", ext=QSYSTEM_HELIOS_EXTENSION), effects=[Effect.ANY])
 @no_type_check
 def qfree(q: qubit @ owned) -> None:
     """Free a qubit, returning the ion to the pool of available ions.
@@ -184,7 +185,10 @@ def qfree(q: qubit @ owned) -> None:
     """
 
 
-@hugr_op(quantum_op("LazyMeasureLeaked", ext=QSYSTEM_HELIOS_EXTENSION))
+# The effect here is that it implicitly frees the qubit
+@hugr_op(
+    quantum_op("LazyMeasureLeaked", ext=QSYSTEM_HELIOS_EXTENSION), effects=[Effect.ANY]
+)
 @no_type_check
 def _measure_leaked(q: qubit @ owned) -> Future[int]:
     """Measure the qubit or return 2 if it is leaked."""
@@ -222,7 +226,8 @@ def lazy_measure_and_reset(q: qubit) -> Measurement:
 # Measurement functions directly mapping onto `tket.qsystem.helios`
 # ops without the conversion to measurement (which ensures compatibility
 # with `std.quantum` functions).
-@hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_HELIOS_EXTENSION))
+# The effect here is that it implicitly frees the qubit
+@hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_HELIOS_EXTENSION), effects=[Effect.ANY])
 @no_type_check
 def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...
 
@@ -237,7 +242,7 @@ def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...
 def _lazy_measure_and_reset(q: qubit) -> Future[bool]: ...
 
 
-@hugr_op(quantum_op("FutureToMeasurement", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(quantum_op("FutureToMeasurement", ext=QSYSTEM_HELIOS_EXTENSION), effects=())
 @no_type_check
 def _future_to_measurement(result: Future[bool] @ owned) -> Measurement: ...
 
@@ -286,7 +291,7 @@ def lazy_measure_and_reset_array(
 # ------------------------------------------------------
 
 
-@hugr_op(quantum_op("PhasedX", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(quantum_op("PhasedX", ext=QSYSTEM_HELIOS_EXTENSION), effects=())
 @no_type_check
 def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
     """PhasedX operation from the qsystem extension.
@@ -296,7 +301,7 @@ def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
     """
 
 
-@hugr_op(quantum_op("ZZPhase", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(quantum_op("ZZPhase", ext=QSYSTEM_HELIOS_EXTENSION), effects=())
 @no_type_check
 def _zz_phase(q1: qubit, q2: qubit, angle: float) -> None:
     """ZZPhase operation from the qsystem extension.
@@ -306,7 +311,7 @@ def _zz_phase(q1: qubit, q2: qubit, angle: float) -> None:
     """
 
 
-@hugr_op(quantum_op("Rz", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(quantum_op("Rz", ext=QSYSTEM_HELIOS_EXTENSION), effects=())
 @no_type_check
 def _rz(q: qubit, angle: float) -> None:
     """Rz operation from the qsystem extension.

@@ -53,7 +53,7 @@ class Measurement:
     """Represents the result of a lazy measurement which needs to be explicitly read
     before being used."""
 
-    @hugr_op(quantum_op("Read", MEASUREMENT_EXTENSION))
+    @hugr_op(quantum_op("Read", MEASUREMENT_EXTENSION), effects=())
     @no_type_check
     def read(self: "Measurement") -> bool:
         """Read the measurement result, obtaining a bool. Blocks until the result is
@@ -66,14 +66,16 @@ class Measurement:
         return self.read()
 
 
-@hugr_op(quantum_op("TryQAlloc"))
+# Effect not because it panics (it doesn't) but because we want this to be
+# totally ordered with respect to other (non-try)QAlloc's for predictability.
+@hugr_op(quantum_op("TryQAlloc"), effects=[Effect.ANY])
 @no_type_check
 def maybe_qubit() -> Option[qubit]:
     """Try to allocate a qubit, returning `some(qubit)`
     if allocation succeeds or `nothing` if it fails."""
 
 
-@hugr_op(quantum_op("H"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("H"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def h(q: qubit) -> None:
     r"""Hadamard gate command
@@ -87,7 +89,7 @@ def h(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CZ"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("CZ"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def cz(control: qubit, target: qubit) -> None:
     r"""Controlled-Z gate command.
@@ -107,7 +109,7 @@ def cz(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CY"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("CY"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def cy(control: qubit, target: qubit) -> None:
     r"""Controlled-Y gate command.
@@ -127,7 +129,7 @@ def cy(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("CX"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("CX"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def cx(control: qubit, target: qubit) -> None:
     r"""Controlled-X gate command.
@@ -147,7 +149,7 @@ def cx(control: qubit, target: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("T"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("T"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def t(q: qubit) -> None:
     r"""T gate.
@@ -162,7 +164,7 @@ def t(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("S"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("S"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def s(q: qubit) -> None:
     r"""S gate.
@@ -177,7 +179,7 @@ def s(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("V"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("V"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def v(q: qubit) -> None:
     r"""V gate.
@@ -192,7 +194,7 @@ def v(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("X"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("X"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def x(q: qubit) -> None:
     r"""X gate.
@@ -207,7 +209,7 @@ def x(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Y"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Y"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def y(q: qubit) -> None:
     r"""Y gate.
@@ -222,7 +224,7 @@ def y(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Z"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Z"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def z(q: qubit) -> None:
     r"""Z gate.
@@ -237,7 +239,7 @@ def z(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Tdg"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Tdg"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def tdg(q: qubit) -> None:
     r"""Tdg gate.
@@ -252,7 +254,7 @@ def tdg(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Sdg"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Sdg"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def sdg(q: qubit) -> None:
     r"""Sdg gate.
@@ -267,7 +269,7 @@ def sdg(q: qubit) -> None:
     """
 
 
-@hugr_op(quantum_op("Vdg"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Vdg"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def vdg(q: qubit) -> None:
     r"""Vdg gate.
@@ -350,7 +352,7 @@ def crz(control: qubit, target: qubit, angle: angle) -> None:
     """
 
 
-@hugr_op(quantum_op("Toffoli"), unitary_flags=UnitaryFlags.Unitary)
+@hugr_op(quantum_op("Toffoli"), unitary_flags=UnitaryFlags.Unitary, effects=())
 @no_type_check
 def toffoli(control1: qubit, control2: qubit, target: qubit) -> None:
     r"""A Toffoli gate command. Also sometimes known as a CCX gate.
@@ -404,7 +406,7 @@ def measure(q: qubit @ owned) -> Measurement:
     """
 
 
-@hugr_op(quantum_op("Reset"))
+@hugr_op(quantum_op("Reset"), effects=())
 @no_type_check
 def reset(q: qubit) -> None:
     """Reset a single qubit to the :math:`|0\\rangle` state."""
