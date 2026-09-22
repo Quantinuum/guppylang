@@ -33,22 +33,22 @@ n = guppy.nat_var("n")
 
 
 @custom_function(
-    OutputCompiler("result_int", with_int_width=True), effects=[Effect.ANY]
+    OutputCompiler("result_int", with_int_width=True), effects=[Effect.OUTPUT]
 )
 def _output_int(tag: str @ comptime, value: int) -> None: ...
 
 
 @custom_function(
-    OutputCompiler("result_uint", with_int_width=True), effects=[Effect.ANY]
+    OutputCompiler("result_uint", with_int_width=True), effects=[Effect.OUTPUT]
 )
 def _output_nat(tag: str @ comptime, value: nat) -> None: ...
 
 
-@custom_function(OutputCompiler("result_bool"), effects=[Effect.ANY])
+@custom_function(OutputCompiler("result_bool"), effects=[Effect.OUTPUT])
 def _output_bool(tag: str @ comptime, value: bool) -> None: ...
 
 
-@custom_function(OutputCompiler("result_f64"), effects=[Effect.ANY])
+@custom_function(OutputCompiler("result_f64"), effects=[Effect.OUTPUT])
 def _output_float(tag: str @ comptime, value: float) -> None: ...
 
 
@@ -57,22 +57,24 @@ def _output_measurement(tag: str @ comptime, value: Measurement) -> None: ...
 
 
 @custom_function(
-    ArrayOutputCompiler("result_array_int", with_int_width=True), effects=[Effect.ANY]
+    ArrayOutputCompiler("result_array_int", with_int_width=True),
+    effects=[Effect.OUTPUT],
 )
 def _output_int_array(tag: str @ comptime, value: array[int, n]) -> None: ...
 
 
 @custom_function(
-    ArrayOutputCompiler("result_array_uint", with_int_width=True), effects=[Effect.ANY]
+    ArrayOutputCompiler("result_array_uint", with_int_width=True),
+    effects=[Effect.OUTPUT],
 )
 def _output_nat_array(tag: str @ comptime, value: array[nat, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_bool"), effects=[Effect.ANY])
+@custom_function(ArrayOutputCompiler("result_array_bool"), effects=[Effect.OUTPUT])
 def _output_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_f64"), effects=[Effect.ANY])
+@custom_function(ArrayOutputCompiler("result_array_f64"), effects=[Effect.OUTPUT])
 def _output_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
 
 
@@ -125,7 +127,7 @@ result = output
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.ANY],
+    effects=[Effect.PANIC],
 )
 def _panic(msg: str, *args) -> None: ...
 
@@ -141,7 +143,7 @@ def _panic(msg: str, *args) -> None: ...
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.ANY],
+    effects=[Effect.PANIC],
 )
 def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
 

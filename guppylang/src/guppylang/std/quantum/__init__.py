@@ -24,7 +24,7 @@ from guppylang.std.option import Option
 
 @custom_type(ht.Qubit, copyable=False, droppable=False)
 class qubit:
-    @hugr_op(quantum_op("QAlloc"), effects=[Effect.ANY])
+    @hugr_op(quantum_op("QAlloc"), effects=[Effect.ALLOC, Effect.PANIC])
     @no_type_check
     def __new__() -> "qubit": ...
 
@@ -66,9 +66,9 @@ class Measurement:
         return self.read()
 
 
-# Effect not because it panics (it doesn't) but because we want this to be
-# totally ordered with respect to other (non-try)QAlloc's for predictability.
-@hugr_op(quantum_op("TryQAlloc"), effects=[Effect.ANY])
+# Even though this doesn't panic, we still want to totally order
+# with respect to other (non-try)QAlloc's for predictability.
+@hugr_op(quantum_op("TryQAlloc"), effects=[Effect.ALLOC])
 @no_type_check
 def maybe_qubit() -> Option[qubit]:
     """Try to allocate a qubit, returning `some(qubit)`
@@ -392,13 +392,13 @@ def project_z(q: qubit) -> Measurement:
     return m
 
 
-@hugr_op(quantum_op("QFree"), effects=[Effect.ANY])
+@hugr_op(quantum_op("QFree"), effects=[Effect.FREE])
 @no_type_check
 def discard(q: qubit @ owned) -> None:
     """Discard a single qubit."""
 
 
-@hugr_op(quantum_op("MeasureFree"), effects=[Effect.ANY])
+@hugr_op(quantum_op("MeasureFree"), effects=[Effect.FREE])
 @no_type_check
 def measure(q: qubit @ owned) -> Measurement:
     """Request a destructive lazy measurement of a qubit, returning a `Measurement`

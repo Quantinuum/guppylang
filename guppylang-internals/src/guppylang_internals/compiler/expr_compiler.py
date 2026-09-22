@@ -600,7 +600,7 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
 
         op = (
             hops.ExtOp(DEBUG_EXTENSION.get_op("StateResult"), signature=sig, args=args),
-            [Effect.ANY],
+            [Effect.OUTPUT],
         )
 
         qubit_arr_in: Wire

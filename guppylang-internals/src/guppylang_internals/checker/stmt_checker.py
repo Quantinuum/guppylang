@@ -335,9 +335,9 @@ class StmtChecker(AstVisitor[BBStatement]):
                 case ConstValue(value=int(size)):
                     elt_ty = get_element_type(ty)
                     unpack = ArrayUnpack(pattern, size, elt_ty)
-                    # This compiles to an array-unpacking op, which will have
-                    # side-effects that we need to account for in checking
-                    register_effects(self.ctx, [Effect.ANY])
+                    # This compiles to an array-unpacking op, which can panic if any
+                    # elements are borrowed - so account for this in checking
+                    register_effects(self.ctx, [Effect.PANIC])
                     return unpack, size * [expr], size * [elt_ty]
                 case BoundConstVar():
                     raise RequiresMonomorphizationError
