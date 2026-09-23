@@ -195,7 +195,7 @@ class ParsedPytketDef(CallableDef, CompilableDef, CallableEffects):
     @property
     def call_effects(self) -> Iterable[Effect]:
         # borrow-array unpacks can panic
-        return [Effect.ANY] if self.use_arrays else []
+        return [Effect.PANIC] if self.use_arrays else []
 
     @override
     def compile_outer(

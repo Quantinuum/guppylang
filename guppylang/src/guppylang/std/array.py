@@ -64,14 +64,14 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes unwrap (compiled separately)
+        effects=[Effect.PANIC],  # includes unwrap (compiled separately)
     )
     def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes (compiled separately)
+        effects=[Effect.PANIC],  # includes unwrap (compiled separately)
     )
     def __setitem__[L, n: nat](
         self: array[L, n], idx: int, value: L @ owned
@@ -114,7 +114,7 @@ class array[T, n: nat](builtins.list[T]):
         ArrayIsBorrowedCompiler(),
         checker=ArrayIndexChecker(),
         unitary_flags=UnitaryFlags.Dagger,
-        effects=(),  # Can panic, but preserving legacy behaviour (https://github.com/Quantinuum/guppylang/issues/2122)
+        effects=[Effect.PANIC],  # If index out-of-bounds
     )
     def is_borrowed[L, n: nat](self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
@@ -136,7 +136,7 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # Panics if element already taken, or out-of-bounds
+        effects=[Effect.PANIC],  # If element already taken, or out-of-bounds
     )
     def take[L, n: nat](self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
@@ -329,7 +329,7 @@ class ArrayIter[L, n: nat]:
         return nothing()
 
 
-@custom_function(ArraySwapCompiler(), effects=[Effect.ANY])
+@custom_function(ArraySwapCompiler(), effects=[Effect.PANIC])
 def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
@@ -358,10 +358,7 @@ class frozenarray[T, n: nat]:
     """An immutable array of fixed static size."""
 
     # Panics on out-of-range.
-    @custom_function(
-        FrozenarrayGetitemCompiler(),
-        effects=[Effect.ANY],
-    )
+    @custom_function(FrozenarrayGetitemCompiler(), effects=[Effect.PANIC])
     def __getitem__(self, item: int) -> T: ...
 
     @guppy

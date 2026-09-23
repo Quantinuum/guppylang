@@ -33,7 +33,7 @@ DISCRETE_N = guppy.nat_var("DISCRETE_N")
 
 @hugr_op(
     external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
-    effects=[Effect.ANY],
+    effects=[Effect.ANY],  # ALAN do we need an RNG effect?
 )
 @no_type_check
 def _new_rng_context(seed: int) -> Option["RNG"]: ...
@@ -60,7 +60,7 @@ class RNG:
 
     @hugr_op(
         external_op("DeleteRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
-        effects=[Effect.ANY],
+        effects=[Effect.ANY],  # ALAN ?? can this be pure?
     )
     @no_type_check
     def discard(self: "RNG" @ owned) -> None:
@@ -77,7 +77,8 @@ class RNG:
     def random_float(self: "RNG") -> float:
         """Generate a random floating point value in the range [0,1)."""
 
-    @custom_function(RandomIntBoundedCompiler(), effects=())
+    # The panic here is in narrowing the bound from 64-bit int down to 32 bits
+    @custom_function(RandomIntBoundedCompiler(), effects=[Effect.PANIC])
     @no_type_check
     def random_int_bounded(self: "RNG", bound: int) -> int:
         """Generate a random 32-bit integer in the range [0, bound).

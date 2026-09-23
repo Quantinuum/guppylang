@@ -42,7 +42,7 @@ class Result[T, E]:
     def is_err(self: "Result[T, E]") -> bool:
         """Returns `True` for an `err` value."""
 
-    @custom_function(EitherUnwrapCompiler(0), effects=[Effect.ANY])
+    @custom_function(EitherUnwrapCompiler(0), effects=[Effect.PANIC])
     @no_type_check
     def unwrap(self: "Result[T, E]" @ owned) -> T:
         """Returns the contained `ok` value, consuming `self`.
@@ -50,7 +50,7 @@ class Result[T, E]:
         Panics if `self` is an `err` value.
         """
 
-    @custom_function(EitherUnwrapCompiler(1), effects=[Effect.ANY])
+    @custom_function(EitherUnwrapCompiler(1), effects=[Effect.PANIC])
     @no_type_check
     def unwrap_err(self: "Result[T, E]" @ owned) -> E:
         """Returns the contained `err` value, consuming `self`.

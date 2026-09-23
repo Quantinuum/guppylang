@@ -95,7 +95,7 @@ def ext_module_decorator[T](
                 init_compiler,
                 True,
                 GlobalConstId.fresh(f"{cls.__name__}.__new__"),
-                effects=[Effect.ANY],
+                effects=[Effect.ANY],  # ALAN WTF
                 has_signature=True,
                 has_var_args=False,
                 is_static=True,
@@ -109,7 +109,7 @@ def ext_module_decorator[T](
                 discard_compiler,
                 False,
                 GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
-                effects=[Effect.ANY],
+                effects=[Effect.ANY],  # ALAN WTF
                 has_signature=True,
                 has_var_args=False,
                 is_static=False,

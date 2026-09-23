@@ -15,6 +15,7 @@ from guppylang_internals.nodes import CheckedNestedFunctionDef
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.function import CheckedFunctionDef
+    from guppylang_internals.tys import EffectType
 
 
 def compile_global_func_def(
@@ -25,8 +26,12 @@ def compile_global_func_def(
     """Compiles a top-level function definition to Hugr."""
     cfg = compile_cfg(func.cfg, builder, builder.inputs(), ctx)
     builder.set_outputs(*cfg)
-    if not ctx.effects[(func.id, func.mono_args)].issuperset(builder.effects):
-        surplus = set(builder.effects) - ctx.effects[(func.id, func.mono_args)]
+    actual_effects: frozenset[EffectType] = frozenset(builder.effects)
+    predicted_effects: frozenset[EffectType] = frozenset(
+        et for e in ctx.effects[(func.id, func.mono_args)] for et in e._values()
+    )
+    if not predicted_effects.issuperset(actual_effects):
+        surplus = actual_effects - predicted_effects
         raise InternalGuppyError(
             f"Function {func.name} compiled to have side effects {surplus}"
             " not expected during checking; callgraph analysis will be unsound."
