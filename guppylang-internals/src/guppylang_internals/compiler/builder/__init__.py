@@ -160,14 +160,19 @@ class DFBuilder(ABC, ToNode):
                 last = self.input_node
             else:
                 assert not isinstance(self._raw.hugr[last].op, Output)
-            if isinstance(e, StronglyOrdered):
-                # Also put after any partial-order effects (all in parallel)
+            if isinstance(e, StronglyOrdered) or isinstance(
+                self._raw.hugr[node].op, Output
+            ):
+                # Also put after any weakly-ordered effects (all in parallel).
+                # We do this for Output even if it is not StronglyOrdered because there
+                # will be no more nodes and we need to close the diamond.
                 partial_preds = self._last_partial_effect.pop(e.base, [])
                 for n in partial_preds:
                     # Avoid cycle if StronglyOrdered after WeaklyOrdered for same node
                     if n is not node:
                         self._raw.add_state_order(n, node)
-                self._last_side_effect[e.base] = node
+                if isinstance(e, StronglyOrdered):
+                    self._last_side_effect[e.base] = node
             else:
                 # Order only after `last`, but put in parallel with other nodes also
                 # having the same effect with only partial ordering.
