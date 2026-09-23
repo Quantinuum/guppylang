@@ -181,7 +181,7 @@ def panic(msg: str, signal: int = 1, *args):
         NoneType(),
     ),
     has_var_args=True,
-    effects=(),
+    effects=[Effect.ANY],
 )
 def _exit(msg: str, *args) -> None: ...
 

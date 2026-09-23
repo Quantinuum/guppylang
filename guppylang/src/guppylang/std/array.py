@@ -199,7 +199,7 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
-        effects=(),
+        effects=(),  # Can panic, but preserving legacy behaviour (https://github.com/Quantinuum/guppylang/issues/2122)
     )
     def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
@@ -253,7 +253,10 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler(), effects=())
+    @custom_function(
+        ArrayDiscardAllUsedCompiler(),
+        effects=(),  # Can panic, but preserving legacy behaviour (https://github.com/Quantinuum/guppylang/issues/2122)
+    )
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
