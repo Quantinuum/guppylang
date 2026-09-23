@@ -647,9 +647,9 @@ class CompilationEngine:
                     ModifierContext(),
                 )
                 print(
-                    f"  ({caller_id}, {caller_name})"
+                    f"  ({caller_id}, {caller_name}, [{is_concrete_inst(caller_mono)}])"
                     f" -- {self.str_context(contexts)} -->"
-                    f" ({id}, {callee_name})"
+                    f" ({id}, {callee_name}, [{is_concrete_inst(mono_args)}])"
                 )
 
     def str_context(self, contexts: tuple[ModifierContext, ...]) -> str:

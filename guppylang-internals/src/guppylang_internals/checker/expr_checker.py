@@ -583,10 +583,14 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     ) -> tuple[ast.expr, Type]:
         from guppylang_internals.definition.enum import ParsedEnumDef
 
+        # HERE WE HAVE WHEN A VARIABLE REFERRING TO A FUNCTION IS TRANSFORMED INTO A
+        # GLOBAL NAME IN THE AST.
+
         """Checks a global definition in an expression position."""
         match defn:
             case CallableDef() as defn:
                 ty = FunctionDefType(defn.id)
+                # NICOLA: Here we are dealing with a potential function loading
                 return with_loc(node, make_global_name(name, defn.id)), ty
             case ValueDef() as defn:
                 return with_loc(node, make_global_name(name, defn.id)), defn.ty
@@ -681,6 +685,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                             case _ as ty:
                                 # case for when the type is known
                                 if func := ENGINE.get_instance_func(ty, node.attr):
+                                    # NICOLA: Here we are dealing with a potential function loading
                                     return with_loc(
                                         node, make_global_name(node.attr, func.id)
                                     ), func.ty
@@ -691,6 +696,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         and (func := ENGINE.get_instance_func(defn, node.attr))
                         is not None
                     ):
+                        # NICOLA: Here we are dealing with a potential function loading
                         return with_loc(
                             node, make_global_name(node.attr, func.id)
                         ), func.ty
@@ -748,6 +754,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                             member_ty,
                             with_loc(
                                 node,
+                                # NICOLA: Here we are dealing with a potential function loading
                                 make_global_name(
                                     node.attr,
                                     proto_def.member_defs[node.attr],
@@ -842,6 +849,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         self, ty: Type, node: ast.Attribute
     ) -> tuple[ast.expr, FunctionType] | None:
         """Helper method to check if an attribute access corresponds to a method call"""
+        # NICOLA: Here we are dealing with a potential function loading
         if func := ENGINE.get_instance_func(ty, node.attr):
             name = with_type(
                 func.ty, with_loc(node, make_global_name(func.name, func.id))
@@ -891,6 +899,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 proto_def = ENGINE.get_checked(proto_impl.def_id, proto_impl.type_args)
                 assert isinstance(proto_def, CheckedProtocolDef)
                 member_ty = proto_def.member_sig(node.attr)
+                # NICOLA: check also here
                 return with_loc(
                     node,
                     GlobalName(
@@ -1426,6 +1435,7 @@ def function_def_value_to_function_value(
         # so conservatively assume it might.
         return with_type(ty.sig, expr)
     name = ENGINE.get_parsed(ty.def_id).name
+    # NICOLA: Here we are dealing with a potential function loading
     return with_type(ty.sig, with_loc(expr, make_global_name(name, ty.def_id)))
 
 
