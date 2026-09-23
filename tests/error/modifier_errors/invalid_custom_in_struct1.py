@@ -1,4 +1,4 @@
-"""Ensuring that custom implementations are properly checked"""
+"""Checking that when a custom unitary is defined as a struct method, the custom methods signature is properly tested"""
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array
 from guppylang.std.quantum import discard, qubit
@@ -13,7 +13,7 @@ class FooStruct:
     class foo:
 
         @guppy
-        def __call__(self,q: qubit) -> None:
+        def __call__(self, q: qubit) -> None:
             pass
 
         @guppy

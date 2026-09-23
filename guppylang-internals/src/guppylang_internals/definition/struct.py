@@ -311,6 +311,7 @@ def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Paramet
     return params
 
 
+# todo: inline this function
 def _raise_unexpected_struct_statement(node: ast.stmt) -> NoReturn:
     err = UnexpectedError(
         node,

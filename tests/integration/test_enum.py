@@ -21,7 +21,7 @@ fn main() {
 """
 
 from guppylang import array, guppy, qubit
-from guppylang.std.quantum import x
+from guppylang.std.quantum import h
 from guppylang.std.builtins import control, dagger, nat
 from tests.util import compile_guppy
 
@@ -349,46 +349,46 @@ def test_enum_passed_through_functions(validate):
     validate(main.compile_function())
 
 
-def test_enum_custom_modifier_impls_are_executed(validate):
-    @guppy.enum
-    class CustomGates:
-        Enabled = {}
+def test_unitary_method_nested_in_enum(validate):
+    T = guppy.type_var("T")
 
-        @guppy
-        def flip(self: "CustomGates", q: qubit) -> None:
-            x(q)
+    @guppy.enum
+    class Gates[T]:
+        Enabled = {"x": T}
 
         @guppy.unitary
-        class apply:
+        class apply_h[n: nat]:
             @guppy
-            def __call__(self: "CustomGates", q: qubit) -> None:
-                pass
+            def __call__(self: "Gates[T]", qs: array[qubit, n]) -> None:
+                apply_gate(qs[0])
 
             @guppy
-            def daggered(self: "CustomGates", q: qubit) -> None:
-                self.flip(q)
+            def daggered(self: "Gates[T]", qs: array[qubit, n]) -> None:
+                apply_gate(qs[0])
 
             @guppy
-            def controlled[n: nat](
-                self: "CustomGates", q: qubit, _controls: array[qubit, n]
+            def controlled[c: nat](
+                self: "Gates[T]", qs: array[qubit, n], controls: array[qubit, c]
             ) -> None:
-                self.flip(q)
+                apply_gate(qs[0])
 
             @guppy
-            def ctrl_daggered[n: nat](
-                self: "CustomGates", q: qubit, _controls: array[qubit, n]
+            def ctrl_daggered[c: nat](
+                self: "Gates[T]", qs: array[qubit, n], controls: array[qubit, c]
             ) -> None:
-                self.flip(q)
+                apply_gate(qs[0])
 
     @guppy
-    def main(control_qubit: qubit, target: qubit) -> None:
-        gates = CustomGates.Enabled()
-        gates.apply(target)
+    def apply_gate(q: qubit) -> None:
+        h(q)
+
+    @guppy
+    def main(s: Gates[int], ctrl: qubit, qs: array[qubit, 2]) -> None:
         with dagger:
-            gates.apply(target)
-        with control(control_qubit):
-            gates.apply(target)
-        with control(control_qubit), dagger:
-            gates.apply(target)
+            s.apply_h(qs)
+        with control(ctrl):
+            s.apply_h(qs)
+        with dagger, control(ctrl):
+            s.apply_h(qs)
 
     validate(main.compile_function())

@@ -227,6 +227,36 @@ def test_enum_member_link_name_annotated(qualifier):
     }
 
 
+def test_enum_unitary_member_link_name_inferred(qualifier):
+    @guppy.enum
+    class Enum:
+        Variant = {}
+
+        @guppy.unitary
+        class apply_h:
+            @guppy
+            def __call__(self, q: qubit) -> None:
+                h(q)
+
+            @guppy
+            def daggered(self, q: qubit) -> None:
+                h(q)
+
+    @guppy
+    def main(e: Enum, q1: qubit, q2: qubit) -> None:
+        e.apply_h(q1)
+        with dagger:
+            e.apply_h(q2)
+
+    names = _func_names_excluding_main_and_withblocks(
+        main.with_minimal_opt().compile_function(), qualifier
+    )
+    assert {
+        f"{qualifier}.<locals>.Enum.apply_h",
+        f"{qualifier}.<locals>.Enum.apply_h.daggered",
+    } == names
+
+
 def test_enum_member_link_name_inferred(qualifier):
     """Asserts that inferred function `link_name`s are passed to the HUGR nodes."""
 
