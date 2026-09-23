@@ -147,6 +147,8 @@ class DFBuilder(ABC, ToNode):
             had that effect, for any later call."""
 
             last = self._last_side_effect.get(e.base)
+            if last is node:
+                return last
             if last is None:
                 # Not had a total effect of this type before.
                 # May have had a partial effect - this does not set _last_side_effect.
@@ -156,24 +158,20 @@ class DFBuilder(ABC, ToNode):
                 ):
                     to_propagate.add(e)
                 last = self.input_node
-            elif last is node:
-                # WeaklyOrdered after StronglyOrdered for same node.
-                # StronglyOrdered should have cleaned out all partially-ordered nodes:
-                assert e.base not in self._last_partial_effect
             else:
                 assert not isinstance(self._raw.hugr[last].op, Output)
             if isinstance(e, StronglyOrdered):
                 # Also put after any partial-order effects (all in parallel)
                 partial_preds = self._last_partial_effect.pop(e.base, [])
                 for n in partial_preds:
-                    if n is not node:  # avoid cycle if node is both partial and total
+                    # Avoid cycle if StronglyOrdered after WeaklyOrdered for same node
+                    if n is not node:
                         self._raw.add_state_order(n, node)
                 self._last_side_effect[e.base] = node
             else:
                 # Order only after `last`, but put in parallel with other nodes also
                 # having the same effect with only partial ordering.
-                if last is not node:  # Ignore partial if node is already total
-                    self._last_partial_effect.setdefault(e.base, []).append(node)
+                self._last_partial_effect.setdefault(e.base, []).append(node)
             return last
 
         prev_nodes = {get_prev_node(e) for e in effects}
