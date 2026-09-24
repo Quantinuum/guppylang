@@ -78,7 +78,7 @@ class RNG:
         """Generate a random floating point value in the range [0,1)."""
 
     # The panic here is in narrowing the bound from 64-bit int down to 32 bits
-    @custom_function(RandomIntBoundedCompiler(), effects=[Effect.PANIC])
+    @custom_function(RandomIntBoundedCompiler(), effects=[Effect.ANY])
     @no_type_check
     def random_int_bounded(self: "RNG", bound: int) -> int:
         """Generate a random 32-bit integer in the range [0, bound).

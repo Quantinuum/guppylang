@@ -363,7 +363,7 @@ class StmtChecker(AstVisitor[BBStatement]):
             compr = with_type(array_type(elt_ty, size), compr)
             # This compiles to an ArrayUnpack, which can panic if any
             # elements are borrowed - so account for this in checking
-            register_effects(self.ctx, [Effect.PANIC])
+            register_effects(self.ctx, [Effect.ANY])
             return IterableUnpack(pattern, compr, var), size * [elt], size * [elt_ty]
 
         # Otherwise, we can't unpack this expression

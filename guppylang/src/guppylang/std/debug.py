@@ -11,7 +11,7 @@ from guppylang_internals.tys import Effect
     checker=StateOutputChecker(),
     higher_order_value=False,
     has_var_args=True,
-    effects=[Effect.OUTPUT],
+    effects=[Effect.ANY],
 )
 def state_output(tag, *args) -> None:
     """Report the quantum state of the specified qubits.

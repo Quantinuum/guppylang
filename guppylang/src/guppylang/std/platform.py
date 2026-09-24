@@ -76,7 +76,7 @@ def _output_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
 def _output_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
 
 
-@custom_function(checker=MeasurementOutputChecker(), effects=[Effect.OUTPUT])
+@custom_function(checker=MeasurementOutputChecker(), effects=[Effect.ANY])
 def _output_measurement_array(
     tag: str @ comptime, value: array[Measurement, n]
 ) -> None: ...
@@ -197,7 +197,7 @@ def _exit(msg: str, *args) -> None: ...
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.OUTPUT],
+    effects=[Effect.ANY],
 )
 def _exit_with_signal(msg: str, signal: int, *args) -> None: ...
 
