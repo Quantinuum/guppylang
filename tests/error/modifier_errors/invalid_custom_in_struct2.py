@@ -1,4 +1,8 @@
-"""Ensuring that when a custom unitary is defined as a struct method, the requirement of custom methods signature is properly checked"""
+"""
+Ensure that when a custom unitary is defined as a struct method,
+all required custom methods are present.
+"""
+
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array
 from guppylang.std.quantum import discard, qubit
@@ -17,7 +21,7 @@ class FooStruct:
             pass
 
         @guppy
-        def controlled(self, q: qubit, controls: array[int, n]) -> None:
+        def controlled(self, q: qubit, controls: array[qubit, n]) -> None:
             pass
 
         @guppy

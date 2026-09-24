@@ -1,10 +1,10 @@
-Error: Incompatible signature for custom `controlled` implementation (at $FILE:20:8)
+Error: Incompatible signature for custom `controlled` implementation (at $FILE:24:8)
    | 
-18 | 
-19 |         @guppy
-20 |         def controlled(self, q: qubit, controls: array[int, n]) -> None:
+22 | 
+23 |         @guppy
+24 |         def controlled(self, q: qubit, controls: array[int, n]) -> None:
    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-21 |             pass
+25 |             pass
    | ^^^^^^^^^^^^^^^^ Expected signature `forall n: nat. (FooStruct, qubit,
    |                  array[qubit, n]) -> None`, got `forall n: nat. (FooStruct,
    |                  qubit, array[int, n]) -> None`

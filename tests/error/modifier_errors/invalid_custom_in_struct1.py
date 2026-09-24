@@ -1,4 +1,8 @@
-"""Checking that when a custom unitary is defined as a struct method, the custom methods signature is properly tested"""
+"""
+Check that when a custom unitary is defined as a struct method,
+the custom method signature is properly validated.
+"""
+
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array
 from guppylang.std.quantum import discard, qubit
