@@ -24,6 +24,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_SOL_EXTENSION,
 )
 from guppylang_internals.std._internal.util import quantum_op
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.angles import angle, pi
@@ -59,7 +60,7 @@ __all__ = [
 ]
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def phased_x(q: qubit, angle1: angle, angle2: angle) -> None:
     r"""Primitive phased_x gate command.
@@ -80,7 +81,7 @@ def phased_x(q: qubit, angle1: angle, angle2: angle) -> None:
     _phased_x(q, f1, f2)
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def phased_xx(q1: qubit, q2: qubit, angle1: angle, angle2: angle) -> None:
     r"""Primitive phased_xx gate command. The native 2-qubit entangling gate on Sol.
@@ -112,7 +113,7 @@ def phased_xx(q1: qubit, q2: qubit, angle1: angle, angle2: angle) -> None:
     _phased_xx(q1, q2, f1, f2)
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def phased_xx_max(q1: qubit, q2: qubit, phase: angle) -> None:
     r"""phased_xx_max gate command. Maximally entangling PhasedXX gate at a given phase.
@@ -133,7 +134,7 @@ def phased_xx_max(q1: qubit, q2: qubit, phase: angle) -> None:
     phased_xx(q1, q2, pi / 2, phase)
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def xx_max(q1: qubit, q2: qubit) -> None:
     r"""xx_max gate command. Maximally entangling XX gate.
@@ -144,7 +145,7 @@ def xx_max(q1: qubit, q2: qubit) -> None:
     phased_xx_max(q1, q2, angle(0.0))
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def yy_max(q1: qubit, q2: qubit) -> None:
     r"""yy_max gate command. Maximally entangling YY gate.
@@ -157,7 +158,7 @@ def yy_max(q1: qubit, q2: qubit) -> None:
     phased_xx_max(q1, q2, pi / 2)
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def rz(q: qubit, angle: angle) -> None:
     r"""Primitive rz gate command.
@@ -315,7 +316,9 @@ def lazy_measure_and_reset_array(
 # ------------------------------------------------------
 
 
-@hugr_op(quantum_op("PhasedX", ext=QSYSTEM_SOL_EXTENSION))
+@hugr_op(
+    quantum_op("PhasedX", ext=QSYSTEM_SOL_EXTENSION), unitary_flags=UnitaryFlags.Unitary
+)
 @no_type_check
 def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
     """PhasedX operation from the qsystem sol extension.
@@ -325,7 +328,10 @@ def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
     """
 
 
-@hugr_op(quantum_op("PhasedXX", ext=QSYSTEM_SOL_EXTENSION))
+@hugr_op(
+    quantum_op("PhasedXX", ext=QSYSTEM_SOL_EXTENSION),
+    unitary_flags=UnitaryFlags.Unitary,
+)
 @no_type_check
 def _phased_xx(q1: qubit, q2: qubit, angle1: float, angle2: float) -> None:
     """PhasedXX operation from the qsystem sol extension.
@@ -335,7 +341,9 @@ def _phased_xx(q1: qubit, q2: qubit, angle1: float, angle2: float) -> None:
     """
 
 
-@hugr_op(quantum_op("Rz", ext=QSYSTEM_SOL_EXTENSION))
+@hugr_op(
+    quantum_op("Rz", ext=QSYSTEM_SOL_EXTENSION), unitary_flags=UnitaryFlags.Unitary
+)
 @no_type_check
 def _rz(q: qubit, angle: float) -> None:
     """Rz operation from the qsystem sol extension.
