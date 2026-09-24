@@ -1,16 +1,21 @@
 """Double-precision math operations backed by HUGR's arithmetic.math extension.
 
-Trigonometric functions consume or return floats in radians. Domain and non-finite
-results follow the underlying HUGR operations rather than raising Python math
-exceptions.
+Trigonometric functions support floats in radians and Guppy angles. Inverse
+trigonometric functions return floats unless an angle result is required by the
+surrounding type context. Domain and non-finite results follow the underlying
+HUGR operations rather than raising Python math exceptions.
 """
 
 # mypy: disable-error-code="empty-body"
 
-from guppylang_internals.decorator import hugr_op
+from guppylang_internals.decorator import custom_function, hugr_op
+from guppylang_internals.std._internal.compiler.math import TrigCompiler
 from guppylang_internals.std._internal.util import float_op
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr.std._util import _load_extension
+
+from guppylang.decorator import guppy
+from guppylang.std.angles import angle
 
 _MATH_EXTENSION = _load_extension("arithmetic.math")
 
@@ -33,28 +38,89 @@ __all__ = [
 
 
 @hugr_op(float_op("sin", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
-def sin(x: float) -> float:
-    """Return the sine of x, measured in radians."""
+def _sin_float(x: float) -> float: ...
+
+
+@custom_function(
+    TrigCompiler("sin", math_extension=_MATH_EXTENSION, inverse=False),
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def _sin_angle(x: angle) -> float: ...
+
+
+@guppy.overload(_sin_float, _sin_angle)
+def sin(x: float | angle) -> float:
+    """Return the sine of a float in radians or a Guppy angle."""
 
 
 @hugr_op(float_op("cos", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
-def cos(x: float) -> float:
-    """Return the cosine of x, measured in radians."""
+def _cos_float(x: float) -> float: ...
+
+
+@custom_function(
+    TrigCompiler("cos", math_extension=_MATH_EXTENSION, inverse=False),
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def _cos_angle(x: angle) -> float: ...
+
+
+@guppy.overload(_cos_float, _cos_angle)
+def cos(x: float | angle) -> float:
+    """Return the cosine of a float in radians or a Guppy angle."""
 
 
 @hugr_op(float_op("tan", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
-def tan(x: float) -> float:
-    """Return the tangent of x, measured in radians."""
+def _tan_float(x: float) -> float: ...
+
+
+@custom_function(
+    TrigCompiler("tan", math_extension=_MATH_EXTENSION, inverse=False),
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def _tan_angle(x: angle) -> float: ...
+
+
+@guppy.overload(_tan_float, _tan_angle)
+def tan(x: float | angle) -> float:
+    """Return the tangent of a float in radians or a Guppy angle."""
 
 
 @hugr_op(float_op("atan", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
-def atan(x: float) -> float:
-    """Return the inverse tangent of x in radians."""
+def _atan_float(x: float) -> float: ...
+
+
+@custom_function(
+    TrigCompiler("atan", math_extension=_MATH_EXTENSION, inverse=True),
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def _atan_angle(x: float) -> angle: ...
+
+
+@guppy.overload(_atan_float, _atan_angle)
+def atan(x: float) -> float | angle:
+    """Return the inverse tangent of x as a float in radians or an angle.
+
+    Returns a float unless the expected return type is ``angle``.
+    """
 
 
 @hugr_op(float_op("atan2", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
-def atan2(y: float, x: float) -> float:
-    r"""Return the four-quadrant inverse tangent of (y, x) in radians.
+def _atan2_float(y: float, x: float) -> float: ...
+
+
+@custom_function(
+    TrigCompiler("atan2", math_extension=_MATH_EXTENSION, inverse=True),
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def _atan2_angle(y: float, x: float) -> angle: ...
+
+
+@guppy.overload(_atan2_float, _atan2_angle)
+def atan2(y: float, x: float) -> float | angle:
+    r"""Return the four-quadrant inverse tangent of (y, x).
+
+    Returns a float in radians unless the expected return type is ``angle``.
+    The equations below express the result in radians.
 
     For finite inputs with :math:`y \ne 0`, the mathematical definition is:
 
@@ -86,13 +152,41 @@ def atan2(y: float, x: float) -> float:
 
 
 @hugr_op(float_op("asin", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
-def asin(x: float) -> float:
-    """Return the inverse sine of x in radians."""
+def _asin_float(x: float) -> float: ...
+
+
+@custom_function(
+    TrigCompiler("asin", math_extension=_MATH_EXTENSION, inverse=True),
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def _asin_angle(x: float) -> angle: ...
+
+
+@guppy.overload(_asin_float, _asin_angle)
+def asin(x: float) -> float | angle:
+    """Return the inverse sine of x as a float in radians or an angle.
+
+    Returns a float unless the expected return type is ``angle``.
+    """
 
 
 @hugr_op(float_op("acos", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
-def acos(x: float) -> float:
-    """Return the inverse cosine of x in radians."""
+def _acos_float(x: float) -> float: ...
+
+
+@custom_function(
+    TrigCompiler("acos", math_extension=_MATH_EXTENSION, inverse=True),
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def _acos_angle(x: float) -> angle: ...
+
+
+@guppy.overload(_acos_float, _acos_angle)
+def acos(x: float) -> float | angle:
+    """Return the inverse cosine of x as a float in radians or an angle.
+
+    Returns a float unless the expected return type is ``angle``.
+    """
 
 
 @hugr_op(float_op("exp", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)

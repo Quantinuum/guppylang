@@ -7,6 +7,7 @@ from hugr.std.float import FLOAT_T
 
 from guppylang import guppy
 from guppylang.std import math
+from guppylang.std.angles import angle
 
 
 @pytest.mark.parametrize(
@@ -224,3 +225,66 @@ def test_atan_range(x, run_float_fn_approx):
         return math.atan(x)
 
     run_float_fn_approx(main, pymath.atan(x), args=[x], rel=2e-14)
+
+
+@pytest.mark.parametrize("name", ["sin", "cos", "tan"])
+@pytest.mark.parametrize("halfturns", [-1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0])
+def test_trig_angle_emulation(name, halfturns, run_float_fn_approx):
+    fn = getattr(math, name)
+
+    @guppy
+    def main(x: float) -> float:
+        return fn(angle(x))
+
+    expected = getattr(pymath, name)(halfturns * pymath.pi)
+    run_float_fn_approx(
+        main, expected, args=[halfturns], rel=2e-14, abs=pymath.ulp(0.0)
+    )
+
+
+@pytest.mark.parametrize("name", ["asin", "acos", "atan"])
+@pytest.mark.parametrize("x", [-1.0, -0.5, 0.0, 0.5, 1.0])
+def test_inverse_trig_angle_emulation(name, x, run_angle_fn_approx):
+    fn = getattr(math, name)
+
+    @guppy
+    def main(x: float) -> angle:
+        return fn(x)
+
+    expected = getattr(pymath, name)(x) / pymath.pi
+    run_angle_fn_approx(main, expected, args=[x], rel=2e-14, abs=pymath.ulp(0.0))
+
+
+@pytest.mark.parametrize("y", [-2.0, -0.0, 0.0, 2.0])
+@pytest.mark.parametrize("x", [-1.0, -0.0, 0.0, 1.0])
+def test_atan2_angle_emulation(y, x, run_angle_fn_approx):
+    @guppy
+    def main(y: float, x: float) -> angle:
+        return math.atan2(y, x)
+
+    run_angle_fn_approx(
+        main,
+        pymath.atan2(y, x) / pymath.pi,
+        args=[y, x],
+        rel=2e-14,
+        abs=pymath.ulp(0.0),
+    )
+
+
+@pytest.mark.parametrize("name", ["asin", "acos", "atan"])
+def test_inverse_trig_angle_return(name, validate):
+    fn = getattr(math, name)
+
+    @guppy
+    def main(x: float) -> angle:
+        return fn(x)
+
+    validate(main.compile_function())
+
+
+def test_atan2_angle_return(validate):
+    @guppy
+    def main(y: float, x: float) -> angle:
+        return math.atan2(y, x)
+
+    validate(main.compile_function())
