@@ -10,16 +10,13 @@ from selene_hugr_qis_compiler import check_hugr
 
 from guppylang.defs import GuppyDefinition
 from guppylang.emulator import Platform
-from guppylang.std.angles import angle  # noqa: TC002 - Guppy resolves annotations at runtime
 from guppylang.std.num import nat
 
 # Keep this in sync with the execution fixtures below. The PR workflow uses the
 # auto-applied ``execution`` marker to rerun only emulator-backed integration
 # tests against non-default platforms, without also rerunning validation-only
 # integration tests.
-_EXECUTION_FIXTURES = frozenset(
-    {"run_int_fn", "run_nat_fn", "run_float_fn_approx", "run_angle_fn_approx"}
-)
+_EXECUTION_FIXTURES = frozenset({"run_int_fn", "run_nat_fn", "run_float_fn_approx"})
 
 
 def pytest_generate_tests(metafunc):
@@ -102,9 +99,7 @@ class LLVMException(Exception):
     pass
 
 
-def _emulate_fn(
-    ty: Literal["int", "nat", "float", "angle"], default_platform: Platform
-):
+def _emulate_fn(ty: Literal["int", "nat", "float"], default_platform: Platform):
     """Use selene to emulate a Guppy function."""
     from guppylang.decorator import guppy
     from guppylang.std.builtins import output
@@ -134,11 +129,6 @@ def _emulate_fn(
             o: float = f(*args)
             output("_test_output", o)
 
-        @guppy.comptime
-        def angle_entry() -> None:
-            o: angle = f(*args)
-            output("_test_output", o.halfturns)
-
         match ty:
             case "int":
                 entry = int_entry
@@ -146,8 +136,6 @@ def _emulate_fn(
                 entry = nat_entry
             case "float":
                 entry = flt_entry
-            case "angle":
-                entry = angle_entry
             case _:
                 assert_never(ty)
         if num_qubits:
@@ -190,35 +178,6 @@ def run_float_fn_approx(target_platform: Platform):
     """Like run_int_fn, but takes optional additional parameters `rel`, `abs`
     and `nan_ok` as per `pytest.approx`."""
     run_fn = _emulate_fn(ty="float", default_platform=target_platform)
-
-    def run_approx(
-        f: GuppyDefinition,
-        expected: float,
-        num_qubits: int | None = None,
-        args: list[Any] | None = None,
-        *,
-        rel: float | None = None,
-        abs: float | None = None,
-        nan_ok: bool = False,
-    ):
-        return run_fn(
-            f,
-            pytest.approx(expected, rel=rel, abs=abs, nan_ok=nan_ok),
-            num_qubits,
-            args,
-        )
-
-    return run_approx
-
-
-@pytest.fixture
-def run_angle_fn_approx(target_platform: Platform):
-    """Emulate an angle-returning function and compare its result in half-turns.
-
-    ``expected`` and the ``abs`` tolerance are measured in half-turns. The
-    ``rel``, ``abs`` and ``nan_ok`` options are passed to ``pytest.approx``.
-    """
-    run_fn = _emulate_fn(ty="angle", default_platform=target_platform)
 
     def run_approx(
         f: GuppyDefinition,

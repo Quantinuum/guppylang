@@ -244,25 +244,27 @@ def test_trig_angle_emulation(name, halfturns, run_float_fn_approx):
 
 @pytest.mark.parametrize("name", ["asin", "acos", "atan"])
 @pytest.mark.parametrize("x", [-1.0, -0.5, 0.0, 0.5, 1.0])
-def test_inverse_trig_angle_emulation(name, x, run_angle_fn_approx):
+def test_inverse_trig_angle_emulation(name, x, run_float_fn_approx):
     fn = getattr(math, name)
 
     @guppy
-    def main(x: float) -> angle:
-        return fn(x)
+    def main(x: float) -> float:
+        result: angle = fn(x)
+        return result.halfturns
 
     expected = getattr(pymath, name)(x) / pymath.pi
-    run_angle_fn_approx(main, expected, args=[x], rel=2e-14, abs=pymath.ulp(0.0))
+    run_float_fn_approx(main, expected, args=[x], rel=2e-14, abs=pymath.ulp(0.0))
 
 
 @pytest.mark.parametrize("y", [-2.0, -0.0, 0.0, 2.0])
 @pytest.mark.parametrize("x", [-1.0, -0.0, 0.0, 1.0])
-def test_atan2_angle_emulation(y, x, run_angle_fn_approx):
+def test_atan2_angle_emulation(y, x, run_float_fn_approx):
     @guppy
-    def main(y: float, x: float) -> angle:
-        return math.atan2(y, x)
+    def main(y: float, x: float) -> float:
+        result: angle = math.atan2(y, x)
+        return result.halfturns
 
-    run_angle_fn_approx(
+    run_float_fn_approx(
         main,
         pymath.atan2(y, x) / pymath.pi,
         args=[y, x],
