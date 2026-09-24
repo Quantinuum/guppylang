@@ -54,7 +54,35 @@ def atan(x: float) -> float:
 
 @hugr_op(float_op("atan2", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
 def atan2(y: float, x: float) -> float:
-    """Return the four-quadrant inverse tangent of (y, x) in radians."""
+    r"""Return the four-quadrant inverse tangent of (y, x) in radians.
+
+    For finite inputs with :math:`y \ne 0`, the mathematical definition is:
+
+    .. math::
+
+        \operatorname{atan2}(y, x) =
+        \begin{cases}
+            \arctan(y/x) & x > 0, \\[5mu]
+            \arctan(y/x) + \pi & x < 0 \text{ and } y > 0, \\[5mu]
+            \arctan(y/x) - \pi & x < 0 \text{ and } y < 0, \\[5mu]
+            +\pi/2 & x = 0 \text{ and } y > 0, \\[5mu]
+            -\pi/2 & x = 0 \text{ and } y < 0.
+        \end{cases}
+
+    Signed-zero inputs follow the floating-point conventions:
+
+    .. math::
+
+        \operatorname{atan2}(\pm 0, x) =
+        \begin{cases}
+            \pm 0 & x > 0 \text{ or } x \text{ is } +0, \\[5mu]
+            \pm \pi & x < 0 \text{ or } x \text{ is } -0.
+        \end{cases}
+
+    The sign of the result matches the sign of :math:`y` in these zero cases.
+    The equations describe the mathematical result, not an evaluation of
+    :math:`y/x` followed by :func:`atan`, which could overflow or underflow.
+    """
 
 
 @hugr_op(float_op("asin", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
