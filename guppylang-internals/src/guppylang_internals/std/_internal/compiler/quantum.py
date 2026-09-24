@@ -11,10 +11,14 @@ from hugr.std.float import FLOAT_T
 
 from guppylang_internals.compiler.builder import OpWithEffects, pure
 from guppylang_internals.compiler.builder.ops import unpack_tuple
-from guppylang_internals.definition.custom import CustomInoutCallCompiler
+from guppylang_internals.definition.custom import (
+    CustomCallCompiler,
+    CustomInoutCallCompiler,
+)
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.std._internal.compiler.tket_exts import (
     FUTURES_EXTENSION,
+    GLOBAL_PHASE_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
     QUANTUM_EXTENSION,
     ROTATION_EXTENSION,
@@ -120,3 +124,18 @@ class RotationCompiler(CustomInoutCallCompiler):
             rotation,
         )
         return CallReturnWires(regular_returns=[], inout_returns=list(qs))
+
+
+class GlobalPhaseCompiler(CustomCallCompiler):
+    """Compiler for the `global_phase` function."""
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        [angle] = args
+        [halfturns] = self.builder.add_op(unpack_tuple([FLOAT_T]), angle)
+        [rotation] = self.builder.add_op(from_halfturns_unchecked(), halfturns)
+        op = ops.ExtOp(
+            GLOBAL_PHASE_EXTENSION.get_op("global_phase"),
+            ht.FunctionType([ROTATION_T], []),
+        )
+        self.builder.add_op((op, self.func.call_effects), rotation)
+        return []
