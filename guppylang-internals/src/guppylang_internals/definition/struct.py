@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, NoReturn
+from typing import ClassVar
 
 from hugr import Wire
 
@@ -35,12 +35,18 @@ from guppylang_internals.definition.util import (
     UncheckedField,
     check_not_recursive,
     extract_generic_params,
+    is_guppy_unitary,
     parse_py_class,
 )
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.span import SourceMap, class_header_span, function_header_span
+from guppylang_internals.span import (
+    SourceMap,
+    class_header_span,
+    extract_header_span,
+    function_header_span,
+)
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
@@ -82,8 +88,6 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
 
         from guppylang.defs import GuppyDefinition
 
-        from guppylang_internals.definition.function import RawFunctionDef
-
         fields: list[UncheckedField] = []
         used_field_names: set[str] = set()
         used_func_names: dict[str, ast.FunctionDef | ast.ClassDef] = {}
@@ -115,12 +119,14 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                 # replaces it with its `__call__` Guppy function definition.
                 case _, ast.ClassDef(name=name) as node:
                     v = getattr(self.python_class, name)
-                    if not (
-                        isinstance(v, GuppyDefinition)
-                        and isinstance(v.wrapped, RawFunctionDef)
-                        and v.wrapped.unitary_class_at is not None
-                    ):
-                        _raise_unexpected_struct_statement(node)
+                    if not is_guppy_unitary(v):
+                        err = UnexpectedError(
+                            node,
+                            "statement",
+                            unexpected_in="struct definition",
+                        )
+                        err.add_sub_diagnostic(FieldFormHint(None))
+                        raise GuppyError(err)
                     used_func_names[name] = node
                     if name in used_field_names:
                         raise GuppyError(
@@ -143,17 +149,19 @@ class RawStructDef(TypeDef, ParsableDef, UserProvidedLinkName):
                     fields.append(UncheckedField(field_name, node.annotation))
                     used_field_names.add(field_name)
                 case _, node:
-                    _raise_unexpected_struct_statement(node)
+                    err = UnexpectedError(
+                        node,
+                        "statement",
+                        unexpected_in="struct definition",
+                    )
+                    err.add_sub_diagnostic(FieldFormHint(None))
+                    raise GuppyError(err)
 
         # Ensure that functions don't override struct fields
         if overridden := used_field_names.intersection(used_func_names.keys()):
             x = overridden.pop()
             error_ast = used_func_names[x]
-            error_span = (
-                function_header_span(error_ast)
-                if isinstance(error_ast, ast.FunctionDef)
-                else class_header_span(error_ast)
-            )
+            error_span = extract_header_span(error_ast)
             raise GuppyError(DuplicateFieldError(error_span, self.name, x, "struct"))
 
         link_name_prefix = (
@@ -309,14 +317,3 @@ def params_from_ast(nodes: Sequence[ast.expr], globals: Globals) -> list[Paramet
                 continue
         raise GuppyError(ExpectedError(node, "a type parameter"))
     return params
-
-
-# todo: inline this function
-def _raise_unexpected_struct_statement(node: ast.stmt) -> NoReturn:
-    err = UnexpectedError(
-        node,
-        "statement",
-        unexpected_in="struct definition",
-    )
-    err.add_sub_diagnostic(FieldFormHint(None))
-    raise GuppyError(err)

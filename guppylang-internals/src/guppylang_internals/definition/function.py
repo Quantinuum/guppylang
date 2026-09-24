@@ -85,10 +85,7 @@ def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
         if isinstance(parent, ParsedStructDef | ParsedEnumDef):
             if unitary_call_id := DEF_STORE.custom_modified_def_parents.get(raw_def.id):
                 unitary_call = DEF_STORE.raw_defs[unitary_call_id]
-                return (
-                    f"{parent.link_name_prefix}.{unitary_call.name}."
-                    f"{raw_def.python_func.__name__}"
-                )
+                return f"{parent.link_name_prefix}.{unitary_call.name}.{raw_def.name}"
             return f"{parent.link_name_prefix}.{raw_def.name}"
 
     return f"{raw_def.python_func.__module__}.{raw_def.python_func.__qualname__}"

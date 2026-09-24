@@ -34,12 +34,16 @@ from guppylang_internals.definition.util import (
     UncheckedField,
     check_not_recursive,
     extract_generic_params,
+    is_guppy_unitary,
     parse_py_class,
 )
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.span import SourceMap, class_header_span, function_header_span
+from guppylang_internals.span import (
+    SourceMap,
+    extract_header_span,
+)
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
@@ -101,8 +105,6 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
         from guppylang.defs import GuppyDefinition
-
-        from guppylang_internals.definition.function import RawFunctionDef
 
         # We look for variants in the class body
         variants: dict[str, EnumVariant[UncheckedField]] = {}
@@ -181,12 +183,7 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Ensure that functions do not override enum variants
         # and that all functions are Guppy functions
         for func_name, func_def in used_func_names.items():
-            match func_def:
-                case ast.ClassDef() as node:
-                    header_span = class_header_span(node)
-                case ast.FunctionDef() as node:
-                    header_span = function_header_span(node)
-
+            header_span = extract_header_span(func_def)
             if func_name in variants:
                 raise GuppyError(
                     DuplicateVariantError(header_span, self.name, func_name)
@@ -200,11 +197,7 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
                             header_span, self.name, func_name, "enum", "@guppy"
                         )
                     )
-                case ast.ClassDef() if not (
-                    isinstance(v, GuppyDefinition)
-                    and isinstance(v.wrapped, RawFunctionDef)
-                    and v.wrapped.unitary_class_at is not None
-                ):
+                case ast.ClassDef() if not is_guppy_unitary(v):
                     err = UnexpectedError(
                         header_span,
                         "statement",
