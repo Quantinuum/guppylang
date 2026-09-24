@@ -64,14 +64,14 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes unwrap (compiled separately)
+        effects=(),  # Preserving legacy behaviour to support optimization, https://github.com/Quantinuum/guppylang/issues/2122
     )
     def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes (compiled separately)
+        effects=[Effect.ANY],  # includes unwrap (compiled separately)
     )
     def __setitem__[L, n: nat](
         self: array[L, n], idx: int, value: L @ owned
@@ -253,10 +253,7 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(
-        ArrayDiscardAllUsedCompiler(),
-        effects=(),  # Can panic, but preserving legacy behaviour (https://github.com/Quantinuum/guppylang/issues/2122)
-    )
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.ANY])
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
