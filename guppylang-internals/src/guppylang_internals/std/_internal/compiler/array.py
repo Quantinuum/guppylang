@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import hugr
-from hugr import Wire, ops
+from hugr import Wire
 from hugr import tys as ht
 from hugr.std.collections.borrow_array import EXTENSION
 
@@ -132,7 +132,7 @@ def array_scan(
     length: ht.TypeArg,
     new_elem_ty: ht.Type,
     accumulators: list[ht.Type],
-) -> ops.ExtOp:
+) -> OpWithEffects:
     """Returns an operation that maps and folds a function across an array."""
     ty_args = [
         length,
@@ -146,12 +146,17 @@ def array_scan(
         *accumulators,
     ]
     outs = [array_type(new_elem_ty, length), *accumulators]
-    # EFFECTS: this can panic if any element is borrowed, so we should mark that here.
-    # (We also need to allow for callee effects.) Preserving behaviour for now.
-    return EXTENSION.get_op("scan").instantiate(ty_args, ht.FunctionType(ins, outs))
+    # This can panic if any element is borrowed; and we must allow for
+    # effects of the called function, which we don't know (indirect call).
+    return (
+        EXTENSION.get_op("scan").instantiate(ty_args, ht.FunctionType(ins, outs)),
+        [Effect.ANY],
+    )
 
 
-def array_map(elem_ty: ht.Type, length: ht.TypeArg, new_elem_ty: ht.Type) -> ops.ExtOp:
+def array_map(
+    elem_ty: ht.Type, length: ht.TypeArg, new_elem_ty: ht.Type
+) -> OpWithEffects:
     """Returns an operation that maps a function across an array."""
     return array_scan(elem_ty, length, new_elem_ty, accumulators=[])
 
