@@ -142,6 +142,10 @@ def analyze_modifier_calls(
                 # Combine modifiers inherited from the caller with those surrounding
                 # this particular call in the checked function body.
                 effective_context = state.inherited_context.compose(local_context)
+                # `custom_use`` is None if no modifier is required, the callee's
+                # instantiation is not concrete, no custom implementation exists for
+                # the required modifier kind, or its required control count is not
+                # concrete yet. Thus only fully concrete call are considered.
                 resolved_callee, custom_use = resolve_modified_call(
                     raw_callee, effective_context
                 )

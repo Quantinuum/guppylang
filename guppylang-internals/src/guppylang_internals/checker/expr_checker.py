@@ -27,6 +27,7 @@ import traceback
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
+from enum import Enum, auto
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -224,6 +225,64 @@ binary_table: dict[type[AstOp], tuple[str, str, str]] = {
 }  # fmt: skip
 
 
+class ExprUse(Enum):
+    """Whether an expression supplies a value or is the target of a call."""
+
+    VALUE = auto()
+    CALLEE = auto()
+
+
+def record_function_load(node: ast.expr, ctx: Context) -> None:
+    """Records a function reference as an owner -> (definition, type arguments) edge.
+
+    Called for value uses such as `g = f`, `consume(f)`, and `return f`.
+    Call targets are excluded by the caller. GlobalCall/LocalCall results and
+    PlaceNode aliases are ignored here: we do not infer which function they hold.
+    Child expressions are recorded during their own checking; this helper only
+    unwraps the type applications and bound methods described below.
+    """
+    if ctx.current_caller is None:
+        # Outside a checked function there is no owner for the dependency.
+        return
+    match node:
+        case GlobalName(def_id=def_id):
+            # A resolved global reference, e.g. `g = f` or `g = MyType.static_method`.
+            # GlobalName also represents non-callable definitions, which we ignore.
+            if isinstance(defn := ENGINE.get_parsed(def_id), CallableDef):
+                match get_type(node):
+                    case FunctionDefType(args=args):
+                        # A function item, e.g. `g = f`. Specialization arguments are
+                        # inside the definition.
+                        # Includes NestedFunctionDefType, a FunctionDefType subclass.
+                        inst = args
+                    case FunctionType():
+                        # Method references (obj.static_method or obj.static_method)
+                        # return the method signature directly, not a FunctionTypeDef.
+                        # Coercion also produces this type, e.g. `return f` against the
+                        # return annotation. It stores no inst args. If the function is
+                        # generic, its inst args is handled below.
+                        inst = ()
+                    case _ as ty:
+                        raise InternalGuppyError(
+                            f"Unexpected type for loaded function: {ty}"
+                        )
+                if not inst:
+                    # If inst is not provided: for generic functions, we use the same
+                    # bound arguments as the engine's generic graph nodes, while
+                    # nongeneric functions have no parameters, so their argument tuple
+                    # remains empty.
+                    inst = tuple(param.to_bound() for param in defn.ty.params)
+                ENGINE.register_load(ctx.current_caller, (def_id, inst))
+        case TypeApply(value=GlobalName(def_id=def_id), inst=inst):
+            # A specialized reference: `g = f[int]`, or `g: Function[[int], int] = f`
+            # after type inference.
+            if isinstance(ENGINE.get_parsed(def_id), CallableDef):
+                ENGINE.register_load(ctx.current_caller, (def_id, inst))
+        case PartialApply(func=func):
+            # Loading `obj.method`, produce a PartialApply(func=method)
+            record_function_load(func, ctx)
+
+
 class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     """Checks an expression against a type and produces a new type-annotated AST.
 
@@ -256,7 +315,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         raise GuppyTypeError(TypeMismatchError(loc, expected, actual))
 
     def check(
-        self, expr: ast.expr, ty: Type, kind: str = "expression"
+        self,
+        expr: ast.expr,
+        ty: Type,
+        kind: str = "expression",
     ) -> tuple[ast.expr, Subst]:
         """Checks an expression against a type.
 
@@ -264,6 +326,17 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         a new desugared expression with type annotations and a substitution with the
         resolved type variables.
         """
+        expr, subst = self._check_expr(expr, ty, kind)
+        # Call targets go through synthesis with CALLEE; check always checks values.
+        # Checking a function reference (e.g. `return f`) can produce a GlobalName,
+        # which registers a load. A call (e.g. `return f()`) normally produces a
+        # GlobalCall or LocalCall, which record_function_load ignores.
+        record_function_load(expr, self.ctx)
+        return expr, subst
+
+    def _check_expr(
+        self, expr: ast.expr, ty: Type, kind: str
+    ) -> tuple[ast.expr, Subst]:
         # If we already have a type for the expression, we just have to match it against
         # the target
         if actual := get_type_opt(expr):
@@ -290,10 +363,14 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         return with_type(ty.substitute(subst), expr), subst
 
     def _synthesize(
-        self, node: ast.expr, allow_free_vars: bool
+        self,
+        node: ast.expr,
+        allow_free_vars: bool,
+        *,
+        use: ExprUse = ExprUse.VALUE,
     ) -> tuple[ast.expr, Type]:
-        """Invokes the type synthesiser"""
-        return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars)
+        """Synthesizes an expression; check also records any resulting specialization."""
+        return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars, use=use)
 
     def _check_python_value(
         self, value: Any, act: Type, node: ast.expr, ty: Type
@@ -378,7 +455,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     def visit_Call(self, node: ast.Call, ty: Type) -> tuple[ast.expr, Subst]:
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
-        node.func, func_ty = self._synthesize(node.func, allow_free_vars=False)
+        node.func, func_ty = self._synthesize(
+            node.func, allow_free_vars=False, use=ExprUse.CALLEE
+        )
 
         if isinstance(func_ty, FunctionDefType):
             node.func = function_def_value_to_function_value(node.func, func_ty)
@@ -483,20 +562,36 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def __init__(self, ctx: Context) -> None:
         self.ctx = ctx
+        self._use = ExprUse.VALUE
 
     def synthesize(
-        self, node: ast.expr, allow_free_vars: bool = False
+        self,
+        node: ast.expr,
+        allow_free_vars: bool = False,
+        *,
+        use: ExprUse = ExprUse.VALUE,
     ) -> tuple[ast.expr, Type]:
         """Tries to synthesise a type for the given expression.
 
         Also returns a new desugared expression with type annotations.
+
+        `use` applies to this expression only. Recursive synthesis defaults to
+        `VALUE`, so arguments of a call are still recorded when the call itself
+        is used as a callee.
         """
-        if ty := get_type_opt(node):
+        previous_use = self._use
+        self._use = use
+        try:
+            if (ty := get_type_opt(node)) is None:
+                node, ty = self.visit(node)
+                if ty.unsolved_vars and not allow_free_vars:
+                    raise GuppyError(TypeInferenceError(node, ty))
+                node = with_type(ty, node)
+            if use is ExprUse.VALUE:
+                record_function_load(node, self.ctx)
             return node, ty
-        node, ty = self.visit(node)
-        if ty.unsolved_vars and not allow_free_vars:
-            raise GuppyError(TypeInferenceError(node, ty))
-        return with_type(ty, node), ty
+        finally:
+            self._use = previous_use
 
     def _check(
         self, expr: ast.expr, ty: Type, kind: str = "expression"
@@ -685,7 +780,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                             case _ as ty:
                                 # case for when the type is known
                                 if func := ENGINE.get_instance_func(ty, node.attr):
-                                    # NICOLA: Here we are dealing with a potential function loading
                                     return with_loc(
                                         node, make_global_name(node.attr, func.id)
                                     ), func.ty
@@ -696,7 +790,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         and (func := ENGINE.get_instance_func(defn, node.attr))
                         is not None
                     ):
-                        # NICOLA: Here we are dealing with a potential function loading
                         return with_loc(
                             node, make_global_name(node.attr, func.id)
                         ), func.ty
@@ -1058,7 +1151,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return self._synthesize_binary(left_expr, right_expr, op, node)
 
     def visit_Subscript(self, node: ast.Subscript) -> tuple[ast.expr, Type]:
-        node.value, ty = self.synthesize(node.value)
+        # A value use records both the generic reference and its specialization.
+        # Preserve CALLEE through type application so f[T]() records neither load.
+        node.value, ty = self.synthesize(node.value, use=self._use)
         # Special case for subscripts on functions: Those are type applications
         if isinstance(ty, FunctionDefType):
             ty = ty.sig
@@ -1129,7 +1224,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def visit_Call(self, node: ast.Call) -> tuple[ast.expr, Type]:
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
-        node.func, ty = self.synthesize(node.func)
+        node.func, ty = self.synthesize(node.func, use=ExprUse.CALLEE)
 
         if isinstance(ty, FunctionDefType):
             node.func = function_def_value_to_function_value(node.func, ty)
