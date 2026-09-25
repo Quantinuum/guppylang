@@ -349,7 +349,11 @@ def test_enum_passed_through_functions(validate):
     validate(main.compile_function())
 
 
-def test_unitary_method_nested_in_enum(validate):
+def test_unitary_method_nested_generics_in_enum(validate):
+    """Test that unitary methods nested in enums can specify additional generic
+    parameters that are merged with the enum parameters
+    """
+
     T = guppy.type_var("T")
 
     @guppy.enum

@@ -225,21 +225,24 @@ class DefinitionStore:
         # Advance past each class and its optional annotation scope.
         if member_id not in self.frames:
             return
+        frame = self.frames[member_id]
         for _ in range(class_scopes):
-            frame = self.frames[member_id].f_back
-            if frame:
-                self.frames[member_id] = frame
-                # For Python 3.12 generic functions and classes, there is an additional
-                # inserted frame for the annotation scope. We can detect this frame by
-                # looking for the special ".generic_base" variable in the frame locals
-                # that is implicitly inserted by CPython. See
-                # - https://docs.python.org/3/reference/executionmodel.html#annotation-scopes
-                # - https://docs.python.org/3/reference/compound_stmts.html#generic-functions
-                # - https://jellezijlstra.github.io/pep695.html
-                if ".generic_base" in frame.f_locals:
-                    frame = frame.f_back
-                    assert frame is not None
-                    self.frames[member_id] = frame
+            parent_frame = frame.f_back
+            if parent_frame is None:
+                break
+            frame = parent_frame
+            # For Python 3.12 generic functions and classes, there is an additional
+            # inserted frame for the annotation scope. We can detect this frame by
+            # looking for the special ".generic_base" variable in the frame locals
+            # that is implicitly inserted by CPython. See
+            # - https://docs.python.org/3/reference/executionmodel.html#annotation-scopes
+            # - https://docs.python.org/3/reference/compound_stmts.html#generic-functions
+            # - https://jellezijlstra.github.io/pep695.html
+            if ".generic_base" in frame.f_locals:
+                frame = frame.f_back
+                assert frame is not None
+
+        self.frames[member_id] = frame
 
     def register_wasm_function(self, fn_id: DefId, sig: FunctionType) -> None:
         self.wasm_functions[fn_id] = sig

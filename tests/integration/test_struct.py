@@ -143,7 +143,11 @@ def test_methods(validate):
     validate(main.compile_function())
 
 
-def test_unitary_method_nested_in_struct(validate):
+def test_unitary_method_nested_generics_in_struct(validate):
+    """Test that unitary methods nested in structs can specify additional generic
+    parameters that are merged with the struct parameters
+    """
+
     T = guppy.type_var("T")
 
     @guppy.struct(frozen=True)
