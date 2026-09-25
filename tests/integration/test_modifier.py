@@ -134,6 +134,51 @@ def test_control_subscript_allocated_array(validate):
     validate(bar.compile_function())
 
 
+def test_control_generic_function_call(validate):
+    @guppy
+    def generic_function[T](x: T) -> None:
+        pass
+
+    @guppy
+    def controlled_generic_call[T](x: T) -> None:
+        q = qubit()
+
+        with control(q):
+            generic_function(x)
+
+        discard(q)
+
+    @guppy
+    def main() -> None:
+        controlled_generic_call(1)
+
+    validate(main.compile_function())
+
+
+def test_control_generic_function_call_non_copyable(validate):
+    @guppy(controllable=True)
+    def generic_function[T](x: T) -> None:
+        pass
+
+    @guppy
+    def controlled_generic_call[T](x: T) -> None:
+        q = qubit()
+
+        with control(q):
+            generic_function(x)
+
+        discard(q)
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        # a qubit is non-copyable, so the captured input must remain Inout.
+        controlled_generic_call(q)
+        discard(q)
+
+    validate(main.compile_function())
+
+
 def test_multidimensional_control_subscript(validate):
     @guppy
     def main(qs: array[array[qubit, 2], 2], c: qubit) -> None:
@@ -701,6 +746,158 @@ def test_two_control_counts_distinct_runtime(run_int_fn):
         return (1 if result_one else 0) + (2 if result_two else 0)
 
     run_int_fn(main, expected=3, num_qubits=5)
+
+
+def test_struct_custom_modifier_impls_are_executed(run_int_fn):
+    @guppy.struct(frozen=True)
+    class CustomGates:
+        enabled: bool
+
+        @guppy
+        def flip(self, q: qubit) -> None:
+            x(q)
+
+        @guppy.unitary
+        class apply:
+            @guppy
+            def __call__(self, q: qubit) -> None:
+                pass
+
+            @guppy
+            def daggered(self, q: qubit) -> None:
+                if self.enabled:
+                    self.flip(q)
+
+            @guppy
+            def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
+                if self.enabled:
+                    self.flip(q)
+
+            @guppy
+            def ctrl_daggered[n: nat](
+                self, q: qubit, _controls: array[qubit, n]
+            ) -> None:
+                if self.enabled:
+                    self.flip(q)
+
+    @guppy
+    def main_plain() -> int:
+        target = qubit()
+        CustomGates(True).apply(target)
+        return 1 if measure(target).read() else 0
+
+    @guppy
+    def main_daggered() -> int:
+        target = qubit()
+        with dagger:
+            CustomGates(True).apply(target)
+        return 1 if measure(target).read() else 0
+
+    @guppy
+    def main_controlled() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with control(control_qubit):
+            CustomGates(True).apply(target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    @guppy
+    def main_ctrl_daggered() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with control(control_qubit), dagger:
+            CustomGates(True).apply(target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main_plain, expected=0, num_qubits=1)
+    run_int_fn(main_daggered, expected=1, num_qubits=1)
+    run_int_fn(main_controlled, expected=1, num_qubits=2)
+    run_int_fn(main_ctrl_daggered, expected=1, num_qubits=2)
+
+
+def test_enum_custom_modifier_impls_are_executed(run_int_fn):
+    @guppy.enum
+    class CustomGates:
+        Enabled = {}
+
+        @guppy
+        def flip(self, q: qubit) -> None:
+            x(q)
+
+        @guppy.unitary
+        class apply:
+            @guppy
+            def __call__(self, q: qubit) -> None:
+                pass
+
+            @guppy
+            def daggered(self, q: qubit) -> None:
+                self.flip(q)
+
+            @guppy
+            def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
+                self.flip(q)
+
+            @guppy
+            def ctrl_daggered[n: nat](
+                self, q: qubit, _controls: array[qubit, n]
+            ) -> None:
+                self.flip(q)
+
+    @guppy
+    def apply_daggered(gates: CustomGates, target: qubit) -> None:
+        with dagger:
+            gates.apply(target)
+
+    @guppy
+    def apply_controlled(
+        gates: CustomGates, control_qubit: qubit, target: qubit
+    ) -> None:
+        with control(control_qubit):
+            gates.apply(target)
+
+    @guppy
+    def apply_ctrl_daggered(
+        gates: CustomGates, control_qubit: qubit, target: qubit
+    ) -> None:
+        with control(control_qubit), dagger:
+            gates.apply(target)
+
+    @guppy
+    def main_daggered() -> int:
+        target = qubit()
+        apply_daggered(CustomGates.Enabled(), target)
+        return 1 if measure(target).read() else 0
+
+    @guppy
+    def main_controlled() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        apply_controlled(CustomGates.Enabled(), control_qubit, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    @guppy
+    def main_ctrl_daggered() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        apply_ctrl_daggered(CustomGates.Enabled(), control_qubit, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main_daggered, expected=1, num_qubits=1)
+    run_int_fn(main_controlled, expected=1, num_qubits=2)
+    run_int_fn(main_ctrl_daggered, expected=1, num_qubits=2)
 
 
 @pytest.mark.xfail(reason="Returning protocols not supported")

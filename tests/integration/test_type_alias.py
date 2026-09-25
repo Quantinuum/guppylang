@@ -159,7 +159,7 @@ def test_forward_declared_generic_alias(validate):
 
 
 def test_const_var_alias(run_int_fn):
-    """Generic aliases can be parameterised by const variables."""
+    """Generic aliases can be parameterized by const variables."""
     B = guppy.const_var("B", "bool")
 
     @guppy.struct

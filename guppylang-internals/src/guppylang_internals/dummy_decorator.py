@@ -6,7 +6,7 @@ class _DummyGuppy:
     decorate functions.
 
     We use this during sphinx builds as a mock for the decorator, to ensure that Guppy
-    functions are recognised as regular functions and included in docs.
+    functions are recognized as regular functions and included in docs.
     """
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:

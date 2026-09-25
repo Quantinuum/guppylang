@@ -103,7 +103,7 @@ def test_qsystem_random(validate):  # type: ignore[no-untyped-def]
 
 
 def test_random_advance(validate, run_int_fn):  # type: ignore[no-untyped-def]
-    """Validate behavior of random_advance from qsystem random extension."""
+    """Validate behaviour of random_advance from qsystem random extension."""
 
     @guppy
     def test() -> int:

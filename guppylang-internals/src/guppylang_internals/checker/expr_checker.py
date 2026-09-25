@@ -571,7 +571,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         *,
         use: ExprUse = ExprUse.VALUE,
     ) -> tuple[ast.expr, Type]:
-        """Tries to synthesise a type for the given expression.
+        """Tries to synthesize a type for the given expression.
 
         Also returns a new desugared expression with type annotations.
 
@@ -1115,7 +1115,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         """Helper method for expressions that are implemented via instance methods.
 
         Raises a `GuppyTypeError` if the given instance method is not defined. The error
-        message can be customised by passing an `err` string and an optional error
+        message can be customized by passing an `err` string and an optional error
         reason can be printed.
 
         Optionally, the signature of the instance function can also be checked against a
@@ -1394,7 +1394,7 @@ def check_type_against(
 
     Returns a substitution for the free variables the expected type and an instantiation
     for the parameters in the actual type. Note that the expected type may not be
-    parametrised and the actual type may not contain free unification variables.
+    parameterized and the actual type may not contain free unification variables.
     """
     assert not isinstance(exp, FunctionType) or not exp.parametrized
     assert not act.unsolved_vars
@@ -1522,7 +1522,7 @@ def function_def_value_to_function_value(
     """Coerces a definition-specific function value to its opaque function type.
 
     Global function items can be replaced by a `GlobalName` since the definition id
-    uniquely identifies them. Nested functions are materialised as local values, so
+    uniquely identifies them. Nested functions are materialized as local values, so
     their expression must be preserved to retain a possible closure.
     """
     if isinstance(ty, NestedFunctionDefType) and are_capturing_closures_enabled():
@@ -2019,7 +2019,7 @@ def to_bool(node: ast.expr, node_ty: Type, ctx: Context) -> tuple[ast.expr, Type
 def synthesize_comprehension(
     node: AstNode, gens: list[DesugaredGenerator], elt: ast.expr, ctx: Context
 ) -> tuple[list[DesugaredGenerator], ast.expr, Type]:
-    """Helper function to synthesise the element type of a list comprehension."""
+    """Helper function to synthesize the element type of a list comprehension."""
     # If there are no more generators left, we can check the list element
     if not gens:
         elt, elt_ty = ExprSynthesizer(ctx).synthesize(elt)
