@@ -64,14 +64,20 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=(),  # Preserving legacy behaviour to support optimization, https://github.com/Quantinuum/guppylang/issues/2122
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
     def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes unwrap (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
     def __setitem__[L, n: nat](
         self: array[L, n], idx: int, value: L @ owned
