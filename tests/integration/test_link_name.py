@@ -6,6 +6,8 @@ from hugr.package import Package
 
 from guppylang import guppy
 from guppylang.library import link_name
+from guppylang.std.builtins import dagger
+from guppylang.std.quantum import h, qubit
 
 
 @pytest.fixture
@@ -34,6 +36,25 @@ def _func_names_excluding_main(package: Package, qualifier: str) -> set[str]:
         raise AssertionError(
             f"Main function name `{qualifier}.<locals>.main` not found in package."
         )
+
+    return func_names
+
+
+def _func_names_excluding_main_and_withblocks(
+    package: Package, qualifier: str
+) -> set[str]:
+    func_names = _func_names_excluding_main(package, qualifier)
+    with_block_pattern = re.compile(
+        rf"{re.escape(qualifier)}\.<locals>\.main\.__WithBlock__\d+"
+    )
+    with_block_names = {
+        name for name in func_names if with_block_pattern.fullmatch(name)
+    }
+    if not with_block_names:
+        raise AssertionError(
+            f"No WithBlock function names found for `{qualifier}.<locals>.main`."
+        )
+    func_names.difference_update(with_block_names)
 
     return func_names
 
@@ -120,6 +141,34 @@ def test_struct_member_link_name_inferred(qualifier):
     }
 
 
+def test_struct_unitary_member_link_name_inferred(qualifier):
+    @guppy.struct(frozen=True)
+    class Struct:
+        @guppy.unitary
+        class apply_h:
+            @guppy
+            def __call__(self, q: qubit) -> None:
+                h(q)
+
+            @guppy
+            def daggered(self, q: qubit) -> None:
+                h(q)
+
+    @guppy
+    def main(s: Struct, q1: qubit, q2: qubit) -> None:
+        s.apply_h(q1)
+        with dagger:
+            s.apply_h(q2)
+
+    names = _func_names_excluding_main_and_withblocks(
+        main.with_minimal_opt().compile_function(), qualifier
+    )
+    assert {
+        f"{qualifier}.<locals>.Struct.apply_h",
+        f"{qualifier}.<locals>.Struct.apply_h.daggered",
+    } == names
+
+
 def test_struct_member_link_name_supported(qualifier):
     """Asserts that function `link_name`s of struct members that are derived through
     providing a `link_name` to the struct are correctly inferred."""
@@ -176,6 +225,36 @@ def test_enum_member_link_name_annotated(qualifier):
         "totally_qualified_override_name",
         "superbly_qualified_override_name",
     }
+
+
+def test_enum_unitary_member_link_name_inferred(qualifier):
+    @guppy.enum
+    class Enum:
+        Variant = {}
+
+        @guppy.unitary
+        class apply_h:
+            @guppy
+            def __call__(self, q: qubit) -> None:
+                h(q)
+
+            @guppy
+            def daggered(self, q: qubit) -> None:
+                h(q)
+
+    @guppy
+    def main(e: Enum, q1: qubit, q2: qubit) -> None:
+        e.apply_h(q1)
+        with dagger:
+            e.apply_h(q2)
+
+    names = _func_names_excluding_main_and_withblocks(
+        main.with_minimal_opt().compile_function(), qualifier
+    )
+    assert {
+        f"{qualifier}.<locals>.Enum.apply_h",
+        f"{qualifier}.<locals>.Enum.apply_h.daggered",
+    } == names
 
 
 def test_enum_member_link_name_inferred(qualifier):

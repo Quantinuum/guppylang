@@ -1,0 +1,8 @@
+Error: Duplicate variant (at $FILE:8:4)
+  | 
+6 | 
+7 |     @guppy.unitary
+8 |     class name:
+  |     ^^^^^^^^^^^ Enum `MyEnum` already contains a variant named `name`
+
+Guppy compilation failed due to 1 previous error
