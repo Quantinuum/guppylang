@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.1.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.1...guppylang-internals-v1.1.0-a0) (2026-09-25)
+
+
+### Bug Fixes
+
+* Clear stale inout flags on copyable generic captures (#2342)([a7fb22c](https://github.com/Quantinuum/guppylang/commit/a7fb22c7df361b5f692975b27626656c296cd350))
+* Bad span for missing return diagnostic with walrus loop condition (#2181)([589ffbc](https://github.com/Quantinuum/guppylang/commit/589ffbc200f766f0c1f776cd7b35e5943508cfe2))
+* Controlled implementation signature check is not more order-sensitive (#2323)([58ad84b](https://github.com/Quantinuum/guppylang/commit/58ad84b68f9628b61685451e27d001e4f559a250))
+* Reject unsupported statements in @guppy.unitary classes (#2310)([456c0d9](https://github.com/Quantinuum/guppylang/commit/456c0d9cba867a9b0bc23fc8688447d81f36d808))
+* Resolve calls to nested functions iff capturing closures are disabled (#2279)([c386494](https://github.com/Quantinuum/guppylang/commit/c386494714b9963ce57219cb4e6cfe932792af19))
+
+
+### Documentation
+
+* Use Oxford spelling consistently in public documentation (#2341)([b04bcd2](https://github.com/Quantinuum/guppylang/commit/b04bcd241003adb6b5ef79a6af68e48bcddcff0c))
+
+
+### Features
+
+* Custom modifiers as struct and enum methods (#2277)([28ee857](https://github.com/Quantinuum/guppylang/commit/28ee8574947847e32c59f4f45872f295df6f1aaa))
+
+
+### Performance Improvements
+
+* Avoid single dispatch on hot code paths (#2317)([7d5589e](https://github.com/Quantinuum/guppylang/commit/7d5589ee9b6938a7c64bfdd25690ff365cde746d))
+
 ## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.0-rc0...guppylang-internals-v1.1.1) (2026-09-14)
 
 
