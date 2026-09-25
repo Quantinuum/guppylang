@@ -13,6 +13,7 @@ from guppylang_internals.definition.custom import (
     CustomCallChecker,
     CustomCallCompiler,
     CustomInoutCallCompiler,
+    DefaultCallChecker,
 )
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.diagnostic import Error, Help, Note
@@ -35,6 +36,12 @@ from guppylang_internals.tys.ty import NumericType, Type
 
 #: Maximum length of a tag in the `output` function.
 TAG_MAX_LEN = 200
+
+
+class ArrayOutputChecker(DefaultCallChecker):
+    """Call checker for array outputs, which leave their borrowed array unchanged."""
+
+    preserves_static_inout_values = True
 
 
 @dataclass(frozen=True)
