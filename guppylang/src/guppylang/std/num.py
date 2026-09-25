@@ -104,7 +104,7 @@ class nat:
         checker=DunderChecker("__nat__"),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
-        effects=(),
+        effects=(),  # TODO: may effects include panicking for some input types?
     )
     def __new__(x): ...
 
@@ -298,7 +298,7 @@ class int:
         checker=DunderChecker("__int__"),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
-        effects=(),
+        effects=(),  # TODO: may effects include panicking for some input types?
     )
     def __new__(x): ...
 
