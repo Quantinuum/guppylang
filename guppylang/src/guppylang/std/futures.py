@@ -17,17 +17,17 @@ _future_params = [TypeParam(0, "T", must_be_copyable=False, must_be_droppable=Fa
 class Future[T]:
     """A value of type `T` that is computed asynchronously."""
 
-    @hugr_op(future_op("Read"))
+    @hugr_op(future_op("Read"), effects=())
     @no_type_check
     def read(self: "Future[T]" @ owned) -> T:
         """Reads a value from a future, consuming it."""
 
-    @hugr_op(future_op("Dup"))
+    @hugr_op(future_op("Dup"), effects=())
     @no_type_check
     def copy(self: "Future[T]") -> "Future[T]":
         """Duplicate a future."""
 
-    @hugr_op(future_op("Free"))
+    @hugr_op(future_op("Free"), effects=())
     @no_type_check
     def discard(self: "Future[T]" @ owned) -> None:
         """Discards a future without reading it."""

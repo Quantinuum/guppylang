@@ -66,17 +66,19 @@ class RNG:
     def discard(self: "RNG" @ owned) -> None:
         """Discard the random number generator."""
 
-    @custom_function(RandomIntCompiler())
+    @custom_function(RandomIntCompiler(), effects=())
     @no_type_check
     def random_int(self: "RNG") -> int:
         """Generate a random 32-bit signed integer."""
 
-    @hugr_op(external_op("RandomFloat", [], ext=QSYSTEM_RANDOM_EXTENSION))
+    # No effects: all state is carried inside the borrowed `self`
+    @hugr_op(external_op("RandomFloat", [], ext=QSYSTEM_RANDOM_EXTENSION), effects=())
     @no_type_check
     def random_float(self: "RNG") -> float:
         """Generate a random floating point value in the range [0,1)."""
 
-    @custom_function(RandomIntBoundedCompiler())
+    # The panic here is in narrowing the bound from 64-bit int down to 32 bits
+    @custom_function(RandomIntBoundedCompiler(), effects=[Effect.ANY])
     @no_type_check
     def random_int_bounded(self: "RNG", bound: int) -> int:
         """Generate a random 32-bit integer in the range [0, bound).
@@ -85,7 +87,8 @@ class RNG:
             bound: The upper bound of the range, needs to less than 2^31.
         """
 
-    @hugr_op(external_op("RandomAdvance", [], ext=QSYSTEM_RANDOM_EXTENSION))
+    # No effects: all state is carried in the borrowed `self`
+    @hugr_op(external_op("RandomAdvance", [], ext=QSYSTEM_RANDOM_EXTENSION), effects=())
     @no_type_check
     def random_advance(self: "RNG", delta: int) -> None:
         """Advance or backtrack the RNG state by a given number of steps.
