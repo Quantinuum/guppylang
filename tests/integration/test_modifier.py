@@ -134,6 +134,51 @@ def test_control_subscript_allocated_array(validate):
     validate(bar.compile_function())
 
 
+def test_control_generic_function_call(validate):
+    @guppy
+    def generic_function[T](x: T) -> None:
+        pass
+
+    @guppy
+    def controlled_generic_call[T](x: T) -> None:
+        q = qubit()
+
+        with control(q):
+            generic_function(x)
+
+        discard(q)
+
+    @guppy
+    def main() -> None:
+        controlled_generic_call(1)
+
+    validate(main.compile_function())
+
+
+def test_control_generic_function_call_non_copyable(validate):
+    @guppy(controllable=True)
+    def generic_function[T](x: T) -> None:
+        pass
+
+    @guppy
+    def controlled_generic_call[T](x: T) -> None:
+        q = qubit()
+
+        with control(q):
+            generic_function(x)
+
+        discard(q)
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        # a qubit is non-copyable, so the captured input must remain Inout.
+        controlled_generic_call(q)
+        discard(q)
+
+    validate(main.compile_function())
+
+
 def test_multidimensional_control_subscript(validate):
     @guppy
     def main(qs: array[array[qubit, 2], 2], c: qubit) -> None:
