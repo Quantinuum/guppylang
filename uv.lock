@@ -827,7 +827,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "hugr", git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=hs%2Ffeat%2Fmath-extension" },
+    { name = "hugr", git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&rev=ae203a3a542a1a794be3c6f8b3558e2fa859c28b" },
     { name = "networkx", specifier = ">=3.4.2" },
     { name = "pytket", specifier = ">=2.18.1" },
     { name = "tket", extras = ["pytket"], git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Ftket-py&branch=hs%2Ffeat%2Fmath-extension" },
@@ -839,7 +839,7 @@ requires-dist = [
 [[package]]
 name = "hugr"
 version = "0.18.6"
-source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&branch=hs%2Ffeat%2Fmath-extension#5170454aa2794eaec6ed2a8840fc14cb7a5dd2b4" }
+source = { git = "https://github.com/quantinuum/hugr?subdirectory=hugr-py&rev=ae203a3a542a1a794be3c6f8b3558e2fa859c28b#ae203a3a542a1a794be3c6f8b3558e2fa859c28b" }
 dependencies = [
     { name = "graphviz" },
     { name = "pydantic" },
@@ -2763,7 +2763,7 @@ wheels = [
 [[package]]
 name = "selene-hugr-qis-compiler"
 version = "0.5.0"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Fqis-compiler&branch=hs%2Ffeat%2Fmath-extension#9934400a10da04bb96028596e478817d5a16690d" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Fqis-compiler&branch=hs%2Ffeat%2Fmath-extension#4389f61500f9b4ceb601a595cf1781299c26f5d9" }
 dependencies = [
     { name = "hugr" },
     { name = "typing-extensions" },
@@ -2999,7 +2999,7 @@ wheels = [
 [[package]]
 name = "tket"
 version = "0.15.9"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Ftket-py&branch=hs%2Ffeat%2Fmath-extension#9934400a10da04bb96028596e478817d5a16690d" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Ftket-py&branch=hs%2Ffeat%2Fmath-extension#4389f61500f9b4ceb601a595cf1781299c26f5d9" }
 dependencies = [
     { name = "hugr" },
     { name = "tket-eccs" },
@@ -3014,12 +3014,12 @@ pytket = [
 [[package]]
 name = "tket-eccs"
 version = "0.6.0"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Ftket-eccs&branch=hs%2Ffeat%2Fmath-extension#9934400a10da04bb96028596e478817d5a16690d" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Ftket-eccs&branch=hs%2Ffeat%2Fmath-extension#4389f61500f9b4ceb601a595cf1781299c26f5d9" }
 
 [[package]]
 name = "tket-exts"
 version = "0.14.2"
-source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Ftket-exts&branch=hs%2Ffeat%2Fmath-extension#9934400a10da04bb96028596e478817d5a16690d" }
+source = { git = "https://github.com/quantinuum/tket2?subdirectory=tket%2Ftket-exts&branch=hs%2Ffeat%2Fmath-extension#4389f61500f9b4ceb601a595cf1781299c26f5d9" }
 dependencies = [
     { name = "hugr" },
 ]
