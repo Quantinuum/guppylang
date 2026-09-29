@@ -1,0 +1,17 @@
+Error: Expected return statement (at $FILE:8:4)
+  | 
+6 | @compile_guppy
+7 | def no_return_if_exp_polarity(b: bool) -> int:
+8 |     if False if b else True:
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^
+9 |         return 0
+  | ^^^^^^^^^^^^^^^^ Expected return statement
+
+Note:
+  | 
+7 | def no_return_if_exp_polarity(b: bool) -> int:
+8 |     if False if b else True:
+  |                 - Consider adding a return statement if this expression is
+  |                   `True`
+
+Guppy compilation failed due to 1 previous error
