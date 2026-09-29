@@ -27,13 +27,13 @@ class bool:
     ``False`` using the standard truth testing procedure.
     """
 
-    @hugr_op(logic_op("And"))
+    @hugr_op(logic_op("And"), effects=())
     def __and__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger, effects=())
     def __bool__(self: bool) -> bool: ...
 
-    @hugr_op(logic_op("Eq"))
+    @hugr_op(logic_op("Eq"), effects=())
     def __eq__(self: bool, other: bool) -> bool: ...
 
     @guppy
@@ -58,20 +58,27 @@ class bool:
         checker=DunderChecker("__bool__"),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __new__(x): ...
 
-    @hugr_op(logic_op("Or"))
+    @hugr_op(logic_op("Or"), effects=())
     def __or__(self: bool, other: bool) -> bool: ...
 
-    @hugr_op(logic_op("Xor"))
+    @hugr_op(logic_op("Xor"), effects=())
     def __xor__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     def __rand__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     def __ror__(self: bool, other: bool) -> bool: ...
 
-    @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
+    @custom_function(
+        checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger, effects=()
+    )
     def __rxor__(self: bool, other: bool) -> bool: ...
