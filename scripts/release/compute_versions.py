@@ -35,6 +35,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import total_ordering
 from pathlib import Path
 
 
@@ -82,6 +83,7 @@ _INTERNALS_DEP_RE = re.compile(r'"guppylang-internals[^"]*"')
 _CORE_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
+@total_ordering
 @dataclass(frozen=True)
 class GuppyVersion:
     major: int
@@ -93,6 +95,25 @@ class GuppyVersion:
     @property
     def is_prerelease(self) -> bool:
         return self.pre_label is not None
+
+    def __lt__(self, other: object) -> bool:
+        """Compare release versions, counting prerelease numbers numerically."""
+        if not isinstance(other, GuppyVersion):
+            return NotImplemented
+        ranks = {PreLabel.alpha: 0, PreLabel.beta: 1, PreLabel.rc: 2, None: 3}
+        return (
+            self.major,
+            self.minor,
+            self.patch,
+            ranks[self.pre_label],
+            self.pre_num or 0,
+        ) < (
+            other.major,
+            other.minor,
+            other.patch,
+            ranks[other.pre_label],
+            other.pre_num or 0,
+        )
 
     def render(self) -> str:
         core = f"{self.major}.{self.minor}.{self.patch}"
