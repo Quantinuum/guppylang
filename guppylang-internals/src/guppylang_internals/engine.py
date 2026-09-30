@@ -196,26 +196,16 @@ class DefinitionStore:
         self.frames[defn.id] = frame
 
     def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
-        from guppylang_internals.definition.function import RawFunctionDef
-
         self.type_members[ty_id][name] = member_id
-        member = self.raw_defs[member_id]
-        # Ordinary methods are defined directly in the type's class body, so their
-        # frame must be advanced out of that scope. A unitary method's `__call__` is
-        # defined one class scope deeper, so skip both classes to resolve names in
-        # the enclosing definition scope.
-        is_unitary_call = (
-            isinstance(member, RawFunctionDef) and member.unitary_class_at is not None
-        )
-        self._register_type_member_parent(
-            ty_id, member_id, class_scopes=2 if is_unitary_call else 1
-        )
+        # Unitary implementations already use the frame enclosing their unitary
+        # class, so all methods need to advance past just the containing type.
+        self._register_type_member_parent(ty_id, member_id, class_scopes=1)
 
         # When a `@guppy.unitary` class is used as method, the custom implementations
         # are members too: their first argument is the same `self` as the unmodified
         # definition, i.e. the struct or enum instance.
         for custom_id in self.custom_modified_defs.get(member_id, {}).values():
-            self._register_type_member_parent(ty_id, custom_id, class_scopes=2)
+            self._register_type_member_parent(ty_id, custom_id, class_scopes=1)
 
     def _register_type_member_parent(
         self, ty_id: DefId, member_id: DefId, *, class_scopes: int
