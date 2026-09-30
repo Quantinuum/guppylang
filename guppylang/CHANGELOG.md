@@ -14,6 +14,13 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
+## [1.0.5](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.4...guppylang-v1.0.5) (2026-09-30)
+
+
+### Bug Fixes
+
+* Local variables being shadowed by global definitions (#2386)([379cfdd](https://github.com/Quantinuum/guppylang/commit/379cfdd24c6f795a4844c76728f36897dde9e3b0))
+
 ## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.3...guppylang-v1.0.4) (2026-09-08)
 
 
@@ -90,6 +97,7 @@ from guppylang.decorator import guppy
 from guppylang.std.quantum import s, qubit
 from guppylang.std.builtins import control, dagger
 
+
 @guppy
 def controlled_inverse(c: qubit, q: qubit) -> None:
     with control(c), dagger:
@@ -107,6 +115,7 @@ Protocols are a powerful way of constraining polymorphism: they let you define a
 ```python
 from typing import Self
 from guppylang.std.quantum import Measurement
+
 
 @guppy.protocol
 class Measurable:

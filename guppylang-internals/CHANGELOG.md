@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.4...guppylang-internals-v1.0.5) (2026-09-30)
+
+
+### Bug Fixes
+
+* Local variables being shadowed by global definitions (#2386)([379cfdd](https://github.com/Quantinuum/guppylang/commit/379cfdd24c6f795a4844c76728f36897dde9e3b0))
+
 ## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.3...guppylang-internals-v1.0.4) (2026-09-08)
 
 
