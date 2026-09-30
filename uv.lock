@@ -12,6 +12,7 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "auto-hugr-ext",
     "guppylang",
     "guppylang-internals",
     "miette-py",
@@ -230,6 +231,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/21/31/3f468da74c7de4fcf9b25591e682856389b3400b4b62f201e65f15ea3e07/attrs-22.2.0.tar.gz", hash = "sha256:c9227bfc2f01993c03f68db37d1d15c9690188323c067c641f1a35ca58185f99", size = 215900, upload-time = "2022-12-21T09:48:51.773Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/6e/6f83bf616d2becdf333a1640f1d463fef3150e2e926b7010cb0f81c95e88/attrs-22.2.0-py3-none-any.whl", hash = "sha256:29e95c7f6778868dbd49170f98f8818f78f3dc5e0e37c0b1f474e3561b240836", size = 60018, upload-time = "2022-12-21T09:48:49.401Z" },
+]
+
+[[package]]
+name = "auto-hugr-ext"
+version = "0.1.0"
+source = { editable = "auto-hugr-ext" }
+dependencies = [
+    { name = "guppylang" },
+    { name = "guppylang-internals" },
+    { name = "hugr" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "guppylang", editable = "guppylang" },
+    { name = "guppylang-internals", editable = "guppylang-internals" },
+    { name = "hugr", specifier = "~=0.18.6" },
 ]
 
 [[package]]

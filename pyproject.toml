@@ -35,9 +35,10 @@ constraint-dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["guppylang", "guppylang-internals", "miette-py"]
+members = ["auto-hugr-ext", "guppylang", "guppylang-internals", "miette-py"]
 
 [tool.uv.sources]
+auto-hugr-ext = { workspace = true }
 guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
