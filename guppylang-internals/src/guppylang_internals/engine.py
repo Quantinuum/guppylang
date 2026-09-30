@@ -199,27 +199,23 @@ class DefinitionStore:
         self.type_members[ty_id][name] = member_id
         # Unitary implementations already use the frame enclosing their unitary
         # class, so all methods need to advance past just the containing type.
-        self._register_type_member_parent(ty_id, member_id, class_scopes=1)
+        self._register_type_member_parent(ty_id, member_id)
 
         # When a `@guppy.unitary` class is used as method, the custom implementations
         # are members too: their first argument is the same `self` as the unmodified
         # definition, i.e. the struct or enum instance.
         for custom_id in self.custom_modified_defs.get(member_id, {}).values():
-            self._register_type_member_parent(ty_id, custom_id, class_scopes=1)
+            self._register_type_member_parent(ty_id, custom_id)
 
-    def _register_type_member_parent(
-        self, ty_id: DefId, member_id: DefId, *, class_scopes: int
-    ) -> None:
+    def _register_type_member_parent(self, ty_id: DefId, member_id: DefId) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
         self.type_member_parents[member_id] = ty_id
         # Advance past each class and its optional annotation scope.
         if member_id not in self.frames:
             return
         frame = self.frames[member_id]
-        for _ in range(class_scopes):
-            parent_frame = frame.f_back
-            if parent_frame is None:
-                break
+        parent_frame = frame.f_back
+        if parent_frame is not None:
             frame = parent_frame
             # For Python 3.12 generic functions and classes, there is an additional
             # inserted frame for the annotation scope. We can detect this frame by
