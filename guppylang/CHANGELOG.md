@@ -14,6 +14,15 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
+## [1.1.2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.1...guppylang-v1.1.2) (2026-09-29)
+
+### Bug Fixes
+
+* Bad span in diagnostic when missing a return in a walrus loop condition (#2380)([da8668b](https://github.com/Quantinuum/guppylang/commit/da8668bf253f7afa8362ddc5277e306a8215897f))
+* Calling generic functions inside a `with control` flow failed to compile (#2379)([fd78419](https://github.com/Quantinuum/guppylang/commit/fd784190b21da37003183a506a1acec99a4463c4))
+* Local variables being shadowed by global definitions (#2378)([d253322](https://github.com/Quantinuum/guppylang/commit/d253322bd9d0c4b896ebd84944a7312eee6971f1))
+
+
 ## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.0-rc0...guppylang-v1.1.1) (2026-09-14)
 
 
