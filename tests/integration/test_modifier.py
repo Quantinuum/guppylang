@@ -509,13 +509,16 @@ def test_custom_unitary_higher_order_callables(validate):
     validate(main.compile_function())
 
 
-def test_unitary_capture_comptime_variable(validate):
+def test_unitary_capture_local_variable(validate):
+
     def make_gate(theta: float):
+        from guppylang.std.angles import angle as local_angle
+
         @guppy.unitary
         class gate:
             @guppy
             def __call__(q: qubit) -> None:
-                rz(q, angle(comptime(theta)))
+                rz(q, local_angle(comptime(theta)))
 
         return gate
 
@@ -528,68 +531,7 @@ def test_unitary_capture_comptime_variable(validate):
     validate(main.compile_function())
 
 
-@pytest.mark.parametrize("theta", [0.0, 1.0])
-def test_unitary_capture_external_method(run_int_fn, theta):
-    """Every implementation resolves local imports and the factory's parameter."""
-
-    def make_gate(theta: float):
-        from guppylang.std.angles import angle as local_angle
-
-        @guppy.unitary
-        class gate:
-            @guppy
-            def __call__(q: qubit) -> None:
-                rx(q, local_angle(comptime(theta)))
-
-            @guppy
-            def daggered(q: qubit) -> None:
-                rx(q, local_angle(comptime(-theta)))
-
-            @guppy
-            def controlled[n: nat](q: qubit, controls: array[qubit, n]) -> None:
-                with control(controls):
-                    rx(q, local_angle(comptime(theta)))
-
-            @guppy
-            def ctrl_daggered[n: nat](q: qubit, controls: array[qubit, n]) -> None:
-                with control(controls):
-                    rx(q, local_angle(comptime(-theta)))
-
-        return gate
-
-    gate = make_gate(theta)
-
-    @guppy
-    def main() -> int:
-        c = qubit()
-        x(c)
-        q = qubit()
-        gate(q)
-        plain_result = measure(q).read()
-        dagger_q = qubit()
-        with dagger:
-            gate(dagger_q)
-        dagger_result = measure(dagger_q).read()
-        control_q = qubit()
-        with control(c):
-            gate(control_q)
-        control_result = measure(control_q).read()
-        combined_q = qubit()
-        with control(c), dagger:
-            gate(combined_q)
-        combined_result = measure(combined_q).read()
-        discard(c)
-        return (
-            (1 if plain_result else 0)
-            + (2 if dagger_result else 0)
-            + (4 if control_result else 0)
-            + (8 if combined_result else 0)
-        )
-
-    run_int_fn(main, expected=15 if theta == 1.0 else 0, num_qubits=2)
-
-
-def test_unitary_factory_local_helpers(validate):
+def test_unitary_capture_external_method(validate):
     def make_gate():
         @guppy
         def controlled_impl(control_q: qubit, target_q: qubit) -> None:

@@ -195,10 +195,12 @@ class DefinitionStore:
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
 
+    def update_def_frame(self, def_id: DefId, frame: FrameType) -> None:
+        """Update the Python scope used to resolve names in a registered definition."""
+        self.frames[def_id] = frame
+
     def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
         self.type_members[ty_id][name] = member_id
-        # Unitary implementations already use the frame enclosing their unitary
-        # class, so all methods need to advance past just the containing type.
         self._register_type_member_parent(ty_id, member_id)
 
         # When a `@guppy.unitary` class is used as method, the custom implementations
