@@ -380,8 +380,8 @@ class _Guppy:
         frame = get_calling_frame()
         cls = _set_firstlineno(cls, frame)
         call_raw_func = cast("RawFunctionDef", call_guppy_def.wrapped)
-        # The inner @guppy decorators captured the class-body frame. Resolve names
-        # in the enclosing scope instead, including locals of a factory function.
+        # The inner @guppy decorators captured the class-body frame. But we want to
+        # resolve names in the class scope instead.
         DEF_STORE.update_def_frame(call_raw_func.id, frame)
         # override "__call__" with the class name, mainly for better error messages
         object.__setattr__(call_raw_func, "name", cls.__name__)
