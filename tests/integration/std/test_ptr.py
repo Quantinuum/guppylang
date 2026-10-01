@@ -1,0 +1,149 @@
+from itertools import pairwise
+
+import pytest
+from hugr.cli import validate as validate_hugr
+from hugr.envelope import EnvelopeConfig, EnvelopeFormat
+
+from guppylang import guppy
+from guppylang.std.lang import Function, owned
+from guppylang.std.ptr import Ptr
+from guppylang.std.quantum import qubit, discard
+
+
+@pytest.fixture
+def validate_ptr(request, export_test_cases_dir):
+    # The released QIS validator embeds ptr 0.1. Validate with the pinned HUGR
+    # Rust implementation of ptr 0.2 until the matching QIS compiler is released.
+    def validate(package):
+        payload = package.to_bytes()
+        validate_hugr(payload)
+        validate_hugr(package.to_bytes(EnvelopeConfig(format=EnvelopeFormat.JSON)))
+        if export_test_cases_dir:
+            name = f"{request.module.__name__}-{request.node.originalname}.hugr"
+            (export_test_cases_dir / name).write_bytes(payload)
+
+    return validate
+
+
+def test_copyable(validate_ptr):
+    @guppy
+    def main() -> int:
+        p = Ptr(1)
+        p.write(2)
+        old = p.swap(3)
+        other = p.copy()
+        other.free().unwrap_nothing()
+        return old + p.read() + p.free().unwrap()
+
+    validate_ptr(main.compile_function())
+
+
+def test_linear(validate_ptr):
+    @guppy
+    def main(q: qubit @ owned, replacement: qubit @ owned) -> qubit:
+        p = Ptr(q)
+        discard(p.swap(replacement))
+        other = p.copy()
+        other.free().unwrap_nothing()
+        return p.free().unwrap()
+
+    validate_ptr(main.compile_function())
+
+
+def test_map(validate_ptr):
+    @guppy
+    def transform(q: qubit @ owned, replacement: qubit @ owned) -> tuple[qubit, qubit]:
+        return replacement, q
+
+    @guppy
+    def main(q: qubit @ owned, replacement: qubit @ owned) -> tuple[qubit, qubit]:
+        p = Ptr(q)
+        old = p.map(transform, replacement)
+        return old, p.free().unwrap()
+
+    validate_ptr(main.compile_function())
+
+
+def test_tuple_and_unit(validate_ptr):
+    @guppy
+    def transform(value: tuple[int, bool], arg: None) -> tuple[tuple[int, bool], None]:
+        return value, arg
+
+    @guppy
+    def main() -> tuple[int, bool]:
+        p = Ptr((1, True))
+        p.map(transform, None)
+        p.read()
+        p.swap((2, False))
+        p.write((3, True))
+        unit = Ptr(None)
+        unit.read()
+        unit.swap(None)
+        unit.free().unwrap()
+        return p.free().unwrap()
+
+    validate_ptr(main.compile_function())
+
+
+def test_borrowed_and_higher_order(validate_ptr):
+    @guppy
+    def change(p: Ptr[int]) -> int:
+        f: Function[[Ptr[int], int], int] = Ptr.swap
+        return f(p, 42)
+
+    @guppy
+    def main() -> int:
+        p = Ptr(1)
+        change(p)
+        return p.free().unwrap()
+
+    validate_ptr(main.compile_function())
+
+
+def test_nested_payload(validate_ptr):
+    @guppy
+    def main() -> int:
+        outer = Ptr(Ptr(42))
+        inner = outer.free().unwrap()
+        return inner.free().unwrap()
+
+    validate_ptr(main.compile_function())
+
+
+def test_map_tuple_result(validate_ptr):
+    @guppy
+    def transform(value: int, arg: tuple[int, bool]) -> tuple[int, tuple[int, bool]]:
+        amount, flag = arg
+        return value + amount, (value, flag)
+
+    @guppy
+    def main() -> tuple[int, bool]:
+        p = Ptr(40)
+        result = p.map(transform, (2, True))
+        p.free()
+        return result
+
+    validate_ptr(main.compile_function())
+
+
+def test_handle_sequencing(validate_ptr):
+    from tests.integration.test_side_effect_ordering import find_ext_nodes
+
+    @guppy
+    def main() -> int:
+        p = Ptr(1)
+        p.write(2)
+        p.swap(3)
+        result = p.read()
+        p.free()
+        return result
+
+    package = main.compile_function()
+    validate_ptr(package)
+    graph = package.modules[0]
+    nodes = [
+        find_ext_nodes(graph, "ptr." + name)[0]
+        for name in ["New", "Write", "Swap", "Read", "Free"]
+    ]
+    for before, after in pairwise(nodes):
+        assert after.inp(0) in graph.linked_ports(before.out(0))

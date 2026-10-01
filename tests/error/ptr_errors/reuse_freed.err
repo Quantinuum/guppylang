@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:11:11)
+   | 
+ 9 |     p = Ptr(1)
+10 |     p.free()
+11 |     return p.read()
+   |            ^ Variable `p` with non-copyable type `Ptr[int]` cannot be
+   |              borrowed ...
+
+Note:
+   | 
+ 9 |     p = Ptr(1)
+10 |     p.free()
+   |     - Variable `p` already consumed here
+
+Guppy compilation failed due to 1 previous error

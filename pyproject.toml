@@ -41,6 +41,7 @@ members = ["guppylang", "guppylang-internals", "miette-py"]
 guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
+hugr = { git = "https://github.com/Quantinuum/hugr", subdirectory = "hugr-py", rev = "a29434093d7b16d89a6e401d02cf4d61bcd849b3" }
 # Uncomment these to test the latest dependency version during development
 # hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
 # tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", rev = "cdb47dd" }
