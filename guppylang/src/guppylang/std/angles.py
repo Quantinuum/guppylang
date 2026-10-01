@@ -5,6 +5,7 @@
 import math
 from typing import no_type_check
 
+from guppylang_internals.decorator import extend_type
 from hugr import val as hv
 from hugr.std.float import FloatVal
 
@@ -78,3 +79,23 @@ class angle:
 
 
 pi: angle = guppy.constant("pi", ty="angle", value=hv.Tuple(FloatVal(1.0)))
+
+
+# Import after defining ``angle`` so that ``math``, which also imports this module,
+# can resolve the type without an import cycle.
+from guppylang.std import math as gpy_math  # noqa: E402
+
+
+@extend_type(angle.wrapped)
+class _angle_trig_methods:
+    @guppy(daggerable=True)
+    @no_type_check
+    def sin(self: angle) -> float:
+        """Return the sine of this angle."""
+        return gpy_math.sin(self)
+
+    @guppy(daggerable=True)
+    @no_type_check
+    def cos(self: angle) -> float:
+        """Return the cosine of this angle."""
+        return gpy_math.cos(self)
