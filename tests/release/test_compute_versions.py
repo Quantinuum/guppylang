@@ -47,6 +47,17 @@ POSITIVE_BUMP_TESTS = [
 ]
 
 
+def test_guppy_version_ordering() -> None:
+    """Order release stages and count prerelease suffixes numerically."""
+    parse = cv.parse_guppy_version
+    assert parse("1.2.0-a2") < parse("1.2.0-a10")
+    assert parse("1.2.0-a10") < parse("1.2.0-b0")
+    assert parse("1.2.0-b0") < parse("1.2.0-rc0")
+    assert parse("1.2.0-rc0") < parse("1.2.0")
+    assert parse("1.2.0") < parse("1.2.1-a0")
+    assert parse("1.2.0") >= parse("1.2.0-rc0")
+
+
 @pytest.mark.parametrize(("current", "mode", "expected"), POSITIVE_BUMP_TESTS)
 def test_bump_guppylang(current: str, mode: str, expected: str) -> None:
     result = cv.bump_guppylang(cv.parse_guppy_version(current), mode)
