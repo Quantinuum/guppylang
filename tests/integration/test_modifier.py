@@ -11,6 +11,7 @@ from guppylang.std.builtins import (
     Daggerable,
     Function,
     Unitary,
+    comptime,
     control,
     dagger,
     owned,
@@ -26,6 +27,7 @@ from guppylang.std.quantum import (
     measure,
     qubit,
     rx,
+    rz,
     discard_array,
     x,
 )
@@ -505,6 +507,66 @@ def test_custom_unitary_higher_order_callables(validate):
         apply_plain2(custom_call, q)
 
     validate(main.compile_function())
+
+
+def test_unitary_capture_local_variable(validate):
+
+    def make_gate(theta: float):
+        from guppylang.std.angles import angle as local_angle
+
+        @guppy.unitary
+        class gate:
+            @guppy
+            def __call__(q: qubit) -> None:
+                rz(q, local_angle(comptime(theta)))
+
+        return gate
+
+    gate = make_gate(0.5)
+
+    @guppy
+    def main(q: qubit) -> None:
+        gate(q)
+
+    validate(main.compile_function())
+
+
+def test_unitary_capture_external_method(validate):
+    def make_gate():
+        @guppy
+        def controlled_impl(control_q: qubit, target_q: qubit) -> None:
+            cx(control_q, target_q)
+
+        @guppy
+        def call_impl(q: qubit) -> None:
+            pass
+
+        @guppy.unitary
+        class generated_gate:
+            @guppy
+            def __call__(target_q: qubit) -> None:
+                x(target_q)
+                call_impl(target_q)
+
+            @guppy
+            def controlled[n: nat](target_q: qubit, controls: array[qubit, n]) -> None:
+                controlled_impl(controls[0], target_q)
+
+        return generated_gate
+
+    gate = make_gate()
+
+    @guppy
+    def main(q: qubit, c: qubit) -> None:
+        gate(q)
+
+    @guppy
+    def main_controlled(q: qubit, c: qubit) -> None:
+        with control(c):
+            gate(q)
+
+    validate(main.compile_function(), name="plain")
+    validate(main_controlled.compile_function(), name="controlled")
 
 
 def test_controlled_impl_is_executed(run_int_fn):
