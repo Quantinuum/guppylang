@@ -660,6 +660,7 @@ class CompilationEngine:
             modifier_analysis = analyze_modifier_calls(
                 entry_points,
                 self.call_graph,
+                self.load_graph,
                 self.local_modifiers_by_edge,
                 self._resolve_modified_call,
             )

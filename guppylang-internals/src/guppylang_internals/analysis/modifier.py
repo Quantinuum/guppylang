@@ -82,6 +82,7 @@ ResolveModifiedCall = Callable[
 def analyze_modifier_calls(
     entry_points: Iterable[MonoDefId],
     raw_calls: Mapping[MonoDefId, Sequence[MonoDefId]],
+    load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
     local_modifiers_by_edge: Mapping[CallGraphEdge, Mapping[ModifierContext, Span]],
     resolve_modified_call: ResolveModifiedCall,
 ) -> ModifierAnalysisResult:
@@ -89,6 +90,9 @@ def analyze_modifier_calls(
 
     For ``main --control(1)--> wrapper --empty--> gate``, visit ``wrapper`` with
     one inherited control and resolve its call to ``gate.controlled[1]``.
+
+    Functions loaded as values are additional roots with no inherited modifiers.
+    Explore their calls and further loads, but keep load edges out of the call graph.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.
@@ -126,6 +130,16 @@ def analyze_modifier_calls(
             expanded_calls[caller] = []
             expanded_callers.add(caller)
 
+        # Loading a function does not invoke it or apply the loader's modifiers.
+        # Analyze its body in an empty context, without adding a call edge or a
+        # contextual caller for recursive-call diagnostics. Bare generic references
+        # have no concrete body to analyze yet; visit their specializations instead.
+        worklist.extend(
+            ModifierCallState(loaded, NO_CALL_MODIFIERS)
+            for loaded in load_graph.get(caller, ())
+            if is_concrete_inst(loaded[1]) and loaded in raw_calls
+        )
+
         # The raw graph may contain the same callee once per call site. Modifier labels
         # are already grouped by edge and local context, so visit each raw edge once.
         for raw_callee in dict.fromkeys(raw_calls.get(caller, ())):
@@ -157,6 +171,8 @@ def analyze_modifier_calls(
                 expanded_calls[caller].append(resolved_callee)
 
                 if custom_use is None:
+                    # NICOLA: Here we are exploring also the case when the resolved
+                    # callee is generic, should we?
                     # No custom implementation consumed the modifiers. The compiler
                     # generates the modified callee, so its body inherits the context.
                     next_state = ModifierCallState(raw_callee, effective_context)
@@ -185,6 +201,8 @@ def analyze_modifier_calls(
 
     for caller, callees in expanded_calls.items():
         if caller in expanded_callers:
+            # NICOLA: We should have a better way to handle multiple contextual
+            # invocations.
             # Multiple contextual invocations and call sites may resolve to the same
             # target. Preserve discovery order while removing duplicate graph edges.
             expanded_calls[caller] = list(dict.fromkeys(callees))
