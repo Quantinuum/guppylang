@@ -11,16 +11,15 @@ from guppylang.std.quantum import qubit, discard
 
 
 @pytest.fixture
-def validate_ptr(request, export_test_cases_dir):
+def validate_ptr():
     # The released QIS validator embeds ptr 0.1. Validate with the pinned HUGR
     # Rust implementation of ptr 0.2 until the matching QIS compiler is released.
+    # Do not export these graphs for CI normalization: that stage also uses the
+    # released QIS validator and tket passes, which cannot consume ptr 0.2 yet.
     def validate(package):
         payload = package.to_bytes()
         validate_hugr(payload)
         validate_hugr(package.to_bytes(EnvelopeConfig(format=EnvelopeFormat.JSON)))
-        if export_test_cases_dir:
-            name = f"{request.module.__name__}-{request.node.originalname}.hugr"
-            (export_test_cases_dir / name).write_bytes(payload)
 
     return validate
 
