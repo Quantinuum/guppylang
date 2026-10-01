@@ -2,6 +2,7 @@ from typing import Self
 
 from auto_hugr_ext import ext_op, ext_type
 from guppylang.std.lang import Copy, owned
+from guppylang.std.quantum import Measurement, qubit
 
 
 @ext_type(copyable=False, droppable=False)
@@ -16,3 +17,7 @@ def make_container[T: Copy](value: T) -> "LinearContainer[T]": ...
 
 @ext_op(override_name="make_dummy_action")
 def dummy_action(a: bool, b: int) -> None: ...
+
+
+@ext_op
+def quantum_action(q: qubit) -> Measurement: ...

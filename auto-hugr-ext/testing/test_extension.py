@@ -7,7 +7,7 @@ from guppylang import guppy
 from guppylang_internals.engine import ENGINE
 from hugr.ext import Extension
 
-SOURCE = Path(__file__).parent / "dummy_container" / "linear_container.py"
+SOURCE = Path(__file__).parent / "container_demo" / "container.py"
 
 
 def test_generate_hugr_extension(tmp_path: Path) -> None:
@@ -21,6 +21,7 @@ def test_generate_hugr_extension(tmp_path: Path) -> None:
         "consume",
         "make_container",
         "make_dummy_action",
+        "quantum_action",
     }
     assert json.loads(out.read_text(encoding="utf-8")) == json.loads(
         extension.to_json()

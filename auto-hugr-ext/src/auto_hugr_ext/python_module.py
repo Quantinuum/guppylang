@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 
 
@@ -43,28 +44,30 @@ def _end_offset(source: bytes, node: ast.expr | ast.stmt) -> int:
 
 
 def _type_decorator(node: ast.ClassDef, decorator: ast.expr, type_name: str) -> str:
-    source = ast.unparse(node)
     keyword_values: dict[str, str] = {}
     if isinstance(decorator, ast.Call):
         positional_names = ["copyable", "droppable", "name", "params"]
         if len(decorator.args) > len(positional_names):
             raise ValueError("@ext_type accepts at most four positional arguments")
         for name, value in zip(positional_names, decorator.args, strict=False):
-            keyword_values[name] = ast.unparse(value)
+            if name != "name":
+                keyword_values[name] = ast.unparse(value)
         for keyword in decorator.keywords:
             if keyword.arg is None:
                 raise ValueError("@ext_type does not support **kwargs")
-            keyword_values[keyword.arg] = ast.unparse(keyword.value)
-    keyword_values.setdefault(
-        "params",
-        f"type_params_from_source({source!r})",
+            if keyword.arg != "name":
+                keyword_values[keyword.arg] = ast.unparse(keyword.value)
+    indent = " " * (node.col_offset + 4)
+    decorator_lines = [
+        "auto_hugr_type(",
+        f"{indent}_AUTO_HUGR_EXTENSION,",
+        f"{indent}{json.dumps(type_name)},",
+    ]
+    decorator_lines.extend(
+        f"{indent}{name}={value}," for name, value in keyword_values.items()
     )
-    options = ", ".join(f"{name}={value}" for name, value in keyword_values.items())
-    if "name" not in keyword_values:
-        options = f"name={type_name!r}, {options}"
-    return (
-        f"custom_type(auto_hugr_type(_AUTO_HUGR_EXTENSION, {type_name!r}), {options})"
-    )
+    decorator_lines.append(f"{' ' * node.col_offset})")
+    return "\n".join(decorator_lines)
 
 
 def _op_decorator(
@@ -79,22 +82,30 @@ def _op_decorator(
                 and isinstance(keyword.value.value, str)
             ):
                 op_name = keyword.value.value
-    return f"hugr_op(auto_hugr_op(_AUTO_HUGR_EXTENSION, {op_name!r}), name={op_name!r})"
+    indent = " " * (node.col_offset + 4)
+    return "\n".join(
+        [
+            "hugr_op(",
+            f"{indent}auto_hugr_op(_AUTO_HUGR_EXTENSION, {json.dumps(op_name)}),",
+            f"{indent}name={json.dumps(op_name)},",
+            f"{' ' * node.col_offset})",
+        ]
+    )
 
 
 def _extension_prelude(json_name: str) -> str:
-    return f"""from pathlib import Path as _Path
+    return f"""# isort: split
+from pathlib import Path as _Path
 
 from auto_hugr_ext import (
     auto_hugr_op,
     auto_hugr_type,
     load_extension,
-    type_params_from_source,
 )
-from guppylang_internals.decorator import custom_type, hugr_op
+from guppylang_internals.decorator import hugr_op
 
 _AUTO_HUGR_EXTENSION = load_extension(
-    _Path(__file__).with_name({json_name!r})
+    _Path(__file__).with_name({json.dumps(json_name)})
 )
 """
 
@@ -171,6 +182,11 @@ def generate_python_module(
                     )
                 start = _offset(original, node.lineno, 0)
                 end = _end_offset(original, node)
+                if not replacement:
+                    if original[end : end + 2] == b"\r\n":
+                        end += 2
+                    elif original[end : end + 1] == b"\n":
+                        end += 1
                 edits.append((start, end, replacement.encode()))
 
     lines = original.splitlines(keepends=True)
@@ -200,7 +216,7 @@ def generate_python_module(
     insertion_offset = sum(len(line) for line in lines[:insert_after])
     prelude = _extension_prelude(extension_json_path.name).encode()
     separator = b"" if insertion_offset == 0 else b"\n"
-    edits.append((insertion_offset, insertion_offset, separator + prelude + b"\n"))
+    edits.append((insertion_offset, insertion_offset, separator + prelude))
 
     rewritten = original
     for start, end, replacement in sorted(edits, reverse=True):

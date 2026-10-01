@@ -35,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     generate_python_module(args.source, json_path, python_path)
     print(f"Generated {extension.name} {extension.version}")  # noqa: T201
     print(f"  extension: {json_path}")  # noqa: T201
-    print(f"  Guppy source: {python_path}")  # noqa: T201
+    print(f"  source: {python_path}")  # noqa: T201
     return 0
 
 

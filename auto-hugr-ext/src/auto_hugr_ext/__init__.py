@@ -10,7 +10,6 @@ from auto_hugr_ext.runtime import (
     auto_hugr_op,
     auto_hugr_type,
     load_extension,
-    type_params_from_source,
 )
 
 __all__ = [
@@ -21,5 +20,4 @@ __all__ = [
     "generate_new_hugr_ext",
     "load_extension",
     "register_extension",
-    "type_params_from_source",
 ]
