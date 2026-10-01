@@ -192,6 +192,10 @@ class DefinitionStore:
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
 
+    def update_def_frame(self, def_id: DefId, frame: FrameType) -> None:
+        """Update the Python scope used to resolve names in a registered definition."""
+        self.frames[def_id] = frame
+
     def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
         self.type_members[ty_id][name] = member_id
