@@ -146,3 +146,66 @@ def test_handle_sequencing(validate_ptr):
     ]
     for before, after in pairwise(nodes):
         assert after.inp(0) in graph.linked_ports(before.out(0))
+
+
+def test_identity_equality(validate_ptr):
+    from tests.integration.test_side_effect_ordering import find_ext_nodes
+
+    @guppy
+    def main() -> tuple[bool, bool]:
+        p = Ptr(42)
+        alias = p.copy()
+        separate = Ptr(42)
+        same = p == alias
+        different = p == separate
+        alias.free()
+        p.free()
+        separate.free()
+        return same, different
+
+    package = main.compile_function()
+    validate_ptr(package)
+    graph = package.modules[0]
+    first, second = find_ext_nodes(graph, "ptr.Eq")
+    # Equality threads each borrowed handle in its original input order.
+    assert second.inp(0) in graph.linked_ports(first.out(0))
+    frees = find_ext_nodes(graph, "ptr.Free")
+    assert frees[0].inp(0) in graph.linked_ports(first.out(1))
+    assert frees[1].inp(0) in graph.linked_ports(second.out(0))
+    assert frees[2].inp(0) in graph.linked_ports(second.out(1))
+
+
+def test_equality_linear_and_higher_order(validate_ptr):
+    @guppy
+    def compare(p: Ptr[qubit], q: Ptr[qubit]) -> bool:
+        f: Function[[Ptr[qubit], Ptr[qubit]], bool] = Ptr.__eq__
+        return f(p, q)
+
+    @guppy
+    def main(q: qubit @ owned) -> tuple[bool, bool, qubit]:
+        p = Ptr(q)
+        alias = p.copy()
+        same = compare(p, alias)
+        different = p != alias
+        alias.free().unwrap_nothing()
+        return same, different, p.free().unwrap()
+
+    validate_ptr(main.compile_function())
+
+
+def test_equality_tuple_unit_and_inequality(validate_ptr):
+    @guppy
+    def main() -> tuple[bool, bool]:
+        p = Ptr((1, True))
+        q = p.copy()
+        different = p != q
+        p.free()
+        q.free()
+        unit = Ptr(None)
+        other = unit.copy()
+        same = unit == other
+        unit.free()
+        other.free()
+        return different, same
+
+    validate_ptr(main.compile_function())

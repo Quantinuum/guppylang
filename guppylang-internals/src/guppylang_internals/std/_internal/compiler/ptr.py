@@ -54,6 +54,8 @@ class PtrCompiler(CustomInoutCallCompiler):
                 output = [self.ty.input[0], payload]
             case "Dup":
                 output = [self.ty.input[0], self.ty.input[0]]
+            case "Eq":
+                output = [self.ty.input[0], self.ty.input[1], ht.Bool]
             case "Write":
                 output = [self.ty.input[0]]
             case "Map":
@@ -67,6 +69,11 @@ class PtrCompiler(CustomInoutCallCompiler):
         )
         if self.name in {"New", "Free"}:
             return CallReturnWires(regular_returns=outputs, inout_returns=[])
+        if self.name == "Eq":
+            left, right, result = outputs
+            return CallReturnWires(
+                regular_returns=[result], inout_returns=[left, right]
+            )
         ptr_out, *regular = outputs
         if self.name in {"Read", "Swap", "Map"}:
             [result] = regular

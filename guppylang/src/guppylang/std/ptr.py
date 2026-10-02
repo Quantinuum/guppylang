@@ -61,6 +61,23 @@ class Ptr[T]:
     def copy(self: "Ptr[T]") -> "Ptr[T]":
         """Create another handle to the same cell without copying the payload."""
 
+    @custom_function(PtrCompiler("Eq"), effects=[Effect.ANY])
+    @no_type_check
+    def __eq__(self: "Ptr[T]", other: "Ptr[T]") -> bool:
+        """Compare cell identity, retaining both borrowed handles.
+
+        The handles must store the same type, which may be linear. Separate
+        cells compare unequal even when their payloads have equal values.
+        Use `copy` to obtain a second handle to the same cell. Guppy rejects
+        borrowing the same handle variable twice in one comparison.
+        """
+
+    @guppy
+    @no_type_check
+    def __ne__(self: "Ptr[T]", other: "Ptr[T]") -> bool:
+        """Return whether the handles refer to different cells."""
+        return not self == other
+
     @custom_function(PtrCompiler("Free"), effects=[Effect.ANY])
     @no_type_check
     def free(self: "Ptr[T]" @ owned) -> Option[T]:

@@ -1,0 +1,9 @@
+Error: Operator not defined (at $FILE:8:11)
+  | 
+6 | @guppy
+7 | def main(p: Ptr[int], q: Ptr[bool]) -> bool:
+8 |     return p == q
+  |            ^^^^^^ Binary operator `==` not defined for `Ptr[int]` and
+  |                   `Ptr[bool]`
+
+Guppy compilation failed due to 1 previous error
