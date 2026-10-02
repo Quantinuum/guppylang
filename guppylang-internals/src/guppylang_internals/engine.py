@@ -290,6 +290,9 @@ class CompilationEngine:
     #: Call graph mapping from caller to list of callees. Populated during type checking
     # as calls are checked, to be then used for effects checking.
     call_graph: dict[MonoDefId, list[MonoDefId]]
+    #: Functions referenced as values by each checked function specialization.
+    #: Targets include type arguments; unspecialized references use bound parameters.
+    load_graph: dict[MonoDefId, set[MonoDefId]]
     func_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site span for diagnostics in
@@ -350,10 +353,15 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_graph = {}
+        self.load_graph = {}
         self.func_effects = {}
         self.local_modifiers_by_edge = {}
         self.resolved_modified_calls = {}
         self.custom_uses_by_mono_def = {}
+
+    def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
+        """Records a function-value dependency, without propagating call effects."""
+        self.load_graph[owner].add(target)
 
     def register_call(
         self,
@@ -506,6 +514,7 @@ class CompilationEngine:
         """
         assert mono_id not in self.call_graph
         self.call_graph[mono_id] = []
+        self.load_graph[mono_id] = set()
 
     def get_type_defn(self, ty: Type | TypeDef) -> TypeDef | None:
         """Convert a Type | TypeDef to a TypeDef."""
@@ -634,10 +643,12 @@ class CompilationEngine:
         # repeat the complete contextual analysis until monomorphization reaches a
         # fixed point.
         self._drain_check_worklists()
+        self.print_call_graph()
         while True:
             modifier_analysis = analyze_modifier_calls(
                 entry_points,
                 self.call_graph,
+                self.load_graph,
                 self.local_modifiers_by_edge,
                 self._resolve_modified_call,
             )
@@ -649,6 +660,46 @@ class CompilationEngine:
                 self.call_graph = modifier_analysis.expanded_calls
                 break
             self._drain_check_worklists()
+
+        resolved_contexts: dict[CallGraphEdge, dict[ModifierContext, None]] = {}
+        for ((caller, _), context), callee in self.resolved_modified_calls.items():
+            resolved_contexts.setdefault((caller, callee), {})[context] = None
+
+        print("After analysis:")
+        self.print_call_graph()
+
+    def print_call_graph(self) -> None:
+        for (caller_id, caller_mono), callees in self.call_graph.items():
+            caller_name = self.get_parsed(caller_id).name
+            for id, mono_args in callees:
+                callee_name = self.get_parsed(id).name
+                edge = ((caller_id, caller_mono), (id, mono_args))
+                contexts = tuple(self.local_modifiers_by_edge.get(edge, ())) or (
+                    ModifierContext(),
+                )
+                print(
+                    f"  ({caller_id}, {caller_name}, [{is_concrete_inst(caller_mono)}])"
+                    f" -- {self.str_context(contexts)} -->"
+                    f" ({id}, {callee_name}, [{is_concrete_inst(mono_args)}])"
+                )
+
+        for (owner_id, owner_mono), targets in self.load_graph.items():
+            owner_name = self.get_parsed(owner_id).name
+            for target_id, target_mono in targets:
+                target_name = self.get_parsed(target_id).name
+                print(
+                    f"  ({owner_id}, {owner_name}, [{is_concrete_inst(owner_mono)}])"
+                    f" o--+ ({target_id}, {target_name},"
+                    f" [{is_concrete_inst(target_mono)}])"
+                )
+
+    def str_context(self, contexts: tuple[ModifierContext, ...]) -> str:
+
+        strings = []
+        for context in contexts:
+            strings.append(f"({context.concrete_control_count()},{context.daggered})")
+
+        return ", ".join(s for s in strings)
 
     def _drain_check_worklists(self) -> None:
         """Checks all definitions currently queued on the checking worklists."""
