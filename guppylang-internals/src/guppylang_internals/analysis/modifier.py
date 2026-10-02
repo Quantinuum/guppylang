@@ -173,6 +173,8 @@ def analyze_modifier_calls(
                 if custom_use is None:
                     # NICOLA: Here we are exploring also the case when the resolved
                     # callee is generic, should we?
+                    # Also if `custom_use is None` then resolved_callee is raw_calleem.
+                    # change this for clarity?
                     # No custom implementation consumed the modifiers. The compiler
                     # generates the modified callee, so its body inherits the context.
                     next_state = ModifierCallState(raw_callee, effective_context)
