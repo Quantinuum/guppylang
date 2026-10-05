@@ -288,10 +288,9 @@ class CompilationEngine:
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
     #: Call graph mapping from caller to list of callees. Populated during type checking
-    # as calls are checked, to be then used for effects checking.
+    #: as calls are checked, to be then used for effects checking.
     call_graph: dict[MonoDefId, list[MonoDefId]]
-    #: Functions referenced as values by each checked function specialization.
-    #: Targets include type arguments; unspecialized references use bound parameters.
+    #: Register functions referenced as values by each checked function specialization.
     load_graph: dict[MonoDefId, set[MonoDefId]]
     func_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
