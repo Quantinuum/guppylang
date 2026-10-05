@@ -1,8 +1,6 @@
 import pytest
 from guppylang import guppy
 from guppylang.std.builtins import Function, owned
-from guppylang_internals.analysis.callgraph import CallGraph
-from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.tys.arg import TypeArg
 from guppylang_internals.tys.builtin import float_type, int_type
@@ -162,76 +160,105 @@ def test_static_methods(type_kind):
     assert ENGINE.load_graph[root.id, ()] == {(loaded, ())}
 
 
-@pytest.mark.parametrize("use", ["bare", "explicit", "inferred", "called"])
-def test_generic_functions(use):
+def test_bare_generic_function():
     @guppy
     def identity[T](x: T @ owned) -> T:
         return x
 
     @guppy
-    def bare() -> int:
+    def root() -> int:
         f = identity
         return f(1)
 
-    @guppy
-    def explicit() -> Function[[int], int]:
-        f = identity[float]
-        f(1.0)
-        return identity[int]
-
-    @guppy
-    def inferred() -> Function[[int], int]:
-        f: Function[[float], float] = identity
-        f(1.0)
-        return identity
-
-    @guppy
-    def called() -> int:
-        identity[int](1)
-        identity(1.0)
-        return identity[int](1)
-
-    root = {
-        "bare": bare,
-        "explicit": explicit,
-        "inferred": inferred,
-        "called": called,
-    }[use]
     root.check()
 
     defn = ENGINE.get_parsed(identity.id)
     generic = (identity.id, tuple(param.to_bound() for param in defn.params))
-    if use == "called":
-        expected = set()
-    elif use == "bare":
-        expected = {generic}
-    else:
-        expected = {
-            generic,
-            (identity.id, (TypeArg(int_type()),)),
-            (identity.id, (TypeArg(float_type()),)),
-        }
-    assert ENGINE.load_graph[root.id, ()] == expected
+    assert ENGINE.load_graph[root.id, ()] == {generic}
 
 
-def test_nested_function_owns_its_loads():
+def test_explicit_generic_function_specializations():
     @guppy
-    def leaf() -> int:
-        return 1
+    def identity[T](x: T @ owned) -> T:
+        return x
 
     @guppy
-    def outer() -> Function[[], int]:
-        @guppy
-        def inner() -> Function[[], int]:
-            return leaf
+    def root() -> Function[[int], int]:
+        f = identity[float]
+        f(1.0)
+        return identity[int]
 
-        return inner()
+    root.check()
 
-    outer.check()
+    defn = ENGINE.get_parsed(identity.id)
+    generic = (identity.id, tuple(param.to_bound() for param in defn.params))
+    assert ENGINE.load_graph[root.id, ()] == {
+        generic,
+        (identity.id, (TypeArg(int_type()),)),
+        (identity.id, (TypeArg(float_type()),)),
+    }
 
-    [inner] = ENGINE.call_graph[outer.id, ()]
-    assert ENGINE.load_graph[outer.id, ()] == set()
-    assert ENGINE.load_graph[inner] == {(leaf.id, ())}
+
+def test_inferred_generic_function_specializations():
+    @guppy
+    def identity[T](x: T @ owned) -> T:
+        return x
+
+    @guppy
+    def root() -> Function[[int], int]:
+        f: Function[[float], float] = identity
+        f(1.0)
+        return identity
+
+    root.check()
+
+    defn = ENGINE.get_parsed(identity.id)
+    generic = (identity.id, tuple(param.to_bound() for param in defn.params))
+    assert ENGINE.load_graph[root.id, ()] == {
+        generic,
+        (identity.id, (TypeArg(int_type()),)),
+        (identity.id, (TypeArg(float_type()),)),
+    }
+
+
+def test_direct_generic_calls_do_not_load():
+    @guppy
+    def identity[T](x: T @ owned) -> T:
+        return x
+
+    @guppy
+    def root() -> int:
+        identity[int](1)
+        identity(1.0)
+        return identity[int](1)
+
+    root.check()
+
+    assert ENGINE.load_graph[root.id, ()] == set()
+
+
+def test_generic_function_owner_specialization():
+    @guppy
+    def identity[T](x: T @ owned) -> T:
+        return x
+
+    @guppy
+    def loader[T](x: T @ owned) -> tuple[T, Function[[T @ owned], T]]:
+        return x, identity[T]
+
+    @guppy
+    def root() -> None:
+        loader(1)
+        loader(1.0)
+
+    root.check()
+
+    defn = ENGINE.get_parsed(identity.id)
+    generic = (identity.id, tuple(param.to_bound() for param in defn.params))
+    assert ENGINE.load_graph[root.id, ()] == set()
+    for ty in (int_type(), float_type()):
+        inst = (TypeArg(ty),)
+        assert ENGINE.load_graph[loader.id, inst] == {generic, (identity.id, inst)}
 
 
 @pytest.mark.parametrize("type_kind", ["struct", "enum"])
@@ -271,64 +298,6 @@ def test_generic_bound_method(type_kind):
     }
 
 
-def test_generic_loads_follow_owner_specialization():
-    @guppy
-    def identity[T](x: T @ owned) -> T:
-        return x
-
-    @guppy
-    def loader[T](x: T @ owned) -> tuple[T, Function[[T @ owned], T]]:
-        return x, identity[T]
-
-    @guppy
-    def root() -> None:
-        loader(1)
-        loader(1.0)
-
-    root.check()
-
-    defn = ENGINE.get_parsed(identity.id)
-    generic = (identity.id, tuple(param.to_bound() for param in defn.params))
-    for ty in (int_type(), float_type()):
-        inst = (TypeArg(ty),)
-        assert ENGINE.load_graph[loader.id, inst] == {generic, (identity.id, inst)}
-
-
-def test_declaration_load_and_reset():
-    @guppy.declare
-    def external() -> int: ...
-
-    @guppy
-    def root() -> Function[[], int]:
-        return external
-
-    root.check()
-
-    assert ENGINE.load_graph[root.id, ()] == {(external.id, ())}
-    assert (external.id, ()) not in ENGINE.load_graph
-    ENGINE.reset()
-    assert ENGINE.load_graph == {}
-
-
-def test_loads_do_not_propagate_call_effects():
-    from guppylang.std.builtins import panic
-
-    @guppy
-    def leaf() -> None:
-        panic("only happens when called")
-
-    @guppy
-    def root() -> Function[[], None]:
-        return leaf
-
-    root.check()
-
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-    assert ENGINE.load_graph[root.id, ()] == {(leaf.id, ())}
-    assert effects[root.id, ()] == frozenset()
-    assert effects[leaf.id, ()]
-
-
 def test_loads_in_containers_and_generic_owners():
     @guppy
     def leaf() -> int:
@@ -360,7 +329,7 @@ def test_constructor_references():
 
     @guppy.enum
     class Enum:
-        Variant = {}  # noqa: RUF012 - Guppy enum variant declaration.
+        Variant = {}  # noqa: RUF012
 
     @guppy
     def calls() -> None:

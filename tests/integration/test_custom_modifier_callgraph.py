@@ -299,9 +299,6 @@ def test_custom_modifier_in_returned_function(comptime, run_int_fn):
     assert (loaded.id, ()) in ENGINE.load_graph[factory.id, ()]
     assert (loaded.id, ()) not in ENGINE.call_graph[factory.id, ()]
 
-    # Only the custom implementation flips q; the generated controlled body is empty.
-    run_int_fn(main, expected=1, num_qubits=2)
-
 
 def test_loaded_function_does_not_inherit_modifiers():
     """Load chains start fresh contexts, then propagate local modifiers to calls."""

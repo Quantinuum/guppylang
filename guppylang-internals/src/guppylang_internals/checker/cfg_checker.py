@@ -121,9 +121,9 @@ def check_cfg(
     inout_vars = [v for v in inputs if InputFlags.Inout in v.flags]
     cfg.analyze(ass_before, ass_before, [v.name for v in inout_vars])
 
-    print("±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±")
-    print_cfg(cfg)
-    print("§§§§§§§§§§§§")
+    # print("±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±")
+    # print_cfg(cfg)
+    # print("§§§§§§§§§§§§")
 
     # We start by compiling the entry BB
     checked_cfg: CheckedCFG[Variable] = CheckedCFG([v.ty for v in inputs], return_ty)
@@ -206,7 +206,7 @@ def check_cfg(
     }
     checked_cfg.unitary_flags = cfg.unitary_flags
 
-    print_cfg(checked_cfg)
+    # print_cfg(checked_cfg)
 
     # Finally, run the linearity check
     from guppylang_internals.checker.linearity_checker import check_cfg_linearity
@@ -222,14 +222,14 @@ def check_cfg(
     return linearity_checked_cfg
 
 
-def print_cfg(checked_cfg) -> None:
-    for bb in checked_cfg.bbs:
-        print(f"Block {bb.idx}:")
-        print(f"  Predecessors: {[pred.idx for pred in bb.predecessors]}")
-        print(f"  Successors: {[succ.idx for succ in bb.successors]}")
-        for stmt in bb.statements:
-            print(ast.dump(stmt, indent=2, show_empty=True))
-        print("-----------")
+# def print_cfg(checked_cfg) -> None:
+#     for bb in checked_cfg.bbs:
+#         print(f"Block {bb.idx}:")
+#         print(f"  Predecessors: {[pred.idx for pred in bb.predecessors]}")
+#         print(f"  Successors: {[succ.idx for succ in bb.successors]}")
+#         for stmt in bb.statements:
+#             print(ast.dump(stmt, indent=2, show_empty=True))
+#         print("-----------")
 
 
 @dataclass(frozen=True)
