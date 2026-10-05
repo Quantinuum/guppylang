@@ -233,44 +233,34 @@ class ExprUse(Enum):
 
 
 def record_function_load(node: ast.expr, ctx: Context) -> None:
-    """Records a function reference as an owner -> (definition, type arguments) edge.
-
-    Called for value uses such as `g = f`, `consume(f)`, and `return f`.
-    Call targets are excluded by the caller. GlobalCall/LocalCall results and
-    PlaceNode aliases are ignored here: we do not infer which function they hold.
-    Child expressions are recorded during their own checking; this helper only
-    unwraps the type applications and bound methods described below.
+    """Records function loading as an owner -> (definition, type arguments) edge.
+    Functions are loaded when they are used as values, such as `g = f`, `consume(f)`,
+    and `return f`.
     """
     if ctx.current_caller is None:
-        # Outside a checked function there is no owner for the dependency.
         return
+
     match node:
         case GlobalName(def_id=def_id):
-            # A resolved global reference, e.g. `g = f` or `g = MyType.static_method`.
-            # GlobalName also represents non-callable definitions, which we ignore.
             if isinstance(defn := ENGINE.get_parsed(def_id), CallableDef):
                 match get_type(node):
                     case FunctionDefType(args=args):
-                        # A function item, e.g. `g = f`. Specialization arguments are
-                        # inside the definition.
-                        # Includes NestedFunctionDefType, a FunctionDefType subclass.
+                        # A function item, e.g. `g = f`. Includes NestedFunctionDefType,
+                        # a FunctionDefType subclass.
                         inst = args
                     case FunctionType():
-                        # Method references (obj.static_method or obj.static_method)
-                        # return the method signature directly, not a FunctionTypeDef.
-                        # Coercion also produces this type, e.g. `return f` against the
-                        # return annotation. It stores no inst args. If the function is
-                        # generic, its inst args is handled below.
+                        # Method references (obj.static_method or obj.static_method) and
+                        # coercion against the  return annotation (e.g. e.g. `return f`)
+                        # produces the FunctionType directly. It stores no inst args.
+                        # If the function is generic, its inst args is handled below.
                         inst = ()
                     case _ as ty:
                         raise InternalGuppyError(
                             f"Unexpected type for loaded function: {ty}"
                         )
                 if not inst:
-                    # If inst is not provided: for generic functions, we use the same
-                    # bound arguments as the engine's generic graph nodes, while
-                    # nongeneric functions have no parameters, so their argument tuple
-                    # remains empty.
+                    # If inst is not provided we use the same bound arguments as the
+                    # engine's generic graph nodes.
                     inst = tuple(param.to_bound() for param in defn.ty.params)
                 ENGINE.register_load(ctx.current_caller, (def_id, inst))
         case TypeApply(value=GlobalName(def_id=def_id), inst=inst):
@@ -315,10 +305,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         raise GuppyTypeError(TypeMismatchError(loc, expected, actual))
 
     def check(
-        self,
-        expr: ast.expr,
-        ty: Type,
-        kind: str = "expression",
+        self, expr: ast.expr, ty: Type, kind: str = "expression"
     ) -> tuple[ast.expr, Subst]:
         """Checks an expression against a type.
 
@@ -582,10 +569,6 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         """Tries to synthesize a type for the given expression.
 
         Also returns a new desugared expression with type annotations.
-
-        `use` applies to this expression only. Recursive synthesis defaults to
-        `VALUE`, so arguments of a call are still recorded when the call itself
-        is used as a callee.
         """
         previous_use = self._use
         self._use = use
@@ -686,14 +669,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     ) -> tuple[ast.expr, Type]:
         from guppylang_internals.definition.enum import ParsedEnumDef
 
-        # HERE WE HAVE WHEN A VARIABLE REFERRING TO A FUNCTION IS TRANSFORMED INTO A
-        # GLOBAL NAME IN THE AST.
-
         """Checks a global definition in an expression position."""
         match defn:
             case CallableDef() as defn:
                 ty = FunctionDefType(defn.id)
-                # NICOLA: Here we are dealing with a potential function loading
                 return with_loc(node, make_global_name(name, defn.id)), ty
             case ValueDef() as defn:
                 return with_loc(node, make_global_name(name, defn.id)), defn.ty
@@ -1156,8 +1135,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return self._synthesize_binary(left_expr, right_expr, op, node)
 
     def visit_Subscript(self, node: ast.Subscript) -> tuple[ast.expr, Type]:
-        # A value use records both the generic reference and its specialization.
-        # Preserve CALLEE through type application so f[T]() records neither load.
+        # Preserve self._use through type application.
         node.value, ty = self.synthesize(node.value, use=self._use)
         # Special case for subscripts on functions: Those are type applications
         if isinstance(ty, FunctionDefType):

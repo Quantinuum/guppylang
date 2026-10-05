@@ -130,10 +130,7 @@ def analyze_modifier_calls(
             expanded_calls[caller] = []
             expanded_callers.add(caller)
 
-        # Loading a function does not invoke it or apply the loader's modifiers.
-        # Analyze its body in an empty context, without adding a call edge or a
-        # contextual caller for recursive-call diagnostics. Bare generic references
-        # have no concrete body to analyze yet; visit their specializations instead.
+        # Loading a function never invokes it or applies the loader's modifiers.
         worklist.extend(
             ModifierCallState(loaded, NO_CALL_MODIFIERS)
             for loaded in load_graph.get(caller, ())

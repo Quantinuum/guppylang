@@ -643,7 +643,6 @@ class CompilationEngine:
         # repeat the complete contextual analysis until monomorphization reaches a
         # fixed point.
         self._drain_check_worklists()
-        # self.print_call_graph()
         while True:
             modifier_analysis = analyze_modifier_calls(
                 entry_points,
@@ -664,42 +663,6 @@ class CompilationEngine:
         resolved_contexts: dict[CallGraphEdge, dict[ModifierContext, None]] = {}
         for ((caller, _), context), callee in self.resolved_modified_calls.items():
             resolved_contexts.setdefault((caller, callee), {})[context] = None
-
-        # print("After analysis:")
-        # self.print_call_graph()
-
-    # def print_call_graph(self) -> None:
-    #     for (caller_id, caller_mono), callees in self.call_graph.items():
-    #         caller_name = self.get_parsed(caller_id).name
-    #         for id, mono_args in callees:
-    #             callee_name = self.get_parsed(id).name
-    #             edge = ((caller_id, caller_mono), (id, mono_args))
-    #             contexts = tuple(self.local_modifiers_by_edge.get(edge, ())) or (
-    #                 ModifierContext(),
-    #             )
-    #             print(
-    #                 f"  ({caller_id}, {caller_name}, [{is_concrete_inst(caller_mono)}])"  # noqa: E501
-    #                 f" -- {self.str_context(contexts)} -->"
-    #                 f" ({id}, {callee_name}, [{is_concrete_inst(mono_args)}])"
-    #             )
-
-    #     for (owner_id, owner_mono), targets in self.load_graph.items():
-    #         owner_name = self.get_parsed(owner_id).name
-    #         for target_id, target_mono in targets:
-    #             target_name = self.get_parsed(target_id).name
-    #             print(
-    #                 f"  ({owner_id}, {owner_name}, [{is_concrete_inst(owner_mono)}])"
-    #                 f" o--+ ({target_id}, {target_name},"
-    #                 f" [{is_concrete_inst(target_mono)}])"
-    #             )
-
-    # def str_context(self, contexts: tuple[ModifierContext, ...]) -> str:
-
-    #     strings = []
-    #     for context in contexts:
-    #         strings.append(f"({context.concrete_control_count()},{context.daggered})")
-
-    #     return ", ".join(s for s in strings)
 
     def _drain_check_worklists(self) -> None:
         """Checks all definitions currently queued on the checking worklists."""
