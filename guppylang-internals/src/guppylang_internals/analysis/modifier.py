@@ -171,15 +171,11 @@ def analyze_modifier_calls(
                 expanded_calls[caller].append(resolved_callee)
 
                 if custom_use is None:
-                    # NICOLA: Here we are exploring also the case when the resolved
-                    # callee is generic, should we?
-                    # Also if `custom_use is None` then resolved_callee is raw_calleem.
-                    # change this for clarity?
                     # No custom implementation consumed the modifiers. The compiler
                     # generates the modified callee, so its body inherits the context.
-                    next_state = ModifierCallState(raw_callee, effective_context)
+                    next_state = ModifierCallState(resolved_callee, effective_context)
                     contextual_callers[next_state].add(state)
-                    if raw_callee in raw_calls:
+                    if resolved_callee in raw_calls:
                         worklist.append(next_state)
                     continue
 
@@ -203,8 +199,6 @@ def analyze_modifier_calls(
 
     for caller, callees in expanded_calls.items():
         if caller in expanded_callers:
-            # NICOLA: We should have a better way to handle multiple contextual
-            # invocations.
             # Multiple contextual invocations and call sites may resolve to the same
             # target. Preserve discovery order while removing duplicate graph edges.
             expanded_calls[caller] = list(dict.fromkeys(callees))
