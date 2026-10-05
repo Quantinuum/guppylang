@@ -772,7 +772,10 @@ def test_discard_empty_array(validate):
     @guppy
     def main() -> None:
         empty_array[qubit, 2]().discard_all_taken()
+        output("after_discard", 0)
 
+    res = main.emulator(1).coinflip_sim().run().results[0].entries
+    assert res == [("after_discard", 0)]
     validate(main.compile())
 
 
