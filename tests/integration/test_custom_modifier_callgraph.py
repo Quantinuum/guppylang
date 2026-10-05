@@ -256,7 +256,7 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls():
 
 
 @pytest.mark.parametrize("comptime", [False, True])
-def test_custom_modifier_in_returned_function(comptime, run_int_fn):
+def test_custom_modifier_in_returned_function(comptime):
     """A function returned by a factory needs its custom implementations (#2343)."""
 
     @guppy.unitary
