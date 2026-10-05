@@ -195,41 +195,29 @@ class DefinitionStore:
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
 
-    def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
-        from guppylang_internals.definition.function import RawFunctionDef
+    def update_def_frame(self, def_id: DefId, frame: FrameType) -> None:
+        """Update the Python scope used to resolve names in a registered definition."""
+        self.frames[def_id] = frame
 
+    def register_type_member(self, ty_id: DefId, name: str, member_id: DefId) -> None:
         self.type_members[ty_id][name] = member_id
-        member = self.raw_defs[member_id]
-        # Ordinary methods are defined directly in the type's class body, so their
-        # frame must be advanced out of that scope. A unitary method's `__call__` is
-        # defined one class scope deeper, so skip both classes to resolve names in
-        # the enclosing definition scope.
-        is_unitary_call = (
-            isinstance(member, RawFunctionDef) and member.unitary_class_at is not None
-        )
-        self._register_type_member_parent(
-            ty_id, member_id, class_scopes=2 if is_unitary_call else 1
-        )
+        self._register_type_member_parent(ty_id, member_id)
 
         # When a `@guppy.unitary` class is used as method, the custom implementations
         # are members too: their first argument is the same `self` as the unmodified
         # definition, i.e. the struct or enum instance.
         for custom_id in self.custom_modified_defs.get(member_id, {}).values():
-            self._register_type_member_parent(ty_id, custom_id, class_scopes=2)
+            self._register_type_member_parent(ty_id, custom_id)
 
-    def _register_type_member_parent(
-        self, ty_id: DefId, member_id: DefId, *, class_scopes: int
-    ) -> None:
+    def _register_type_member_parent(self, ty_id: DefId, member_id: DefId) -> None:
         assert member_id not in self.type_member_parents, "Already a type member"
         self.type_member_parents[member_id] = ty_id
         # Advance past each class and its optional annotation scope.
         if member_id not in self.frames:
             return
         frame = self.frames[member_id]
-        for _ in range(class_scopes):
-            parent_frame = frame.f_back
-            if parent_frame is None:
-                break
+        parent_frame = frame.f_back
+        if parent_frame is not None:
             frame = parent_frame
             # For Python 3.12 generic functions and classes, there is an additional
             # inserted frame for the annotation scope. We can detect this frame by

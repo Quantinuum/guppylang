@@ -404,7 +404,13 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         values so that e.g. a non-negative Python int variable is accepted where a
         ``nat @comptime`` is expected (mirroring what ``visit_Constant`` does for
         literals)."""
-        if node.id in self.ctx.globals:
+        # Check global definitions only if the name is not defined locally.
+        # This is the same name precedence as TypeSynthesiser._check_name_id.
+        if (
+            node.id not in self.ctx.locals
+            and node.id not in self.ctx.generic_param_inst
+            and node.id in self.ctx.globals
+        ):
             match self.ctx.globals[node.id]:
                 case PythonObject(obj=val):
                     act = python_value_to_guppy_type(val, node, ty)
