@@ -216,7 +216,7 @@ class CompilerContext(ToHugrContext):
     def _compile_controlled_uses(
         self, custom_uses: list[ConcreteCustomUse]
     ) -> list[str]:
-        """Compiles control-parameterised uses in ascending control-count order."""
+        """Compiles control-parameterized uses in ascending control-count order."""
         custom_link_names: list[str] = []
         for custom_use in sorted(custom_uses, key=_control_count):
             control_count = _control_count(custom_use)
@@ -395,7 +395,7 @@ def _group_custom_uses_by_unmodified_callee_and_kind(
 
 
 def _control_count(custom_use: ConcreteCustomUse) -> int:
-    """Returns the concrete control count for a control-parameterised custom use."""
+    """Returns the concrete control count for a control-parameterized custom use."""
     assert custom_use.control_count is not None
     return custom_use.control_count
 

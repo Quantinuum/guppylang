@@ -84,8 +84,8 @@ def _set_inout_if_non_copyable(var: Variable) -> Variable:
     """Set the `inout` flag if the variable is non-copyable."""
     if not var.ty.copyable:
         return var.add_flags(InputFlags.Inout)
-    else:
-        return var
+    # Copiable variables may retain the Inout flag.
+    return var.remove_flags(InputFlags.Inout)
 
 
 def check_modified_block_signature(

@@ -50,7 +50,7 @@ class GuppyComptimeError(Exception):
 
 class RequiresMonomorphizationError(Exception):
     """Internal exception that is used whenever type checking cannot proceed without
-    monomorphizaion.
+    monomorphization.
 
     When checking generic functions, we first try a pass where the parameters are kept
     as opaque variables to give nicer error messaged. This exception is thrown whenever

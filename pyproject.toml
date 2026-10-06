@@ -11,6 +11,7 @@ lint = [
   "pre-commit>=4.6.2,<5",
   "ruff~=0.16.4",
   "types-networkx>=3.6.1.20260612",
+  "types-tqdm>=4.70.0.20260827",
 ]
 test = [
   "ipykernel>=6.29.5,<8",

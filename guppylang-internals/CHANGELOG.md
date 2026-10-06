@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.1...guppylang-internals-v1.1.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* Bad span for missing return diagnostic with walrus loop condition (#2380)([da8668b](https://github.com/Quantinuum/guppylang/commit/da8668bf253f7afa8362ddc5277e306a8215897f))
+* Clear stale inout flags on copyable generic captures (#2379)([fd78419](https://github.com/Quantinuum/guppylang/commit/fd784190b21da37003183a506a1acec99a4463c4))
+* Local variables being shadowed by global definitions (#2378)([d253322](https://github.com/Quantinuum/guppylang/commit/d253322bd9d0c4b896ebd84944a7312eee6971f1))
+
 ## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.0-rc0...guppylang-internals-v1.1.1) (2026-09-14)
 
 

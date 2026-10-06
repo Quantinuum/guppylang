@@ -35,7 +35,7 @@ type Argument = "TypeArg | ConstArg"
 
 @dataclass(frozen=True)
 class ArgumentBase(ToHugr[ht.TypeArg], Transformable["Argument"], ABC):
-    """Abstract base class for arguments of parametrized types.
+    """Abstract base class for arguments of parameterized types.
 
     For example, in the type `array[int, 42]` we have two arguments `int` and `42`.
     """
