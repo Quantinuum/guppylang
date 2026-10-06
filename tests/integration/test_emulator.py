@@ -60,7 +60,7 @@ def test_basic_emulation() -> None:
         h(q)
         output("c", measure(q).read())
 
-    res = main.emulator(1).statevector_sim().with_seed(42).run()
+    res = main.emulator(1).statevector_sim().with_seed(42, mode="legacy").run()
     expected = EmulatorResult([[("c", True)]])
     assert res == expected
 
@@ -169,7 +169,9 @@ def test_hinted_qubits() -> None:
     def main() -> None:
         output("c", measure(qubit()).read())
 
-    shots = main.emulator().coinflip_sim().with_seed(0).with_shots(1).run()
+    shots = (
+        main.emulator().coinflip_sim().with_seed(0, mode="legacy").with_shots(1).run()
+    )
     assert shots[0].as_dict()["c"] == 1
 
 
@@ -180,7 +182,13 @@ def test_hinted_qubits_with_given_qubits() -> None:
         qubits = array(qubit() for _ in range(4))
         output("c", collect_measurements(measure_array(qubits)))
 
-    shots = main.emulator(n_qubits=4).coinflip_sim().with_seed(0).with_shots(1).run()
+    shots = (
+        main.emulator(n_qubits=4)
+        .coinflip_sim()
+        .with_seed(0, mode="legacy")
+        .with_shots(1)
+        .run()
+    )
     assert shots[0].as_dict()["c"] == [1, 0, 1, 0]
 
 
@@ -224,7 +232,12 @@ def _build_run(
     n_shots: int = 1,
     seed: int | None = None,
 ) -> EmulatorResult:
-    return program.emulator(n_qubits).with_shots(n_shots).with_seed(seed).run()
+    return (
+        program.emulator(n_qubits)
+        .with_shots(n_shots)
+        .with_seed(seed, mode="legacy")
+        .run()
+    )
 
 
 def test_zeros():
@@ -450,7 +463,11 @@ def get_statevector(main: GuppyFunctionDefinition, n_qubits: int) -> StateVector
         discard_array(qs)
 
     results = (
-        wrapper.emulator(n_qubits).statevector_sim().with_shots(1).with_seed(12).run()
+        wrapper.emulator(n_qubits)
+        .statevector_sim()
+        .with_shots(1)
+        .with_seed(12, mode="legacy")
+        .run()
     )
     partials = results.partial_state_dicts()[0]
     return partials["result_state"].as_single_state()

@@ -32,19 +32,23 @@ if TYPE_CHECKING:
 n = guppy.nat_var("n")
 
 
-@custom_function(OutputCompiler("result_int", with_int_width=True))
+@custom_function(
+    OutputCompiler("result_int", with_int_width=True), effects=[Effect.ANY]
+)
 def _output_int(tag: str @ comptime, value: int) -> None: ...
 
 
-@custom_function(OutputCompiler("result_uint", with_int_width=True))
+@custom_function(
+    OutputCompiler("result_uint", with_int_width=True), effects=[Effect.ANY]
+)
 def _output_nat(tag: str @ comptime, value: nat) -> None: ...
 
 
-@custom_function(OutputCompiler("result_bool"))
+@custom_function(OutputCompiler("result_bool"), effects=[Effect.ANY])
 def _output_bool(tag: str @ comptime, value: bool) -> None: ...
 
 
-@custom_function(OutputCompiler("result_f64"))
+@custom_function(OutputCompiler("result_f64"), effects=[Effect.ANY])
 def _output_float(tag: str @ comptime, value: float) -> None: ...
 
 
@@ -52,19 +56,23 @@ def _output_float(tag: str @ comptime, value: float) -> None: ...
 def _output_measurement(tag: str @ comptime, value: Measurement) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_int", with_int_width=True))
+@custom_function(
+    ArrayOutputCompiler("result_array_int", with_int_width=True), effects=[Effect.ANY]
+)
 def _output_int_array(tag: str @ comptime, value: array[int, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_uint", with_int_width=True))
+@custom_function(
+    ArrayOutputCompiler("result_array_uint", with_int_width=True), effects=[Effect.ANY]
+)
 def _output_nat_array(tag: str @ comptime, value: array[nat, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_bool"))
+@custom_function(ArrayOutputCompiler("result_array_bool"), effects=[Effect.ANY])
 def _output_bool_array(tag: str @ comptime, value: array[bool, n]) -> None: ...
 
 
-@custom_function(ArrayOutputCompiler("result_array_f64"))
+@custom_function(ArrayOutputCompiler("result_array_f64"), effects=[Effect.ANY])
 def _output_float_array(tag: str @ comptime, value: array[float, n]) -> None: ...
 
 

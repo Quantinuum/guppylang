@@ -18,7 +18,7 @@ class Var(ABC):
     """Abstract base class for variables that occur in types.
 
     A variable can either occur as a type itself (see subclasses `BoundTypeVar` and
-    `ExistentialTypeVar`) or as an argument to a parametrised type.
+    `ExistentialTypeVar`) or as an argument to a parameterized type.
     """
 
     # Name that is used when showing the variable to the user

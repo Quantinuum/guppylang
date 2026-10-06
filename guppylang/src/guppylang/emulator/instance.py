@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import TYPE_CHECKING, Any, Literal, Self, cast
 
 from hugr.qsystem.result import QsysShot
 from selene_argreader_plugin import ArgProvider
@@ -67,6 +67,7 @@ class _Options:
     _shot_increment: int = 1
     _shot_offset: int = 0
     _seed: int | None = None
+    _seed_mode: Literal["default", "legacy"] = "default"
     _verbose: bool = False
     _timeout: datetime.timedelta | None = None
     _n_processes: int = 1
@@ -156,8 +157,8 @@ class EmulatorInstance:
 
     @property
     def n_processes(self) -> int:
-        """Number of processes to parallelise the emulator execution across.
-        Defaults to 1, meaning no parallelisation."""
+        """Number of processes to parallelize the emulator execution across.
+        Defaults to 1, meaning no parallelization."""
         return self._options._n_processes
 
     @property
@@ -240,10 +241,17 @@ class EmulatorInstance:
         Defaults to None (no timeout)."""
         return self._with_option(_timeout=value)
 
-    def with_seed(self, value: int | None) -> Self:
+    def with_seed(
+        self, value: int | None, *, mode: Literal["default", "legacy"] = "default"
+    ) -> Self:
         """Set the random seed for the emulator instance.
-        Defaults to None."""
-        new_options = replace(self._options, _seed=value)
+        Defaults to None.
+
+        ``mode`` selects the seeding algorithm used by the emulator. Defaults
+        to ``"default"``, pass ``"legacy"`` to reproduce the seeding behaviour
+        of older releases.
+        """
+        new_options = replace(self._options, _seed=value, _seed_mode=mode)
         # TODO flaky stateful, remove when selene simplifies
         new_options._simulator.random_seed = value
         out = replace(self, _options=new_options)
@@ -262,8 +270,8 @@ class EmulatorInstance:
         return self._with_option(_shot_increment=value)
 
     def with_n_processes(self, value: int) -> Self:
-        """Set the number of processes to parallelise the emulator execution across.
-        Defaults to 1, meaning no parallelisation."""
+        """Set the number of processes to parallelize the emulator execution across.
+        Defaults to 1, meaning no parallelization."""
         return self._with_option(_n_processes=value)
 
     def statevector_sim(self) -> Self:
@@ -445,6 +453,7 @@ class EmulatorInstance:
             shot_offset=self.shot_offset,
             shot_increment=self.shot_increment,
             n_processes=self.n_processes,
+            seed_mode=self._options._seed_mode,
         )
 
     def _iterate_shots(

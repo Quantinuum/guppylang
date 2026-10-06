@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "$FILE", line 3, in <module>
+    @guppy.unitary
+TypeError: The `@guppy.unitary` class `Foo` requires a `@guppy` annotated `__call__` method

@@ -1,0 +1,11 @@
+Error: Unexpected `@expected_qubits` decorator (at $FILE:12:4)
+   | 
+10 |     @guppy
+11 |     @expected_qubits(2)
+12 |     def controlled() -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^ Unexpected `@expected_qubits` decorator
+
+Help: This method cannot cannot use `@expected_qubits`; Use the decorator on top
+of `__call__` to set the expected qubits.
+
+Guppy compilation failed due to 1 previous error

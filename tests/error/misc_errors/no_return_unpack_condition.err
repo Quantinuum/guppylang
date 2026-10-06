@@ -1,0 +1,17 @@
+Error: Expected return statement (at $FILE:9:4)
+   | 
+ 7 | def no_return_unpack_condition(t: tuple[bool, bool]) -> int:
+ 8 |     a, b = t
+ 9 |     if a:
+   |     ^^^^^
+10 |         return 0
+   | ^^^^^^^^^^^^^^^^ Expected return statement
+
+Note:
+   | 
+ 8 |     a, b = t
+ 9 |     if a:
+   |        - Consider adding a return statement if this expression is
+   |          `False`
+
+Guppy compilation failed due to 1 previous error

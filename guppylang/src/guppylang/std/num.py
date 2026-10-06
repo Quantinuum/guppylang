@@ -18,6 +18,7 @@ from guppylang_internals.std._internal.util import (
     int_op,
     unsupported_op,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import float_type_def, int_type_def, nat_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
 
@@ -137,6 +138,17 @@ class nat:
     def __ror__(self: nat, other: nat) -> nat: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    def ___round__no_digits(self: nat) -> nat: ...
+
+    @guppy
+    @no_type_check
+    def ___round__digits(self: nat, ndigits: int) -> nat:
+        if ndigits >= 0:
+            return self
+
+        return nat(___round__inv(int(self), -ndigits))
+
+    @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: nat) -> nat: ...
 
     @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
@@ -302,6 +314,17 @@ class int:
     def __ror__(self: int, other: int) -> int: ...
 
     @custom_function(NoopCompiler(), unitary_flags=UnitaryFlags.Dagger)
+    def ___round__no_digits(self: int) -> int: ...
+
+    @guppy
+    @no_type_check
+    def ___round__digits(self: int, ndigits: int) -> int:
+        if ndigits >= 0:
+            return self
+
+        return ___round__inv(self, -ndigits)
+
+    @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: int) -> int: ...
 
     @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
@@ -388,6 +411,7 @@ class float:
             int_op("trunc_s", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=[Effect.ANY],
     )
     def __int__(self: float) -> int: ...
 
@@ -411,6 +435,7 @@ class float:
             int_op("trunc_u", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=[Effect.ANY],
     )
     def __nat__(self: float) -> nat: ...
 
@@ -448,7 +473,21 @@ class float:
     @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
     def __rmul__(self: float, other: float) -> float: ...
 
-    @hugr_op(float_op("fround"), unitary_flags=UnitaryFlags.Dagger)  # TODO
+    @hugr_op(float_op("froundeven"), unitary_flags=UnitaryFlags.Dagger)
+    def ___round__hugr(self: float) -> float: ...
+
+    @guppy
+    @no_type_check
+    def ___round__no_digits(self: float) -> int:
+        return int(self.___round__hugr())
+
+    @guppy
+    @no_type_check
+    def ___round__digits(self: float, ndigits: int) -> float:
+        factor = 10.0**ndigits
+        return (self * factor).___round__hugr() / factor
+
+    @guppy.overload(___round__no_digits, ___round__digits)
     def __round__(self: float) -> float: ...
 
     @custom_function(checker=ReversingChecker(), unitary_flags=UnitaryFlags.Dagger)
@@ -523,11 +562,38 @@ def len(x): ...
 def pow(x, y): ...
 
 
+@guppy
+@no_type_check
+def ___round__inv(x: int, ndigits: int) -> int:
+    """Implements 'inverted' rounding for `x`, by effectively shifting right `ndigits`,
+    applying a rounding, and shifting left `ndigits`. Contains an adapted algorithm to
+    handle very large integers. `ndigits` is assumed to be strictly positive."""
+    factor = 10**ndigits
+    quotient = x // factor
+    remainder = x % factor
+    half = factor // 2
+    if remainder > half or (remainder == half and quotient % 2 != 0):
+        return (quotient + 1) * factor
+    return quotient * factor
+
+
 @custom_function(
     checker=DunderChecker("__round__"),
     higher_order_value=False,
     unitary_flags=UnitaryFlags.Dagger,
 )
+def ___round__no_digits(x): ...
+
+
+@custom_function(
+    checker=DunderChecker("__round__", num_args=2),
+    higher_order_value=False,
+    unitary_flags=UnitaryFlags.Dagger,
+)
+def ___round__digits(x, ndigits): ...
+
+
+@guppy.overload(___round__no_digits, ___round__digits)
 def round(x): ...
 
 

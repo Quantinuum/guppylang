@@ -12,7 +12,7 @@ def funcs_defs(h: Hugr) -> list[str]:
     return [h[node].op.f_name for node in h if isinstance(h[node].op, ops.FuncDefn)]
 
 
-def test_bool(validate, run_int_fn):
+def test_bool_struct(validate, run_int_fn):
     B = guppy.const_var("B", "bool")
 
     @guppy.struct
@@ -40,7 +40,7 @@ def test_bool(validate, run_int_fn):
             s += 10000
         return s
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, and 2 monomorphizations of foo_struct
@@ -48,6 +48,10 @@ def test_bool(validate, run_int_fn):
     assert len(funcs_defs(compiled_struct.modules[0])) == 3
 
     run_int_fn(main_struct, 101)
+
+
+def test_bool_enum(validate, run_int_fn):
+    B = guppy.const_var("B", "bool")
 
     @guppy.enum
     class DummyEnum(Generic[B]):  # pyright: ignore[reportInvalidTypeForm]
@@ -70,7 +74,7 @@ def test_bool(validate, run_int_fn):
             s += 10000
         return s
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, and 2 monomorphizations of foo_enum, 2 for VariantA()
@@ -106,7 +110,7 @@ def test_int(validate):
             + foo_struct[1](Dummy())
         )
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, and 4 monomorphizations of foo_struct
@@ -131,14 +135,14 @@ def test_int(validate):
             + foo_enum[1](DummyEnum.VariantA())
         )
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, and 3 monomorphizations of foo_enum, 3 for VariantA()
     assert len(funcs_defs(compiled_enum.modules[0])) == 7
 
 
-def test_float(validate, run_float_fn_approx):
+def test_float_struct(validate, run_float_fn_approx):
     F = guppy.const_var("F", "float")
 
     @guppy.struct
@@ -163,7 +167,7 @@ def test_float(validate, run_float_fn_approx):
             + foo_struct[1.5](Dummy())
         )
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, and 3 monomorphizations of foo_struct
@@ -171,6 +175,10 @@ def test_float(validate, run_float_fn_approx):
     assert len(funcs_defs(compiled_struct.modules[0])) == 4
 
     run_float_fn_approx(main_struct, 10.5)
+
+
+def test_float_enum(validate, run_float_fn_approx):
+    F = guppy.const_var("F", "float")
 
     @guppy.enum
     class DummyEnum(Generic[F]):  # pyright: ignore[reportInvalidTypeForm]
@@ -190,7 +198,7 @@ def test_float(validate, run_float_fn_approx):
             + foo_enum[1.5](DummyEnum.VariantA())
         )
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, and 3 monomorphizations of foo_enum
@@ -225,7 +233,7 @@ def test_string(validate):
             foo_struct["a"](Dummy()),
         )
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, and 4 monomorphizations of foo_struct
@@ -233,7 +241,7 @@ def test_string(validate):
     assert len(funcs_defs(compiled_struct.modules[0])) == 5
 
 
-def test_chain(validate, run_int_fn):
+def test_chain_struct(validate, run_int_fn):
     B = guppy.const_var("B", "bool")
 
     @guppy.struct
@@ -268,13 +276,17 @@ def test_chain(validate, run_int_fn):
         d[True](Dummy())
         return 1 if x else 0
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, and 4 monomorphizations (a, b, c, d)
     assert len(funcs_defs(compiled_struct.modules[0])) == 5
 
     run_int_fn(main_struct, 1)
+
+
+def test_chain_enum(validate, run_int_fn):
+    B = guppy.const_var("B", "bool")
 
     @guppy.enum
     class DummyEnum(Generic[B]):  # pyright: ignore[reportInvalidTypeForm]
@@ -304,7 +316,7 @@ def test_chain(validate, run_int_fn):
         d_enum[True](DummyEnum.VariantA[True]())
         return 1 if x else 0
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, 4 monomorphizations (a_enum, b_enum, c_enum, d_enum) and
@@ -341,7 +353,7 @@ def test_recursion(validate):
     def main_struct() -> int:
         return baz[True](Dummy())
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, and 5 monomorphizations of foo_struct/bar/baz
@@ -371,7 +383,7 @@ def test_recursion(validate):
     def main_enum() -> int:
         return baz_enum[True](DummyEnum.VariantA[True]())
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, and 5 monomorphizations of foo_enum/bar_enum/baz_enum
@@ -432,7 +444,7 @@ def test_many(validate):
         bar(s3.x3s)
         foo_struct(s3)
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, and 3 monomorphizations of foo and baz each
@@ -475,7 +487,7 @@ def test_many(validate):
         e3 = baz_enum(baz_enum(e3))
         foo_enum(e3)
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, 3 monomorphizations of foo_enum and baz_enum each,
@@ -500,7 +512,7 @@ def test_constructor(validate):
         f1()
         f2()
 
-    compiled_struct = main_struct.compile_function()
+    compiled_struct = main_struct.with_minimal_opt().compile_function()
     validate(compiled_struct)
 
     # Check we have main_struct, and 2 monomorphizations of the MyStruct constructor
@@ -519,7 +531,7 @@ def test_constructor(validate):
         f1()
         f2()
 
-    compiled_enum = main_enum.compile_function()
+    compiled_enum = main_enum.with_minimal_opt().compile_function()
     validate(compiled_enum)
 
     # Check we have main_enum, and 4 monomorphizations of the MyEnum.VariantA

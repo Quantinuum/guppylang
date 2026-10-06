@@ -146,7 +146,7 @@ class CheckableGenericDef(Definition):
 
     @abstractmethod
     def check(self, type_args: "Inst", globals: "Globals") -> "CheckedDef":
-        """Creates and type checks a monomorphisation of this definition."""
+        """Creates and type checks a monomorphization of this definition."""
 
 
 class CompilableDef(Definition):

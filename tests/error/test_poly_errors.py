@@ -7,7 +7,8 @@ files = collect_error_test_cases("poly_errors")
 
 # Snapshot tests that require experimental features.
 tests_that_require_experimental_features = [
-        "arg_mismatch5.py",
+    "arg_mismatch5.py",
+    "unitary_generic_function_error.py",
 ]
 files_with_experimental_flag = [
     (file, any(case in file for case in tests_that_require_experimental_features))

@@ -1,0 +1,23 @@
+Panic (#1001): Array index out of bounds
+Guppy traceback (most recent call last):
+   File "$PATH_TO_FILE/test_helper.py", line 8, in stack_traces.test_helper.array_with_three_elements:
+     | 
+   6 | def array_with_three_elements(x: int) -> int:
+   7 |     arr = array(1, 2, 3)
+   8 |     return arr[x]
+     |            ^ Array index out of bounds
+   
+   File "$PATH_TO_FILE/multi_file_out_of_bounds.py", line 8, in stack_traces.multi_file_out_of_bounds.array_out_of_bounds:
+     | 
+   6 | @guppy
+   7 | def array_out_of_bounds(x: int) -> int:
+   8 |     return array_with_three_elements(x)
+     |            ^
+   
+   File "$PATH_TO_FILE/multi_file_out_of_bounds.py", line 13, in stack_traces.multi_file_out_of_bounds.main:
+      | 
+   11 | @guppy
+   12 | def main() -> None:
+   13 |     array_out_of_bounds(5)
+      |     ^
+

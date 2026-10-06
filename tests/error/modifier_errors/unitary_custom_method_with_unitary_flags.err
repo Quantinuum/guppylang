@@ -1,0 +1,11 @@
+Error: Unexpected unitary flags (at $FILE:11:4)
+   | 
+ 9 | 
+10 |     @guppy(controllable=True)
+11 |     def daggered() -> None:
+   |     ^^^^^^^^^^^^^^^^^^^^^^^ Unexpected unitary flags in in the method `@guppy` decorator
+
+Help: This method cannot set unitary flags. To set unitary flag to the unitary
+class, use the decorator on top of `__call__`.
+
+Guppy compilation failed due to 1 previous error

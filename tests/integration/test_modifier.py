@@ -1,5 +1,5 @@
 import base64
-from guppylang.std.angles import angle
+from collections.abc import Callable
 import pytest
 
 from guppylang.decorator import guppy
@@ -11,6 +11,7 @@ from guppylang.std.builtins import (
     Daggerable,
     Function,
     Unitary,
+    comptime,
     control,
     dagger,
     owned,
@@ -18,7 +19,20 @@ from guppylang.std.builtins import (
     power,
 )
 from guppylang.std.num import nat
-from guppylang.std.quantum import cx, discard, discard_array, h, qubit, rx
+from guppylang.std.quantum import (
+    angle,
+    cx,
+    discard,
+    h,
+    measure,
+    qubit,
+    rx,
+    rz,
+    discard_array,
+    x,
+)
+
+c = guppy.nat_var("c")
 
 
 def test_dagger_simple(validate):
@@ -120,6 +134,51 @@ def test_control_subscript_allocated_array(validate):
         discard(c)
 
     validate(bar.compile_function())
+
+
+def test_control_generic_function_call(validate):
+    @guppy
+    def generic_function[T](x: T) -> None:
+        pass
+
+    @guppy
+    def controlled_generic_call[T](x: T) -> None:
+        q = qubit()
+
+        with control(q):
+            generic_function(x)
+
+        discard(q)
+
+    @guppy
+    def main() -> None:
+        controlled_generic_call(1)
+
+    validate(main.compile_function())
+
+
+def test_control_generic_function_call_non_copyable(validate):
+    @guppy(controllable=True)
+    def generic_function[T](x: T) -> None:
+        pass
+
+    @guppy
+    def controlled_generic_call[T](x: T) -> None:
+        q = qubit()
+
+        with control(q):
+            generic_function(x)
+
+        discard(q)
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        # a qubit is non-copyable, so the captured input must remain Inout.
+        controlled_generic_call(q)
+        discard(q)
+
+    validate(main.compile_function())
 
 
 def test_multidimensional_control_subscript(validate):
@@ -366,6 +425,543 @@ def test_higher_order_unitary_callable(validate):
     validate(main.compile_function())
 
 
+def test_custom_unitary_higher_order_callables(validate):
+    """Custom modifier methods determine higher-order callable capabilities."""
+
+    @guppy.unitary
+    class custom_dagger:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_control:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_unitary:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy.unitary
+    class custom_call:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+    @guppy(daggerable=True)
+    def apply_dagger(f: Daggerable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy(controllable=True)
+    def apply_control(f: Controllable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy(unitary=True)
+    def apply_unitary(f: Unitary[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def apply_plain(f: Function[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def apply_plain2(f: Callable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main(q: qubit) -> None:
+        apply_dagger(custom_dagger, q)
+        apply_control(custom_control, q)
+        apply_unitary(custom_unitary, q)
+        apply_plain(custom_dagger, q)
+        apply_plain(custom_control, q)
+        apply_plain(custom_unitary, q)
+        apply_plain(custom_call, q)
+        apply_plain2(custom_dagger, q)
+        apply_plain2(custom_control, q)
+        apply_plain2(custom_unitary, q)
+        apply_plain2(custom_call, q)
+
+    validate(main.compile_function())
+
+
+def test_unitary_capture_local_variable(validate):
+
+    def make_gate(theta: float):
+        from guppylang.std.angles import angle as local_angle
+
+        @guppy.unitary
+        class gate:
+            @guppy
+            def __call__(q: qubit) -> None:
+                rz(q, local_angle(comptime(theta)))
+
+        return gate
+
+    gate = make_gate(0.5)
+
+    @guppy
+    def main(q: qubit) -> None:
+        gate(q)
+
+    validate(main.compile_function())
+
+
+def test_unitary_capture_external_method(validate):
+    def make_gate():
+        @guppy
+        def controlled_impl(control_q: qubit, target_q: qubit) -> None:
+            cx(control_q, target_q)
+
+        @guppy
+        def call_impl(q: qubit) -> None:
+            pass
+
+        @guppy.unitary
+        class generated_gate:
+            @guppy
+            def __call__(target_q: qubit) -> None:
+                x(target_q)
+                call_impl(target_q)
+
+            @guppy
+            def controlled[n: nat](target_q: qubit, controls: array[qubit, n]) -> None:
+                controlled_impl(controls[0], target_q)
+
+        return generated_gate
+
+    gate = make_gate()
+
+    @guppy
+    def main(q: qubit, c: qubit) -> None:
+        gate(q)
+
+    @guppy
+    def main_controlled(q: qubit, c: qubit) -> None:
+        with control(c):
+            gate(q)
+
+    validate(main.compile_function(), name="plain")
+    validate(main_controlled.compile_function(), name="controlled")
+
+
+def test_controlled_impl_is_executed(run_int_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with control(control_qubit):
+            custom_gate(target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
+def test_controlled_impl_through_higher_order_call_is_executed(run_int_fn):
+    """Control is propagated through higher order function calls."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy(controllable=True)
+    def apply(f: Controllable[[qubit], None], q: qubit) -> None:
+        f(q)
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with control(control_qubit):
+            apply(custom_gate, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    # The custom controlled body flips the target; the empty base body cannot do so.
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
+def test_controlled_impl_through_helper_is_executed(run_int_fn):
+    """A propagated control selects a custom implementation through a helper."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy(controllable=True)
+    def helper(q: qubit) -> None:
+        custom_gate(q)
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        # `helper` has no custom controlled implementation. Its compiler-generated
+        # control must propagate to the direct call of `custom_gate` in its body.
+        with control(control_qubit):
+            helper(target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    # Only custom_gate.controlled flips the target; its base implementation is empty.
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
+def test_daggered_impl_is_executed(run_int_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            x(q)
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        with dagger:
+            custom_gate(target)
+        return 1 if measure(target).read() else 0
+
+    run_int_fn(main, expected=1, num_qubits=1)
+
+
+def test_ctrl_daggered_impl_is_executed(run_int_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy(unitary=True)
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with control(control_qubit), dagger:
+            custom_gate(target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
+def test_custom_modifier_use_default_when_missing_implementation(run_int_fn):
+    @guppy.unitary
+    class controllable_gate:
+        @guppy(controllable=True)
+        def __call__(q: qubit) -> None:
+            x(q)
+
+    @guppy.unitary
+    class daggerable_gate:
+        @guppy(daggerable=True)
+        def __call__(q: qubit) -> None:
+            x(q)
+
+    @guppy
+    def main() -> int:
+        controlled_target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with control(control_qubit):
+            controllable_gate(controlled_target)
+
+        daggered_target = qubit()
+        with dagger:
+            daggerable_gate(daggered_target)
+
+        controlled_result = measure(controlled_target).read()
+        daggered_result = measure(daggered_target).read()
+        discard(control_qubit)
+        return (1 if controlled_result else 0) + (2 if daggered_result else 0)
+
+    run_int_fn(main, expected=3, num_qubits=3)
+
+
+def test_double_daggered(run_int_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy(unitary=True)
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+        @guppy
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy(unitary=True)
+    def helper(c: qubit, q: qubit) -> None:
+        with control(c), dagger:
+            custom_gate(q)
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with dagger:
+            helper(control_qubit, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
+def test_two_control_counts_distinct_runtime(run_int_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy
+    def main() -> int:
+        target_one = qubit()
+        control_one = qubit()
+        x(control_one)
+        with control(control_one):
+            custom_gate(target_one)
+
+        target_two = qubit()
+        control_two_a = qubit()
+        control_two_b = qubit()
+        x(control_two_a)
+        x(control_two_b)
+        controls_two = array(control_two_a, control_two_b)
+        with control(controls_two):
+            custom_gate(target_two)
+
+        result_one = measure(target_one).read()
+        result_two = measure(target_two).read()
+        discard(control_one)
+        discard_array(controls_two)
+        return (1 if result_one else 0) + (2 if result_two else 0)
+
+    run_int_fn(main, expected=3, num_qubits=5)
+
+
+def test_struct_custom_modifier_impls_are_executed(run_int_fn):
+    @guppy.struct(frozen=True)
+    class CustomGates:
+        enabled: bool
+
+        @guppy
+        def flip(self, q: qubit) -> None:
+            x(q)
+
+        @guppy.unitary
+        class apply:
+            @guppy
+            def __call__(self, q: qubit) -> None:
+                pass
+
+            @guppy
+            def daggered(self, q: qubit) -> None:
+                if self.enabled:
+                    self.flip(q)
+
+            @guppy
+            def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
+                if self.enabled:
+                    self.flip(q)
+
+            @guppy
+            def ctrl_daggered[n: nat](
+                self, q: qubit, _controls: array[qubit, n]
+            ) -> None:
+                if self.enabled:
+                    self.flip(q)
+
+    @guppy
+    def main_plain() -> int:
+        target = qubit()
+        CustomGates(True).apply(target)
+        return 1 if measure(target).read() else 0
+
+    @guppy
+    def main_daggered() -> int:
+        target = qubit()
+        with dagger:
+            CustomGates(True).apply(target)
+        return 1 if measure(target).read() else 0
+
+    @guppy
+    def main_controlled() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with control(control_qubit):
+            CustomGates(True).apply(target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    @guppy
+    def main_ctrl_daggered() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        with control(control_qubit), dagger:
+            CustomGates(True).apply(target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main_plain, expected=0, num_qubits=1)
+    run_int_fn(main_daggered, expected=1, num_qubits=1)
+    run_int_fn(main_controlled, expected=1, num_qubits=2)
+    run_int_fn(main_ctrl_daggered, expected=1, num_qubits=2)
+
+
+def test_enum_custom_modifier_impls_are_executed(run_int_fn):
+    @guppy.enum
+    class CustomGates:
+        Enabled = {}
+
+        @guppy
+        def flip(self, q: qubit) -> None:
+            x(q)
+
+        @guppy.unitary
+        class apply:
+            @guppy
+            def __call__(self, q: qubit) -> None:
+                pass
+
+            @guppy
+            def daggered(self, q: qubit) -> None:
+                self.flip(q)
+
+            @guppy
+            def controlled[n: nat](self, q: qubit, _controls: array[qubit, n]) -> None:
+                self.flip(q)
+
+            @guppy
+            def ctrl_daggered[n: nat](
+                self, q: qubit, _controls: array[qubit, n]
+            ) -> None:
+                self.flip(q)
+
+    @guppy
+    def apply_daggered(gates: CustomGates, target: qubit) -> None:
+        with dagger:
+            gates.apply(target)
+
+    @guppy
+    def apply_controlled(
+        gates: CustomGates, control_qubit: qubit, target: qubit
+    ) -> None:
+        with control(control_qubit):
+            gates.apply(target)
+
+    @guppy
+    def apply_ctrl_daggered(
+        gates: CustomGates, control_qubit: qubit, target: qubit
+    ) -> None:
+        with control(control_qubit), dagger:
+            gates.apply(target)
+
+    @guppy
+    def main_daggered() -> int:
+        target = qubit()
+        apply_daggered(CustomGates.Enabled(), target)
+        return 1 if measure(target).read() else 0
+
+    @guppy
+    def main_controlled() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        apply_controlled(CustomGates.Enabled(), control_qubit, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    @guppy
+    def main_ctrl_daggered() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        apply_ctrl_daggered(CustomGates.Enabled(), control_qubit, target)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    run_int_fn(main_daggered, expected=1, num_qubits=1)
+    run_int_fn(main_controlled, expected=1, num_qubits=2)
+    run_int_fn(main_ctrl_daggered, expected=1, num_qubits=2)
+
+
 @pytest.mark.xfail(reason="Returning protocols not supported")
 def test_return_callable_with_stronger_flags(validate):
     """Returning a callable with more flags than required is valid."""
@@ -549,6 +1145,128 @@ def test_comptime_unitary_mixed(validate):
     validate(foo.compile_function())
 
 
+@guppy
+def ext_helper(q: qubit) -> None:
+    x(q)
+
+
+@guppy
+def helper(q: qubit) -> None:
+    h(q)
+
+
+def test_custom_modifier(validate):
+
+    @guppy.unitary
+    class foo:
+        @guppy
+        def __call__[n: nat](q1: array[qubit, n]) -> None:
+            # since we have custom implementations of the modifiers, there are no
+            # restrictions on the body of the function
+            q = qubit()
+            helper(q1[0])
+            i = 10
+            while i > 0:
+                i -= 1
+                h(q1[0])
+            measure(q)
+
+        @guppy
+        def daggered[n: nat](q1: array[qubit, n]) -> None:
+            ext_helper(q1[0])
+
+        @guppy
+        def controlled[n: nat, c: nat](
+            q1: array[qubit, n], _controls: array[qubit, c]
+        ) -> None:
+            h(_controls[0])
+
+        @guppy
+        def ctrl_daggered[n: nat, c: nat](
+            q1: array[qubit, n], _controls: array[qubit, c]
+        ) -> None:
+            h(_controls[0])
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit(), qubit())
+        c = qubit()
+        with control(c):
+            foo(qs)
+        with dagger:
+            foo(qs)
+        with control(c), dagger:
+            foo(qs)
+        discard_array(qs)
+        measure(c)
+
+    # Test compilation with and without passes
+    validate(main.with_minimal_opt().compile())
+    validate(main.compile())
+
+
+def test_custom_control_input_order(validate):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__[k: nat](a: array[qubit, k], b: array[qubit, c]) -> None:
+            pass
+
+        @guppy
+        def daggered[k: nat](a: array[qubit, k], b: array[qubit, c]) -> None:
+            pass
+
+        @guppy
+        def controlled[k: nat, n: nat](
+            a: array[qubit, k], b: array[qubit, c], ctrls: array[qubit, n]
+        ) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered[n: nat, k: nat](
+            a: array[qubit, k], b: array[qubit, c], ctrls: array[qubit, n]
+        ) -> None:
+            pass
+
+    @guppy
+    def main(a: array[qubit, 2], b: array[qubit, 3], ctrl: qubit) -> None:
+        with control(ctrl):
+            custom_gate(a, b)
+        with control(ctrl), dagger:
+            custom_gate(a, b)
+
+    validate(main.compile_function())
+
+
+def test_custom_control_input_order_emulator(run_int_fn):
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(targets: array[qubit, c]) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](
+            targets: array[qubit, c], ctrls: array[qubit, n]
+        ) -> None:
+            cx(ctrls[0], targets[1])
+
+    @guppy
+    def main() -> int:
+        targets = array(qubit(), qubit())
+        ctrl = qubit()
+        x(ctrl)
+        with control(ctrl):
+            custom_gate(targets)
+        result0 = measure(targets.take(0)).read()
+        result1 = measure(targets.take(1)).read()
+        discard_array(targets)
+        discard(ctrl)
+        return 1 if result1 and not result0 else 0
+
+    run_int_fn(main, expected=1, num_qubits=3)
+
+
 def test_hugr_stability():
     """Test that the Hugr representation of a function is stable across multiple
     compilations: https://github.com/Quantinuum/guppylang/issues/1905"""
@@ -595,7 +1313,6 @@ def test_std(validate):
     from guppylang.std.option import Option
 
     y = 42
-
     n = guppy.nat_var("n")
 
     @guppy.comptime(daggerable=True)

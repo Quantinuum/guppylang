@@ -38,6 +38,7 @@ from guppylang_internals.compiler.core import (
 from guppylang_internals.definition.common import CheckableGenericDef, ParsableDef
 from guppylang_internals.definition.value import (
     CallableDef,
+    CallableEffects,
     CallReturnWires,
     CompiledCallableDef,
 )
@@ -148,9 +149,18 @@ class RawCustomFunctionDef(ParsableDef):
         code. The only information we need to access is that it's a function type and
         that there are no unsolved existential vars.
         """
-        from guppylang_internals.definition.function import parse_py_func
+        from guppylang_internals.definition.function import (
+            parse_py_func,
+        )
 
-        func_ast, _docstring = parse_py_func(self.python_func, sources)
+        if isinstance(self.python_func, staticmethod):
+            is_static = True
+            py_func = self.python_func.__func__
+        else:
+            is_static = False
+            py_func = self.python_func
+
+        func_ast, _docstring = parse_py_func(py_func, sources)
         if not has_empty_body(func_ast):
             raise GuppyError(BodyNotEmptyError(func_ast.body[0], self.name))
         sig = self.signature or self._get_signature(func_ast, globals)
@@ -168,6 +178,7 @@ class RawCustomFunctionDef(ParsableDef):
             sig is not None,
             self.has_var_args,
             self.effects,
+            is_static=is_static,
         )
 
     def _get_signature(
@@ -199,7 +210,7 @@ class RawCustomFunctionDef(ParsableDef):
 
 
 @dataclass(frozen=True)
-class CustomFunctionDef(CallableDef, CheckableGenericDef):
+class CustomFunctionDef(CallableDef, CheckableGenericDef, CallableEffects):
     """A custom function with parsed and checked signature.
 
     Args:
@@ -230,6 +241,11 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
     description: str = field(default="function", init=False)
 
     @property
+    @override
+    def call_effects(self) -> Iterable[Effect]:
+        return self.effects
+
+    @property
     def params(self) -> Sequence[Parameter]:
         return self.ty.params
 
@@ -249,6 +265,7 @@ class CustomFunctionDef(CallableDef, CheckableGenericDef):
             self.has_var_args,
             self.effects,
             type_args,
+            is_static=self.is_static,
         )
 
     @override
@@ -297,11 +314,6 @@ class CustomMonoFunctionDef(CustomFunctionDef, CompiledCallableDef):
     """
 
     type_args: Inst
-
-    @override
-    @property
-    def call_effects(self) -> Iterable[Effect]:
-        return self.effects
 
     @override
     def check(self, type_args: Inst, globals: Globals) -> "CustomMonoFunctionDef":
@@ -540,13 +552,17 @@ class DefaultCallChecker(CustomCallChecker):
     @override
     def check(self, args: list[ast.expr], ty: Type) -> tuple[ast.expr, Subst]:
         # Use default implementation from the expression checker
-        args, subst, inst = check_call(self.func.ty, args, ty, self.node, self.ctx)
+        args, subst, inst = check_call(
+            self.func.ty, args, ty, self.node, self.ctx, self.func
+        )
         return make_global_call(self.func, args, inst), subst
 
     @override
     def synthesize(self, args: list[ast.expr]) -> tuple[ast.expr, Type]:
         # Use default implementation from the expression checker
-        args, ty, inst = synthesize_call(self.func.ty, args, self.node, self.ctx)
+        args, ty, inst = synthesize_call(
+            self.func.ty, args, self.node, self.ctx, self.func
+        )
         return make_global_call(self.func, args, inst), ty
 
 

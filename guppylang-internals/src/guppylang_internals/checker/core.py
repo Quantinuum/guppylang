@@ -14,12 +14,16 @@ from typing import (
 )
 
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
+from guppylang_internals.checker.modifier import (
+    NO_CALL_MODIFIERS,
+    ModifierContext,
+)
 from guppylang_internals.definition.common import (
     DefId,
     Definition,
     ParsedDef,
 )
-from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
+from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
@@ -93,8 +97,12 @@ class Variable:
         return replace(self, defined_at=node)
 
     def add_flags(self, flags: InputFlags) -> "Variable":
-        """Returns a new `Variable` instance with updated flags."""
+        """Returns a new `Variable` instance with added flags."""
         return replace(self, flags=self.flags | flags)
+
+    def remove_flags(self, flags: InputFlags) -> "Variable":
+        """Returns a new `Variable` instance with removed flags"""
+        return replace(self, flags=self.flags & ~flags)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -439,6 +447,14 @@ class Context(NamedTuple):
     generic_param_inst: dict[str, Argument]
     modified_block_name_base: str = ""
     modified_block_counter: Iterator[int] | None = None
+
+    """If not None, the call graph node for the function being checked, which also
+    stores the effect constraints that function calls in this context must respect,
+    together with the AST node that gives rise to said constraint."""
+    current_caller: MonoDefId | None = None
+
+    #: Active modifiers the function is being called with
+    modifier_ctx: ModifierContext = NO_CALL_MODIFIERS
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

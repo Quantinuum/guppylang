@@ -15,7 +15,7 @@ from guppylang_internals.tys.ty import FunctionType, NumericType
 
 
 class GpuModuleInitCompiler(CustomInoutCallCompiler):
-    """Compiler for initialising GPU modules. Calls "get_context" on the GPU extension
+    """Compiler for initializing GPU modules. Calls "get_context" on the GPU extension
     and unwraps the `Option` result. Returns a `tket.gpu.context` wire."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
