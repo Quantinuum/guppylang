@@ -287,8 +287,9 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
-    #: Call graph mapping from caller to list of callees. Populated during type checking
-    #: as calls are checked, to be then used for effects checking.
+    #: Call graph mapping from each checked function specialization to list of callees.
+    #: Populated during type checking as calls are checked, to be then used for effects
+    #: checking.
     call_graph: dict[MonoDefId, list[MonoDefId]]
     #: Register functions referenced as values by each checked function specialization.
     load_graph: dict[MonoDefId, set[MonoDefId]]

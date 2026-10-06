@@ -357,7 +357,8 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         use: ExprUse = ExprUse.VALUE,
     ) -> tuple[ast.expr, Type]:
         """
-        Synthesizes an expression; check also records any resulting specialization.
+        Synthesizes the type of an expression and returns it along with a new expression
+        with type annotation
         """
         return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars, use=use)
 
