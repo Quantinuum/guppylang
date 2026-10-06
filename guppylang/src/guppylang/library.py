@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Self
 
 from guppylang_internals.definition.common import DefId
@@ -38,7 +38,7 @@ class GuppyLibrary:
         lib = GuppyLibrary.from_members(foo, bar)
     """
 
-    members: list[DefId]
+    members: list[DefId] = field(default_factory=list)
 
     def _type_members(self) -> list[DefId]:
         """Any implementations registered for members of this library. Note that the
@@ -66,6 +66,13 @@ class GuppyLibrary:
         """Type-check all contained definitions."""
         ENGINE.check(self.members)
         ENGINE.check(self._type_members(), reset=False)
+
+    def register_member(self, member: GuppyDefinition) -> GuppyDefinition:
+        """Register GuppyDefinition as a member of this library.
+
+        Returns the member itself, so it can be used as a decorator."""
+        self.members.append(member.id)
+        return member
 
     @classmethod
     def from_members(cls, *members: GuppyDefinition) -> Self:

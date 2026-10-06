@@ -214,3 +214,41 @@ def test_dependency_public():
     emulator = EmulatorBuilder().build(main_pkg.link(lib), n_qubits=1)
     results = emulator.run().results[0].entries
     assert results == [("result", 15)]
+
+
+def test_register_member():
+    """Tests that a library can register additional members in imperative and decorator
+    syntax."""
+
+    lib = GuppyLibrary()
+
+    @guppy
+    @link_name("adder")
+    def adder_func(x: int) -> int:
+        return x + x
+
+    lib.register_member(adder_func)
+
+    @lib.register_member
+    @guppy
+    @link_name("multiplier")
+    def multiplier_func(x: int) -> int:
+        return 5 * x
+
+    @guppy.declare
+    @link_name("adder")
+    def adder_decl(x: int) -> int: ...
+    @guppy.declare
+    @link_name("multiplier")
+    def multiplier_decl(x: int) -> int: ...
+
+    @guppy
+    def main() -> None:
+        output("adder_result", adder_decl(5))
+        output("multiplier_result", multiplier_decl(10))
+
+    main_pkg = main.compile()
+
+    emulator = EmulatorBuilder().build(main_pkg.link(lib.compile()), n_qubits=1)
+    results = emulator.run().results[0].entries
+    assert results == [("adder_result", 10), ("multiplier_result", 50)]

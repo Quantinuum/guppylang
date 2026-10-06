@@ -3,6 +3,7 @@
 import ast
 import linecache
 from dataclasses import dataclass
+from typing import assert_never
 
 from guppylang_internals.ast_util import get_file, get_line_offset, get_source
 from guppylang_internals.error import InternalGuppyError
@@ -123,6 +124,16 @@ def to_span(x: ToSpan) -> Span:
         x.end_col_offset or x.col_offset,  # type: ignore[attr-defined]
     )
     return Span(start, end)
+
+
+def extract_header_span(node: ast.ClassDef | ast.FunctionDef) -> Span:
+    match node:
+        case ast.ClassDef():
+            return class_header_span(node)
+        case ast.FunctionDef():
+            return function_header_span(node)
+        case _:
+            assert_never(node)
 
 
 def class_header_span(class_def: ast.ClassDef) -> Span:
