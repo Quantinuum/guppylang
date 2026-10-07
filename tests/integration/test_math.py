@@ -242,6 +242,15 @@ def test_trig_angle_emulation(name, halfturns, run_float_fn_approx):
     )
 
 
+@pytest.mark.parametrize("halfturns", [-1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0])
+def test_angle_trig_methods(halfturns, run_float_fn_approx):
+    @guppy
+    def main(x: float) -> float:
+        return angle(x).sin() ** 2 + angle(x).cos() ** 2
+
+    run_float_fn_approx(main, 1.0, args=[halfturns], rel=2e-14)
+
+
 @pytest.mark.parametrize("name", ["asin", "acos", "atan"])
 @pytest.mark.parametrize("x", [-1.0, -0.5, 0.0, 0.5, 1.0])
 def test_inverse_trig_angle_emulation(name, x, run_float_fn_approx):
