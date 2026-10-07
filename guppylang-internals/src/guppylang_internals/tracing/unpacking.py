@@ -161,7 +161,13 @@ def guppy_object_from_py(
             return GuppyObject(ty, recorder.record_load_val(v, ty, node))
 
 
-def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> bool:
+def update_packed_value(
+    v: Any,
+    obj: "GuppyObject",
+    recorder: TraceRecorder,
+    *,
+    preserve_static: bool = False,
+) -> bool:
     """Given a Python value `v` and a `GuppyObject` `obj` that was constructed from `v`
     using `guppy_object_from_py`, tries to update the wires of any `GuppyObjects`
     contained in `v` to the new wires specified by `obj`.
@@ -170,6 +176,10 @@ def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> 
     the object available again since it now corresponds to a fresh wire.
 
     Returns `True` if all wires could be updated, otherwise `False`.
+
+    If `preserve_static` is true, Python values without backing wires are left
+    unchanged. This is only safe for inout calls that guarantee they return static
+    values unchanged, such as barriers.
     """
     match v:
         case GuppyObject() as v_obj:
@@ -179,13 +189,21 @@ def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> 
                 state = get_tracing_state()
                 state.unused_undroppable_objs[v_obj._id] = v_obj
             v_obj._used = None
+        case GuppyEnumObject(_ty=ty) as v_obj:
+            assert ty == obj._ty
+            object.__setattr__(v_obj, "_wire", obj._use_wire(None))
         case None:
             assert isinstance(obj._ty, NoneType)
         case tuple(vs):
             assert isinstance(obj._ty, TupleType)
             wires = recorder.record_untuple(obj._ty.element_types, obj._use_wire(None))
             for v, ty, out_wire in zip(vs, obj._ty.element_types, wires, strict=True):
-                success = update_packed_value(v, GuppyObject(ty, out_wire), recorder)
+                success = update_packed_value(
+                    v,
+                    GuppyObject(ty, out_wire),
+                    recorder,
+                    preserve_static=preserve_static,
+                )
                 if not success:
                     return False
         case GuppyStructObject(_ty=ty, _field_values=values):
@@ -196,7 +214,10 @@ def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> 
             for field, out_wire in zip(ty.fields, wires, strict=True):
                 v = values[field.name]
                 success = update_packed_value(
-                    v, GuppyObject(field.ty, out_wire), recorder
+                    v,
+                    GuppyObject(field.ty, out_wire),
+                    recorder,
+                    preserve_static=preserve_static,
                 )
                 if not success:
                     values[field.name] = obj
@@ -205,9 +226,17 @@ def update_packed_value(v: Any, obj: "GuppyObject", recorder: TraceRecorder) -> 
             wires = unpack_array(recorder, obj._ty, obj._use_wire(None))
             elem_ty = get_element_type(obj._ty)
             for i, (v, wire) in enumerate(zip(vs, wires, strict=True)):
-                success = update_packed_value(v, GuppyObject(elem_ty, wire), recorder)
+                success = update_packed_value(
+                    v,
+                    GuppyObject(elem_ty, wire),
+                    recorder,
+                    preserve_static=preserve_static,
+                )
                 if not success:
                     vs[i] = obj
         case _:
+            if preserve_static:
+                obj._use_wire(None)
+                return True
             return False
     return True

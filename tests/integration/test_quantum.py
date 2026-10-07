@@ -2,6 +2,8 @@
 
 from typing import no_type_check
 
+from hugr import ops
+
 from guppylang.std.angles import angle
 
 from guppylang.std.builtins import owned, array, panic, output
@@ -252,3 +254,142 @@ def test_barrier_misc(validate):
         output("c2", measure(q1).read())
 
     validate(test.compile_function())
+
+
+def test_comptime_barrier(validate):
+    """Barrier borrows linear arguments during comptime tracing."""
+
+    @guppy.comptime
+    def test() -> None:
+        q1, q2, q3, q4 = qubit(), qubit(), qubit(), qubit()
+
+        q.h(q1)
+        q.h(q2)
+        barrier(q1, q2, q3)
+        q.h(q3)
+
+        q.cx(q1, q2)
+        barrier(q2, q3)
+        q.cx(q3, q4)
+
+        discard(q1)
+        discard(q2)
+        barrier()  # does nothing
+        discard(q3)
+        discard(q4)
+
+    validate(test.compile_function())
+
+
+def test_comptime_barrier_array(validate):
+    """Barrier on comptime array/struct access."""
+
+    @guppy.comptime
+    @no_type_check
+    def test() -> None:
+        qs = array(qubit() for _ in range(4))
+        q.h(qs[0])
+        q.h(qs[1])
+        barrier(qs[0], qs[1], qs[2])
+        barrier(qs[0])
+        q.h(qs[2])
+        barrier(*qs, 42)
+        q.cx(qs[0], qs[1])
+        barrier(qs[1], qs[2])
+        q.cx(qs[2], qs[3])
+        barrier(qs)
+        discard_array(qs)
+
+    validate(test.compile_function())
+
+
+def test_comptime_barrier_misc(validate):
+    """Comptime barrier on classical and non-place."""
+
+    @guppy.comptime
+    @no_type_check
+    def test() -> None:
+        q1 = qubit()
+        q.h(q1)
+        x = 1
+        barrier(q1, array(1, 2, 3), 2 + 3, x)
+
+        output("c", x)
+        output("c2", measure(q1).read())
+
+    validate(test.compile_function())
+
+
+def test_comptime_barrier_struct(validate):
+    """Barrier on array/struct access at comptime."""
+
+    @guppy.struct
+    class S:
+        q1: qubit
+        q2: qubit
+        q3: qubit
+        q4: qubit
+
+    @guppy.comptime
+    @no_type_check
+    def test() -> None:
+        qs = S(qubit(), qubit(), qubit(), qubit())
+        q.h(qs.q1)
+        q.h(qs.q2)
+        barrier(qs.q1, qs.q2, qs.q3)
+        barrier(qs.q1)
+        q.h(qs.q3)
+
+        q.cx(qs.q1, qs.q2)
+        barrier(qs.q2, qs.q3)
+        q.cx(qs.q3, qs.q4)
+
+        discard(qs.q1)
+        discard(qs.q2)
+        discard(qs.q3)
+        discard(qs.q4)
+
+    validate(test.compile_function())
+
+
+def test_comptime_barrier_dynamic_copyable_values(validate):
+    """Comptime barriers preserve dependencies for dynamic copyable values."""
+
+    @guppy
+    def add_one(x: int) -> int:
+        return x + 1
+
+    @guppy.struct
+    class S:
+        dynamic: int
+        static: int
+
+    @guppy.enum
+    class E:
+        Variant = {"value": int}
+
+    @guppy.comptime
+    def test(x: int) -> tuple[int, E]:
+        dynamic = add_one(x)
+        xs = array(add_one(x), add_one(x))
+        pair = (add_one(x), 42)
+        struct = S(add_one(x), 42)
+        enum = E.Variant(add_one(x))
+
+        barrier(dynamic)
+        barrier(xs)
+        barrier(pair)
+        barrier(struct)
+        barrier(enum)
+
+        return dynamic + xs[0] + pair[0] + struct.dynamic, enum
+
+    package = test.compile_function()
+    barriers = [
+        data.op
+        for _, data in package.modules[0].nodes()
+        if isinstance(data.op, ops.ExtOp)
+        and data.op.op_def().qualified_name() == "prelude.Barrier"
+    ]
+    assert len(barriers) == 5
+    validate(package)
