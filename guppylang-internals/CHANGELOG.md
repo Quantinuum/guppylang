@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.2...guppylang-internals-v1.1.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* Infer type variables in higher order generic modifier arguments (#2402)([4f3ec86](https://github.com/Quantinuum/guppylang/commit/4f3ec86a70404a3c517d75e110a1af8f247110e9))
+* Resolve instance methods from generic protocol bounds (#2401)([602f1bd](https://github.com/Quantinuum/guppylang/commit/602f1bd6f2555cf594f46891bba18526e3d46984))
+* Resolve enclosing-scope names in `@guppy.unitary` methods (#2389)([cbcd28c](https://github.com/Quantinuum/guppylang/commit/cbcd28c7972f3dc24f44061998371ba4b7b67834))
+
 ## [1.1.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.1...guppylang-internals-v1.1.2) (2026-09-29)
 
 
@@ -570,7 +579,7 @@ Note that this release raises the minimum compatible version of `pytket` to `2.7
 
 ### Bug Fixes
 
-* Add a copy before fallable `synthesize_call` call  ([#1460](https://github.com/Quantinuum/guppylang/issues/1460)) ([84137c3](https://github.com/Quantinuum/guppylang/commit/84137c39b7e8ca24142ffe73afcce6a1bcceffe2))
+* Add a copy before fallible `synthesize_call` call  ([#1460](https://github.com/Quantinuum/guppylang/issues/1460)) ([84137c3](https://github.com/Quantinuum/guppylang/commit/84137c39b7e8ca24142ffe73afcce6a1bcceffe2))
 * Raise type inference error when not all function argument types could be resolved. ([#1439](https://github.com/Quantinuum/guppylang/issues/1439)) ([4120d59](https://github.com/Quantinuum/guppylang/commit/4120d590917245258d69ceb07c763c7633c7c5f8)), closes [#1437](https://github.com/Quantinuum/guppylang/issues/1437)
 * Remove leading tab characters from diagnostics during rendering ([#1447](https://github.com/Quantinuum/guppylang/issues/1447)) ([a1cf792](https://github.com/Quantinuum/guppylang/commit/a1cf792deaf90e31721505ac17fd4911737e6c26)), closes [#1101](https://github.com/Quantinuum/guppylang/issues/1101)
 * Support comptime expressions in subscript assignments ([#1433](https://github.com/Quantinuum/guppylang/issues/1433)) ([108c104](https://github.com/Quantinuum/guppylang/commit/108c104d55ecb052d4d7c363062f444efc689724)), closes [#1363](https://github.com/Quantinuum/guppylang/issues/1363)
@@ -680,7 +689,7 @@ nodes to be fed. Migration is trivial.
 * Significant changes to the WASM decorators, types and operations
 * Deleted `guppylang_internals.nodes.{IterHasNext, IterEnd}`
 * guppylang_internals.tracing.unpacking.update_packed_value now returns a bool signalling whether the operation was successful.
-* `CompilationEngine` now initialises all it's fields
+* `CompilationEngine` now initialises all its fields
 * Calling `CompilationEngine.reset` no longer nullifies `additional_extensions`
 * `CompilationEngine.register_extension` no longer adds duplicates to the `additional_extensions` list
 
