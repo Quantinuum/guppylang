@@ -15,7 +15,7 @@ on:
 env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
-  UV_VERSION: "0.9.5"
+  UV_VERSION: "0.12.23"
 
 jobs:
   check-lockfiles:

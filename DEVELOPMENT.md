@@ -29,7 +29,7 @@ shell by setting up [direnv](https://devenv.sh/automatic-shell-activation/).
 To setup the environment manually you will need:
 
 - Just: [just.systems](https://just.systems/)
-- uv `>=0.6`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
+- uv `>=12.0`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
   - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
     or by following the instructions in your package manager.
 - bencher_cli: [bencer.dev](https://bencher.dev/docs/tutorial/quick-start/?adapter=json)
