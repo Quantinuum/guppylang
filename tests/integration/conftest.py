@@ -16,7 +16,9 @@ from guppylang.std.num import nat
 # auto-applied ``execution`` marker to rerun only emulator-backed integration
 # tests against non-default platforms, without also rerunning validation-only
 # integration tests.
-_EXECUTION_FIXTURES = frozenset({"run_int_fn", "run_nat_fn", "run_float_fn_approx"})
+_EXECUTION_FIXTURES = frozenset(
+    {"run_int_fn", "run_nat_fn", "run_float_fn_approx", "run_float_fn_approx_per_shot"}
+)
 
 
 def pytest_generate_tests(metafunc):
@@ -195,5 +197,41 @@ def run_float_fn_approx(target_platform: Platform):
             num_qubits,
             args,
         )
+
+    return run_approx
+
+
+@pytest.fixture
+def run_float_fn_approx_per_shot(target_platform: Platform):
+    """Run named arguments per shot and compare float outputs in emission order.
+
+    Expected results can be floats, or lists of floats when an entrypoint emits
+    multiple results per shot.
+    """
+
+    def run_approx(
+        f: GuppyDefinition,
+        expected: list[float] | list[list[float]],
+        args: list[dict[str, Any]],
+        *,
+        platform: Platform | None = None,
+        rel: float | None = None,
+        abs: float | None = None,
+        nan_ok: bool = False,
+    ) -> None:
+        assert args, "At least one shot must be provided"
+
+        results = (
+            f.emulator(0, platform=platform or target_platform)
+            .coinflip_sim()
+            .with_seed(42)
+            .run_per_shot(args)
+        )
+        for x, shot, want in zip(args, results, expected, strict=True):
+            actual = [value for _, value in shot]
+            want = want if isinstance(want, list) else [want]
+            assert actual == pytest.approx(want, rel=rel, abs=abs, nan_ok=nan_ok), (
+                f"Input {x!r}: expected {want!r}, got {actual!r}"
+            )
 
     return run_approx
