@@ -7,6 +7,9 @@ HUGR operations rather than raising Python math exceptions.
 """
 
 # mypy: disable-error-code="empty-body"
+# Defer annotations so Python 3.12 doesn't evaluate `float | angle`,
+# which invokes Guppy's operators outside tracing mode
+from __future__ import annotations
 
 from guppylang_internals.decorator import custom_function, hugr_op
 from guppylang_internals.std._internal.compiler.math import TrigCompiler
