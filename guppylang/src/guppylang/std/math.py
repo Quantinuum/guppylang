@@ -11,8 +11,6 @@ HUGR operations rather than raising Python math exceptions.
 # which invokes Guppy's operators outside tracing mode
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from guppylang_internals.decorator import custom_function, hugr_op
 from guppylang_internals.std._internal.compiler.math import TrigCompiler
 from guppylang_internals.std._internal.util import float_op
@@ -21,8 +19,8 @@ from hugr.std._util import _load_extension
 
 from guppylang.decorator import guppy
 
-if TYPE_CHECKING:
-    from guppylang.std.angles import angle
+# Guppy resolves annotation names at runtime when compiling signatures.
+from guppylang.std.angles import angle  # noqa: TC001
 
 _MATH_EXTENSION = _load_extension("arithmetic.math")
 
