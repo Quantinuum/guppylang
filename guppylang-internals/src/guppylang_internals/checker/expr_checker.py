@@ -225,7 +225,7 @@ binary_table: dict[type[AstOp], tuple[str, str, str]] = {
 }  # fmt: skip
 
 
-class ExprUse(Enum):
+class FunctionUse(Enum):
     """Whether an expression supplies a value or is the target of a call."""
 
     VALUE = auto()
@@ -354,7 +354,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         node: ast.expr,
         allow_free_vars: bool,
         *,
-        use: ExprUse = ExprUse.VALUE,
+        use: FunctionUse = FunctionUse.VALUE,
     ) -> tuple[ast.expr, Type]:
         """
         Synthesizes the type of an expression and returns it along with a new expression
@@ -452,7 +452,7 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
         node.func, func_ty = self._synthesize(
-            node.func, allow_free_vars=False, use=ExprUse.CALLEE
+            node.func, allow_free_vars=False, use=FunctionUse.CALLEE
         )
 
         if isinstance(func_ty, FunctionDefType):
@@ -558,14 +558,14 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def __init__(self, ctx: Context) -> None:
         self.ctx = ctx
-        self._use = ExprUse.VALUE
+        self._use = FunctionUse.VALUE
 
     def synthesize(
         self,
         node: ast.expr,
         allow_free_vars: bool = False,
         *,
-        use: ExprUse = ExprUse.VALUE,
+        use: FunctionUse = FunctionUse.VALUE,
     ) -> tuple[ast.expr, Type]:
         """Tries to synthesize a type for the given expression.
 
@@ -579,7 +579,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 if ty.unsolved_vars and not allow_free_vars:
                     raise GuppyError(TypeInferenceError(node, ty))
                 node = with_type(ty, node)
-            if use is ExprUse.VALUE:
+            if use is FunctionUse.VALUE:
                 record_function_load(node, self.ctx)
             return node, ty
         finally:
@@ -1208,7 +1208,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def visit_Call(self, node: ast.Call) -> tuple[ast.expr, Type]:
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
-        node.func, ty = self.synthesize(node.func, use=ExprUse.CALLEE)
+        node.func, ty = self.synthesize(node.func, use=FunctionUse.CALLEE)
 
         if isinstance(ty, FunctionDefType):
             node.func = function_def_value_to_function_value(node.func, ty)

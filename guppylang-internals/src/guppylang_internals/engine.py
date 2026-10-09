@@ -660,10 +660,6 @@ class CompilationEngine:
                 break
             self._drain_check_worklists()
 
-        resolved_contexts: dict[CallGraphEdge, dict[ModifierContext, None]] = {}
-        for ((caller, _), context), callee in self.resolved_modified_calls.items():
-            resolved_contexts.setdefault((caller, callee), {})[context] = None
-
     def _drain_check_worklists(self) -> None:
         """Checks all definitions currently queued on the checking worklists."""
         while (
