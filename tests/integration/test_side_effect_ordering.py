@@ -7,10 +7,13 @@ from hugr.std import PRELUDE
 from hugr import ops as hops
 
 from guppylang import guppy
-from guppylang.std.builtins import owned, panic
+from guppylang.std.builtins import Function, owned, panic
 from guppylang.std.quantum import qubit
 from guppylang.std.quantum.functional import cx, h
 
+from guppylang_internals.analysis.callgraph import CallGraph
+from guppylang_internals.analysis.effects import compute_effects
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.std._internal.compiler.tket_exts import (
     QUANTUM_EXTENSION,
     QSYSTEM_RANDOM_EXTENSION,
@@ -59,6 +62,23 @@ def check_order(hugr: Hugr, nodes: list[Node]) -> None:
             stack.append(n)
     # Check that all specified nodes occurred in the graph
     assert len(nodes) == 0
+
+
+def test_loads_do_not_propagate_call_effects():
+    @guppy
+    def leaf() -> None:
+        panic("only happens when called")
+
+    @guppy
+    def root() -> Function[[], None]:
+        return leaf
+
+    root.check()
+
+    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
+    assert ENGINE.load_graph[root.id, ()] == {(leaf.id, ())}
+    assert effects[root.id, ()] == frozenset()
+    assert effects[leaf.id, ()]
 
 
 def test_input_output(validate):

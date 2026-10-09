@@ -706,6 +706,66 @@ def test_ctrl_daggered_impl_is_executed(run_int_fn):
     run_int_fn(main, expected=1, num_qubits=2)
 
 
+@pytest.mark.parametrize("modifier", ["controlled", "daggered", "ctrl_daggered"])
+def test_custom_modifier_in_loaded_function_is_executed(modifier, run_int_fn):
+    """Indirect calls to loaded functions execute their custom modified methods."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            x(q)
+
+        @guppy
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy
+    def call_controlled(q: qubit, c: qubit) -> None:
+        with control(c):
+            custom_gate(q)
+
+    @guppy
+    def call_daggered(q: qubit, c: qubit) -> None:
+        with dagger:
+            custom_gate(q)
+
+    @guppy
+    def call_ctrl_daggered(q: qubit, c: qubit) -> None:
+        with control(c), dagger:
+            custom_gate(q)
+
+    loaded = {
+        "controlled": call_controlled,
+        "daggered": call_daggered,
+        "ctrl_daggered": call_ctrl_daggered,
+    }[modifier]
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        # Erase the function item's identity so this is an indirect call. Modifier
+        # analysis must reach the function body through its load edge.
+        f: Function[[qubit, qubit], None] = loaded
+        f(target, control_qubit)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    # Each custom method flips the target; modifying the empty base body cannot.
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
 def test_custom_modifier_use_default_when_missing_implementation(run_int_fn):
     @guppy.unitary
     class controllable_gate:
