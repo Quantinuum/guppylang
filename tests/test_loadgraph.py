@@ -209,8 +209,7 @@ def test_bare_generic_function():
 
     root.check()
 
-    defn = ENGINE.get_parsed(identity.id)
-    generic = (identity.id, tuple(param.to_bound() for param in defn.params))
+    generic = (identity.id, ())
     assert ENGINE.load_graph[root.id, ()] == {generic}
 
 
@@ -227,8 +226,7 @@ def test_explicit_generic_function_specializations():
 
     root.check()
 
-    defn = ENGINE.get_parsed(identity.id)
-    generic = (identity.id, tuple(param.to_bound() for param in defn.params))
+    generic = (identity.id, ())
     assert ENGINE.load_graph[root.id, ()] == {
         generic,
         (identity.id, (TypeArg(int_type()),)),
@@ -248,9 +246,7 @@ def test_inferred_generic_function_specializations():
         return identity
 
     root.check()
-
-    defn = ENGINE.get_parsed(identity.id)
-    generic = (identity.id, tuple(param.to_bound() for param in defn.params))
+    generic = (identity.id, ())
     assert ENGINE.load_graph[root.id, ()] == {
         generic,
         (identity.id, (TypeArg(int_type()),)),
@@ -290,8 +286,7 @@ def test_generic_function_owner_specialization():
 
     root.check()
 
-    defn = ENGINE.get_parsed(identity.id)
-    generic = (identity.id, tuple(param.to_bound() for param in defn.params))
+    generic = (identity.id, ())
     assert ENGINE.load_graph[root.id, ()] == set()
     for ty in (int_type(), float_type()):
         inst = (TypeArg(ty),)
@@ -327,9 +322,8 @@ def test_generic_bound_method(type_kind):
 
     method = ENGINE.get_type_member(ENGINE.get_parsed(Example.id), "method")
     assert method is not None
-    defn = ENGINE.get_parsed(method)
     assert ENGINE.load_graph[root.id, ()] == {
-        (method, tuple(param.to_bound() for param in defn.params)),
+        (method, ()),
         (method, (TypeArg(int_type()),)),
         (method, (TypeArg(float_type()),)),
     }

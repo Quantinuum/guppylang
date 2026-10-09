@@ -242,7 +242,7 @@ def record_function_load(node: ast.expr, ctx: Context) -> None:
 
     match node:
         case GlobalName(def_id=def_id):
-            if isinstance(defn := ENGINE.get_parsed(def_id), CallableDef):
+            if isinstance(ENGINE.get_parsed(def_id), CallableDef):
                 match get_type(node):
                     case FunctionDefType(args=args):
                         # A function item, e.g. `g = f`. Includes NestedFunctionDefType,
@@ -258,10 +258,6 @@ def record_function_load(node: ast.expr, ctx: Context) -> None:
                         raise InternalGuppyError(
                             f"Unexpected type for loaded function: {ty}"
                         )
-                if not inst:
-                    # If inst is not provided we use the same bound arguments as the
-                    # engine's generic graph nodes.
-                    inst = tuple(param.to_bound() for param in defn.ty.params)
                 ENGINE.register_load(ctx.current_caller, (def_id, inst))
         case TypeApply(value=GlobalName(def_id=def_id), inst=inst):
             # A specialized reference: `g = f[int]`, or `g: Function[[int], int] = f`
