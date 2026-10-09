@@ -97,8 +97,12 @@ class Variable:
         return replace(self, defined_at=node)
 
     def add_flags(self, flags: InputFlags) -> "Variable":
-        """Returns a new `Variable` instance with updated flags."""
+        """Returns a new `Variable` instance with added flags."""
         return replace(self, flags=self.flags | flags)
+
+    def remove_flags(self, flags: InputFlags) -> "Variable":
+        """Returns a new `Variable` instance with removed flags"""
+        return replace(self, flags=self.flags & ~flags)
 
 
 @dataclass(frozen=True, kw_only=True)

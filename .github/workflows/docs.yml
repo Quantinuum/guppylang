@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  UV_VERSION: "0.9.5"
+  UV_VERSION: "0.12.23"
 
 jobs:
   build:

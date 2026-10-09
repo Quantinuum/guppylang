@@ -29,7 +29,7 @@ shell by setting up [direnv](https://devenv.sh/automatic-shell-activation/).
 To setup the environment manually you will need:
 
 - Just: [just.systems](https://just.systems/)
-- uv `>=0.6`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
+- uv `>=12.0`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
   - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
     or by following the instructions in your package manager.
 - bencher_cli: [bencer.dev](https://bencher.dev/docs/tutorial/quick-start/?adapter=json)
@@ -116,7 +116,7 @@ and open it with your favourite coverage viewer. In VSCode, you can use
 
 ## 🌐 Contributing to Guppy
 
-We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new) or [pull request](https://github.com/quantinuum/guppylang/compare) if you have any questions or suggestions.
+We welcome contributions to Guppy! Please open [an issue](https://github.com/quantinuum/guppylang/issues/new) or [fork](https://github.com/Quantinuum/guppylang/fork) the repo and make a pull request if you have any questions or suggestions.
 
 PRs should be made against the `main` branch, and should pass all CI checks before being merged. This includes using the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format for the PR title.
 

@@ -4,6 +4,7 @@ from hugr import ops
 from guppylang import comptime
 from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
+from guppylang.std.array import empty_array
 from guppylang.std.builtins import array, owned
 from guppylang.std.lang import Function
 from guppylang.std.mem import mem_swap
@@ -743,6 +744,38 @@ def test_take_put(validate):
         ("after_put", 0),
     ]
 
+    validate(main.compile())
+
+
+def test_empty_array_put(validate):
+    @guppy
+    def main() -> None:
+        qbs = empty_array[qubit, 2]()
+        output("initial_0", qbs.is_borrowed(0))
+        output("initial_1", qbs.is_borrowed(1))
+        qbs.put(qubit(), 0)
+        output("after_0", qbs.is_borrowed(0))
+        output("after_1", qbs.is_borrowed(1))
+        discard_array(qbs)
+
+    res = main.emulator(2).coinflip_sim().run().results[0].entries
+    assert res == [
+        ("initial_0", 1),
+        ("initial_1", 1),
+        ("after_0", 0),
+        ("after_1", 1),
+    ]
+    validate(main.compile())
+
+
+def test_discard_empty_array(validate):
+    @guppy
+    def main() -> None:
+        empty_array[qubit, 2]().discard_all_taken()
+        output("after_discard", 0)
+
+    res = main.emulator(1).coinflip_sim().run().results[0].entries
+    assert res == [("after_discard", 0)]
     validate(main.compile())
 
 
