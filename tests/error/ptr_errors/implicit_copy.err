@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:9:14)
+  | 
+7 | @guppy
+8 | def main(p: Ptr[int] @ owned) -> tuple[Ptr[int], Ptr[int]]:
+9 |     return p, p
+  |               ^ Variable `p` with non-copyable type `Ptr[int]` cannot be
+  |                 returned ...
+
+Note:
+  | 
+8 | def main(p: Ptr[int] @ owned) -> tuple[Ptr[int], Ptr[int]]:
+9 |     return p, p
+  |            - Variable `p` already returned here
+
+Guppy compilation failed due to 1 previous error

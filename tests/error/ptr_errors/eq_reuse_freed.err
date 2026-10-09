@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:9:11)
+  | 
+7 | def main(p: Ptr[int] @ owned, q: Ptr[int]) -> bool:
+8 |     p.free()
+9 |     return p == q
+  |            ^ Variable `p` with non-copyable type `Ptr[int]` cannot be
+  |              borrowed ...
+
+Note:
+  | 
+7 | def main(p: Ptr[int] @ owned, q: Ptr[int]) -> bool:
+8 |     p.free()
+  |     - Variable `p` already consumed here
+
+Guppy compilation failed due to 1 previous error
