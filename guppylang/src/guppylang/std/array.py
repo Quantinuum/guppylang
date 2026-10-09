@@ -324,6 +324,7 @@ class array[T, n: nat](builtins.list[T]):
         [ht.VariableArg(idx=1, param=ht.BoundedNatParam()), type_arg(0)],
         EXTENSION,
     ),
+    effects=[],
 )
 def empty_array[T, n: nat]() -> array[T, n]:
     """Construct an array with all elements borrowed.
