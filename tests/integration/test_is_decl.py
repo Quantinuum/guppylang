@@ -51,7 +51,7 @@ def test_load_pytket_func():
 
 
 def test_custom_func():
-    @custom_function()
+    @custom_function(effects=())
     def custom(x): ...
 
     assert not custom.is_decl

@@ -7,8 +7,10 @@ from guppylang_internals.cfg.bb import BB
 from guppylang_internals.checker.cfg_checker import check_cfg
 from guppylang_internals.checker.core import Context, Variable
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
+from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.nodes import CheckedModifiedBlock, ModifiedBlock
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.ty import (
     FuncInput,
     FunctionType,
@@ -67,6 +69,14 @@ def check_modified_block(
         modified_block_name_base=ctx.modified_block_name_base,
         modified_block_counter=ctx.modified_block_counter,
     )
+    if ctx.modifier_ctx.control_sizes:
+        # Array manipulation code for controls, generated in `compile_modified_block`,
+        # can panic. (Outside any callee, whose effects are already incorporated).
+        # TODO We could do better, i.e. panics can only occur if some (indirect) callee
+        # is a custom-modifier that manipulates the array (using `array.take()`),
+        # but for now we conservatively assume panics can occur.
+        ENGINE.register_effects(ctx.current_caller, [Effect.ANY])
+
     func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)
 
     checked_modifier = CheckedModifiedBlock(

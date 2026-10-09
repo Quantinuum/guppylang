@@ -8,7 +8,8 @@ from guppylang_internals.std._internal.compiler.tket_exts import QSYSTEM_UTILS_E
 from guppylang_internals.std._internal.util import external_op
 
 
-@hugr_op(external_op("GetCurrentShot", [], ext=QSYSTEM_UTILS_EXTENSION))
+# No effects: shot number is a constant (not state) for each run
+@hugr_op(external_op("GetCurrentShot", [], ext=QSYSTEM_UTILS_EXTENSION), effects=())
 @no_type_check
 def get_current_shot() -> int:
     """Get the current shot number."""
