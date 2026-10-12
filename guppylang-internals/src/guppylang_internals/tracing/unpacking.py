@@ -177,9 +177,9 @@ def update_packed_value(
 
     Returns `True` if all wires could be updated, otherwise `False`.
 
-    If `preserve_static` is true, Python values without backing wires are left
-    unchanged. This is only safe for inout calls that guarantee they return static
-    values unchanged, such as barriers.
+    If `preserve_static` is true, Python values without hugr dataflow wires are 
+    left unchanged. This is only safe for inout calls that guarantee they return 
+    static values unchanged, such as barriers.
     """
     match v:
         case GuppyObject() as v_obj:
