@@ -278,7 +278,15 @@ def test_comptime_barrier(validate):
         discard(q3)
         discard(q4)
 
-    validate(test.compile_function())
+    package = test.compile_function()
+    barriers = [
+        data.op
+        for _, data in package.modules[0].nodes()
+        if isinstance(data.op, ops.ExtOp)
+        and data.op.op_def().qualified_name() == "prelude.Barrier"
+    ]
+    assert len(barriers) == 2
+    validate(package)
 
 
 def test_comptime_barrier_array(validate):
@@ -300,7 +308,15 @@ def test_comptime_barrier_array(validate):
         barrier(qs)
         discard_array(qs)
 
-    validate(test.compile_function())
+    package = test.compile_function()
+    barriers = [
+        data.op
+        for _, data in package.modules[0].nodes()
+        if isinstance(data.op, ops.ExtOp)
+        and data.op.op_def().qualified_name() == "prelude.Barrier"
+    ]
+    assert len(barriers) == 5
+    validate(package)
 
 
 def test_comptime_barrier_misc(validate):
@@ -317,7 +333,15 @@ def test_comptime_barrier_misc(validate):
         output("c", x)
         output("c2", measure(q1).read())
 
-    validate(test.compile_function())
+    package = test.compile_function()
+    barriers = [
+        data.op
+        for _, data in package.modules[0].nodes()
+        if isinstance(data.op, ops.ExtOp)
+        and data.op.op_def().qualified_name() == "prelude.Barrier"
+    ]
+    assert len(barriers) == 1
+    validate(package)
 
 
 def test_comptime_barrier_struct(validate):
@@ -349,7 +373,15 @@ def test_comptime_barrier_struct(validate):
         discard(qs.q3)
         discard(qs.q4)
 
-    validate(test.compile_function())
+    package = test.compile_function()
+    barriers = [
+        data.op
+        for _, data in package.modules[0].nodes()
+        if isinstance(data.op, ops.ExtOp)
+        and data.op.op_def().qualified_name() == "prelude.Barrier"
+    ]
+    assert len(barriers) == 3
+    validate(package)
 
 
 def test_comptime_barrier_dynamic_copyable_values(validate):
