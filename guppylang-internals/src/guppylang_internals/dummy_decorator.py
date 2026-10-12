@@ -6,22 +6,31 @@ class _DummyGuppy:
     decorate functions.
 
     We use this during sphinx builds as a mock for the decorator, to ensure that Guppy
-    functions are recognised as regular functions and included in docs.
+    functions are recognized as regular functions and included in docs.
     """
 
-    def __call__(self, f: Any) -> Any:
-        return f
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        if kwargs:
+            return _DummyGuppy()
+        match args:
+            case [f]:
+                return f
 
     def comptime(self, f: Any) -> Any:
         return f
 
     def struct(self, *args: Any, **kwargs: Any) -> Any:
-        return self
+        if args:
+            return args[0]
+        return lambda cls: cls
 
     def enum(self, cls: Any) -> Any:
         return cls
 
     def protocol(self, cls: Any) -> Any:
+        return cls
+
+    def unitary(self, cls: Any) -> Any:
         return cls
 
     def require(self, f: Any) -> Any:
@@ -57,7 +66,18 @@ class _DummyGuppy:
 
 def _dummy_custom_decorator(*args: Any, **kwargs: Any) -> Any:
     """Dummy version of custom decorators that are used during Sphinx builds."""
-    return lambda f: f
+
+    def decorator(*decorator_args: Any, **decorator_kwargs: Any) -> Any:
+        if (
+            len(decorator_args) == 1
+            and callable(decorator_args[0])
+            and not decorator_kwargs
+        ):
+            return decorator_args[0]
+
+        return lambda f: f
+
+    return decorator
 
 
 def sphinx_running() -> bool:

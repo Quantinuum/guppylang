@@ -3,12 +3,19 @@
 import pytest
 from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import (
+    ControlledImplementations,
+    CtrlDaggeredImplementations,
+    DaggeredImplementation,
     FunctionMetadata,
     MetadataAlreadySetError,
+    NumControlQubits,
     ReservedMetadataKeysError,
+    add_custom_implementations,
     add_metadata,
+    add_num_control_qubits,
 )
 from hugr.metadata import NodeMetadata
+from tket.metadata import InlineAnnotation
 
 
 def test_add_metadata():
@@ -50,6 +57,21 @@ def test_add_metadata_no_reserved_metadata():
         )
 
 
+def test_add_metadata_inline_reserved():
+    node_metadata = NodeMetadata({})
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError)
+            and e.error.keys == {InlineAnnotation.KEY}
+        ),
+    ):
+        add_metadata(
+            node_metadata, additional_metadata={InlineAnnotation.KEY: "best_effort"}
+        )
+
+
 def test_add_metadata_metadata_already_set():
     node_metadata = NodeMetadata(
         {
@@ -78,11 +100,93 @@ def test_add_metadata_metadata_already_set():
         add_metadata(node_metadata, additional_metadata={"preset-key": "preset-value"})
 
 
-def test_add_metadata_property_expected_qubits():
+def test_add_num_control_qubits_rejects_duplicate():
+    node_metadata = NodeMetadata()
+    add_num_control_qubits(node_metadata, 1)
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == NumControlQubits.KEY
+        ),
+    ):
+        add_num_control_qubits(node_metadata, 2)
+
+
+def test_add_metadata_rejects_duplicate():
+    node_metadata = NodeMetadata()
+    add_custom_implementations(
+        node_metadata,
+        daggered="custom_name",
+        controlled="custom_name",
+        ctrl_daggered="custom_name",
+    )
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == DaggeredImplementation.KEY
+        ),
+    ):
+        add_custom_implementations(node_metadata, daggered="another_name")
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == ControlledImplementations.KEY
+        ),
+    ):
+        add_custom_implementations(node_metadata, controlled="another_name")
+
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, MetadataAlreadySetError)
+            and e.error.key == CtrlDaggeredImplementations.KEY
+        ),
+    ):
+        add_custom_implementations(node_metadata, ctrl_daggered="another_name")
+
+
+def test_add_metadata_num_control_qubits_key_reserved():
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError)
+            and e.error.keys == {NumControlQubits.KEY}
+        ),
+    ):
+        add_metadata(NodeMetadata(), additional_metadata={NumControlQubits.KEY: 1})
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        DaggeredImplementation.KEY,
+        ControlledImplementations.KEY,
+        CtrlDaggeredImplementations.KEY,
+    ],
+)
+def test_add_metadata_custom_implementation_names_reserved(key: str):
+    with pytest.raises(
+        GuppyError,
+        check=lambda e: (
+            isinstance(e.error, ReservedMetadataKeysError) and e.error.keys == {key}
+        ),
+    ):
+        add_metadata(NodeMetadata(), additional_metadata={key: "custom_name"})
+
+
+def test_add_metadata_property_inline():
+    from tket.metadata import InlineAnnotation
+
     node_metadata = NodeMetadata({})
 
     guppy_metadata = FunctionMetadata()
-    guppy_metadata.set_expected_qubits(5)
+    guppy_metadata.set_inline("best_effort")
     add_metadata(node_metadata, guppy_metadata)
 
-    assert node_metadata.as_dict() == {"tket.hint.expected_qubits": 5}
+    assert node_metadata.as_dict() == {InlineAnnotation.KEY: "best_effort"}

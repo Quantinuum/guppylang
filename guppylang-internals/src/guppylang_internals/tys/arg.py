@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from hugr import tys as ht
 
@@ -30,12 +30,12 @@ if TYPE_CHECKING:
 # Note that this might become obsolete in case the `@sealed` decorator is added:
 #  * https://peps.python.org/pep-0622/#sealed-classes-as-algebraic-data-types
 #  * https://github.com/johnthagen/sealed-typing-pep
-Argument: TypeAlias = "TypeArg | ConstArg"
+type Argument = "TypeArg | ConstArg"
 
 
 @dataclass(frozen=True)
 class ArgumentBase(ToHugr[ht.TypeArg], Transformable["Argument"], ABC):
-    """Abstract base class for arguments of parametrized types.
+    """Abstract base class for arguments of parameterized types.
 
     For example, in the type `array[int, 42]` we have two arguments `int` and `42`.
     """

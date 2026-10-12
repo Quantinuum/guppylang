@@ -1,11 +1,15 @@
+from guppylang.std.quantum import discard_array
+from guppylang import array, qubit
+from guppylang.std.builtins import Daggerable, nat
 from collections.abc import Callable
 
 from guppylang.decorator import guppy
+from guppylang.std.lang import Copy, Drop
 
 
 def test_struct(validate):
     @guppy.struct
-    class MyStruct[F: Callable[[int], int]]:
+    class MyStruct[F: (Callable[[int], int], Copy, Drop)]:
         f: F
 
         @guppy
@@ -30,7 +34,7 @@ def test_struct(validate):
 
 def test_struct_generic(validate):
     @guppy.struct
-    class MyStruct[S, T, F: Callable[[S], T]]:
+    class MyStruct[S, T, F: (Callable[[S], T], Copy, Drop)]:
         f: F
         x: S
 
@@ -49,3 +53,43 @@ def test_struct_generic(validate):
         return MyStruct(foo, 42).call() + MyStruct(bar[bool], False).call()
 
     validate(main.compile_function())
+
+
+def test_higher_order(validate):
+    @guppy
+    def higher_order[n: nat](
+        qs: array[qubit, n], func: Callable[[array[qubit, n]], None]
+    ) -> None:
+        pass
+
+    @guppy
+    def generic[n: nat](qs: array[qubit, n]) -> None:
+        pass
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit() for _ in range(3))
+        higher_order(qs, generic[3])
+        discard_array(qs)
+
+    validate(main.compile())
+
+
+def test_higher_order_daggerable(validate):
+    @guppy
+    def higher_order[n: nat](
+        qs: array[qubit, n], func: Daggerable[[array[qubit, n]], None]
+    ) -> None:
+        pass
+
+    @guppy(unitary=True)
+    def generic(qs: array[qubit, 3]) -> None:
+        pass
+
+    @guppy
+    def main() -> None:
+        qs = array(qubit() for _ in range(3))
+        higher_order(qs, generic)
+        discard_array(qs)
+
+    validate(main.compile())

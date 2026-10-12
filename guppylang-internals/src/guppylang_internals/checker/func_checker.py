@@ -72,6 +72,12 @@ class MissingArgAnnotationError(Error):
 
 
 @dataclass(frozen=True)
+class MissingSelfError(Error):
+    title: ClassVar[str] = "Missing self argument"
+    span_label: ClassVar[str] = "Method requires a self argument"
+
+
+@dataclass(frozen=True)
 class RecursiveSelfError(Error):
     title: ClassVar[str] = "Recursive self annotation"
     span_label: ClassVar[str] = (
@@ -137,6 +143,8 @@ def check_global_func_def(
     type_args: Inst,
     globals: Globals,
     link_name: str,
+    def_id: DefId,
+    decorator_unitary_flags: UnitaryFlags,
 ) -> CheckedCFG[Place]:
     """Type checks a top-level function definition."""
     ty = generic_ty.instantiate(type_args)
@@ -145,8 +153,10 @@ def check_global_func_def(
     returns_none = isinstance(ty.output, NoneType)
     assert all(inp.name is not None for inp in ty.inputs)
 
-    check_invalid_under_dagger(func_def, ty.unitary_flags)
-    cfg = CFGBuilder().build(func_def.body, returns_none, globals, ty.unitary_flags)
+    check_invalid_under_dagger(func_def, decorator_unitary_flags)
+    cfg = CFGBuilder().build(
+        func_def.body, returns_none, globals, decorator_unitary_flags
+    )
     inputs = [
         Variable(cast("str", inp.name), inp.ty, loc, inp.flags, is_func_input=True)
         for inp, loc in zip(ty.inputs, args, strict=True)
@@ -156,6 +166,10 @@ def check_global_func_def(
     generic_args = {
         param.name: arg for param, arg in zip(generic_ty.params, type_args, strict=True)
     }
+
+    current_caller = (def_id, type_args)
+    ENGINE.register_call_graph_node(current_caller)
+
     return check_cfg(
         cfg,
         inputs,
@@ -164,6 +178,7 @@ def check_global_func_def(
         func_def.name,
         globals,
         modified_block_name_base=link_name,
+        current_caller=current_caller,
     )
 
 
@@ -220,11 +235,30 @@ def check_nested_func_def(
         if InputFlags.Comptime not in inp.flags
     ]
     def_id = DefId.fresh()
+    mono_args: Inst = ()
+
+    # Store nested functions in the call graph under their own DefIDs.
+    ENGINE.register_call_graph_node((def_id, mono_args))
     globals = ctx.globals
 
     # Even though global, this function will be private to the built hugr,
     # so the link name does not really matter.
     link_name = func_def.name
+
+    # We need to register nested functions in the engine so that FunctionDefType.sig and
+    # FunctionDefType.defn can be used properly.
+    from guppylang_internals.definition.function import ParsedFunctionDef
+
+    func = ParsedFunctionDef(
+        def_id,
+        func_def.name,
+        func_def,
+        func_ty,
+        func_def.docstring,
+        link_name,
+        is_static=False,
+    )
+    ENGINE.parsed[def_id] = func
 
     # Check if the body contains a free (recursive) occurrence of the function name.
     # By checking if the name is free at the entry BB, we avoid false positives when
@@ -234,25 +268,22 @@ def check_nested_func_def(
             # If there are no captured vars, we treat the function like a global name
             from guppylang.defs import GuppyDefinition
 
-            from guppylang_internals.definition.function import ParsedFunctionDef
-
             parent_frame = ctx.globals.frame
-            func = ParsedFunctionDef(
-                def_id,
-                func_def.name,
-                func_def,
-                func_ty,
-                None,
-                link_name,
-            )
             DEF_STORE.register_def(func, parent_frame)
-            ENGINE.parsed[def_id] = func
             globals.f_locals[func_def.name] = GuppyDefinition(func)
         else:
             # Otherwise, we treat it like a local name
             inputs.append(Variable(func_def.name, func_def.ty, func_def))
 
-    checked_cfg = check_cfg(cfg, inputs, func_ty.output, {}, func_def.name, globals)
+    checked_cfg = check_cfg(
+        cfg,
+        inputs,
+        func_ty.output,
+        {},
+        func_def.name,
+        globals,
+        current_caller=(def_id, ()),
+    )
     checked_def = CheckedNestedFunctionDef(
         def_id,
         checked_cfg,
@@ -268,14 +299,16 @@ def check_nested_func_def(
 
     from guppylang_internals.definition.function import CheckedFunctionDef
 
-    ENGINE.checked[(def_id, ())] = CheckedFunctionDef(
+    ENGINE.checked[(def_id, mono_args)] = CheckedFunctionDef(
         def_id,
         func_def.name,
         func_def,
         func_ty,
         func_def.docstring,
         link_name,
+        mono_args,
         checked_cfg,
+        is_static=False,
     )
     return with_loc(func_def, checked_def)
 
@@ -286,6 +319,7 @@ def check_signature(
     def_id: DefId | None = None,
     param_var_mapping: dict[str, Parameter] | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
+    is_static: bool = False,
 ) -> FunctionType:
     """Checks the signature of a function definition and returns the corresponding
     Guppy type.
@@ -332,10 +366,26 @@ def check_signature(
     inputs = []
     ctx = TypeParsingCtx(globals, param_var_mapping, allow_free_vars=True)
     has_parent = def_id is not None and def_id in DEF_STORE.type_member_parents
+
+    # Check if method doesn't have any arguments.
+    if (
+        has_parent
+        and func_def.name != "__new__"
+        and not is_static
+        and not func_def.args.args
+    ):
+        raise GuppyError(MissingSelfError(func_def))
+
     for i, inp in enumerate(func_def.args.args):
-        # Special handling for `self` arguments. Note that `__new__` is excluded here
-        # since it's not a method so doesn't take `self`.
-        if i == 0 and func_def.name != "__new__" and has_parent and def_id is not None:
+        # Special handling for `self` arguments. Note that `__new__` and staticmethods
+        # are excluded here since they do not take `self`.
+        if (
+            i == 0
+            and func_def.name != "__new__"
+            and has_parent
+            and def_id is not None
+            and not is_static
+        ):
             self_def_id = DEF_STORE.type_member_parents[def_id]
             self_defn_untyped = ENGINE.get_checked(self_def_id, mono_args=())
             input: FuncInput
@@ -435,8 +485,8 @@ def parse_self_arg_proto(
     )
     self_ty_placeholder = ExistentialTypeVar.fresh(
         "Self",
-        copyable=True,
-        droppable=True,
+        copyable=False,
+        droppable=False,
     )
     assert ctx.self_ty is None
     ctx = replace(ctx, self_ty=self_ty_placeholder)
@@ -445,7 +495,7 @@ def parse_self_arg_proto(
     # If the user just annotates `self: Self` then we can fall back to the case where
     # no annotation is provided at all
     if user_ty == self_ty_placeholder:
-        return handle_implicit_self_arg_proto(arg, self_defn, ctx)
+        return handle_implicit_self_arg_proto(arg, self_defn, ctx, user_flags)
 
     # Annotations like `self: Foo[Self]` are not allowed (would be an infinite type)
     if self_ty_placeholder in user_ty.unsolved_vars:
@@ -478,7 +528,7 @@ def handle_implicit_self_arg_proto(
     arg: ast.arg,
     self_defn: "CheckedProtocolDef",
     ctx: TypeParsingCtx,
-    flags: InputFlags = InputFlags.NoFlags,
+    flags: InputFlags | None = None,
 ) -> FuncInput:
     """Handle the case of a protocol method that leaves the protocol type implicit.
     Add a type parameter to the function which implements the protocol, and the self
@@ -497,15 +547,15 @@ def handle_implicit_self_arg_proto(
     ctx.param_var_mapping.update({param.name: param for param in self_defn.params})
     self_args = [param.to_bound() for param in self_defn.params]
     proto_inst = self_defn.check_instantiate(self_args, loc=arg)
-    self_arg = BoundTypeVar("self", len(self_args), True, True, (proto_inst,))
+    self_arg = BoundTypeVar("self", len(self_args), False, False, (proto_inst,))
     ctx.param_var_mapping["self"] = TypeParam(
         idx=len(self_defn.params),
         name="self",
-        must_be_copyable=True,
-        must_be_droppable=True,
+        must_be_copyable=False,
+        must_be_droppable=False,
         must_implement=[proto_inst],
     )
-    return FuncInput(self_arg, InputFlags.NoFlags)
+    return FuncInput(self_arg, flags or InputFlags.Inout)
 
 
 def handle_implicit_self_arg(

@@ -1,0 +1,9 @@
+Error: GPU signature error (at $FILE:8:4)
+  | 
+6 |     Var = {}
+7 |     @gpu
+8 |     def bar(self: "Foo") -> None: ...
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ First argument to GPU function should be a reference to a
+  |                                       GPU module. Found `Foo` instead
+
+Guppy compilation failed due to 1 previous error

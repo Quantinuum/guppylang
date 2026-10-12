@@ -1,0 +1,15 @@
+Error: Not owned (at $FILE:11:8)
+   | 
+ 9 | @guppy
+10 | def foo(x: Proto) -> None:
+11 |     y = x
+   |         ^ Cannot move `x` since `foo` doesn't own it
+
+Help:
+   | 
+ 9 | @guppy
+10 | def foo(x: Proto) -> None:
+   |         -------- Argument `x` is only borrowed. Consider taking ownership:
+   |                  `x: Proto @owned`
+
+Guppy compilation failed due to 1 previous error

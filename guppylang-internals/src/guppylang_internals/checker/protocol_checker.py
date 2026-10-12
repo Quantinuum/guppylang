@@ -1,7 +1,6 @@
 from abc import ABC
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TypeAlias
 
 from guppylang_internals.checker.errors.type_errors import (
     AmbiguousProtocol,
@@ -56,7 +55,7 @@ class AssumptionImplProof(ImplProofBase):
     ty: BoundTypeVar
 
 
-ImplProof: TypeAlias = ConcreteImplProof | AssumptionImplProof
+type ImplProof = ConcreteImplProof | AssumptionImplProof
 
 
 def _instantiate_self(
@@ -143,7 +142,9 @@ def check_protocol(
     member_impls: dict[str, tuple[DefId, Inst]] = {}
     for name in protocol_def.member_defs:
         proto_sig = protocol_def.member_sig(name)
-        if len(proto_sig.inputs) > 0:
+        if len(proto_sig.inputs) > 0 and not ENGINE.is_def_static(
+            protocol_def.member_defs[name]
+        ):  # staticmethods assumed not to have a self arg
             if isinstance(proto_sig.inputs[0].ty, BoundTypeVar):
                 proto_sig = _instantiate_self(proto_sig, protocol, ty)
             else:

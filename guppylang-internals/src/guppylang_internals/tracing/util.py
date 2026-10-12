@@ -2,13 +2,9 @@ import functools
 import sys
 from collections.abc import Callable
 from types import TracebackType
-from typing import ParamSpec, TypeVar
 
 from guppylang_internals.error import GuppyComptimeError, GuppyError, exception_hook
 from guppylang_internals.frame_util import remove_internal_frames
-
-P = ParamSpec("P")
-T = TypeVar("T")
 
 
 class capture_guppy_errors:
@@ -43,7 +39,7 @@ class capture_guppy_errors:
             # the traceback.
             raise GuppyComptimeError(msg) from None
 
-    def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
+    def __call__[**P, T](self, f: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(f)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
             with self:
@@ -52,7 +48,7 @@ class capture_guppy_errors:
         return wrapped
 
 
-def hide_trace(f: Callable[P, T]) -> Callable[P, T]:
+def hide_trace[**P, T](f: Callable[P, T]) -> Callable[P, T]:
     """Function decorator that hides compiler-internal frames from the traceback of any
     exception thrown by the decorated function."""
 

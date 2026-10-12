@@ -4,7 +4,7 @@ from hugr.package import Package, PackagePointer
 from pathlib import Path
 import pytest
 from typing import Any, Literal, cast
-from typing_extensions import assert_never
+from typing import assert_never
 
 from selene_hugr_qis_compiler import check_hugr
 
@@ -142,14 +142,14 @@ def _emulate_fn(ty: Literal["int", "nat", "float"], default_platform: Platform):
             res = (
                 entry.emulator(n_qubits=num_qubits, platform=resolved_platform)
                 .statevector_sim()
-                .with_seed(42)
+                .with_seed(42, mode="legacy")
                 .run()
             )
         else:
             res = (
                 entry.emulator(0, platform=resolved_platform)
                 .coinflip_sim()
-                .with_seed(42)
+                .with_seed(42, mode="legacy")
                 .run()
             )
         num = next(v for k, v in res[0] if k == "_test_output")

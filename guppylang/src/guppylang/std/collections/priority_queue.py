@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Generic, no_type_check
-
-from typing_extensions import Self
+from typing import Self, no_type_check
 
 from guppylang.decorator import guppy
 from guppylang.std.builtins import array, owned, panic
+from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
 
 T = guppy.type_var("T", copyable=False, droppable=False)
@@ -14,7 +13,7 @@ MAX_SIZE = guppy.nat_var("MAX_SIZE")
 
 
 @guppy.struct
-class PriorityQueue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
+class PriorityQueue[T, MAX_SIZE: nat]:
     """A queue of values ordered by priority.
 
     Values with the lowest priority value will be popped from the queue first.
@@ -30,7 +29,7 @@ class PriorityQueue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
     #:
     #: INVARIANT: All array elements up to and including index `self._size - 1` are
     #: `option.some` variants and all further ones are `option.nothing`.
-    _buf: array[Option[tuple[int, T]], MAX_SIZE]  # type: ignore[valid-type, type-arg]
+    _buf: array[Option[tuple[int, T]], MAX_SIZE]
 
     #: Index of the next free index in `self._buf`.
     _size: int
@@ -66,7 +65,7 @@ class PriorityQueue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
         Panics if the priority queue has already reached its maximum size.
         """
-        if self._size >= MAX_SIZE:
+        if self._size >= MAX_SIZE:  # type: ignore[misc]
             panic("PriorityQueue.push: max size reached")
         self._buf[self._size].swap(some((priority, value))).unwrap_nothing()
         i = self._size
@@ -133,7 +132,7 @@ class PriorityQueue(Generic[T, MAX_SIZE]):  # type: ignore[misc]
 
     @guppy
     @no_type_check
-    def peek(self: PriorityQueue[TCopyable, MAX_SIZE] @ owned) -> tuple[int, TCopyable]:
+    def peek[TC: Copy](self: PriorityQueue[TC, MAX_SIZE] @ owned) -> tuple[int, TC]:
         """Returns a copy of the next element in the priority queue without removing it.
 
         Panics if the priority queue is empty.

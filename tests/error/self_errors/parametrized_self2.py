@@ -7,7 +7,7 @@ T = guppy.type_var("T")
 
 
 @guppy.enum
-class Foo(Generic[T]):
+class Foo[T]:
     Var = {}
     @guppy
     def foo(self: "Self[int]") -> None:

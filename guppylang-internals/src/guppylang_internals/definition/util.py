@@ -4,7 +4,7 @@ import linecache
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from types import FrameType
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, ClassVar, TypeGuard
 
 from guppylang_internals.ast_util import AstNode, annotate_location, parse_source
 from guppylang_internals.checker.core import Globals
@@ -37,9 +37,7 @@ if TYPE_CHECKING:
     from guppylang_internals.definition.struct import ParsedStructDef
 
 
-ParsedRecursiveTypeDef: TypeAlias = (
-    "ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef"
-)
+type ParsedRecursiveTypeDef = "ParsedStructDef | ParsedEnumDef | ParsedTypeAliasDef"
 
 
 @dataclass(frozen=True)
@@ -120,6 +118,19 @@ class CheckedField:
 
     name: str
     ty: Type
+
+
+def is_guppy_unitary(value: object) -> bool:
+    """Checks whether a value is a `@guppy.unitary` class definition."""
+    from guppylang.defs import GuppyDefinition
+
+    from guppylang_internals.definition.function import RawFunctionDef
+
+    return (
+        isinstance(value, GuppyDefinition)
+        and isinstance(value.wrapped, RawFunctionDef)
+        and value.wrapped.unitary_class_at is not None
+    )
 
 
 def check_not_recursive(defn: ParsedRecursiveTypeDef, ctx: TypeParsingCtx) -> None:

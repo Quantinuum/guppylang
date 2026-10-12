@@ -25,7 +25,7 @@ class MaybeLeaked:  # type: ignore[misc]  # Error for Python < 3.13
     return a boolean measurement result or indicate that the qubit has leaked.
     """
 
-    _measurement: Future[int]  # type: ignore[type-arg]
+    _measurement: Future[int]
 
     @guppy
     @no_type_check

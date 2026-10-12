@@ -18,6 +18,9 @@ Bump modes:
 * ``alpha-major`` -> ``1.2.3`` becomes ``2.0.0-a0``
 * ``beta``  -> ``1.0.0-a1`` becomes ``1.0.0-b0``; ``b1`` becomes ``b2``
 * ``rc``    -> ``1.0.0-X``  becomes ``1.0.0-rc0``; ``rc1`` becomes ``rc2``
+* ``rc-patch`` -> ``1.2.3`` becomes ``1.2.4-rc0``
+* ``rc-minor`` -> ``1.2.3`` becomes ``1.3.0-rc0``
+* ``rc-major`` -> ``1.2.3`` becomes ``2.0.0-rc0``
 * ``stable``-> ``1.0.0-X``  becomes ``1.0.0`` (drops the pre-release)
 * ``patch`` -> ``1.0.1``    becomes ``1.0.2``
 * ``minor`` -> ``1.2.1``    becomes ``1.3.0``
@@ -31,11 +34,11 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
-class BumpMode(str, Enum):
+class BumpMode(StrEnum):
     auto = "auto"
     alpha = "alpha"
     alpha_patch = "alpha-patch"
@@ -43,13 +46,16 @@ class BumpMode(str, Enum):
     alpha_major = "alpha-major"
     beta = "beta"
     rc = "rc"
+    rc_patch = "rc-patch"
+    rc_minor = "rc-minor"
+    rc_major = "rc-major"
     stable = "stable"
     patch = "patch"
     minor = "minor"
     major = "major"
 
 
-class PreLabel(str, Enum):
+class PreLabel(StrEnum):
     alpha = "a"
     beta = "b"
     rc = "rc"
@@ -184,6 +190,21 @@ def bump_guppylang(current: GuppyVersion, mode: str) -> GuppyVersion:
             return GuppyVersion(
                 current.major, current.minor, current.patch, PreLabel.rc, next_num
             )
+
+        case BumpMode.rc_patch:
+            return GuppyVersion(
+                current.major,
+                current.minor,
+                current.patch + 1,
+                PreLabel.rc,
+                pre_num=0,
+            )
+        case BumpMode.rc_minor:
+            return GuppyVersion(
+                current.major, current.minor + 1, 0, PreLabel.rc, pre_num=0
+            )
+        case BumpMode.rc_major:
+            return GuppyVersion(current.major + 1, 0, 0, PreLabel.rc, pre_num=0)
 
         case BumpMode.stable:
             if not current.is_prerelease:

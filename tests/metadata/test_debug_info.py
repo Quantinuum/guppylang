@@ -16,14 +16,14 @@ from tests.resources.debug_info_example import (
     bar,
     baz,
     comptime_bar,
+    inc,
+    non_guppy_function,
     pytket_bar_load,
     pytket_bar_stub,
 )
 
 if TYPE_CHECKING:
     from hugr import Node
-
-turn_on_debug_mode()
 
 
 RESOURCE_PATH = Path(__file__).parents[1] / "resources" / "debug_info_example.py"
@@ -57,7 +57,7 @@ def test_compile_unit():
     def foo() -> None:
         pass
 
-    hugr = foo.compile().modules[0]
+    hugr = foo.compile(debug_mode=True).modules[0]
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
     debug_info = DICompileUnit.from_json(meta[HugrDebugInfo.KEY])
@@ -77,8 +77,11 @@ def test_subprogram():
         pytket_bar_stub(q)
         discard(q)
 
+        def nested_func() -> None:  # MARKER:def_nested_subprogram
+            nested_func()  # MARKER:scope_nested_subprogram
+
     # Avoid inlining the called functions so we can check their debug info.
-    hugr = foo.with_minimal_opt().compile().modules[0]
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
     meta = hugr[hugr.module_root].metadata
     assert HugrDebugInfo in meta
     debug_info = DICompileUnit.from_json(meta[HugrDebugInfo.KEY])
@@ -152,6 +155,17 @@ def test_subprogram():
     # No metadata on the inner circuit function.
     assert HugrDebugInfo not in hugr[inner_func].metadata
 
+    nested_func = func_map.pop("nested_func")
+    nested_func_metadata = hugr[nested_func].metadata
+    assert HugrDebugInfo in nested_func_metadata
+    debug_info = DISubprogram.from_json(nested_func_metadata[HugrDebugInfo.KEY])
+    assert debug_info.file == 0
+    assert debug_info.line_no == _marker_loc(Path(__file__), "def_nested_subprogram")[0]
+    assert (
+        debug_info.scope_line
+        == _marker_loc(Path(__file__), "scope_nested_subprogram")[0]
+    )
+
     assert len(func_map) == 0
 
 
@@ -167,7 +181,7 @@ def test_call_location():
         discard(q)  # compiles to extension op (see test below)
 
     # Compile with minimal optimization to preserve call ordering in the graph.
-    hugr = foo.with_minimal_opt().compile().modules[0]
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
     calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
     assert len(calls) == 4
 
@@ -185,6 +199,35 @@ def test_call_location():
             "pytket_bar_load",
         ),
     ]
+    for i, call in enumerate(calls):
+        call_metadata = hugr[call].metadata
+        assert HugrDebugInfo in call_metadata
+        debug_info = DILocation.from_json(call_metadata[HugrDebugInfo.KEY])
+        assert (debug_info.line_no, debug_info.column) == expected_info[i]
+
+
+def test_comptime_call_location():
+    @guppy.comptime
+    def foo() -> None:
+        bar()  # call 1  # MARKER:ct_call_bar
+        non_guppy_function()  # not a hugr call
+        comptime_bar()  # call 2  # MARKER:ct_call_comptime_bar
+        _ = (bar(), comptime_bar())  # MARKER:ct_calls_same_line
+        inc(inc(1))  # MARKER:ct_call_inc_nested
+
+    # Compile with minimal optimization to preserve call ordering in the graph.
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
+    calls = [node for node, node_data in hugr.nodes() if isinstance(node_data.op, Call)]
+
+    expected_info = [
+        _marker_loc(Path(__file__), "ct_call_bar", "bar()"),
+        _marker_loc(Path(__file__), "ct_call_comptime_bar", "comptime_bar()"),
+        _marker_loc(Path(__file__), "ct_calls_same_line", "bar()"),
+        _marker_loc(Path(__file__), "ct_calls_same_line", "comptime_bar()"),
+        _marker_loc(Path(__file__), "ct_call_inc_nested", "inc(1)"),
+        _marker_loc(Path(__file__), "ct_call_inc_nested", "inc(inc(1))"),
+    ]
+    assert len(calls) == len(expected_info)
     for i, call in enumerate(calls):
         call_metadata = hugr[call].metadata
         assert HugrDebugInfo in call_metadata
@@ -218,7 +261,7 @@ def test_ext_op_location():
                     output("tag", bools)  # Check output usage
 
     # Compile with minimal optimization to preserve all annotated ops.
-    hugr = foo.with_minimal_opt().compile().modules[0]
+    hugr = foo.with_minimal_opt().compile(debug_mode=True).modules[0]
 
     known_exceptions = [
         "tket.guppy.drop",
@@ -238,14 +281,21 @@ def test_ext_op_location():
     assert _marker_loc(Path(__file__), "ext_op_mystruct")[0] in found_annotated_tuples
 
 
-def test_turn_off_debug_mode():
-    turn_off_debug_mode()
+def test_global_debug_mode():
+    turn_on_debug_mode()
 
     @guppy
     def foo() -> None:
         q = qubit()
         state_output("tag", q)
         discard(q)
+
+    # Not turning on debug_mode should not override global state.
+    hugr = foo.compile().modules[0]
+    meta = hugr[hugr.module_root].metadata
+    assert HugrDebugInfo in meta
+
+    turn_off_debug_mode()
 
     hugr = foo.compile().modules[0]
     for _, node_data in hugr.nodes():

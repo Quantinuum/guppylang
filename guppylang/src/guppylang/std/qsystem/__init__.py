@@ -1,5 +1,15 @@
 """Guppy standard library for Quantinuum systems device operations.
 
+
+Sub-modules in this module provide low-level access to primitive operations on specific
+Quantinuum hardware systems. These systems may vary in primitive quantum gate-set,
+measurement and reset operations, and other platform level capabilities.
+These sub-modules are intended for advanced users who need control over the specific
+operations used in their programs.
+To program in a platform-agnostic way, use the more abstract `std.quantum` module.
+Gates and operations in this module are automatically decomposed to the target
+platform when compiling for emulation or hardware execution.
+
 .. deprecated::
     ``guppylang.std.qsystem`` is a deprecated alias for
     ``guppylang.std.qsystem.helios``. Import from that module directly.

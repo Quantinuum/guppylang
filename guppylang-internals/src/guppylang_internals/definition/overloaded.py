@@ -1,10 +1,10 @@
 import ast
 import copy
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, NamedTuple, NoReturn
+from typing import Any, ClassVar, NamedTuple, NoReturn, override
 
 from hugr import Wire
-from typing_extensions import override
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Context
@@ -12,8 +12,19 @@ from guppylang_internals.checker.expr_checker import ExprSynthesizer
 from guppylang_internals.compiler.core import CompilerContext, DFContainer
 from guppylang_internals.definition.common import (
     DefId,
+    Definition,
 )
-from guppylang_internals.definition.custom import CustomFunctionDef
+from guppylang_internals.definition.custom import (
+    CustomFunctionDef,
+    RawCustomFunctionDef,
+)
+from guppylang_internals.definition.declaration import RawFunctionDecl
+from guppylang_internals.definition.function import RawFunctionDef
+from guppylang_internals.definition.pytket_circuits import (
+    RawLoadPytketDef,
+    RawPytketDef,
+)
+from guppylang_internals.definition.traced import RawTracedFunctionDef
 from guppylang_internals.definition.value import (
     CallableDef,
     CallReturnWires,
@@ -26,6 +37,7 @@ from guppylang_internals.error import (
     InternalGuppyError,
 )
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.printing import signature_to_str
 from guppylang_internals.tys.subst import Subst
 from guppylang_internals.tys.ty import FunctionType, Type
@@ -90,9 +102,39 @@ class InternalExpectOverloadError(Error):
 
 
 @dataclass(frozen=True)
+class OverloadInvalidStaticError(Error):
+    title: ClassVar[str] = "Invalid static overloads"
+    function_name: str
+    span_label: ClassVar[str] = (
+        "Some overloads of method `{function_name}` are static but others are not."
+    )
+
+    @dataclass(frozen=True)
+    class StaticMismatchHint(Note):
+        message: ClassVar[str] = """
+            static: {static_overloads_fmt}
+            non-static: {non_static_overloads_fmt}"""
+        static_overloads: list[str]
+        non_static_overloads: list[str]
+
+        @property
+        def static_overloads_fmt(self) -> str:
+            return ", ".join(f"`{name}`" for name in self.static_overloads)
+
+        @property
+        def non_static_overloads_fmt(self) -> str:
+            return ", ".join(f"`{name}`" for name in self.non_static_overloads)
+
+
+@dataclass(frozen=True)
 class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
     func_ids: list[DefId]
     description: str = field(default="overloaded function", init=False)
+
+    @override
+    @property
+    def call_effects(self) -> Iterable[Effect]:
+        raise InternalGuppyError("Should have been resolved to one overload")
 
     def load(self, dfg: DFContainer, ctx: CompilerContext, node: AstNode) -> Wire:
         raise GuppyError(OverloadHigherOrderError(node, self.name))
@@ -223,3 +265,51 @@ class OverloadedFunctionDef(CompiledCallableDef, CallableDef):
         raise InternalGuppyError(
             "OverloadedFunctionDef.compile_call shouldn't be invoked"
         )
+
+
+def is_overload_static(raw_defn: Definition) -> bool:
+    """Recursively checks if a Definition corresponds to a static method."""
+    from guppylang_internals.engine import DEF_STORE
+
+    match raw_defn:
+        case (
+            RawFunctionDef()
+            | RawCustomFunctionDef()
+            | RawFunctionDecl()
+            | RawTracedFunctionDef()
+        ):
+            return isinstance(raw_defn.python_func, staticmethod)
+        case OverloadedFunctionDef():
+            # check all the methods in the overload are also static and error if not
+            # returns None regardless of staticness as there is nothing to unwrap
+            func_defs = [DEF_STORE.raw_defs[func_id] for func_id in raw_defn.func_ids]
+            is_static = [is_overload_static(func_def) for func_def in func_defs]
+            if all(is_static):
+                return True
+            elif not any(is_static):
+                return False
+            else:
+                static_func_names = [
+                    func_defs[i].name for i, static in enumerate(is_static) if static
+                ]
+                non_static_func_names = [
+                    func_defs[i].name
+                    for i, static in enumerate(is_static)
+                    if not static
+                ]
+                raise GuppyError(
+                    OverloadInvalidStaticError(
+                        raw_defn.defined_at,
+                        raw_defn.name,
+                    ).add_sub_diagnostic(
+                        OverloadInvalidStaticError.StaticMismatchHint(
+                            None, static_func_names, non_static_func_names
+                        )
+                    )
+                )
+        case RawPytketDef() | RawLoadPytketDef():
+            return False
+        case _:
+            raise InternalGuppyError(
+                f"Cannot determine staticness of Definition of type {type(raw_defn)}"
+            )

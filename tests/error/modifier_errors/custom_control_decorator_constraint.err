@@ -1,0 +1,12 @@
+Error: Control constraint violation (at $FILE:15:8)
+   | 
+13 |     @guppy(controllable=True)
+14 |     def __call__(q: qubit) -> None:
+15 |         helper(q)
+   |         ^^^^^^^^^ This function cannot be called in a controllable context
+
+Help: Consider adding the flag `(controllable=True)` to the decorator of the
+function `helper` or adding a custom `controlled` implementation using the
+`@guppy.unitary` decorator
+
+Guppy compilation failed due to 1 previous error

@@ -1,8 +1,6 @@
 import ast
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, cast
-
-from typing_extensions import override
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from guppylang_internals.ast_util import with_loc
 from guppylang_internals.checker.core import ComptimeVariable
@@ -13,7 +11,10 @@ from guppylang_internals.checker.expr_checker import (
     ExprSynthesizer,
     synthesize_call,
 )
-from guppylang_internals.definition.custom import CustomCallChecker
+from guppylang_internals.definition.custom import (
+    CustomCallChecker,
+    InputFlagDefaultMode,
+)
 from guppylang_internals.diagnostic import Error
 from guppylang_internals.error import GuppyTypeError
 from guppylang_internals.nodes import DummyGenericParamValue, PlaceNode, StateOutputExpr
@@ -38,6 +39,8 @@ if TYPE_CHECKING:
 
 class StateOutputChecker(CustomCallChecker):
     """Call checker for the `state_output` function."""
+
+    input_flag_mode = InputFlagDefaultMode.INOUT
 
     @dataclass(frozen=True)
     class MissingQubitsError(Error):
@@ -97,7 +100,9 @@ class StateOutputChecker(CustomCallChecker):
                 + [FuncInput(qubit_ty, InputFlags.Inout)] * len(args[1:]),
                 NoneType(),
             )
-        args, ret_ty, inst = synthesize_call(func_ty, syn_args, self.node, self.ctx)
+        args, ret_ty, inst = synthesize_call(
+            func_ty, syn_args, self.node, self.ctx, self.func
+        )
         assert len(inst) == 0, "func_ty is not generic"
         node = StateOutputExpr(
             tag_value=tag_value,

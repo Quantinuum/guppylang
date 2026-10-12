@@ -6,7 +6,7 @@ from guppylang.std.builtins import array
 
 from pytket.passes import RemoveRedundancies, CliffordSimp, SquashRzPhasedX
 
-from tket.passes import NormalizeGuppy, PytketHugrPass, PassResult, PlatformTarget
+from tket.passes import Normalize, PytketHugrPass, PassResult, PlatformTarget
 
 from hugr.hugr.base import Hugr
 
@@ -20,11 +20,11 @@ def _count_ops(hugr: Hugr, string_name: str) -> int:
     return count
 
 
-normalize = NormalizeGuppy()
+normalize = Normalize()
 
 
-# NormalizeGuppy documentation
-# -> https://quantinuum.github.io/tket2/generated/tket.passes.NormalizeGuppy.html#tket.passes.NormalizeGuppy
+# Normalize documentation
+# -> https://quantinuum.github.io/tket2/generated/tket.passes.Normalize.html#tket.passes.Normalize
 def test_guppy_normalization() -> None:
     @guppy
     def pauli_zz_rotation(q0: qubit, q1: qubit) -> None:
@@ -42,9 +42,9 @@ def test_guppy_normalization() -> None:
 
     normalized_hugr = normalize(unnormalized_hugr)
 
-    # Test that the dataflow block is inlined by NormalizeGuppy
+    # Test that the dataflow block is inlined by Normalize
     assert _count_ops(normalized_hugr, "DataflowBlock") == 0
-    # Test that MakeTuple nodes are removed by NormalizeGuppy
+    # Test that MakeTuple nodes are removed by Normalize
     assert _count_ops(normalized_hugr, "MakeTuple") == 0
 
 

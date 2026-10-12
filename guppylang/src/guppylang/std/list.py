@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING
 
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
@@ -18,6 +18,7 @@ from guppylang_internals.std._internal.compiler.list import (
     ListSetitemCompiler,
 )
 from guppylang_internals.std._internal.util import unsupported_op
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import list_type_def
 
 from guppylang import guppy
@@ -32,13 +33,13 @@ L = guppy.type_var("L", copyable=False, droppable=False)
 
 
 @extend_type(list_type_def)
-class list(Generic[T]):
+class list[T]:
     """Mutable sequence items with homogeneous types."""
 
-    @custom_function(ListGetitemCompiler())
+    @custom_function(ListGetitemCompiler(), effects=[Effect.ANY])
     def __getitem__(self: list[L], idx: int) -> L: ...
 
-    @custom_function(ListSetitemCompiler())
+    @custom_function(ListSetitemCompiler(), effects=[Effect.ANY])
     def __setitem__(self: list[L], idx: int, value: L @ owned) -> None: ...
 
     @custom_function(ListLengthCompiler())
@@ -56,5 +57,5 @@ class list(Generic[T]):
     @custom_function(ListPushCompiler())
     def append(self: list[L], item: L @ owned) -> None: ...
 
-    @custom_function(ListPopCompiler())
+    @custom_function(ListPopCompiler(), effects=[Effect.ANY])  # panics if list empty
     def pop(self: list[L]) -> L: ...

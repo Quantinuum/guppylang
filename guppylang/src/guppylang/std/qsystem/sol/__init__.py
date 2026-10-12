@@ -1,4 +1,18 @@
-"""Guppy standard library for Quantinuum Sol system operations."""
+"""Guppy standard library for Quantinuum Sol system operations.
+
+
+Offers low-level access to primitive operations on the Sol system,
+including measurement, reset, and single qubit and two qubit gates.
+
+For operations in this module, a `qubit` value maps to a specific ion,
+a guarantee not provided by the more abstract `std.quantum` module.
+For example, the function :py:func:`guppylang.std.quantum.project_z` may lower
+to a destructive measurement followed by a fresh ion allocation
+and conditional `X` flip to achieve "projective measurement" semantics.
+At the end of this process, the qubit may no longer map to the same
+ ion as the original qubit. Such a guarantee can be achieved by using
+the functions in this module.
+"""
 
 from typing import no_type_check
 
@@ -48,7 +62,7 @@ __all__ = [
 @guppy
 @no_type_check
 def phased_x(q: qubit, angle1: angle, angle2: angle) -> None:
-    r"""phased_x gate command.
+    r"""Primitive phased_x gate command.
 
     .. math::
 
@@ -69,7 +83,7 @@ def phased_x(q: qubit, angle1: angle, angle2: angle) -> None:
 @guppy
 @no_type_check
 def phased_xx(q1: qubit, q2: qubit, angle1: angle, angle2: angle) -> None:
-    r"""phased_xx gate command. The native 2-qubit entangling gate on Sol.
+    r"""Primitive phased_xx gate command. The native 2-qubit entangling gate on Sol.
 
     .. math::
 
@@ -146,7 +160,7 @@ def yy_max(q1: qubit, q2: qubit) -> None:
 @guppy
 @no_type_check
 def rz(q: qubit, angle: angle) -> None:
-    r"""rz gate command.
+    r"""Primitive rz gate command.
 
     .. math::
         \mathrm{Rz}(\theta)=
@@ -165,8 +179,9 @@ def rz(q: qubit, angle: angle) -> None:
 @no_type_check
 def measure(q: qubit @ owned) -> Measurement:
     """Request a destructive lazy measurement of a qubit, returning a `Measurement`
-    value. Call `.read()` on the value to block until the result is available. This is
-    equivalent to `lazy_measure`.
+    value. Call `.read()` on the value to block until the result is available.
+    Access to the ion carrying the qubit is lost,
+    to retain access see :py:func:`measure_and_reset`.
     """
     return lazy_measure(q)
 
@@ -174,8 +189,13 @@ def measure(q: qubit @ owned) -> Measurement:
 @guppy
 @no_type_check
 def measure_and_reset(q: qubit) -> Measurement:
-    """Like `measure`, but also resets the qubit after measurement. This is
-    equivalent to `lazy_measure_and_reset`."""
+    """System primitive destructive measurement, returning a `Measurement` value.
+    Call `.read()` on the value to block until the result is available.
+
+    The qubit is borrowed, and is reset to the :math:`|0\\rangle` state after
+    measurement.
+    The qubit value maps to the same ion after the operation, so it can be used again.
+    """
     return lazy_measure_and_reset(q)
 
 
@@ -187,7 +207,11 @@ def reset(q: qubit) -> None:
 
 @hugr_op(quantum_op("QFree", ext=QSYSTEM_SOL_EXTENSION))
 @no_type_check
-def qfree(q: qubit @ owned) -> None: ...
+def qfree(q: qubit @ owned) -> None:
+    """Free a qubit, returning the ion to the pool of available ions.
+
+    The qubit value is consumed.
+    """
 
 
 @hugr_op(quantum_op("LazyMeasureLeaked", ext=QSYSTEM_SOL_EXTENSION))
@@ -199,7 +223,12 @@ def _measure_leaked(q: qubit @ owned) -> Future[int]:
 @guppy
 @no_type_check
 def measure_leaked(q: qubit @ owned) -> "MaybeLeaked":
-    """Measure the qubit and return a MaybeLeaked result."""
+    """Perform a lazy 'leakage detecting' measurement
+
+    As well as 0 and 1, a third state is possible that indicates
+    the ion has leaked out of the qubit subspace.
+    Returns a `MaybeLeaked` object that can be queried (blocking) for the result.
+    """
     fm = _measure_leaked(q)
     return MaybeLeaked(fm)
 
@@ -207,10 +236,7 @@ def measure_leaked(q: qubit @ owned) -> "MaybeLeaked":
 @guppy
 @no_type_check
 def lazy_measure(q: qubit @ owned) -> Measurement:
-    """Request a destructive lazy measurement of a qubit, returning a `Measurement`
-    value. Call `.read()` on the value to block until the result is available. This is
-    equivalent to `measure`.
-    """
+    """Alias for :py:func:`measure`."""
     result = _lazy_measure(q)
     return _future_to_measurement(result)
 
@@ -218,8 +244,7 @@ def lazy_measure(q: qubit @ owned) -> Measurement:
 @guppy
 @no_type_check
 def lazy_measure_and_reset(q: qubit) -> Measurement:
-    """Like `lazy_measure`, but also resets the qubit after measurement. This is
-    equivalent to `measure_and_reset`."""
+    """Alias for :py:func:`measure_and_reset`."""
     result = _lazy_measure_and_reset(q)
     return _future_to_measurement(result)
 
@@ -252,8 +277,8 @@ N = guppy.nat_var("N")
 @guppy
 @no_type_check
 def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
-    """Lazily measure an array of qubits using `measure`, returning an array of
-    measurements. Equivalent to `lazy_measure_array`.
+    """Lazily measure an array of qubits using :py:func:`measure`, returning an array
+    of measurements.
     """
     return array(measure(q) for q in qubits)
 
@@ -261,8 +286,8 @@ def measure_array(qubits: array[qubit, N] @ owned) -> array[Measurement, N]:
 @guppy
 @no_type_check
 def measure_and_reset_array(qubits: array[qubit, N]) -> array[Measurement, N]:
-    """Lazily measure and reset an array of qubits using `measure_and_reset`,
-    returning an array of measurements. Equivalent to `lazy_measure_and_reset_array`.
+    """Lazily measure and reset an array of qubits using
+    :py:func:`measure_and_reset`, returning an array of measurements.
     """
     return array(measure_and_reset(qubits[i]) for i in range(N))
 
@@ -272,9 +297,7 @@ def measure_and_reset_array(qubits: array[qubit, N]) -> array[Measurement, N]:
 def lazy_measure_array(
     qubits: array[qubit, N] @ owned,
 ) -> array["Measurement", N]:
-    """Same as `measure_array` as the standard measurement behaviour is already
-    lazy.
-    """
+    """Alias for :py:func:`measure_array`."""
     return array(lazy_measure(q) for q in qubits)
 
 
@@ -283,9 +306,7 @@ def lazy_measure_array(
 def lazy_measure_and_reset_array(
     qubits: array[qubit, N],
 ) -> array["Measurement", N]:
-    """Same as `measure_and_reset_array` as the standard measurement behaviour is
-    already lazy.
-    """
+    """Alias for :py:func:`measure_and_reset_array`."""
     return array(lazy_measure_and_reset(qubits[i]) for i in range(N))
 
 
@@ -299,8 +320,8 @@ def lazy_measure_and_reset_array(
 def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
     """PhasedX operation from the qsystem sol extension.
 
-    See ``guppylang.std.qsystem.sol.phased_x`` for a public definition that
-    accepts angle parameters.
+    See :py:func:`guppylang.std.qsystem.sol.phased_x` for a public definition
+    that accepts angle parameters.
     """
 
 
@@ -309,8 +330,8 @@ def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
 def _phased_xx(q1: qubit, q2: qubit, angle1: float, angle2: float) -> None:
     """PhasedXX operation from the qsystem sol extension.
 
-    See ``guppylang.std.qsystem.sol.phased_xx`` for a public definition that
-    accepts angle parameters.
+    See :py:func:`guppylang.std.qsystem.sol.phased_xx` for a public definition
+    that accepts angle parameters.
     """
 
 
@@ -319,6 +340,6 @@ def _phased_xx(q1: qubit, q2: qubit, angle1: float, angle2: float) -> None:
 def _rz(q: qubit, angle: float) -> None:
     """Rz operation from the qsystem sol extension.
 
-    See ``guppylang.std.qsystem.sol.rz`` for a public definition that
+    See :py:func:`guppylang.std.qsystem.sol.rz` for a public definition that
     accepts angle parameters.
     """

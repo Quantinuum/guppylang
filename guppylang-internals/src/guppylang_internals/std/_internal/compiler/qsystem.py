@@ -2,6 +2,7 @@ from hugr import Wire
 from hugr import tys as ht
 from hugr.std.int import int_t
 
+from guppylang_internals.compiler.builder import pure
 from guppylang_internals.definition.custom import CustomInoutCallCompiler
 from guppylang_internals.definition.value import CallReturnWires
 from guppylang_internals.std._internal.compiler.arithmetic import inarrow_s, iwiden_s
@@ -19,8 +20,12 @@ class RandomIntCompiler(CustomInoutCallCompiler):
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [ctx] = args
         [rnd, ctx] = self.builder.add_op(
-            external_op("RandomInt", [], ext=QSYSTEM_RANDOM_EXTENSION)(
-                ht.FunctionType([RNGCONTEXT_T], [int_t(5), RNGCONTEXT_T]), (), self.ctx
+            pure(
+                external_op("RandomInt", [], ext=QSYSTEM_RANDOM_EXTENSION)(
+                    ht.FunctionType([RNGCONTEXT_T], [int_t(5), RNGCONTEXT_T]),
+                    (),
+                    self.ctx,
+                )
             ),
             ctx,
         )
@@ -36,10 +41,12 @@ class RandomIntBoundedCompiler(CustomInoutCallCompiler):
             self.builder, bound_sum, "bound must be a 32-bit integer"
         )
         [rnd, ctx] = self.builder.add_op(
-            external_op("RandomIntBounded", [], ext=QSYSTEM_RANDOM_EXTENSION)(
-                ht.FunctionType([RNGCONTEXT_T, int_t(5)], [int_t(5), RNGCONTEXT_T]),
-                (),
-                self.ctx,
+            pure(
+                external_op("RandomIntBounded", [], ext=QSYSTEM_RANDOM_EXTENSION)(
+                    ht.FunctionType([RNGCONTEXT_T, int_t(5)], [int_t(5), RNGCONTEXT_T]),
+                    (),
+                    self.ctx,
+                )
             ),
             ctx,
             bound,

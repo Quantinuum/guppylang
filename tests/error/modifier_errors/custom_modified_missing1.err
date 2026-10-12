@@ -1,0 +1,12 @@
+Error: Control constraint violation (at $FILE:21:4)
+   | 
+19 | @guppy(controllable=True)
+20 | def main(q: qubit) -> None:
+21 |     foo(q)
+   |     ^^^^^^ This function cannot be called in a controllable context
+
+Help: Consider adding the flag `(controllable=True)` to the decorator of the
+function `foo` or adding a custom `controlled` implementation using the
+`@guppy.unitary` decorator
+
+Guppy compilation failed due to 1 previous error

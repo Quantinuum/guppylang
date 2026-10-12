@@ -2,8 +2,15 @@
 
 from guppylang import guppy
 from guppylang.std.angles import angle
-from guppylang.std.builtins import control, dagger, power, qubit
+from guppylang.std.array import array
+from guppylang.std.builtins import control, dagger, nat, power, qubit
 from guppylang.std.quantum import discard, rx
+from guppylang_internals.metadata.common import (
+    ControlledImplementations,
+    CtrlDaggeredImplementations,
+    DaggeredImplementation,
+    NumControlQubits,
+)
 from guppylang_internals.tys.ty import UnitaryFlags
 from hugr.hugr.base import Hugr
 from hugr.ops import FuncDecl, FuncDefn
@@ -30,8 +37,9 @@ def test_unitary_metadata_dagger_only():
     @guppy
     def main() -> None:
         t = qubit()
+        a = angle(1 / 3)
         with dagger:
-            rx(t, angle(1 / 3))
+            rx(t, a)
         discard(t)
 
     # For test sake we need the original unmodified HUGR
@@ -59,10 +67,11 @@ def test_unitary_metadata_power_dagger_control(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
-        with power(3):  # noqa: SIM117
-            with dagger:
+        with power(3):
+            a = angle(1 / 3)
+            with dagger:  # noqa: SIM117
                 with control(c1):
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -83,10 +92,11 @@ def test_unitary_metadata_dagger_power_control(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with dagger:  # noqa: SIM117
             with power(3):
                 with control(c1):
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -107,10 +117,11 @@ def test_unitary_metadata_control_dagger_power(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with control(c1):  # noqa: SIM117
             with dagger:
                 with power(3):
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -131,10 +142,11 @@ def test_unitary_metadata_power_control_dagger(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with power(3):  # noqa: SIM117
             with control(c1):
                 with dagger:
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -155,10 +167,11 @@ def test_unitary_metadata_dagger_control_power(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with dagger:  # noqa: SIM117
             with control(c1):
                 with power(3):
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -179,10 +192,11 @@ def test_unitary_metadata_control_power_dagger(use_experimental_features):
     def main() -> None:
         c1 = qubit()
         t = qubit()
+        a = angle(1 / 3)
         with control(c1):  # noqa: SIM117
             with power(3):
                 with dagger:
-                    rx(t, angle(1 / 3))
+                    rx(t, a)
         discard(c1)
         discard(t)
 
@@ -241,3 +255,78 @@ def test_unitary_metadata_function_definition(use_experimental_features):
                 data.metadata[TketUnitaryFlags.KEY]
                 == expected_unitary_flags[data.op.f_name]
             )
+
+
+def test_custom_modifier_metadata():
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy
+    def main(
+        target: qubit,
+        control_one: qubit,
+        controls_two: array[qubit, 2],
+        controls_three: array[qubit, 3],
+    ) -> None:
+        with dagger:
+            custom_gate(target)
+        with control(control_one):
+            custom_gate(target)
+        with control(controls_two):
+            custom_gate(target)
+        with control(control_one), dagger:
+            custom_gate(target)
+        with control(controls_three), dagger:
+            custom_gate(target)
+
+    hugr = main.with_minimal_opt().compile_function().modules[0]
+    metadata_by_link_name = {
+        data.op.f_name: data.metadata
+        for _, data in hugr.nodes()
+        if isinstance(data.op, FuncDefn)
+    }
+
+    custom_keys = {
+        DaggeredImplementation.KEY,
+        ControlledImplementations.KEY,
+        CtrlDaggeredImplementations.KEY,
+    }
+    [unmodified_metadata] = [
+        metadata
+        for metadata in metadata_by_link_name.values()
+        if all(key in metadata for key in custom_keys)
+    ]
+
+    daggered_link = unmodified_metadata[DaggeredImplementation.KEY]
+    assert isinstance(daggered_link, str)
+    assert NumControlQubits.KEY not in metadata_by_link_name[daggered_link]
+
+    controlled_links = unmodified_metadata[ControlledImplementations.KEY]
+    assert isinstance(controlled_links, list)
+    assert all(isinstance(link, str) for link in controlled_links)
+    assert [
+        metadata_by_link_name[link][NumControlQubits.KEY] for link in controlled_links
+    ] == [1, 2]
+
+    ctrl_daggered_links = unmodified_metadata[CtrlDaggeredImplementations.KEY]
+    assert isinstance(ctrl_daggered_links, list)
+    assert all(isinstance(link, str) for link in ctrl_daggered_links)
+    assert [
+        metadata_by_link_name[link][NumControlQubits.KEY]
+        for link in ctrl_daggered_links
+    ] == [1, 3]

@@ -2,9 +2,9 @@ import ast
 import keyword
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic, TypeVar
+from typing import ClassVar, TypeVar
 
-from hugr import Wire, ops
+from hugr import Wire
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.core import Globals
@@ -12,6 +12,7 @@ from guppylang_internals.checker.errors.generic import (
     UnexpectedError,
     UnsupportedError,
 )
+from guppylang_internals.compiler.builder.ops import tag
 from guppylang_internals.compiler.core import GlobalConstId
 from guppylang_internals.definition.common import (
     CheckableDef,
@@ -23,7 +24,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.custom import (
     CustomCallCompiler,
     CustomFunctionDef,
-    DefaultCallChecker,
+    OwnedArgumentsCallChecker,
 )
 from guppylang_internals.definition.ty import TypeDef
 from guppylang_internals.definition.util import (
@@ -33,12 +34,17 @@ from guppylang_internals.definition.util import (
     UncheckedField,
     check_not_recursive,
     extract_generic_params,
+    is_guppy_unitary,
     parse_py_class,
 )
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.engine import DEF_STORE
 from guppylang_internals.error import GuppyError, InternalGuppyError
-from guppylang_internals.span import SourceMap
+from guppylang_internals.span import (
+    SourceMap,
+    extract_header_span,
+)
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -66,7 +72,8 @@ class DuplicateVariantError(Error):
 class VariantFormHint(Help):
     message: ClassVar[str] = (
         "Enums can only contain variants of the form "
-        '`VariantName = {{"var1": Type1, ...}}` or `@guppy` annotated methods'
+        '`VariantName = {{"var1": Type1, ...}}`, `@guppy` annotated methods or '
+        "`@guppy.unitary` classes"
     )
 
 
@@ -74,7 +81,7 @@ F = TypeVar("F", UncheckedField, CheckedField)
 
 
 @dataclass(frozen=True)
-class EnumVariant(Generic[F]):
+class EnumVariant[F]:
     index: int
     name: str
     fields: Sequence[F]
@@ -97,19 +104,20 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Look for generic parameters from Python 3.12 style syntax
         params = extract_generic_params(cls_def, self.name, globals, "Enum")
 
+        from guppylang.defs import GuppyDefinition
+
         # We look for variants in the class body
         variants: dict[str, EnumVariant[UncheckedField]] = {}
-        used_func_names: dict[str, ast.FunctionDef] = {}
+        used_func_names: dict[str, ast.FunctionDef | ast.ClassDef] = {}
         variant_index = 0
         for i, node in enumerate(cls_def.body):
             match i, node:
-                # TODO: do we allow `pass` statements to define empty enum?
                 case _, ast.Pass():
                     pass
                 # Docstrings are also fine if they occur at the start
                 case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                     pass
-                case _, ast.FunctionDef(name=name) as node:
+                case _, ast.FunctionDef(name=name) | ast.ClassDef(name=name) as node:
                     used_func_names[name] = node
                 # Enum variants are declared via a dictionary, where keys are the
                 # variant fields and values are types:
@@ -175,21 +183,28 @@ class RawEnumDef(TypeDef, ParsableDef, UserProvidedLinkName):
         # Ensure that functions do not override enum variants
         # and that all functions are Guppy functions
         for func_name, func_def in used_func_names.items():
-            from guppylang.defs import GuppyDefinition
-
+            header_span = extract_header_span(func_def)
             if func_name in variants:
                 raise GuppyError(
-                    DuplicateVariantError(
-                        used_func_names[func_name], self.name, func_name
-                    )
+                    DuplicateVariantError(header_span, self.name, func_name)
                 )
+
             v = getattr(self.python_class, func_name)
-            if not isinstance(v, GuppyDefinition):
-                raise GuppyError(
-                    NonGuppyMethodError(
-                        func_def, self.name, func_name, "enum", "@guppy"
+            match func_def:
+                case ast.FunctionDef() if not isinstance(v, GuppyDefinition):
+                    raise GuppyError(
+                        NonGuppyMethodError(
+                            header_span, self.name, func_name, "enum", "@guppy"
+                        )
                     )
-                )
+                case ast.ClassDef() if not is_guppy_unitary(v):
+                    err = UnexpectedError(
+                        header_span,
+                        "statement",
+                        unexpected_in="enum definition",
+                    )
+                    err.add_sub_diagnostic(VariantFormHint(None))
+                    raise GuppyError(err)
 
         link_name_prefix = (
             self._user_set_link_name
@@ -285,7 +300,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 assert isinstance(inst_enum_type, EnumType)  # for mypy
                 return list(
                     self.builder.add_op(
-                        ops.Tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
+                        tag(self.variant_idx, inst_enum_type.to_hugr(self.ctx)),
                         *wires,
                     )
                 )
@@ -313,12 +328,14 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 name=variant_name,
                 defined_at=self.defined_at,
                 ty=constructor_sig,
-                call_checker=DefaultCallChecker(),
+                is_static=True,
+                call_checker=OwnedArgumentsCallChecker(),
                 call_compiler=ConstructorCompiler(variant.index, enum_type),
                 higher_order_value=True,
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,
                 has_var_args=False,
+                effects=[Effect.ANY],
             )
             variants_constructors.append(constructor_def)
 

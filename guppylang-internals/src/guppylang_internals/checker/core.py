@@ -1,30 +1,29 @@
 import ast
 import copy
 import itertools
-from collections.abc import Iterable, Iterator
+from collections.abc import Hashable, Iterable, Iterator
 from dataclasses import dataclass, field, replace
 from functools import cache, cached_property
 from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Generic,
     NamedTuple,
-    TypeAlias,
-    TypeVar,
+    assert_never,
     overload,
 )
 
-from typing_extensions import assert_never
-
 from guppylang_internals.ast_util import AstNode, name_nodes_in_ast
-from guppylang_internals.cfg.bb import VId
+from guppylang_internals.checker.modifier import (
+    NO_CALL_MODIFIERS,
+    ModifierContext,
+)
 from guppylang_internals.definition.common import (
     DefId,
     Definition,
     ParsedDef,
 )
-from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE
+from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import BoundConstVar, ConstValue, ExistentialConstVar
@@ -49,12 +48,10 @@ if TYPE_CHECKING:
 #:
 #: All places are equipped with a unique id, a type and an optional definition AST
 #: location. During linearity checking, they are tracked separately.
-Place: TypeAlias = "Variable | FieldAccess | SubscriptAccess | TupleAccess"
+type Place = "Variable | FieldAccess | SubscriptAccess | TupleAccess"
 
 #: Unique identifier for a `Place`.
-PlaceId: TypeAlias = (
-    "Variable.Id | FieldAccess.Id | SubscriptAccess.Id | TupleAccess.Id"
-)
+type PlaceId = "Variable.Id | FieldAccess.Id | SubscriptAccess.Id | TupleAccess.Id"
 
 
 @dataclass(frozen=True)
@@ -100,8 +97,12 @@ class Variable:
         return replace(self, defined_at=node)
 
     def add_flags(self, flags: InputFlags) -> "Variable":
-        """Returns a new `Variable` instance with updated flags."""
+        """Returns a new `Variable` instance with added flags."""
         return replace(self, flags=self.flags | flags)
+
+    def remove_flags(self, flags: InputFlags) -> "Variable":
+        """Returns a new `Variable` instance with removed flags"""
+        return replace(self, flags=self.flags & ~flags)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -386,11 +387,8 @@ class Globals:
                 return assert_never(x)
 
 
-V = TypeVar("V")
-
-
 @dataclass
-class Locals(Generic[VId, V]):
+class Locals[VId: Hashable, V]:
     """Scoped mapping from program variable ids to the corresponding program variable.
 
     Depending on which checking phase we are in (type checking or linearity checking),
@@ -449,6 +447,14 @@ class Context(NamedTuple):
     generic_param_inst: dict[str, Argument]
     modified_block_name_base: str = ""
     modified_block_counter: Iterator[int] | None = None
+
+    """If not None, the call graph node for the function being checked, which also
+    stores the effect constraints that function calls in this context must respect,
+    together with the AST node that gives rise to said constraint."""
+    current_caller: MonoDefId | None = None
+
+    #: Active modifiers the function is being called with
+    modifier_ctx: ModifierContext = NO_CALL_MODIFIERS
 
     @property
     def parsing_ctx(self) -> "TypeParsingCtx":

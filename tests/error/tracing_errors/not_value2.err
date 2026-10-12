@@ -7,6 +7,6 @@ Error: Error in comptime function return (at $FILE:10:0)
 11 |     return E
    | ^^^^^^^^^^^^
 
-Type `E` is not a value
+Type `E` has no constructor and cannot be instantiated
 
 Guppy compilation failed due to 1 previous error

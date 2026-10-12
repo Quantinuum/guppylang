@@ -1,0 +1,8 @@
+Error: Attribute not found (at $FILE:23:13)
+   | 
+21 |     # ordinary "attribute not found on nat" error rather than being misdiagnosed as
+22 |     # an instance method called on the (unrelated, shadowed) struct class.
+23 |     MyStruct.foo()
+   |              ^^^ `nat` has no attribute `foo`
+
+Guppy compilation failed due to 1 previous error

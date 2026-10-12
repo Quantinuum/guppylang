@@ -41,26 +41,6 @@ class TypeMismatchError(Error):
 
 
 @dataclass(frozen=True)
-class UnitaryFlagMismatchError(Error):
-    title: ClassVar[str] = "Unitary flag mismatch"
-    span_label: ClassVar[str] = (
-        "Expected function with unitary flags: `{rendered_expected}`,"
-        " got: `{rendered_actual}`"
-    )
-
-    expected: UnitaryFlags
-    actual: UnitaryFlags
-
-    @property
-    def rendered_expected(self) -> str:
-        return self.expected.hint_rendering()
-
-    @property
-    def rendered_actual(self) -> str:
-        return self.actual.hint_rendering()
-
-
-@dataclass(frozen=True)
 class UnitaryFlagMismatchHint(Note):
     expected: UnitaryFlags
     actual: UnitaryFlags
@@ -72,12 +52,16 @@ class UnitaryFlagMismatchHint(Note):
 
         if self.actual == UnitaryFlags.NoFlags:
             return (
-                f"Function `{self.name}` is not declared as "
-                f"`{self.expected.hint_rendering()}`"
+                f"Function `{self.name}` is not {self.expected.context()}. Consider "
+                f"declaring it with `{self.expected.hint_rendering()}` or adding "
+                f"{self.expected.custom_hint_rendering()}"
             )
+        missing = self.expected & ~self.actual
         return (
-            f"Function `{self.name}` is only declared as "
-            f"`{self.actual.hint_rendering()}`"
+            f"Function `{self.name}` is only "
+            f"{self.actual.context()}. Consider declaring it with "
+            f"`{missing.hint_rendering()}` or adding "
+            f"{missing.custom_hint_rendering()}"
         )
 
 
@@ -200,6 +184,29 @@ class AttributeNotFoundError(Error):
                 return "method"
         else:
             return "attribute"
+
+
+@dataclass(frozen=True)
+class InstanceMemberOnClassError(Error):
+    title: ClassVar[str] = "Instance {member_kind} accessed on class"
+    span_label: ClassVar[str] = (
+        "`{attribute}` is an instance {member_kind} of `{ty_name}`, not a "
+        "static {member_kind}"
+    )
+    ty_name: str
+    attribute: str
+    member_kind: str  # "method" or "field"
+
+
+@dataclass(frozen=True)
+class CallOnInstanceHelp(Help):
+    message: ClassVar[str] = (
+        "`{member_name}` is an instance {member_kind}. "
+        "Maybe you meant to access it on an instance, e.g. `{example}`?"
+    )
+    member_kind: str  # "method" or "field"
+    member_name: str
+    example: str
 
 
 @dataclass(frozen=True)

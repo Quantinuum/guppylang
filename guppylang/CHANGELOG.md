@@ -12,7 +12,314 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 ## Versioning Policy
 
-As of August 2025, The Guppy language is undergoing rapid development and is currently unstable. There is a Guppy v1.0 stability [milestone](https://github.com/quantinuum/guppylang/milestone/12) that is a work in progress and subject to change.
+As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#101-2026-08-03).
+
+## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.2...guppylang-v1.1.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* Infer type variables in higher order generic modifier arguments (#2402)([4f3ec86](https://github.com/Quantinuum/guppylang/commit/4f3ec86a70404a3c517d75e110a1af8f247110e9))
+* Resolve instance methods from generic protocol bounds (#2401)([602f1bd](https://github.com/Quantinuum/guppylang/commit/602f1bd6f2555cf594f46891bba18526e3d46984))
+* Resolve enclosing-scope names in `@guppy.unitary` methods (#2389)([cbcd28c](https://github.com/Quantinuum/guppylang/commit/cbcd28c7972f3dc24f44061998371ba4b7b67834))
+
+
+## [1.1.2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.1...guppylang-v1.1.2) (2026-09-29)
+
+### Bug Fixes
+
+* Bad span in diagnostic when missing a return in a walrus loop condition (#2380)([da8668b](https://github.com/Quantinuum/guppylang/commit/da8668bf253f7afa8362ddc5277e306a8215897f))
+* Calling generic functions inside a `with control` flow failed to compile (#2379)([fd78419](https://github.com/Quantinuum/guppylang/commit/fd784190b21da37003183a506a1acec99a4463c4))
+* Local variables being shadowed by global definitions (#2378)([d253322](https://github.com/Quantinuum/guppylang/commit/d253322bd9d0c4b896ebd84944a7312eee6971f1))
+
+
+## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.0-rc0...guppylang-v1.1.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* Compilation error with classical `array.take`  (#2330)([c33a3bd](https://github.com/Quantinuum/guppylang/commit/c33a3bd1840c2b73e5ee0a40720ca4dfe24cd697))
+* Hide trace in @guppy.unitary decorator error (#2325)([97a3463](https://github.com/Quantinuum/guppylang/commit/97a3463c637516838a61eb1cedb92667c1336068))
+* Reject unsupported statements in `@guppy.unitary` classes (#2312)([7d91c17](https://github.com/Quantinuum/guppylang/commit/7d91c17243becdc914e5d68da2b9b5325386ed66))
+
+
+### Features
+
+* Accept bytes into emulator builder (#2315)([a9e93a2](https://github.com/Quantinuum/guppylang/commit/a9e93a261cc03dea2bc04db5e9cd419aef17672d))
+
+
+## [1.1.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.4...guppylang-v1.1.0-rc0) (2026-09-09)
+
+Note: With #2294 we have raised the minimum supported version of the `selene-hugr-qis-compiler` to `v0.5.0`, which has
+changed the default seeding behaviour and may result in different outputs. Pass `mode=legacy` when building the emulator
+to restore the original seeding behaviour.
+
+### Bug Fixes
+
+* Order RNG context lifetimes with effects (#2234)([790bbd3](https://github.com/Quantinuum/guppylang/commit/790bbd3492481a95db67c4bb006e48b444d1f0c5))
+* Unsupported inheritance error for guppy-defined bases (#2211)([5fb7ce4](https://github.com/Quantinuum/guppylang/commit/5fb7ce4610e8c7aed8595332b3e35f01f42f7ef6))
+
+
+### Documentation
+
+* More specific std.qsystem documentation including ion identity (#2105)([91eeb62](https://github.com/Quantinuum/guppylang/commit/91eeb62ef4a7626b275be6ef38689e767b3d9bc5))
+* Document expected qubits in emulator API (#2099)([d182404](https://github.com/Quantinuum/guppylang/commit/d182404fb0d1b87b88016745a70675a4e380a040))
+
+
+### Features
+
+* Compilation for custom modifier implementations (#2274)([79478f3](https://github.com/Quantinuum/guppylang/commit/79478f3ec31e02d3b957942d837b501c79f92d1f))
+* Enable panic stack traces in the emulator (#2271)([38538ff](https://github.com/Quantinuum/guppylang/commit/38538ff9208e81d233eddd74c269e03b293e0565))
+* Upgrade to qis-compiler v0.5.0 and selene-sim v0.3.1 (#2294)([c698034](https://github.com/Quantinuum/guppylang/commit/c698034c5ea8eb812a130bfbba1e67de72f02ac5))
+* Support static methods on types (#1699)([702bcb0](https://github.com/Quantinuum/guppylang/commit/702bcb09d2aae7c918c0311c6ff4bc5ed6abdb45))
+* Analyse call graph and use it to infer effects to reduce order edges (#2035)([58b8e28](https://github.com/Quantinuum/guppylang/commit/58b8e2897b3a3fc56c94c52716c5a4e8144c15a8))
+* Checking for custom modifier implementations (#2192)([b96b18f](https://github.com/Quantinuum/guppylang/commit/b96b18fea772671f1d89747369e0ed25e9cd2920))
+* Allow default running optimization level without pytket (#2246)([1f76a78](https://github.com/Quantinuum/guppylang/commit/1f76a7894efbc90e4656bd9738d526fffcf9e14d))
+* Add traces and metrics to EmulatorResult (#2233)([6965a57](https://github.com/Quantinuum/guppylang/commit/6965a5757bbc7b15c0f4582320e07898e5b99f07))
+* Add @inline decorator (#1976)([0f79ee4](https://github.com/Quantinuum/guppylang/commit/0f79ee49fa367a2991b3dfa6c30dcf2a35a28dfa))
+* Add target platform configuration for optimizer and emulator (#2180)([20a7af6](https://github.com/Quantinuum/guppylang/commit/20a7af6def72f047977d8af2f70eb462e5ad34f2))
+* Add `Range.__reversed__ ` and panic on range step=0 (#2092)([801aa64](https://github.com/Quantinuum/guppylang/commit/801aa640bdeebbad776d09f0fe7075cb85b1aa4c))
+* Make `__truediv__` daggerable (#2176)([edd3417](https://github.com/Quantinuum/guppylang/commit/edd34171996d16f6aeafc77fbb463146b8a62a22))
+* Add optional `debug_mode` argument to `compile` and `emulator` (#2126)([bb886d2](https://github.com/Quantinuum/guppylang/commit/bb886d296922ac878c73b98a9f884ac3a54ca575))
+* Add in-place array reverse (#1949)([6433f28](https://github.com/Quantinuum/guppylang/commit/6433f284d442b957b90b0efc50c79c9f9c1685f5))
+
+
+## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.3...guppylang-v1.0.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* Round floats with a tie-break to even instead of away from zero (#2293)([1da77fa](https://github.com/Quantinuum/guppylang/commit/1da77fa48d82b6e37cf24b2631e30fe635b5f7f3))
+
+
+### Performance Improvements
+
+* Upgrade hugr to v0.18.6, tket to v0.15.8, qis-compiler to v0.4.3 (#2289)([0345e72](https://github.com/Quantinuum/guppylang/commit/0345e729fb0b945be50ee0a4dc9e1b17ce05b4a1))
+
+## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.2...guppylang-v1.0.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* Raise minimum version of tket to 0.15.7 (#2266)([3733050](https://github.com/Quantinuum/guppylang/commit/3733050b9c6a0d16e4536ebfd068977d92f66524))
+
+
+### Documentation
+
+* Warn about using barrier with `state_output` (#2260)([a9ace7c](https://github.com/Quantinuum/guppylang/commit/a9ace7c43ede6fe839c2717ef15eca30c140a24a))
+* Fix emulator argument formatting (#2260)([a9ace7c](https://github.com/Quantinuum/guppylang/commit/a9ace7c43ede6fe839c2717ef15eca30c140a24a))
+
+
+### Features
+
+* Lower minimal numpy version to 2.2.6 (#2247)([e102475](https://github.com/Quantinuum/guppylang/commit/e102475799464154948ae36a9d2472dc3211d7ce))
+
+## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.1...guppylang-v1.0.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* Update `guppylang/pyproject.toml` to use the proper `README.md` (#2220)([5d16455](https://github.com/Quantinuum/guppylang/commit/5d1645599f7da775abf2f9b7e9d680d25a21997d))
+* Update broken v1 changelog links (#2167)([2c71962](https://github.com/Quantinuum/guppylang/commit/2c71962d4f7bd2782e917a57fe56c85107f5930f))
+* Improve error message for missing return annotations on nested functions (#2222)([f7e3648](https://github.com/Quantinuum/guppylang/commit/f7e36483b98d94f0de7f726da48bf20a71c58c06))
+
+
+### Documentation
+
+* State that `power` is experimental in the API docs (#2221)([37859fd](https://github.com/Quantinuum/guppylang/commit/37859fdb664043bd83f428ee04b79c52b1cad405))
+
+
+### Features
+
+* Make `__truediv__` daggerable (#2177)([f619ccd](https://github.com/Quantinuum/guppylang/commit/f619ccdfbbfdbe296be50d26a1d6bd7530e526d4))
+
+## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v0.21.16...guppylang-v1.0.1) (2026-08-03)
+
+Guppy v1 is the first stable release of the Guppy quantum programming language. It introduces several major new features alongside a number of breaking changes and new behaviours.
+
+While new features will still be added in subsequent minor versions and there may be changes to the standard library, the core language is now considered stable, meaning there won't be any changes to the syntax and semantics of core language constructs.
+
+This extended changelog intends to provide a convenient overview of major new features for Guppy v1. The standard detailed changelog for this specific release can be found at the end of it, and you may also be interested in the changelog for the release candidates and alpha releases. See the [language guide](https://docs.quantinuum.com/guppy/language_guide/language_guide_index.html) for detailed feature documentation.
+
+> To see just the breaking changes and instructions on how to update existing code, please see the [migration guide](https://docs.quantinuum.com/guppy/v1_migration.html).
+
+---
+
+### New quantum constructs
+
+#### A new `Measurement` type
+
+Guppy has a new dedicated [`Measurement`](https://docs.quantinuum.com/guppy/api/generated/guppylang.std.quantum.measure.html) type. Values returned from measurement functions now have this type instead of returning a `bool` directly. See the [language guide section on measurements](https://docs.quantinuum.com/guppy/language_guide/measurement.html) for the design rationale behind this and the relevant migration guide section [here](https://docs.quantinuum.com/guppy/v1_migration.html#the-stdquantummeasure-function-now-returns-a-measurement-rather-than-a-bool).
+
+#### Control and dagger modifiers
+
+Gates, blocks of quantum operations, and functions can now be transformed automatically using modifiers. Control makes each operation controlled with an additional control qubit input. Dagger reverses gate order and replaces each gate with its inverse.
+
+```python
+from guppylang.decorator import guppy
+from guppylang.std.quantum import s, qubit
+from guppylang.std.builtins import control, dagger
+
+ 
+@guppy
+def controlled_inverse(c: qubit, q: qubit) -> None:
+    with control(c), dagger:
+        s(q)
+```
+
+See the [modifier guide](https://docs.quantinuum.com/guppy/language_guide/modifiers/modifiers_index.html) for usage details and examples.
+
+### Extensions to the type system
+
+#### Protocols
+
+Protocols are a powerful way of constraining polymorphism: they let you define a set of required methods, and any type that implements all of them automatically satisfies the protocol.
+
+```python
+from typing import Self
+from guppylang.std.quantum import Measurement
+
+
+@guppy.protocol
+class Measurable:
+    @guppy.require
+    def measure(self: Self) -> Measurement: ...
+```
+
+Guppy v1 also introduces some special built-in protocols, namely `Callable` (see the [migration guide](https://docs.quantinuum.com/guppy/v1_migration.html#new-function-type-in-guppy-replacing-callable-in-annotations) for what this means for previous use of `Callable`).
+
+Read more about protocols in the [language guide](https://docs.quantinuum.com/guppy/language_guide/protocols.html).
+
+
+#### Structs are now mutable
+
+Structs are now mutable by default, also making them affine by default, see the relevant migration guide section [here](https://docs.quantinuum.com/guppy/v1_migration.html#guppy-structs-are-now-mutable-by-default).
+
+#### Type aliases
+
+Guppy now provides the ability to give an existing type another name using the `guppy.type_alias` function. Read more about type aliases in the [language guide](https://docs.quantinuum.com/guppy/language_guide/data_types/aliases.html).
+
+
+### Comptime improvements
+
+#### More support for generics
+
+Generic variables can now be used in the type signature of comptime functions. However, explicitly specifying type arguments for both functions and structs is not supported yet.
+
+Read more about [comptime](https://docs.quantinuum.com/guppy/language_guide/comptime.html) and [generics](https://docs.quantinuum.com/guppy/language_guide/static.html) in their respective language guide sections.
+
+#### Python variables are now captured implicitly
+
+The use of `comptime` (or `py`) is no longer required to pull in variables from Python code into Guppy code, these will be captured implicitly. Anything requiring any form of computation still requires the `comptime` keyword.
+
+### Performance
+
+#### A new optimisation interface
+
+It is now possible to specify the level of optimization to be run on Guppy programs by calling `with_opt_level` on the entrypoint function. Read more about the different available optimization levels and defaults [here](https://docs.quantinuum.com/guppy/api/optimizer.html).
+
+#### Runtime argument support in the emulator
+
+When using the emulator, it is now possible to compile a program once and re-run it for different parameters by using runtime arguments. Find out more about this [here](https://docs.quantinuum.com/guppy/api/emulator.html).
+
+### Changes to the Standard Library
+
+Besides the additions and changes mentioned below, there are some deprecations and renames which are listed in the [migration guide](https://docs.quantinuum.com/guppy/v1_migration.html).
+
+#### `std.qsystem` is now split into `helios` and `sol`
+
+Guppy v1 splits previous `std.qsystem` functionality into `std.qsystem.helios` and `std.qsystem.sol` modules, as well as adding compilation target platform configuration support. Read about the differences between the modules and how platform configuration affects emulator and compilation workflows in the [relevant documentation](https://docs.quantinuum.com/guppy/api/emulator.html).
+
+
+#### A new `std.random` module
+
+Alongside the platform random number generator (found in `std.qsystem.random`), Guppy now also offers a native implementation that stores state locally rather than globally. Read more about both forms of RNG in the [language guide](https://docs.quantinuum.com/guppy/language_guide/random.html).
+
+---
+
+
+### ⚠ BREAKING CHANGES
+
+* Stop treating protocol bounds as always copyable and droppable (#2142)
+* Type args to Either/Result factory methods `right`/`err` are now the same way round (#2139)
+
+
+### Bug Fixes
+
+* Make most builtin functions + struct constructors daggerable (#2151)([e7fbacb](https://github.com/Quantinuum/guppylang/commit/e7fbacb77aebd3f7fdc3276748caa77bf6602e9d))
+* Preserve generic parameters in modifier blocks  (#2146)([cfa9b98](https://github.com/Quantinuum/guppylang/commit/cfa9b98f8318f340cdaca42bd5193e91d9580b3c))
+* Correctly parse modifier protocol bounds  (#2144)([c49798b](https://github.com/Quantinuum/guppylang/commit/c49798b9cfaeca7e61010f5a82f47457687c4d10))
+* Stop treating protocol bounds as always copyable and droppable (#2142)([6f4fbab](https://github.com/Quantinuum/guppylang/commit/6f4fbab85106f73132c8cad72ff1cb6975f0cb3e))
+* Type args to Either/Result factory methods `right`/`err` same way round (#2139)([09f6baf](https://github.com/Quantinuum/guppylang/commit/09f6bafe3d1ca8e77ea33cd583a7c3455ab7c042))
+* Correctly derive linearity of structs from their fields  (#2135)([ccd42a9](https://github.com/Quantinuum/guppylang/commit/ccd42a957a41890e2000cfea107c9e8ec721cfd4))
+* Fix comptime inout updates for `state_output` (and other custom) functions (#2132)([4fbd07a](https://github.com/Quantinuum/guppylang/commit/4fbd07a47a3274a841ad29df30c9fe369d7a6a9f))
+* Unitary checker skips invalid function calls in arguments (#2131)([524a11c](https://github.com/Quantinuum/guppylang/commit/524a11c734d812bb3503c6e84b715dca3f65f3d6))
+
+
+### Documentation
+
+* Address missing API docs members from the std.collections module (#2145)([ef7fed9](https://github.com/Quantinuum/guppylang/commit/ef7fed93ed30e484878ffea486ff69d7e6a9d6e4))
+* Fix broken code blocks in emulator docs (#2150)([b559728](https://github.com/Quantinuum/guppylang/commit/b559728de34affc4f71912acc656d9e03fea196b))
+* Add entrypoint arguments and target platform to emulator docs (#2143)([8b4994f](https://github.com/Quantinuum/guppylang/commit/8b4994f77235fa4cde766f0db85b46bb37539c45))
+* Add optimization module docs  (#2136)([2e93541](https://github.com/Quantinuum/guppylang/commit/2e93541126306c6248f3a3ddaabf1cf06a87cbef))
+
+
+### Features
+
+* Add RemoveRedundancies pass to default compilation (#2148)([8f29b43](https://github.com/Quantinuum/guppylang/commit/8f29b43a714f87879ed841bd4d34de244bc6eff7))
+
+## [1.0.0-rc2](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc1...guppylang-v1.0.0-rc2) (2026-07-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)
+
+
+### Bug Fixes
+
+* Fix diagnostics rendering for type aliases in Jupyter notebooks (#2056)([f5d87fc](https://github.com/Quantinuum/guppylang/commit/f5d87fc468a0fec364a032a8e5147b58aad39451))
+* Disallow Callable as return type (#2054)([d531d95](https://github.com/Quantinuum/guppylang/commit/d531d95faadfcd407830c78dc0fb4ce5e4497bbd))
+
+
+### Features
+
+* Update tket to `0.15.4` (#2072)([f34cf4b](https://github.com/Quantinuum/guppylang/commit/f34cf4bf8513159038faa9594c2477bac355d877))
+* Update hugr to `0.18.2` (#2064)([a3e80a5](https://github.com/Quantinuum/guppylang/commit/a3e80a5b0245b89eae10bda3170d6a7011a30344))
+* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)([61044cb](https://github.com/Quantinuum/guppylang/commit/61044cb9d55e0e2c82b51b0abd44682dc0d6b5df))
+* Emit hint when branch type mismatch can be fixed via coercions (#2055)([86d5814](https://github.com/Quantinuum/guppylang/commit/86d5814af5aad411100acd8405d59b697bf8b90c))
+
+## [1.0.0-rc1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-rc0...guppylang-v1.0.0-rc1) (2026-07-07)
+
+
+### Bug Fixes
+
+* Remove dagger flags cancellation inside `daggerable` functions (#2020)([e515ab5](https://github.com/Quantinuum/guppylang/commit/e515ab5c45356185d8c8c4002aaa7033783622bb))
+* Make auto type params for protocol bounds unique (#2012)([b2c4e96](https://github.com/Quantinuum/guppylang/commit/b2c4e96275a4b8f576802752ee3ac1ddd50a2772))
+
+### Documentation
+
+* Correct formatting in docstrings for GuppyLibrary and EmulatorBuilder (#2019)([29ef921](https://github.com/Quantinuum/guppylang/commit/29ef92190afc06a7fd5873bfef509c54acfc4b30))
+
+## [1.0.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a8...guppylang-v1.0.0-rc0) (2026-07-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Drop support for Python 3.10 and 3.11 (#1985)
+* Remove `max_qubits` from `GuppyKwargs` TypedDict (#1977)
+* Optimization is now enabled by default in compilation workflows (#1885)
+
+
+### Code Refactoring
+
+* Remove `max_qubits` from `GuppyKwargs` TypedDict (#1977)([b5ca042](https://github.com/Quantinuum/guppylang/commit/b5ca042bcaa56c8fa7ffa4bdef0c17ef34d464f9))
+
+
+### Features
+
+* Drop support for Python 3.10 and 3.11 (#1985)([9e3e543](https://github.com/Quantinuum/guppylang/commit/9e3e54395c791ea4c869ba995bbb0f175643b92f))
+* Allow setting optimization level (#1885)([90bd0f7](https://github.com/Quantinuum/guppylang/commit/90bd0f78bcccf77d5501aa5894578d61250e6ad8))
 
 ## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.0-a7...guppylang-v1.0.0-a8) (2026-06-30)
 
@@ -577,7 +884,7 @@ main.compile()
 ### ⚠ BREAKING CHANGES
 
 * Bools in HUGRs generated by Guppy are represented using a `tket2.bool` instead of the HUGR sum type
-* deprecated `hresult` and `qsys_result` modules have been removed. Use `hugr.qysystem.result` directly.
+* deprecated `hresult` and `qsys_result` modules have been removed. Use `hugr.qsystem.result` directly.
 * Generated HUGRs now refer to entrypoints and are always modules in envelopes.
 
 ### Features
@@ -866,7 +1173,7 @@ main.compile()
 ### Features
 
 * Allow py expressions in type arguments ([#515](https://github.com/quantinuum/guppylang/issues/515)) ([b4fae3f](https://github.com/quantinuum/guppylang/commit/b4fae3f7a29b384f8bbe0069dc6131ec115e17ee))
-* remove python python 3 upper bound (support python 3.13) ([#578](https://github.com/quantinuum/guppylang/issues/578)) ([73bb94a](https://github.com/quantinuum/guppylang/commit/73bb94a76731afff7edfce681b556122fef486c7)), closes [#558](https://github.com/quantinuum/guppylang/issues/558)
+* remove python 3 upper bound (support python 3.13) ([#578](https://github.com/quantinuum/guppylang/issues/578)) ([73bb94a](https://github.com/quantinuum/guppylang/commit/73bb94a76731afff7edfce681b556122fef486c7)), closes [#558](https://github.com/quantinuum/guppylang/issues/558)
 
 
 ### Bug Fixes
@@ -1151,7 +1458,7 @@ main.compile()
 
 * Use `release-please bootstrap`'s default config ([#187](https://github.com/quantinuum/guppylang/issues/187)) ([72e666a](https://github.com/quantinuum/guppylang/commit/72e666af5a52c44a4094080a665342422a242d2b))
 
-## [0.1.0](https://github.com/quantinuum/guppy/releases/tag/v0.1.0)
+## [0.1.0](https://github.com/quantinuum/guppylang/releases/tag/v0.1.0)
 
 First release of Guppy! 🐟
 

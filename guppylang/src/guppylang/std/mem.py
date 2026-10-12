@@ -5,6 +5,7 @@ from typing import no_type_check
 from guppylang_internals.decorator import custom_function
 from guppylang_internals.std._internal.compiler.mem import WithOwnedCompiler
 from guppylang_internals.std._internal.compiler.prelude import MemSwapCompiler
+from guppylang_internals.tys import Effect
 
 from guppylang import guppy
 from guppylang.std.lang import Function, owned
@@ -19,7 +20,9 @@ def mem_swap(x: T, y: T) -> None:
     """Swaps the values of two variables."""
 
 
-@custom_function(WithOwnedCompiler())
+# For now we conservatively assume that any `Function` may have any effect.
+# Otherwise we would somehow have to plumb through the effects of parameter `f`.
+@custom_function(WithOwnedCompiler(), effects=[Effect.ANY])
 @no_type_check
 def with_owned(val: T, f: Function[[T @ owned], tuple[Out, T]]) -> Out:
     """Runs a closure where the borrowed argument is promoted to an owned one.

@@ -1,0 +1,17 @@
+Error: Expected return statement (at $FILE:5:4)
+  | 
+3 | @compile_guppy
+4 | def while_loop(b: bool) -> int:
+5 |     while (b := b):
+  |     ^^^^^^^^^^^^^^^
+6 |         return 0
+  | ^^^^^^^^^^^^^^^^ Expected return statement
+
+Note:
+  | 
+4 | def while_loop(b: bool) -> int:
+5 |     while (b := b):
+  |            ------ Consider adding a return statement if this expression is
+  |                   `False`
+
+Guppy compilation failed due to 1 previous error

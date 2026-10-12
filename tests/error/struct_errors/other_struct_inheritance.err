@@ -1,0 +1,8 @@
+Error: Unsupported (at $FILE:9:18)
+  | 
+7 | 
+8 | @guppy.struct
+9 | class OtherStruct(MyStruct):
+  |                   ^^^^^^^^ Struct inheritance is not supported
+
+Guppy compilation failed due to 1 previous error

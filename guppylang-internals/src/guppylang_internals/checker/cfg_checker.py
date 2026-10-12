@@ -9,7 +9,7 @@ import collections
 import itertools
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic, TypeVar
+from typing import ClassVar
 
 from guppylang_internals.ast_util import line_col
 from guppylang_internals.cfg.bb import BB
@@ -20,7 +20,6 @@ from guppylang_internals.checker.core import (
     Globals,
     Locals,
     Place,
-    V,
     Variable,
 )
 from guppylang_internals.checker.expr_checker import (
@@ -28,17 +27,27 @@ from guppylang_internals.checker.expr_checker import (
     coerces_to,
     to_bool,
 )
+from guppylang_internals.checker.modifier import (
+    NO_CALL_MODIFIERS,
+    ModifierContext,
+)
 from guppylang_internals.checker.stmt_checker import StmtChecker
 from guppylang_internals.diagnostic import Error, Help, Note
+from guppylang_internals.engine import MonoDefId
 from guppylang_internals.error import GuppyError
 from guppylang_internals.tys.arg import Argument
-from guppylang_internals.tys.ty import FunctionDefType, InputFlags, Type
+from guppylang_internals.tys.ty import (
+    FunctionDefType,
+    InputFlags,
+    NestedFunctionDefType,
+    Type,
+)
 
-Row = Sequence[V]
+type Row[V] = Sequence[V]
 
 
 @dataclass(frozen=True)
-class Signature(Generic[V]):
+class Signature[V]:
     """The signature of a basic block.
 
     Stores the input/output variables with their types. Generic over the representation
@@ -56,7 +65,7 @@ class Signature(Generic[V]):
 
 
 @dataclass(eq=False)  # Disable equality to recover hash from `object`
-class CheckedBB(BB, Generic[V]):
+class CheckedBB[V](BB):
     """Basic block annotated with an input and output type signature.
 
     The signature is generic over the representation of program variables.
@@ -65,7 +74,7 @@ class CheckedBB(BB, Generic[V]):
     sig: Signature[V] = field(default_factory=Signature.empty)
 
 
-class CheckedCFG(BaseCFG[CheckedBB[V]], Generic[V]):
+class CheckedCFG[V](BaseCFG[CheckedBB[V]]):
     input_tys: list[Type]
     output_ty: Type
 
@@ -82,6 +91,8 @@ def check_cfg(
     generic_args: dict[str, Argument],
     func_name: str,
     globals: Globals,
+    current_caller: MonoDefId,
+    modifier_ctx: ModifierContext = NO_CALL_MODIFIERS,
     first_modifier_node: ast.expr | None = None,
     modified_block_name_base: str | None = None,
     modified_block_counter: Iterator[int] | None = None,
@@ -121,6 +132,8 @@ def check_cfg(
         globals,
         modified_block_name_base,
         modified_block_counter,
+        current_caller=current_caller,
+        modifier_ctx=modifier_ctx,
     )
     compiled = {cfg.entry_bb: checked_cfg.entry_bb}
 
@@ -155,6 +168,8 @@ def check_cfg(
                 globals,
                 modified_block_name_base,
                 modified_block_counter,
+                current_caller=current_caller,
+                modifier_ctx=modifier_ctx,
             )
             queue += [
                 # We enumerate the successor starting from the back, so we start with
@@ -235,8 +250,14 @@ class BranchTypeError(Error):
 
     @dataclass(frozen=True)
     class TypeHint(Note):
-        span_label: ClassVar[str] = "This is of type `{ty}`"
+        var: str
         ty: Type
+
+        @property
+        def rendered_span_label(self) -> str:
+            if isinstance(self.ty, NestedFunctionDefType):
+                return f"This is a distinct function `{self.var}` of type `{self.ty}`"
+            return f"This is of type `{self.ty}`"
 
     @dataclass(frozen=True)
     class CoerceOneHint(Help):
@@ -292,6 +313,8 @@ def check_bb(
     globals: Globals,
     modified_block_name_base: str,
     modified_block_counter: Iterator[int],
+    current_caller: MonoDefId,
+    modifier_ctx: ModifierContext,
 ) -> CheckedBB[Variable]:
     cfg = bb.containing_cfg
 
@@ -322,6 +345,8 @@ def check_bb(
         generic_args,
         modified_block_name_base=modified_block_name_base,
         modified_block_counter=modified_block_counter,
+        current_caller=current_caller,
+        modifier_ctx=modifier_ctx,
     )
     checked_stmts = StmtChecker(ctx, bb, return_ty).check_stmts(bb.statements)
 
@@ -425,8 +450,12 @@ def check_rows_match(row1: Row[Variable], row2: Row[Variable], bb: BB) -> None:
             # We don't add a location to the type hint for the global variable,
             # since it could lead to cross-file diagnostics (which are not
             # supported) or refer to long function definitions.
-            err.add_sub_diagnostic(BranchTypeError.TypeHint(v1.defined_at, v1.ty))
-            err.add_sub_diagnostic(BranchTypeError.TypeHint(v2.defined_at, v2.ty))
+            err.add_sub_diagnostic(
+                BranchTypeError.TypeHint(v1.defined_at, v1.name, v1.ty)
+            )
+            err.add_sub_diagnostic(
+                BranchTypeError.TypeHint(v2.defined_at, v2.name, v2.ty)
+            )
             if hint := maybe_coerce_hint(v1, v2):
                 err.add_sub_diagnostic(hint)
             raise GuppyError(err)
@@ -483,10 +512,7 @@ def diagnose_maybe_undefined(
     return None
 
 
-T = TypeVar("T")
-
-
-def reverse_enumerate(xs: list[T]) -> Iterator[tuple[int, T]]:
+def reverse_enumerate[T](xs: list[T]) -> Iterator[tuple[int, T]]:
     """Enumerates a list in reverse order.
 
     Equivalent to `reversed(list(enumerate(data)))` without creating an intermediate

@@ -1,5 +1,188 @@
 # Changelog
 
+## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.2...guppylang-internals-v1.1.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* Infer type variables in higher order generic modifier arguments (#2402)([4f3ec86](https://github.com/Quantinuum/guppylang/commit/4f3ec86a70404a3c517d75e110a1af8f247110e9))
+* Resolve instance methods from generic protocol bounds (#2401)([602f1bd](https://github.com/Quantinuum/guppylang/commit/602f1bd6f2555cf594f46891bba18526e3d46984))
+* Resolve enclosing-scope names in `@guppy.unitary` methods (#2389)([cbcd28c](https://github.com/Quantinuum/guppylang/commit/cbcd28c7972f3dc24f44061998371ba4b7b67834))
+
+## [1.1.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.1...guppylang-internals-v1.1.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* Bad span for missing return diagnostic with walrus loop condition (#2380)([da8668b](https://github.com/Quantinuum/guppylang/commit/da8668bf253f7afa8362ddc5277e306a8215897f))
+* Clear stale inout flags on copyable generic captures (#2379)([fd78419](https://github.com/Quantinuum/guppylang/commit/fd784190b21da37003183a506a1acec99a4463c4))
+* Local variables being shadowed by global definitions (#2378)([d253322](https://github.com/Quantinuum/guppylang/commit/d253322bd9d0c4b896ebd84944a7312eee6971f1))
+
+## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.0-rc0...guppylang-internals-v1.1.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* Controlled implementation signature check is not more order-sensitive (#2326)([997c555](https://github.com/Quantinuum/guppylang/commit/997c555692b4c420e2caaa6e0fa29d01c22bda07))
+* Reject unsupported statements in `@guppy.unitary` classes (#2312)([7d91c17](https://github.com/Quantinuum/guppylang/commit/7d91c17243becdc914e5d68da2b9b5325386ed66))
+
+
+## [1.1.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.4...guppylang-internals-v1.1.0-rc0) (2026-09-09)
+
+
+### Bug Fixes
+
+* Add correct location debug info to calls inside comptime functions (#2229)([4bfd142](https://github.com/Quantinuum/guppylang/commit/4bfd142e9851c39b0dbfe8ae84ed2906b495fed2))
+* Check+trace more functions before compilation starts (#2210)([f98a63c](https://github.com/Quantinuum/guppylang/commit/f98a63c9608e70a8a2dcc291b4e75608fc7e56b5))
+* Unsupported inheritance error for guppy-defined bases (#2211)([5fb7ce4](https://github.com/Quantinuum/guppylang/commit/5fb7ce4610e8c7aed8595332b3e35f01f42f7ef6))
+* Add debug info to nested function definitions (#2112)([2bca2da](https://github.com/Quantinuum/guppylang/commit/2bca2da08625dd0b92ea293fcf058454c49bec9c))
+* Don't emit coercion hint for temporary variables (#2025)([75ed748](https://github.com/Quantinuum/guppylang/commit/75ed748103d984f9f756567161bf43121fc3c02c))
+
+
+### Code Refactoring
+
+* Enforce barrier between checking and compilation stages (#2224)([a018d8c](https://github.com/Quantinuum/guppylang/commit/a018d8c1caa84c15709ce9a5d8a46bf0a81fb330))
+* Extract stringifiers for internal definitions (#2243)([805644d](https://github.com/Quantinuum/guppylang/commit/805644d3005bb55029514a415e8227f52974ff97))
+* Update codebase to python 3.12 (#1991)([d6ef163](https://github.com/Quantinuum/guppylang/commit/d6ef16382b5f18a2dc867b35f9747e3c0ef8bd56))
+* Split unification of consts into a separate function (#2219)([0606a79](https://github.com/Quantinuum/guppylang/commit/0606a7989b7ccdf27e78302a8b6cdd06f9c30509))
+* Reduce verbosity of unitary checker (#2223)([c7692f9](https://github.com/Quantinuum/guppylang/commit/c7692f9c26fa27e41aed8c80da9267356c023167))
+* Remove redundant checks for function type unitary flags (#2203)([4f47823](https://github.com/Quantinuum/guppylang/commit/4f478235a7fef29b20de60c38767a0990d46321e))
+* Do tracing during checking (#2104)([28fffa6](https://github.com/Quantinuum/guppylang/commit/28fffa6b22516d7afa3b3c10075f372b1183d122))
+* Remove EXTENSION_OPS_WITH_SIDE_EFFECTS, pass effects alongside DataflowOp (#2024)([47205e9](https://github.com/Quantinuum/guppylang/commit/47205e950e86cce0acd73a9f57a85a46df3a4078))
+* Remove inheritance of CompiledCallableDef from CallableDef (#2037)([c8fa3b4](https://github.com/Quantinuum/guppylang/commit/c8fa3b436a002962b037e122105a6420feb05939))
+* Remove ProtocolCall (#2034)([218651f](https://github.com/Quantinuum/guppylang/commit/218651f0e33ab9dc0e742fb80155ef3ef0c0821d))
+
+
+### Features
+
+* Compilation for custom modifier implementations (#2274)([79478f3](https://github.com/Quantinuum/guppylang/commit/79478f3ec31e02d3b957942d837b501c79f92d1f))
+* Support static methods on types (#1699)([702bcb0](https://github.com/Quantinuum/guppylang/commit/702bcb09d2aae7c918c0311c6ff4bc5ed6abdb45))
+* Analyse call graph and use it to infer effects to reduce order edges (#2035)([58b8e28](https://github.com/Quantinuum/guppylang/commit/58b8e2897b3a3fc56c94c52716c5a4e8144c15a8))
+* Checking custom modifiers (#2192)([b96b18f](https://github.com/Quantinuum/guppylang/commit/b96b18fea772671f1d89747369e0ed25e9cd2920))
+* Better Error when calling method on Struct class   (#2093)([ed54651](https://github.com/Quantinuum/guppylang/commit/ed546512c15995f0b6011652f893b70cbc935d3a))
+* Add @inline decorator (#1976)([0f79ee4](https://github.com/Quantinuum/guppylang/commit/0f79ee49fa367a2991b3dfa6c30dcf2a35a28dfa))
+* Add better error message for distinct nested functions. (#2208)([2c32ca6](https://github.com/Quantinuum/guppylang/commit/2c32ca67e819b48cfad2da0cf046dbaf519129fd))
+* Support for GPU modules (#1854)([df1bd0c](https://github.com/Quantinuum/guppylang/commit/df1bd0c06efb07dd42869dcca790d881b2f61c3b))
+* Add error message for missing self args (#2188)([08de37a](https://github.com/Quantinuum/guppylang/commit/08de37adec3e0a2df14da599aadce2df8efe3c84))
+* Add target platform configuration for optimizer and emulator (#2180)([20a7af6](https://github.com/Quantinuum/guppylang/commit/20a7af6def72f047977d8af2f70eb462e5ad34f2))
+* Add optional `debug_mode` argument to `compile` and `emulator` (#2126)([bb886d2](https://github.com/Quantinuum/guppylang/commit/bb886d296922ac878c73b98a9f884ac3a54ca575))
+* Add quantum pass to default opt level (#2063)([2970cb5](https://github.com/Quantinuum/guppylang/commit/2970cb5ce9445896c12e3cbc84d76368dd7f4d7d))
+
+
+## [1.0.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.3...guppylang-internals-v1.0.4) (2026-09-08)
+
+
+### Performance Improvements
+
+* Upgrade hugr to v0.18.6, tket to v0.15.8, qis-compiler to v0.4.3 (#2289)([0345e72](https://github.com/Quantinuum/guppylang/commit/0345e729fb0b945be50ee0a4dc9e1b17ce05b4a1))
+
+## [1.0.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.2...guppylang-internals-v1.0.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* Raise minimum version of tket to 0.15.7 (#2266)([3733050](https://github.com/Quantinuum/guppylang/commit/3733050b9c6a0d16e4536ebfd068977d92f66524))
+
+## [1.0.2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.1...guppylang-internals-v1.0.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* Prevent mutation of projections of moved values (#2241)([aeb8598](https://github.com/Quantinuum/guppylang/commit/aeb8598df206fcedf4e0582b6eeeb4cc854cf59d))
+* Internal error in generating function span for missing return annotation error on nested functions (#2222)([f7e3648](https://github.com/Quantinuum/guppylang/commit/f7e36483b98d94f0de7f726da48bf20a71c58c06))
+
+## [1.0.1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v0.36.1...guppylang-internals-v1.0.1) (2026-08-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Stop treating protocol bounds as always copyable and droppable (#2142)
+* Type args to Either/Result factory methods `right`/`err` are now the same way round (#2139)
+
+
+### Bug Fixes
+
+* (Don't) Handle kwargs in dummy decorator  (#2156)([6213723](https://github.com/Quantinuum/guppylang/commit/62137233b4769ebddca879fa1239a6293f1099e5))
+* Make most builtin functions + struct constructors daggerable (#2151)([e7fbacb](https://github.com/Quantinuum/guppylang/commit/e7fbacb77aebd3f7fdc3276748caa77bf6602e9d))
+* Assign a `FunctionDefType` to nested functions (#2116) (#2147)([b38ab14](https://github.com/Quantinuum/guppylang/commit/b38ab14234fced20603e557cdcc1150edca0f9e2))
+* Preserve generic parameters in modifier blocks  (#2146)([cfa9b98](https://github.com/Quantinuum/guppylang/commit/cfa9b98f8318f340cdaca42bd5193e91d9580b3c))
+* Address missing API docs members from the std.collections module (#2145)([ef7fed9](https://github.com/Quantinuum/guppylang/commit/ef7fed93ed30e484878ffea486ff69d7e6a9d6e4))
+* Correctly parse modifier protocol bounds  (#2144)([c49798b](https://github.com/Quantinuum/guppylang/commit/c49798b9cfaeca7e61010f5a82f47457687c4d10))
+* Stop treating protocol bounds as always copyable and droppable (#2142)([6f4fbab](https://github.com/Quantinuum/guppylang/commit/6f4fbab85106f73132c8cad72ff1cb6975f0cb3e))
+* Type args to Either/Result factory methods `right`/`err` same way round (#2139)([09f6baf](https://github.com/Quantinuum/guppylang/commit/09f6bafe3d1ca8e77ea33cd583a7c3455ab7c042))
+* False type error when checking `Callable` protocol  (#2138)([e719ceb](https://github.com/Quantinuum/guppylang/commit/e719cebf1898157c764c8ecf35ba0383cf3cc3bc))
+* Correctly derive linearity of structs from their fields  (#2135)([ccd42a9](https://github.com/Quantinuum/guppylang/commit/ccd42a957a41890e2000cfea107c9e8ec721cfd4))
+* Fix comptime inout updates for `state_output` (and other custom) functions (#2132)([4fbd07a](https://github.com/Quantinuum/guppylang/commit/4fbd07a47a3274a841ad29df30c9fe369d7a6a9f))
+* Unitary checker skips invalid function calls in arguments (#2131)([524a11c](https://github.com/Quantinuum/guppylang/commit/524a11c734d812bb3503c6e84b715dca3f65f3d6))
+
+
+### Code Refactoring
+
+* Remove version guards for Python 3.12 lower bound (#2141)([04f3b26](https://github.com/Quantinuum/guppylang/commit/04f3b2660db2a4561672acdc3790219082d8dc00))
+
+
+### Features
+
+* Add RemoveRedundancies pass to default compilation (#2148)([8f29b43](https://github.com/Quantinuum/guppylang/commit/8f29b43a714f87879ed841bd4d34de244bc6eff7))
+* Smarter coercions in array constructor (#2134)([5342e74](https://github.com/Quantinuum/guppylang/commit/5342e74992161c71dfe17bf7cb3e298411d26633))
+
+## [1.0.0-rc2](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc1...guppylang-internals-v1.0.0-rc2) (2026-07-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)
+
+
+### Bug Fixes
+
+* Disallow Callable as return type (#2054)([d531d95](https://github.com/Quantinuum/guppylang/commit/d531d95faadfcd407830c78dc0fb4ce5e4497bbd))
+
+
+### Code Refactoring
+
+* Remove deprecated qsystem extension usage (#2032)([91e1254](https://github.com/Quantinuum/guppylang/commit/91e125475d0de3d0be953cfc65a90605d6c8804f))
+
+
+### Features
+
+* Update hugr to `0.18.2`, implement value ext resolution (#2064)([a3e80a5](https://github.com/Quantinuum/guppylang/commit/a3e80a5b0245b89eae10bda3170d6a7011a30344))
+* Raise an error if non daggerable classical functions are used in dagger cotext (#2066)([61044cb](https://github.com/Quantinuum/guppylang/commit/61044cb9d55e0e2c82b51b0abd44682dc0d6b5df))
+* Emit hint when branch type mismatch can be fixed via coercions (#2055)([86d5814](https://github.com/Quantinuum/guppylang/commit/86d5814af5aad411100acd8405d59b697bf8b90c))
+
+## [1.0.0-rc1](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-rc0...guppylang-internals-v1.0.0-rc1) (2026-07-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove dagger flags cancellation inside `daggerable` functions (#2020)
+
+
+### Bug Fixes
+
+* Remove dagger flags cancellation inside `daggerable` functions (#2020)([e515ab5](https://github.com/Quantinuum/guppylang/commit/e515ab5c45356185d8c8c4002aaa7033783622bb))
+* Make auto type params for protocol bounds unique (#2012)([b2c4e96](https://github.com/Quantinuum/guppylang/commit/b2c4e96275a4b8f576802752ee3ac1ddd50a2772))
+
+## [1.0.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.0.0-a8...guppylang-internals-v1.0.0-rc0) (2026-07-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Drop support for Python 3.10 and 3.11 (#1985)
+
+
+### Bug Fixes
+
+* Fix inout updates for overloaded functions in a comptime context (#1986)([100f1b9](https://github.com/Quantinuum/guppylang/commit/100f1b9bbf5a863bf94353d14fc6ec07f110d791))
+* Assumption check for ModifiableFunctionProtocol (#1974)([2cd0459](https://github.com/Quantinuum/guppylang/commit/2cd04591b3033c0e9b44c81e9e395139a3be6d84))
+
+
+### Features
+
+* Drop support for Python 3.10 and 3.11 (#1985)([9e3e543](https://github.com/Quantinuum/guppylang/commit/9e3e54395c791ea4c869ba995bbb0f175643b92f))
+* Choose a valid protocol when multiple protocols give a method (#1945)([272c1de](https://github.com/Quantinuum/guppylang/commit/272c1de729da36ffaab49724682070767f9f5e2b))
+* Disallow protocols as return types (#1967)([18ae480](https://github.com/Quantinuum/guppylang/commit/18ae48007179cedf2445b67508b3fd60a2c7b738))
+
 ## [1.0.0-a8](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1...guppylang-internals-v1.0.0-a8) (2026-06-30)
 
 
@@ -397,7 +580,7 @@ Note that this release raises the minimum compatible version of `pytket` to `2.7
 
 ### Bug Fixes
 
-* Add a copy before fallable `synthesize_call` call  ([#1460](https://github.com/Quantinuum/guppylang/issues/1460)) ([84137c3](https://github.com/Quantinuum/guppylang/commit/84137c39b7e8ca24142ffe73afcce6a1bcceffe2))
+* Add a copy before fallible `synthesize_call` call  ([#1460](https://github.com/Quantinuum/guppylang/issues/1460)) ([84137c3](https://github.com/Quantinuum/guppylang/commit/84137c39b7e8ca24142ffe73afcce6a1bcceffe2))
 * Raise type inference error when not all function argument types could be resolved. ([#1439](https://github.com/Quantinuum/guppylang/issues/1439)) ([4120d59](https://github.com/Quantinuum/guppylang/commit/4120d590917245258d69ceb07c763c7633c7c5f8)), closes [#1437](https://github.com/Quantinuum/guppylang/issues/1437)
 * Remove leading tab characters from diagnostics during rendering ([#1447](https://github.com/Quantinuum/guppylang/issues/1447)) ([a1cf792](https://github.com/Quantinuum/guppylang/commit/a1cf792deaf90e31721505ac17fd4911737e6c26)), closes [#1101](https://github.com/Quantinuum/guppylang/issues/1101)
 * Support comptime expressions in subscript assignments ([#1433](https://github.com/Quantinuum/guppylang/issues/1433)) ([108c104](https://github.com/Quantinuum/guppylang/commit/108c104d55ecb052d4d7c363062f444efc689724)), closes [#1363](https://github.com/Quantinuum/guppylang/issues/1363)
@@ -507,7 +690,7 @@ nodes to be fed. Migration is trivial.
 * Significant changes to the WASM decorators, types and operations
 * Deleted `guppylang_internals.nodes.{IterHasNext, IterEnd}`
 * guppylang_internals.tracing.unpacking.update_packed_value now returns a bool signalling whether the operation was successful.
-* `CompilationEngine` now initialises all it's fields
+* `CompilationEngine` now initialises all its fields
 * Calling `CompilationEngine.reset` no longer nullifies `additional_extensions`
 * `CompilationEngine.register_extension` no longer adds duplicates to the `additional_extensions` list
 

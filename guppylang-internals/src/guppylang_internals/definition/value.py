@@ -1,5 +1,6 @@
 import ast
-from abc import abstractmethod
+from abc import abstractmethod, abstractproperty
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -13,6 +14,7 @@ from guppylang_internals.tys.ty import FunctionType, Type
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Context
     from guppylang_internals.compiler.core import CompilerContext, DFContainer
+    from guppylang_internals.tys import Effect
 
 
 @dataclass(frozen=True)
@@ -33,11 +35,25 @@ class CompiledValueDef(ValueDef, CompiledDef):
         """Loads the defined value into a local Hugr dataflow graph."""
 
 
+class CallableEffects:
+    """Abstract base class for definitions that represent functions and whose
+    effects are known."""
+
+    @abstractproperty
+    def call_effects(self) -> Iterable["Effect"]:
+        """The maximum set of effects that may occur when calling the function."""
+
+
 @dataclass(frozen=True)
 class CallableDef(ValueDef):
-    """Abstract base class for definitions that represent functions."""
+    """Abstract base class for definitions that represent functions and to which
+    calls can be type-checked."""
+
+    # Does not inherit CallableEffects as some functions do not know
+    # their effects until after checking.
 
     ty: FunctionType
+    is_static: bool = field(kw_only=True)
 
     @abstractmethod
     def check_call(
@@ -55,8 +71,11 @@ class CallableDef(ValueDef):
         raise RuntimeError("Guppy functions can only be called in a Guppy context")
 
 
-class CompiledCallableDef(CallableDef, CompiledValueDef):  # type: ignore[misc, unused-ignore]
-    """Abstract base class a global module-level function."""
+class CompiledCallableDef(CompiledValueDef, CallableEffects):
+    """Abstract base class for anything that compiles to a Hugr function (necessarily)
+    at module-level)."""
+
+    ty: FunctionType
 
     @abstractmethod
     def compile_call(

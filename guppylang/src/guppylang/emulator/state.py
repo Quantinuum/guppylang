@@ -5,12 +5,11 @@ Debug querying the internal state of the emulator.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, TypeVar
+from typing import Protocol, Self, TypeVar
 
 import numpy as np
 import numpy.typing as npt
 from selene_quest_plugin.state import SeleneQuestState, TracedState
-from typing_extensions import Self
 
 __all__ = [
     "NotSingleStateError",
@@ -107,7 +106,7 @@ class PartialVector(PartialState[StateVector]):
             base_state: The state vector over all qubits in the system.
             total_qubits: Total number of qubits in the system
             specified_qubits: List of specified qubits in the state. Those not in this
-            list are considered traced out.
+                list are considered traced out.
         """
         if len(base_state) != (1 << total_qubits):
             raise ValueError(
