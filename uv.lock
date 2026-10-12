@@ -40,7 +40,7 @@ dev = [
 ]
 docs = [
     { name = "furo", specifier = ">=2024.8.6" },
-    { name = "sphinx", specifier = ">=9.1.0,<10" },
+    { name = "sphinx", specifier = ">=7.2.6,<10" },
 ]
 examples = [
     { name = "matplotlib", specifier = ">=3.11.1" },
