@@ -71,7 +71,7 @@ def array_new(elem_ty: ht.Type, length: int) -> OpWithEffects:
     arr_ty = array_type(elem_ty, length_arg)
     return _instantiate_array_op(
         "new_array", elem_ty, length_arg, [elem_ty] * length, [arr_ty], effects=()
-    )
+    )  # never panics
 
 
 def array_unpack(elem_ty: ht.Type, length: int) -> OpWithEffects:
@@ -218,7 +218,7 @@ def std_array_to_array(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [standard_array_type(elem_ty, length)],
         [array_type(elem_ty, length)],
-        effects=(),
+        effects=(),  # Cannot panic: a standard array always has every element
     )
 
 
