@@ -1,7 +1,7 @@
 Error: Copy violation (at $FILE:13:12)
    | 
 11 | @guppy
-12 | def foo(xs: list[int], e: MyEnum @owned) -> list[MyEnum]:
+12 | def foo(xs: list[int] @owned, e: MyEnum @owned) -> list[MyEnum]:
 13 |     return [e for _ in xs]
    |             ^ Variable `e` with non-copyable type `MyEnum` would be moved
    |               multiple times when evaluating this comprehension

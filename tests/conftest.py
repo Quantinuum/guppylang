@@ -25,6 +25,12 @@ def pytest_addoption(parser):
     )
 
     parser.addoption(
+        "--hugr-validator",
+        type=Path,
+        help="Use this HUGR CLI executable for structural validation",
+    )
+
+    parser.addoption(
         "--no_validation",
         dest="validation",
         action="store_false",

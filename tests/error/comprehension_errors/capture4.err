@@ -1,7 +1,7 @@
 Error: Copy violation (at $FILE:13:12)
    | 
 11 | @guppy
-12 | def foo(xs: list[int], s: MyStruct @owned) -> list[qubit]:
+12 | def foo(xs: list[int] @owned, s: MyStruct @owned) -> list[qubit]:
 13 |     return [s.q for x in xs]
    |             ^^^ Field `s.q` with non-copyable type `qubit` would be moved
    |                 multiple times when evaluating this comprehension

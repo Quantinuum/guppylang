@@ -9,7 +9,7 @@ class MyEnum:
 
 
 @guppy
-def foo(xs: list[int], e: MyEnum @owned) -> list[MyEnum]:
+def foo(xs: list[int] @owned, e: MyEnum @owned) -> list[MyEnum]:
     return [e for _ in xs]
 
 

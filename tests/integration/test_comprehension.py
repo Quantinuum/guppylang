@@ -19,7 +19,7 @@ def enable_experimental_features_for_suite(use_experimental_features):
 
 def test_basic(validate):
     @compile_guppy
-    def test(xs: list[float]) -> list[int]:
+    def test(xs: list[float] @ owned) -> list[int]:
         return [int(x) for x in xs]
 
     validate(test)
@@ -35,7 +35,7 @@ def test_basic_linear(validate):
 
 def test_guarded(validate):
     @compile_guppy
-    def test(xs: list[int]) -> list[int]:
+    def test(xs: list[int] @ owned) -> list[int]:
         return [2 * x for x in xs if x > 0 if x < 20]
 
     validate(test)
@@ -43,8 +43,8 @@ def test_guarded(validate):
 
 def test_multiple(validate):
     @compile_guppy
-    def test(xs: list[int], ys: list[int]) -> list[int]:
-        return [x + y for x in xs for y in ys if x + y > 42]
+    def test(xs: list[int] @ owned, ys: list[int]) -> list[int]:
+        return [x + ys[i] for x in xs for i in range(len(ys)) if x + ys[i] > 42]
 
     validate(test)
 
@@ -63,7 +63,7 @@ def test_multiple_struct(validate):
 
 def test_tuple_pat(validate):
     @compile_guppy
-    def test(xs: list[tuple[int, int, float]]) -> list[float]:
+    def test(xs: list[tuple[int, int, float]] @ owned) -> list[float]:
         return [x + y * z for x, y, z in xs if x - y > z]
 
     validate(test)
@@ -79,8 +79,8 @@ def test_tuple_pat_linear(validate):
 
 def test_tuple_return(validate):
     @compile_guppy
-    def test(xs: list[int], ys: list[float]) -> list[tuple[int, float]]:
-        return [(x, y) for x in xs for y in ys]
+    def test(xs: list[int] @ owned, ys: list[float]) -> list[tuple[int, float]]:
+        return [(x, ys[i]) for x in xs for i in range(len(ys))]
 
     validate(test)
 
@@ -90,7 +90,7 @@ def test_dependent(validate):
     def process(x: float) -> list[int]: ...
 
     @guppy
-    def test(xs: list[float]) -> list[float]:
+    def test(xs: list[float] @ owned) -> list[float]:
         return [x * y for x in xs if x > 0 for y in process(x) if y > x]
 
     validate(test.compile_function())
@@ -98,7 +98,7 @@ def test_dependent(validate):
 
 def test_capture(validate):
     @compile_guppy
-    def test(xs: list[int], y: int) -> list[int]:
+    def test(xs: list[int] @ owned, y: int) -> list[int]:
         return [x + y for x in xs if x > y]
 
     validate(test)
@@ -111,7 +111,7 @@ def test_capture_struct(validate):
         y: float
 
     @guppy
-    def test(xs: list[int], s: MyStruct) -> list[int]:
+    def test(xs: list[int] @ owned, s: MyStruct) -> list[int]:
         return [x + s.x for x in xs if x > s.y]
 
     validate(test.compile_function())
@@ -119,7 +119,7 @@ def test_capture_struct(validate):
 
 def test_scope(validate):
     @compile_guppy
-    def test(xs: list[None]) -> float:
+    def test(xs: list[None] @ owned) -> float:
         x = 42.0
         [x for x in xs]
         return x
@@ -129,15 +129,15 @@ def test_scope(validate):
 
 def test_nested_left(validate):
     @compile_guppy
-    def test(xs: list[int], ys: list[float]) -> list[list[float]]:
-        return [[x + y for y in ys] for x in xs]
+    def test(xs: list[int] @ owned, ys: list[float]) -> list[list[float]]:
+        return [[x + ys[i] for i in range(len(ys))] for x in xs]
 
     validate(test)
 
 
 def test_nested_right(validate):
     @compile_guppy
-    def test(xs: list[int]) -> list[int]:
+    def test(xs: list[int] @ owned) -> list[int]:
         return [-x for x in [2 * x for x in xs]]
 
     validate(test)
@@ -153,7 +153,7 @@ def test_nested_linear(validate):
 
 def test_classical_list_comp(validate):
     @guppy
-    def test(xs: list[int]) -> list[int]:
+    def test(xs: list[int] @ owned) -> list[int]:
         return [x for x in xs]
 
     validate(test.compile_function())
@@ -224,7 +224,7 @@ def test_linear_next_nonlinear_iter(validate):
         def __iter__(self: "MyType") -> MyIter: ...
 
     @guppy
-    def test(mt: MyType, xs: list[int]) -> list[tuple[int, qubit]]:
+    def test(mt: MyType, xs: list[int] @ owned) -> list[tuple[int, qubit]]:
         # We can use `mt` in an inner loop since it's not linear
         return [(x, q) for x in xs for q in mt]
 
@@ -251,9 +251,9 @@ def test_nonlinear_next_linear_iter(validate):
         def __iter__(self: "MyType") -> MyIter: ...
 
     @guppy
-    def test(mt: MyType, xs: list[int]) -> list[tuple[int, int]]:
+    def test(mt: MyType, xs: list[int] @ owned) -> list[tuple[int, int]]:
         # We can use `mt` in an outer loop since the target `x` is not linear
-        return [(x, x + y) for x in mt for y in xs]
+        return [(x, x + xs[i]) for x in mt for i in range(len(xs))]
 
     validate(test.compile_function())
 

@@ -298,7 +298,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         inputs = [self.visit(e) for e in node.elts]
         list_ty = get_type(node)
         elem_ty = get_element_type(list_ty)
-        return list_new(self.builder, elem_ty.to_hugr(self.ctx), inputs)
+        return list_new(
+            self.builder,
+            elem_ty.to_hugr(self.ctx),
+            inputs,
+        )
 
     def _unpack_tuple(self, wire: Wire, types: Sequence[Type]) -> Sequence[Wire]:
         """Add a tuple unpack operation to the graph"""
@@ -641,7 +645,11 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
         assert isinstance(list_ty, OpaqueType)
         elem_ty = get_element_type(list_ty)
         list_place = Variable(next(tmp_vars), list_ty, node)
-        self.dfg[list_place] = list_new(self.builder, elem_ty.to_hugr(self.ctx), [])
+        self.dfg[list_place] = list_new(
+            self.builder,
+            elem_ty.to_hugr(self.ctx),
+            [],
+        )
         with self._build_generators(node.generators, [list_place]):
             elt_port = self.visit(node.elt)
             list_port = self.dfg[list_place]

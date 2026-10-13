@@ -5,7 +5,7 @@ from guppylang.std.builtins import owned
 
 @guppy
 def foo(qs: list[qubit] @owned, xs: list[int]) -> list[int]:
-    return [q for q in qs for q in xs]
+    return [q for q in qs for q in range(len(xs))]
 
 
 foo.compile()

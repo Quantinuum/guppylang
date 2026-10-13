@@ -1,5 +1,6 @@
 import pytest
 from tests.util import compile_guppy
+from guppylang.std.lang import owned
 
 
 @pytest.fixture(autouse=True)
@@ -9,7 +10,7 @@ def enable_experimental_features_for_suite(use_experimental_features):
 
 def test_basic(validate):
     @compile_guppy
-    def foo(xs: list[int]) -> int:
+    def foo(xs: list[int] @ owned) -> int:
         for x in xs:
             pass
         return 0
@@ -19,7 +20,7 @@ def test_basic(validate):
 
 def test_counting_loop(validate):
     @compile_guppy
-    def foo(xs: list[int]) -> int:
+    def foo(xs: list[int] @ owned) -> int:
         s = 0
         for x in xs:
             s += x
@@ -30,7 +31,7 @@ def test_counting_loop(validate):
 
 def test_multi_targets(validate):
     @compile_guppy
-    def foo(xs: list[tuple[int, float]]) -> float:
+    def foo(xs: list[tuple[int, float]] @ owned) -> float:
         s = 0.0
         for x, y in xs:
             s += x * y
@@ -41,7 +42,7 @@ def test_multi_targets(validate):
 
 def test_multi_targets_same(validate):
     @compile_guppy
-    def foo(xs: list[tuple[int, float]]) -> float:
+    def foo(xs: list[tuple[int, float]] @ owned) -> float:
         s = 1.0
         for x, x in xs:
             s *= x
@@ -52,7 +53,7 @@ def test_multi_targets_same(validate):
 
 def test_reassign_iter(validate):
     @compile_guppy
-    def foo(xs: list[int]) -> int:
+    def foo(xs: list[int] @ owned) -> int:
         s = 1
         for x in xs:
             xs = False
@@ -64,7 +65,7 @@ def test_reassign_iter(validate):
 
 def test_break(validate):
     @compile_guppy
-    def foo(xs: list[int]) -> int:
+    def foo(xs: list[int] @ owned) -> int:
         i = 1
         for x in xs:
             if x >= 42:
@@ -77,7 +78,7 @@ def test_break(validate):
 
 def test_continue(validate):
     @compile_guppy
-    def foo(xs: list[int]) -> int:
+    def foo(xs: list[int] @ owned) -> int:
         i = len(xs)
         for x in xs:
             if x >= 42:
@@ -90,7 +91,7 @@ def test_continue(validate):
 
 def test_return_in_loop(validate):
     @compile_guppy
-    def foo(xs: list[int]) -> int:
+    def foo(xs: list[int] @ owned) -> int:
         y = 42
         for x in xs:
             if x >= 1337:
@@ -103,11 +104,12 @@ def test_return_in_loop(validate):
 
 def test_nested_loop(validate):
     @compile_guppy
-    def foo(xs: list[int], ys: list[int]) -> int:
+    def foo(xs: list[int] @ owned, ys: list[int]) -> int:
         p = 0
         for x in xs:
             s = 0
-            for y in ys:
+            for j in range(len(ys)):
+                y = ys[j]
                 s += y * x
             p += s - x
         return p
@@ -117,11 +119,12 @@ def test_nested_loop(validate):
 
 def test_nested_loop_break_continue(validate):
     @compile_guppy
-    def foo(xs: list[int], ys: list[int]) -> int:
+    def foo(xs: list[int] @ owned, ys: list[int]) -> int:
         p = 0
         for x in xs:
             s = 0
-            for y in ys:
+            for j in range(len(ys)):
+                y = ys[j]
                 if x % 2 == 0:
                     continue
                 s += x

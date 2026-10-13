@@ -1,7 +1,7 @@
 Error: Copy violation (at $FILE:8:35)
   | 
 6 | @guppy
-7 | def foo(qs: list[qubit] @owned, xs: list[int]) -> list[qubit]:
+7 | def foo(qs: list[qubit] @owned, xs: list[int] @owned) -> list[qubit]:
 8 |     return [q for x in xs for q in qs]
   |                                    ^^ Variable `qs` with non-copyable type `list[qubit]` would be
   |                                       consumed multiple times when evaluating this comprehension

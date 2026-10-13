@@ -6,6 +6,7 @@ from guppylang.std.quantum import cx, rz
 from guppylang.std.quantum.functional import h
 
 from tests.util import compile_guppy
+from guppylang_internals.error import GuppyError
 
 
 @pytest.fixture(autouse=True)
@@ -16,7 +17,7 @@ def enable_experimental_features_for_suite(use_experimental_features):
 def test_types(validate):
     @compile_guppy
     def test(
-        xs: list[int], ys: list[tuple[int, float]]
+        xs: list[int] @ owned, ys: list[tuple[int, float]] @ owned
     ) -> tuple[list[int], list[tuple[int, float]]]:
         return xs, ys
 
@@ -117,7 +118,8 @@ def test_linear_subscript(validate):
         foo(qs[i])
         return qs
 
-    validate(main.compile_function())
+    with pytest.raises(GuppyError, match="copyable"):
+        main.check()
 
 
 def test_inout_subscript(validate):
@@ -128,7 +130,8 @@ def test_inout_subscript(validate):
     def main(qs: list[qubit], i: int) -> None:
         foo(qs[i])
 
-    validate(main.compile_function())
+    with pytest.raises(GuppyError, match="copyable"):
+        main.check()
 
 
 def test_multi_subscripts(validate):
@@ -138,12 +141,12 @@ def test_multi_subscripts(validate):
     @guppy
     def main(qs: list[qubit] @ owned) -> list[qubit]:
         foo(qs[0], qs[1])
-        # Note: `foo(qs[0], qs[0])` is rejected at compile time
         i = 0
-        foo(qs[i], qs[i])  # Will panic at runtime
+        foo(qs[i], qs[i])
         return qs
 
-    validate(main.compile_function())
+    with pytest.raises(GuppyError, match="copyable"):
+        main.check()
 
 
 def test_struct_list(validate):
@@ -157,13 +160,11 @@ def test_struct_list(validate):
 
     @guppy
     def main(ss: list[S] @ owned) -> list[S]:
-        # This will panic at runtime :(
-        # To make this work, we would need to replace the qubits in the struct
-        # with `qubit | None` and write back `None` after `q1` has been extracted...
         foo(ss[0].q1, ss[0].q2)
         return ss
 
-    validate(main.compile_function())
+    with pytest.raises(GuppyError, match="copyable"):
+        main.check()
 
 
 def test_nested_subscripts(validate):
@@ -176,13 +177,11 @@ def test_nested_subscripts(validate):
     @guppy
     def main(qs: list[list[qubit]] @ owned) -> list[list[qubit]]:
         foo(qs[0][0])
-        # The following should work *without* panicking at runtime! Accessing `qs[0][0]`
-        # replaces one qubit with `None` but puts everything back into `qs` before
-        # going to the next argument.
         bar(qs[0][0], qs[0][1], qs[1][0], qs[1][1])
         return qs
 
-    validate(main.compile_function())
+    with pytest.raises(GuppyError, match="copyable"):
+        main.check()
 
 
 def test_struct_nested_subscript(validate):
@@ -210,7 +209,8 @@ def test_struct_nested_subscript(validate):
         foo(a.xs[i].ys[j][k].c)
         return a
 
-    validate(main.compile_function())
+    with pytest.raises(GuppyError, match="copyable"):
+        main.check()
 
 
 def test_phase_gadget(validate):
@@ -223,4 +223,5 @@ def test_phase_gadget(validate):
         for i in range(n - 1):
             cx(qs[n - i - 1], qs[n - i - 2])
 
-    validate(paulig.compile_function())
+    with pytest.raises(GuppyError, match="copyable"):
+        paulig.check()

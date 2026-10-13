@@ -90,7 +90,7 @@ def test_imported_struct_dependency_uses_defining_scope(validate):
 
 def test_generic(validate, use_experimental_features):
     S = guppy.type_var("S")
-    T = guppy.type_var("T")
+    T = guppy.type_var("T", copyable=False, droppable=True)
 
     @guppy.struct(frozen=True)
     class StructA(Generic[T]):

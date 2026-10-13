@@ -7,7 +7,6 @@ definitions from the hugr library.
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-import hugr.std.collections.list
 import hugr.std.float
 import hugr.std.int
 import hugr.std.logic
@@ -16,6 +15,9 @@ from hugr import tys as ht
 from hugr.ops import DataflowOp, ExtOp
 
 from guppylang_internals.compiler.hugr_extension import UnsupportedOp
+from guppylang_internals.std._internal.compiler.list_extension import (
+    EXTENSION as LIST_EXTENSION,
+)
 from guppylang_internals.std._internal.compiler.tket_exts import QUANTUM_EXTENSION
 from guppylang_internals.tys.common import ToHugrContext
 from guppylang_internals.tys.subst import Inst
@@ -172,7 +174,7 @@ def logic_op(
 
 def list_op(
     op_name: str,
-    ext: he.Extension = hugr.std.collections.list.EXTENSION,
+    ext: he.Extension = LIST_EXTENSION,
 ) -> Callable[[ht.FunctionType, Inst, ToHugrContext], DataflowOp]:
     """Utility method to create Hugr list ops.
 

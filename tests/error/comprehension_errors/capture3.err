@@ -1,7 +1,7 @@
 Error: Copy violation (at $FILE:13:12)
    | 
 11 | @guppy
-12 | def foo(xs: list[int], s: MyStruct @owned) -> list[MyStruct]:
+12 | def foo(xs: list[int] @owned, s: MyStruct @owned) -> list[MyStruct]:
 13 |     return [s for x in xs]
    |             ^ Variable `s` with non-copyable type `MyStruct` would be
    |               moved multiple times when evaluating this comprehension

@@ -9,7 +9,7 @@ def bar(q: qubit @owned) -> bool:
 
 
 @guppy
-def foo(xs: list[int], q: qubit @owned) -> list[int]:
+def foo(xs: list[int] @owned, q: qubit @owned) -> list[int]:
     return [x for x in xs if bar(q)]
 
 
