@@ -41,7 +41,11 @@ members = ["guppylang", "guppylang-internals", "miette-py"]
 guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
-hugr = { git = "https://github.com/Quantinuum/hugr", subdirectory = "hugr-py", rev = "893bd3d83fb522fe1f69ec85ec97a6b20b95428d" }
+# Cell execution uses the published compatible compiler stack; uv.lock pins exact commits.
+hugr = { git = "https://github.com/Quantinuum/hugr", subdirectory = "hugr-py", branch = "doug/integration-pointers-cfg" }
+selene-hugr-qis-compiler = { git = "https://github.com/Quantinuum/tket2", subdirectory = "tket/qis-compiler", branch = "doug/integration-ptr-globals-futures" }
+tket = { git = "https://github.com/Quantinuum/tket2", subdirectory = "tket/tket-py", branch = "doug/integration-ptr-globals-futures" }
+tket-exts = { git = "https://github.com/Quantinuum/tket2", subdirectory = "tket/tket-exts", branch = "doug/integration-ptr-globals-futures" }
 # Uncomment these to test the latest dependency version during development
 # hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
 # tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", rev = "cdb47dd" }

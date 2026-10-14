@@ -2,9 +2,8 @@
 
 Borrowed operations thread their handle to preserve sequencing. Operations through
 separate copies have no relative ordering without another dependency.
-Compilation and execution require HUGR ptr 0.2 and a backend implementing that
-extension. The QIS compiler pinned in this branch lacks that code generation.
-A compatible compiler release is required before this API can be released.
+Compilation and execution require a compiler and backend implementing HUGR
+ptr 0.2. Thread safety and re-entry checks depend on the selected backend.
 """
 
 from typing import no_type_check
@@ -96,10 +95,13 @@ class Cell[T]:
         payload and a result. Both may be linear. Use tuples to carry multiple
         arguments or results, and `None` for no additional value.
 
-        The runtime holds the cell lock throughout the callback. Accessing this
-        cell through an alias inside the callback can deadlock even in a
-        single-threaded program. For example, do not pass a copy of this handle
-        as `arg` and call `read` on that copy from `f`. Access to a different
-        cell is allowed. The compiler does not check aliases here, and no
-        runtime panic on re-entry is currently guaranteed.
+        The default sequential backend marks this cell unavailable throughout
+        the callback. Payload access, copying or freeing a handle through an
+        alias during the callback panics. Identity comparisons remain allowed
+        because they do not access the payload. Normal return installs the
+        replacement payload before making the cell available again; an abort
+        does not promise restoration.
+
+        Other backends must provide their own synchronization and re-entry
+        guarantees. The compiler does not reject aliases statically.
         """
