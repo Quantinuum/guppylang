@@ -10,7 +10,10 @@ import hugr.std.int
 from hugr import tys as ht
 
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.error import (
+    GuppyError,
+    InternalGuppyError,
+)
 from guppylang_internals.span import DUMMY_SPAN
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
@@ -21,6 +24,7 @@ from guppylang_internals.tys.common import (
     Visitor,
 )
 from guppylang_internals.tys.const import (
+    ComptimeConstValue,
     Const,
     ConstValue,
     ExistentialConstVar,
@@ -592,10 +596,8 @@ class FunctionType(ParametrizedTypeBase):
         """Accepts a visitor on this type."""
         if not visitor.visit(self):
             for inp in self.inputs:
-                visitor.visit(inp)
-            visitor.visit(self.output)
-            for param in self.params:
-                visitor.visit(param)
+                inp.ty.visit(visitor)
+            self.output.visit(visitor)
 
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
@@ -1086,6 +1088,11 @@ def unify_const(s: Const, t: Const, subst: "Subst | None") -> "Subst | None":
     if subst is None:
         return None
 
+    if isinstance(s, ComptimeConstValue):
+        s = s.try_resolve()
+    if isinstance(t, ComptimeConstValue):
+        t = t.try_resolve()
+
     match s, t:
         case ExistentialConstVar() as s_var, t:
             return _unify_const_var(s_var, t, subst)
@@ -1093,6 +1100,10 @@ def unify_const(s: Const, t: Const, subst: "Subst | None") -> "Subst | None":
             return _unify_const_var(t_var, s, subst)
         case ConstValue(value=c_value), ConstValue(value=d_value) if c_value == d_value:
             return subst
+        case ConstValue(), ComptimeConstValue():
+            return None
+        case ComptimeConstValue(), ConstValue():
+            return None
         case BoundVar(idx=s_idx), BoundVar(idx=t_idx) if s_idx == t_idx:
             return subst
         case _:

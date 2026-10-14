@@ -7,6 +7,7 @@ from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import Transformer, Visitor
 from guppylang_internals.tys.const import (
     BoundConstVar,
+    ComptimeConstValue,
     Const,
     ConstBase,
     ExistentialConstVar,
@@ -84,6 +85,8 @@ class Instantiator(Transformer):
                 return self._transform_FunctionType(ty)
             case ProtocolInst():
                 return self._transform_ProtocolInst(ty)
+            case ComptimeConstValue():
+                return self._transform_ComptimeConstValue(ty)
             case _:
                 return None
 
@@ -128,6 +131,22 @@ class Instantiator(Transformer):
         if ty.parametrized:
             raise InternalGuppyError("Tried to instantiate under binder")
         return None
+
+    def _transform_ComptimeConstValue(self, val: ComptimeConstValue) -> Const:
+        # Update the stashed instantiation
+        idx = 0
+        new_inst: list[Argument | None] = []
+        for arg in val.inst:
+            if arg:
+                new_inst.append(arg)
+            else:
+                new_inst.append(self.inst[idx])
+                idx += 1
+
+        ty = val.ty.transform(self)
+        return ComptimeConstValue(
+            ty, val.expr, val.params, new_inst, val.containing_def_id
+        ).try_resolve()
 
     def _transform_ProtocolInst(self, inst: ProtocolInst) -> ProtocolInst | None:
         return inst.transform(self)
