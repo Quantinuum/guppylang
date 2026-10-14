@@ -26,6 +26,12 @@ test = [
   "pytest-xdist>=3.8.0",
 ]
 
+# Remove this blocker only after compatible registry dependencies are released,
+# package requirements exclude incompatible versions, and --no-sources release
+# compatibility checks pass for both supported dependency resolutions.
+[tool.guppylang.release]
+blocked-reason = "Linear list ownership requires compatible released HUGR and Selene compiler packages. Update both distributable dependency ranges and validate registry-only installs before enabling releases."
+
 [tool.uv]
 prerelease = "if-necessary"
 

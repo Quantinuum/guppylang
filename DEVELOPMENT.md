@@ -279,6 +279,17 @@ present, and vice versa.
 
 ### Publishing
 
+An explicit `tool.guppylang.release.blocked-reason` in the root `pyproject.toml`
+stops automatic tagging, GitHub release creation and PyPI publication. The current
+linear-list migration requires compatible HUGR and Selene compiler registry
+releases and distributable dependency ranges that exclude the incompatible
+versions. Remove the blocker only after those requirements are updated and the
+registry-only release compatibility checks pass at both dependency resolutions.
+Workspace Git source overrides do not become wheel metadata. Release checks use
+`--no-sources` to verify the distributable requirements; ordinary development
+continues to use the locked source overrides.
+
+
 Release creation is **driven by tags**. When the release PR is merged (into `main`
 or a release branch), the `tag-release-line` job in `release-publish.yml` tags both
 packages (`guppylang-v<version>` and `guppylang-internals-v<version>`) and pushes
