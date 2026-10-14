@@ -3,8 +3,8 @@
 Borrowed operations thread their handle to preserve sequencing. Operations through
 separate copies have no relative ordering without another dependency.
 Compilation and execution require HUGR ptr 0.2 and a backend implementing that
-extension. The released QIS compiler does not yet provide this code generation;
-a compatible compiler release is required before this API can be released.
+extension. The QIS compiler pinned in this branch lacks that code generation.
+A compatible compiler release is required before this API can be released.
 """
 
 from typing import no_type_check
