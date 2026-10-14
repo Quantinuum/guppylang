@@ -839,7 +839,7 @@ requires-dist = [
 [[package]]
 name = "hugr"
 version = "0.18.8"
-source = { git = "https://github.com/Quantinuum/hugr?subdirectory=hugr-py&branch=doug%2Ffix-hugr-lists#0643ac456551ae46d1ecbd870d56b9e58c76659d" }
+source = { git = "https://github.com/Quantinuum/hugr?subdirectory=hugr-py&branch=doug%2Ffix-hugr-lists#ff2c8b2e64c1c3d5ece10cb235323da3f1516ede" }
 dependencies = [
     { name = "graphviz" },
     { name = "pydantic" },
@@ -2749,7 +2749,7 @@ wheels = [
 [[package]]
 name = "selene-hugr-qis-compiler"
 version = "0.5.1"
-source = { git = "https://github.com/Quantinuum/tket2?subdirectory=tket%2Fqis-compiler&branch=doug%2Ffix-hugr-lists#2b89ac79e7149ce8f2cedfa8c6ed06cd8c151708" }
+source = { git = "https://github.com/Quantinuum/tket2?subdirectory=tket%2Fqis-compiler&branch=doug%2Ffix-hugr-lists#b9899b49ad7d3239dc2f818ba71ae320e39549e5" }
 dependencies = [
     { name = "hugr" },
     { name = "typing-extensions" },
