@@ -28,6 +28,7 @@ shell by setting up [direnv](https://devenv.sh/automatic-shell-activation/).
 
 To setup the environment manually you will need:
 
+- Rust 1.91 or newer and LLVM 21.1; set `LLVM_SYS_211_PREFIX` to the LLVM installation.
 - Just: [just.systems](https://just.systems/)
 - uv `>=12.0`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
   - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
@@ -49,6 +50,25 @@ just test
 # or, to try a specific test
 just test -k test_name
 ```
+
+The workspace selects matching HUGR and Selene compiler Git branches in
+`pyproject.toml`; `uv.lock` fixes their exact commits. Source builds retain the
+compiler repository's root Cargo patches and use its Cargo lockfile. They require
+Rust 1.91 or newer and LLVM 21.1, with `LLVM_SYS_211_PREFIX` pointing to the LLVM
+installation. The devenv shell and CI install the LLVM bundle selected by
+`hugrenv.lock`. Run `uv sync --frozen` to reproduce the selected sources. When
+updating either branch, update its uv lock entry and check that the compiler's
+root Cargo lock selects the same HUGR commit as the Python package.
+
+When changing HUGR extensions, use a validator built from the same HUGR source as
+the Python package. You can select its CLI for structural integration checks:
+
+```bash
+just test --hugr-validator /path/to/hugr
+```
+
+This selects structural validation only. Emulator tests still use the installed
+Selene compiler and runtime, which must support the same extensions separately.
 
 If you need to export the integration test cases, use:
 
@@ -258,6 +278,17 @@ independently, so a major bump needs the major label even if the minor label is
 present, and vice versa.
 
 ### Publishing
+
+An explicit `tool.guppylang.release.blocked-reason` in the root `pyproject.toml`
+stops automatic tagging, GitHub release creation and PyPI publication. The current
+linear-list migration requires compatible HUGR and Selene compiler registry
+releases and distributable dependency ranges that exclude the incompatible
+versions. Remove the blocker only after those requirements are updated and the
+registry-only release compatibility checks pass at both dependency resolutions.
+Workspace Git source overrides do not become wheel metadata. Release checks use
+`--no-sources` to verify the distributable requirements; ordinary development
+continues to use the locked source overrides.
+
 
 Release creation is **driven by tags**. When the release PR is merged (into `main`
 or a release branch), the `tag-release-line` job in `release-publish.yml` tags both

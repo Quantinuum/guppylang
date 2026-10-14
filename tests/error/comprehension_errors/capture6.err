@@ -1,8 +1,8 @@
-Error: Copy violation (at $FILE:13:12)
+Error: Copy violation (at $FILE:14:12)
    | 
-11 | def foo(xs: list[int]) -> list[MyEnum]:
-12 |     e = MyEnum.Var(qubit())
-13 |     return [e for _ in xs]
+12 | def foo(xs: list[int] @owned) -> list[MyEnum]:
+13 |     e = MyEnum.Var(qubit())
+14 |     return [e for _ in xs]
    |             ^ Variable `e` with non-copyable type `MyEnum` would be moved
    |               multiple times when evaluating this comprehension
 

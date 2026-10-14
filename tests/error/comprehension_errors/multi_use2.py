@@ -4,7 +4,7 @@ from guppylang.std.builtins import owned
 
 
 @guppy
-def foo(qs: list[qubit] @owned, xs: list[int]) -> list[qubit]:
+def foo(qs: list[qubit] @owned, xs: list[int] @owned) -> list[qubit]:
     return [q for x in xs for q in qs]
 
 

@@ -33,6 +33,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: mozilla-actions/sccache-action@v0.0.11
+      - name: Check release readiness
+        run: python3 scripts/release/check_release_ready.py
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install LLVM for native source builds
+        uses: quantinuum/hugrverse-env/install-hugrenv-action@main
+        with:
+          packages: llvm
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -48,8 +56,8 @@ jobs:
         env:
           RES: ${{ matrix.target.resolution }}
         run: |
-          UV_RESOLUTION="$RES" uv lock --prerelease=allow -U 
-          UV_RESOLUTION="$RES" uv sync --prerelease=allow
+          UV_RESOLUTION="$RES" uv lock --no-sources --prerelease=allow -U
+          UV_RESOLUTION="$RES" uv sync --no-sources --prerelease=allow
           echo "\nDone! Installed dependencies:"
           uv pip list
       - name: Type check with mypy

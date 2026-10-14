@@ -44,6 +44,9 @@ from guppylang_internals.metadata.common import (
     add_num_control_qubits,
 )
 from guppylang_internals.metadata.debug_info_util import StringTable
+from guppylang_internals.std._internal.compiler.list_extension import (
+    EXTENSION as LIST_EXTENSION,
+)
 from guppylang_internals.std._internal.compiler.tket_exts import (
     DEBUG_EXTENSION as TKET_DEBUG_EXTENSION,
 )
@@ -432,6 +435,7 @@ DEBUG_EXTENSION = TKET_DEBUG_EXTENSION
 #: List of linear extension types that correspond to affine Guppy types and thus require
 #: insertion of an explicit drop operation.
 AFFINE_EXTENSION_TYS: list[str] = [
+    LIST_EXTENSION.get_type("List").qualified_name(),
     ARRAY_EXTENSION.get_type("array").qualified_name(),
     BORROW_ARRAY_EXTENSION.get_type("borrow_array").qualified_name(),
 ]
@@ -469,7 +473,10 @@ def insert_drops(hugr: Hugr[OpVarCov]) -> None:
     TODO: This is a quick workaround until we can properly insert these drops during
       linearity checking. See https://github.com/quantinuum/guppylang/issues/1082
     """
-    for node in hugr:
+    from guppylang_internals.compiler.list_drop import contains_list, define_drop
+
+    drop_functions: dict[str, hf.Function] = {}
+    for node in list(hugr):
         data = hugr[node]
         # Iterating over `node.outputs()` doesn't work reliably since it sometimes
         # raises an `IncompleteOp` exception. Instead, we query the number of out ports
@@ -482,8 +489,21 @@ def insert_drops(hugr: Hugr[OpVarCov]) -> None:
                 and isinstance(kind, ht.ValueKind)
                 and requires_drop(kind.ty)
             ):
-                drop_op = GUPPY_EXTENSION.get_op("drop").instantiate(
-                    [ht.TypeTypeArg(kind.ty)], ht.FunctionType([kind.ty], [])
-                )
-                drop = hugr.add_node(drop_op, parent=data.parent)
+                if contains_list(kind.ty):
+                    key = str(kind.ty)
+                    if key not in drop_functions:
+                        drop_functions[key] = define_drop(
+                            hugr, kind.ty, len(drop_functions)
+                        )
+                    function = drop_functions[key]
+                    from hugr.ops import Call
+
+                    call_op = Call(ht.PolyFuncType([], ht.FunctionType([kind.ty], [])))
+                    drop = hugr.add_node(call_op, parent=data.parent)
+                    hugr.add_link(function.to_node().out(0), drop.inp(1))
+                else:
+                    drop_op = GUPPY_EXTENSION.get_op("drop").instantiate(
+                        [ht.TypeTypeArg(kind.ty)], ht.FunctionType([kind.ty], [])
+                    )
+                    drop = hugr.add_node(drop_op, parent=data.parent)
                 hugr.add_link(port, drop.inp(0))

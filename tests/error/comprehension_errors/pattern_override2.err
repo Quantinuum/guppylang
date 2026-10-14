@@ -2,7 +2,7 @@ Error: Drop violation (at $FILE:8:18)
   | 
 6 | @guppy
 7 | def foo(qs: list[qubit] @owned, xs: list[int]) -> list[int]:
-8 |     return [q for q in qs for q in xs]
+8 |     return [q for q in qs for q in range(len(xs))]
   |                   ^ Variable `q` with non-droppable type `qubit` is leaked
 
 Guppy compilation failed due to 1 previous error

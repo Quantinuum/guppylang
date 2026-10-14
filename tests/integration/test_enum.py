@@ -180,7 +180,7 @@ def test_methods(validate):
 
 def test_generic_explicit(validate, use_experimental_features):
     S = guppy.type_var("S")
-    T = guppy.type_var("T")
+    T = guppy.type_var("T", copyable=False, droppable=True)
 
     @guppy.enum
     class EnumA(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]
@@ -215,7 +215,7 @@ def test_generic_explicit(validate, use_experimental_features):
 
 def test_generic_infer(validate, use_experimental_features):
     S = guppy.type_var("S")
-    T = guppy.type_var("T")
+    T = guppy.type_var("T", copyable=False, droppable=True)
 
     @guppy.enum
     class EnumA(Generic[T]):  # pyright: ignore[reportInvalidTypeForm]

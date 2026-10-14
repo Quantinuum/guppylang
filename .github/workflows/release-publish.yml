@@ -48,6 +48,8 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.HUGRBOT_PAT }}
+      - name: Check release readiness
+        run: python3 scripts/release/check_release_ready.py
       - name: Configure git identity
         run: |
           git config user.name "hugrbot"
@@ -88,6 +90,8 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.HUGRBOT_PAT }}
+      - name: Check release readiness
+        run: python3 scripts/release/check_release_ready.py
       - name: Create the GitHub release
         env:
           TAG: ${{ github.ref_name }}

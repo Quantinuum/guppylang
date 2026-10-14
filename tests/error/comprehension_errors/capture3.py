@@ -9,7 +9,7 @@ class MyStruct:
 
 
 @guppy
-def foo(xs: list[int], s: MyStruct @owned) -> list[MyStruct]:
+def foo(xs: list[int] @owned, s: MyStruct @owned) -> list[MyStruct]:
     return [s for x in xs]
 
 

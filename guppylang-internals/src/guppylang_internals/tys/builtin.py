@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Literal, TypeGuard
 
 import hugr.std
 import hugr.std.collections.array
-import hugr.std.collections.list
 from hugr import tys as ht
 
 from guppylang_internals.ast_util import AstNode
@@ -344,10 +343,9 @@ def _list_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
     # Type checker ensures that we get a single arg of kind type
     [arg] = args
     assert isinstance(arg, TypeArg)
-    # Linear elements are turned into an optional to enable unsafe indexing.
-    # See `ListGetitemCompiler` for details.
-    elem_ty = ht.Option(arg.ty.to_hugr(ctx)) if arg.ty.linear else arg.ty.to_hugr(ctx)
-    return hugr.std.collections.list.List(elem_ty)
+    from guppylang_internals.std._internal.compiler.list_extension import List
+
+    return List(arg.ty.to_hugr(ctx))
 
 
 def _array_to_hugr(args: Sequence[Argument], ctx: ToHugrContext) -> ht.Type:
@@ -429,7 +427,7 @@ list_type_def = _ListTypeDef(
     name="list",
     defined_at=None,
     params=[TypeParam(0, "T", must_be_copyable=False, must_be_droppable=False)],
-    never_copyable=False,
+    never_copyable=True,
     never_droppable=False,
     to_hugr=_list_to_hugr,
 )

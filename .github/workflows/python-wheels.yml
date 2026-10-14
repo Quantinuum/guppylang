@@ -92,6 +92,7 @@ jobs:
     needs: build
     environment: release
     permissions:
+      contents: read # Check release readiness from the tagged source.
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
     strategy:
@@ -109,6 +110,12 @@ jobs:
           echo "run=$SHOULD_RUN" >> $GITHUB_OUTPUT
         env:
           SHOULD_RUN: ${{ startsWith(github.ref, format('refs/tags/{0}-v', matrix.target)) }}
+
+      - uses: actions/checkout@v7
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
+      - name: Check release readiness
+        if: ${{ steps.check-tag.outputs.run == 'true' }}
+        run: python3 scripts/release/check_release_ready.py
 
       - name: Download the ${{ matrix.target }} wheel artifact
         if: ${{ steps.check-tag.outputs.run == 'true' }}

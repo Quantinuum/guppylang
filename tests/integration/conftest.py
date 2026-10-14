@@ -2,6 +2,7 @@ from hugr import Hugr
 from hugr.package import Package, PackagePointer
 
 from pathlib import Path
+import subprocess
 import pytest
 from typing import Any, Literal, cast
 from typing import assert_never
@@ -86,7 +87,17 @@ def validate(request, export_test_cases_dir: Path):
             export_file = export_test_cases_dir / file_name
             export_file.write_bytes(package_bytes)
 
-        check_hugr(package_bytes)
+        if validator := request.config.getoption("--hugr-validator"):
+            # The executable is selected explicitly by the test runner; no shell.
+            result = subprocess.run(  # noqa: S603
+                [str(validator.resolve()), "validate"],
+                input=package_bytes,
+                capture_output=True,
+                check=False,
+            )
+            assert result.returncode == 0, result.stderr.decode()
+        else:
+            check_hugr(package_bytes)
 
     return validate_impl
 

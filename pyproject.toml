@@ -26,6 +26,12 @@ test = [
   "pytest-xdist>=3.8.0",
 ]
 
+# Remove this blocker only after compatible registry dependencies are released,
+# package requirements exclude incompatible versions, and --no-sources release
+# compatibility checks pass for both supported dependency resolutions.
+[tool.guppylang.release]
+blocked-reason = "Linear list ownership requires compatible released HUGR and Selene compiler packages. Update both distributable dependency ranges and validate registry-only installs before enabling releases."
+
 [tool.uv]
 prerelease = "if-necessary"
 
@@ -34,6 +40,10 @@ constraint-dependencies = [
   "llvmlite>0.45.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
 
+[tool.uv.config-settings-package]
+hugr = { "build-args" = "--locked" }
+selene-hugr-qis-compiler = { "build-args" = "--locked" }
+
 [tool.uv.workspace]
 members = ["guppylang", "guppylang-internals", "miette-py"]
 
@@ -41,8 +51,11 @@ members = ["guppylang", "guppylang-internals", "miette-py"]
 guppylang = { workspace = true }
 guppylang-internals = { workspace = true }
 miette-py = { workspace = true }
-# Uncomment these to test the latest dependency version during development
-# hugr = { git = "https://github.com/quantinuum/hugr", subdirectory = "hugr-py", rev = "a4da8ef" }
+# Linear list ownership requires matching Python and native compiler sources.
+# uv.lock fixes these named branches to exact commits; the compiler checkout
+# retains its root Cargo.lock and HUGR patches when built from this subdirectory.
+hugr = { git = "https://github.com/Quantinuum/hugr", subdirectory = "hugr-py", branch = "doug/fix-hugr-lists" }
+selene-hugr-qis-compiler = { git = "https://github.com/Quantinuum/tket2", subdirectory = "tket/qis-compiler", branch = "doug/fix-hugr-lists" }
 # tket = { git = "https://github.com/quantinuum/tket2", subdirectory = "tket-py", rev = "cdb47dd" }
 
 [build-system]

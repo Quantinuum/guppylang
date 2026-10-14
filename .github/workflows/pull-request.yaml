@@ -58,6 +58,11 @@ jobs:
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install LLVM for the source compiler
+        uses: quantinuum/hugrverse-env/install-hugrenv-action@main
+        with:
+          packages: llvm
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -100,6 +105,11 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.11
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install LLVM for the source compiler
+        uses: quantinuum/hugrverse-env/install-hugrenv-action@main
+        with:
+          packages: llvm
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7

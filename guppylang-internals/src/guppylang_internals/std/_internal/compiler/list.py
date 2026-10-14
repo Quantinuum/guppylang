@@ -6,11 +6,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import hugr.std.collections.list
 from hugr import Wire
 from hugr import tys as ht
 from hugr.ops import ExtOp
-from hugr.std.collections.list import List, ListVal
 
 from guppylang_internals.compiler.builder import OpWithEffects, ops, pure
 from guppylang_internals.definition.custom import CustomCallCompiler
@@ -20,9 +18,9 @@ from guppylang_internals.std._internal.compiler.arithmetic import (
     convert_ifromusize,
     convert_itousize,
 )
+from guppylang_internals.std._internal.compiler.list_extension import EXTENSION, List
 from guppylang_internals.std._internal.compiler.prelude import (
     build_unwrap,
-    build_unwrap_left,
     build_unwrap_right,
 )
 from guppylang_internals.tys.arg import TypeArg
@@ -39,7 +37,7 @@ if TYPE_CHECKING:
 def _instantiate_list_op(
     name: str, elem_type: ht.Type, inp: list[ht.Type], out: list[ht.Type]
 ) -> OpWithEffects:
-    op_def = hugr.std.collections.list.EXTENSION.get_op(name)
+    op_def = EXTENSION.get_op(name)
     return pure(
         ExtOp(
             op_def,
@@ -65,9 +63,11 @@ def list_push(elem_type: ht.Type) -> OpWithEffects:
 
 def list_get(elem_type: ht.Type) -> OpWithEffects:
     """Returns a list `get` operation."""
+    if elem_type.type_bound() != ht.TypeBound.Copyable:
+        raise InternalGuppyError("List get requires copyable elements")
     list_type = List(elem_type)
     return _instantiate_list_op(
-        "get", elem_type, [list_type, ht.USize()], [ht.Option(elem_type)]
+        "get", elem_type, [list_type, ht.USize()], [list_type, ht.Option(elem_type)]
     )
 
 
@@ -91,7 +91,7 @@ def list_insert(elem_type: ht.Type) -> OpWithEffects:
         elem_type,
         [list_type, ht.USize(), elem_type],
         # Return supplied element if out of range else unit
-        [list_type, ht.Either([elem_type], [ht.Unit])],
+        [list_type, ht.Either([elem_type], [])],
     )
 
 
@@ -103,201 +103,108 @@ def list_length(elem_type: ht.Type) -> OpWithEffects:
     )
 
 
+def list_new_op(elem_type: ht.Type) -> OpWithEffects:
+    """Constructs an empty list of arbitrary elements at runtime."""
+    return _instantiate_list_op("new", elem_type, [], [List(elem_type)])
+
+
+def list_discard_empty(elem_type: ht.Type) -> OpWithEffects:
+    """Consumes an empty list, panicking if it still contains elements."""
+    op, _ = _instantiate_list_op("discard_empty", elem_type, [List(elem_type)], [])
+    from guppylang_internals.tys import Effect
+
+    return op, [Effect.ANY]
+
+
 # ------------------------------------------------------
 # --------- Custom compilers for non-native ops --------
 # ------------------------------------------------------
 
 
 class ListGetitemCompiler(CustomCallCompiler):
-    """Compiler for the `list.__getitem__` function."""
-
-    def build_classical_getitem(
-        self,
-        list_wire: Wire,
-        idx: Wire,
-        elem_ty: ht.Type,
-    ) -> CallReturnWires:
-        """Lowers a call to `list.__getitem__` for classical lists."""
-        idx = self.builder.add_op(convert_itousize(), idx)
-        result = self.builder.add_op(list_get(elem_ty), list_wire, idx)
-        elem = build_unwrap(self.builder, result, "List index out of bounds")
-        return CallReturnWires(regular_returns=[elem], inout_returns=[list_wire])
-
-    def build_linear_getitem(
-        self,
-        list_wire: Wire,
-        idx: Wire,
-        elem_ty: ht.Type,
-    ) -> CallReturnWires:
-        """Lowers a call to `list.__getitem__` for linear lists."""
-        # Swap out the element at the given index with `None`. The `to_hugr`
-        # implementation of the list type ensures that linear element types are turned
-        # into optionals.
-        elem_opt_ty = ht.Option(elem_ty)
-        none = self.builder.add_op(ops.tag(0, elem_opt_ty))
-        idx = self.builder.add_op(convert_itousize(), idx)
-        list_wire, result = self.builder.add_op(
-            list_set(elem_opt_ty), list_wire, idx, none
-        )
-        elem_opt = build_unwrap_right(self.builder, result, "List index out of bounds")
-        elem = build_unwrap(
-            self.builder, elem_opt, "Linear list element has already been used"
-        )
-        return CallReturnWires(regular_returns=[elem], inout_returns=[list_wire])
+    """Copy a copyable element by index while returning the list handle."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
-        [list_wire, idx] = args
+        list_wire, idx = args
         [elem_ty_arg] = self.type_args
         assert isinstance(elem_ty_arg, TypeArg)
-        if elem_ty_arg.ty.linear:
-            return self.build_linear_getitem(
-                list_wire, idx, elem_ty_arg.ty.to_hugr(self.ctx)
-            )
-        else:
-            return self.build_classical_getitem(
-                list_wire, idx, elem_ty_arg.ty.to_hugr(self.ctx)
-            )
+        if not elem_ty_arg.ty.copyable:
+            raise InternalGuppyError("List indexed reads require copyable elements")
+        elem_ty = elem_ty_arg.ty.to_hugr(self.ctx)
+        idx = self.builder.add_op(convert_itousize(), idx)
+        list_wire, result = self.builder.add_op(list_get(elem_ty), list_wire, idx)
+        elem = build_unwrap(self.builder, result, "List index out of bounds")
+        return CallReturnWires(regular_returns=[elem], inout_returns=[list_wire])
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
 
 
 class ListSetitemCompiler(CustomCallCompiler):
-    """Compiler for the `list.__setitem__` function."""
+    """Replace a droppable element, disposing of the returned prior value."""
 
-    def build_classical_setitem(
-        self,
-        list_wire: Wire,
-        idx: Wire,
-        elem: Wire,
-        elem_ty: ht.Type,
-    ) -> CallReturnWires:
-        """Lowers a call to `list.__setitem__` for classical lists."""
+    def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
+        list_wire, idx, elem = args
+        [elem_ty_arg] = self.type_args
+        assert isinstance(elem_ty_arg, TypeArg)
+        if not elem_ty_arg.ty.droppable:
+            raise InternalGuppyError("List assignment requires droppable elements")
+        elem_ty = elem_ty_arg.ty.to_hugr(self.ctx)
         idx = self.builder.add_op(convert_itousize(), idx)
         list_wire, result = self.builder.add_op(list_set(elem_ty), list_wire, idx, elem)
-        # Unwrap the result, but we don't have to hold onto the returned old value
+        # The genuine swap result is unwrapped. Drop insertion disposes of a
+        # droppable prior value, recursively draining any list handles it owns.
         build_unwrap_right(self.builder, result, "List index out of bounds")
         return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
 
-    def build_linear_setitem(
-        self,
-        list_wire: Wire,
-        idx: Wire,
-        elem: Wire,
-        elem_ty: ht.Type,
-    ) -> CallReturnWires:
-        """Lowers a call to `array.__setitem__` for linear arrays."""
-        # Embed the element into an optional
-        elem_opt_ty = ht.Option(elem_ty)
-        elem = self.builder.add_op(ops.some(elem_ty), elem)
-        idx = self.builder.add_op(convert_itousize(), idx)
-        list_wire, result = self.builder.add_op(
-            list_set(elem_opt_ty), list_wire, idx, elem
-        )
-        old_elem_opt = build_unwrap_right(
-            self.builder, result, "List index out of bounds"
-        )
-        # Check that the old element was `None`
-        build_unwrap_left(
-            self.builder, old_elem_opt, "Linear list element has not been used"
-        )
-        return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        raise InternalGuppyError("Call compile_with_inouts instead")
+
+
+class ListSwapCompiler(CustomCallCompiler):
+    """Replace an element and transfer the prior element to the caller."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
-        [list_wire, idx, elem] = args
+        list_wire, idx, elem = args
         [elem_ty_arg] = self.type_args
         assert isinstance(elem_ty_arg, TypeArg)
-        if elem_ty_arg.ty.linear:
-            return self.build_linear_setitem(
-                list_wire, idx, elem, elem_ty_arg.ty.to_hugr(self.ctx)
-            )
-        else:
-            return self.build_classical_setitem(
-                list_wire, idx, elem, elem_ty_arg.ty.to_hugr(self.ctx)
-            )
+        elem_ty = elem_ty_arg.ty.to_hugr(self.ctx)
+        idx = self.builder.add_op(convert_itousize(), idx)
+        list_wire, result = self.builder.add_op(list_set(elem_ty), list_wire, idx, elem)
+        old = build_unwrap_right(self.builder, result, "List index out of bounds")
+        return CallReturnWires(regular_returns=[old], inout_returns=[list_wire])
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
 
 
 class ListPopCompiler(CustomCallCompiler):
-    """Compiler for the `list.pop` function."""
-
-    def build_classical_pop(
-        self,
-        list_wire: Wire,
-        elem_ty: ht.Type,
-    ) -> CallReturnWires:
-        """Lowers a call to `list.pop` for classical lists."""
-        list_wire, result = self.builder.add_op(list_pop(elem_ty), list_wire)
-        elem = build_unwrap(self.builder, result, "List index out of bounds")
-        return CallReturnWires(regular_returns=[elem], inout_returns=[list_wire])
-
-    def build_linear_pop(
-        self,
-        list_wire: Wire,
-        elem_ty: ht.Type,
-    ) -> CallReturnWires:
-        """Lowers a call to `list.pop` for linear lists."""
-        elem_opt_ty = ht.Option(elem_ty)
-        list_wire, result = self.builder.add_op(list_pop(elem_opt_ty), list_wire)
-        elem_opt = build_unwrap(self.builder, result, "List index out of bounds")
-        elem = build_unwrap(
-            self.builder, elem_opt, "Linear list element has already been used"
-        )
-        return CallReturnWires(regular_returns=[elem], inout_returns=[list_wire])
+    """Remove and transfer the last element, panicking when the list is empty."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
         [list_wire] = args
         [elem_ty_arg] = self.type_args
         assert isinstance(elem_ty_arg, TypeArg)
-        if elem_ty_arg.ty.linear:
-            return self.build_linear_pop(list_wire, elem_ty_arg.ty.to_hugr(self.ctx))
-        else:
-            return self.build_classical_pop(list_wire, elem_ty_arg.ty.to_hugr(self.ctx))
+        elem_ty = elem_ty_arg.ty.to_hugr(self.ctx)
+        list_wire, result = self.builder.add_op(list_pop(elem_ty), list_wire)
+        elem = build_unwrap(self.builder, result, "List index out of bounds")
+        return CallReturnWires(regular_returns=[elem], inout_returns=[list_wire])
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
 
 
 class ListPushCompiler(CustomCallCompiler):
-    """Compiler for the `list.push` function."""
-
-    def build_classical_push(
-        self,
-        list_wire: Wire,
-        elem: Wire,
-        elem_ty: ht.Type,
-    ) -> CallReturnWires:
-        """Lowers a call to `list.push` for classical lists."""
-        list_wire = self.builder.add_op(list_push(elem_ty), list_wire, elem)
-        return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
-
-    def build_linear_push(
-        self,
-        list_wire: Wire,
-        elem: Wire,
-        elem_ty: ht.Type,
-    ) -> CallReturnWires:
-        """Lowers a call to `list.push` for linear lists."""
-        # Wrap element into an optional
-        elem_opt_ty = ht.Option(elem_ty)
-        elem_opt = self.builder.add_op(ops.some(elem_ty), elem)
-        list_wire = self.builder.add_op(list_push(elem_opt_ty), list_wire, elem_opt)
-        return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
+    """Transfer an element directly into the list."""
 
     def compile_with_inouts(self, args: list[Wire]) -> CallReturnWires:
-        [list_wire, elem] = args
+        list_wire, elem = args
         [elem_ty_arg] = self.type_args
         assert isinstance(elem_ty_arg, TypeArg)
-        if elem_ty_arg.ty.linear:
-            return self.build_linear_push(
-                list_wire, elem, elem_ty_arg.ty.to_hugr(self.ctx)
-            )
-        else:
-            return self.build_classical_push(
-                list_wire, elem, elem_ty_arg.ty.to_hugr(self.ctx)
-            )
+        list_wire = self.builder.add_op(
+            list_push(elem_ty_arg.ty.to_hugr(self.ctx)), list_wire, elem
+        )
+        return CallReturnWires(regular_returns=[], inout_returns=[list_wire])
 
     def compile(self, args: list[Wire]) -> list[Wire]:
         raise InternalGuppyError("Call compile_with_inouts instead")
@@ -311,8 +218,6 @@ class ListLengthCompiler(CustomCallCompiler):
         [elem_ty_arg] = self.type_args
         assert isinstance(elem_ty_arg, TypeArg)
         elem_ty = elem_ty_arg.ty.to_hugr(self.ctx)
-        if elem_ty_arg.ty.linear:
-            elem_ty = ht.Option(elem_ty)
         list_wire, length = self.builder.add_op(list_length(elem_ty), list_wire)
         length = self.builder.add_op(convert_ifromusize(), length)
         return CallReturnWires(regular_returns=[length], inout_returns=[list_wire])
@@ -321,30 +226,71 @@ class ListLengthCompiler(CustomCallCompiler):
         raise InternalGuppyError("Call compile_with_inouts instead")
 
 
+class ListDiscardEmptyCompiler(CustomCallCompiler):
+    """Compiler for consuming an empty list without discarding any elements."""
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        [elem_ty_arg] = self.type_args
+        assert isinstance(elem_ty_arg, TypeArg)
+        elem_ty = elem_ty_arg.ty.to_hugr(self.ctx)
+        self.builder.add_op(list_discard_empty(elem_ty), *args)
+        return []
+
+
+class ListIterCompiler(CustomCallCompiler):
+    """Prepare a consuming iterator that yields elements in insertion order."""
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        [lst] = args
+        ty = self.builder.get_wire_type(lst)
+        assert isinstance(ty, List)
+        elem_ty = ty.ty
+        reversed_list = self.builder.add_op(list_new_op(elem_ty))
+        loop = self.builder.add_tail_loop([lst], [reversed_list])
+        lst, reversed_list = loop.inputs()
+        lst, elem = loop.add_op(list_pop(elem_ty), lst)
+        cond = loop.add_conditional(elem, lst, reversed_list)
+        empty = cond.add_case(0)
+        lst, reversed_list = empty.inputs()
+        empty.add_op(list_discard_empty(elem_ty), lst)
+        predicate = empty.add_op(ops.tag(1, ht.Either([List(elem_ty)], [])))
+        empty.set_outputs(predicate, reversed_list)
+        some = cond.add_case(1)
+        elem, lst, reversed_list = some.inputs()
+        reversed_list = some.add_op(list_push(elem_ty), reversed_list, elem)
+        predicate = some.add_op(ops.tag(0, ht.Either([List(elem_ty)], [])), lst)
+        some.set_outputs(predicate, reversed_list)
+        predicate, reversed_list = cond.outputs()
+        loop.set_loop_outputs(predicate, reversed_list)
+        return list(loop.outputs())
+
+
+class ListNextCompiler(CustomCallCompiler):
+    """Pop the next iterator element and release the handle on exhaustion."""
+
+    def compile(self, args: list[Wire]) -> list[Wire]:
+        [lst] = args
+        [elem_ty_arg] = self.type_args
+        assert isinstance(elem_ty_arg, TypeArg)
+        elem_ty = elem_ty_arg.ty.to_hugr(self.ctx)
+        list_ty = List(elem_ty)
+        result_ty = ht.Option(ht.Tuple(elem_ty, list_ty))
+        lst, elem = self.builder.add_op(list_pop(elem_ty), lst)
+        cond = self.builder.add_conditional(elem, lst)
+        empty = cond.add_case(0)
+        empty.add_op(list_discard_empty(elem_ty), empty.inputs()[0])
+        empty.set_outputs(empty.add_op(ops.tag(0, result_ty)))
+        some = cond.add_case(1)
+        elem, lst = some.inputs()
+        pair = some.add_op(ops.make_tuple([elem_ty, list_ty]), elem, lst)
+        some.set_outputs(some.add_op(ops.tag(1, result_ty), pair))
+        return list(cond.outputs())
+
+
 def list_new(builder: DFBuilder, elem_type: ht.Type, args: list[Wire]) -> Wire:
-    if elem_type.type_bound() == ht.TypeBound.Linear:
-        return _list_new_linear(builder, elem_type, args)
-    else:
-        return _list_new_classical(builder, elem_type, args)
-
-
-def _list_new_classical(
-    builder: DFBuilder, elem_type: ht.Type, args: list[Wire]
-) -> Wire:
-    # This may be simplified in the future with a `new` or `with_capacity` list op
-    # See https://github.com/quantinuum/hugr/issues/1508
-    lst = builder.load(ListVal([], elem_ty=elem_type))
+    """Construct a list by transferring each supplied element directly into it."""
+    lst = builder.add_op(list_new_op(elem_type))
     push_op = list_push(elem_type)
     for elem in args:
         lst = builder.add_op(push_op, lst, elem)
-    return lst
-
-
-def _list_new_linear(builder: DFBuilder, elem_type: ht.Type, args: list[Wire]) -> Wire:
-    elem_opt_ty = ht.Option(elem_type)
-    lst = builder.load(ListVal([], elem_ty=elem_opt_ty))
-    push_op = list_push(elem_opt_ty)
-    for elem in args:
-        elem_opt = builder.add_op(ops.some(elem_type), elem)
-        lst = builder.add_op(push_op, lst, elem_opt)
     return lst
