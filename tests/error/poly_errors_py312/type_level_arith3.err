@@ -1,0 +1,10 @@
+Error: Too many values to unpack (at $FILE:9:4)
+  | 
+7 | @guppy
+8 | def tail[T, n: nat](xs: array[T, n] @ owned) -> array[T, "comptime(n - 1)"]:
+9 |     _, *ys = xs
+  |     ^^^^^^ Unexpected assignment target (expected 0, got at least 1)
+
+Note: Error occurred while checking the instantiation `T := int`,`n := 0`
+
+Guppy compilation failed due to 1 previous error

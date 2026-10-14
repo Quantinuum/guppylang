@@ -2,7 +2,7 @@ from functools import singledispatchmethod
 
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
-from guppylang_internals.tys.const import Const, ConstValue
+from guppylang_internals.tys.const import ComptimeConstValue, Const, ConstValue
 from guppylang_internals.tys.param import ConstParam, TypeParam
 from guppylang_internals.tys.ty import (
     EnumType,
@@ -161,6 +161,10 @@ class TypePrinter:
     @_visit.register
     def _visit_ConstValue(self, c: ConstValue, inside_row: bool) -> str:
         return str(c.value)
+
+    @_visit.register
+    def _visit_ComptimeConstValue(self, c: ComptimeConstValue, inside_row: bool) -> str:
+        return "comptime(...)"
 
 
 def _wrap(s: str, inside_row: bool) -> str:

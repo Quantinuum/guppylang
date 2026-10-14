@@ -1,13 +1,17 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.tys.common import Transformable, Transformer, Visitor
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
 if TYPE_CHECKING:
+    from guppylang_internals.nodes import ComptimeExpr
     from guppylang_internals.tys.arg import ConstArg
-    from guppylang_internals.tys.subst import Subst
+    from guppylang_internals.tys.param import Parameter
+    from guppylang_internals.tys.subst import PartialInst, Subst
     from guppylang_internals.tys.ty import Type
 
 
@@ -84,6 +88,76 @@ class ConstValue(ConstBase):
 
 
 @dataclass(frozen=True)
+class ComptimeConstValue(ConstBase):
+    """A constant value in the type system backed by a Python comptime expression.
+
+    For example, in the type `array[int, comptime(n + 1)]` the second argument is a
+    `ConstArg`  that contains a `ComptimeConstValue`.
+    """
+
+    expr: "ComptimeExpr"
+
+    #: Generic parameters that are in scope for this comptime value
+    params: Sequence["Parameter"]
+
+    #: Partial instantiation of those parameters
+    inst: "PartialInst"
+
+    #: Id of the definition in which this comptime value occurs. This will be used
+    #: later to determine the globals that are in scope for this comptime expression.
+    containing_def_id: DefId
+
+    def cast(self) -> "Const":
+        """Casts an implementor of `ConstBase` into a `Const`."""
+        return self
+
+    def transform(self, transformer: Transformer, /) -> "Const":
+        """Accepts a transformer on this constant."""
+        return (
+            transformer.transform(self)
+            or ComptimeConstValue(
+                self.ty.transform(transformer),
+                self.expr,
+                self.params,
+                tuple(arg.transform(transformer) if arg else None for arg in self.inst),
+                self.containing_def_id,
+            ).try_resolve()
+        )
+
+    def try_resolve(self) -> "Const":
+        """Tries to evaluate the comptime expression using the current stashed partial
+        instantiation.
+
+        Returns the concrete constant value, or `self` of the expression cannot be
+        evaluated yet.
+        """
+        from guppylang_internals.checker.core import (
+            Context,
+            DummyEvalDict,
+            Globals,
+            Locals,
+        )
+        from guppylang_internals.checker.expr_checker import eval_comptime_expr
+        from guppylang_internals.engine import DEF_STORE
+        from guppylang_internals.tys.arg import ConstArg
+        from guppylang_internals.tys.parsing import check_comptime_value
+
+        inst = {
+            param.name: arg or param.to_existential()[0]
+            for param, arg in zip(self.params, self.inst, strict=True)
+        }
+        globals = Globals(DEF_STORE.frames[self.containing_def_id])
+        ctx = Context(globals, Locals({}), inst)
+        try:
+            v = eval_comptime_expr(self.expr, ctx)
+        except DummyEvalDict.UnsolvedExistentialError:
+            return self
+        arg = check_comptime_value(v, self.expr)
+        assert isinstance(arg, ConstArg)
+        return arg.const
+
+
+@dataclass(frozen=True)
 class BoundConstVar(BoundVar, ConstBase):
     """Bound variable referencing a `ConstParam`.
 
@@ -136,4 +210,4 @@ class ExistentialConstVar(ExistentialVar, ConstBase):
         )
 
 
-type Const = ConstValue | BoundConstVar | ExistentialConstVar
+type Const = ConstValue | ComptimeConstValue | BoundConstVar | ExistentialConstVar

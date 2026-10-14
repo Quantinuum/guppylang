@@ -61,6 +61,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprNotCPythonError,
     ComptimeExprNotStaticError,
     ComptimeExprTypeVarError,
+    ComptimeExprUnboundGenericError,
     ComptimeGuppyObjectError,
     ComptimeUnknownError,
     UnsupportedPythonValueError,
@@ -152,6 +153,7 @@ from guppylang_internals.tys.builtin import (
 )
 from guppylang_internals.tys.const import (
     BoundConstVar,
+    ComptimeConstValue,
     Const,
     ConstValue,
     ExistentialConstVar,
@@ -532,6 +534,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         # that it won't be emitted when checking the actual monomorphic
                         # instantiations later.
                         return with_loc(node, DummyGenericParamValue(name, var)), ty
+                    case ComptimeConstValue():
+                        raise InternalGuppyError(
+                            "Comptime consts should have been resolved at this point"
+                        )
                     case ExistentialConstVar():
                         raise InternalGuppyError("Unexpected existential variable")
             case TypeArg():
@@ -2030,6 +2036,10 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
     except DummyEvalDict.GuppyTypeVarUsedError as e:
         raise GuppyError(ComptimeExprTypeVarError(e.node or node, e.var)) from None
+    except DummyEvalDict.UnboundGenericVarUsedError as e:
+        raise GuppyError(
+            ComptimeExprUnboundGenericError(e.node or node, e.var)
+        ) from None
     except GuppyComptimeError as e:
         raise GuppyError(ComptimeGuppyObjectError(node.value, str(e))) from e
     except RequiresMonomorphizationError:
