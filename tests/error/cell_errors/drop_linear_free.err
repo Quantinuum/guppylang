@@ -2,8 +2,8 @@ Error: Drop violation (at $FILE:9:4)
   | 
 7 | @guppy
 8 | def main(q: qubit @ owned) -> None:
-9 |     Ptr(q).free()
-  |     ^^^^^^^^^^^^^ Expression with non-droppable type `Option[qubit]` is leaked
+9 |     Cell(q).free()
+  |     ^^^^^^^^^^^^^^ Expression with non-droppable type `Option[qubit]` is leaked
 
 Help: Consider assigning this value to a local variable
 

@@ -2,8 +2,8 @@ Error: Drop violation (at $FILE:9:4)
   | 
 7 | @guppy
 8 | def main() -> None:
-9 |     p = Ptr(1)
-  |     ^ Variable `p` with non-droppable type `Ptr[int]` is leaked
+9 |     p = Cell(1)
+  |     ^ Variable `p` with non-droppable type `Cell[int]` is leaked
 
 Help: Make sure that `p` is consumed or returned to avoid the leak
 

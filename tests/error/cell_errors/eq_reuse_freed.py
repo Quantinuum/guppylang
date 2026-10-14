@@ -1,10 +1,11 @@
 from guppylang import guppy
-from guppylang.std.ptr import Ptr
+from guppylang.std.cell import Cell
 from guppylang.std.lang import owned
 
 
 @guppy
-def main(p: Ptr[int], q: Ptr[bool]) -> bool:
+def main(p: Cell[int] @ owned, q: Cell[int]) -> bool:
+    p.free()
     return p == q
 
 

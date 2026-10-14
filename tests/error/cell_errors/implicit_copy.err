@@ -1,14 +1,14 @@
 Error: Copy violation (at $FILE:9:14)
   | 
 7 | @guppy
-8 | def main(p: Ptr[int] @ owned) -> tuple[Ptr[int], Ptr[int]]:
+8 | def main(p: Cell[int] @ owned) -> tuple[Cell[int], Cell[int]]:
 9 |     return p, p
-  |               ^ Variable `p` with non-copyable type `Ptr[int]` cannot be
+  |               ^ Variable `p` with non-copyable type `Cell[int]` cannot be
   |                 returned ...
 
 Note:
   | 
-8 | def main(p: Ptr[int] @ owned) -> tuple[Ptr[int], Ptr[int]]:
+8 | def main(p: Cell[int] @ owned) -> tuple[Cell[int], Cell[int]]:
 9 |     return p, p
   |            - Variable `p` already returned here
 

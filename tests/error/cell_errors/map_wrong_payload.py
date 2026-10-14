@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang.std.ptr import Ptr
+from guppylang.std.cell import Cell
 
 
 @guppy
@@ -8,7 +8,7 @@ def callback(value: int, arg: int) -> tuple[bool, int]:
 
 
 @guppy
-def main(p: Ptr[int]) -> int:
+def main(p: Cell[int]) -> int:
     return p.map(callback, 1)
 
 

@@ -1,5 +1,5 @@
 from guppylang import guppy
-from guppylang.std.ptr import Ptr
+from guppylang.std.cell import Cell
 from guppylang.std.quantum import qubit
 
 
@@ -9,7 +9,7 @@ def callback(q: qubit, arg: int) -> tuple[qubit, int]:
 
 
 @guppy
-def main(p: Ptr[qubit]) -> int:
+def main(p: Cell[qubit]) -> int:
     return p.map(callback, 1)
 
 

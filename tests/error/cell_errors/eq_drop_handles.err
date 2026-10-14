@@ -2,8 +2,8 @@ Error: Drop violation (at $FILE:7:9)
   | 
 5 | 
 6 | @guppy
-7 | def main(p: Ptr[int] @ owned, q: Ptr[int] @ owned) -> bool:
-  |          ^^^^^^^^^^^^^^^^^^^ Variable `p` with non-droppable type `Ptr[int]` is leaked
+7 | def main(p: Cell[int] @ owned, q: Cell[int] @ owned) -> bool:
+  |          ^^^^^^^^^^^^^^^^^^^^ Variable `p` with non-droppable type `Cell[int]` is leaked
 
 Help: Make sure that `p` is consumed or returned to avoid the leak
 

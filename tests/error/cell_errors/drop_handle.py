@@ -1,11 +1,11 @@
 from guppylang import guppy
-from guppylang.std.ptr import Ptr
+from guppylang.std.cell import Cell
 from guppylang.std.quantum import qubit
 from guppylang.std.lang import owned
 
 
 @guppy
-def main(p: Ptr[int] @ owned) -> tuple[Ptr[int], Ptr[int]]:
-    return p, p
+def main() -> None:
+    p = Cell(1)
 
 main.compile()

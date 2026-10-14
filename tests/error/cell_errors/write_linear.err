@@ -1,7 +1,7 @@
 Error: Expected a copyable type (at $FILE:9:4)
   | 
 7 | @guppy
-8 | def main(p: Ptr[qubit], q: qubit @ owned) -> None:
+8 | def main(p: Cell[qubit], q: qubit @ owned) -> None:
 9 |     p.write(q)
   |     ^ Expected a copyable type, got type `qubit` which is not
   |       implicitly copyable

@@ -1,7 +1,7 @@
 Error: Type mismatch (at $FILE:13:17)
    | 
 11 | @guppy
-12 | def main(p: Ptr[qubit]) -> int:
+12 | def main(p: Cell[qubit]) -> int:
 13 |     return p.map(callback, 1)
    |                  ^^^^^^^^ Expected argument of type `(qubit @owned, ?In @owned) ->
    |                           (qubit, ?Out)`, got `(qubit, int) -> (qubit, int)`

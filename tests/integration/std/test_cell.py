@@ -6,7 +6,7 @@ from hugr.envelope import EnvelopeConfig, EnvelopeFormat
 
 from guppylang import guppy
 from guppylang.std.lang import Function, owned
-from guppylang.std.ptr import Ptr
+from guppylang.std.cell import Cell
 from guppylang.std.quantum import qubit, discard
 
 
@@ -27,7 +27,7 @@ def validate_ptr():
 def test_copyable(validate_ptr):
     @guppy
     def main() -> int:
-        p = Ptr(1)
+        p = Cell(1)
         p.write(2)
         old = p.swap(3)
         other = p.copy()
@@ -40,7 +40,7 @@ def test_copyable(validate_ptr):
 def test_linear(validate_ptr):
     @guppy
     def main(q: qubit @ owned, replacement: qubit @ owned) -> qubit:
-        p = Ptr(q)
+        p = Cell(q)
         discard(p.swap(replacement))
         other = p.copy()
         other.free().unwrap_nothing()
@@ -56,7 +56,7 @@ def test_map(validate_ptr):
 
     @guppy
     def main(q: qubit @ owned, replacement: qubit @ owned) -> tuple[qubit, qubit]:
-        p = Ptr(q)
+        p = Cell(q)
         old = p.map(transform, replacement)
         return old, p.free().unwrap()
 
@@ -70,12 +70,12 @@ def test_tuple_and_unit(validate_ptr):
 
     @guppy
     def main() -> tuple[int, bool]:
-        p = Ptr((1, True))
+        p = Cell((1, True))
         p.map(transform, None)
         p.read()
         p.swap((2, False))
         p.write((3, True))
-        unit = Ptr(None)
+        unit = Cell(None)
         unit.read()
         unit.swap(None)
         unit.free().unwrap()
@@ -86,13 +86,13 @@ def test_tuple_and_unit(validate_ptr):
 
 def test_borrowed_and_higher_order(validate_ptr):
     @guppy
-    def change(p: Ptr[int]) -> int:
-        f: Function[[Ptr[int], int], int] = Ptr.swap
+    def change(p: Cell[int]) -> int:
+        f: Function[[Cell[int], int], int] = Cell.swap
         return f(p, 42)
 
     @guppy
     def main() -> int:
-        p = Ptr(1)
+        p = Cell(1)
         change(p)
         return p.free().unwrap()
 
@@ -102,7 +102,7 @@ def test_borrowed_and_higher_order(validate_ptr):
 def test_nested_payload(validate_ptr):
     @guppy
     def main() -> int:
-        outer = Ptr(Ptr(42))
+        outer = Cell(Cell(42))
         inner = outer.free().unwrap()
         return inner.free().unwrap()
 
@@ -117,7 +117,7 @@ def test_map_tuple_result(validate_ptr):
 
     @guppy
     def main() -> tuple[int, bool]:
-        p = Ptr(40)
+        p = Cell(40)
         result = p.map(transform, (2, True))
         p.free()
         return result
@@ -130,7 +130,7 @@ def test_handle_sequencing(validate_ptr):
 
     @guppy
     def main() -> int:
-        p = Ptr(1)
+        p = Cell(1)
         p.write(2)
         p.swap(3)
         result = p.read()
@@ -153,9 +153,9 @@ def test_identity_equality(validate_ptr):
 
     @guppy
     def main() -> tuple[bool, bool]:
-        p = Ptr(42)
+        p = Cell(42)
         alias = p.copy()
-        separate = Ptr(42)
+        separate = Cell(42)
         same = p == alias
         different = p == separate
         alias.free()
@@ -177,13 +177,13 @@ def test_identity_equality(validate_ptr):
 
 def test_equality_linear_and_higher_order(validate_ptr):
     @guppy
-    def compare(p: Ptr[qubit], q: Ptr[qubit]) -> bool:
-        f: Function[[Ptr[qubit], Ptr[qubit]], bool] = Ptr.__eq__
+    def compare(p: Cell[qubit], q: Cell[qubit]) -> bool:
+        f: Function[[Cell[qubit], Cell[qubit]], bool] = Cell.__eq__
         return f(p, q)
 
     @guppy
     def main(q: qubit @ owned) -> tuple[bool, bool, qubit]:
-        p = Ptr(q)
+        p = Cell(q)
         alias = p.copy()
         same = compare(p, alias)
         different = p != alias
@@ -196,12 +196,12 @@ def test_equality_linear_and_higher_order(validate_ptr):
 def test_equality_tuple_unit_and_inequality(validate_ptr):
     @guppy
     def main() -> tuple[bool, bool]:
-        p = Ptr((1, True))
+        p = Cell((1, True))
         q = p.copy()
         different = p != q
         p.free()
         q.free()
-        unit = Ptr(None)
+        unit = Cell(None)
         other = unit.copy()
         same = unit == other
         unit.free()

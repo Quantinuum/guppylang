@@ -1,14 +1,14 @@
 Error: Copy violation (at $FILE:9:11)
   | 
-7 | def main(p: Ptr[int] @ owned, q: Ptr[int]) -> bool:
+7 | def main(p: Cell[int] @ owned, q: Cell[int]) -> bool:
 8 |     p.free()
 9 |     return p == q
-  |            ^ Variable `p` with non-copyable type `Ptr[int]` cannot be
+  |            ^ Variable `p` with non-copyable type `Cell[int]` cannot be
   |              borrowed ...
 
 Note:
   | 
-7 | def main(p: Ptr[int] @ owned, q: Ptr[int]) -> bool:
+7 | def main(p: Cell[int] @ owned, q: Cell[int]) -> bool:
 8 |     p.free()
   |     - Variable `p` already consumed here
 

@@ -1,11 +1,11 @@
 from guppylang import guppy
-from guppylang.std.ptr import Ptr
+from guppylang.std.cell import Cell
 from guppylang.std.quantum import qubit
 from guppylang.std.lang import owned
 
 
 @guppy
-def main() -> None:
-    p = Ptr(1)
+def main(p: Cell[qubit]) -> qubit:
+    return p.read()
 
 main.compile()
