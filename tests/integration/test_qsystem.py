@@ -6,9 +6,11 @@ import guppylang.std.qsystem.sol as sol_mod
 import guppylang.std.qsystem.sol.functional as sol_fn_mod
 from guppylang.decorator import guppy
 from guppylang.std.angles import angle
-from guppylang.std.builtins import array, owned
+from guppylang.std.builtins import array, control, dagger, owned
 from typing import NamedTuple
 from types import ModuleType
+
+from guppylang_internals.error import GuppyError
 
 from guppylang.std.qsystem.random import RNG, make_discrete_distribution
 from guppylang.std.qsystem.utils import get_current_shot
@@ -76,6 +78,86 @@ def test_qsystem_helios(validate):  # type: ignore[no-untyped-def]
         return msmt2
 
     validate(test.compile_function())
+
+
+def test_qsystem_helios_unitary():  # type: ignore[no-untyped-def]
+    """The unitary Helios gates can be used under `dagger` and `control` modifiers.
+
+    Only type checking is exercised here: lowering a controlled/daggered qsystem
+    hardware primitive is not yet supported by the tket normalization pass.
+    """
+    from guppylang.std.qsystem.helios import phased_x, rz, zz_max, zz_phase
+
+    @guppy
+    def use_dagger(q1: qubit, q2: qubit, a: angle) -> None:
+        with dagger:
+            phased_x(q1, a, a)
+            rz(q1, a)
+            zz_phase(q1, q2, a)
+            zz_max(q1, q2)
+
+    @guppy
+    def use_control(ctrl: qubit, q1: qubit, q2: qubit, a: angle) -> None:
+        with control(ctrl):
+            phased_x(q1, a, a)
+            rz(q1, a)
+            zz_phase(q1, q2, a)
+            zz_max(q1, q2)
+
+    use_dagger.check()
+    use_control.check()
+
+
+def test_qsystem_sol_unitary():  # type: ignore[no-untyped-def]
+    """The unitary Sol gates can be used under `dagger` and `control` modifiers.
+
+    Only type checking is exercised here: lowering a controlled/daggered qsystem
+    hardware primitive is not yet supported by the tket normalization pass.
+    """
+    from guppylang.std.qsystem.sol import (
+        phased_x,
+        phased_xx,
+        phased_xx_max,
+        rz,
+        xx_max,
+        yy_max,
+    )
+
+    @guppy
+    def use_dagger(q1: qubit, q2: qubit, a: angle) -> None:
+        with dagger:
+            phased_x(q1, a, a)
+            rz(q1, a)
+            phased_xx(q1, q2, a, a)
+            phased_xx_max(q1, q2, a)
+            xx_max(q1, q2)
+            yy_max(q1, q2)
+
+    @guppy
+    def use_control(ctrl: qubit, q1: qubit, q2: qubit, a: angle) -> None:
+        with control(ctrl):
+            phased_x(q1, a, a)
+            rz(q1, a)
+            phased_xx(q1, q2, a, a)
+            phased_xx_max(q1, q2, a)
+            xx_max(q1, q2)
+            yy_max(q1, q2)
+
+    use_dagger.check()
+    use_control.check()
+
+
+def test_qsystem_non_unitary_rejected(qsys_mod: QsysMod):  # type: ignore[no-untyped-def]
+    """Non-unitary operations (e.g. reset) cannot be used in a unitary context."""
+    mod = qsys_mod.mod
+
+    @guppy
+    def use_reset_dagger(q: qubit) -> None:
+        with dagger:
+            mod.reset(q)
+
+    with pytest.raises(GuppyError):
+        use_reset_dagger.check()
 
 
 def test_qsystem_random(validate):  # type: ignore[no-untyped-def]

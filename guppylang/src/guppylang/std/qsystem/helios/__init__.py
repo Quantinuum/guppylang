@@ -24,6 +24,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_HELIOS_EXTENSION,
 )
 from guppylang_internals.std._internal.util import quantum_op
+from guppylang_internals.tys.ty import UnitaryFlags
 
 from guppylang import guppy
 from guppylang.std.angles import angle, pi
@@ -57,7 +58,7 @@ __all__ = [
 ]
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def phased_x(q: qubit, angle1: angle, angle2: angle) -> None:
     r"""Primitive phased_x gate command.
@@ -78,7 +79,7 @@ def phased_x(q: qubit, angle1: angle, angle2: angle) -> None:
     _phased_x(q, f1, f2)
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def zz_max(q1: qubit, q2: qubit) -> None:
     r"""zz_max gate command. A maximally entangling zz_phase gate.
@@ -103,7 +104,7 @@ def zz_max(q1: qubit, q2: qubit) -> None:
     zz_phase(q1, q2, pi / 2)
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def zz_phase(q1: qubit, q2: qubit, angle: angle) -> None:
     r"""Primitive zz_phase gate command.
@@ -126,7 +127,7 @@ def zz_phase(q1: qubit, q2: qubit, angle: angle) -> None:
     _zz_phase(q1, q2, f)
 
 
-@guppy
+@guppy(unitary=True)
 @no_type_check
 def rz(q: qubit, angle: angle) -> None:
     r"""Primitive rz gate command.
@@ -285,7 +286,10 @@ def lazy_measure_and_reset_array(
 # ------------------------------------------------------
 
 
-@hugr_op(quantum_op("PhasedX", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(
+    quantum_op("PhasedX", ext=QSYSTEM_HELIOS_EXTENSION),
+    unitary_flags=UnitaryFlags.Unitary,
+)
 @no_type_check
 def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
     """PhasedX operation from the qsystem extension.
@@ -295,7 +299,10 @@ def _phased_x(q: qubit, angle1: float, angle2: float) -> None:
     """
 
 
-@hugr_op(quantum_op("ZZPhase", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(
+    quantum_op("ZZPhase", ext=QSYSTEM_HELIOS_EXTENSION),
+    unitary_flags=UnitaryFlags.Unitary,
+)
 @no_type_check
 def _zz_phase(q1: qubit, q2: qubit, angle: float) -> None:
     """ZZPhase operation from the qsystem extension.
@@ -305,7 +312,9 @@ def _zz_phase(q1: qubit, q2: qubit, angle: float) -> None:
     """
 
 
-@hugr_op(quantum_op("Rz", ext=QSYSTEM_HELIOS_EXTENSION))
+@hugr_op(
+    quantum_op("Rz", ext=QSYSTEM_HELIOS_EXTENSION), unitary_flags=UnitaryFlags.Unitary
+)
 @no_type_check
 def _rz(q: qubit, angle: float) -> None:
     """Rz operation from the qsystem extension.
