@@ -100,6 +100,31 @@ optimization level:
     )
 
 
+Compiling libraries
+-------------------
+
+``GuppyLibrary.compile()`` uses the same default optimization level as function
+compilation. Libraries also support ``with_opt_level()`` and
+``with_minimal_opt()``, returning a :py:class:`LibraryOptimizerInstance` that
+supports chaining custom passes:
+
+.. code-block:: python
+
+    from guppylang.library import GuppyLibrary
+    from tket.passes import InlineFunctions
+
+    library = GuppyLibrary.from_members(foo, bar)
+    package = library.with_minimal_opt().compile()
+    package = (
+        library.with_opt_level(OptimizationLevel.Classical)
+        .with_optimization(InlineFunctions())
+        .compile()
+    )
+
+Optimization preserves public library exports, but may inline or remove private
+helpers. Use minimal optimization when inspecting the original function structure.
+
+
 Setting the target platform
 -----------------------------
 
@@ -140,8 +165,10 @@ if TYPE_CHECKING:
 
     from guppylang.defs import GuppyFunctionDefinition
     from guppylang.emulator import EmulatorBuilder, EmulatorInstance, Platform
+    from guppylang.library import GuppyLibrary
 
 __all__ = (
+    "LibraryOptimizerInstance",
     "OptimizationLevel",
     "OptimizerInstance",
 )
@@ -313,6 +340,37 @@ class OptimizerInstance[**P, Out]:
     def compile_function(self, debug_mode: bool = False) -> Package:
         """Compile a function with the configured optimizations."""
         return _apply_passes(self.definition._compile_function(debug_mode), self.passes)
+
+
+@dataclass(frozen=True)
+class LibraryOptimizerInstance:
+    """Configure optimization passes for a :py:class:`GuppyLibrary`.
+
+    Obtained by calling ``library.with_opt_level()`` or
+    ``library.with_minimal_opt()``. Custom passes run after the selected level's
+    passes, in the order added.
+    """
+
+    library: GuppyLibrary
+    passes: list[ComposablePass] = field(default_factory=list)
+
+    def with_opt_level(self, level: OptimizationLevel) -> LibraryOptimizerInstance:
+        """Select a level, replacing any previously configured or custom passes."""
+        return replace(self, passes=level.passes())
+
+    def with_minimal_opt(self) -> LibraryOptimizerInstance:
+        """Disable optional passes, replacing any previously configured passes."""
+        return self.with_opt_level(OptimizationLevel.Minimal)
+
+    def with_optimization(
+        self, optimization: ComposablePass
+    ) -> LibraryOptimizerInstance:
+        """Append an optimization pass to run when compiling the library."""
+        return replace(self, passes=[*self.passes, optimization])
+
+    def compile(self) -> Package:
+        """Compile the library and apply the configured optimization passes."""
+        return _apply_passes(self.library._compile(), self.passes)
 
 
 @dataclass(frozen=True, slots=True)
