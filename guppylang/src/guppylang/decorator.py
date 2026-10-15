@@ -9,6 +9,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     NamedTuple,
+    Protocol,
     TypedDict,
     TypeVar,
     Unpack,
@@ -129,13 +130,17 @@ class GuppyEnumKwargs(TypedDict, total=False):
     link_name: str
 
 
+class _GuppyFunctionDecorator(Protocol):
+    def __call__[**P, T](
+        self, f: Callable[P, T], /
+    ) -> GuppyFunctionDefinition[P, T]: ...
+
+
 class _Guppy:
     """Class for the `@guppy` decorator."""
 
     @overload
-    def __call__[**P, T](
-        self, /, **kwargs: Unpack[GuppyKwargs]
-    ) -> Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]: ...
+    def __call__(self, /, **kwargs: Unpack[GuppyKwargs]) -> _GuppyFunctionDecorator: ...
 
     @overload
     def __call__[**P, T](
@@ -144,10 +149,7 @@ class _Guppy:
 
     def __call__[**P, T](
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
-    ) -> (
-        GuppyFunctionDefinition[P, T]
-        | Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]
-    ):
+    ) -> GuppyFunctionDefinition[P, T] | _GuppyFunctionDecorator:
         def decorator(
             f: Callable[P, T], kwargs: GuppyKwargs
         ) -> GuppyFunctionDefinition[P, T]:
@@ -165,12 +167,13 @@ class _Guppy:
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 
-        return _with_optional_kwargs(decorator, args, kwargs)
+        return cast(
+            "GuppyFunctionDefinition[P, T] | _GuppyFunctionDecorator",
+            _with_optional_kwargs(decorator, args, kwargs),
+        )
 
     @overload
-    def comptime[**P, T](
-        self, /, **kwargs: Unpack[GuppyKwargs]
-    ) -> Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]: ...
+    def comptime(self, /, **kwargs: Unpack[GuppyKwargs]) -> _GuppyFunctionDecorator: ...
 
     @overload
     def comptime[**P, T](
@@ -179,10 +182,7 @@ class _Guppy:
 
     def comptime[**P, T](
         self, *args: Any, **kwargs: Unpack[GuppyKwargs]
-    ) -> (
-        GuppyFunctionDefinition[P, T]
-        | Decorator[Callable[P, T], GuppyFunctionDefinition[P, T]]
-    ):
+    ) -> GuppyFunctionDefinition[P, T] | _GuppyFunctionDecorator:
         """Registers a function to be executed at compile-time during Guppy compilation,
         enabling the use of arbitrary Python features as long as they don't depend on
         runtime values.
@@ -213,7 +213,10 @@ class _Guppy:
             DEF_STORE.register_def(defn, get_calling_frame())
             return GuppyFunctionDefinition(defn)
 
-        return _with_optional_kwargs(decorator, args, kwargs)
+        return cast(
+            "GuppyFunctionDefinition[P, T] | _GuppyFunctionDecorator",
+            _with_optional_kwargs(decorator, args, kwargs),
+        )
 
     @dataclass_transform()
     def struct[T](
