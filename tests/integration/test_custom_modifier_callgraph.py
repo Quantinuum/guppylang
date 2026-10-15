@@ -1,9 +1,18 @@
 """Integration tests for modifier-labelled call-graph analysis."""
 
+import pytest
 from guppylang import guppy
 from guppylang.std.array import array
-from guppylang.std.builtins import Controllable, Unitary, control, dagger, nat, panic
-from guppylang.std.quantum import qubit
+from guppylang.std.builtins import (
+    Controllable,
+    Function,
+    Unitary,
+    control,
+    dagger,
+    nat,
+    panic,
+)
+from guppylang.std.quantum import discard, measure, qubit, x
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.checker.modifier import (
@@ -244,6 +253,105 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls():
     expected_custom_defs = {controlled_use.custom_def, daggered_use.custom_def}
     assert set(ENGINE.call_graph[apply_mono]) == expected_custom_defs
     assert set(ENGINE.call_graph[helper_mono]) == expected_custom_defs
+
+
+@pytest.mark.parametrize("comptime", [False, True])
+def test_custom_modifier_in_returned_function(comptime):
+    """A function returned by a factory needs its custom implementations (#2343)."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy
+    def loaded(q: qubit, c: qubit) -> None:
+        with control(c):
+            custom_gate(q)
+
+    factory_decorator = guppy.comptime if comptime else guppy
+
+    @factory_decorator
+    def factory() -> Function[[qubit, qubit], None]:
+        return loaded
+
+    @guppy
+    def main() -> int:
+        q = qubit()
+        c = qubit()
+        x(c)
+        f = factory()
+        f(q, c)
+        result = measure(q).read()
+        discard(c)
+        return 1 if result else 0
+
+    main.check()
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    assert custom_use.control_count == 1
+    assert custom_use.custom_def in ENGINE.call_graph[loaded.id, ()]
+    assert (loaded.id, ()) not in ENGINE.call_graph[main.id, ()]
+    assert (loaded.id, ()) in ENGINE.load_graph[factory.id, ()]
+    assert (loaded.id, ()) not in ENGINE.call_graph[factory.id, ()]
+
+
+def test_loaded_function_does_not_inherit_modifiers():
+    """Load chains start fresh contexts, then propagate local modifiers to calls."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+        @guppy
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            pass
+
+    @guppy(controllable=True)
+    def helper(q: qubit) -> None:
+        custom_gate(q)
+
+    @guppy
+    def loaded[n: nat](q: qubit, c: qubit) -> None:
+        with control(c):
+            helper(q)
+
+    @guppy
+    def factory() -> Function[[qubit, qubit], None]:
+        return loaded[2]
+
+    @guppy(daggerable=True)
+    def loader() -> None:
+        f = factory
+
+    @guppy
+    def main() -> None:
+        with dagger:
+            loader()
+
+    main.check()
+    [custom_use] = ENGINE.custom_uses_by_mono_def.values()
+    assert custom_use.kind == CustomModifierKind.CONTROLLED
+    assert custom_use.control_count == 1
+    assert ENGINE.call_graph[loader.id, ()] == []
+    assert ENGINE.call_graph[factory.id, ()] == []
+    loaded_mono = (loaded.id, (ConstArg(ConstValue(nat_type(), 2)),))
+    assert ENGINE.call_graph[loaded_mono] == [(helper.id, ())]
+    assert ENGINE.call_graph[helper.id, ()] == [custom_use.custom_def]
 
 
 def test_propagated_context_does_not_change_unmodified_invocation():
