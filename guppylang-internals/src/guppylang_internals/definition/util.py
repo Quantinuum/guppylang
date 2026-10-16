@@ -120,6 +120,19 @@ class CheckedField:
     ty: Type
 
 
+def is_guppy_unitary(value: object) -> bool:
+    """Checks whether a value is a `@guppy.unitary` class definition."""
+    from guppylang.defs import GuppyDefinition
+
+    from guppylang_internals.definition.function import RawFunctionDef
+
+    return (
+        isinstance(value, GuppyDefinition)
+        and isinstance(value.wrapped, RawFunctionDef)
+        and value.wrapped.unitary_class_at is not None
+    )
+
+
 def check_not_recursive(defn: ParsedRecursiveTypeDef, ctx: TypeParsingCtx) -> None:
     """Raises a user error if a struct, enum, or type alias depends on itself."""
     _check_not_recursive(defn, ctx, [defn.id], set())

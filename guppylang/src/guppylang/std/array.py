@@ -12,7 +12,7 @@ import builtins
 from types import GeneratorType
 from typing import TYPE_CHECKING, no_type_check
 
-from guppylang_internals.decorator import custom_function, extend_type
+from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import CopyInoutCompiler
 from guppylang_internals.std._internal.checker import (
     ArrayCopyChecker,
@@ -30,9 +30,12 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.frozenarray import (
     FrozenarrayGetitemCompiler,
 )
+from guppylang_internals.std._internal.util import external_op, type_arg
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
+from hugr import tys as ht
+from hugr.std.collections.borrow_array import EXTENSION
 
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
@@ -64,14 +67,20 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.PANIC],  # includes unwrap (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
     def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.PANIC],  # includes unwrap (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
     def __setitem__[L, n: nat](
         self: array[L, n], idx: int, value: L @ owned
@@ -199,7 +208,7 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
-        effects=(),
+        effects=(),  # Can panic, but preserving legacy behaviour (https://github.com/Quantinuum/guppylang/issues/2122)
     )
     def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
@@ -253,7 +262,7 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler(), effects=())
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.ANY])
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
@@ -307,6 +316,22 @@ class array[T, n: nat](builtins.list[T]):
         """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
+
+
+@hugr_op(
+    external_op(
+        "new_all_borrowed",
+        [ht.VariableArg(idx=1, param=ht.BoundedNatParam()), type_arg(0)],
+        EXTENSION,
+    ),
+    effects=[],
+)
+def empty_array[T, n: nat]() -> array[T, n]:
+    """Construct an array with all elements borrowed.
+
+    Elements must be added with `array.put` before they can be accessed. Since no
+    elements are present initially, `array.discard_all_taken` may be called immediately.
+    """
 
 
 @guppy.struct

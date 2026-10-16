@@ -55,12 +55,29 @@ type EffectType = StronglyOrdered | WeaklyOrdered
 
 
 class Effect(Enum):
+    """Any effect (aka side-effect) that a function or op may have that
+    is not explicitly captured by dataflow in local variables. For example,
+    reading or writing to a global variable, or performing I/O - including early
+    termination of the program. (An op is called "pure" if it has no such effects.)
+    """
+
     value: EffectType | Iterable[EffectType]
 
+    """ Outputting a result, which we insist must be returned in program order for
+    processing."""
     OUTPUT = StronglyOrdered(BaseEffect.OUTPUT)
+    """ Early termination of the program with a failure. We insist that the correct
+    values would be `OUTPUT` in such a case, but do not guarantee the specific message
+    if there are multiple panics without intervening results."""
     PANIC = WeaklyOrdered(BaseEffect.OUTPUT)
+    """ Qubit allocation. Totally ordered for predictability i.e. so that if allocation
+    fails then it does so as if the program executed sequentially."""
     ALLOC = StronglyOrdered(BaseEffect.ALLOCATION)
+    """ Freeing qubits. Parallel frees cannot affect each other but (for predictability)
+    must occur in program order wrt. any allocations."""
     FREE = WeaklyOrdered(BaseEffect.ALLOCATION)
+
+    """Unknown effects - i.e. we must conservatively any and all the above."""
     ANY = cast("Iterable[EffectType]", [StronglyOrdered(e) for e in BaseEffect])
 
     def _values(self) -> Iterable[EffectType]:

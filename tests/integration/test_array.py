@@ -4,6 +4,7 @@ from hugr import ops
 from guppylang import comptime
 from guppylang.decorator import guppy
 from guppylang.emulator import EmulatorError
+from guppylang.std.array import empty_array
 from guppylang.std.builtins import array, owned
 from guppylang.std.lang import Function
 from guppylang.std.mem import mem_swap
@@ -746,6 +747,38 @@ def test_take_put(validate):
     validate(main.compile())
 
 
+def test_empty_array_put(validate):
+    @guppy
+    def main() -> None:
+        qbs = empty_array[qubit, 2]()
+        output("initial_0", qbs.is_borrowed(0))
+        output("initial_1", qbs.is_borrowed(1))
+        qbs.put(qubit(), 0)
+        output("after_0", qbs.is_borrowed(0))
+        output("after_1", qbs.is_borrowed(1))
+        discard_array(qbs)
+
+    res = main.emulator(2).coinflip_sim().run().results[0].entries
+    assert res == [
+        ("initial_0", 1),
+        ("initial_1", 1),
+        ("after_0", 0),
+        ("after_1", 1),
+    ]
+    validate(main.compile())
+
+
+def test_discard_empty_array(validate):
+    @guppy
+    def main() -> None:
+        empty_array[qubit, 2]().discard_all_taken()
+        output("after_discard", 0)
+
+    res = main.emulator(1).coinflip_sim().run().results[0].entries
+    assert res == [("after_discard", 0)]
+    validate(main.compile())
+
+
 def test_take2(validate):
     # Tests actual panicking variants produce panics; and verifies behaviour
     # of quantum vs classical variants
@@ -786,9 +819,15 @@ def test_take2(validate):
     res = main.emulator(1).run(idx1=0, idx2=0, linear=False).results[0]
     assert res.entries == [("after_borrow", 0), ("after_put", 0)]
 
-    for linear in [True, False]:
-        with pytest.raises(EmulatorError, match="Index out of bounds"):
-            main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=linear)
+    # array.take compiles to a `borrow` that panics internally, before the is_borrowed.
+    with pytest.raises(EmulatorError, match="Index out of bounds"):
+        main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=True)
+
+    # array.take compiles to a `get` returning both the array and an Option of the
+    # element; the latter is then unwrapped. The is_borrow is ordered after the
+    # Conditional doing the unwrap, so we get the panic message from the Conditional.
+    with pytest.raises(EmulatorError, match="Array index out of bounds"):
+        main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=False)
 
 
 def test_discard_borrowed(validate):

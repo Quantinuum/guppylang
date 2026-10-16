@@ -48,6 +48,9 @@ def custom_function[**P, T](
     Optionally, usage of the function as a higher-order value can be disabled. In
     that case, the function signature can be omitted if a custom call compiler is
     provided.
+
+    The `effects` parameter specifies the side-effects of the op, see `Effect`.
+    Multiple occurrences of the same effect have no extra impact.
     """
     from guppylang.defs import GuppyFunctionDefinition
 
@@ -141,6 +144,8 @@ def hugr_op[**P, T](
         higher_order_value: Whether the function may be used as a higher-order
             value.
         name: The name of the function.
+        effects: the side-effects of the op, see `Effect`.
+            Multiple occurrences of the same effect have no extra impact.
     """
     return custom_function(
         compiler=OpCompiler(op),

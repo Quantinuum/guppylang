@@ -66,8 +66,9 @@ class Measurement:
         return self.read()
 
 
-# Even though this doesn't panic, we still want to totally order
-# with respect to other (non-try)QAlloc's for predictability.
+# Effect not because it panics (it doesn't) but because we want this to be totally
+# ordered with respect to other allocating ops (both fallible and infallible) for
+# predictability.
 @hugr_op(quantum_op("TryQAlloc"), effects=[Effect.ALLOC])
 @no_type_check
 def maybe_qubit() -> Option[qubit]:
