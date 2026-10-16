@@ -67,14 +67,20 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes unwrap (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
     def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
     def __setitem__[L, n: nat](
         self: array[L, n], idx: int, value: L @ owned
@@ -87,9 +93,10 @@ class array[T, n: nat](builtins.list[T]):
 
     @custom_function(
         NewArrayCompiler(),
-        NewArrayChecker(),
+        checker=NewArrayChecker(),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __new__(): ...
 
@@ -104,7 +111,10 @@ class array[T, n: nat](builtins.list[T]):
         return SizedIter(ArrayIter(self, 0))
 
     @custom_function(
-        CopyInoutCompiler(), ArrayCopyChecker(), unitary_flags=UnitaryFlags.Dagger
+        CopyInoutCompiler(),
+        checker=ArrayCopyChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def copy[T: Copy, n: nat](self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
@@ -113,6 +123,7 @@ class array[T, n: nat](builtins.list[T]):
         ArrayIsBorrowedCompiler(),
         checker=ArrayIndexChecker(),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=[Effect.ANY],  # If index out-of-bounds
     )
     def is_borrowed[L, n: nat](self: array[L, n], idx: int) -> bool:
         """Checks if an element has been taken out of the array.
@@ -197,6 +208,7 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
+        effects=(),  # Can panic, but preserving legacy behaviour (https://github.com/Quantinuum/guppylang/issues/2122)
     )
     def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
@@ -250,7 +262,7 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler())
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.ANY])
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
@@ -312,6 +324,7 @@ class array[T, n: nat](builtins.list[T]):
         [ht.VariableArg(idx=1, param=ht.BoundedNatParam()), type_arg(0)],
         EXTENSION,
     ),
+    effects=[],
 )
 def empty_array[T, n: nat]() -> array[T, n]:
     """Construct an array with all elements borrowed.
