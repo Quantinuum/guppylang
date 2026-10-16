@@ -75,7 +75,7 @@ def check_modified_block(
         # TODO We could do better, i.e. panics can only occur if some (indirect) callee
         # is a custom-modifier that manipulates the array (using `array.take()`),
         # but for now we conservatively assume panics can occur.
-        ENGINE.register_effects(ctx.current_caller, [Effect.ANY])
+        ENGINE.register_effects(ctx.current_caller, [Effect.PANIC])
 
     func_ty = check_modified_block_signature(modified_block, checked_cfg.input_tys)
 

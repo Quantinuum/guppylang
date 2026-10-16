@@ -41,7 +41,7 @@ def from_halfturns_unchecked() -> OpWithEffects:
             ROTATION_EXTENSION.get_op("from_halfturns_unchecked"),
             ht.FunctionType([FLOAT_T], [ROTATION_T]),
         ),
-        [Effect.ANY],
+        [Effect.PANIC],
     )
 
 

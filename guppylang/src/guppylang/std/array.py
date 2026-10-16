@@ -262,7 +262,7 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.ANY])
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.PANIC])
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.

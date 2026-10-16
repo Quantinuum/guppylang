@@ -287,7 +287,7 @@ class ArrayIndexChecker(CustomCallChecker):
             # However for copyable types we compile a separate unwrap in the panic
             # chain; this is not included in the effects for __getitem__ (as these
             # cannot depend upon type bound), so record that here.
-            register_effects(self.ctx, [Effect.ANY])
+            register_effects(self.ctx, [Effect.PANIC])
 
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
@@ -308,7 +308,7 @@ class ArrayIndexChecker(CustomCallChecker):
         assert isinstance(type_args[0], TypeArg)
         if type_args[0].ty.copyable:
             # As self.check(...)
-            register_effects(self.ctx, [Effect.ANY])
+            register_effects(self.ctx, [Effect.PANIC])
 
         # Check the index bounds (first:index expression, second: length_arg)
         # Temporarily disabled: see https://github.com/Quantinuum/guppylang/issues/1669
