@@ -60,7 +60,7 @@ def test_custom_modifier_removes_effects():
     custom_main.check()
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
-    assert effects[custom_use.unmodified_callee] == frozenset({Effect.ANY})
+    assert effects[custom_use.unmodified_callee] == frozenset({Effect.PANIC})
     assert effects[custom_use.custom_def] == frozenset()
     assert effects[custom_main.id, ()] == frozenset()
 
@@ -91,8 +91,8 @@ def test_custom_modifier_adds_effects():
     main.check()
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-    assert effects[custom_use.custom_def] == frozenset({Effect.ANY})
-    assert effects[main.id, ()] == frozenset({Effect.ANY})
+    assert effects[custom_use.custom_def] == frozenset({Effect.PANIC})
+    assert effects[main.id, ()] == frozenset({Effect.PANIC})
 
 
 def test_recursive_custom_modifier_same_control_count():

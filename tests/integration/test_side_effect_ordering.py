@@ -244,7 +244,9 @@ def test_nested(validate):
     check_order(hugr, [inp, l1, l2, l3, l4, out])
 
     for loop in [l1, l2, l3, l4]:
-        check_order(hugr, hugr.children(loop)[:2])
+        # check_order is too strict (does not allow intervening nodes).
+        # Just make sure there is a path from Input node to Output node.
+        assert has_order_path(hugr, *hugr.children(loop)[:2])
 
 
 def test_pure_quantum_calls_have_no_order_edges(validate):
@@ -378,12 +380,20 @@ def test_panicking_calls_have_order_edges(validate):
         and main_node in ancestors(hugr, node)
     ]
 
-    check_order(hugr, [panic_call1, panic_op, panic_call2])
-
+    # We used minimal-opt, so don't look directly inside main (that would be only a CFG)
+    [inp, out] = hugr.children(hugr[panic_op].parent)[:2]
     for pure_call in [pure_call1, pure_call2]:
-        for op in [panic_call1, panic_op, panic_call2]:
+        for op in [inp, out, panic_call1, panic_op, panic_call2]:
             assert not has_order_path(hugr, pure_call, op)
             assert not has_order_path(hugr, op, pure_call)
+
+    panics = [panic_call1, panic_op, panic_call2]
+    for p in panics:
+        check_order(hugr, [inp, p, out])
+        for other_p in panics:
+            if other_p != p:
+                assert not has_order_path(hugr, p, other_p)
+                assert not has_order_path(hugr, other_p, p)
 
 
 def test_nested_panicking_calls(validate):
@@ -439,21 +449,20 @@ def test_nested_panicking_calls(validate):
         and main_node in ancestors(hugr, node)
     ]
 
-    check_order(hugr, [panic_call1, panic_op, panic_call2])
-
-    # These order paths would lead to cycles:
-    assert not has_order_path(hugr, pure_call1, panic_call1)
-    for op in [panic_op, pure_call2, panic_call2]:
-        assert not has_order_path(hugr, op, pure_call1)
-    assert not has_order_path(hugr, panic_call2, pure_call2)
-    for op in [panic_call1, pure_call1, panic_op]:
-        assert not has_order_path(hugr, pure_call2, op)
-
-    # Otherwise - the desired outcome when previous is fixed:
+    # We used minimal-opt, so don't look directly inside main (that would be only a CFG)
+    [inp, out] = hugr.children(hugr[panic_op].parent)[:2]
     for pure_call in [pure_call1, pure_call2]:
-        for op in [panic_call1, panic_op, panic_call2]:
+        for op in [inp, out, panic_call1, panic_op, panic_call2]:
             assert not has_order_path(hugr, pure_call, op)
             assert not has_order_path(hugr, op, pure_call)
+
+    panics = [panic_call1, panic_op, panic_call2]
+    for p in panics:
+        check_order(hugr, [inp, p, out])
+        for other_p in panics:
+            if other_p != p:
+                assert not has_order_path(hugr, p, other_p)
+                assert not has_order_path(hugr, other_p, p)
 
 
 def test_decl(validate):
