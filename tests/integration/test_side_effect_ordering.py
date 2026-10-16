@@ -4,6 +4,7 @@ side-effects.
 
 from hugr import ops, Hugr, Node
 from hugr.std import PRELUDE
+import itertools
 from hugr import ops as hops
 
 from guppylang import guppy
@@ -43,22 +44,11 @@ def name_matches(op: ops.Op, qualified_name: str) -> bool:
 
 def check_order(hugr: Hugr, nodes: list[Node]) -> None:
     """Checks that the provided nodes appear in the specified order in the order-edge
-    graph."""
-    # Do a DFS traversal of the order edge graph starting at the first node
-    stack = [nodes[0]]
-    visited = set()
-    while stack:
-        curr = stack.pop()
-        visited.add(curr)
-        if curr in nodes:
-            # Check this node is the next one in the sequence
-            assert curr == nodes.pop(0)
-            stack.clear()  # Only follow the order edges from this node
-        for n in hugr.outgoing_order_links(curr):
-            assert n not in visited, "Order edge graph must be acyclic"
-            stack.append(n)
-    # Check that all specified nodes occurred in the graph
-    assert len(nodes) == 0
+    graph with no intervening nodes."""
+    for node, next_n in itertools.pairwise(nodes):
+        assert next_n in hugr.outgoing_order_links(node), (
+            f"Expected order edge from {node} to {next_n}"
+        )
 
 
 def test_input_output(validate):
@@ -78,9 +68,11 @@ def test_input_output(validate):
     validate(program)
 
     hugr = program.modules[0]
+    [a] = find_ext_nodes(hugr, QUANTUM_EXTENSION.get_op("QAlloc").qualified_name())
     [r] = find_ext_nodes(hugr, RESULT_EXTENSION.get_op("result_bool").qualified_name())
     [inp, out] = hugr.children(hugr[r].parent)[:2]
-    check_order(hugr, [inp, r, out])
+    # Allocation has to be before result in case it panics
+    check_order(hugr, [inp, a, r, out])
 
 
 def test_output_panic(validate):
@@ -148,7 +140,9 @@ def test_rng_context_lifetimes(validate):
         hugr, QSYSTEM_RANDOM_EXTENSION.get_op("DeleteRNGContext").qualified_name()
     )
     [inp, out] = hugr.children(hugr[new1].parent)[:2]
-    check_order(hugr, [inp, new1, delete1, new2, delete2, out])
+    for n, nxt in itertools.pairwise([inp, new1, delete1, new2, delete2, out]):
+        # Allow intervening Conditionals
+        assert has_order_path(hugr, n, nxt)
 
 
 def test_rng_effect_propagates_through_call(validate):
