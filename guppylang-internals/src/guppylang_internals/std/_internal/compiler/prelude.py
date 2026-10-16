@@ -91,18 +91,13 @@ def build_abort(
     *args: Wire,
 ) -> Node:
     """Builds an operation that ends the current shot according to `kind`."""
-    (name, effects) = (
-        ("panic", [Effect.PANIC])
-        if kind == AbortKind.Panic
-        else ("exit", [Effect.OUTPUT])
-    )
-    op_def = hugr.std.PRELUDE.get_op(name)
+    op_def = hugr.std.PRELUDE.get_op(kind.op_name)
     ty_args: list[ht.TypeArg] = [
         ht.ListArg([ht.TypeTypeArg(ty) for ty in in_tys]),
         ht.ListArg([ht.TypeTypeArg(ty) for ty in out_tys]),
     ]
     sig = ht.FunctionType([error_type(), *in_tys], out_tys)
-    op = (ops.ExtOp(op_def, sig, ty_args), effects)
+    op = (ops.ExtOp(op_def, sig, ty_args), kind.effects)
     return builder.add_op(op, err, *args)
 
 
