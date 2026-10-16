@@ -510,7 +510,7 @@ class AbortChecker(CustomCallChecker):
                     signal=signal,
                 )
                 # Since we don't check_call or synthesize_call:
-                register_effects(self.ctx, [Effect.PANIC])
+                register_effects(self.ctx, self.exit_kind.effects)
                 return with_loc(self.node, node), NoneType()
 
             case args:
