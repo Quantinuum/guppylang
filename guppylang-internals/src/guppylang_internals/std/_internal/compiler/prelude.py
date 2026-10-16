@@ -79,7 +79,7 @@ def panic(
         ht.ListArg([ht.TypeTypeArg(ty) for ty in outputs]),
     ]
     sig = ht.FunctionType([error_type(), *inputs], outputs)
-    return (ops.ExtOp(op_def, sig, args), [Effect.ANY])
+    return (ops.ExtOp(op_def, sig, args), [Effect.PANIC])
 
 
 def make_error() -> OpWithEffects:
@@ -284,7 +284,7 @@ def unwrap_result(
     func_call = builder.call(
         func,
         either,
-        effects=[Effect.ANY],  # panics
+        effects=[Effect.PANIC],
         instantiation=concrete_ty,
         type_args=type_args,
     )

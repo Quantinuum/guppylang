@@ -206,7 +206,7 @@ def reset(q: qubit) -> None:
     """Reset a qubit to the :math:`|0\\rangle` state."""
 
 
-@hugr_op(quantum_op("QFree", ext=QSYSTEM_SOL_EXTENSION), effects=[Effect.ANY])
+@hugr_op(quantum_op("QFree", ext=QSYSTEM_SOL_EXTENSION), effects=[Effect.FREE])
 @no_type_check
 def qfree(q: qubit @ owned) -> None:
     """Free a qubit, returning the ion to the pool of available ions.
@@ -215,9 +215,8 @@ def qfree(q: qubit @ owned) -> None:
     """
 
 
-# The effect here is that it implicitly frees the qubit
 @hugr_op(
-    quantum_op("LazyMeasureLeaked", ext=QSYSTEM_SOL_EXTENSION), effects=[Effect.ANY]
+    quantum_op("LazyMeasureLeaked", ext=QSYSTEM_SOL_EXTENSION), effects=[Effect.FREE]
 )
 @no_type_check
 def _measure_leaked(q: qubit @ owned) -> Future[int]:
@@ -257,7 +256,7 @@ def lazy_measure_and_reset(q: qubit) -> Measurement:
 #  `tket.qsystem.sol` ops without the conversion to measurement
 # (which ensures compatibility with `std.quantum` functions).
 # The effect here is that it implicitly frees the qubit
-@hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_SOL_EXTENSION), effects=[Effect.ANY])
+@hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_SOL_EXTENSION), effects=[Effect.FREE])
 @no_type_check
 def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...
 
