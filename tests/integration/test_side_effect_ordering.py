@@ -101,21 +101,31 @@ def test_qalloc_qfree(validate):
     @guppy
     def test() -> None:
         q1 = qubit()
-        discard(q1)
         q2 = qubit()
-        measure(q2)
+        q3 = qubit()
+        discard(q1)
+        discard(q2)
+        discard(q3)
+        q4 = qubit()
+        discard(q4)
 
     compiled = test.compile_function()
     validate(compiled)
 
     # Check that we have the expected order edges between the allocations and frees
     hugr = compiled.modules[0]
-    [a1, a2] = find_ext_nodes(hugr, QUANTUM_EXTENSION.get_op("QAlloc").qualified_name())
-    [d1] = find_ext_nodes(hugr, QUANTUM_EXTENSION.get_op("QFree").qualified_name())
-    [d2] = find_ext_nodes(
-        hugr, QUANTUM_EXTENSION.get_op("MeasureFree").qualified_name()
+    [a1, a2, a3, a4] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("QAlloc").qualified_name()
     )
-    check_order(hugr, [a1, d1, a2, d2])
+    [d1, d2, d3, d4] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("QFree").qualified_name()
+    )
+
+    for free in [d1, d2, d3]:
+        check_order(hugr, [a1, a2, a3, free, a4, d4])
+        for other_free in [d1, d2, d3]:
+            if free != other_free:
+                assert not has_order_path(hugr, free, other_free)
 
 
 def test_rng_context_lifetimes(validate):
