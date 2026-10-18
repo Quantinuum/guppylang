@@ -9,7 +9,7 @@ from hugr import ops as hops
 
 from guppylang import guppy
 from guppylang.std.builtins import owned, panic
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import qubit, maybe_qubit
 from guppylang.std.quantum.functional import cx, h
 
 from guppylang_internals.std._internal.compiler.tket_exts import (
@@ -17,6 +17,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_RANDOM_EXTENSION,
     RESULT_EXTENSION,
 )
+from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from guppylang.std.builtins import output, array
 from guppylang.std.qsystem.random import RNG
 from guppylang.std.quantum import discard, measure
@@ -126,6 +127,56 @@ def test_qalloc_qfree(validate):
         for other_free in [d1, d2, d3]:
             if free != other_free:
                 assert not has_order_path(hugr, free, other_free)
+
+
+def test_different_effects_parallel(validate):
+    @guppy
+    def test(arr: array[qubit, 2] @ owned) -> None:
+        output("a", True)  # Output effect
+        q = arr.take(1)  # No effect
+        # (yet, see https://github.com/Quantinuum/guppylang/issues/2122)
+        arr.discard_all_taken()  # Panic effect
+        # q = measure_and_reset(q)
+        mq = maybe_qubit()  # Allocation only
+        q2 = mq.unwrap()  # Panic only
+        discard(q)  # Free effect
+        discard(q2)  # Free effect
+
+    compiled = test.compile_function()
+    validate(compiled)
+
+    hugr = compiled.modules[0]
+    [out_a] = find_ext_nodes(
+        hugr, RESULT_EXTENSION.get_op("result_bool").qualified_name()
+    )
+    [discard_all_borrowed] = find_ext_nodes(
+        hugr, BORROW_ARRAY_EXTENSION.get_op("discard_all_borrowed").qualified_name()
+    )
+    [qfree1, qfree2] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("QFree").qualified_name()
+    )
+    [qalloc] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("TryQAlloc").qualified_name()
+    )
+    [unwrap] = [
+        node for node, data in hugr.nodes() if isinstance(data.op, ops.Conditional)
+    ]
+    [inp, outp] = hugr.children(hugr[out_a].parent)[:2]
+
+    # Input node links to out_a via OUTPUT effect and qalloc via ALLOC effect
+    assert set(hugr.outgoing_order_links(inp)) == {out_a, qalloc}
+
+    # OUTPUT / PANIC effect
+    assert set(hugr.outgoing_order_links(out_a)) == {discard_all_borrowed, unwrap}
+
+    # ALLOC / FREE effect
+    assert set(hugr.outgoing_order_links(qalloc)) == {qfree1, qfree2}
+
+    # Output node collects last nodes from all effects
+    final_nodes = {discard_all_borrowed, unwrap, qfree1, qfree2}
+    assert set(hugr.incoming_order_links(outp)) == final_nodes
+    for n in final_nodes:
+        assert list(hugr.outgoing_order_links(n)) == [outp]
 
 
 def test_rng_context_lifetimes(validate):
