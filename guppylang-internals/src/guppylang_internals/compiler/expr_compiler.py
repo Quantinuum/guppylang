@@ -672,7 +672,10 @@ class ExprCompiler(CompilerBase, AstVisitor[Wire]):
             idx = self.builder.add_op(convert_itousize(), count)
             self.dfg[array_var] = self.builder.add_op(
                 barray_return(
-                    hugr_elt_ty, node.length.to_arg().to_hugr(self.ctx), panics=False
+                    # We know this will never panic as the array was new_all_borrowed
+                    hugr_elt_ty,
+                    node.length.to_arg().to_hugr(self.ctx),
+                    panic_effect=False,
                 ),
                 array,
                 idx,
