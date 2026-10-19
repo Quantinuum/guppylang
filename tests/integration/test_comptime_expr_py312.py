@@ -164,3 +164,5 @@ def test_comptime_arg_inference(validate):
     def main() -> None:
         tail(0, array(1))
         tail(2, array(1, 2, 3))
+
+    validate(main.compile())
