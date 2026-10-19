@@ -93,7 +93,7 @@ class ComptimeConstValue(ConstBase):
     """A constant value in the type system backed by a Python comptime expression.
 
     For example, in the type `array[int, comptime(n + 1)]` the second argument is a
-    `ConstArg`  that contains a `ComptimeConstValue`.
+    `ConstArg` that contains a `ComptimeConstValue`.
     """
 
     expr: "ComptimeExpr"
