@@ -10,10 +10,7 @@ import hugr.std.int
 from hugr import tys as ht
 
 from guppylang_internals.definition.common import DefId
-from guppylang_internals.error import (
-    GuppyError,
-    InternalGuppyError,
-)
+from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.span import DUMMY_SPAN
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import (
