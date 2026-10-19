@@ -38,6 +38,9 @@ def _mock_meta(cls: type) -> type:
         def __ne__(self, other: object) -> Any:
             return other != cls
 
+        def __hash__(self) -> builtins.int:
+            return hash(cls)
+
     MockMeta.__name__ = type.__name__
     MockMeta.__qualname__ = type.__qualname__
     return MockMeta
