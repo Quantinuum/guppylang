@@ -91,22 +91,22 @@ class TypeParsingCtx:
 
     #: Whether a previously unseen type parameters is allowed to be bound (i.e. is
     #: allowed to be added to `param_var_mapping`
-    allow_free_vars: bool = False
+    allow_free_vars: bool = field(default=False, kw_only=True)
 
     #: When parsing types in the signature or body of a method, we also need access to
     #: the type this method belongs to in order to resolve `Self` annotations.
-    self_ty: Type | None = None
+    self_ty: Type | None = field(default=None, kw_only=True)
 
     #: Allow protocols to be referred to by name as syntactic sugar for creating a bound
     #: variable that implements the protocol and referencing that.
     #: This is disallowed in struct fields.
-    disallow_protocol_types: bool = False
+    disallow_protocol_types: bool = field(default=False, kw_only=True)
 
     #: Whether the type we're parsing is a return type
-    is_output: bool = False
+    is_output: bool = field(default=False, kw_only=True)
 
     #: Whether we're currently parsing a global function signature
-    is_signature: DefId | None = None
+    is_signature: DefId | None = field(default=None, kw_only=True)
 
 
 def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
@@ -540,7 +540,9 @@ def parse_parameter(
             else:
                 # TODO: In the future we might want to allow stuff like
                 #   `def foo[T, XS: array[T, 42]]` and so on
-                ctx = TypeParsingCtx(globals, param_var_mapping, {}, allow_free_vars)
+                ctx = TypeParsingCtx(
+                    globals, param_var_mapping, {}, allow_free_vars=allow_free_vars
+                )
                 ty = type_from_ast(bound, ctx)
                 if not ty.copyable or not ty.droppable:
                     raise GuppyError(LinearConstParamError(bound, ty))
@@ -555,7 +557,9 @@ def parse_bound(
 ) -> ProtocolInst | None:
     from guppylang_internals.definition.protocol import ParsedProtocolDef
 
-    ctx = TypeParsingCtx(globals, param_var_mapping, {}, allow_free_vars)
+    ctx = TypeParsingCtx(
+        globals, param_var_mapping, {}, allow_free_vars=allow_free_vars
+    )
 
     # First, try to see if this is a protocol bound by checking if can find
     # a protocol definition with this name. In contrast to normal
