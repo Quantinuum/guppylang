@@ -72,6 +72,7 @@ class Instantiator(Transformer):
     def __init__(
         self,
         inst: PartialInst,
+        *,
         allow_partial: bool = False,
         require_monomorphization: bool = True,
     ) -> None:
