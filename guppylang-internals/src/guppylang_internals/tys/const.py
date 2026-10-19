@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from guppylang_internals.definition.common import DefId
+from guppylang_internals.error import RequiresMonomorphizationError
 from guppylang_internals.tys.common import Transformable, Transformer, Visitor
 from guppylang_internals.tys.var import BoundVar, ExistentialVar
 
@@ -98,7 +99,7 @@ class ComptimeConstValue(ConstBase):
     expr: "ComptimeExpr"
 
     #: Generic parameters that are in scope for this comptime value
-    params: Sequence["Parameter"]
+    params: Sequence["Parameter"] = field(hash=False)
 
     #: Partial instantiation of those parameters
     inst: "PartialInst"
@@ -113,23 +114,24 @@ class ComptimeConstValue(ConstBase):
 
     def transform(self, transformer: Transformer, /) -> "Const":
         """Accepts a transformer on this constant."""
-        return (
-            transformer.transform(self)
-            or ComptimeConstValue(
-                self.ty.transform(transformer),
-                self.expr,
-                self.params,
-                tuple(arg.transform(transformer) if arg else None for arg in self.inst),
-                self.containing_def_id,
-            ).try_resolve()
-        )
+        return transformer.transform(self) or ComptimeConstValue(
+            self.ty.transform(transformer),
+            self.expr,
+            self.params,
+            tuple(arg.transform(transformer) if arg else None for arg in self.inst),
+            self.containing_def_id,
+        ).try_resolve(require_monomorphization=False)
 
-    def try_resolve(self) -> "Const":
+    def try_resolve(self, require_monomorphization: bool) -> "Const":
         """Tries to evaluate the comptime expression using the current stashed partial
         instantiation.
 
         Returns the concrete constant value, or `self` of the expression cannot be
         evaluated yet.
+
+        If `require_monomorphization=True`, then `RequiresMonomorphizationError` will
+        be thrown when evaluating the expression would need concrete monomorphized
+        values for the instantiation.
         """
         from guppylang_internals.checker.core import (
             Context,
@@ -151,6 +153,10 @@ class ComptimeConstValue(ConstBase):
         try:
             v = eval_comptime_expr(self.expr, ctx)
         except DummyEvalDict.UnsolvedExistentialError:
+            return self
+        except RequiresMonomorphizationError:
+            if require_monomorphization:
+                raise
             return self
         arg = check_comptime_value(v, self.expr)
         assert isinstance(arg, ConstArg)

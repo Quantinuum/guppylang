@@ -531,10 +531,7 @@ class DummyEvalDict(dict[str, Any]):
                 case ConstArg(const=ExistentialConstVar()):
                     raise DummyEvalDict.UnsolvedExistentialError
                 case ConstArg(const=ComptimeConstValue()):
-                    raise InternalGuppyError(
-                        "Unexpected generic instantiation: const params should have "
-                        "been instantiated to concrete values"
-                    )
+                    raise RequiresMonomorphizationError
                 case TypeArg():
                     # We cannot return values of type variables since we don't have a
                     # comptime representation of types yet.

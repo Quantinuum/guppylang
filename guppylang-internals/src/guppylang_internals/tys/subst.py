@@ -69,9 +69,15 @@ class Substituter(Transformer):
 class Instantiator(Transformer):
     """Type transformer that instantiates bound variables."""
 
-    def __init__(self, inst: PartialInst, allow_partial: bool = False) -> None:
+    def __init__(
+        self,
+        inst: PartialInst,
+        allow_partial: bool = False,
+        require_monomorphization: bool = True,
+    ) -> None:
         self.allow_partial = allow_partial
         self.inst = inst
+        self.require_monomorphization = require_monomorphization
 
     def transform(self, ty: Any) -> Any | None:
         match ty:
@@ -146,7 +152,7 @@ class Instantiator(Transformer):
         ty = val.ty.transform(self)
         return ComptimeConstValue(
             ty, val.expr, val.params, new_inst, val.containing_def_id
-        ).try_resolve()
+        ).try_resolve(self.require_monomorphization)
 
     def _transform_ProtocolInst(self, inst: ProtocolInst) -> ProtocolInst | None:
         return inst.transform(self)

@@ -1,6 +1,8 @@
 """Tests for using Python expressions in Guppy functions with generics only introduced
 in Python 3.12."""
 
+import pytest
+
 from guppylang.decorator import guppy
 from guppylang.std.array import array
 from guppylang.std.builtins import comptime, nat
@@ -166,3 +168,152 @@ def test_comptime_arg_inference(validate):
         tail(2, array(1, 2, 3))
 
     validate(main.compile())
+
+
+def test_generic_struct(validate):
+    @guppy.struct
+    class MyStruct[n: nat]:
+        xs: array[int, "comptime(n + 1)"]
+
+    @guppy
+    def make[n: nat]() -> MyStruct[n]:
+        return MyStruct[n](array(0 for _ in range(comptime(n + 1))))
+
+    @guppy
+    def main() -> array[int, 11]:
+        a = make[10]()
+        b = make[11]()
+        _, *ys = b.xs
+        a.xs = ys
+        return a.xs
+
+    validate(main.compile())
+
+
+@pytest.mark.parametrize(("n", "m"), [(0, 0), (0, 3), (2, 3), (3, 2)])
+def test_generic_struct_multiple_params(run_int_fn, n, m):
+    @guppy.struct
+    class Buffers[T: Copy, n: nat, m: nat]:
+        xs: array[T, "comptime(n + m)"]
+        ys: array[T, "comptime(n * m)"]
+
+    @guppy
+    def make[T: Copy, n: nat, m: nat](x: T) -> Buffers[T, n, m]:
+        return Buffers[T, n, m](
+            array(x for _ in range(comptime(n + m))),
+            array(x for _ in range(comptime(n * m))),
+        )
+
+    @guppy
+    def main() -> int:
+        a = make[int, n, m](7)
+        b = make[bool, m, n](True)
+        total = len(a.xs) + len(a.ys) + len(b.xs) + len(b.ys)
+        for x in a.xs:
+            total += x
+        for y in b.ys:
+            total += int(y)
+        return total
+
+    run_int_fn(main, 2 * (n + m + n * m) + 7 * (n + m) + n * m)
+
+
+def test_generic_struct_comptime_scope(run_int_fn):
+    n = 100  # The struct parameter must shadow this captured Python variable.
+    scale = 2
+
+    def size(n):
+        return scale * n + 1
+
+    @guppy.struct
+    class Buffer[n: nat]:
+        xs: array[int, "comptime(size(n))"]
+
+    @guppy
+    def main() -> int:
+        a = Buffer[2](array(1, 2, 3, 4, 5))
+        b = Buffer[0](array(6))
+        return a.xs[4] + b.xs[0]
+
+    run_int_fn(main, 11)
+
+
+def test_generic_struct_nested_array(run_int_fn):
+    @guppy.struct
+    class Matrix[n: nat, m: nat]:
+        rows: array[array[int, "comptime(m + 1)"], "comptime(n + 1)"]
+
+    @guppy
+    def make[n: nat, m: nat]() -> Matrix[n, m]:
+        return Matrix[n, m](
+            array(
+                array(i * 10 + j for j in range(comptime(m + 1)))
+                for i in range(comptime(n + 1))
+            ),
+        )
+
+    @guppy
+    def main() -> int:
+        a = make[2, 3]()
+        b = make[3, 2]()
+        return a.rows[2][3] + b.rows[3][2]
+
+    run_int_fn(main, 55)
+
+
+def test_generic_struct_nested(validate):
+    @guppy.struct
+    class Inner[n: nat]:
+        xs: array[int, "comptime(n + 1)"]
+
+    @guppy.struct
+    class Outer[n: nat]:
+        inner: Inner[n]
+
+    @guppy
+    def main() -> array[int, 3]:
+        outer = Outer[2](Inner[2](array(1, 2, 3)))
+        return outer.inner.xs
+
+    validate(main.compile())
+
+
+def test_generic_struct_nested_comptime_arg(validate):
+    @guppy.struct
+    class Inner[n: nat]:
+        xs: array[int, "comptime(n + 1)"]
+
+    @guppy.struct
+    class Outer[n: nat]:
+        inner: Inner["comptime(n * 2)"]
+
+    @guppy
+    def main() -> array[int, 5]:
+        outer = Outer[2](Inner[4](array(1, 2, 3, 4, 5)))
+        return outer.inner.xs
+
+    validate(main.compile())
+
+
+def test_generic_struct_method(run_int_fn):
+    @guppy.struct
+    class Buffer[T: Copy, n: nat]:
+        xs: array[T, "comptime(n + 1)"]
+
+        @guppy
+        def first(self) -> T:
+            return self.xs[0]
+
+        @guppy
+        def replace(self, xs: array[T, "comptime(n + 1)"] @ owned) -> None:
+            self.xs = xs
+
+    @guppy
+    def main() -> int:
+        a = Buffer[int, 2](array(1, 2, 3))
+        b = Buffer[bool, 0](array(False))
+        a.replace(array(4, 5, 6))
+        b.replace(array(True))
+        return a.first() + int(b.first())
+
+    run_int_fn(main, 5)

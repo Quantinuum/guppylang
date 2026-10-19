@@ -869,7 +869,13 @@ class StructType(ParametrizedTypeBase):
         from guppylang_internals.definition.util import CheckedField
         from guppylang_internals.tys.subst import Instantiator
 
-        inst = Instantiator(self.args)
+        inst = Instantiator(
+            self.args,
+            # Don't throw RequiresMonomorphization errors at this point. If some struct
+            # fields have generic comptime expressions, it's ok to preserve them without
+            # evaluation here.
+            require_monomorphization=False,
+        )
         return [CheckedField(f.name, f.ty.transform(inst)) for f in self.defn.fields]
 
     @cached_property
@@ -1074,11 +1080,11 @@ def unify(s: Type, t: Type, subst: "Subst | None") -> "Subst | None":
             return _unify_args(s, t, subst)
         case TupleType() as s, TupleType() as t:
             return _unify_args(s, t, subst)
-        case OpaqueType() as s, OpaqueType() as t if s.defn == t.defn:
+        case OpaqueType() as s, OpaqueType() as t if s.defn.id == t.defn.id:
             return _unify_args(s, t, subst)
-        case StructType() as s, StructType() as t if s.defn == t.defn:
+        case StructType() as s, StructType() as t if s.defn.id == t.defn.id:
             return _unify_args(s, t, subst)
-        case EnumType() as s, EnumType() as t if s.defn == t.defn:
+        case EnumType() as s, EnumType() as t if s.defn.id == t.defn.id:
             return _unify_args(s, t, subst)
         case _:
             return None
@@ -1089,9 +1095,9 @@ def unify_const(s: Const, t: Const, subst: "Subst | None") -> "Subst | None":
         return None
 
     if isinstance(s, ComptimeConstValue):
-        s = s.try_resolve()
+        s = s.try_resolve(require_monomorphization=True)
     if isinstance(t, ComptimeConstValue):
-        t = t.try_resolve()
+        t = t.try_resolve(require_monomorphization=True)
 
     match s, t:
         case ExistentialConstVar() as s_var, t:
