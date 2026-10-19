@@ -84,7 +84,7 @@ class RNG:
         """Generate a random 32-bit integer in the range [0, bound).
 
         Args:
-            bound: The upper bound of the range, needs to less than 2^31.
+            bound: The upper bound of the range, needs to be less than 2^31.
         """
 
     # No effects: all state is carried in the borrowed `self`

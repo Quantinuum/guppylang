@@ -38,8 +38,8 @@ class WasmModuleInitCompiler(CustomInoutCallCompiler):
             WASM_EXTENSION.get_op("get_context"),
             ht.FunctionType([ht.USize()], [ht.Option(ctx_ty)]),
         )
-        # EFFECTS: ??? We probably want to prevent reordering against
-        # creation/disposal of *another* context here.
+        # Mark as having effect to prevent reordering against creation/disposal of
+        # *another* context here. May be unnecessary - see https://github.com/Quantinuum/guppylang/issues/2426
         node = self.builder.add_op((get_ctx_op, [Effect.ANY]), ctx_wire)
         opt_w: Wire = node[0]
         err = "Failed to spawn WASM context"
@@ -54,8 +54,8 @@ class WasmModuleDiscardCompiler(CustomInoutCallCompiler):
         assert len(args) == 1
         ctx = args[0]
         op = WASM_EXTENSION.get_op("dispose_context").instantiate([])
-        # EFFECTS: ??? We probably want to prevent reordering against
-        # creation/disposal of *another* context here.
+        # Mark as having effect to prevent reordering against creation/disposal of
+        # *another* context here. May be unnecessary - see https://github.com/Quantinuum/guppylang/issues/2426
         self.builder.add_op((op, [Effect.ANY]), ctx)
         return CallReturnWires(regular_returns=[], inout_returns=[])
 

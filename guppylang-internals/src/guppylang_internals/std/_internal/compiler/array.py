@@ -254,12 +254,12 @@ def barray_discard_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithE
     """Returns an array `discard_all_borrowed` operation."""
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
-        # Panics if any not borrowed
         "discard_all_borrowed",
         elem_ty,
         length,
         [arr_ty],
         [],
+        # Panics unless all items are borrowed
         effects=[Effect.PANIC],
     )
 
