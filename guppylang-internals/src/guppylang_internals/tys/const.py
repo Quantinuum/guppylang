@@ -114,7 +114,10 @@ class ComptimeConstValue(ConstBase):
 
     def transform(self, transformer: Transformer, /) -> "Const":
         """Accepts a transformer on this constant."""
-        return transformer.transform(self) or ComptimeConstValue(
+        if const := transformer.transform(self):
+            assert isinstance(const, ConstBase)
+            return const.cast()
+        return ComptimeConstValue(
             self.ty.transform(transformer),
             self.expr,
             self.params,
