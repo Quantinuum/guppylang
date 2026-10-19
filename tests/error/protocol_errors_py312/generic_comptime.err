@@ -3,7 +3,7 @@ Error: Unsupported (at $FILE:9:60)
 7 | class Proto:
 8 |     @guppy.require
 9 |     def foo[n: nat](self, xs: array[int, n]) -> array[int, "comptime(n + 1)"]: ...
-  |                                                             ^^^^^^^^^^^^^^^ `comptime` expressions depending to generic parameters are
+  |                                                             ^^^^^^^^^^^^^^^ `comptime` expressions depending on generic parameters are
   |                                                                             not supported in protocols
 
 Guppy compilation failed due to 1 previous error

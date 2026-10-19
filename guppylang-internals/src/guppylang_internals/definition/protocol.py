@@ -53,7 +53,7 @@ class MethodNotRequire(Error):
 class GenericComptimeUnsupported(Error):
     title: ClassVar[str] = "Unsupported"
     span_label: ClassVar[str] = (
-        "`comptime` expressions depending to generic parameters are not supported in "
+        "`comptime` expressions depending on generic parameters are not supported in "
         "protocols"
     )
 
