@@ -61,7 +61,7 @@ def test_comptime_signatures(validate):
         return array(xs[i // m][i % m] for i in range(comptime(n * m)))
 
     @guppy
-    def test_empty() -> None:
+    def test_empty_monomorphization_smoke() -> None:
         empty: array[int, 0] = array()
         empty2: array[array[int, 0], 0] = array()
 
@@ -73,7 +73,7 @@ def test_comptime_signatures(validate):
 
     @guppy
     def main() -> None:
-        test_empty()
+        test_empty_monomorphization_smoke()
 
         result("a", double(array(1)))
         result("b", double(array(1.0, 2.0)))
@@ -96,7 +96,7 @@ def test_comptime_signatures(validate):
     }
 
 
-def test_comptime_signature2(validate):
+def test_comptime_signature_declarations(validate):
     @guppy.declare
     def halve[T, n: nat](xs: array[T, "comptime(2 * n)"] @ owned) -> array[int, n]: ...
 
