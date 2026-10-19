@@ -140,7 +140,7 @@ class Instantiator(Transformer):
         return None
 
     def _transform_ComptimeConstValue(self, val: ComptimeConstValue) -> Const:
-        # Update the stashed instantiation
+        # Update the stored instantiation
         idx = 0
         new_inst: list[Argument | None] = []
         for arg in val.inst:
