@@ -42,13 +42,16 @@ __all__ = [
 ]
 
 
-@hugr_op(float_op("sin", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("sin", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def _sin_float(x: float) -> float: ...
 
 
 @custom_function(
     TrigCompiler("sin", math_extension=_MATH_EXTENSION, inverse=False),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def _sin_angle(x: angle) -> float: ...
 
@@ -58,13 +61,16 @@ def sin(x: float | angle) -> float:
     """Return the sine of a float in radians or a Guppy angle."""
 
 
-@hugr_op(float_op("cos", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("cos", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def _cos_float(x: float) -> float: ...
 
 
 @custom_function(
     TrigCompiler("cos", math_extension=_MATH_EXTENSION, inverse=False),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def _cos_angle(x: angle) -> float: ...
 
@@ -74,13 +80,16 @@ def cos(x: float | angle) -> float:
     """Return the cosine of a float in radians or a Guppy angle."""
 
 
-@hugr_op(float_op("tan", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("tan", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def _tan_float(x: float) -> float: ...
 
 
 @custom_function(
     TrigCompiler("tan", math_extension=_MATH_EXTENSION, inverse=False),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def _tan_angle(x: angle) -> float: ...
 
@@ -90,13 +99,16 @@ def tan(x: float | angle) -> float:
     """Return the tangent of a float in radians or a Guppy angle."""
 
 
-@hugr_op(float_op("atan", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("atan", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def _atan_float(x: float) -> float: ...
 
 
 @custom_function(
     TrigCompiler("atan", math_extension=_MATH_EXTENSION, inverse=True),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def _atan_angle(x: float) -> angle: ...
 
@@ -109,13 +121,16 @@ def atan(x: float) -> float | angle:
     """
 
 
-@hugr_op(float_op("atan2", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("atan2", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def _atan2_float(y: float, x: float) -> float: ...
 
 
 @custom_function(
     TrigCompiler("atan2", math_extension=_MATH_EXTENSION, inverse=True),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def _atan2_angle(y: float, x: float) -> angle: ...
 
@@ -156,13 +171,16 @@ def atan2(y: float, x: float) -> float | angle:
     """
 
 
-@hugr_op(float_op("asin", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("asin", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def _asin_float(x: float) -> float: ...
 
 
 @custom_function(
     TrigCompiler("asin", math_extension=_MATH_EXTENSION, inverse=True),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def _asin_angle(x: float) -> angle: ...
 
@@ -175,13 +193,16 @@ def asin(x: float) -> float | angle:
     """
 
 
-@hugr_op(float_op("acos", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("acos", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def _acos_float(x: float) -> float: ...
 
 
 @custom_function(
     TrigCompiler("acos", math_extension=_MATH_EXTENSION, inverse=True),
     unitary_flags=UnitaryFlags.Dagger,
+    effects=(),
 )
 def _acos_angle(x: float) -> angle: ...
 
@@ -194,36 +215,50 @@ def acos(x: float) -> float | angle:
     """
 
 
-@hugr_op(float_op("exp", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("exp", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def exp(x: float) -> float:
     """Return e raised to the power x."""
 
 
-@hugr_op(float_op("exp2", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("exp2", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def exp2(x: float) -> float:
     """Return 2 raised to the power x."""
 
 
-@hugr_op(float_op("log", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("log", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def log(x: float) -> float:
     """Return the natural logarithm of x."""
 
 
-@hugr_op(float_op("log2", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("log2", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def log2(x: float) -> float:
     """Return the base-two logarithm of x."""
 
 
-@hugr_op(float_op("log10", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("log10", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def log10(x: float) -> float:
     """Return the base-ten logarithm of x."""
 
 
-@hugr_op(float_op("pow", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("pow", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def pow(x: float, y: float) -> float:
     """Return x raised to the power y."""
 
 
-@hugr_op(float_op("fmod", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger)
+@hugr_op(
+    float_op("fmod", _MATH_EXTENSION), unitary_flags=UnitaryFlags.Dagger, effects=()
+)
 def fmod(x: float, y: float) -> float:
     """Return x - trunc(x / y) * y, with the sign of x."""
