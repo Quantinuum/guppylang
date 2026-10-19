@@ -202,7 +202,7 @@ class CheckedProtocolDef(ProtocolDef, CompiledDef):
             raise GuppyError(MethodNotRequire(def_.defined_at))
         sig = def_.ty
 
-        if const := contains_comptime_consts(sig):
+        if const := ComptimeConstFinder.find(sig):
             raise GuppyError(GenericComptimeUnsupported(const.expr))
 
         return sig
@@ -216,15 +216,15 @@ class ComptimeConstFinder(Visitor):
     def __init__(self) -> None:
         self.const = None
 
+    @staticmethod
+    def find(ty: Type) -> ComptimeConstValue | None:
+        """Checks if a type contains a `comptime(...)` const expression."""
+        finder = ComptimeConstFinder()
+        ty.visit(finder)
+        return finder.const
+
     def visit(self, arg: Any, /) -> bool:
         if isinstance(arg, ConstArg) and isinstance(arg.const, ComptimeConstValue):
             self.const = arg.const
             return True
         return False
-
-
-def contains_comptime_consts(ty: Type) -> ComptimeConstValue | None:
-    """Checks if a type contains a `comptime(...)` const expression."""
-    finder = ComptimeConstFinder()
-    ty.visit(finder)
-    return finder.const
