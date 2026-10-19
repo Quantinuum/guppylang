@@ -143,9 +143,11 @@ class array[T, n: nat](builtins.list[T]):
         """
 
     @custom_function(
-        ArrayGetitemCompiler(linear_panics=True),
+        ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # Panics if element already taken, or out-of-bounds
+        effects=(),  # Panics if element already taken, or index out-of-bounds,
+        # but we record only for copyable elements (to match __getitem__),
+        # done in ArrayIndexChecker (https://github.com/Quantinuum/guppylang/issues/2122).
     )
     def take[L, n: nat](self: array[L, n], idx: int) -> L:
         """Takes an element out of the array.
@@ -206,9 +208,11 @@ class array[T, n: nat](builtins.list[T]):
         return some(self.take(idx))
 
     @custom_function(
-        ArraySetitemCompiler(elem_first=True, linear_panics=True),
+        ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
-        effects=(),  # Can panic, but preserving legacy behaviour (https://github.com/Quantinuum/guppylang/issues/2122)
+        effects=(),  # Panics if element not taken, or index out-of-bounds,
+        # but we record only for copyable elements (to match __getitem__),
+        # done in ArrayIndexChecker (https://github.com/Quantinuum/guppylang/issues/2122).
     )
     def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
