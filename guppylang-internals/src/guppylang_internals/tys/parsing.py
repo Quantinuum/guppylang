@@ -178,9 +178,11 @@ def arg_from_ast(node: AstNode, ctx: TypeParsingCtx) -> Argument:
                 comptime_expr, Context(ctx.globals, Locals({}), param_inst)
             )
         except RequiresMonomorphizationError:
-            # That means the comptime expression refers to a generic parameter that is
-            # not known yet. This can only happen when parsing signatures
-            assert ctx.is_signature
+            # If we're checking a function body, we can reraise and wait for the
+            # monomorphisation
+            if not ctx.is_signature:
+                raise
+            # When parsing signatures, we need to encode it as a `ComptimeConstValue`
             ty = ExistentialTypeVar.fresh("T", True, True)
             params = sorted(ctx.param_var_mapping.values(), key=lambda param: param.idx)
             return ConstArg(
