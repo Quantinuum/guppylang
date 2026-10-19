@@ -222,7 +222,9 @@ def std_array_to_array(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     )
 
 
-def barray_borrow(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
+def barray_borrow(
+    elem_ty: ht.Type, length: ht.TypeArg, panics: bool = False
+) -> OpWithEffects:
     """Returns an array `borrow` operation."""
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
@@ -231,12 +233,15 @@ def barray_borrow(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [arr_ty, ht.USize()],
         [arr_ty, elem_ty],
-        effects=(),  #  panics, but do not record: this will inhibit optimization
+        effects=[Effect.ANY] if panics else (),  #  always panics, but for __getitem__
+        # we do not record, as this will inhibit optimization:
         # https://github.com/guppylang/guppylang/issues/2122
     )
 
 
-def barray_return(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
+def barray_return(
+    elem_ty: ht.Type, length: ht.TypeArg, panics: bool = False
+) -> OpWithEffects:
     """Returns an array `return` operation."""
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
@@ -245,7 +250,8 @@ def barray_return(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [arr_ty, ht.USize(), elem_ty],
         [arr_ty],
-        effects=(),  #  panics, but do not record: this will inhibit optimization
+        effects=[Effect.ANY] if panics else (),  #  always panics, but for __getitem__
+        # we do not record, as this will inhibit optimization:
         # https://github.com/guppylang/guppylang/issues/2122
     )
 
@@ -384,6 +390,11 @@ class NewArrayCompiler(ArrayCompiler):
 class ArrayGetitemCompiler(ArrayCompiler):
     """Compiler for the `array.__getitem__` function."""
 
+    linear_panics: bool
+
+    def __init__(self, linear_panics: bool = False):
+        self.linear_panics = linear_panics
+
     def _build_classical_getitem(self, array: Wire, idx: Wire) -> CallReturnWires:
         """Constructs `__getitem__` for classical arrays."""
         idx = self.builder.add_op(convert_itousize(), idx)
@@ -403,7 +414,7 @@ class ArrayGetitemCompiler(ArrayCompiler):
         """Constructs `array.__getitem__` for linear arrays."""
         idx = self.builder.add_op(convert_itousize(), idx)
         arr, elem = self.builder.add_op(
-            barray_borrow(self.elem_ty, self.length),
+            barray_borrow(self.elem_ty, self.length, panics=self.linear_panics),
             array,
             idx,
         )
@@ -431,10 +442,18 @@ class ArraySetitemCompiler(ArrayCompiler):
     Arguments:
         elem_first: If `True`, then compiler will assume that the element wire comes
             before the index wire. Defaults to `False`.
+        linear_panics: If `True`, then we generate order edges for the linear array
+        setitem operation (as, like classical, it will panic on out-of-bounds access).
+        Defaults to `False`, suppressing these edges for linear accesses only
+         - the op may still panic, but the edges would inhibit optimization
+        (https://github.com/Quantinuum/guppylang/issues/2122)
     """
 
-    def __init__(self, elem_first: bool = False):
+    linear_panics: bool
+
+    def __init__(self, elem_first: bool = False, linear_panics: bool = False):
         self.elem_first = elem_first
+        self.linear_panics = linear_panics
 
     def _build_classical_setitem(
         self, array: Wire, idx: Wire, elem: Wire
@@ -460,7 +479,7 @@ class ArraySetitemCompiler(ArrayCompiler):
         """Constructs `array.__setitem__` for linear arrays."""
         idx = self.builder.add_op(convert_itousize(), idx)
         arr = self.builder.add_op(
-            barray_return(self.elem_ty, self.length),
+            barray_return(self.elem_ty, self.length, panics=self.linear_panics),
             array,
             idx,
             elem,
