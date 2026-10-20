@@ -1,7 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import cast
 
 
 class BaseEffect(Enum):
@@ -85,7 +84,7 @@ class Effect(Enum):
     RNG = StronglyOrdered(BaseEffect.RNG)
 
     """Unknown effects - i.e. we must conservatively any and all the above."""
-    ANY = cast("Iterable[EffectType]", [StronglyOrdered(e) for e in BaseEffect])
+    ANY = tuple(StronglyOrdered(e) for e in BaseEffect)
 
     def values(self) -> Iterable[EffectType]:
         if isinstance(self.value, Iterable):
