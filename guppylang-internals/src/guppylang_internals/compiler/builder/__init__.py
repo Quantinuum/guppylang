@@ -51,7 +51,7 @@ class DFBuilder(ABC, ToNode):
     )
     # The nodes which have had a partially-ordered effect on the key
     # since the last totally-ordered effect.
-    _last_nodes_with_partial: dict[BaseEffect, list[Node]] = field(
+    _last_nodes_with_weak: dict[BaseEffect, list[Node]] = field(
         default_factory=dict, init=False
     )
 
@@ -59,7 +59,7 @@ class DFBuilder(ABC, ToNode):
     def effects(self) -> Iterable[EffectType]:
         return [
             *[StronglyOrdered(e) for e in self._last_node_with_strong],
-            *[WeaklyOrdered(e) for e in self._last_nodes_with_partial],
+            *[WeaklyOrdered(e) for e in self._last_nodes_with_weak],
         ]
 
     @abstractproperty
@@ -140,43 +140,46 @@ class DFBuilder(ABC, ToNode):
             """Gets the previous node that had the given effect, i.e. the node after
             which `node` should be ordered. Returns the Input (marking this container
             as having that effect) if none."""
-
             last_strong = self._last_node_with_strong.get(e.base)
             if last_strong is node:
-                return []
+                return []  # Avoid a self cycle
 
-            last: Node
-            if last_strong is None:
-                # Not had a strong effect of this type before; may have had weak.
-                if (
-                    isinstance(e, StronglyOrdered)
-                    or e.base not in self._last_nodes_with_partial
-                ):
-                    to_propagate.add(e)
-                last = self.input_node
-            else:
-                assert not isinstance(self._raw.hugr[last_strong].op, Output)
-                last = last_strong
-
-            if isinstance(e, StronglyOrdered) or isinstance(
-                self._raw.hugr[node].op, Output
+            last_weak = self._last_nodes_with_weak.get(e.base, ())
+            if last_weak and (
+                # If there are any accumulated nodes that weakly required this effect,
+                # and we have a strongly ordered requirement, reset weak requirements
+                # and return the nodes.
+                isinstance(e, StronglyOrdered)
+                # Do this for the final output node of the region as well to close the
+                # diamond of order edges.
+                or isinstance(self._raw.hugr[node].op, Output)
             ):
-                # Also put after any weakly-ordered effects (all in parallel).
-                # We do this for Output even if it is not StronglyOrdered because there
-                # will be no more nodes and we need to close the diamond.
-                partial_preds = self._last_nodes_with_partial.pop(e.base, [])
-                # Exclude redundant edge from last if there any partial_preds
-                return partial_preds or [last]
+                self._last_nodes_with_weak.pop(e.base, ())
+                return last_weak
 
-            # WeaklyOrdered (and not Output node). Order only after `last`, in parallel
-            # with other nodes that are only WeaklyOrdered on the same effect.
-            return [last]
+            # No weak nodes found, or effect was not strongly required ...
+            # ... if there was a last strong requirement, add an edge to that node ...
+            if last_strong is not None:
+                assert not isinstance(self._raw.hugr[last_strong].op, Output)
+                return [last_strong]
+
+            # ... otherwise this is either a completely new effect or there have only
+            # been weak references to it so far.
+
+            # Check whether it is completely new, and propagate to the outer container
+            # if required.
+            if (
+                isinstance(e, StronglyOrdered)
+                or e.base not in self._last_nodes_with_weak
+            ):
+                to_propagate.add(e)
+            return [self.input_node]
 
         def record_effect(e: EffectType) -> None:
             if isinstance(e, StronglyOrdered):
                 self._last_node_with_strong[e.base] = node
             else:
-                self._last_nodes_with_partial.setdefault(e.base, []).append(node)
+                self._last_nodes_with_weak.setdefault(e.base, []).append(node)
 
         prev_nodes = {n for e in effects for n in get_prev_nodes(e)}
         prev_nodes.discard(node)  # Avoid cycles
