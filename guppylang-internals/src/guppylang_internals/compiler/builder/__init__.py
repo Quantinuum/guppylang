@@ -135,17 +135,17 @@ class DFBuilder(ABC, ToNode):
         node = op_node.to_node()
         to_propagate = set()  # Effects newly added to our container
 
-        def get_prev_node(e: EffectType) -> Iterable[Node]:
+        def get_prev_nodes(e: EffectType) -> Iterable[Node]:
             """Gets the previous node that had the given effect, i.e. the node after
             which `node` should be ordered. Returns the Input (marking this container
             as having that effect) if none. Also records the current `node` as having
             had that effect, for any later call."""
 
-            last = self._last_node_with_strong.get(e.base)
-            if last is node:
+            last_strong = self._last_node_with_strong.get(e.base)
+            if last_strong is node:
                 return []
 
-            if last is None:
+            if last_strong is None:
                 # Not had a strong effect of this type before; may have had weak.
                 if (
                     isinstance(e, StronglyOrdered)
@@ -154,7 +154,8 @@ class DFBuilder(ABC, ToNode):
                     to_propagate.add(e)
                 last = self.input_node
             else:
-                assert not isinstance(self._raw.hugr[last].op, Output)
+                assert not isinstance(self._raw.hugr[last_strong].op, Output)
+                last = last_strong
 
             if isinstance(e, StronglyOrdered):
                 self._last_node_with_strong[e.base] = node
@@ -172,7 +173,7 @@ class DFBuilder(ABC, ToNode):
             # Include edge from last if 0 partial_preds (harmless but redundant if >0)
             return partial_preds or [last]
 
-        prev_nodes = {n for e in effects for n in get_prev_node(e)}
+        prev_nodes = {n for e in effects for n in get_prev_nodes(e)}
         prev_nodes.discard(node)  # Avoid cycles
         # Avoid duplicate Order edges when two nodes share multiple effects:
         for prev in self._raw.hugr.incoming_order_links(node):
