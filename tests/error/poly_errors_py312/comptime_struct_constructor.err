@@ -1,0 +1,11 @@
+Error: Type mismatch (at $FILE:14:21)
+   | 
+12 | def make[n: nat]() -> Buffer[n]:
+13 |     # The constructor argument has the right size only when n = 1.
+14 |     return Buffer[n](array(0 for _ in range(comptime(2 * n))))
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected expression of type `array[int, 3]`, got `array[int,
+   |                                                               4]`
+
+Note: Error occurred while checking the instantiation `n := 2`
+
+Guppy compilation failed due to 1 previous error

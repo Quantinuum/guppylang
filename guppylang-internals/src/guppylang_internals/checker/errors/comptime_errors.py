@@ -48,6 +48,13 @@ class ComptimeExprTypeVarError(Error):
 
 
 @dataclass(frozen=True)
+class ComptimeExprUnboundGenericError(Error):
+    title: ClassVar[str] = "Unbound generic variable"
+    span_label: ClassVar[str] = "Generic variable `{var}` is not bound by this function"
+    var: str
+
+
+@dataclass(frozen=True)
 class ComptimeExprEvalError(Error):
     title: ClassVar[str] = "Python error"
     span_label: ClassVar[str] = (

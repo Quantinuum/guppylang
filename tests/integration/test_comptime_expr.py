@@ -296,3 +296,17 @@ def test_comptime_args(run_int_fn):
         return foo(10, 20)
 
     run_int_fn(main, -9)
+
+
+def test_generic_body(validate):
+    n = guppy.nat_var("n")
+
+    @guppy
+    def foo(xs: array[int, n]) -> None:
+        ys: array[int, comptime(n + 1)] = array(0 for _ in range(comptime(n + 1)))
+
+    @guppy
+    def main() -> None:
+        foo(array(1, 2))
+
+    validate(main.compile())
