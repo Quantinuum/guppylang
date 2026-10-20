@@ -843,6 +843,7 @@ class ModifiedBlock(ast.With):
     - `original_ast_body`: the original AST body of the block, used for checking that
       the body does not contain any invalid statements. Is expected to beNone if the
       block does not have the Dagger modifier since in that case it is not needed
+    - `has_single_call`: whether a custom power implementation can replace the body
     """
 
     cfg: "CFG"
@@ -850,6 +851,8 @@ class ModifiedBlock(ast.With):
     first_modifier_node: ast.expr
     accumulated_flags: UnitaryFlags
     original_ast_body: list[ast.stmt] | None
+    #: Whether the body contains exactly one call, executed without branching/loops.
+    has_single_call: bool
 
     def __init__(
         self,
@@ -858,6 +861,7 @@ class ModifiedBlock(ast.With):
         first_modifier_node: ast.expr,
         accumulated_flags: UnitaryFlags,
         original_ast_body: list[ast.stmt] | None,
+        has_single_call: bool,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -867,6 +871,7 @@ class ModifiedBlock(ast.With):
         self.first_modifier_node = first_modifier_node
         self.accumulated_flags = accumulated_flags
         self.original_ast_body = original_ast_body
+        self.has_single_call = has_single_call
 
     @property
     def dagger(self) -> list[Dagger]:
@@ -909,6 +914,8 @@ class CheckedModifiedBlock(ast.With):
     #: Mapping from names to variables captured in the body.
     captured: Mapping[str, tuple["Variable", AstNode]]
     modifiers: Modifiers
+    #: Preserved from the unchecked block for custom-power eligibility.
+    has_single_call: bool
 
     def __init__(
         self,
@@ -917,6 +924,7 @@ class CheckedModifiedBlock(ast.With):
         ty: FunctionType,
         captured: Mapping[str, tuple["Variable", AstNode]],
         modifiers: Modifiers,
+        has_single_call: bool,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -926,6 +934,7 @@ class CheckedModifiedBlock(ast.With):
         self.ty = ty
         self.captured = captured
         self.modifiers = modifiers
+        self.has_single_call = has_single_call
 
     @property
     def dagger(self) -> list[Dagger]:

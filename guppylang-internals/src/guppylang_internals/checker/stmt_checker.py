@@ -488,6 +488,8 @@ class StmtChecker(AstVisitor[BBStatement]):
         local_modifiers = ModifierContext(
             daggered=node.has_dagger(),
             control_sizes=tuple(control_sizes),
+            powered=node.has_power(),
+            power_customizable=node.has_power() and node.has_single_call,
         )
 
         body_ctx = self.ctx._replace(

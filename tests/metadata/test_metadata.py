@@ -5,10 +5,14 @@ from guppylang_internals.error import GuppyError
 from guppylang_internals.metadata.common import (
     ControlledImplementations,
     CtrlDaggeredImplementations,
+    CtrlPowerDaggeredImplementations,
+    CtrlPoweredImplementations,
     DaggeredImplementation,
     FunctionMetadata,
     MetadataAlreadySetError,
     NumControlQubits,
+    PowerDaggeredImplementation,
+    PoweredImplementation,
     ReservedMetadataKeysError,
     add_custom_implementations,
     add_metadata,
@@ -168,6 +172,10 @@ def test_add_metadata_num_control_qubits_key_reserved():
         DaggeredImplementation.KEY,
         ControlledImplementations.KEY,
         CtrlDaggeredImplementations.KEY,
+        PoweredImplementation.KEY,
+        PowerDaggeredImplementation.KEY,
+        CtrlPoweredImplementations.KEY,
+        CtrlPowerDaggeredImplementations.KEY,
     ],
 )
 def test_add_metadata_custom_implementation_names_reserved(key: str):
@@ -190,3 +198,29 @@ def test_add_metadata_property_inline():
     add_metadata(node_metadata, guppy_metadata)
 
     assert node_metadata.as_dict() == {InlineAnnotation.KEY: "best_effort"}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "powered",
+        "power_daggered",
+        "ctrl_powered",
+        "ctrl_power_daggered",
+    ],
+)
+def test_power_metadata_cannot_be_overwritten(name):
+    """Reserve each custom-power metadata key and reject duplicate writes.
+
+    Uncontrolled variants store one link name; controlled variants store a list
+    specialized by control count. Neither representation may silently replace an
+    implementation already attached to the parent function.
+    """
+    metadata = NodeMetadata()
+    value = ["custom"] if name.startswith("ctrl_") else "custom"
+    add_custom_implementations(metadata, **{name: value})
+    assert metadata["tket." + name] == value
+    with pytest.raises(GuppyError) as exc:
+        add_custom_implementations(metadata, **{name: value})
+    assert isinstance(exc.value.error, MetadataAlreadySetError)
+    assert exc.value.error.key == "tket." + name

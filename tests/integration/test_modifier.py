@@ -239,7 +239,12 @@ def test_control_subscript_nested(validate):
     validate(main.compile())
 
 
-def test_power_simple(validate, use_experimental_features):
+def test_power_simple(validate):
+    """Accept power without enabling experimental features.
+
+    An empty block with a runtime nat exponent needs no custom implementation.
+    Validate minimal-opt HUGR only, since ModifierPass does not yet resolve power.
+    """
     @guppy
     def bar(n: nat) -> None:
         with power(n):

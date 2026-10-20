@@ -20,10 +20,6 @@ tests_that_require_experimental_features = [
     "flags_nested_power_control.py",
     "flags_nested_triple.py",
     "flags_triple_dagger2.py",
-    "power_arg_type.py",
-    "power_arg_typecheck_inside.py",
-    "power_many_arg.py",
-    "power_no_arg.py",
 ]
 files_with_experimental_flag = [
     (file, any(case in file for case in tests_that_require_experimental_features))
