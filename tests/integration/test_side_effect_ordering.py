@@ -248,7 +248,11 @@ def test_rng_effect_propagates_through_call(validate):
         for node, data in hugr.nodes()
         if isinstance(data.op, ops.Call) and data.parent == hugr[alloc1].parent
     ]
-    check_order(hugr, [alloc1, free1, call, alloc2, free2])
+    [test_inp, test_out] = hugr.children(hugr[call].parent)[:2]
+
+    check_order(hugr, [test_inp, alloc1, free1, alloc2, free2, test_out])
+    assert list(hugr.incoming_order_links(call)) == [test_inp]
+    assert list(hugr.outgoing_order_links(call)) == [test_out]
 
 
 def test_call(validate):
