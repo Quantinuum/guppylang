@@ -17,6 +17,7 @@ class BaseEffect(Enum):
     relative order of freeing does not affect the success/failure of allocation.
     """
     ALLOCATION = "Allocation"
+
     """Nodes that affect the output visible as the program terminates.
     That is: anything that produces results, or early exits the program, should be
     `StronglyOrdered` here.
@@ -25,6 +26,9 @@ class BaseEffect(Enum):
     or absence of a panic, and do not guarantee the specific message.
     """
     OUTPUT = "Output"
+
+    """Models the state of the system-wide/global RNG."""
+    RNG = "RNG"
 
 
 @dataclass(frozen=True)
@@ -76,6 +80,9 @@ class Effect(Enum):
     """ Freeing qubits. Parallel frees cannot affect each other but (for predictability)
     must occur in program order wrt. any allocations."""
     FREE = WeaklyOrdered(BaseEffect.ALLOCATION)
+
+    """System-wide/global random number generator."""
+    RNG = StronglyOrdered(BaseEffect.RNG)
 
     """Unknown effects - i.e. we must conservatively any and all the above."""
     ANY = cast("Iterable[EffectType]", [StronglyOrdered(e) for e in BaseEffect])

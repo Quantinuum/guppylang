@@ -33,7 +33,12 @@ DISCRETE_N = guppy.nat_var("DISCRETE_N")
 
 @hugr_op(
     external_op("NewRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
-    effects=[Effect.ANY],  # ALAN do we need an RNG effect?
+    # Totally order creation/deletion of RNG contexts.
+    # Since there is only one global RNG, multiple contexts alive at once
+    # will lead to unpredictable results; but using the RNG effect for creation
+    # and deletion will at least ensure we preserve behaviour of user code
+    # that only has one RNG context live at once.
+    effects=[Effect.RNG],
 )
 @no_type_check
 def _new_rng_context(seed: int) -> Option["RNG"]: ...
@@ -60,7 +65,9 @@ class RNG:
 
     @hugr_op(
         external_op("DeleteRNGContext", [], ext=QSYSTEM_RANDOM_EXTENSION),
-        effects=[Effect.ANY],  # ALAN ?? can this be pure?
+        # Totally order creation/deletion of RNG contexts, as per _new_rng_context,
+        # to at least preserve behaviour of user code that has at most one live context.
+        effects=[Effect.RNG],
     )
     @no_type_check
     def discard(self: "RNG" @ owned) -> None:
