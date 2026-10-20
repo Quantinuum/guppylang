@@ -68,7 +68,7 @@ class Either[L, R]:
         This operation is only allowed if the `left` variant wraps a droppable type.
         """
 
-    @custom_function(EitherUnwrapCompiler(0), effects=[Effect.ANY])
+    @custom_function(EitherUnwrapCompiler(0), effects=[Effect.PANIC])
     @no_type_check
     def unwrap_left(self: "Either[L, R]" @ owned) -> L:
         """Returns the contained `left` value, consuming `self`.
@@ -76,7 +76,7 @@ class Either[L, R]:
         Panics if `self` is a `right` value.
         """
 
-    @custom_function(EitherUnwrapCompiler(1), effects=[Effect.ANY])
+    @custom_function(EitherUnwrapCompiler(1), effects=[Effect.PANIC])
     @no_type_check
     def unwrap_right(self: "Either[L, R]" @ owned) -> R:
         """Returns the contained `right` value, consuming `self`.

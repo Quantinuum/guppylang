@@ -86,7 +86,7 @@ def array_unpack(elem_ty: ht.Type, length: int) -> OpWithEffects:
         [elem_ty] * length,
         effects=[]
         if elem_ty.type_bound() == ht.TypeBound.Copyable
-        else [Effect.ANY],  # panics if any element borrowed
+        else [Effect.PANIC],  # panics if any element borrowed
     )
 
 
@@ -204,7 +204,7 @@ def array_to_std_array(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [array_type(elem_ty, length)],
         [standard_array_type(elem_ty, length)],
-        effects=[Effect.ANY],  # panics if any borrowed
+        effects=[Effect.PANIC],  # panics if any borrowed
     )
 
 
@@ -260,7 +260,7 @@ def barray_discard_all_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithE
         [arr_ty],
         [],
         # Panics unless all items are borrowed
-        effects=[Effect.ANY],
+        effects=[Effect.PANIC],
     )
 
 
@@ -281,7 +281,7 @@ def barray_is_borrowed(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [arr_ty, ht.USize()],
         [arr_ty, ht.Bool],
-        effects=[Effect.ANY],  # panics if index out of bounds
+        effects=[Effect.PANIC],  # panics if index out of bounds
     )
 
 
@@ -291,7 +291,7 @@ def array_clone(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     assert elem_ty.type_bound() == ht.TypeBound.Copyable
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
-        "clone", elem_ty, length, [arr_ty], [arr_ty, arr_ty], effects=[Effect.ANY]
+        "clone", elem_ty, length, [arr_ty], [arr_ty, arr_ty], effects=[Effect.PANIC]
     )
 
 

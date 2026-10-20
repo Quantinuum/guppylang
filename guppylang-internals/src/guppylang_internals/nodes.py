@@ -1,15 +1,16 @@
 """Custom AST nodes used by Guppy"""
 
 import ast
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, assert_never
 
 from guppylang_internals.ast_util import AstNode, set_location_from
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.span import Span, to_span
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.const import BoundConstVar, Const
 from guppylang_internals.tys.subst import Inst
 from guppylang_internals.tys.ty import (
@@ -476,6 +477,26 @@ class ComptimeExpr(ast.expr):
 class AbortKind(Enum):
     ExitShot = 0  # Exit the current shot
     Panic = 1  # Panic the program ending all shots
+
+    @property
+    def op_name(self) -> str:
+        match self:
+            case AbortKind.ExitShot:
+                return "exit"
+            case AbortKind.Panic:
+                return "panic"
+            case _:
+                assert_never(self)
+
+    @property
+    def effects(self) -> Iterable[Effect]:
+        match self:
+            case AbortKind.ExitShot:
+                return [Effect.OUTPUT]
+            case AbortKind.Panic:
+                return [Effect.PANIC]
+            case _:
+                assert_never(self)
 
 
 class AbortExpr(ast.expr):

@@ -116,7 +116,7 @@ class array[T, n: nat](builtins.list[T]):
         ArrayIsBorrowedCompiler(),
         checker=ArrayIndexChecker(),
         unitary_flags=UnitaryFlags.Dagger,
-        effects=[Effect.ANY],  # If index out-of-bounds
+        effects=[Effect.PANIC],  # If index out-of-bounds
     )
     def is_borrowed(self, idx: int) -> bool:
         """Checks if an element has been taken out of the array.
@@ -257,7 +257,7 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.ANY])
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.PANIC])
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
@@ -349,7 +349,7 @@ class ArrayIter[L, n: nat]:
         return nothing()
 
 
-@custom_function(ArraySwapCompiler(), effects=[Effect.ANY])
+@custom_function(ArraySwapCompiler(), effects=[Effect.PANIC])
 def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
@@ -378,10 +378,7 @@ class frozenarray[T, n: nat]:
     """An immutable array of fixed static size."""
 
     # Panics on out-of-range.
-    @custom_function(
-        FrozenarrayGetitemCompiler(),
-        effects=[Effect.ANY],
-    )
+    @custom_function(FrozenarrayGetitemCompiler(), effects=[Effect.PANIC])
     def __getitem__(self, item: int) -> T: ...
 
     @guppy

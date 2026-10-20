@@ -4,11 +4,12 @@ side-effects.
 
 from hugr import ops, Hugr, Node
 from hugr.std import PRELUDE
+import itertools
 from hugr import ops as hops
 
 from guppylang import guppy
 from guppylang.std.builtins import owned, panic
-from guppylang.std.quantum import qubit
+from guppylang.std.quantum import qubit, maybe_qubit
 from guppylang.std.quantum.functional import cx, h
 
 from guppylang_internals.std._internal.compiler.tket_exts import (
@@ -16,6 +17,7 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_RANDOM_EXTENSION,
     RESULT_EXTENSION,
 )
+from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from guppylang.std.builtins import output, array
 from guppylang.std.qsystem.random import RNG
 from guppylang.std.quantum import discard, measure
@@ -43,22 +45,11 @@ def name_matches(op: ops.Op, qualified_name: str) -> bool:
 
 def check_order(hugr: Hugr, nodes: list[Node]) -> None:
     """Checks that the provided nodes appear in the specified order in the order-edge
-    graph."""
-    # Do a DFS traversal of the order edge graph starting at the first node
-    stack = [nodes[0]]
-    visited = set()
-    while stack:
-        curr = stack.pop()
-        visited.add(curr)
-        if curr in nodes:
-            # Check this node is the next one in the sequence
-            assert curr == nodes.pop(0)
-            stack.clear()  # Only follow the order edges from this node
-        for n in hugr.outgoing_order_links(curr):
-            assert n not in visited, "Order edge graph must be acyclic"
-            stack.append(n)
-    # Check that all specified nodes occurred in the graph
-    assert len(nodes) == 0
+    graph with no intervening nodes."""
+    for node, next_n in itertools.pairwise(nodes):
+        assert next_n in hugr.outgoing_order_links(node), (
+            f"Expected order edge from {node} to {next_n}"
+        )
 
 
 def test_input_output(validate):
@@ -78,9 +69,11 @@ def test_input_output(validate):
     validate(program)
 
     hugr = program.modules[0]
+    [a] = find_ext_nodes(hugr, QUANTUM_EXTENSION.get_op("QAlloc").qualified_name())
     [r] = find_ext_nodes(hugr, RESULT_EXTENSION.get_op("result_bool").qualified_name())
     [inp, out] = hugr.children(hugr[r].parent)[:2]
-    check_order(hugr, [inp, r, out])
+    # Allocation has to be before result in case it panics
+    check_order(hugr, [inp, a, r, out])
 
 
 def test_output_panic(validate):
@@ -109,21 +102,81 @@ def test_qalloc_qfree(validate):
     @guppy
     def test() -> None:
         q1 = qubit()
-        discard(q1)
         q2 = qubit()
-        measure(q2)
+        q3 = qubit()
+        discard(q1)
+        discard(q2)
+        discard(q3)
+        q4 = qubit()
+        discard(q4)
 
     compiled = test.compile_function()
     validate(compiled)
 
     # Check that we have the expected order edges between the allocations and frees
     hugr = compiled.modules[0]
-    [a1, a2] = find_ext_nodes(hugr, QUANTUM_EXTENSION.get_op("QAlloc").qualified_name())
-    [d1] = find_ext_nodes(hugr, QUANTUM_EXTENSION.get_op("QFree").qualified_name())
-    [d2] = find_ext_nodes(
-        hugr, QUANTUM_EXTENSION.get_op("MeasureFree").qualified_name()
+    [a1, a2, a3, a4] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("QAlloc").qualified_name()
     )
-    check_order(hugr, [a1, d1, a2, d2])
+    [d1, d2, d3, d4] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("QFree").qualified_name()
+    )
+
+    for free in [d1, d2, d3]:
+        check_order(hugr, [a1, a2, a3, free, a4, d4])
+        for other_free in [d1, d2, d3]:
+            if free != other_free:
+                assert not has_order_path(hugr, free, other_free)
+
+
+def test_different_effects_parallel(validate):
+    @guppy
+    def test(arr: array[qubit, 2] @ owned) -> None:
+        output("a", True)  # Output effect
+        q = arr.take(1)  # No effect
+        # (yet, see https://github.com/Quantinuum/guppylang/issues/2122)
+        arr.discard_all_taken()  # Panic effect
+        # q = measure_and_reset(q)
+        mq = maybe_qubit()  # Allocation only
+        q2 = mq.unwrap()  # Panic only
+        discard(q)  # Free effect
+        discard(q2)  # Free effect
+
+    compiled = test.compile_function()
+    validate(compiled)
+
+    hugr = compiled.modules[0]
+    [out_a] = find_ext_nodes(
+        hugr, RESULT_EXTENSION.get_op("result_bool").qualified_name()
+    )
+    [discard_all_borrowed] = find_ext_nodes(
+        hugr, BORROW_ARRAY_EXTENSION.get_op("discard_all_borrowed").qualified_name()
+    )
+    [qfree1, qfree2] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("QFree").qualified_name()
+    )
+    [qalloc] = find_ext_nodes(
+        hugr, QUANTUM_EXTENSION.get_op("TryQAlloc").qualified_name()
+    )
+    [unwrap] = [
+        node for node, data in hugr.nodes() if isinstance(data.op, ops.Conditional)
+    ]
+    [inp, outp] = hugr.children(hugr[out_a].parent)[:2]
+
+    # Input node links to out_a via OUTPUT effect and qalloc via ALLOC effect
+    assert set(hugr.outgoing_order_links(inp)) == {out_a, qalloc}
+
+    # OUTPUT / PANIC effect
+    assert set(hugr.outgoing_order_links(out_a)) == {discard_all_borrowed, unwrap}
+
+    # ALLOC / FREE effect
+    assert set(hugr.outgoing_order_links(qalloc)) == {qfree1, qfree2}
+
+    # Output node collects last nodes from all effects
+    final_nodes = {discard_all_borrowed, unwrap, qfree1, qfree2}
+    assert set(hugr.incoming_order_links(outp)) == final_nodes
+    for n in final_nodes:
+        assert list(hugr.outgoing_order_links(n)) == [outp]
 
 
 def test_rng_context_lifetimes(validate):
@@ -148,7 +201,9 @@ def test_rng_context_lifetimes(validate):
         hugr, QSYSTEM_RANDOM_EXTENSION.get_op("DeleteRNGContext").qualified_name()
     )
     [inp, out] = hugr.children(hugr[new1].parent)[:2]
-    check_order(hugr, [inp, new1, delete1, new2, delete2, out])
+    for n, nxt in itertools.pairwise([inp, new1, delete1, new2, delete2, out]):
+        # Allow intervening Conditionals
+        assert has_order_path(hugr, n, nxt)
 
 
 def test_rng_effect_propagates_through_call(validate):
@@ -193,7 +248,11 @@ def test_rng_effect_propagates_through_call(validate):
         for node, data in hugr.nodes()
         if isinstance(data.op, ops.Call) and data.parent == hugr[alloc1].parent
     ]
-    check_order(hugr, [alloc1, free1, call, alloc2, free2])
+    [test_inp, test_out] = hugr.children(hugr[call].parent)[:2]
+
+    check_order(hugr, [test_inp, alloc1, free1, alloc2, free2, test_out])
+    assert list(hugr.incoming_order_links(call)) == [test_inp]
+    assert list(hugr.outgoing_order_links(call)) == [test_out]
 
 
 def test_call(validate):
@@ -240,7 +299,9 @@ def test_nested(validate):
     check_order(hugr, [inp, l1, l2, l3, l4, out])
 
     for loop in [l1, l2, l3, l4]:
-        check_order(hugr, hugr.children(loop)[:2])
+        # check_order is too strict (does not allow intervening nodes).
+        # Just make sure there is a path from Input node to Output node.
+        assert has_order_path(hugr, *hugr.children(loop)[:2])
 
 
 def test_pure_quantum_calls_have_no_order_edges(validate):
@@ -374,12 +435,20 @@ def test_panicking_calls_have_order_edges(validate):
         and main_node in ancestors(hugr, node)
     ]
 
-    check_order(hugr, [panic_call1, panic_op, panic_call2])
-
+    # We used minimal-opt, so don't look directly inside main (that would be only a CFG)
+    [inp, out] = hugr.children(hugr[panic_op].parent)[:2]
     for pure_call in [pure_call1, pure_call2]:
-        for op in [panic_call1, panic_op, panic_call2]:
+        for op in [inp, out, panic_call1, panic_op, panic_call2]:
             assert not has_order_path(hugr, pure_call, op)
             assert not has_order_path(hugr, op, pure_call)
+
+    panics = [panic_call1, panic_op, panic_call2]
+    for p in panics:
+        check_order(hugr, [inp, p, out])
+        for other_p in panics:
+            if other_p != p:
+                assert not has_order_path(hugr, p, other_p)
+                assert not has_order_path(hugr, other_p, p)
 
 
 def test_nested_panicking_calls(validate):
@@ -435,21 +504,20 @@ def test_nested_panicking_calls(validate):
         and main_node in ancestors(hugr, node)
     ]
 
-    check_order(hugr, [panic_call1, panic_op, panic_call2])
-
-    # These order paths would lead to cycles:
-    assert not has_order_path(hugr, pure_call1, panic_call1)
-    for op in [panic_op, pure_call2, panic_call2]:
-        assert not has_order_path(hugr, op, pure_call1)
-    assert not has_order_path(hugr, panic_call2, pure_call2)
-    for op in [panic_call1, pure_call1, panic_op]:
-        assert not has_order_path(hugr, pure_call2, op)
-
-    # Otherwise - the desired outcome when previous is fixed:
+    # We used minimal-opt, so don't look directly inside main (that would be only a CFG)
+    [inp, out] = hugr.children(hugr[panic_op].parent)[:2]
     for pure_call in [pure_call1, pure_call2]:
-        for op in [panic_call1, panic_op, panic_call2]:
+        for op in [inp, out, panic_call1, panic_op, panic_call2]:
             assert not has_order_path(hugr, pure_call, op)
             assert not has_order_path(hugr, op, pure_call)
+
+    panics = [panic_call1, panic_op, panic_call2]
+    for p in panics:
+        check_order(hugr, [inp, p, out])
+        for other_p in panics:
+            if other_p != p:
+                assert not has_order_path(hugr, p, other_p)
+                assert not has_order_path(hugr, other_p, p)
 
 
 def test_decl(validate):
