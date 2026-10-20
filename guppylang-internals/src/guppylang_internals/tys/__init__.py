@@ -103,9 +103,11 @@ def extract_effect_types(
 ) -> Iterable[EffectType]:
     for e in effects:
         if isinstance(e, Effect):
-            if isinstance(e.value, Iterable):
-                yield from e.value
-            else:
-                yield e.value
+            etys = e.value if isinstance(e.value, Iterable) else [e.value]
         else:
-            yield e
+            etys = [e]
+        for et in etys:
+            if isinstance(et, StronglyOrdered):
+                # Strong allows weak effects too
+                yield WeaklyOrdered(et.base)
+            yield et
