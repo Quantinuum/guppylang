@@ -67,12 +67,10 @@ class angle:
         return angle(-self.halfturns)
 
     @guppy(daggerable=True)
-    @no_type_check
     def __float__(self: "angle") -> float:
         return self.halfturns * py(math.pi)
 
     @guppy(daggerable=True)
-    @no_type_check
     def __eq__(self: "angle", other: "angle") -> bool:
         return self.halfturns == other.halfturns
 
