@@ -37,7 +37,7 @@ def get_underlying(e: Iterable[Effect | EffectType]) -> Iterable[EffectType]:
     return (
         et
         for effect in e
-        for et in (effect._values() if isinstance(effect, Effect) else [effect])
+        for et in (effect.values() if isinstance(effect, Effect) else [effect])
     )
 
 
@@ -56,7 +56,7 @@ class DFBuilder(ABC, ToNode):
     _last_side_effect: dict[BaseEffect, Node] = field(default_factory=dict, init=False)
     # The nodes which have had a partially-ordered effect on the key
     # since the last totally-ordered effect.
-    _last_partial_effect: dict[BaseEffect, list[Node]] = field(
+    _last_partial_effects: dict[BaseEffect, list[Node]] = field(
         default_factory=dict, init=False
     )
 
@@ -64,7 +64,7 @@ class DFBuilder(ABC, ToNode):
     def effects(self) -> Iterable[EffectType]:
         return [
             *[StronglyOrdered(e) for e in self._last_side_effect],
-            *[WeaklyOrdered(e) for e in self._last_partial_effect],
+            *[WeaklyOrdered(e) for e in self._last_partial_effects],
         ]
 
     @abstractproperty
@@ -155,7 +155,7 @@ class DFBuilder(ABC, ToNode):
                 # May have had a partial effect - this does not set _last_side_effect.
                 if (
                     isinstance(e, StronglyOrdered)
-                    or self._last_partial_effect.get(e.base) is None
+                    or self._last_partial_effects.get(e.base) is None
                 ):
                     to_propagate.add(e)
                 last = self.input_node
@@ -167,14 +167,14 @@ class DFBuilder(ABC, ToNode):
             elif not isinstance(self._raw.hugr[node].op, Output):
                 # Order only after `last`, but put in parallel with other nodes also
                 # having the same effect with only partial ordering.
-                self._last_partial_effect.setdefault(e.base, []).append(node)
+                self._last_partial_effects.setdefault(e.base, []).append(node)
                 return [last]
 
             # Either strongly-ordered, or Output.
             # Also put after any weakly-ordered effects (all in parallel).
             # We do this for Output even if it is not StronglyOrdered because there
             # will be no more nodes and we need to close the diamond.
-            partial_preds = self._last_partial_effect.pop(e.base, [])
+            partial_preds = self._last_partial_effects.pop(e.base, [])
             # Include edge from last if 0 partial_preds (harmless but redundant if >0)
             return partial_preds or [last]
 

@@ -334,6 +334,7 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,
                 has_var_args=False,
+                # TODO revisit once the generated constructor invokes others
                 effects=(),
             )
             variants_constructors.append(constructor_def)

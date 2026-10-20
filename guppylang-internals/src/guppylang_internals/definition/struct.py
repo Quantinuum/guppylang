@@ -273,7 +273,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             higher_order_func_id=GlobalConstId.fresh(f"{self.name}.__new__"),
             has_signature=True,
             has_var_args=False,
-            effects=(),
+            effects=(),  # TODO revisit once the generated constructor invokes others
         )
         return [constructor_def]
 

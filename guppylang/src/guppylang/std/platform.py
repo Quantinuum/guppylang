@@ -141,7 +141,7 @@ result = output
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.PANIC],
+    effects=AbortKind.Panic.effects,
 )
 def _panic(msg: str, *args) -> None: ...
 
@@ -157,7 +157,7 @@ def _panic(msg: str, *args) -> None: ...
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.PANIC],
+    effects=AbortKind.Panic.effects,
 )
 def _panic_with_signal(msg: str, signal: int, *args) -> None: ...
 
@@ -197,7 +197,7 @@ def panic(msg: str, signal: int = 1, *args):
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.OUTPUT],
+    effects=AbortKind.ExitShot.effects,
 )
 def _exit(msg: str, *args) -> None: ...
 
@@ -213,7 +213,7 @@ def _exit(msg: str, *args) -> None: ...
         NoneType(),
     ),
     has_var_args=True,
-    effects=[Effect.OUTPUT],
+    effects=AbortKind.ExitShot.effects,
 )
 def _exit_with_signal(msg: str, signal: int, *args) -> None: ...
 

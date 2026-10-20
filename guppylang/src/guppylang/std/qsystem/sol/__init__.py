@@ -255,7 +255,6 @@ def lazy_measure_and_reset(q: qubit) -> Measurement:
 # Measurement functions directly mapping onto
 #  `tket.qsystem.sol` ops without the conversion to measurement
 # (which ensures compatibility with `std.quantum` functions).
-# The effect here is that it implicitly frees the qubit
 @hugr_op(quantum_op("LazyMeasure", ext=QSYSTEM_SOL_EXTENSION), effects=[Effect.FREE])
 @no_type_check
 def _lazy_measure(q: qubit @ owned) -> Future[bool]: ...

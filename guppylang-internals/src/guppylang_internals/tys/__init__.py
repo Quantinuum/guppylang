@@ -1,12 +1,12 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal, NamedTuple, cast
+from typing import cast
 
 
 class BaseEffect(Enum):
     """The types of independent effect we understand. Each has its own
-    structure of order edges independent of other `BaseEffect`s
+    structure of order edges independent of other `BaseEffect`s.
     """
 
     """Nodes that affect the number of qubits available for allocation.
@@ -67,17 +67,17 @@ class Effect(Enum):
 
     value: EffectType | Iterable[EffectType]
 
-    """ Outputting a result, which we insist must be returned in program order for
+    """Outputting a result, which we insist must be returned in program order for
     processing."""
     OUTPUT = StronglyOrdered(BaseEffect.OUTPUT)
-    """ Early termination of the program with a failure. We insist that the correct
+    """Early termination of the program with a failure. We insist that the correct
     values would be `OUTPUT` in such a case, but do not guarantee the specific message
     if there are multiple panics without intervening results."""
     PANIC = WeaklyOrdered(BaseEffect.OUTPUT)
-    """ Qubit allocation. Totally ordered for predictability i.e. so that if allocation
+    """Qubit allocation. Totally ordered for predictability i.e. so that if allocation
     fails then it does so as if the program executed sequentially."""
     ALLOC = StronglyOrdered(BaseEffect.ALLOCATION)
-    """ Freeing qubits. Parallel frees cannot affect each other but (for predictability)
+    """Freeing qubits. Parallel frees cannot affect each other but (for predictability)
     must occur in program order wrt. any allocations."""
     FREE = WeaklyOrdered(BaseEffect.ALLOCATION)
 
@@ -87,7 +87,7 @@ class Effect(Enum):
     """Unknown effects - i.e. we must conservatively any and all the above."""
     ANY = cast("Iterable[EffectType]", [StronglyOrdered(e) for e in BaseEffect])
 
-    def _values(self) -> Iterable[EffectType]:
+    def values(self) -> Iterable[EffectType]:
         if isinstance(self.value, Iterable):
             return self.value
         return [self.value]
