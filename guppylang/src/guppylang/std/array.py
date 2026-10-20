@@ -49,11 +49,6 @@ if TYPE_CHECKING:
     from guppylang.std.lang import owned
 
 
-T = guppy.type_var("T")
-n = guppy.nat_var("n")
-L = guppy.type_var("L", copyable=False, droppable=False)
-
-
 @extend_type(
     array_type_def,
     # Instruct the decorator to return the original class instead of the Guppy array
@@ -72,7 +67,7 @@ class array[T, n: nat](builtins.list[T]):
         # For classical arrays, ArrayIndexChecker adds effects
         # for the (separately compiled) unwrap.
     )
-    def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
+    def __getitem__(self, idx: int) -> T: ...
 
     @custom_function(
         ArraySetitemCompiler(),
@@ -82,13 +77,11 @@ class array[T, n: nat](builtins.list[T]):
         # For classical arrays, ArrayIndexChecker adds effects
         # for the (separately compiled) unwrap.
     )
-    def __setitem__[L, n: nat](
-        self: array[L, n], idx: int, value: L @ owned
-    ) -> None: ...
+    def __setitem__(self, idx: int, value: T @ owned) -> None: ...
 
     @guppy
     @no_type_check
-    def __len__[L, n: nat](self: array[L, n]) -> int:
+    def __len__(self) -> int:
         return n
 
     @custom_function(
@@ -125,7 +118,7 @@ class array[T, n: nat](builtins.list[T]):
         unitary_flags=UnitaryFlags.Dagger,
         effects=[Effect.ANY],  # If index out-of-bounds
     )
-    def is_borrowed[L, n: nat](self: array[L, n], idx: int) -> bool:
+    def is_borrowed(self, idx: int) -> bool:
         """Checks if an element has been taken out of the array.
 
         This is the case whenever a non-copyable element is borrowed, or when an element
@@ -149,7 +142,7 @@ class array[T, n: nat](builtins.list[T]):
         # but we record only for copyable elements (to match __getitem__),
         # done in ArrayIndexChecker (https://github.com/Quantinuum/guppylang/issues/2122).
     )
-    def take[L, n: nat](self: array[L, n], idx: int) -> L:
+    def take(self, idx: int) -> T:
         """Takes an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -179,7 +172,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def try_take[L, n: nat](self: array[L, n], idx: int) -> Option[L]:
+    def try_take(self, idx: int) -> Option[T]:
         """Tries to take an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -214,7 +207,7 @@ class array[T, n: nat](builtins.list[T]):
         # but we record only for copyable elements (to match __getitem__),
         # done in ArrayIndexChecker (https://github.com/Quantinuum/guppylang/issues/2122).
     )
-    def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
+    def put(self, elem: T @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
 
         This is the complement of `array.take`. It may be used to fill the "hole" left
@@ -238,9 +231,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def try_put[L, n: nat](
-        self: array[L, n], elem: L @ owned, idx: int
-    ) -> Result[None, L]:
+    def try_put(self, elem: T @ owned, idx: int) -> Result[None, T]:
         """Tries to put an element back into the array if it has been taken out
         previously.
 
@@ -310,7 +301,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def reverse_in_place(self: array[L, n]) -> None:
+    def reverse_in_place(self) -> None:
         """Reverse array elements in-place.
 
         .. code-block:: python
