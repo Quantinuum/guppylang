@@ -14,7 +14,7 @@ T = guppy.type_var("T", copyable=False, droppable=False)
 Out = guppy.type_var("Out", copyable=False, droppable=False)
 
 
-@custom_function(MemSwapCompiler())
+@custom_function(MemSwapCompiler(), effects=())
 @no_type_check
 def mem_swap(x: T, y: T) -> None:
     """Swaps the values of two variables."""

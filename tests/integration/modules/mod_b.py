@@ -10,7 +10,7 @@ def f(x: bool) -> bool:
     return not x
 
 
-@hugr_op(unsupported_op("h"))
+@hugr_op(unsupported_op("h"), effects=())
 def h() -> int: ...
 
 

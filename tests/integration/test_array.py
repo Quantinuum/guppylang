@@ -819,9 +819,15 @@ def test_take2(validate):
     res = main.emulator(1).run(idx1=0, idx2=0, linear=False).results[0]
     assert res.entries == [("after_borrow", 0), ("after_put", 0)]
 
-    for linear in [True, False]:
-        with pytest.raises(EmulatorError, match="Index out of bounds"):
-            main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=linear)
+    # array.take compiles to a `borrow` that panics internally, before the is_borrowed.
+    with pytest.raises(EmulatorError, match="Index out of bounds"):
+        main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=True)
+
+    # array.take compiles to a `get` returning both the array and an Option of the
+    # element; the latter is then unwrapped. The is_borrow is ordered after the
+    # Conditional doing the unwrap, so we get the panic message from the Conditional.
+    with pytest.raises(EmulatorError, match="Array index out of bounds"):
+        main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=False)
 
 
 def test_discard_borrowed(validate):

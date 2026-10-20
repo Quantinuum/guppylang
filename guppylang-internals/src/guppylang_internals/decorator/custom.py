@@ -34,12 +34,13 @@ if TYPE_CHECKING:
 
 def custom_function[**P, T](
     compiler: CustomInoutCallCompiler | None = None,
+    *,
     checker: CustomCallChecker | None = None,
     higher_order_value: bool = True,
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    effects: Iterable[Effect] = (),
+    effects: Iterable[Effect],
     has_var_args: bool = False,
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to add custom typing or compilation behaviour to function decls.
@@ -47,6 +48,9 @@ def custom_function[**P, T](
     Optionally, usage of the function as a higher-order value can be disabled. In
     that case, the function signature can be omitted if a custom call compiler is
     provided.
+
+    The `effects` parameter specifies the side-effects of the op, see `Effect`.
+    Multiple occurrences of the same effect have no extra impact.
     """
     from guppylang.defs import GuppyFunctionDefinition
 
@@ -123,12 +127,13 @@ def custom_type[T](
 
 def hugr_op[**P, T](
     op: Callable[[ht.FunctionType, Inst, CompilerContext], DataflowOp],
+    *,
     checker: CustomCallChecker | None = None,
     higher_order_value: bool = True,
     name: str = "",
     signature: FunctionType | None = None,
     unitary_flags: UnitaryFlags = UnitaryFlags.NoFlags,
-    effects: Iterable[Effect] = (),
+    effects: Iterable[Effect],
 ) -> Callable[[Callable[P, T]], GuppyFunctionDefinition[P, T]]:
     """Decorator to annotate function declarations as HUGR ops.
 
@@ -139,13 +144,15 @@ def hugr_op[**P, T](
         higher_order_value: Whether the function may be used as a higher-order
             value.
         name: The name of the function.
+        effects: the side-effects of the op, see `Effect`.
+            Multiple occurrences of the same effect have no extra impact.
     """
     return custom_function(
-        OpCompiler(op),
-        checker,
-        higher_order_value,
-        name,
-        signature,
+        compiler=OpCompiler(op),
+        checker=checker,
+        higher_order_value=higher_order_value,
+        name=name,
+        signature=signature,
         unitary_flags=unitary_flags,
         effects=effects,
     )
