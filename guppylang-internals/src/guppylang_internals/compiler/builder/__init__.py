@@ -133,23 +133,24 @@ class DFBuilder(ABC, ToNode):
         """Updates Hugr to reflect `op_node` having effects `effects`.
         Does nothing if effects is empty (or the node already has those effects)."""
         node = op_node.to_node()
+        effects = list(effects)
         to_propagate = set()  # Effects newly added to our container
 
         def get_prev_nodes(e: EffectType) -> Iterable[Node]:
             """Gets the previous node that had the given effect, i.e. the node after
             which `node` should be ordered. Returns the Input (marking this container
-            as having that effect) if none. Also records the current `node` as having
-            had that effect, for any later call."""
+            as having that effect) if none."""
 
             last_strong = self._last_node_with_strong.get(e.base)
             if last_strong is node:
                 return []
 
+            last: Node
             if last_strong is None:
                 # Not had a strong effect of this type before; may have had weak.
                 if (
                     isinstance(e, StronglyOrdered)
-                    or self._last_nodes_with_partial.get(e.base) is None
+                    or e.base not in self._last_nodes_with_partial
                 ):
                     to_propagate.add(e)
                 last = self.input_node
@@ -157,21 +158,25 @@ class DFBuilder(ABC, ToNode):
                 assert not isinstance(self._raw.hugr[last_strong].op, Output)
                 last = last_strong
 
+            if isinstance(e, StronglyOrdered) or isinstance(
+                self._raw.hugr[node].op, Output
+            ):
+                # Also put after any weakly-ordered effects (all in parallel).
+                # We do this for Output even if it is not StronglyOrdered because there
+                # will be no more nodes and we need to close the diamond.
+                partial_preds = self._last_nodes_with_partial.pop(e.base, [])
+                # Exclude redundant edge from last if there any partial_preds
+                return partial_preds or [last]
+
+            # WeaklyOrdered (and not Output node). Order only after `last`, in parallel
+            # with other nodes that are only WeaklyOrdered on the same effect.
+            return [last]
+
+        def record_effect(e: EffectType) -> None:
             if isinstance(e, StronglyOrdered):
                 self._last_node_with_strong[e.base] = node
-            elif not isinstance(self._raw.hugr[node].op, Output):
-                # Order only after `last`, but put in parallel with other nodes also
-                # having the same effect with only partial ordering.
+            else:  # if not isinstance(self._raw.hugr[node].op, Output):
                 self._last_nodes_with_partial.setdefault(e.base, []).append(node)
-                return [last]
-
-            # Either strongly-ordered, or Output.
-            # Also put after any weakly-ordered effects (all in parallel).
-            # We do this for Output even if it is not StronglyOrdered because there
-            # will be no more nodes and we need to close the diamond.
-            partial_preds = self._last_nodes_with_partial.pop(e.base, [])
-            # Include edge from last if 0 partial_preds (harmless but redundant if >0)
-            return partial_preds or [last]
 
         prev_nodes = {n for e in effects for n in get_prev_nodes(e)}
         prev_nodes.discard(node)  # Avoid cycles
@@ -181,6 +186,9 @@ class DFBuilder(ABC, ToNode):
 
         for prev in prev_nodes:
             self._raw.add_state_order(prev, node)
+
+        for e in effects:
+            record_effect(e)
 
         if to_propagate:
             self._propagate_side_effects(to_propagate)
