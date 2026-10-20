@@ -86,11 +86,6 @@ class Effect(Enum):
     """Unknown effects - i.e. we must conservatively any and all the above."""
     ANY = tuple(StronglyOrdered(e) for e in BaseEffect)
 
-    def values(self) -> Iterable[EffectType]:
-        if isinstance(self.value, Iterable):
-            return self.value
-        return [self.value]
-
     @classmethod
     def __from_str__(cls, s: str) -> "Effect":
         for effect in cls:
@@ -101,3 +96,16 @@ class Effect(Enum):
     @staticmethod
     def format_list(effects: Iterable["Effect"]) -> str:
         return f"[{', '.join(e.name for e in effects)}]"
+
+
+def extract_effect_types(
+    effects: Iterable[Effect | EffectType],
+) -> Iterable[EffectType]:
+    for e in effects:
+        if isinstance(e, Effect):
+            if isinstance(e.value, Iterable):
+                yield from e.value
+            else:
+                yield e.value
+        else:
+            yield e

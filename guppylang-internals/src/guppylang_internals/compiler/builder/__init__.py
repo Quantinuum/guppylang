@@ -24,21 +24,14 @@ from guppylang_internals.tys import (
     EffectType,
     StronglyOrdered,
     WeaklyOrdered,
+    extract_effect_types,
 )
 
 type OpWithEffects = tuple[DataflowOp, Iterable[Effect | EffectType]]
 
 
 def pure(op: DataflowOp) -> OpWithEffects:
-    return (op, [])
-
-
-def get_underlying(e: Iterable[Effect | EffectType]) -> Iterable[EffectType]:
-    return (
-        et
-        for effect in e
-        for et in (effect.values() if isinstance(effect, Effect) else [effect])
-    )
+    return op, ()
 
 
 @dataclass
@@ -123,7 +116,7 @@ class DFBuilder(ABC, ToNode):
         """
         op, effects = op
         op_node = self._raw.add_op(op, *args)
-        self._handle_side_effects(op_node, get_underlying(effects))
+        self._handle_side_effects(op_node, extract_effect_types(effects))
 
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
@@ -210,7 +203,7 @@ class DFBuilder(ABC, ToNode):
         call = self._raw.call(
             func, *args, instantiation=instantiation, type_args=type_args
         )
-        self._handle_side_effects(call, get_underlying(effects))
+        self._handle_side_effects(call, extract_effect_types(effects))
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
             self._raw.hugr[call].metadata[HugrDebugInfo] = make_location_record(

@@ -12,6 +12,7 @@ from guppylang_internals.debug_mode import debug_mode_enabled
 from guppylang_internals.error import InternalGuppyError
 from guppylang_internals.experimental import check_partial_functions_enabled
 from guppylang_internals.nodes import CheckedNestedFunctionDef
+from guppylang_internals.tys import extract_effect_types
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.function import CheckedFunctionDef
@@ -28,7 +29,7 @@ def compile_global_func_def(
     builder.set_outputs(*cfg)
     actual_effects: frozenset[EffectType] = frozenset(builder.effects)
     predicted_effects: frozenset[EffectType] = frozenset(
-        et for e in ctx.effects[(func.id, func.mono_args)] for et in e.values()
+        extract_effect_types(ctx.effects[(func.id, func.mono_args)])
     )
     if not predicted_effects.issuperset(actual_effects):
         surplus = actual_effects - predicted_effects
