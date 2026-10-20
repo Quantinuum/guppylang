@@ -77,3 +77,31 @@ def test_replace_short_version_keeps_longer_prefixed_section() -> None:
     # The legacy section below must be preserved untouched.
     assert "legacy alpha notes" in out
     assert out.count("## [1.0.0-a4]") == 1
+
+
+def test_extract_exact_section_with_heading() -> None:
+    """Extract only the requested release, including its heading."""
+    source = (
+        "# Changelog\n\n## [1.1.2](url)\n\n* New fix\n\n## [1.1.1](url)\n\n* Old fix\n"
+    )
+    assert uc.section_for_version(source, "1.1.2") == ("## [1.1.2](url)\n\n* New fix\n")
+    assert uc.section_for_version(source, "1.1") is None
+
+
+def test_preserve_existing_section() -> None:
+    """A published section already on main must keep its manual edits."""
+    existing = uc.update_changelog(BASE, "1.0.0-a6", NEW_SECTION)
+    revised = NEW_SECTION.replace("New feature", "Different feature")
+    assert (
+        uc.update_changelog(existing, "1.0.0-a6", revised, preserve_existing=True)
+        == existing
+    )
+
+
+def test_insert_section_in_version_order() -> None:
+    """Place an older release below a newer one and above earlier releases."""
+    base = "# Changelog\n\n## [1.2.0](url)\n\n* Newer\n\n## [1.1.1](url)\n"
+    section = "## [1.1.2](url)\n\n* Fix\n"
+    out = uc.update_changelog(base, "1.1.2", section)
+    assert out.index("## [1.2.0]") < out.index("## [1.1.2]")
+    assert out.index("## [1.1.2]") < out.index("## [1.1.1]")
