@@ -16,6 +16,7 @@ from guppylang.std.num import nat
 PCG32_MUL = 6364136223846793005
 UINT32_MASK = 4294967295
 
+
 @guppy
 @no_type_check
 def _mask32(value: nat) -> nat:
