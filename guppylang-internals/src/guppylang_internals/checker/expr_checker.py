@@ -228,7 +228,8 @@ binary_table: dict[type[AstOp], tuple[str, str, str]] = {
 
 
 class FunctionUse(Enum):
-    """Whether an expression supplies a value or is the target of a call."""
+    """For expressions that result in functions, whether the function is loaded as a
+    value or is the target of a call."""
 
     VALUE = auto()
     CALLEE = auto()
@@ -239,8 +240,7 @@ def record_function_load(node: ast.expr, ctx: Context) -> None:
     Functions are loaded when they are used as values, such as `g = f`, `consume(f)`,
     and `return f`.
     """
-    if ctx.current_caller is None:
-        return
+    assert ctx.current_caller is not None
 
     match node:
         case GlobalName(def_id=def_id):
@@ -312,10 +312,10 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         resolved type variables.
         """
         expr, subst = self._check_expr(expr, ty, kind)
-        # Call targets go through synthesis with CALLEE; check always checks values.
-        # Checking a function reference (e.g. `return f`) can produce a GlobalName,
-        # which registers a load. A call (e.g. `return f()`) normally produces a
-        # GlobalCall or LocalCall, which record_function_load ignores.
+        # Call targets go through synthesis with `FunctionUse.CALLEE`; check always
+        # checks values. Checking a function reference (e.g. `return f`) can produce
+        # a GlobalName, which registers a load. A call (e.g. `return f()`) normally
+        # produces a GlobalCall or LocalCall, which record_function_load ignores.
         record_function_load(expr, self.ctx)
         return expr, subst
 
@@ -556,7 +556,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def __init__(self, ctx: Context) -> None:
         self.ctx = ctx
-        self._use = FunctionUse.VALUE
+        self._use: FunctionUse | None = None
 
     def synthesize(
         self,
@@ -1172,6 +1172,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def visit_Subscript(self, node: ast.Subscript) -> tuple[ast.expr, Type]:
         # Preserve self._use through type application.
+        assert self._use is not None
         node.value, ty = self.synthesize(node.value, use=self._use)
         # Special case for subscripts on functions: Those are type applications
         if isinstance(ty, FunctionDefType):

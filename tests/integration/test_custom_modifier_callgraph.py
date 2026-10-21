@@ -291,9 +291,6 @@ def test_custom_modifier_in_returned_function(comptime):
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
     assert custom_use.control_count == 1
     assert custom_use.custom_def in ENGINE.call_graph[loaded.id, ()]
-    assert (loaded.id, ()) not in ENGINE.call_graph[main.id, ()]
-    assert (loaded.id, ()) in ENGINE.load_graph[factory.id, ()]
-    assert (loaded.id, ()) not in ENGINE.call_graph[factory.id, ()]
 
 
 def test_loaded_function_does_not_inherit_modifiers():

@@ -766,6 +766,46 @@ def test_custom_modifier_in_loaded_function_is_executed(modifier, run_int_fn):
     run_int_fn(main, expected=1, num_qubits=2)
 
 
+@pytest.mark.parametrize("comptime_factory", [False, True])
+def test_custom_modifier_in_returned_function_is_executed(comptime_factory, run_int_fn):
+    """Returned functions retain custom modifiers with either kind of factory."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy
+    def loaded(q: qubit, c: qubit) -> None:
+        with control(c):
+            custom_gate(q)
+
+    factory_decorator = guppy.comptime if comptime_factory else guppy
+
+    @factory_decorator
+    def factory() -> Function[[qubit, qubit], None]:
+        return loaded
+
+    @guppy
+    def main() -> int:
+        q = qubit()
+        c = qubit()
+        x(c)
+        f = factory()
+        f(q, c)
+        result = measure(q).read()
+        discard(c)
+        return 1 if result else 0
+
+    # Only the custom controlled implementation flips the target.
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
 def test_custom_modifier_use_default_when_missing_implementation(run_int_fn):
     @guppy.unitary
     class controllable_gate:

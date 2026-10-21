@@ -45,6 +45,40 @@ def test_function_values():
     assert (passed.id, ()) not in ENGINE.call_graph[root.id, ()]
 
 
+@pytest.mark.parametrize("comptime_factory", [False, True])
+def test_returned_function_load(comptime_factory):
+    @guppy
+    def loaded() -> int:
+        return 1
+
+    factory_decorator = guppy.comptime if comptime_factory else guppy
+
+    @factory_decorator
+    def factory() -> Function[[], int]:
+        return loaded
+
+    factory.check()
+
+    assert ENGINE.load_graph[factory.id, ()] == {(loaded.id, ())}
+    assert ENGINE.call_graph[factory.id, ()] == []
+
+
+def test_comptime_function_value():
+    @guppy.comptime
+    def loaded() -> int:
+        return 1
+
+    @guppy
+    def root() -> Function[[], int]:
+        return loaded
+
+    root.check()
+
+    assert ENGINE.load_graph[root.id, ()] == {(loaded.id, ())}
+    assert ENGINE.call_graph[root.id, ()] == []
+    assert ENGINE.load_graph[loaded.id, ()] == set()
+
+
 def test_load_nested_failing_with_experimental_om():
 
     @guppy

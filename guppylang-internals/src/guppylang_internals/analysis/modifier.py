@@ -92,7 +92,8 @@ def analyze_modifier_calls(
     one inherited control and resolve its call to ``gate.controlled[1]``.
 
     Functions loaded as values are additional roots with no inherited modifiers.
-    Explore their calls and further loads, but keep load edges out of the call graph.
+    Explore their calls and further loads, and record loads separately from the
+    call graph.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.
@@ -153,10 +154,12 @@ def analyze_modifier_calls(
                 # Combine modifiers inherited from the caller with those surrounding
                 # this particular call in the checked function body.
                 effective_context = state.inherited_context.compose(local_context)
-                # `custom_use`` is None if no modifier is required, the callee's
-                # instantiation is not concrete, no custom implementation exists for
-                # the required modifier kind, or its required control count is not
-                # concrete yet. Thus only fully concrete call are considered.
+                # `custom_use` is None if any of the following hold:
+                # - No modifier is required.
+                # - The callee's instantiation is not concrete.
+                # - No custom implementation exists for the required modifier kind.
+                # - Its required control count is not concrete yet.
+                # Thus only fully concrete calls are considered.
                 resolved_callee, custom_use = resolve_modified_call(
                     raw_callee, effective_context
                 )
@@ -170,6 +173,8 @@ def analyze_modifier_calls(
                 if custom_use is None:
                     # No custom implementation consumed the modifiers. The compiler
                     # generates the modified callee, so its body inherits the context.
+                    # In this case, the resolved callee must match the raw callee.
+                    assert resolved_callee == raw_callee
                     next_state = ModifierCallState(resolved_callee, effective_context)
                     contextual_callers[next_state].add(state)
                     if resolved_callee in raw_calls:
