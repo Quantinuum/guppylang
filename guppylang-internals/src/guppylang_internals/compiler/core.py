@@ -9,6 +9,7 @@ from hugr import tys as ht
 from hugr.build import function as hf
 from hugr.build.dfg import DefinitionBuilder
 from hugr.hugr.base import OpVarCov
+from hugr.metadata import NodeMetadata
 from hugr.ops import Module
 from hugr.std.collections.array import EXTENSION as ARRAY_EXTENSION
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
@@ -168,50 +169,44 @@ class CompilerContext(ToHugrContext):
             self.worklist[def_id, mono_args] = None
 
             if (def_id, mono_args) in self.custom_uses_by_unmodified_callee:
-                daggered, controlled, ctrl_daggered = (
-                    self._compile_custom_modifier_uses((def_id, mono_args))
-                )
                 from guppylang_internals.definition.function import (
                     CompiledFunctionDef,
                 )
 
                 assert isinstance(defn, CompiledFunctionDef)
-                add_custom_implementations(
-                    self.module.hugr[defn.hugr_node].metadata,
-                    daggered=daggered,
-                    controlled=controlled,
-                    ctrl_daggered=ctrl_daggered,
+                self._compile_custom_modifier_uses(
+                    (def_id, mono_args), self.module.hugr[defn.hugr_node].metadata
                 )
 
         return self.compiled[def_id, mono_args]
 
     def _compile_custom_modifier_uses(
-        self, unmodified_callee: MonoDefId
-    ) -> tuple[str | None, list[str] | None, list[str] | None]:
-        """Compiles the custom uses for an unmodified-callee monomorphization."""
+        self, unmodified_callee: MonoDefId, metadata: NodeMetadata
+    ) -> None:
+        """Compile custom uses and attach links to their parent definition."""
         by_kind = self.custom_uses_by_unmodified_callee[unmodified_callee]
 
-        daggered: str | None = None
-        if daggered_uses := by_kind.get(CustomModifierKind.DAGGERED):
-            # A daggered definition is not generic, so there must be exactly one
-            # concrete definition (the original one).
-            assert len(daggered_uses) == 1
-            daggered = self._compile_custom_modifier_use(daggered_uses[0]).link_name
+        def single(kind: CustomModifierKind) -> str | None:
+            if uses := by_kind.get(kind):
+                assert len(uses) == 1
+                return self._compile_custom_modifier_use(uses[0]).link_name
+            return None
 
-        controlled_uses = by_kind.get(CustomModifierKind.CONTROLLED)
-        controlled = (
-            self._compile_controlled_uses(controlled_uses)
-            if controlled_uses is not None
-            else None
-        )
-        ctrl_daggered_uses = by_kind.get(CustomModifierKind.CTRL_DAGGERED)
-        ctrl_daggered = (
-            self._compile_controlled_uses(ctrl_daggered_uses)
-            if ctrl_daggered_uses is not None
-            else None
-        )
+        def controlled(kind: CustomModifierKind) -> list[str] | None:
+            if uses := by_kind.get(kind):
+                return self._compile_controlled_uses(uses)
+            return None
 
-        return daggered, controlled, ctrl_daggered
+        add_custom_implementations(
+            metadata,
+            daggered=single(CustomModifierKind.DAGGERED),
+            controlled=controlled(CustomModifierKind.CONTROLLED),
+            ctrl_daggered=controlled(CustomModifierKind.CTRL_DAGGERED),
+            powered=single(CustomModifierKind.POWERED),
+            power_daggered=single(CustomModifierKind.POWER_DAGGERED),
+            ctrl_powered=controlled(CustomModifierKind.CTRL_POWERED),
+            ctrl_power_daggered=controlled(CustomModifierKind.CTRL_POWER_DAGGERED),
+        )
 
     def _compile_controlled_uses(
         self, custom_uses: list[ConcreteCustomUse]

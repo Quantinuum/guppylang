@@ -85,6 +85,7 @@ def check_modified_block(
         func_ty,
         captured,
         modified_block.modifiers,
+        modified_block.has_single_call,
         **dict(ast.iter_fields(modified_block)),
     )
     return with_loc(modified_block, checked_modifier)
