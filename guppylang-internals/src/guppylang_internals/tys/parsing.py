@@ -510,6 +510,17 @@ def parse_parameter(
                             bounds.append(proto_inst)
                         else:
                             raise GuppyError(UnrecognisedBound(elt, ast.unparse(elt)))
+
+            # Mirror single callable bounds as on L540 below until protocol Copy/Drop
+            # semantics are fully defined
+            # see https://github.com/Quantinuum/guppylang/issues/2097.
+            if bounds and all(
+                isinstance(p, (CallableProtocolInst, ModifiableFunctionProtocolInst))
+                for p in bounds
+            ):
+                must_be_copyable = True
+                must_be_droppable = True
+
             return TypeParam(
                 idx,
                 node.name,
