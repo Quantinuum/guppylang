@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.2.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.2.0-rc0) (2026-10-21)
+
+
+### Bug Fixes
+
+* Bump tket dependency to 0.15.12 (#2440)([c430b05](https://github.com/Quantinuum/guppylang/commit/c430b058250cab6bbcf21158ee91d08463e48aea))
+* Effects in ext_module_decorator and for from_halfturns_unchecked (#2438)([4f85c47](https://github.com/Quantinuum/guppylang/commit/4f85c477083af1059826c24ff5fa352a749e442d))
+* Remove unsound effect defaults from hugr_op and custom_func and add many missing effects (#2269)([df85c2d](https://github.com/Quantinuum/guppylang/commit/df85c2d632a366a7eb39cf75e65c8eb23985133c))
+* Resolve calls to nested functions iff capturing closures are disabled (#2279)([c386494](https://github.com/Quantinuum/guppylang/commit/c386494714b9963ce57219cb4e6cfe932792af19))
+
+
+### Documentation
+
+* Use Oxford spelling consistently in public documentation (#2341)([b04bcd2](https://github.com/Quantinuum/guppylang/commit/b04bcd241003adb6b5ef79a6af68e48bcddcff0c))
+
+
+### Features
+
+* Split effects into ALLOC, FREE, OUTPUT, PANIC, RNG and impose weak and strong ordering (#2363)([609cb6f](https://github.com/Quantinuum/guppylang/commit/609cb6f2b3fefa30f3292b277f362365256a8b76))
+* Type-level arithmetic (#2418)([c7d5e11](https://github.com/Quantinuum/guppylang/commit/c7d5e11a3ef02ce4b7e9f293e989da52660e99e6))
+* Preserve barriers and static array outputs in comptime (#2263)([6727a99](https://github.com/Quantinuum/guppylang/commit/6727a99c7dc5ba8b07e638534340b0fef947a192))
+* Guppy standard math module using HUGR math extension (#2365)([6781ffd](https://github.com/Quantinuum/guppylang/commit/6781ffd0aa414ba2b1f483d247f5d485d112aa90))
+* Custom modifiers as struct and enum methods (#2277)([28ee857](https://github.com/Quantinuum/guppylang/commit/28ee8574947847e32c59f4f45872f295df6f1aaa))
+
+
+### Performance Improvements
+
+* Avoid single dispatch on hot code paths (#2317)([7d5589e](https://github.com/Quantinuum/guppylang/commit/7d5589ee9b6938a7c64bfdd25690ff365cde746d))
+
 ## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.2...guppylang-internals-v1.1.3) (2026-10-07)
 
 
