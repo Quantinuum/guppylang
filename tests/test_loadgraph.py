@@ -45,28 +45,28 @@ def test_function_values():
     assert (passed.id, ()) not in ENGINE.call_graph[root.id, ()]
 
 
-@pytest.mark.parametrize(
-    "experimental",
-    [
-        pytest.param(False, id="default"),
-        pytest.param(
-            True,
-            id="experimental",
-            marks=pytest.mark.xfail(
-                strict=True,
-                raises=AssertionError,
-                reason="Nested function loads are missed with experimental closures",
-            ),
-        ),
-    ],
-)
-def test_returned_nested_function_load(request, experimental):
+def test_load_nested_failing_with_experimental_om():
+
+    @guppy
+    def factory() -> Function[[], int]:
+        def nested() -> int:
+            return 1
+
+        return nested
+
+    factory.check()
+
+    [nested] = [mono for mono in ENGINE.call_graph if mono != (factory.id, ())]
+    assert ENGINE.call_graph[factory.id, ()] == []
+    assert ENGINE.load_graph[factory.id, ()] == {nested}
+
+
+@pytest.mark.xfail(strict=True)
+def test_load_nested_failing_with_experimental_on(use_experimental_features):
     # Returning nested should record a load edge from factory to nested. With
     # use_experimental_features, coercion preserves its PlaceNode for possible captures.
     # The load recorder ignores that node since it is a PlaceNode. Without experimental
     # features, coercion produces a GlobalName and the load edge is recorded.
-    if experimental:
-        request.getfixturevalue("use_experimental_features")
 
     @guppy
     def factory() -> Function[[], int]:
