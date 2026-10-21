@@ -610,3 +610,30 @@ def test_copy_drop(validate):
         return copy(42)[0] + copy_drop(1, 2)[1]
 
     validate(main.compile_function())
+
+
+def test_bool_protocol_bound(validate):
+    @guppy.protocol
+    class Booleable:
+        @guppy.require
+        def __bool__(self) -> bool: ...
+
+    @guppy.struct(frozen=True)
+    class MyBool:
+        value: bool
+
+        @guppy
+        def __bool__(self) -> bool:
+            return self.value
+
+    @guppy
+    def truthy[T: (Booleable, Copy, Drop)](value: T) -> bool:
+        if value:
+            return True
+        return False
+
+    @guppy
+    def main() -> bool:
+        return truthy(MyBool(True))
+
+    validate(main.compile())

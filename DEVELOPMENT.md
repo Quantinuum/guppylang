@@ -29,7 +29,7 @@ shell by setting up [direnv](https://devenv.sh/automatic-shell-activation/).
 To setup the environment manually you will need:
 
 - Just: [just.systems](https://just.systems/)
-- uv `>=0.6`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
+- uv `>=12.0`: [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/)
   - If you have an older manually installed `uv` version you can upgrade it with `uv self update`,
     or by following the instructions in your package manager.
 - bencher_cli: [bencer.dev](https://bencher.dev/docs/tutorial/quick-start/?adapter=json)
@@ -272,9 +272,11 @@ once you publish the draft release, not when the tag first creates it.
 
 ### After-release chores
 
-After a release is made, the main branch needs to be updated to reflect the newest version and changelog.
-Create a PR that updates version references and the changelog on the main branch (by cherry-picking the release commit).
-You should not update the version (i.e. only update the changelog) if the main branch already tracks the alpha of the next version!
+After a release is made, the `release-sync-main.yml` workflow generates a pull request updating the main branch to reflect the newest version and changelog.
+Review and merge this pull request to keep `main` up to date with the latest release.
+
+To retry or sync an older published release, run **Sync published release to
+main** manually from `main` and enter its `guppylang-v<version>` release tag.
 
 ## :back: Backports & Patch releases
 

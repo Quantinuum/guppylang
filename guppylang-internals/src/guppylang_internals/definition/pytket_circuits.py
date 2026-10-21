@@ -194,8 +194,11 @@ class ParsedPytketDef(CallableDef, CompilableDef, CallableEffects):
     @override
     @property
     def call_effects(self) -> Iterable[Effect]:
-        # borrow-array unpacks can panic
-        return [Effect.ANY] if self.use_arrays else []
+        # borrow-array unpacks can panic - only present if self.use_arrays.
+        # Additionally, rotation parameters are converted via from_halfturns_unchecked,
+        # which can also panic; we only know whether such parameters exist from metadata
+        # supplied with the hugr builder at compilation time, so be conservative.
+        return [Effect.PANIC]
 
     @override
     def compile_outer(

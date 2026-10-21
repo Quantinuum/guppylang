@@ -62,6 +62,7 @@ from guppylang_internals.checker.errors.comptime_errors import (
     ComptimeExprNotCPythonError,
     ComptimeExprNotStaticError,
     ComptimeExprTypeVarError,
+    ComptimeExprUnboundGenericError,
     ComptimeGuppyObjectError,
     ComptimeUnknownError,
     UnsupportedPythonValueError,
@@ -153,6 +154,7 @@ from guppylang_internals.tys.builtin import (
 )
 from guppylang_internals.tys.const import (
     BoundConstVar,
+    ComptimeConstValue,
     Const,
     ConstValue,
     ExistentialConstVar,
@@ -609,6 +611,10 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                         # that it won't be emitted when checking the actual monomorphic
                         # instantiations later.
                         return with_loc(node, DummyGenericParamValue(name, var)), ty
+                    case ComptimeConstValue():
+                        raise InternalGuppyError(
+                            "Comptime consts should have been resolved at this point"
+                        )
                     case ExistentialConstVar():
                         raise InternalGuppyError("Unexpected existential variable")
             case TypeArg():
@@ -1103,7 +1109,40 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         given expected signature.
         """
         node, ty = self.synthesize(node)
+
+        # First try the normal lookup for methods defined directly on a concrete type.
         func = ENGINE.get_instance_func(ty, func_name)
+
+        # A bound type variable such as `T: Booleable` does not have concrete instance
+        # methods itself. Instead, the method may be provided by one of its protocol
+        # bounds.
+        if func is None and isinstance(ty, BoundTypeVar):
+            from guppylang_internals.definition.protocol import CheckedProtocolDef
+
+            proto_impls = self._protos_with_method_impl_by_ty(ty, func_name)
+
+            match proto_impls:
+                case []:
+                    # Leave `func` as None so the existing missing-method error below
+                    # is produced.
+                    pass
+
+                case [proto_impl]:
+                    proto_def = ENGINE.get_checked(
+                        proto_impl.def_id,
+                        proto_impl.type_args,
+                    )
+                    assert isinstance(proto_def, CheckedProtocolDef)
+
+                    member_id = proto_def.member_defs[func_name]
+                    member_def = ENGINE.get_parsed(member_id)
+                    assert isinstance(member_def, CallableDef)
+
+                    func = member_def
+
+                case _:
+                    raise RequiresMonomorphizationError
+
         if func is None:
             err = BadProtocolError(node, ty, description)
             if give_reason and exp_sig is not None:
@@ -2075,6 +2114,10 @@ def eval_comptime_expr(node: ComptimeExpr, ctx: Context) -> Any:
         raise GuppyError(ComptimeExprNotStaticError(e.node or node, e.var)) from None
     except DummyEvalDict.GuppyTypeVarUsedError as e:
         raise GuppyError(ComptimeExprTypeVarError(e.node or node, e.var)) from None
+    except DummyEvalDict.UnboundGenericVarUsedError as e:
+        raise GuppyError(
+            ComptimeExprUnboundGenericError(e.node or node, e.var)
+        ) from None
     except GuppyComptimeError as e:
         raise GuppyError(ComptimeGuppyObjectError(node.value, str(e))) from e
     except RequiresMonomorphizationError:

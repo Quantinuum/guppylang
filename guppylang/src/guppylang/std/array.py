@@ -12,7 +12,7 @@ import builtins
 from types import GeneratorType
 from typing import TYPE_CHECKING, no_type_check
 
-from guppylang_internals.decorator import custom_function, extend_type
+from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import CopyInoutCompiler
 from guppylang_internals.std._internal.checker import (
     ArrayCopyChecker,
@@ -30,9 +30,12 @@ from guppylang_internals.std._internal.compiler.array import (
 from guppylang_internals.std._internal.compiler.frozenarray import (
     FrozenarrayGetitemCompiler,
 )
+from guppylang_internals.std._internal.util import external_op, type_arg
 from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import array_type_def, frozenarray_type_def
 from guppylang_internals.tys.ty import UnitaryFlags
+from hugr import tys as ht
+from hugr.std.collections.borrow_array import EXTENSION
 
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
@@ -44,11 +47,6 @@ from guppylang.std.option import Option, nothing, some
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
-
-
-T = guppy.type_var("T")
-n = guppy.nat_var("n")
-L = guppy.type_var("L", copyable=False, droppable=False)
 
 
 @extend_type(
@@ -64,29 +62,34 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes unwrap (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
-    def __getitem__[L, n: nat](self: array[L, n], idx: int) -> L: ...
+    def __getitem__(self, idx: int) -> T: ...
 
     @custom_function(
         ArraySetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # includes (compiled separately)
+        effects=(),  # Preserving legacy behaviour for linear arrays to support
+        # optimization, https://github.com/Quantinuum/guppylang/issues/2122.
+        # For classical arrays, ArrayIndexChecker adds effects
+        # for the (separately compiled) unwrap.
     )
-    def __setitem__[L, n: nat](
-        self: array[L, n], idx: int, value: L @ owned
-    ) -> None: ...
+    def __setitem__(self, idx: int, value: T @ owned) -> None: ...
 
     @guppy
     @no_type_check
-    def __len__[L, n: nat](self: array[L, n]) -> int:
+    def __len__(self) -> int:
         return n
 
     @custom_function(
         NewArrayCompiler(),
-        NewArrayChecker(),
+        checker=NewArrayChecker(),
         higher_order_value=False,
         unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def __new__(): ...
 
@@ -101,7 +104,10 @@ class array[T, n: nat](builtins.list[T]):
         return SizedIter(ArrayIter(self, 0))
 
     @custom_function(
-        CopyInoutCompiler(), ArrayCopyChecker(), unitary_flags=UnitaryFlags.Dagger
+        CopyInoutCompiler(),
+        checker=ArrayCopyChecker(),
+        unitary_flags=UnitaryFlags.Dagger,
+        effects=(),
     )
     def copy[T: Copy, n: nat](self: array[T, n]) -> array[T, n]:
         """Copy an array instance. Will only work if T is a copyable type."""
@@ -110,8 +116,9 @@ class array[T, n: nat](builtins.list[T]):
         ArrayIsBorrowedCompiler(),
         checker=ArrayIndexChecker(),
         unitary_flags=UnitaryFlags.Dagger,
+        effects=[Effect.PANIC],  # If index out-of-bounds
     )
-    def is_borrowed[L, n: nat](self: array[L, n], idx: int) -> bool:
+    def is_borrowed(self, idx: int) -> bool:
         """Checks if an element has been taken out of the array.
 
         This is the case whenever a non-copyable element is borrowed, or when an element
@@ -131,9 +138,11 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArrayGetitemCompiler(),
         checker=ArrayIndexChecker(),
-        effects=[Effect.ANY],  # Panics if element already taken, or out-of-bounds
+        effects=(),  # Panics if element already taken, or index out-of-bounds,
+        # but we record only for copyable elements (to match __getitem__),
+        # done in ArrayIndexChecker (https://github.com/Quantinuum/guppylang/issues/2122).
     )
-    def take[L, n: nat](self: array[L, n], idx: int) -> L:
+    def take(self, idx: int) -> T:
         """Takes an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -163,7 +172,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def try_take[L, n: nat](self: array[L, n], idx: int) -> Option[L]:
+    def try_take(self, idx: int) -> Option[T]:
         """Tries to take an element out of the array.
 
         While regular indexing into an array only allows borrowing of elements, `take`
@@ -194,8 +203,11 @@ class array[T, n: nat](builtins.list[T]):
     @custom_function(
         ArraySetitemCompiler(elem_first=True),
         checker=ArrayIndexChecker(expr_index=2),
+        effects=(),  # Panics if element not taken, or index out-of-bounds,
+        # but we record only for copyable elements (to match __getitem__),
+        # done in ArrayIndexChecker (https://github.com/Quantinuum/guppylang/issues/2122).
     )
-    def put[L, n: nat](self: array[L, n], elem: L @ owned, idx: int) -> None:
+    def put(self, elem: T @ owned, idx: int) -> None:
         """Puts an element back into the array if it has been taken out previously.
 
         This is the complement of `array.take`. It may be used to fill the "hole" left
@@ -219,9 +231,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def try_put[L, n: nat](
-        self: array[L, n], elem: L @ owned, idx: int
-    ) -> Result[None, L]:
+    def try_put(self, elem: T @ owned, idx: int) -> Result[None, T]:
         """Tries to put an element back into the array if it has been taken out
         previously.
 
@@ -247,7 +257,7 @@ class array[T, n: nat](builtins.list[T]):
         self.put(elem, idx)
         return ok(None)
 
-    @custom_function(ArrayDiscardAllUsedCompiler())
+    @custom_function(ArrayDiscardAllUsedCompiler(), effects=[Effect.PANIC])
     def discard_all_taken[L, n: nat](self: array[L, n] @ owned) -> None:
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
@@ -291,7 +301,7 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
-    def reverse_in_place(self: array[L, n]) -> None:
+    def reverse_in_place(self) -> None:
         """Reverse array elements in-place.
 
         .. code-block:: python
@@ -301,6 +311,22 @@ class array[T, n: nat](builtins.list[T]):
         """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
+
+
+@hugr_op(
+    external_op(
+        "new_all_borrowed",
+        [ht.VariableArg(idx=1, param=ht.BoundedNatParam()), type_arg(0)],
+        EXTENSION,
+    ),
+    effects=[],
+)
+def empty_array[T, n: nat]() -> array[T, n]:
+    """Construct an array with all elements borrowed.
+
+    Elements must be added with `array.put` before they can be accessed. Since no
+    elements are present initially, `array.discard_all_taken` may be called immediately.
+    """
 
 
 @guppy.struct
@@ -323,7 +349,7 @@ class ArrayIter[L, n: nat]:
         return nothing()
 
 
-@custom_function(ArraySwapCompiler(), effects=[Effect.ANY])
+@custom_function(ArraySwapCompiler(), effects=[Effect.PANIC])
 def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
     """Swap two elements in an array at indices idx and idx2.
 
@@ -352,10 +378,7 @@ class frozenarray[T, n: nat]:
     """An immutable array of fixed static size."""
 
     # Panics on out-of-range.
-    @custom_function(
-        FrozenarrayGetitemCompiler(),
-        effects=[Effect.ANY],
-    )
+    @custom_function(FrozenarrayGetitemCompiler(), effects=[Effect.PANIC])
     def __getitem__(self, item: int) -> T: ...
 
     @guppy

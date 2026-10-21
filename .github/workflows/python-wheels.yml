@@ -26,7 +26,7 @@ on:
 
 env:
   # Pinned version for the uv package manager
-  UV_VERSION: "0.9.5"
+  UV_VERSION: "0.12.23"
 
 jobs:
   # Skip the build workflow when triggered by a release event for a non guppylang(-internals) package.

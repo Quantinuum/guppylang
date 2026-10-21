@@ -47,7 +47,6 @@ from guppylang_internals.span import (
     extract_header_span,
     function_header_span,
 )
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -192,7 +191,12 @@ class ParsedStructDef(TypeDef, CheckableDef):
     def check(self, globals: Globals) -> "CheckedStructDef":
         """Checks that all struct fields have valid types."""
         param_var_mapping = {p.name: p for p in self.params}
-        ctx = TypeParsingCtx(globals, param_var_mapping, disallow_protocol_types=True)
+        ctx = TypeParsingCtx(
+            globals,
+            param_var_mapping,
+            is_signature=self.id,
+            disallow_protocol_types=True,
+        )
 
         # Before checking the fields, make sure that this definition is not recursive,
         # otherwise the code below would not terminate.
@@ -274,7 +278,7 @@ class CheckedStructDef(TypeDef, CompiledDef):
             higher_order_func_id=GlobalConstId.fresh(f"{self.name}.__new__"),
             has_signature=True,
             has_var_args=False,
-            effects=[Effect.ANY],
+            effects=(),  # TODO revisit once the generated constructor invokes others
         )
         return [constructor_def]
 

@@ -1,7 +1,7 @@
 import ast
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from guppylang_internals.ast_util import AstNode
 from guppylang_internals.checker.errors.generic import (
@@ -18,10 +18,12 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.diagnostic import Error, Help
 from guppylang_internals.error import GuppyError
 from guppylang_internals.span import SourceMap, Span, to_span
-from guppylang_internals.tys.arg import Argument
+from guppylang_internals.tys.arg import Argument, ConstArg
+from guppylang_internals.tys.common import Visitor
+from guppylang_internals.tys.const import ComptimeConstValue
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.protocol import ProtocolInst
-from guppylang_internals.tys.ty import FunctionType
+from guppylang_internals.tys.ty import FunctionType, Type
 
 if TYPE_CHECKING:
     from guppylang_internals.checker.core import Globals
@@ -44,6 +46,15 @@ class MethodNotRequire(Error):
     title: ClassVar[str] = "Unrecognised protocol method"
     span_label: ClassVar[str] = (
         "Protocol methods must be annotated with `@guppy.require`"
+    )
+
+
+@dataclass(frozen=True)
+class GenericComptimeUnsupported(Error):
+    title: ClassVar[str] = "Unsupported"
+    span_label: ClassVar[str] = (
+        "`comptime` expressions depending on generic parameters are not supported in "
+        "protocols"
     )
 
 
@@ -189,4 +200,31 @@ class CheckedProtocolDef(ProtocolDef, CompiledDef):
         def_ = ENGINE.get_parsed(self.member_defs[name])
         if not isinstance(def_, ParsedFunctionDecl):
             raise GuppyError(MethodNotRequire(def_.defined_at))
-        return def_.ty
+        sig = def_.ty
+
+        if const := ComptimeConstFinder.find(sig):
+            raise GuppyError(GenericComptimeUnsupported(const.expr))
+
+        return sig
+
+
+class ComptimeConstFinder(Visitor):
+    """Type visitor that searches for `comptime(...)` const expressions."""
+
+    const: ComptimeConstValue | None
+
+    def __init__(self) -> None:
+        self.const = None
+
+    @staticmethod
+    def find(ty: Type) -> ComptimeConstValue | None:
+        """Checks if a type contains a `comptime(...)` const expression."""
+        finder = ComptimeConstFinder()
+        ty.visit(finder)
+        return finder.const
+
+    def visit(self, arg: Any, /) -> bool:
+        if isinstance(arg, ConstArg) and isinstance(arg.const, ComptimeConstValue):
+            self.const = arg.const
+            return True
+        return False

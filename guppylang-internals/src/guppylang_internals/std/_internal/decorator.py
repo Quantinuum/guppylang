@@ -1,6 +1,6 @@
 import ast
 import builtins
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Protocol
 
 from guppylang.defs import GuppyDefinition
@@ -44,8 +44,8 @@ class CreateModuleDecorator[T2](Protocol):
 
 def ext_module_decorator[T](
     create_type_def: CreateTypeDef,
-    init_compiler: CustomInoutCallCompiler,
-    discard_compiler: CustomInoutCallCompiler,
+    init: tuple[CustomInoutCallCompiler, Iterable[Effect]],
+    discard: tuple[CustomInoutCallCompiler, Iterable[Effect]],
     init_arg: bool,  # Whether the init function should take a nat argument
     foreach_member: Callable[[GuppyDefinition], None] = lambda _: None,
 ) -> CreateModuleDecorator[T]:
@@ -86,6 +86,7 @@ def ext_module_decorator[T](
             else:
                 init_fn_ty = FunctionType([], ext_module_ty)
 
+            (init_compiler, init_effects) = init
             call_method = CustomFunctionDef(
                 DefId.fresh(),
                 "__new__",
@@ -95,12 +96,13 @@ def ext_module_decorator[T](
                 init_compiler,
                 True,
                 GlobalConstId.fresh(f"{cls.__name__}.__new__"),
-                effects=[Effect.ANY],
+                effects=init_effects,
                 has_signature=True,
                 has_var_args=False,
                 is_static=True,
             )
-            discard = CustomFunctionDef(
+            (discard_compiler, discard_effects) = discard
+            discard_method = CustomFunctionDef(
                 DefId.fresh(),
                 "discard",
                 None,
@@ -109,15 +111,15 @@ def ext_module_decorator[T](
                 discard_compiler,
                 False,
                 GlobalConstId.fresh(f"{cls.__name__}.__discard__"),
-                effects=[Effect.ANY],
+                effects=discard_effects,
                 has_signature=True,
                 has_var_args=False,
                 is_static=False,
             )
             DEF_STORE.register_def(call_method, get_calling_frame())
             DEF_STORE.register_type_member(ext_module.id, "__new__", call_method.id)
-            DEF_STORE.register_def(discard, get_calling_frame())
-            DEF_STORE.register_type_member(ext_module.id, "discard", discard.id)
+            DEF_STORE.register_def(discard_method, get_calling_frame())
+            DEF_STORE.register_type_member(ext_module.id, "discard", discard_method.id)
 
             return GuppyDefinition(ext_module)
 

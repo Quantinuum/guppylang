@@ -43,7 +43,7 @@ def _same_count_helper[n: nat](q: qubit, controls: array[qubit, n]) -> None:
         _same_count_recursive_gate(q)
 
 
-def test_effects_after_custom_modifier_resolution_is_removed():
+def test_custom_modifier_removes_effects():
     """
     Effects are propagated through custom modifier calls:
 
@@ -58,32 +58,28 @@ def test_effects_after_custom_modifier_resolution_is_removed():
             panic("parent effect")
 
         @guppy
-        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+        def daggered(q: qubit) -> None:
             pass
 
     @guppy
-    def fallback() -> None:
-        panic("fallback effect")
-
-    @guppy
-    def custom_main(q: qubit, c: qubit) -> None:
-        with control(c):
+    def custom_main(q: qubit) -> None:
+        with dagger:
             custom_gate(q)
 
     custom_main.check()
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
-    assert effects[custom_use.unmodified_callee] == frozenset({Effect.ANY})
+    assert effects[custom_use.unmodified_callee] == frozenset({Effect.PANIC})
     assert effects[custom_use.custom_def] == frozenset()
     assert effects[custom_main.id, ()] == frozenset()
 
 
-def test_effects_after_custom_modifier_resolution_is_added():
+def test_custom_modifier_adds_effects():
     """
     Effects are propagated through custom modifier calls:
 
     We check that after updating the call graph with custom modifier resolution,
-    `main` includes the effects of the controlled version of `custom_gate`.
+    `main` includes the effects of the daggered version of `custom_gate`.
     """
 
     @guppy.unitary
@@ -93,19 +89,19 @@ def test_effects_after_custom_modifier_resolution_is_added():
             pass
 
         @guppy
-        def controlled[n: nat](q: qubit, controls: array[qubit, n]) -> None:
+        def daggered(q: qubit) -> None:
             panic("custom effect")
 
     @guppy
     def main(q: qubit, c: qubit) -> None:
-        with control(c):
+        with dagger:
             custom_gate(q)
 
     main.check()
     [custom_use] = ENGINE.custom_uses_by_mono_def.values()
     effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-    assert effects[custom_use.custom_def] == frozenset({Effect.ANY})
-    assert effects[main.id, ()] == frozenset({Effect.ANY})
+    assert effects[custom_use.custom_def] == frozenset({Effect.PANIC})
+    assert effects[main.id, ()] == frozenset({Effect.PANIC})
 
 
 def test_recursive_custom_modifier_same_control_count():

@@ -25,6 +25,7 @@ from guppylang_internals.std._internal.wasm import (
     WasmSignatureError,
     decode_wasm_functions,
 )
+from guppylang_internals.tys import Effect
 from guppylang_internals.tys.builtin import WasmModuleTypeDef
 from guppylang_internals.tys.ty import FunctionType
 
@@ -110,8 +111,11 @@ def wasm_module[T](
 
     create_decorator = ext_module_decorator(  # type: ignore[var-annotated]
         type_def_wrapper,
-        WasmModuleInitCompiler(),
-        WasmModuleDiscardCompiler(),
+        (WasmModuleInitCompiler(), [Effect.PANIC]),
+        (
+            WasmModuleDiscardCompiler(),
+            [Effect.ANY],  # https://github.com/Quantinuum/guppylang/issues/2426
+        ),
         init_arg=True,
         foreach_member=check_member,
     )

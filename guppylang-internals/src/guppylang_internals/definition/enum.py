@@ -44,7 +44,6 @@ from guppylang_internals.span import (
     SourceMap,
     extract_header_span,
 )
-from guppylang_internals.tys import Effect
 from guppylang_internals.tys.arg import Argument
 from guppylang_internals.tys.param import Parameter, check_all_args
 from guppylang_internals.tys.parsing import TypeParsingCtx, type_from_ast
@@ -335,7 +334,8 @@ class CheckedEnumDef(TypeDef, CompiledDef):
                 higher_order_func_id=GlobalConstId.fresh(f"{self.name}.{variant_name}"),
                 has_signature=True,
                 has_var_args=False,
-                effects=[Effect.ANY],
+                # TODO revisit once the generated constructor invokes others
+                effects=(),
             )
             variants_constructors.append(constructor_def)
 
