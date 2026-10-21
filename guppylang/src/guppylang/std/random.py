@@ -13,12 +13,14 @@ from guppylang import guppy
 from guppylang.std.builtins import exit
 from guppylang.std.num import nat
 
+PCG32_MUL = 6364136223846793005
+UINT32_MASK = 4294967295
 
 @guppy
 @no_type_check
 def _mask32(value: nat) -> nat:
     # 2**32 - 1: keep only the low 32 bits (Guppy has no native uint32 type).
-    uint32_mask: nat = 4294967295
+    uint32_mask: nat = UINT32_MASK
     return value & uint32_mask
 
 
@@ -41,7 +43,7 @@ def _uint32_to_signed(value: nat) -> int:
     masked = _mask32(value)
     if masked >= uint32_sign_bit:
         # 2**32: reinterpret unsigned 32-bit output as signed (two's complement).
-        return int(masked) - 4294967296
+        return int(masked) - UINT32_MASK - 1
     return int(masked)
 
 
@@ -69,7 +71,7 @@ class PCG32:
         """Advance the generator and return the next 32-bit output word."""
         # LCG multiplier N from the PCG paper / pcg32_random_r (64-bit state, 32-bit
         # output).
-        pcg32_mult: nat = 6364136223846793005
+        pcg32_mult: nat = PCG32_MUL
         old_state = self._state
         self._state = _mask64(nat(old_state * pcg32_mult + self._inc))
         # XSH-RR output permutation: xor-shift then random rotate (see pcg32_random_r).
@@ -115,6 +117,34 @@ class PCG32:
             r = self._next_uint32()
             if r >= threshold:
                 return int(r % bound)
+
+    @guppy
+    @no_type_check
+    def random_advance(self: PCG32, delta: int) -> None:
+        """Advance or backtrack the RNG state in logarithmic time.
+
+        Args:
+            delta: Number of steps to move the RNG state forward (if positive)
+                or backward (if negative). One step corresponds to one
+                ``next_int()`` call; bounded draws can take multiple steps.
+        """
+        # Reinterpret delta as uint64, taking the long way around for backtracking.
+        # Adding one before negation also handles the minimum signed integer.
+        steps = ~nat(-(delta + 1)) if delta < 0 else nat(delta)
+
+        cur_mult: nat = PCG32_MUL
+        cur_plus = self._inc
+        acc_mult = nat(1)
+        acc_plus = nat(0)
+        # nat arithmetic wraps modulo 2**64, matching the reference C algorithm.
+        while steps > nat(0):
+            if steps & nat(1):
+                acc_mult *= cur_mult
+                acc_plus = acc_plus * cur_mult + cur_plus
+            cur_plus = (cur_mult + nat(1)) * cur_plus
+            cur_mult *= cur_mult
+            steps //= nat(2)
+        self._state = acc_mult * self._state + acc_plus
 
 
 @guppy
