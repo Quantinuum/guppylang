@@ -3,11 +3,13 @@ from guppylang import qubit, array
 from guppylang.decorator import guppy
 from guppylang.std.lang import Copy
 from guppylang.std.option import Option, some
+from guppylang.emulator import EmulatorError
 from guppylang.std.quantum import discard
 from guppylang_internals.decorator import custom_function, hugr_op
 from guppylang_internals.definition.custom import NoopCompiler
 from guppylang_internals.std._internal.util import int_op
 from pytket import Circuit
+import pytest
 
 if TYPE_CHECKING:
     from guppylang.std.builtins import owned
@@ -247,3 +249,13 @@ def test_struct_dunder(run_int_fn):
         return 42 if x else -1
 
     run_int_fn(main, expected=42)
+
+    @guppy
+    def main2() -> int:
+        x = Holder(some(qubit()))
+        if x:
+            return 42
+        return 1
+
+    with pytest.raises(EmulatorError, match=r"Option.unwrap: value is `Some`"):
+        main2.emulator(1).run()
