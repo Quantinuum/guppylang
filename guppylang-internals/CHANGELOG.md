@@ -8,14 +8,6 @@
 * Bump tket dependency to 0.15.12 (#2440)([c430b05](https://github.com/Quantinuum/guppylang/commit/c430b058250cab6bbcf21158ee91d08463e48aea))
 * Effects in ext_module_decorator and for from_halfturns_unchecked (#2438)([4f85c47](https://github.com/Quantinuum/guppylang/commit/4f85c477083af1059826c24ff5fa352a749e442d))
 * Remove unsound effect defaults from hugr_op and custom_func and add many missing effects (#2269)([df85c2d](https://github.com/Quantinuum/guppylang/commit/df85c2d632a366a7eb39cf75e65c8eb23985133c))
-* Infer type variables in higher order generic modifier arguments (#2398)([f344a88](https://github.com/Quantinuum/guppylang/commit/f344a8877ddbe715a99f06a0a0fc70c15f9ddbb5))
-* Resolve instance methods from generic protocol bounds (#2393)([48ef3c6](https://github.com/Quantinuum/guppylang/commit/48ef3c6ec3e999dcdfbaee74c12b19f6dc332239))
-* Resolve enclosing-scope names in `@guppy.unitary` methods (#2388)([4b5c340](https://github.com/Quantinuum/guppylang/commit/4b5c340d8e53ac11339b31febbd2bdb4f8aa77a6))
-* Local variables being shadowed by global definitions (#2376)([6802a11](https://github.com/Quantinuum/guppylang/commit/6802a1170c4c8120a0e5948a2f24b662f12822a0))
-* Clear stale inout flags on copyable generic captures (#2342)([a7fb22c](https://github.com/Quantinuum/guppylang/commit/a7fb22c7df361b5f692975b27626656c296cd350))
-* Bad span for missing return diagnostic with walrus loop condition (#2181)([589ffbc](https://github.com/Quantinuum/guppylang/commit/589ffbc200f766f0c1f776cd7b35e5943508cfe2))
-* Controlled implementation signature check is not more order-sensitive (#2323)([58ad84b](https://github.com/Quantinuum/guppylang/commit/58ad84b68f9628b61685451e27d001e4f559a250))
-* Reject unsupported statements in @guppy.unitary classes (#2310)([456c0d9](https://github.com/Quantinuum/guppylang/commit/456c0d9cba867a9b0bc23fc8688447d81f36d808))
 * Resolve calls to nested functions iff capturing closures are disabled (#2279)([c386494](https://github.com/Quantinuum/guppylang/commit/c386494714b9963ce57219cb4e6cfe932792af19))
 
 
