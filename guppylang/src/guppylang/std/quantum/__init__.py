@@ -282,7 +282,9 @@ def vdg(q: qubit) -> None:
     """
 
 
-@custom_function(RotationCompiler("Rz"), unitary_flags=UnitaryFlags.Unitary, effects=())
+@custom_function(
+    RotationCompiler("Rz"), unitary_flags=UnitaryFlags.Unitary, effects=[Effect.PANIC]
+)
 @no_type_check
 def rz(q: qubit, angle: angle) -> None:
     r"""Rz gate.
@@ -298,7 +300,9 @@ def rz(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("Rx"), unitary_flags=UnitaryFlags.Unitary, effects=())
+@custom_function(
+    RotationCompiler("Rx"), unitary_flags=UnitaryFlags.Unitary, effects=[Effect.PANIC]
+)
 @no_type_check
 def rx(q: qubit, angle: angle) -> None:
     r"""Rx gate.
@@ -313,7 +317,9 @@ def rx(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("Ry"), unitary_flags=UnitaryFlags.Unitary, effects=())
+@custom_function(
+    RotationCompiler("Ry"), unitary_flags=UnitaryFlags.Unitary, effects=[Effect.PANIC]
+)
 @no_type_check
 def ry(q: qubit, angle: angle) -> None:
     r"""Ry gate.
@@ -329,7 +335,7 @@ def ry(q: qubit, angle: angle) -> None:
 
 
 @custom_function(
-    RotationCompiler("CRz"), unitary_flags=UnitaryFlags.Unitary, effects=()
+    RotationCompiler("CRz"), unitary_flags=UnitaryFlags.Unitary, effects=[Effect.PANIC]
 )
 @no_type_check
 def crz(control: qubit, target: qubit, angle: angle) -> None:

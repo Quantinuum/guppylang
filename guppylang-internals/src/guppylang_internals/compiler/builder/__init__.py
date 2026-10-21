@@ -178,7 +178,7 @@ class DFBuilder(ABC, ToNode):
         def record_effect(e: EffectType) -> None:
             if isinstance(e, StronglyOrdered):
                 self._last_node_with_strong[e.base] = node
-            elif not isinstance(self._raw.hugr[node].op, Output):
+            else:
                 self._last_nodes_with_weak.setdefault(e.base, []).append(node)
 
         prev_nodes = {n for e in effects for n in get_prev_nodes(e)}
