@@ -1074,16 +1074,18 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
                 )
             raise GuppyTypeError(err)
         try:
-            return func.synthesize_call([node, *args], node, self.ctx)
+            args, res_ty = func.synthesize_call([node, *args], node, self.ctx)
+            if not (exp_sig and unify(exp_sig.output, res_ty, {}) is None):
+                return args, res_ty
         except GuppyError:
-            if exp_sig and unify(exp_sig, func.ty.unquantified()[0], {}) is None:
-                # Improve/standardize the error message
-                err = BadProtocolError(node, ty, description)
-                err.add_sub_diagnostic(
-                    BadProtocolError.BadSignature(None, ty, func_name, exp_sig, func.ty)
-                )
-                raise GuppyError(err) from None
-            raise
+            if not (exp_sig and unify(exp_sig, func.ty.unquantified()[0], {}) is None):
+                raise
+        # Improve/standardize the error message
+        err = BadProtocolError(node, ty, description)
+        err.add_sub_diagnostic(
+            BadProtocolError.BadSignature(None, ty, func_name, exp_sig, func.ty)
+        )
+        raise GuppyError(err) from None
 
     def visit_BinOp(self, node: ast.BinOp) -> tuple[ast.expr, Type]:
         return self._synthesize_binary(node.left, node.right, node.op, node)
