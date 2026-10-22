@@ -13,15 +13,15 @@ from guppylang import guppy
 from guppylang.std.builtins import exit
 from guppylang.std.num import nat
 
-PCG32_MUL = 6364136223846793005
-UINT32_MASK = 4294967295
+_PCG32_MUL = 6364136223846793005
+_UINT32_MASK = 4294967295
 
 
 @guppy
 @no_type_check
 def _mask32(value: nat) -> nat:
     # 2**32 - 1: keep only the low 32 bits (Guppy has no native uint32 type).
-    uint32_mask: nat = UINT32_MASK
+    uint32_mask: nat = _UINT32_MASK
     return value & uint32_mask
 
 
@@ -44,13 +44,16 @@ def _uint32_to_signed(value: nat) -> int:
     masked = _mask32(value)
     if masked >= uint32_sign_bit:
         # 2**32: reinterpret unsigned 32-bit output as signed (two's complement).
-        return int(masked) - UINT32_MASK - 1
+        return int(masked) - _UINT32_MASK - 1
     return int(masked)
 
 
 @guppy.struct
 class PCG32:
     """A deterministic 32-bit random number generator using the PCG32 algorithm.
+
+    See the `reference C implementation <https://github.com/imneme/pcg-c>`_
+    for the underlying algorithm.
 
     Unlike :py:class:`guppylang.std.qsystem.random.RNG`, PCG32 keeps its state in a
     local Guppy value rather than in platform-global RNG state.
@@ -72,7 +75,7 @@ class PCG32:
         """Advance the generator and return the next 32-bit output word."""
         # LCG multiplier N from the PCG paper / pcg32_random_r (64-bit state, 32-bit
         # output).
-        pcg32_mult: nat = PCG32_MUL
+        pcg32_mult: nat = _PCG32_MUL
         old_state = self._state
         self._state = _mask64(nat(old_state * pcg32_mult + self._inc))
         # XSH-RR output permutation: xor-shift then random rotate (see pcg32_random_r).
@@ -124,6 +127,9 @@ class PCG32:
     def random_advance(self: PCG32, delta: int) -> None:
         """Advance or backtrack the RNG state in logarithmic time.
 
+        Uses the jump-ahead algorithm (``pcg_advance_lcg_64`` from the PCG reference)
+        underlying ``pcg32_advance_r``.
+
         Args:
             delta: Number of steps to move the RNG state forward (if positive)
                 or backward (if negative). One step corresponds to one
@@ -133,7 +139,7 @@ class PCG32:
         # Adding one before negation also handles the minimum signed integer.
         steps = ~nat(-(delta + 1)) if delta < 0 else nat(delta)
 
-        cur_mult: nat = PCG32_MUL
+        cur_mult: nat = _PCG32_MUL
         cur_plus = self._inc
         acc_mult = nat(1)
         acc_plus = nat(0)
