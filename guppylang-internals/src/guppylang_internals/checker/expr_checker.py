@@ -258,6 +258,10 @@ def record_function_load(node: ast.expr, ty: Type, ctx: Context) -> None:
     assert ctx.current_caller is not None
 
     match node:
+        case PlaceNode(place=place) if isinstance(place.ty, NestedFunctionDefType):
+            # Nested functions are local values stored in a PlaceNode
+            assert isinstance(ENGINE.get_parsed(place.ty.def_id), CallableDef)
+            ENGINE.register_load(ctx.current_caller, (place.ty.def_id, place.ty.args))
         case GlobalName(def_id=def_id):
             # Function-valued constants also have FunctionType, but their definition
             # IDs identify constants rather than callable load targets.

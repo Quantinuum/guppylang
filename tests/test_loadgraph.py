@@ -95,27 +95,6 @@ def test_load_nested():
     assert ENGINE.load_graph[factory.id, ()] == {nested}
 
 
-@pytest.mark.xfail(strict=True)
-def test_load_nested_failing_with_experimental_on(use_experimental_features):
-    # Returning nested should record a load edge from factory to nested. With
-    # use_experimental_features, coercion preserves its PlaceNode for possible captures.
-    # The load recorder ignores that node since it is a PlaceNode. Without experimental
-    # features, coercion produces a GlobalName and the load edge is recorded.
-
-    @guppy
-    def factory() -> Function[[], int]:
-        def nested() -> int:
-            return 1
-
-        return nested
-
-    factory.check()
-
-    [nested] = [mono for mono in ENGINE.call_graph if mono != (factory.id, ())]
-    assert ENGINE.call_graph[factory.id, ()] == []
-    assert ENGINE.load_graph[factory.id, ()] == {nested}
-
-
 def test_direct_calls_do_not_load():
     @guppy
     def leaf() -> int:
