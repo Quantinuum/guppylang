@@ -13,8 +13,8 @@ from guppylang import guppy
 from guppylang.std.builtins import exit
 from guppylang.std.num import nat
 
-_PCG32_MUL = 6364136223846793005
-_UINT32_MASK = 4294967295
+_PCG32_MUL = 0x5851F42D4C957F2D
+_UINT32_MASK = 0xFFFFFFFF
 
 
 @guppy
@@ -132,8 +132,8 @@ class PCG32:
 
         Args:
             delta: Number of steps to move the RNG state forward (if positive)
-                or backward (if negative). One step corresponds to one
-                ``next_int()`` call; bounded draws can take multiple steps.
+                or backward (if negative). One step corresponds to one ``next_int()``
+                call; ``next_int_bounded()`` calls can take multiple steps.
         """
         # Reinterpret delta as uint64, taking the long way around for backtracking.
         # Adding one before negation also handles the minimum signed integer.
