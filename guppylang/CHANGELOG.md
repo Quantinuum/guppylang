@@ -14,28 +14,13 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#1000-2026-08-03).
 
-## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.2...guppylang-v1.1.3) (2026-10-07)
-
-
-### Bug Fixes
-
-* Resolve enclosing-scope names in `@guppy.unitary` methods (#2389)([cbcd28c](https://github.com/Quantinuum/guppylang/commit/cbcd28c7972f3dc24f44061998371ba4b7b67834))
-
-## [1.1.1](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.0-rc0...guppylang-v1.1.1) (2026-09-14)
-
-
-### Bug Fixes
-
-* Compilation error with classical array.take  (#2330)([c33a3bd](https://github.com/Quantinuum/guppylang/commit/c33a3bd1840c2b73e5ee0a40720ca4dfe24cd697))
-* Hide trace in @guppy.unitary decorator error (#2325)([97a3463](https://github.com/Quantinuum/guppylang/commit/97a3463c637516838a61eb1cedb92667c1336068))
-* Reject unsupported statements in @guppy.unitary classes (#2312)([7d91c17](https://github.com/Quantinuum/guppylang/commit/7d91c17243becdc914e5d68da2b9b5325386ed66))
+## [1.1.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.1.4) (2026-10-22)
 
 
 ### Features
 
-* Accept bytes into emulator builder (#2315)([a9e93a2](https://github.com/Quantinuum/guppylang/commit/a9e93a261cc03dea2bc04db5e9cd419aef17672d))
+* Add loading edges in the callgraph (#2450)([9b53a42](https://github.com/Quantinuum/guppylang/commit/9b53a420fdaed6f2983dcc8189b3003e4a66f215))
 
-## [1.1.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.0.4...guppylang-v1.1.0-rc0) (2026-09-09)
 
 ## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.2...guppylang-v1.1.3) (2026-10-07)
 
