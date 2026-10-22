@@ -82,6 +82,7 @@ ResolveModifiedCall = Callable[
 def analyze_modifier_calls(
     entry_points: Iterable[MonoDefId],
     raw_calls: Mapping[MonoDefId, Sequence[MonoDefId]],
+    load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
     local_modifiers_by_edge: Mapping[CallGraphEdge, Mapping[ModifierContext, Span]],
     resolve_modified_call: ResolveModifiedCall,
 ) -> ModifierAnalysisResult:
@@ -89,6 +90,10 @@ def analyze_modifier_calls(
 
     For ``main --control(1)--> wrapper --empty--> gate``, visit ``wrapper`` with
     one inherited control and resolve its call to ``gate.controlled[1]``.
+
+    Functions loaded as values are additional roots with no inherited modifiers.
+    Explore their calls and further loads, and record loads separately from the
+    call graph.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.
@@ -126,6 +131,13 @@ def analyze_modifier_calls(
             expanded_calls[caller] = []
             expanded_callers.add(caller)
 
+        # Loading a function never invokes it or applies the loader's modifiers.
+        worklist.extend(
+            ModifierCallState(loaded, NO_CALL_MODIFIERS)
+            for loaded in load_graph.get(caller, ())
+            if is_concrete_inst(loaded[1]) and loaded in raw_calls
+        )
+
         # The raw graph may contain the same callee once per call site. Modifier labels
         # are already grouped by edge and local context, so visit each raw edge once.
         for raw_callee in dict.fromkeys(raw_calls.get(caller, ())):
@@ -142,6 +154,12 @@ def analyze_modifier_calls(
                 # Combine modifiers inherited from the caller with those surrounding
                 # this particular call in the checked function body.
                 effective_context = state.inherited_context.compose(local_context)
+                # `custom_use` is None if any of the following hold:
+                # - No modifier is required.
+                # - The callee's instantiation is not concrete.
+                # - No custom implementation exists for the required modifier kind.
+                # - Its required control count is not concrete yet.
+                # Thus only fully concrete calls are considered.
                 resolved_callee, custom_use = resolve_modified_call(
                     raw_callee, effective_context
                 )
@@ -155,9 +173,11 @@ def analyze_modifier_calls(
                 if custom_use is None:
                     # No custom implementation consumed the modifiers. The compiler
                     # generates the modified callee, so its body inherits the context.
-                    next_state = ModifierCallState(raw_callee, effective_context)
+                    # In this case, the resolved callee must match the raw callee.
+                    assert resolved_callee == raw_callee
+                    next_state = ModifierCallState(resolved_callee, effective_context)
                     contextual_callers[next_state].add(state)
-                    if raw_callee in raw_calls:
+                    if resolved_callee in raw_calls:
                         worklist.append(next_state)
                     continue
 
