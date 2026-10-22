@@ -19,7 +19,7 @@ As of version `1.0.0`, the Guppy language is considered stable. An extended chan
 
 ### Bug Fixes
 
-* Include loading edges in the callgraph (#2450)([9b53a42](https://github.com/Quantinuum/guppylang/commit/9b53a420fdaed6f2983dcc8189b3003e4a66f215))
+* Record indirect calls when resolving modifiers (#2450)([9b53a42](https://github.com/Quantinuum/guppylang/commit/9b53a420fdaed6f2983dcc8189b3003e4a66f215))
 
 
 ## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.2...guppylang-v1.1.3) (2026-10-07)
