@@ -27,6 +27,7 @@ import traceback
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
+from enum import Enum, auto
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -223,6 +224,59 @@ binary_table: dict[type[AstOp], tuple[str, str, str]] = {
 }  # fmt: skip
 
 
+class ExprUse(Enum):
+    """Whether an expression supplies a value or is the target of a call."""
+
+    VALUE = auto()
+    CALLEE = auto()
+
+
+def record_function_load(node: ast.expr, ty: Type, ctx: Context) -> None:
+    """Records function loading as an owner -> (definition, type arguments) edge.
+    Functions are loaded when they are used as values, such as `g = f`, `consume(f)`,
+    and `return f`.
+
+    Called for expressions used as values, even when they do not load a function
+    definition. For example, in `f = factory()`, the RHS may return a function but
+    is a call result rather than a reference to that function's definition (The load
+    edge is already recorded from the return statement of factory). We filter by
+    function type first, then by node type to record only references that identify a
+    concrete function definition.
+    """
+    match ty:
+        case FunctionDefType(args=args):
+            # Includes nested function items and their type arguments.
+            inst = args
+        case FunctionType():
+            # Method references (obj.static_method or obj.static_method) and
+            # coercion against the  return annotation (e.g. e.g. `return f`)
+            # produces the FunctionType directly. It stores no inst args.
+            inst = ()
+        case _:
+            return
+
+    assert ctx.current_caller is not None
+
+    match node:
+        case PlaceNode(place=place) if isinstance(place.ty, NestedFunctionDefType):
+            # Nested functions are local values stored in a PlaceNode
+            assert isinstance(ENGINE.get_parsed(place.ty.def_id), CallableDef)
+            ENGINE.register_load(ctx.current_caller, (place.ty.def_id, place.ty.args))
+        case GlobalName(def_id=def_id):
+            # Function-valued constants also have FunctionType, but their definition
+            # IDs identify constants rather than callable load targets.
+            if isinstance(ENGINE.get_parsed(def_id), CallableDef):
+                ENGINE.register_load(ctx.current_caller, (def_id, inst))
+        case TypeApply(value=GlobalName(def_id=def_id), inst=inst):
+            # A specialized reference: `g = f[int]`, or `g: Function[[int], int] = f`
+            # after type inference.
+            assert isinstance(ENGINE.get_parsed(def_id), CallableDef)
+            ENGINE.register_load(ctx.current_caller, (def_id, inst))
+        case PartialApply(func=func):
+            # Loading `obj.method`, produce a PartialApply(func=method)
+            record_function_load(func, get_type(func), ctx)
+
+
 class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     """Checks an expression against a type and produces a new type-annotated AST.
 
@@ -263,6 +317,17 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         a new desugared expression with type annotations and a substitution with the
         resolved type variables.
         """
+        expr, subst = self._check_expr(expr, ty, kind)
+        # Call targets go through synthesis with `FunctionUse.CALLEE`; check always
+        # checks values. Checking a function reference (e.g. `return f`) can produce
+        # a GlobalName, which registers a load. A call (e.g. `return f()`) normally
+        # produces a GlobalCall or LocalCall, which record_function_load ignores.
+        record_function_load(expr, ty.substitute(subst), self.ctx)
+        return expr, subst
+
+    def _check_expr(
+        self, expr: ast.expr, ty: Type, kind: str
+    ) -> tuple[ast.expr, Subst]:
         # If we already have a type for the expression, we just have to match it against
         # the target
         if actual := get_type_opt(expr):
@@ -289,10 +354,17 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
         return with_type(ty.substitute(subst), expr), subst
 
     def _synthesize(
-        self, node: ast.expr, allow_free_vars: bool
+        self,
+        node: ast.expr,
+        allow_free_vars: bool,
+        *,
+        use: ExprUse = ExprUse.VALUE,
     ) -> tuple[ast.expr, Type]:
-        """Invokes the type synthesiser"""
-        return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars)
+        """
+        Synthesizes the type of an expression and returns it along with a new expression
+        with type annotation
+        """
+        return ExprSynthesizer(self.ctx).synthesize(node, allow_free_vars, use=use)
 
     def _check_python_value(
         self, value: Any, act: Type, node: ast.expr, ty: Type
@@ -383,7 +455,9 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
     def visit_Call(self, node: ast.Call, ty: Type) -> tuple[ast.expr, Subst]:
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
-        node.func, func_ty = self._synthesize(node.func, allow_free_vars=False)
+        node.func, func_ty = self._synthesize(
+            node.func, allow_free_vars=False, use=ExprUse.CALLEE
+        )
 
         if isinstance(func_ty, FunctionDefType):
             node.func = function_def_value_to_function_value(node.func, func_ty)
@@ -488,20 +562,32 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
 
     def __init__(self, ctx: Context) -> None:
         self.ctx = ctx
+        self._use: ExprUse | None = None
 
     def synthesize(
-        self, node: ast.expr, allow_free_vars: bool = False
+        self,
+        node: ast.expr,
+        allow_free_vars: bool = False,
+        *,
+        use: ExprUse = ExprUse.VALUE,
     ) -> tuple[ast.expr, Type]:
         """Tries to synthesise a type for the given expression.
 
         Also returns a new desugared expression with type annotations.
         """
-        if ty := get_type_opt(node):
+        previous_use = self._use
+        self._use = use
+        try:
+            if (ty := get_type_opt(node)) is None:
+                node, ty = self.visit(node)
+                if ty.unsolved_vars and not allow_free_vars:
+                    raise GuppyError(TypeInferenceError(node, ty))
+                node = with_type(ty, node)
+            if use is ExprUse.VALUE:
+                record_function_load(node, ty, self.ctx)
             return node, ty
-        node, ty = self.visit(node)
-        if ty.unsolved_vars and not allow_free_vars:
-            raise GuppyError(TypeInferenceError(node, ty))
-        return with_type(ty, node), ty
+        finally:
+            self._use = previous_use
 
     def _check(
         self, expr: ast.expr, ty: Type, kind: str = "expression"
@@ -1087,7 +1173,9 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         return self._synthesize_binary(left_expr, right_expr, op, node)
 
     def visit_Subscript(self, node: ast.Subscript) -> tuple[ast.expr, Type]:
-        node.value, ty = self.synthesize(node.value)
+        # Preserve self._use through type application.
+        assert self._use is not None
+        node.value, ty = self.synthesize(node.value, use=self._use)
         # Special case for subscripts on functions: Those are type applications
         if isinstance(ty, FunctionDefType):
             ty = ty.sig
@@ -1158,7 +1246,7 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
     def visit_Call(self, node: ast.Call) -> tuple[ast.expr, Type]:
         if len(node.keywords) > 0:
             raise GuppyError(UnsupportedError(node.keywords[0], "Keyword arguments"))
-        node.func, ty = self.synthesize(node.func)
+        node.func, ty = self.synthesize(node.func, use=ExprUse.CALLEE)
 
         if isinstance(ty, FunctionDefType):
             node.func = function_def_value_to_function_value(node.func, ty)
