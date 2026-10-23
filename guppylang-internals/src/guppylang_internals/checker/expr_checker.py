@@ -1264,6 +1264,16 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             f"`{ast.unparse(node)}`"
         )
 
+    def visit_GlobalName(self, node: GlobalName) -> tuple[ast.expr, Type]:
+        from guppylang_internals.definition.function import RawFunctionDef
+
+        defn = ENGINE.get_parsed(node.def_id)
+        if not isinstance(defn, RawFunctionDef):
+            raise InternalGuppyError(
+                f"Expected a RawFunctionDef for {node.def_id}, got {defn}"
+            )
+        return (node, FunctionDefType(node.def_id))
+
     def generic_visit(self, node: ast.expr) -> NoReturn:
         """Called if no explicit visitor function exists for a node."""
         raise GuppyError(UnsupportedError(node, "This expression", singular=True))
