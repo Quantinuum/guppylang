@@ -261,16 +261,13 @@ class DefinitionStore:
         Frames inside this context are kept alive so forward references and
         class-member scope changes get reflected in the local frames.
         """
-        if self._registered_frame_defs is not None:
-            yield
-            return
-        registered_defs: set[DefId] = set()
-        self._registered_frame_defs = registered_defs
+        assert self._registered_frame_defs is None, "Frame detachment cannot be nested"
+        self._registered_frame_defs = set()
         try:
             yield
         finally:
             snapshots: dict[FrameType, FrameSnapshot] = {}
-            for def_id in registered_defs:
+            for def_id in self._registered_frame_defs:
                 frame = self.frames[def_id]
                 if isinstance(frame, FrameType):
                     if frame not in snapshots:
@@ -346,10 +343,7 @@ class CompilationEngine:
         old_stage = self._stage
         self._stage = stage
         try:
-            if stage == CompilationStage.CHECK:
-                with DEF_STORE.detach_new_frames():
-                    yield
-            else:
+            with DEF_STORE.detach_new_frames():
                 yield
         finally:
             self._stage = old_stage

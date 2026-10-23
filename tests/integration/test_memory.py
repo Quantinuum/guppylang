@@ -4,55 +4,86 @@ import gc
 import weakref
 
 from guppylang import guppy
-from guppylang.std.quantum import h, qubit
 
 
 def test_definitions_during_tracing_release_previous_modules(validate):
-    """Tracing must not keep references to the generated hugrs alive.
+    """Definitions created during tracing must not keep their context alive
+    unnecessarily.
 
     Regression test for <https://github.com/Quantinuum/guppylang/issues/2411>
+    This used to cause memory leaks when ran repeatedly.
     """
 
-    def make_gate():
+    @guppy.comptime
+    def main() -> int:
         @guppy
-        def gate(q: qubit) -> None:
-            later(q)
+        def inner() -> int:
+            return 1
+
+        return inner()
+
+    first = weakref.ref(main.compile_function().modules[0])
+    validate(main.compile_function())
+    gc.collect()
+    assert first() is None
+
+
+def test_definitions_from_helpers_release_previous_modules(validate):
+    """Definitions created while calling helpers during tracing must not keep
+    their context alive unnecessarily.
+
+    Regression test for <https://github.com/Quantinuum/guppylang/issues/2411>
+    This used to cause memory leaks when ran repeatedly.
+    """
+
+    def make_function():
+        @guppy
+        def first() -> int:
+            return later()
 
         # Name resolution needs to see definitions added after @guppy ran.
-        #
-        # This requires keeping the full frame info alive during tracing.
         @guppy
-        def later(q: qubit) -> None:
-            h(q)
+        def later() -> int:
+            return 1
 
-        return gate
+        return first
 
     @guppy.comptime
-    def main(q: qubit) -> None:
-        gate_from_helper = make_gate()
+    def main() -> int:
+        inner = make_function()
+        return inner()
 
+    first = weakref.ref(main.compile_function().modules[0])
+    validate(main.compile_function())
+    gc.collect()
+    assert first() is None
+
+
+def test_recursive_nested_definitions_release_previous_modules(validate):
+    """Definitions created during recursive tracing must not keep
+    their context alive unnecessarily.
+
+    Regression test for <https://github.com/Quantinuum/guppylang/issues/2411>
+    This used to cause memory leaks when ran repeatedly.
+    """
+
+    @guppy.comptime
+    def main() -> int:
         @guppy
-        def local_gate(q: qubit) -> None:
-            # Make sure recursive calls are properly handled.
-            def recurse(n: int, q: qubit) -> None:
-                if n <= 0:
-                    h(q)
-                else:
-                    recurse(n - 1, q)
+        def inner() -> int:
+            def recurse(n: int) -> int:
+                if n == 0:
+                    return 0
+                return recurse(n - 1)
 
-            recurse(2, q)
+            return recurse(1)
 
-        gate_from_helper(q)
-        local_gate(q)
+        return inner()
 
-    previous = []
-    for _ in range(3):
-        package = main.compile_function()
-        validate(package)
-        gc.collect()
-        assert all(module() is None for module in previous)
-        previous.append(weakref.ref(package.modules[0]))
-        del package
+    first = weakref.ref(main.compile_function().modules[0])
+    validate(main.compile_function())
+    gc.collect()
+    assert first() is None
 
 
 def test_recompilation_observes_enclosing_scope_changes(run_int_fn):
