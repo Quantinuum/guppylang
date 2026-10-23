@@ -29,6 +29,13 @@
 
 * Avoid single dispatch on hot code paths (#2317)([7d5589e](https://github.com/Quantinuum/guppylang/commit/7d5589ee9b6938a7c64bfdd25690ff365cde746d))
 
+## [1.1.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.1.4) (2026-10-22)
+
+
+### Features
+
+* Add loading edges in the callgraph (#2450)([9b53a42](https://github.com/Quantinuum/guppylang/commit/9b53a420fdaed6f2983dcc8189b3003e4a66f215))
+
 ## [1.1.3](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.2...guppylang-internals-v1.1.3) (2026-10-07)
 
 
