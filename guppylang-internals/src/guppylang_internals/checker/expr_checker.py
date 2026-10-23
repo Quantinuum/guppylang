@@ -1265,13 +1265,17 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
         )
 
     def visit_GlobalName(self, node: GlobalName) -> tuple[ast.expr, Type]:
-        from guppylang_internals.definition.function import RawFunctionDef
+        from guppylang_internals.definition.value import CallableDef
 
         defn = ENGINE.get_parsed(node.def_id)
-        if not isinstance(defn, RawFunctionDef):
+        if not isinstance(defn, CallableDef):
             raise InternalGuppyError(
-                f"Expected a RawFunctionDef for {node.def_id}, got {defn}"
+                f"Expected a CallableDef for {node.def_id}, got {defn}"
             )
+        # Do we need to specify type-args here? Currently believe that if we don't, we
+        # should get back the polymorphic FunctionType. (I.e. not instantiating a
+        # polymorphic function, looks just like instantiating a monomorphic one with no
+        # type arguments.)
         return (node, FunctionDefType(node.def_id))
 
     def generic_visit(self, node: ast.expr) -> NoReturn:
