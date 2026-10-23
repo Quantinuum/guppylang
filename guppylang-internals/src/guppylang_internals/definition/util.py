@@ -20,6 +20,7 @@ from guppylang_internals.definition.common import (
 from guppylang_internals.definition.parameter import ParamDef
 from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
+from guppylang_internals.frame_util import FrameSnapshot
 from guppylang_internals.ipython_inspect import is_running_ipython
 from guppylang_internals.span import SourceMap, Span, to_span
 from guppylang_internals.tys.param import Parameter
@@ -196,7 +197,7 @@ def _is_parsed_recursive_type_def(
 
 
 def parse_py_class(
-    cls: type, defining_frame: FrameType, sources: SourceMap
+    cls: type, defining_frame: FrameType | FrameSnapshot, sources: SourceMap
 ) -> ast.ClassDef:
     """Parses a Python class object into an AST."""
     module = inspect.getmodule(cls)
