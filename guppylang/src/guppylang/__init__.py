@@ -4,6 +4,7 @@ from guppylang.decorator import guppy
 from guppylang.defs import GuppyCompilableProgram
 from guppylang.module import GuppyModule
 from guppylang.optimizer import (
+    LibraryOptimizerInstance,
     OptimizationLevel,
     OptimizerInstance,
 )
@@ -14,6 +15,7 @@ from guppylang.std.quantum import qubit
 __all__ = (
     "GuppyCompilableProgram",
     "GuppyModule",
+    "LibraryOptimizerInstance",
     "OptimizationLevel",
     "OptimizerInstance",
     "array",
