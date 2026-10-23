@@ -184,6 +184,7 @@ from guppylang_internals.tys.ty import (
     TupleType,
     Type,
     TypeBase,
+    UnitaryFlags,
     function_tensor_signature,
     parse_function_tensor,
     unify,
@@ -225,6 +226,31 @@ binary_table: dict[type[AstOp], tuple[str, str, str]] = {
     ast.Gt:       ("__gt__",       "__lt__",        ">"),
     ast.GtE:      ("__ge__",       "__le__",        ">="),
 }  # fmt: skip
+
+
+def resolve_callable_signature(ty: BoundTypeVar) -> FunctionType | None:
+    """Combine modifier flags from callable bounds with matching signatures."""
+    protocols = [
+        p
+        for p in ty.implements
+        if isinstance(p, CallableProtocolInst | ModifiableFunctionProtocolInst)
+    ]
+
+    if not protocols:
+        return None
+
+    sig = protocols[0].sig
+    base_sig = sig.with_unitary_flags(UnitaryFlags.NoFlags)
+    combined_flags = sig.unitary_flags
+
+    for protocol in protocols[1:]:
+        other_sig = protocol.sig.with_unitary_flags(UnitaryFlags.NoFlags)
+
+        # Combine modifier capabilities only for identical callable signatures.
+        if base_sig == other_sig:
+            combined_flags |= protocol.sig.unitary_flags
+
+    return sig.with_unitary_flags(combined_flags)
 
 
 class ExprUse(Enum):
@@ -488,21 +514,19 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             node.func = instantiate_poly(node.func, func_ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
-        if isinstance(func_ty, BoundTypeVar):
-            for protocol in func_ty.implements:
-                if isinstance(protocol, CallableProtocolInst):
-                    # Not yet monomorphized, so not to be compiled; effects irrelevant.
-                    assert self.ctx.current_caller is not None
-                    assert all(
-                        isinstance(a, TypeArg) and isinstance(a.ty, BoundTypeVar)
-                        for a in self.ctx.current_caller[1]
-                    )
-                    args, subst, inst = check_call(
-                        protocol.sig, node.args, ty, node, self.ctx, None
-                    )
-                    assert inst == (), "Callables are not generic"
-                    node.func = instantiate_poly(node.func, protocol.sig, inst)
-                    return with_loc(node, LocalCall(func=node.func, args=args)), subst
+        if isinstance(func_ty, BoundTypeVar) and (
+            sig := resolve_callable_signature(func_ty)
+        ):
+            # Not yet monomorphized, so not to be compiled; effects irrelevant.
+            assert self.ctx.current_caller is not None
+            assert all(
+                isinstance(a, TypeArg) and isinstance(a.ty, BoundTypeVar)
+                for a in self.ctx.current_caller[1]
+            )
+            args, subst, inst = check_call(sig, node.args, ty, node, self.ctx, None)
+            assert inst == (), "Callables are not generic"
+            node.func = instantiate_poly(node.func, sig, inst)
+            return with_loc(node, LocalCall(func=node.func, args=args)), subst
 
         if isinstance(func_ty, TupleType) and (
             function_elements := parse_function_tensor(func_ty)
@@ -1278,19 +1302,15 @@ class ExprSynthesizer(AstVisitor[tuple[ast.expr, Type]]):
             node.func = instantiate_poly(node.func, ty, inst)
             return with_loc(node, LocalCall(func=node.func, args=args)), return_ty
 
-        if isinstance(ty, BoundTypeVar):
-            for protocol in ty.implements:
-                if isinstance(
-                    protocol, CallableProtocolInst | ModifiableFunctionProtocolInst
-                ):
-                    # Not yet monomorphized, so not to be compiled; effects irrelevant.
-                    args, return_ty, inst = synthesize_call(
-                        protocol.sig, node.args, node, self.ctx, None
-                    )
-                    assert inst == (), "Callables are not generic"
-                    node.func = instantiate_poly(node.func, protocol.sig, inst)
-                    call = LocalCall(func=node.func, args=args)
-                    return with_loc(node, call), return_ty
+        if isinstance(ty, BoundTypeVar) and (sig := resolve_callable_signature(ty)):
+            # Not yet monomorphized, so not to be compiled; effects irrelevant.
+            args, return_ty, inst = synthesize_call(
+                sig, node.args, node, self.ctx, None
+            )
+            assert inst == (), "Callables are not generic"
+            node.func = instantiate_poly(node.func, sig, inst)
+            call = LocalCall(func=node.func, args=args)
+            return with_loc(node, call), return_ty
 
         if isinstance(ty, TupleType) and (function_elems := parse_function_tensor(ty)):
             check_function_tensors_enabled(node.func)
