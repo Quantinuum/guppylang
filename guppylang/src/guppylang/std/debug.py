@@ -19,6 +19,17 @@ def state_output(tag, *args) -> None:
     This is a debugging function that works only when the program is executed
     on a supported simulator.
 
+    The state recorded by this function is a partial state of the specified
+    qubits, with unspecified qubits considered traced out. It should therefore
+    not in general be interpreted as the state vector of the full system.
+
+    The recorded partial state can be accessed through
+    :py:meth:`EmulatorResult.partial_states` or
+    :py:meth:`EmulatorResult.partial_state_dicts`, which return
+    :py:class:`PartialVector` objects. Use
+    :py:meth:`PartialVector.state_distribution` to obtain the distribution
+    of states after tracing out the unspecified qubits.
+
     Guppy does not in general respect the order of function calls in the source code, it
     is constrained by the dataflow of the program. Whilst two `state_output`s are
     guaranteed to execute in source-code order, function calls such as "pure quantum"
