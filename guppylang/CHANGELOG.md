@@ -19,7 +19,7 @@ As of version `1.0.0`, the Guppy language is considered stable. An extended chan
 
 ### Bug Fixes
 
-* Record indirect calls when resolving modifiers ([b2d07cf](https://github.com/Quantinuum/guppylang/commit/b2d07cf83a299fa03f677bc3ba2163fe80545bbf))
+* Record indirect calls when resolving modifiers (#2448)([b2d07cf](https://github.com/Quantinuum/guppylang/commit/b2d07cf83a299fa03f677bc3ba2163fe80545bbf))
 
 * Avoid retaining the entire call stack when storing frames for compilation stage (#2458)([7aa5f25](https://github.com/Quantinuum/guppylang/commit/7aa5f25a643605abaa1ca8f8e2470069a09375e0))
 
