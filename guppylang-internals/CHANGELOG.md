@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.0-rc0...guppylang-internals-v1.2.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* Avoid retaining the entire call stack when storing frames for compilation stage (#2458)([7aa5f25](https://github.com/Quantinuum/guppylang/commit/7aa5f25a643605abaa1ca8f8e2470069a09375e0))
+
+
+### Features
+
+* Add loading edges in the callgraph (#2448)([b2d07cf](https://github.com/Quantinuum/guppylang/commit/b2d07cf83a299fa03f677bc3ba2163fe80545bbf))
+
 ## [1.2.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.2.0-rc0) (2026-10-21)
 
 
