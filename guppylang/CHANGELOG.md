@@ -14,44 +14,15 @@ This changelog documents user-facing changes to the Guppy language excluding cha
 
 As of version `1.0.0`, the Guppy language is considered stable. An extended changelog for this version can be found [here](#101-2026-08-03).
 
-## [1.2.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.3...guppylang-v1.2.0-rc0) (2026-10-21)
-
-
-### ⚠ BREAKING CHANGES
-
-* Cleanup array module for Python 3.12 (#2432)
+## [1.2.0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.2.0-rc0...guppylang-v1.2.0) (2026-10-26)
 
 
 ### Bug Fixes
 
-* Effects in ext_module_decorator and for from_halfturns_unchecked (#2438)([4f85c47](https://github.com/Quantinuum/guppylang/commit/4f85c477083af1059826c24ff5fa352a749e442d))
-* Remove unsound effect defaults from hugr_op and custom_func and add many missing effects (#2269)([df85c2d](https://github.com/Quantinuum/guppylang/commit/df85c2d632a366a7eb39cf75e65c8eb23985133c))
-* Mypy inference for Guppy decorator factories (#2421)([6bf79fb](https://github.com/Quantinuum/guppylang/commit/6bf79fb84233bd4cb25e674dbc320fe0a59726d3))
-* Resolve enclosing-scope names in `@guppy.unitary` methods (#2388)([4b5c340](https://github.com/Quantinuum/guppylang/commit/4b5c340d8e53ac11339b31febbd2bdb4f8aa77a6))
-* Compilation error with classical array.take (#2328)([e8bbd48](https://github.com/Quantinuum/guppylang/commit/e8bbd48d97b37de400c5f0d241101274b192ab09))
-* Hide trace in @guppy.unitary decorator error (#2318)([ab9f598](https://github.com/Quantinuum/guppylang/commit/ab9f598706c3e633b749f4f2da5fe531f9582eff))
-* Reject unsupported statements in @guppy.unitary classes (#2310)([456c0d9](https://github.com/Quantinuum/guppylang/commit/456c0d9cba867a9b0bc23fc8688447d81f36d808))
+* Record indirect calls when resolving modifiers ([b2d07cf](https://github.com/Quantinuum/guppylang/commit/b2d07cf83a299fa03f677bc3ba2163fe80545bbf))
 
+* Avoid retaining the entire call stack when storing frames for compilation stage (#2458)([7aa5f25](https://github.com/Quantinuum/guppylang/commit/7aa5f25a643605abaa1ca8f8e2470069a09375e0))
 
-### Code Refactoring
-
-* Cleanup array module for Python 3.12 (#2432)([eb91b0b](https://github.com/Quantinuum/guppylang/commit/eb91b0b154b932676963da0b7c0d26a02bce6ee2))
-
-
-### Documentation
-
-* Use Oxford spelling consistently in public documentation (#2341)([b04bcd2](https://github.com/Quantinuum/guppylang/commit/b04bcd241003adb6b5ef79a6af68e48bcddcff0c))
-
-
-### Features
-
-* Split effects into ALLOC, FREE, OUTPUT, PANIC, RNG and impose weak and strong ordering (#2363)([609cb6f](https://github.com/Quantinuum/guppylang/commit/609cb6f2b3fefa30f3292b277f362365256a8b76))
-* Preserve barriers and static array outputs in comptime (#2263)([6727a99](https://github.com/Quantinuum/guppylang/commit/6727a99c7dc5ba8b07e638534340b0fef947a192))
-* Guppy standard math module using HUGR math extension (#2365)([6781ffd](https://github.com/Quantinuum/guppylang/commit/6781ffd0aa414ba2b1f483d247f5d485d112aa90))
-* Add `empty_array` helper to create an array with all elements borrowed (#2327)([d2ce2f7](https://github.com/Quantinuum/guppylang/commit/d2ce2f7038f74c47abaec2fde7bc1e62a26a0221))
-* Register additional members in libraries after their creation (#2366)([31b9018](https://github.com/Quantinuum/guppylang/commit/31b9018e28eb608ded15ccadc1f9ff1f2b8191f2))
-* Support decimal places in rounding (#2283)([6f7ea2f](https://github.com/Quantinuum/guppylang/commit/6f7ea2f47ad084c836e5905f096514e122de2daf))
-* Accept bytes into emulator builder (#2314)([24dc1a5](https://github.com/Quantinuum/guppylang/commit/24dc1a5747ac259a2e42925c75676b3da663fec5))
 
 ## [1.2.0-rc0](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.3...guppylang-v1.2.0-rc0) (2026-10-21)
 
