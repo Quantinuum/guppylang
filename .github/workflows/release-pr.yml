@@ -6,6 +6,8 @@
 # changelog for each package, and opens/updates a PR on the `release-pr--<base>`
 # branch (one per base branch). The actual GitHub releases are cut by
 # `release-publish.yml` once this PR is merged.
+# Pushes to `main` only update an existing open release PR; use manual dispatch
+# to open a new one. Pushes to release branches can still open a release PR.
 #
 # Versioning:
 #   * `guppylang` and `guppylang-internals` always share the *exact same* version
@@ -165,6 +167,22 @@ jobs:
             echo "guppylang v$cur is not tagged yet; a release is pending publish."
           fi
 
+      - name: Inspect existing release PR for changelog regen
+        id: pr
+        run: |
+          set -euo pipefail
+          data=$(gh pr list --base "$BASE" --head "$BRANCH" --state open --json number,labels)
+          number=$(echo "$data" | jq -r '.[0].number // ""')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          if [ -z "$number" ]; then
+            # No PR yet: seed the changelog draft on first creation.
+            echo "regen=true" >> "$GITHUB_OUTPUT"
+          else
+            regen=$(echo "$data" | jq -r --arg l "$REGEN_LABEL" \
+              '([.[0].labels[].name] | index($l)) != null')
+            echo "regen=$regen" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Decide whether to proceed
         id: gate
         run: |
@@ -179,26 +197,15 @@ jobs:
             echo "Publish pending on main!"
             proceed=false
           fi
+          if [ "${{ github.event_name }}" = "push" ] && \
+             [ "$BASE" = "main" ] && \
+             [ -z "${{ steps.pr.outputs.number }}" ]; then
+            echo "No open release PR on main; skipping automatic creation."
+            proceed=false
+          fi
           echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
           if [ "$proceed" != "true" ]; then
             echo "Nothing to do; skipping release PR."
-          fi
-
-      - name: Inspect existing release PR for changelog regen
-        id: pr
-        if: steps.gate.outputs.proceed == 'true'
-        run: |
-          set -euo pipefail
-          data=$(gh pr list --head "$BRANCH" --state open --json number,labels)
-          number=$(echo "$data" | jq -r '.[0].number // ""')
-          echo "number=$number" >> "$GITHUB_OUTPUT"
-          if [ -z "$number" ]; then
-            # No PR yet: seed the changelog draft on first creation.
-            echo "regen=true" >> "$GITHUB_OUTPUT"
-          else
-            regen=$(echo "$data" | jq -r --arg l "$REGEN_LABEL" \
-              '([.[0].labels[].name] | index($l)) != null')
-            echo "regen=$regen" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build the release branch
