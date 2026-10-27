@@ -143,4 +143,9 @@ def test_more_generic(validate):
         c, d = e.foo(c, 99)
         return a + b + c + d
 
+    from guppylang.optimizer import OptimizationLevel
+
+    # To work around https://github.com/Quantinuum/guppylang/issues/2348
+    main = main.with_opt_level(OptimizationLevel.Classical)
+
     validate(main.compile_function())
