@@ -41,6 +41,18 @@
 
 * Avoid single dispatch on hot code paths (#2317)([7d5589e](https://github.com/Quantinuum/guppylang/commit/7d5589ee9b6938a7c64bfdd25690ff365cde746d))
 
+## [1.2.0-a0](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.2.0...guppylang-internals-v1.2.0-a0) (2026-10-27)
+
+
+### Bug Fixes
+
+* Avoid retaining the entire call stack when storing frames for compilation stage (#2417)([f501b3a](https://github.com/Quantinuum/guppylang/commit/f501b3a13009f0abfb586444402091081de0dac9))
+
+
+### Features
+
+* Add loading edges in the callgraph (#2392)([3ce6dad](https://github.com/Quantinuum/guppylang/commit/3ce6dad9243a4ea5c72688b5309f24e20c8f6783))
+
 ## [1.1.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.1.4) (2026-10-22)
 
 
