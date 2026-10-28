@@ -1,0 +1,9 @@
+Error: Can't compare apples with oranges (at primary.py:1:4)
+  | 
+1 | use Other
+  |     ^^^^^ Comparison attempted here
+
+Note: (at other.py:1:6)
+  | 
+1 | class Other:
+  |       ----- `Other` defined here

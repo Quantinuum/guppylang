@@ -81,6 +81,12 @@ def run_error_test(file, capsys, snapshot, needs_experimental_features=False):
 
         err = capsys.readouterr().err
         err = err.replace(str(file), "$FILE")
+        # A cycle note may point at another file under this fixture directory.
+        # Replace that directory only after the primary path, so existing
+        # snapshots that mention only `$FILE` stay unchanged.
+        directory = str(file.parent)
+        if directory in err:
+            err = err.replace(directory + "/", "$DIR/")
         # The WASM file descriptor can stretch across multiple lines in a longer message,
         # so we try to predict the wrapping points to be able to build a replacement regex.
         wasm_module = get_wasm_file()

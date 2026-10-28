@@ -1,8 +1,19 @@
-Error: Unsupported (at $FILE:6:28)
-  | 
-4 | @guppy.enum
-5 | class MyEnum:
-6 |     Variant1 = {"x": "tuple[MyStruct, int]"}
-  |                             ^^^^^^^^ Recursive definitions are not supported
+Error: Recursive type definition (at $FILE:6:28)
+   | 
+ 4 | @guppy.enum
+ 5 | class MyEnum:
+ 6 |     Variant1 = {"x": "tuple[MyStruct, int]"}
+   |                             ^^^^^^^^ Type cycle detected:
+   |                                      `MyStruct` -> `MyEnum` -> `MyStruct`
+
+Notes:
+   | 
+ 9 | @guppy.struct
+10 | class MyStruct:
+   | --------------- `MyStruct` defined here
+
+ 4 | @guppy.enum
+ 5 | class MyEnum:
+   | ------------- `MyEnum` defined here
 
 Guppy compilation failed due to 1 previous error

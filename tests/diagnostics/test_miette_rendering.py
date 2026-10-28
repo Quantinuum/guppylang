@@ -142,3 +142,26 @@ def foo(x: blah) -> None:
     diagnostic.add_sub_diagnostic(IssueNoteMsg(None))
 
     run_miette_test(source, diagnostic, snapshot, request)
+
+
+def test_foreign_file_note_is_not_offset_into_primary_source(snapshot, request):
+    """A note in another file must not be highlighted inside the primary buffer."""
+
+    @dataclass(frozen=True)
+    class MyNote(Note):
+        span_label: ClassVar[str] = "`Other` defined here"
+
+    primary = "primary.py"
+    other = "other.py"
+    sources = SourceMap()
+    sources.add_file(primary, "use Other\n")
+    sources.add_file(other, "class Other:\n    pass\n")
+    diagnostic = MyError(Span(Loc(primary, 1, 4), Loc(primary, 1, 9)))
+    diagnostic.add_sub_diagnostic(MyNote(Span(Loc(other, 1, 6), Loc(other, 1, 11))))
+
+    renderer = MietteRenderer(sources)
+    renderer.render_diagnostic(diagnostic)
+    out = "\n".join(renderer.buffer)
+
+    snapshot.snapshot_dir = str(Path(request.fspath).parent / "snapshots" / "miette")
+    snapshot.assert_match(out, f"{request.node.name}.txt")

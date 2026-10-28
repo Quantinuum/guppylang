@@ -22,7 +22,7 @@ from guppylang_internals.diagnostic import Error, Help, Note
 from guppylang_internals.error import GuppyError, InternalGuppyError
 from guppylang_internals.frame_util import FrameSnapshot
 from guppylang_internals.ipython_inspect import is_running_ipython
-from guppylang_internals.span import SourceMap, Span, to_span
+from guppylang_internals.span import SourceMap, Span, class_header_span, to_span
 from guppylang_internals.tys.param import Parameter
 from guppylang_internals.tys.parsing import (
     TypeParsingCtx,
@@ -134,6 +134,24 @@ def is_guppy_unitary(value: object) -> bool:
     )
 
 
+@dataclass(frozen=True)
+class RecursiveDefinitionError(Error):
+    """A struct, enum, or type alias participates in a type cycle."""
+
+    title: ClassVar[str] = "Recursive type definition"
+    cycle: tuple[str, ...]
+
+    @property
+    def rendered_span_label(self) -> str:
+        chain = " -> ".join(f"`{name}`" for name in self.cycle)
+        return f"Type cycle detected:\n{chain}"
+
+    @dataclass(frozen=True)
+    class DefinedHere(Note):
+        name: str
+        span_label: ClassVar[str] = "`{name}` defined here"
+
+
 def check_not_recursive(defn: ParsedRecursiveTypeDef, ctx: TypeParsingCtx) -> None:
     """Raises a user error if a struct, enum, or type alias depends on itself."""
     _check_not_recursive(defn, ctx, [defn.id], set())
@@ -147,7 +165,7 @@ def _check_not_recursive(
 ) -> None:
     for dependency, loc in _dependencies(defn, ctx):
         if dependency.id in path:
-            raise GuppyError(UnsupportedError(loc, "Recursive definitions"))
+            _raise_recursive_cycle(path, dependency.id, loc)
         if dependency.id not in checked:
             dependency_ctx = _type_parsing_ctx(dependency)
             _check_not_recursive(
@@ -155,6 +173,48 @@ def _check_not_recursive(
             )
 
     checked.add(defn.id)
+
+
+def _raise_recursive_cycle(path: list[DefId], repeated_id: DefId, loc: AstNode) -> None:
+    """Report the cycle closed by `repeated_id`, excluding any path prefix."""
+    start = path.index(repeated_id)
+    # `path[start:]` is the cycle; repeating the id prints the closing edge.
+    cycle_ids = [*path[start:], repeated_id]
+    cycle_defs = tuple(_parsed_recursive_type_def(def_id) for def_id in cycle_ids)
+    err = RecursiveDefinitionError(loc, tuple(defn.name for defn in cycle_defs))
+    primary = to_span(loc)
+    # The final id repeats the first member so the chain closes. A note whose span is
+    # exactly the primary caret would underline that use a second time.
+    for defn in cycle_defs[:-1]:
+        defined_at = _cycle_member_span(defn)
+        if defined_at is None or defined_at == primary:
+            continue
+        err.add_sub_diagnostic(
+            RecursiveDefinitionError.DefinedHere(defined_at, defn.name)
+        )
+    raise GuppyError(err)
+
+
+def _parsed_recursive_type_def(def_id: DefId) -> ParsedRecursiveTypeDef:
+    """Look up a parsed definition without checking it again."""
+    from guppylang_internals.engine import ENGINE
+
+    defn = ENGINE.get_parsed(def_id)
+    if not _is_parsed_recursive_type_def(defn):
+        raise InternalGuppyError(
+            "Expected a parsed struct, enum, or type alias definition"
+        )
+    return defn
+
+
+def _cycle_member_span(defn: ParsedRecursiveTypeDef) -> Span | None:
+    """Span of the definition site, using the class header for structs and enums."""
+    node = defn.defined_at
+    if node is None:
+        return None
+    if isinstance(node, ast.ClassDef):
+        return class_header_span(node)
+    return to_span(node)
 
 
 def _dependencies(
