@@ -1,0 +1,15 @@
+Error: Recursive type definition (at $DIR/modules/cycle_b.py:4:0)
+  | 
+2 | from guppylang import guppy
+3 | 
+4 | Alias2 = guppy.type_alias("Alias2", "cycle_a.Alias1")
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type cycle detected:
+  |                                                       `Alias1` -> `Alias2` -> `Alias1`
+
+Note: (at $DIR/modules/cycle_a.py:4:0)
+  | 
+3 | 
+4 | Alias1 = guppy.type_alias("Alias1", "cycle_b.Alias2")
+  | ----------------------------------------------------- `Alias1` defined here
+
+Guppy compilation failed due to 1 previous error
