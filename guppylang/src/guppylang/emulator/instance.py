@@ -381,7 +381,7 @@ class EmulatorInstance:
         if self.trace_enabled:
             from selene_sim.event_hooks.instruction_log import CircuitExtractor
 
-            circuit_extractor = CircuitExtractor()  # type: ignore[no-untyped-call]
+            circuit_extractor = CircuitExtractor()  # type: ignore[no-untyped-call, unused-ignore]
             event_hooks.append(circuit_extractor)
 
         if self.metrics_enabled:
