@@ -424,7 +424,14 @@ def test_unitary_with_unitary_parameters(validate):
 
     @guppy(unitary=True)
     def apply_daggerable_and_controllable[
-        F: (Daggerable[[qubit], None], Controllable[[qubit], None], Copy, Drop)
+        F: (Daggerable[[qubit], None], Controllable[[qubit], None])
+    ](f: F, q: qubit) -> None:
+        f(q)
+
+    # Same as above but with the order reversed
+    @guppy(unitary=True)
+    def apply_controllable_and_daggerable[
+        F: (Controllable[[qubit], None], Daggerable[[qubit], None])
     ](f: F, q: qubit) -> None:
         f(q)
 
@@ -435,12 +442,27 @@ def test_unitary_with_unitary_parameters(validate):
         apply_unitary(custom_unitary, q)
         apply_dagger(h, q)
         apply_unitary(h, q)
-
-        # We have to skip this test due to https://github.com/Quantinuum/guppylang/issues/2244
-        # apply_daggerable_and_controllable(custom_unitary, q)
+        apply_daggerable_and_controllable(custom_unitary, q)
+        apply_controllable_and_daggerable(custom_unitary, q)
+        apply_daggerable_and_controllable(h, q)
+        apply_controllable_and_daggerable(h, q)
 
     # Checking that the hugr is valid before and after modifier+optimization passes
     validate(main.with_minimal_opt().compile_function())
+    validate(main.compile_function())
+
+
+def test_combined_modifier_bounds_return(validate):
+    @guppy(unitary=True)
+    def apply[F: (Daggerable[[qubit], None], Controllable[[qubit], None])](
+        f: F, q: qubit
+    ) -> None:
+        return f(q)
+
+    @guppy
+    def main(q: qubit) -> None:
+        apply(h, q)
+
     validate(main.compile_function())
 
 
