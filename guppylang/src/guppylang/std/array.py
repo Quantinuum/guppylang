@@ -5,6 +5,9 @@ See `frozenarray[T, n]` for an immutable version of the `array[T, n]` type.
 
 Boolean arrays provide borrowed reductions for measurement post-processing:
 `array.any`, `array.all`, `array.count_true`, and `array.parity`.
+Elementwise logic is available through `array.bitwise_and`, `array.bitwise_or`,
+`array.bitwise_xor`, and `array.bitwise_not`; `array.dot` computes a GF(2)
+scalar product.
 """
 
 # mypy: disable-error-code="empty-body, misc, override, valid-type, no-untyped-def"
@@ -401,6 +404,85 @@ class array[T, n: nat](builtins.list[T]):
         parity = False
         for i in range(n):
             parity ^= self[i]
+        return parity
+
+    # Elementwise logic could share sized zip/map implementations, and dot is a
+    # fold over paired elements. Keep these array-local until shared iterable
+    # interfaces are justified; they currently need no new element protocols.
+    @guppy
+    @no_type_check
+    def bitwise_and[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise AND of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+        """
+        return array(self[i] & other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_or[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise OR of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+        """
+        return array(self[i] | other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_xor[n: nat](
+        self: array[bool, n], other: array[bool, n]
+    ) -> array[bool, n]:
+        """Return the elementwise XOR of two boolean arrays of equal length.
+
+        Borrows both inputs without modifying them and returns a new array.
+        Empty inputs produce an empty array. Takes O(n) time and O(1)
+        auxiliary space, excluding the O(n) output array.
+
+        .. code-block:: python
+
+            expected = array(True, False, True)
+            observed = array(True, True, False)
+            differences = observed.bitwise_xor(expected)  # [False, True, True]
+        """
+        return array(self[i] ^ other[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def bitwise_not[n: nat](self: array[bool, n]) -> array[bool, n]:
+        """Return a new boolean array with every element negated.
+
+        Borrows the input without modifying it. An empty input produces an
+        empty array. Takes O(n) time and O(1) auxiliary space, excluding the
+        O(n) output array.
+        """
+        return array(not self[i] for i in range(n))
+
+    @guppy
+    @no_type_check
+    def dot[n: nat](self: array[bool, n], other: array[bool, n]) -> bool:
+        """Return the GF(2) scalar product of equal-length boolean arrays.
+
+        Computes the XOR of pairwise ANDs, or ``False`` for empty arrays.
+        Borrows both inputs without modifying them. A single scan takes
+        O(n) time and O(1) auxiliary space without an intermediate array.
+
+        .. code-block:: python
+
+            outcomes = array(True, False, True)
+            mask = array(True, False, False)
+            selected_parity = outcomes.dot(mask)  # True
+        """
+        parity = False
+        for i in range(n):
+            parity ^= self[i] & other[i]
         return parity
 
 
