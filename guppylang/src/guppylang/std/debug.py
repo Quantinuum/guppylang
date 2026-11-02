@@ -19,6 +19,61 @@ def state_output(tag, *args) -> None:
     This is a debugging function that works only when the program is executed
     on a supported simulator.
 
+    The state recorded by this function is a partial state of the specified
+    qubits, with unspecified qubits considered traced out. It should therefore
+    not in general be interpreted as the state vector of the full system.
+
+    The recorded partial state can be accessed through
+    :py:meth:`EmulatorResult.partial_states` or
+    :py:meth:`EmulatorResult.partial_state_dicts`, which return
+    :py:class:`PartialVector` objects. Use
+    :py:meth:`PartialVector.state_distribution` to obtain the distribution
+    of states (a representation of the reduced density matrix) after tracing out
+    the unspecified qubits.
+
+    For example, we can prepare a Bell state on two qubits and record the state
+    of a single qubit as follows:
+
+    .. code-block:: python
+
+        from guppylang import guppy
+        from guppylang.std.debug import state_output
+        from guppylang.std.platform import barrier
+        from guppylang.std.quantum import cx, discard, h, qubit
+
+        @guppy
+        def inspect_bell() -> None:
+            q0 = qubit()
+            q1 = qubit()
+
+            h(q0)
+            cx(q0, q1)
+
+            barrier(q0, q1)
+            state_output("q0", q0)
+            barrier(q0, q1)
+
+            discard(q0)
+            discard(q1)
+
+        result = inspect_bell.emulator(2).with_shots(1).run()
+
+        shot = result.partial_state_dicts()[0]
+
+        partial = shot["q0"]
+
+    Finally, to convert the :py:class:`PartialVector` to a reduced density
+    matrix:
+
+    .. code-block:: python
+
+        import numpy as np
+
+        rho = sum(
+            item.probability * np.outer(item.state, item.state.conj())
+            for item in partial.state_distribution()
+        )
+
     Guppy does not in general respect the order of function calls in the source code, it
     is constrained by the dataflow of the program. Whilst two `state_output`s are
     guaranteed to execute in source-code order, function calls such as "pure quantum"
