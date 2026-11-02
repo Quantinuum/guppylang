@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import builtins
 from types import GeneratorType
-from typing import TYPE_CHECKING, no_type_check
+from typing import TYPE_CHECKING, Self, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import CopyInoutCompiler
@@ -47,6 +47,12 @@ from guppylang.std.option import Option, nothing, some
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
+
+
+@guppy.protocol
+class _ArrayTruthiness:
+    @guppy.require
+    def __bool__(self: Self) -> bool: ...
 
 
 @extend_type(
@@ -311,6 +317,89 @@ class array[T, n: nat](builtins.list[T]):
         """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
+
+    # Borrowed indexing allows early exit without consuming linear elements.
+    # An iterable abstraction must define ownership of unconsumed elements
+    # before it can provide equivalent short-circuit reductions.
+    @guppy
+    @no_type_check
+    def any[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return whether any element is truthy, or ``False`` for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        Scans in index order and stops at the first truthy
+        element. Takes O(n) time in the worst case and O(1) auxiliary space.
+        Panics if an accessed element is missing.
+
+        .. code-block:: python
+
+            any_true = array(False, True).any()  # True
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin any yet.
+            if self[i]:
+                return True
+        return False
+
+    @guppy
+    @no_type_check
+    def all[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return whether all elements are truthy, or ``True`` for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        Scans in index order and stops at the first falsey
+        element. Takes O(n) time in the worst case and O(1) auxiliary space.
+        Panics if an accessed element is missing.
+
+        .. code-block:: python
+
+            all_true = array(True, False).all()  # False
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin all yet.
+            if not self[i]:
+                return False
+        return True
+
+    @guppy
+    @no_type_check
+    def count_true[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> int:
+        """Count truthy elements, returning zero for an empty array.
+
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        A single scan takes O(n) time and O(1) auxiliary space.
+        Panics if an element is missing.
+
+        .. code-block:: python
+
+            count = array(True, False, True).count_true()  # 2
+        """
+        count = 0
+        for i in range(n):
+            count += int(bool(self[i]))
+        return count
+
+    @guppy
+    @no_type_check
+    def parity[T: _ArrayTruthiness, n: nat](self: array[T, n]) -> bool:
+        """Return the XOR of all element truth values, or ``False`` for an empty array.
+
+        The result is true exactly when an odd number of elements are truthy.
+        Borrows the array and calls each element's borrowed `__bool__` method.
+        A single scan takes O(n) time and O(1) auxiliary space.
+        Panics if an element is missing.
+
+        .. code-block:: python
+
+            from guppylang.std.quantum import measure_array, qubit, x
+
+            qs = array(qubit() for _ in range(3))
+            x(qs[0])
+            outcomes = array(m.read() for m in measure_array(qs))
+            odd_parity = outcomes.parity()  # True
+        """
+        parity = False
+        for i in range(n):
+            parity ^= bool(self[i])
+        return parity
 
 
 @hugr_op(
