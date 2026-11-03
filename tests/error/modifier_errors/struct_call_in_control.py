@@ -1,24 +1,32 @@
+from typing import Generic
+
 from guppylang import guppy
 from guppylang.std.builtins import control
-from guppylang.std.quantum import h, measure, qubit
+from guppylang.std.quantum import qubit
+
+T = guppy.type_var("T")
 
 
 @guppy.struct
-class S:
+class Inner(Generic[T]):
     q: qubit
+    value: T
+
+
+@guppy.struct
+class Outer:
+    inner: tuple[int, Inner[int]]
 
 
 @guppy
-def use(s: S) -> None:
-    q = qubit()
-    h(s.q)
-    measure(q)
+def use(s: Outer) -> None:
+    pass
 
 
 @guppy
-def main(c: qubit, s: S) -> None:
+def main(c: qubit, s: Outer) -> None:
     with control(c):
         use(s)
 
 
-main.with_minimal_opt().compile_function()
+main.compile_function()

@@ -1,8 +1,8 @@
-Error: Control constraint violation (at $FILE:21:8)
+Error: Control constraint violation (at $FILE:29:8)
    | 
-19 | def main(c: qubit, s: S) -> None:
-20 |     with control(c):
-21 |         use(s)
+27 | def main(c: qubit, s: Outer) -> None:
+28 |     with control(c):
+29 |         use(s)
    |         ^^^^^^ This function cannot be called in a controllable context
 
 Help: Consider adding the flag `(controllable=True)` to the decorator of the
