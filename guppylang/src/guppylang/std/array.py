@@ -40,7 +40,7 @@ from hugr.std.collections.borrow_array import EXTENSION
 from guppylang import guppy
 from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
-from guppylang.std.lang import Copy, Drop
+from guppylang.std.lang import Copy, Drop, comptime
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
@@ -53,6 +53,14 @@ if TYPE_CHECKING:
 class _ArrayTruthiness:
     @guppy.require
     def __bool__(self: Self) -> bool: ...
+
+
+def _check_bit_width(size: int) -> None:
+    """Validate the static width before generating any conversion code."""
+    # The comptime evaluator wraps Python exceptions in a source-located GuppyError.
+    if not 0 <= size <= 64:
+        msg = "Boolean array bit width must be between 0 and 64"
+        raise ValueError(msg)
 
 
 @extend_type(
@@ -478,6 +486,112 @@ class array[T, n: nat](builtins.list[T]):
         for i in range(n):
             parity ^= self[i] & other[i]
         return parity
+
+    @guppy
+    @no_type_check
+    def to_nat[n: nat](self: array[bool, n]) -> nat:
+        """Convert a boolean array to an unsigned integer, most significant bit first.
+
+        Index 0 is the most significant bit. An empty array represents zero.
+        The static length must be between 0 and 64; other lengths are rejected
+        during compilation. Borrows the input without modifying it.
+
+        A left-to-right shift-and-OR scan takes O(n) time and O(1) auxiliary
+        space. Each shift is by one bit, including at width 64.
+
+        .. code-block:: python
+
+            bits = array(True, False, False)
+            value = bits.to_nat()  # nat(4)
+        """
+        return _array_to_nat(self, False)
+
+    @guppy
+    @no_type_check
+    def to_nat_le[n: nat](self: array[bool, n]) -> nat:
+        """Convert a boolean array to an unsigned integer, least significant bit first.
+
+        Index 0 is the least significant bit. An empty array represents zero.
+        The static length must be between 0 and 64; other lengths are rejected
+        during compilation. Borrows the input without modifying it.
+
+        A right-to-left shift-and-OR scan takes O(n) time and O(1) auxiliary
+        space. Each shift is by one bit, including at width 64.
+
+        .. code-block:: python
+
+            bits = array(True, False, False)
+            value = bits.to_nat_le()  # nat(1)
+        """
+        return _array_to_nat(self, True)
+
+
+@guppy
+@no_type_check
+def _array_to_nat[n: nat](bits: array[bool, n], little_endian: bool @ comptime) -> nat:
+    comptime(_check_bit_width(n))  # type: ignore[name-defined]
+    size = len(bits)
+    value = nat(0)
+    for i in range(size):
+        index = size - i - 1 if little_endian else i
+        value = (value << nat(1)) | nat(bits[index])
+    return value
+
+
+@guppy
+@no_type_check
+def _array_from_nat(
+    value: nat, size: nat @ comptime, little_endian: bool @ comptime
+) -> Option[array[bool, size]]:
+    comptime(_check_bit_width(size))
+    maximum: nat = comptime((1 << size) - 1)
+    if value > maximum:
+        return nothing()
+    # Visit bit positions in output order without reversing or copying an array.
+    first, step = (0, 1) if little_endian else (int(size) - 1, -1)
+    return some(
+        array(bool((value >> nat(first + step * i)) & nat(1)) for i in range(size))
+    )
+
+
+@guppy
+@no_type_check
+def array_from_nat(value: nat, size: nat @ comptime) -> Option[array[bool, size]]:
+    """Convert an unsigned integer to a boolean array, most significant bit first.
+
+    Index 0 is the most significant bit. The compile-time size must be between
+    0 and 64; other sizes are rejected during compilation. Returns ``some(array)``
+    if the value fits in the requested size, or ``nothing`` otherwise. Size zero
+    accepts only zero.
+
+    Extracting each bit takes O(size) time and O(1) auxiliary space, excluding
+    the O(size) output array. Runtime shifts are at most 63 bits.
+
+    .. code-block:: python
+
+        bits = array_from_nat(nat(4), 3).unwrap()  # [True, False, False]
+    """
+    return _array_from_nat(value, size, False)
+
+
+@guppy
+@no_type_check
+def array_from_nat_le(value: nat, size: nat @ comptime) -> Option[array[bool, size]]:
+    """Convert an unsigned integer to a boolean array, least significant bit first.
+
+    Index 0 is the least significant bit. The compile-time size must be between
+    0 and 64; other sizes are rejected during compilation. Returns ``some(array)``
+    if the value fits in the requested size, or ``nothing`` otherwise. Size zero
+    accepts only zero.
+
+    Extracting each bit takes O(size) time and O(1) auxiliary space, excluding
+    the O(size) output array. Runtime shifts are at most 63 bits.
+
+    .. code-block:: python
+
+        bits = array_from_nat_le(nat(4), 3).unwrap()  # [False, False, True]
+    """
+    return _array_from_nat(value, size, True)
 
 
 @hugr_op(
