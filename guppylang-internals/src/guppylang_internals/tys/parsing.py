@@ -511,8 +511,8 @@ def parse_parameter(
                         else:
                             raise GuppyError(UnrecognisedBound(elt, ast.unparse(elt)))
 
-            # Mirror single callable bounds as on L540 below until protocol Copy/Drop
-            # semantics are fully defined
+            # TODO: Mirror single callable bounds as on L540 below until protocol
+            # Copy/Drop semantics are fully defined
             # see https://github.com/Quantinuum/guppylang/issues/2097.
             if bounds and all(
                 isinstance(p, (CallableProtocolInst, ModifiableFunctionProtocolInst))
