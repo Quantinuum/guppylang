@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from guppylang_internals.tys.arg import TypeArg
 from guppylang_internals.tys.common import Visitor
-from guppylang_internals.tys.ty import OpaqueType, Type
+from guppylang_internals.tys.ty import EnumType, OpaqueType, StructType, Type
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.ty import TypeDef
@@ -46,6 +46,19 @@ class QubitFinder(Visitor):
         if is_qubit_ty(ty):
             raise self.FoundFlag
         return False
+
+    @visit.register
+    def _visit_StructType(self, ty: StructType) -> bool:
+        for field in ty.fields:
+            field.ty.visit(self)
+        return True
+
+    @visit.register
+    def _visit_EnumType(self, ty: EnumType) -> bool:
+        for variant in ty.variants_as_list:
+            for field in variant.fields:
+                field.ty.visit(self)
+        return True
 
     @visit.register
     def _visit_TypeArg(self, arg: TypeArg) -> bool:
