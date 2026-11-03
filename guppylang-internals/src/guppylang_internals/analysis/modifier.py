@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from guppylang_internals.analysis.program_graph import ProgramGraph
 from guppylang_internals.checker.errors.generic import (
     RecursiveModifierControlCountError,
 )
@@ -61,17 +62,28 @@ class ModifierAnalysisResult:
     """Result of propagating modifiers through a monomorphized call graph.
 
     Args:
-        expanded_calls: Call graph after propagating modifiers and resolving calls to
-            custom modified implementations.
+        program_graph: Graph of the resolved call graph and the checked function-load
+            dependencies, including those of custom modified implementations.
         resolved_calls: Called function's ``MonoDefId`` for each call edge and modifier
             context.
         custom_uses_by_mono_def: Concrete custom modifier uses keyed by custom
             definition ``MonoDefId``.
     """
 
-    expanded_calls: dict[MonoDefId, list[MonoDefId]]
+    program_graph: ProgramGraph
     resolved_calls: dict[EdgeWithModifierContext, MonoDefId]
     custom_uses_by_mono_def: dict[MonoDefId, ConcreteCustomUse]
+
+    @property
+    def expanded_calls(self) -> dict[MonoDefId, list[MonoDefId]]:
+        """Temporary compatibility view for consumers awaiting graph migration.
+
+        Returns fresh mutable containers, keeping the analyzed graph isolated.
+        """
+        return {
+            caller: list(callees)
+            for caller, callees in self.program_graph.call_graph.items()
+        }
 
 
 ResolveModifiedCall = Callable[
@@ -82,7 +94,7 @@ ResolveModifiedCall = Callable[
 def analyze_modifier_calls(
     entry_points: Iterable[MonoDefId],
     raw_calls: Mapping[MonoDefId, Sequence[MonoDefId]],
-    load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
+    load_graph: Mapping[MonoDefId, Collection[MonoDefId]],
     local_modifiers_by_edge: Mapping[CallGraphEdge, Mapping[ModifierContext, Span]],
     resolve_modified_call: ResolveModifiedCall,
 ) -> ModifierAnalysisResult:
@@ -209,9 +221,9 @@ def analyze_modifier_calls(
         custom_calls, custom_uses_by_mono_def, contextual_callers
     )
     return ModifierAnalysisResult(
-        expanded_calls,
-        resolved_calls,
-        custom_uses_by_mono_def,
+        program_graph=ProgramGraph(expanded_calls, load_graph),
+        resolved_calls=resolved_calls,
+        custom_uses_by_mono_def=custom_uses_by_mono_def,
     )
 
 
