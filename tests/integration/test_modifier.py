@@ -1448,3 +1448,61 @@ def test_std(validate):
         discard(t)
 
     validate(main.compile())
+
+
+def test_control_struct_field(validate):
+    @guppy.struct
+    class TwoQubits:
+        a: qubit
+        b: qubit
+
+    @guppy
+    def main() -> None:
+        tq = TwoQubits(qubit(), qubit())
+        with control(tq.a):
+            x(tq.b)
+        discard(tq.a)
+        discard(tq.b)
+
+    validate(main.compile())
+
+
+def test_control_nested_struct_field(validate):
+    @guppy.struct
+    class Inner:
+        a: qubit
+        b: qubit
+
+    @guppy.struct
+    class Outer:
+        inner: Inner
+        c: qubit
+        n: int
+
+    @guppy
+    def main(o: Outer) -> None:
+        with control(o.inner.a):
+            x(o.inner.b)
+            x(o.c)
+            rx(o.c, angle(o.n))
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_nested_modifiers(validate):
+    @guppy.struct
+    class ThreeQubits:
+        a: qubit
+        b: qubit
+        c: qubit
+
+    @guppy
+    def main(tq: ThreeQubits) -> None:
+        with dagger:
+            with control(tq.a):
+                x(tq.b)
+            with control(tq.b):
+                with control(tq.a):
+                    x(tq.c)
+
+    validate(main.compile_function())
