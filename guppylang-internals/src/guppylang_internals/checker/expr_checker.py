@@ -520,7 +520,8 @@ class ExprChecker(AstVisitor[tuple[ast.expr, Subst]]):
             # Not yet monomorphized, so not to be compiled; effects irrelevant.
             assert self.ctx.current_caller is not None
             assert all(
-                isinstance(a, TypeArg) and isinstance(a.ty, BoundTypeVar)
+                (isinstance(a, TypeArg) and isinstance(a.ty, BoundTypeVar))
+                or (isinstance(a, ConstArg) and isinstance(a.const, BoundConstVar))
                 for a in self.ctx.current_caller[1]
             )
             args, subst, inst = check_call(sig, node.args, ty, node, self.ctx, None)
