@@ -466,6 +466,20 @@ def test_combined_modifier_bounds_return(validate):
     validate(main.compile_function())
 
 
+def test_combined_modifier_bounds_with_const_param():
+    @guppy(unitary=True)
+    def apply[
+        n: nat,
+        F: (
+            Daggerable[[array[qubit, n]], None],
+            Controllable[[array[qubit, n]], None],
+        ),
+    ](f: F, qs: array[qubit, n]) -> None:
+        return f(qs)
+
+    apply.check()
+
+
 def test_struct_unused_param(validate):
     """See https://github.com/Quantinuum/guppylang/issues/2047"""
 

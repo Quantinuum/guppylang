@@ -77,6 +77,16 @@ class UnrecognisedBound(Error):
 
 
 @dataclass(frozen=True)
+class IncompatibleCallableBounds(Error):
+    title: ClassVar[str] = "Incompatible callable bounds"
+    span_label: ClassVar[str] = (
+        "Expected callable signature `{expected}`, got `{actual}`"
+    )
+    expected: FunctionType
+    actual: FunctionType
+
+
+@dataclass(frozen=True)
 class TypeParsingCtx:
     """Context for parsing types from AST nodes."""
 
@@ -497,6 +507,9 @@ def parse_parameter(
             bounds: list[ProtocolInst] = []
             must_be_copyable = False
             must_be_droppable = False
+
+            first_callable_sig: FunctionType | None = None
+
             for elt in elts:
                 match elt:
                     case ast.Name(id="Copy"):
@@ -507,6 +520,26 @@ def parse_parameter(
                         if proto_inst := parse_bound(
                             elt, globals, param_var_mapping, allow_free_vars
                         ):
+                            if isinstance(
+                                proto_inst,
+                                (CallableProtocolInst, ModifiableFunctionProtocolInst),
+                            ):
+                                sig = proto_inst.sig.with_unitary_flags(
+                                    UnitaryFlags.NoFlags
+                                )
+
+                                if (
+                                    first_callable_sig is not None
+                                    and sig != first_callable_sig
+                                ):
+                                    raise GuppyError(
+                                        IncompatibleCallableBounds(
+                                            elt, first_callable_sig, sig
+                                        )
+                                    )
+
+                                first_callable_sig = sig
+
                             bounds.append(proto_inst)
                         else:
                             raise GuppyError(UnrecognisedBound(elt, ast.unparse(elt)))

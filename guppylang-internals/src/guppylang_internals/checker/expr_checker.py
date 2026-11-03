@@ -249,6 +249,10 @@ def resolve_callable_signature(ty: BoundTypeVar) -> FunctionType | None:
         # Combine modifier capabilities only for identical callable signatures.
         if base_sig == other_sig:
             combined_flags |= protocol.sig.unitary_flags
+        else:
+            assert base_sig == other_sig, (
+                "Callable signatures should have been validated in parse_parameter"
+            )
 
     return sig.with_unitary_flags(combined_flags)
 
