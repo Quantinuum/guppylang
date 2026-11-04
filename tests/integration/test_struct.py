@@ -200,7 +200,11 @@ def test_control_classical_struct_with_unused_quantum_type_arg(validate):
         value: int
 
     @guppy
+    # Even though T is qubit, it's unused in the struct. Thus the struct is fully
+    # classical making the function fully classical. Thus we do not need it to be
+    # declared as `controllable`.
     def use(s: Classical[qubit]) -> None:
+
         s.value += 1
 
     @guppy
@@ -223,6 +227,8 @@ def test_control_nested_quantum_struct(validate):
         inner: Inner[qubit]
 
     @guppy(controllable=True)
+    # Here Outer contains inside Inner a qubit type. Thus the function is quantum and
+    # we need the controllable flag.
     def use(s: Outer) -> None:
         h(s.inner.value)
 
