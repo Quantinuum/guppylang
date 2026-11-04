@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import builtins
 from types import GeneratorType
-from typing import TYPE_CHECKING, no_type_check
+from typing import TYPE_CHECKING, Self, no_type_check
 
 from guppylang_internals.decorator import custom_function, extend_type, hugr_op
 from guppylang_internals.definition.custom import CopyInoutCompiler
@@ -47,6 +47,20 @@ from guppylang.std.option import Option, nothing, some
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
+
+
+# This equality bound is local until collection-wide interfaces are justified.
+@guppy.protocol
+class _ArrayEquality:
+    @guppy.require
+    def __eq__(self: Self, other: Self) -> bool: ...
+
+
+def _check_array_index(index: int, size: int) -> None:
+    """Validate a static array index before generating access code."""
+    if not 0 <= index < size:
+        msg = f"Array index {index} is out of bounds for array of size {size}"
+        raise ValueError(msg)
 
 
 def _check_bit_width(size: int) -> None:
@@ -319,6 +333,128 @@ class array[T, n: nat](builtins.list[T]):
         """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
+
+    @guppy
+    @no_type_check
+    def get[T: Copy, n: nat](self: array[T, n], index: int) -> Option[T]:
+        """Return a copy at index, or nothing for negative/out-of-range indices.
+
+        Borrows the array. Requires Copy; takes O(1) time and auxiliary space.
+
+        .. code-block:: python
+
+            values = array(3, 7)
+            value = values.get(1)  # some(7)
+            missing = values.get(-1)  # nothing
+        """
+        if index < 0 or index >= n:
+            return nothing()
+        return some(self[index])
+
+    @guppy
+    @no_type_check
+    def get_static[T: Copy, n: nat](self: array[T, n], index: nat @ comptime) -> T:
+        """Return a copy at a compile-time index, rejecting out-of-bounds indices.
+
+        Borrows the array and requires Copy. The index must satisfy 0 <= index < n;
+        empty arrays have no valid index. Takes O(1) time and auxiliary space.
+
+        .. code-block:: python
+
+            values = array(3, 7)
+            value = values.get_static(1)  # 7
+        """
+        comptime(_check_array_index(index, n))
+        return self[int(index)]
+
+    @guppy
+    @no_type_check
+    def first[T: Copy, n: nat](self: array[T, n]) -> T:
+        """Return a copy of the first element, rejecting empty arrays at compile time.
+
+        Borrows the array. Requires Copy; O(1) time and auxiliary space.
+        """
+        return self.get_static(0)
+
+    @guppy
+    @no_type_check
+    def last[T: Copy, n: nat](self: array[T, n]) -> T:
+        """Return a copy of the last element, rejecting empty arrays at compile time.
+
+        Borrows the array. Requires Copy; O(1) time and auxiliary space.
+        """
+        return self.get_static(comptime(n - 1))
+
+    @guppy
+    @no_type_check
+    def is_empty(self) -> bool:
+        """Return whether the static length is zero, borrowing the array.
+
+        Takes O(1) time and auxiliary space; supports linear elements.
+        """
+        return n == 0
+
+    @guppy
+    @no_type_check
+    def __eq__[T: _ArrayEquality, n: nat, m: nat](
+        self: array[T, n], other: array[T, m]
+    ) -> bool:
+        """Compare borrowed arrays using element equality in index order.
+
+        Different lengths return False immediately; two empty arrays are equal.
+        Stops at the first mismatch. Supports linear elements with borrowed
+        equality. O(n) worst-case time excluding equality costs, O(1) auxiliary
+        space.
+        """
+        if n != m:  # type: ignore[name-defined]
+            return False
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin all yet.
+            if not self[i].__eq__(other[i]):
+                return False
+        return True
+
+    @guppy
+    @no_type_check
+    def __ne__[T: _ArrayEquality, n: nat, m: nat](
+        self: array[T, n], other: array[T, m]
+    ) -> bool:
+        """Return the negation of array equality, borrowing both arrays.
+
+        Different lengths are unequal; two empty arrays are not unequal.
+        Supports linear elements with borrowed equality, stopping at the first
+        mismatch. O(n) worst-case time excluding equality costs and O(1)
+        auxiliary space.
+        """
+        return not self.__eq__(other)
+
+    @guppy
+    @no_type_check
+    def contains[T: _ArrayEquality, n: nat](self: array[T, n], value: T) -> bool:
+        """Return whether value occurs, or False for an empty array.
+
+        Borrows the array and value, supporting linear elements with borrowed
+        equality. Scans in index order, stopping at the first match. O(n)
+        worst-case time excluding equality costs, O(1) auxiliary space.
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin any yet.
+            if self[i].__eq__(value):
+                return True
+        return False
+
+    @guppy
+    @no_type_check
+    def count[T: _ArrayEquality, n: nat](self: array[T, n], value: T) -> int:
+        """Count occurrences of value, returning zero for an empty array.
+
+        Borrows the array and value, supporting linear elements with borrowed
+        equality. Compares each element once in index order. O(n) time excluding
+        equality costs and O(1) auxiliary space.
+        """
+        total = 0
+        for i in range(n):
+            if self[i].__eq__(value):
+                total += 1
+        return total
 
     # Borrowed indexing allows early exit without consuming linear elements.
     # An iterable abstraction must define ownership of unconsumed elements
