@@ -62,17 +62,14 @@ class ModifierAnalysisResult:
     """Result of propagating modifiers through a monomorphized call graph.
 
     Args:
-        program_graph: Graph of the resolved call graph and the checked function-load
-            dependencies, including those of custom modified implementations.
+        program_graph: Snapshot of the resolved call graph, checked function-load
+            dependencies, and required concrete custom modifier uses.
         resolved_calls: Called function's ``MonoDefId`` for each call edge and modifier
             context.
-        custom_uses_by_mono_def: Concrete custom modifier uses keyed by custom
-            definition ``MonoDefId``.
     """
 
     program_graph: ProgramGraph
     resolved_calls: dict[EdgeWithModifierContext, MonoDefId]
-    custom_uses_by_mono_def: dict[MonoDefId, ConcreteCustomUse]
 
     @property
     def expanded_calls(self) -> dict[MonoDefId, list[MonoDefId]]:
@@ -221,9 +218,8 @@ def analyze_modifier_calls(
         custom_calls, custom_uses_by_mono_def, contextual_callers
     )
     return ModifierAnalysisResult(
-        program_graph=ProgramGraph(expanded_calls, load_graph),
+        program_graph=ProgramGraph(expanded_calls, load_graph, custom_uses_by_mono_def),
         resolved_calls=resolved_calls,
-        custom_uses_by_mono_def=custom_uses_by_mono_def,
     )
 
 

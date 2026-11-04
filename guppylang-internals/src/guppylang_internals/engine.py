@@ -23,9 +23,9 @@ from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.analysis.modifier import (
     ConcreteCustomUse,
-    EdgeWithModifierContext,
     analyze_modifier_calls,
 )
+from guppylang_internals.analysis.program_graph import ProgramGraph
 from guppylang_internals.checker.modifier import (
     CustomModifierKind,
     ModifierContext,
@@ -321,15 +321,13 @@ class CompilationEngine:
     #: Mapping from each checked function specialization to functions loaded/referenced
     #: by it.
     load_graph: dict[MonoDefId, set[MonoDefId]]
+    #: Graph from the last completed check(), cleared on check() or reset().
+    analyzed_graph: ProgramGraph | None
     func_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site span for diagnostics in
     #: analysis.modifier._check_recursive_custom_uses
     local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, Span]]
-    #: Resolved calls indexed by their raw edge and effective propagated context.
-    resolved_modified_calls: dict[EdgeWithModifierContext, MonoDefId]
-    #: Concrete custom modifier uses indexed by custom-definition monomorphization.
-    custom_uses_by_mono_def: dict[MonoDefId, ConcreteCustomUse]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -385,8 +383,7 @@ class CompilationEngine:
         self.load_graph = {}
         self.func_effects = {}
         self.local_modifiers_by_edge = {}
-        self.resolved_modified_calls = {}
-        self.custom_uses_by_mono_def = {}
+        self.analyzed_graph = None
 
     def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
         """Records a function-value dependency, without propagating call effects."""
@@ -641,6 +638,7 @@ class CompilationEngine:
         #  need to store and check if any dependencies have changed.
         if reset:
             self.reset()
+        self.analyzed_graph = None
 
         # We allow generic functions as checking entrypoints as long as we don't run
         # into a check that requires monomorphization. For this, we check a version
@@ -680,11 +678,12 @@ class CompilationEngine:
                 self.local_modifiers_by_edge,
                 self._resolve_modified_call,
             )
-            self.resolved_modified_calls = modifier_analysis.resolved_calls
-            self.custom_uses_by_mono_def = modifier_analysis.custom_uses_by_mono_def
+            program_graph = modifier_analysis.program_graph
             if not self._register_custom_modifier_monomorphizations(
-                self.custom_uses_by_mono_def.values()
+                program_graph.custom_uses_by_mono_def.values()
             ):
+                self.analyzed_graph = program_graph
+                # NICOLA: TODO: cal_graph must be preserved!
                 self.call_graph = modifier_analysis.expanded_calls
                 break
             self._drain_check_worklists()
@@ -832,8 +831,11 @@ class CompilationEngine:
     def _compile_impl(
         self, def_ids: list[DefId]
     ) -> tuple[ModulePointer, list[CompiledDef]]:
-        callgraph = CallGraph(self.call_graph)
-        effects = compute_effects(callgraph, self.func_effects)
+        assert self.analyzed_graph is not None, (
+            "Checking must finish before compilation"
+        )
+        call_graph = CallGraph(self.analyzed_graph.call_graph)
+        effects = compute_effects(call_graph, self.func_effects)
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -851,7 +853,7 @@ class CompilationEngine:
             graph,
             set(def_ids),
             effects,
-            self.custom_uses_by_mono_def,
+            self.analyzed_graph.custom_uses_by_mono_def,
             StringTable(),
         )
         requested_defs = []

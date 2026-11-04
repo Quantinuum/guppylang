@@ -1,7 +1,9 @@
 from dataclasses import FrozenInstanceError
 
 import pytest
+from guppylang_internals.analysis.modifier import ConcreteCustomUse
 from guppylang_internals.analysis.program_graph import ProgramGraph
+from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.tys.builtin import nat_type
 from guppylang_internals.tys.param import ConstParam
@@ -10,9 +12,12 @@ from guppylang_internals.tys.param import ConstParam
 @pytest.mark.parametrize("condense_before_mutation", [False, True])
 def test_snapshot_isolated_from_source_mutations(condense_before_mutation):
     root, called, loaded = [(DefId.fresh(), ()) for _ in range(3)]
+    custom = (DefId.fresh(), ())
+    custom_use = ConcreteCustomUse(called, custom, CustomModifierKind.DAGGERED, None)
+    custom_uses = {custom: custom_use}
     calls = {root: [called, called], called: [], loaded: []}
     loads = {root: {loaded}, called: set(), loaded: set()}
-    graph = ProgramGraph(calls, loads)
+    graph = ProgramGraph(calls, loads, custom_uses)
 
     if condense_before_mutation:
         assert len(graph.condensed) == 3
@@ -26,6 +31,7 @@ def test_snapshot_isolated_from_source_mutations(condense_before_mutation):
     loads[called].add(root)
     loads[loaded] = {called}
     loads.clear()
+    custom_uses.clear()
 
     assert graph.call_graph == {root: (called, called), called: (), loaded: ()}
     assert graph.load_graph == {
@@ -33,6 +39,7 @@ def test_snapshot_isolated_from_source_mutations(condense_before_mutation):
         called: frozenset(),
         loaded: frozenset(),
     }
+    assert graph.custom_uses_by_mono_def == {custom: custom_use}
     components = {
         member: component
         for component in graph.condensed
@@ -48,12 +55,15 @@ def test_snapshot_isolated_from_source_mutations(condense_before_mutation):
 
 def test_graph_snapshots_are_read_only():
     root, leaf = [(DefId.fresh(), ()) for _ in range(2)]
-    graph = ProgramGraph({root: [leaf]}, {root: {leaf}})
+    custom_use = ConcreteCustomUse(root, leaf, CustomModifierKind.DAGGERED, None)
+    graph = ProgramGraph({root: [leaf]}, {root: {leaf}}, {leaf: custom_use})
 
     with pytest.raises(TypeError):
         graph.call_graph[root] = ()
     with pytest.raises(TypeError):
         graph.load_graph[root] = frozenset()
+    with pytest.raises(TypeError):
+        graph.custom_uses_by_mono_def[leaf] = custom_use
     with pytest.raises(TypeError):
         graph.call_graph[root][0] = root
     with pytest.raises(AttributeError):
@@ -62,9 +72,12 @@ def test_graph_snapshots_are_read_only():
         graph.call_graph = {}
     with pytest.raises(FrozenInstanceError):
         graph.load_graph = {}
+    with pytest.raises(FrozenInstanceError):
+        graph.custom_uses_by_mono_def = {}
 
     assert graph.call_graph[root] == (leaf,)
     assert graph.load_graph[root] == frozenset({leaf})
+    assert graph.custom_uses_by_mono_def == {leaf: custom_use}
 
 
 def test_empty_graph():
@@ -72,6 +85,7 @@ def test_empty_graph():
 
     assert graph.call_graph == {}
     assert graph.load_graph == {}
+    assert graph.custom_uses_by_mono_def == {}
     assert graph.condensed == ()
 
 

@@ -67,7 +67,7 @@ def test_analysis_returns_graph_without_mutating_checking_data():
     assert result.resolved_calls[(helper, gate), controlled] == custom
     # Loading a function does not pass on the helper's inherited control context.
     assert result.resolved_calls[(loaded, gate), NO_CALL_MODIFIERS] == gate
-    assert result.custom_uses_by_mono_def == {custom: custom_use}
+    assert result.program_graph.custom_uses_by_mono_def == {custom: custom_use}
 
 
 def test_expanded_calls_compatibility_view_is_an_independent_mutable_copy():
@@ -130,7 +130,7 @@ def test_analysis_includes_newly_checked_custom_dependencies():
         leaf: frozenset(),
     }
     assert second.resolved_calls[(loaded, leaf), NO_CALL_MODIFIERS] == leaf
-    assert second.custom_uses_by_mono_def == {custom: custom_use}
+    assert second.program_graph.custom_uses_by_mono_def == {custom: custom_use}
     assert first.program_graph.call_graph == {root: (custom,), gate: ()}
     assert first.program_graph.load_graph == {root: frozenset(), gate: frozenset()}
 

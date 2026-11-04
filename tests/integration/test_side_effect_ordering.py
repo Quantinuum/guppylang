@@ -66,10 +66,38 @@ def test_loads_do_not_propagate_call_effects():
 
     root.check()
 
-    effects = compute_effects(CallGraph(ENGINE.call_graph), ENGINE.func_effects)
-    assert ENGINE.load_graph[root.id, ()] == {(leaf.id, ())}
+    assert ENGINE.analyzed_graph is not None
+    effects = compute_effects(
+        CallGraph(ENGINE.analyzed_graph.call_graph), ENGINE.func_effects
+    )
+    assert ENGINE.analyzed_graph.load_graph[root.id, ()] == frozenset({(leaf.id, ())})
     assert effects[root.id, ()] == frozenset()
     assert effects[leaf.id, ()]
+
+
+def test_compilation_uses_analyzed_graph(validate, monkeypatch):
+    @guppy
+    def leaf() -> None:
+        panic("effect propagated to main")
+
+    @guppy
+    def main() -> None:
+        leaf()
+
+    check = ENGINE.check
+
+    def check_and_clear_raw_calls(def_ids, *, reset=True):
+        check(def_ids, reset=reset)
+        ENGINE.call_graph.clear()
+
+    monkeypatch.setattr(ENGINE, "check", check_and_clear_raw_calls)
+    program = main.with_minimal_opt().compile_function()
+    validate(program)
+
+    hugr = program.modules[0]
+    [call] = [node for node, data in hugr.nodes() if isinstance(data.op, ops.Call)]
+    [inp, out] = hugr.children(hugr[call].parent)[:2]
+    check_order(hugr, [inp, call, out])
 
 
 def test_input_output(validate):
