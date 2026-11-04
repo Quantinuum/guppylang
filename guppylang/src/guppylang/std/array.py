@@ -55,6 +55,22 @@ class _ArrayTruthiness:
     def __bool__(self: Self) -> bool: ...
 
 
+# This equality bound is local until collection-wide interfaces are justified.
+@guppy.protocol
+class _ArrayEquality:
+    @guppy.require
+    def __eq__(self: Self, other: Self) -> bool: ...
+
+
+def _check_array_index(index: int, size: int, message: str | None = None) -> None:
+    """Validate a static array index before generating access code."""
+    if not 0 <= index < size:
+        msg = (
+            message or f"Array index {index} is out of bounds for array of size {size}"
+        )
+        raise ValueError(msg)
+
+
 def _check_bit_width(size: int) -> None:
     """Validate the static width before generating any conversion code."""
     # The comptime evaluator wraps Python exceptions in a source-located GuppyError.
@@ -81,7 +97,8 @@ class array[T, n: nat](builtins.list[T]):
         # For classical arrays, ArrayIndexChecker adds effects
         # for the (separately compiled) unwrap.
     )
-    def __getitem__(self, idx: int) -> T: ...
+    def __getitem__(self, idx: int) -> T:
+        """Access an element in O(1) time and auxiliary space, excluding copy costs."""
 
     @custom_function(
         ArraySetitemCompiler(),
@@ -91,11 +108,13 @@ class array[T, n: nat](builtins.list[T]):
         # For classical arrays, ArrayIndexChecker adds effects
         # for the (separately compiled) unwrap.
     )
-    def __setitem__(self, idx: int, value: T @ owned) -> None: ...
+    def __setitem__(self, idx: int, value: T @ owned) -> None:
+        """Assign an element in O(1) time and auxiliary space, excluding drop costs."""
 
     @guppy
     @no_type_check
     def __len__(self) -> int:
+        """Return the static length in O(1) time and auxiliary space."""
         return n
 
     @custom_function(
@@ -115,6 +134,10 @@ class array[T, n: nat](builtins.list[T]):
     @guppy
     @no_type_check
     def __iter__[L, n: nat](self: array[L, n] @ owned) -> SizedIter[ArrayIter[L, n], n]:
+        """Consume the array into an iterator in O(1) time and auxiliary space.
+
+        Traversing all elements takes O(n) time, excluding the loop body.
+        """
         return SizedIter(ArrayIter(self, 0))
 
     @custom_function(
@@ -124,7 +147,10 @@ class array[T, n: nat](builtins.list[T]):
         effects=(),
     )
     def copy[T: Copy, n: nat](self: array[T, n]) -> array[T, n]:
-        """Copy an array instance. Will only work if T is a copyable type."""
+        """Copy an array instance. Will only work if T is a copyable type.
+
+        Takes O(n) time and output space, excluding element copy costs.
+        """
 
     @custom_function(
         ArrayIsBorrowedCompiler(),
@@ -137,6 +163,8 @@ class array[T, n: nat](builtins.list[T]):
 
         This is the case whenever a non-copyable element is borrowed, or when an element
         is manually taken out of the array via the `take` method.
+
+        Takes O(1) time and auxiliary space.
 
         .. code-block:: python
 
@@ -173,6 +201,8 @@ class array[T, n: nat](builtins.list[T]):
         Also see `array.try_take` for a version of this function that does not panic if
         the element has already been taken out.
 
+        Takes O(1) time and auxiliary space, excluding element copy costs.
+
         .. code-block:: python
 
             qs = array(qubit() for _ in range(10))
@@ -199,6 +229,8 @@ class array[T, n: nat](builtins.list[T]):
 
         Returns the extracted element or `nothing` if the element has already been taken
         out. Panics if the provided index is negative or out of bounds.
+
+        Takes O(1) time and auxiliary space, excluding element copy costs.
 
         .. code-block:: python
 
@@ -233,6 +265,8 @@ class array[T, n: nat](builtins.list[T]):
         Also see `array.try_put` for a version of this function that does not panic if
         if there is already an element at the given index.
 
+        Takes O(1) time and auxiliary space, excluding element drop costs.
+
         .. code-block:: python
 
             qs = array(qubit() for _ in range(10))
@@ -256,6 +290,8 @@ class array[T, n: nat](builtins.list[T]):
         mutated and the passed replacement element will be returned back in an `err`
         variant. Panics if the provided index is negative or out of bounds.
 
+        Takes O(1) time and auxiliary space, excluding element drop costs.
+
         .. code-block:: python
 
             qs = array(qubit() for _ in range(10))
@@ -276,6 +312,9 @@ class array[T, n: nat](builtins.list[T]):
         """Discards array assuming that all elements have been taken out, and panics if
         that is not the case.
 
+        Takes at most O(n) time and O(1) auxiliary space; copyable arrays need
+        no per-element check.
+
         .. code-block:: python
 
             qs = array(qubit() for _ in range(2))
@@ -292,6 +331,9 @@ class array[T, n: nat](builtins.list[T]):
     ) -> Result[None, array[L, n]]:
         """Similar to `discard_all_taken`, but instead of panicking returns the
         unmodified array when not all elements have been taken out.
+
+        Scans in index order, stopping at the first remaining element. Takes
+        O(n) worst-case time and O(1) auxiliary space.
 
         .. code-block:: python
 
@@ -318,6 +360,8 @@ class array[T, n: nat](builtins.list[T]):
     def reverse_in_place(self) -> None:
         """Reverse array elements in-place.
 
+        Takes O(n) time and O(1) auxiliary space, supporting linear elements.
+
         .. code-block:: python
 
             qs = array(qubit() for _ in range(2))
@@ -325,6 +369,130 @@ class array[T, n: nat](builtins.list[T]):
         """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
+
+    @guppy
+    @no_type_check
+    def get[T: Copy, n: nat](self: array[T, n], index: int) -> Option[T]:
+        """Return a copy at index, or nothing for negative/out-of-range indices.
+
+        Borrows the array. Requires Copy; takes O(1) time and auxiliary space.
+
+        .. code-block:: python
+
+            values = array(3, 7)
+            value = values.get(1)  # some(7)
+            missing = values.get(-1)  # nothing
+        """
+        if index < 0 or index >= n:
+            return nothing()
+        return some(self[index])
+
+    @guppy
+    @no_type_check
+    def get_static[T: Copy, n: nat](self: array[T, n], index: nat @ comptime) -> T:
+        """Return a copy at a compile-time index, rejecting out-of-bounds indices.
+
+        Borrows the array and requires Copy. The index must satisfy 0 <= index < n;
+        empty arrays have no valid index. Takes O(1) time and auxiliary space.
+
+        .. code-block:: python
+
+            values = array(3, 7)
+            value = values.get_static(1)  # 7
+        """
+        comptime(_check_array_index(index, n))
+        return self[int(index)]
+
+    @guppy
+    @no_type_check
+    def first[T: Copy, n: nat](self: array[T, n]) -> T:
+        """Return a copy of the first element, rejecting empty arrays at compile time.
+
+        Borrows the array. Requires Copy; O(1) time and auxiliary space.
+        """
+        return self.get_static(0)
+
+    @guppy
+    @no_type_check
+    def last[T: Copy, n: nat](self: array[T, n]) -> T:
+        """Return a copy of the last element, rejecting empty arrays at compile time.
+
+        Borrows the array. Requires Copy; O(1) time and auxiliary space.
+        """
+        # Check non-emptiness before forming n - 1, so the diagnostic names last().
+        comptime(_check_array_index(0, n, "array.last() requires a non-empty array"))
+        return self[n - 1]
+
+    @guppy
+    @no_type_check
+    def is_empty(self) -> bool:
+        """Return whether the static length is zero, borrowing the array.
+
+        Takes O(1) time and auxiliary space; supports linear elements.
+        """
+        return n == 0
+
+    @guppy
+    @no_type_check
+    def __eq__[T: _ArrayEquality, n: nat, m: nat](
+        self: array[T, n], other: array[T, m]
+    ) -> bool:
+        """Compare borrowed arrays using element equality in index order.
+
+        Different lengths return False immediately; two empty arrays are equal.
+        Stops at the first mismatch. Supports linear elements with borrowed
+        equality. O(n) worst-case time excluding equality costs, O(1) auxiliary
+        space.
+        """
+        if n != m:  # type: ignore[name-defined]
+            return False
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin all yet.
+            if not self[i].__eq__(other[i]):
+                return False
+        return True
+
+    @guppy
+    @no_type_check
+    def __ne__[T: _ArrayEquality, n: nat, m: nat](
+        self: array[T, n], other: array[T, m]
+    ) -> bool:
+        """Return the negation of array equality, borrowing both arrays.
+
+        Different lengths are unequal; two empty arrays are not unequal.
+        Supports linear elements with borrowed equality, stopping at the first
+        mismatch. O(n) worst-case time excluding equality costs and O(1)
+        auxiliary space.
+        """
+        return not (self == other)
+
+    @guppy
+    @no_type_check
+    def contains[T: _ArrayEquality, n: nat](self: array[T, n], value: T) -> bool:
+        """Return whether value occurs, or False for an empty array.
+
+        Borrows the array and value, supporting linear elements with borrowed
+        equality. Scans in index order, stopping at the first match. O(n)
+        worst-case time excluding equality costs, O(1) auxiliary space.
+        """
+        for i in range(n):  # noqa: SIM110 - Guppy has no builtin any yet.
+            if self[i].__eq__(value):
+                return True
+        return False
+
+    @guppy
+    @no_type_check
+    def count[T: _ArrayEquality, n: nat](self: array[T, n], value: T) -> int:
+        """Count occurrences of value, returning zero for an empty array.
+
+        Borrows the array and value, supporting linear elements with borrowed
+        equality. Compares each element once in index order. O(n) time excluding
+        equality costs and O(1) auxiliary space.
+        """
+        total = 0
+        for i in range(n):
+            if self[i].__eq__(value):
+                total += 1
+        return total
 
     # Borrowed indexing allows early exit without consuming linear elements.
     # An iterable abstraction must define ownership of unconsumed elements
