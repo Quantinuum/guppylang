@@ -927,8 +927,9 @@ class CheckedModifiedBlock(ast.With):
 
     #: The type of the body of With block.
     ty: FunctionType
-    #: Mapping from names to variables captured in the body.
-    captured: Mapping[str, tuple["Variable", AstNode]]
+    #: Mapping from the names of the body inputs to the captured places. These are
+    #: either variables or struct field projections of variables.
+    captured: Mapping[str, tuple["Place", AstNode]]
     modifiers: Modifiers
 
     def __init__(
@@ -936,7 +937,7 @@ class CheckedModifiedBlock(ast.With):
         name: str,
         cfg: "CheckedCFG[Place]",
         ty: FunctionType,
-        captured: Mapping[str, tuple["Variable", AstNode]],
+        captured: Mapping[str, tuple["Place", AstNode]],
         modifiers: Modifiers,
         *args: Any,
         **kwargs: Any,
