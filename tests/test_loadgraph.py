@@ -79,7 +79,7 @@ def test_comptime_function_value():
     assert ENGINE.load_graph[loaded.id, ()] == set()
 
 
-def test_load_nested_failing_with_experimental_om():
+def test_load_nested():
 
     @guppy
     def factory() -> Function[[], int]:

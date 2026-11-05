@@ -1,9 +1,9 @@
 # Creates the GitHub releases for `guppylang` and `guppylang-internals`.
 #
 # Release creation is driven by tags. Pushing a `guppylang-v*` or
-# `guppylang-internals-v*` tag creates a draft GitHub release for the matching
+# `guppylang-internals-v*` tag publishes a GitHub release for the matching
 # package, with notes sliced verbatim from the committed CHANGELOG.md at that tag.
-# Publishing that draft release triggers `python-wheels.yml`, which uploads the
+# Publishing the release triggers `python-wheels.yml`, which uploads the
 # wheels to PyPI. `guppylang` and `guppylang-internals` always share the exact
 # same version, so a release tags both packages at that version.
 #
@@ -78,7 +78,7 @@ jobs:
           tag_pkg "guppylang-internals/pyproject.toml" "guppylang-internals-v"
 
   # On a push of a package tag (from `tag-release-line`, or a manual `git push`),
-  # create the matching draft GitHub release.
+  # publish the matching GitHub release.
   create-release:
     name: Create the GitHub release for the pushed tag
     if: github.ref_type == 'tag'
@@ -88,9 +88,16 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.HUGRBOT_PAT }}
+      - name: Classify the release
+        id: metadata
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python3 scripts/release/gh_release_metadata.py "$TAG" --github-output "$GITHUB_OUTPUT"
       - name: Create the GitHub release
         env:
           TAG: ${{ github.ref_name }}
+          LATEST: ${{ steps.metadata.outputs.latest }}
+          PRERELEASE: ${{ steps.metadata.outputs.prerelease }}
         run: |
           set -euo pipefail
 
@@ -111,8 +118,14 @@ jobs:
               ;;
           esac
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; nothing to do."
+          flags=(--latest="$LATEST" --prerelease="$PRERELEASE")
+          if release=$(gh release view "$TAG" --json isDraft 2>/dev/null); then
+            if [ "$(jq -r '.isDraft' <<< "$release")" = true ]; then
+              # Publish an existing draft without replacing its notes.
+              gh release edit "$TAG" --draft=false --verify-tag "${flags[@]}"
+            else
+              echo "Release $TAG already exists; nothing to do."
+            fi
             exit 0
           fi
 
@@ -122,9 +135,5 @@ jobs:
             : > /tmp/notes.md
           fi
 
-          args=(--title "$name $version" --notes-file /tmp/notes.md --verify-tag --draft)
-          # PEP 440 pre-releases carry a '-' separator (e.g. 1.0.0-a6, 1.0.0-rc1).
-          case "$version" in
-            *-*) args+=(--prerelease) ;;
-          esac
-          gh release create "$TAG" "${args[@]}"
+          gh release create "$TAG" --title "$name $version" \
+            --notes-file /tmp/notes.md --verify-tag "${flags[@]}"
