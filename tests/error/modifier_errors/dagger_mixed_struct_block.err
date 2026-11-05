@@ -1,0 +1,12 @@
+Error: Invalid expression in dagger (at $FILE:20:12)
+   | 
+18 | def test(s: MyStruct) -> None:
+19 |     with dagger:
+20 |         foo(s)
+   |             ^ Mixed quantum and classical struct `MyStruct` found in a
+   |               dagger context
+
+Help: Structs and tuples used in daggered contexts must contain either only
+quantum or only classical data.
+
+Guppy compilation failed due to 1 previous error

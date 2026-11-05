@@ -137,3 +137,10 @@ class InvalidUnderDagger(Error):
             "Control flow statements (e.g. loops and branches) are not allowed in "
             "daggered contexts."
         )
+
+    @dataclass(frozen=True)
+    class MixedTypeHelp(Help):
+        message: ClassVar[str] = (
+            "Structs and tuples used in daggered contexts must contain either only "
+            "quantum or only classical data."
+        )

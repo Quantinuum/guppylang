@@ -3,10 +3,15 @@ import builtins
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
-from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
+from guppylang_internals.ast_util import (
+    branching_in_ast,
+    get_type,
+    get_type_opt,
+    loop_in_ast,
+)
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
-from guppylang_internals.checker.core import Place
+from guppylang_internals.checker.core import Place, Variable
 from guppylang_internals.checker.errors.generic import (
     InvalidUnderDagger,
     UnexpectedError,
@@ -23,6 +28,7 @@ from guppylang_internals.nodes import (
     GlobalCall,
     LocalCall,
     ModifiedBlock,
+    PlaceNode,
     StateOutputExpr,
     TensorCall,
 )
@@ -34,6 +40,9 @@ from guppylang_internals.tys.ty import (
     CALL_CTRL_DAGGERED_METHOD,
     CALL_DAGGERED_METHOD,
     FunctionType,
+    StructType,
+    TupleType,
+    Type,
     UnitaryFlags,
 )
 
@@ -116,6 +125,27 @@ def _annotate_diagnostics(
     err.add_sub_diagnostic(InvalidUnderDagger.ControlFlowHelp(None))
 
     return GuppyError(err)
+
+
+def is_mixed_ty(ty: Type) -> bool:
+    """Checks whether a struct or tuple type (or any struct or tuple nested inside
+    it) contains both quantum and classical elements."""
+    match ty:
+        case TupleType(element_types=elems):
+            elem_tys = list(elems)
+        case StructType(fields=fields):
+            elem_tys = [f.ty for f in fields]
+        case _:
+            return False
+    quantum = [contain_qubit_ty(elem_ty) for elem_ty in elem_tys]
+    if not any(quantum):
+        # All classical.
+        return False
+    if not all(quantum):
+        # Given it is not all classical but not all quantum, must be mixed.
+        return True
+    # If all are quantum, we still need to check for nested mixed types.
+    return any(is_mixed_ty(elem_ty) for elem_ty in elem_tys)
 
 
 class BBUnitaryChecker(ast.NodeVisitor):
@@ -259,6 +289,25 @@ class BBUnitaryChecker(ast.NodeVisitor):
         self.visit(node.msg)
         for value in node.values:
             self.visit(value)
+
+    def _check_mixed_under_dagger(self, node: ast.expr, ty: Type | None) -> None:
+        if UnitaryFlags.Dagger in self.flags and ty is not None and is_mixed_ty(ty):
+            # `is_mixed_ty` returns False if not a struct or tuple type.
+            kind = "struct" if isinstance(ty, StructType) else "tuple"
+            err = InvalidUnderDagger(
+                node, things=f"Mixed quantum and classical {kind} `{ty}`"
+            )
+            err.add_sub_diagnostic(InvalidUnderDagger.MixedTypeHelp(None))
+            raise GuppyTypeError(err)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        self._check_mixed_under_dagger(node, get_type_opt(node))
+
+    def visit_PlaceNode(self, node: PlaceNode) -> None:
+        # Only whole variables are checked: projections like `s.q` or `t[0]` don't
+        # use the mixed value itself (see projection capture in modified blocks)
+        if isinstance(node.place, Variable):
+            self._check_mixed_under_dagger(node, node.place.ty)
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
         # Nested modified blocks are checked separately by the CFG checker
