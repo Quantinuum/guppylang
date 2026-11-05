@@ -9,7 +9,7 @@ class TwoQubits:
     b: qubit
 
 
-@guppy.declare
+@guppy.declare(controllable=True)
 def use(tq: TwoQubits) -> None: ...
 
 
