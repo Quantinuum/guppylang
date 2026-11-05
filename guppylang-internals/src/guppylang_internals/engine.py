@@ -2,7 +2,7 @@ import ast
 from collections import defaultdict
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from types import FrameType
@@ -157,6 +157,26 @@ MonoDefId = tuple[DefId, Inst]
 CallGraphEdge = tuple[MonoDefId, MonoDefId]
 
 
+@dataclass
+class AnalysisCache:
+    """Mutable checking data used to derive an independent analyzed program graph.
+
+    Only checking populates these records. Analysis reads them without replacing
+    original edges, propagating modifier labels into them, or changing local effects.
+    """
+
+    #: Original callees in call-site order, including repeated calls.
+    call_graph: dict[MonoDefId, list[MonoDefId]] = field(default_factory=dict)
+    #: Original function-value dependencies of each checked specialization.
+    load_graph: dict[MonoDefId, set[MonoDefId]] = field(default_factory=dict)
+    #: Effects recorded locally during checking, before call-effect propagation.
+    func_effects: dict[MonoDefId, set["Effect"]] = field(default_factory=dict)
+    #: Local modifier contexts on each call edge, with representative diagnostic spans.
+    local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, Span]] = field(
+        default_factory=dict
+    )
+
+
 class CompilationStage(Enum):
     NONE = "none"
     CHECK = "check"
@@ -300,11 +320,12 @@ class CompilationEngine:
     The engine maintains a worklist of definitions that still need to be checked and
     makes sure that all dependencies are compiled.
 
-    Checking records original call edges, function-load dependencies, and local
-    modifier labels. Modifier analysis reads these records and publishes a separate
-    immutable ``analyzed_graph`` once all required custom specializations are checked.
-    Compilation uses that snapshot for effects and custom implementations. Each
-    ``check()`` rebuilds the analysis; ``reset=False`` retains the checking cache.
+    Checking records original call edges, function-load dependencies, local effects,
+    and modifier labels in ``analysis_cache``. Analysis reads these records and
+    publishes an immutable ``analyzed_graph`` after checking all required custom
+    specializations. Compilation uses that snapshot for effects and custom
+    implementations. Each ``check()`` rebuilds the analysis; ``reset=False`` retains
+    the checking cache.
 
     See `ENGINE` for the singleton instance of this class.
     """
@@ -321,19 +342,11 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
-    #: Original callees recorded for each checked function specialization.
-    #: Analysis preserves these rows, including call-site order and repeated calls.
-    call_graph: dict[MonoDefId, list[MonoDefId]]
-    #: Original function-value dependencies of each checked specialization.
-    load_graph: dict[MonoDefId, set[MonoDefId]]
+    #: Original graph, effect, and modifier information recorded during checking.
+    analysis_cache: AnalysisCache
     #: Resolved graphs and custom uses from the last completed check().
     #: Compilation reads this snapshot; check() and reset() clear it.
     analyzed_graph: ProgramGraph | None
-    func_effects: dict[MonoDefId, set["Effect"]]
-    #: Distinct local modifier contexts checked on each monomorphized call-graph edge.
-    #: The value stores one representative call site span for diagnostics in
-    #: analysis.modifier._check_recursive_custom_uses
-    local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, Span]]
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -385,15 +398,24 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
-        self.call_graph = {}
-        self.load_graph = {}
-        self.func_effects = {}
-        self.local_modifiers_by_edge = {}
+        self.analysis_cache = AnalysisCache()
         self.analyzed_graph = None
+
+    # NICOLA: TODO: used only in test
+    @property
+    def call_graph(self) -> dict[MonoDefId, list[MonoDefId]]:
+        """Original calls recorded during checking, owned by ``analysis_cache``."""
+        return self.analysis_cache.call_graph
+
+    # NICOLA: TODO: used only in test
+    @property
+    def load_graph(self) -> dict[MonoDefId, set[MonoDefId]]:
+        """Original function loads recorded during checking."""
+        return self.analysis_cache.load_graph
 
     def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
         """Records a function-value dependency, without propagating call effects."""
-        self.load_graph[owner].add(target)
+        self.analysis_cache.load_graph[owner].add(target)
 
     def register_call(
         self,
@@ -406,20 +428,22 @@ class CompilationEngine:
         `CallableEffects` then also registers those effects for that callee."""
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
-        assert ctx.current_caller in self.call_graph
-        self.call_graph[ctx.current_caller].append((callee.id, inst))
+        assert ctx.current_caller in self.analysis_cache.call_graph
+        self.analysis_cache.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
             self.register_effects((callee.id, inst), callee.call_effects)
         # Record the modifier context under which the call is performed
         callee_mono_def_id: MonoDefId = (callee.id, inst)
         edge = (ctx.current_caller, callee_mono_def_id)
-        modifier_contexts = self.local_modifiers_by_edge.setdefault(edge, {})
+        modifier_contexts = self.analysis_cache.local_modifiers_by_edge.setdefault(
+            edge, {}
+        )
         modifier_contexts.setdefault(ctx.modifier_ctx, to_span(call_node))
 
     def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a function, for when the effects cannot be
         attributed to some concrete callee (i.e. with its own MonoDefId)."""
-        self.func_effects.setdefault(func, set()).update(effects)
+        self.analysis_cache.func_effects.setdefault(func, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
@@ -544,9 +568,9 @@ class CompilationEngine:
         Thus, used to indicate the def is of a kind for which we wish to track calls
         (i.e. a user-defined function), even if it doesn't actually contain any.
         """
-        assert mono_id not in self.call_graph
-        self.call_graph[mono_id] = []
-        self.load_graph[mono_id] = set()
+        assert mono_id not in self.analysis_cache.call_graph
+        self.analysis_cache.call_graph[mono_id] = []
+        self.analysis_cache.load_graph[mono_id] = set()
 
     def get_type_defn(self, ty: Type | TypeDef) -> TypeDef | None:
         """Convert a Type | TypeDef to a TypeDef."""
@@ -679,9 +703,9 @@ class CompilationEngine:
         while True:
             modifier_analysis = analyze_modifier_calls(
                 entry_points,
-                self.call_graph,
-                self.load_graph,
-                self.local_modifiers_by_edge,
+                self.analysis_cache.call_graph,
+                self.analysis_cache.load_graph,
+                self.analysis_cache.local_modifiers_by_edge,
                 self._resolve_modified_call,
             )
             program_graph = modifier_analysis.program_graph
@@ -839,7 +863,7 @@ class CompilationEngine:
             "Checking must finish before compilation"
         )
         call_graph = CallGraph(self.analyzed_graph.call_graph)
-        effects = compute_effects(call_graph, self.func_effects)
+        effects = compute_effects(call_graph, self.analysis_cache.func_effects)
 
         # Prepare Hugr for this module
         graph = hf.Module()

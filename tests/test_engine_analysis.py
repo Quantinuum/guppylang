@@ -42,11 +42,7 @@ def test_analysis_is_published_after_custom_specializations_are_checked(
         nonlocal analysis_passes
         assert ENGINE.analyzed_graph is None
         analysis_passes += 1
-        checking_snapshots.append(
-            deepcopy(
-                (ENGINE.call_graph, ENGINE.load_graph, ENGINE.local_modifiers_by_edge)
-            )
-        )
+        checking_snapshots.append(deepcopy(ENGINE.analysis_cache))
         return analyze(*args, **kwargs)
 
     monkeypatch.setattr(
@@ -55,11 +51,7 @@ def test_analysis_is_published_after_custom_specializations_are_checked(
     custom_main.check()
 
     assert analysis_passes >= 2
-    assert (
-        ENGINE.call_graph,
-        ENGINE.load_graph,
-        ENGINE.local_modifiers_by_edge,
-    ) == checking_snapshots[-1]
+    assert ENGINE.analysis_cache == checking_snapshots[-1]
     assert ENGINE.analyzed_graph is not None
     [custom_use] = ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
     assert custom_use.custom_def in ENGINE.checked
@@ -79,9 +71,8 @@ def test_repeated_check_preserves_custom_resolution(custom_main, reset):
     previous_graph = ENGINE.analyzed_graph
     assert previous_graph is not None
     assert previous_graph.custom_uses_by_mono_def
-    original_checking_data = deepcopy(
-        (ENGINE.call_graph, ENGINE.load_graph, ENGINE.local_modifiers_by_edge)
-    )
+    previous_cache = ENGINE.analysis_cache
+    original_checking_data = deepcopy(previous_cache)
 
     for _ in range(2):
         ENGINE.check([custom_main.id], reset=reset)
@@ -89,11 +80,12 @@ def test_repeated_check_preserves_custom_resolution(custom_main, reset):
         assert ENGINE.analyzed_graph is not None
         assert ENGINE.analyzed_graph is not previous_graph
         assert ENGINE.analyzed_graph == previous_graph
-        assert (
-            ENGINE.call_graph,
-            ENGINE.load_graph,
-            ENGINE.local_modifiers_by_edge,
-        ) == original_checking_data
+        assert ENGINE.analysis_cache == original_checking_data
+        if reset:
+            assert ENGINE.analysis_cache is not previous_cache
+        else:
+            assert ENGINE.analysis_cache is previous_cache
+        previous_cache = ENGINE.analysis_cache
         previous_graph = ENGINE.analyzed_graph
 
 
@@ -101,10 +93,16 @@ def test_reset_clears_analyzed_state(custom_main):
     custom_main.check()
     assert ENGINE.analyzed_graph is not None
     assert ENGINE.analyzed_graph.custom_uses_by_mono_def
+    previous_cache = ENGINE.analysis_cache
 
     ENGINE.reset()
 
     assert ENGINE.analyzed_graph is None
+    assert ENGINE.analysis_cache is not previous_cache
+    assert ENGINE.analysis_cache.call_graph == {}
+    assert ENGINE.analysis_cache.load_graph == {}
+    assert ENGINE.analysis_cache.func_effects == {}
+    assert ENGINE.analysis_cache.local_modifiers_by_edge == {}
 
 
 @pytest.mark.parametrize("reset", [False, True])
