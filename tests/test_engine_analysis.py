@@ -1,5 +1,7 @@
 """Lifecycle tests for the engine's finalized graph and modifier information."""
 
+from copy import deepcopy
+
 import pytest
 from guppylang import guppy
 from guppylang.std.array import array
@@ -34,11 +36,17 @@ def test_analysis_is_published_after_custom_specializations_are_checked(
 ):
     analyze = engine_module.analyze_modifier_calls
     analysis_passes = 0
+    checking_snapshots = []
 
     def analyze_before_publication(*args, **kwargs):
         nonlocal analysis_passes
         assert ENGINE.analyzed_graph is None
         analysis_passes += 1
+        checking_snapshots.append(
+            deepcopy(
+                (ENGINE.call_graph, ENGINE.load_graph, ENGINE.local_modifiers_by_edge)
+            )
+        )
         return analyze(*args, **kwargs)
 
     monkeypatch.setattr(
@@ -47,11 +55,46 @@ def test_analysis_is_published_after_custom_specializations_are_checked(
     custom_main.check()
 
     assert analysis_passes >= 2
+    assert (
+        ENGINE.call_graph,
+        ENGINE.load_graph,
+        ENGINE.local_modifiers_by_edge,
+    ) == checking_snapshots[-1]
     assert ENGINE.analyzed_graph is not None
     [custom_use] = ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
     assert custom_use.custom_def in ENGINE.checked
+    assert custom_use.custom_def in ENGINE.call_graph
+    assert custom_use.custom_def in ENGINE.load_graph
     assert custom_use.custom_def in ENGINE.analyzed_graph.call_graph
     assert custom_use.custom_def in ENGINE.analyzed_graph.load_graph
+    assert ENGINE.call_graph[custom_main.id, ()] == [custom_use.unmodified_callee]
+    assert ENGINE.analyzed_graph.call_graph[custom_main.id, ()] == (
+        custom_use.custom_def,
+    )
+
+
+@pytest.mark.parametrize("reset", [False, True])
+def test_repeated_check_preserves_custom_resolution(custom_main, reset):
+    custom_main.check()
+    previous_graph = ENGINE.analyzed_graph
+    assert previous_graph is not None
+    assert previous_graph.custom_uses_by_mono_def
+    original_checking_data = deepcopy(
+        (ENGINE.call_graph, ENGINE.load_graph, ENGINE.local_modifiers_by_edge)
+    )
+
+    for _ in range(2):
+        ENGINE.check([custom_main.id], reset=reset)
+
+        assert ENGINE.analyzed_graph is not None
+        assert ENGINE.analyzed_graph is not previous_graph
+        assert ENGINE.analyzed_graph == previous_graph
+        assert (
+            ENGINE.call_graph,
+            ENGINE.load_graph,
+            ENGINE.local_modifiers_by_edge,
+        ) == original_checking_data
+        previous_graph = ENGINE.analyzed_graph
 
 
 def test_reset_clears_analyzed_state(custom_main):

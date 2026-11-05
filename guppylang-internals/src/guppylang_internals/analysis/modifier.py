@@ -71,17 +71,6 @@ class ModifierAnalysisResult:
     program_graph: ProgramGraph
     resolved_calls: dict[EdgeWithModifierContext, MonoDefId]
 
-    @property
-    def expanded_calls(self) -> dict[MonoDefId, list[MonoDefId]]:
-        """Temporary compatibility view for consumers awaiting graph migration.
-
-        Returns fresh mutable containers, keeping the analyzed graph isolated.
-        """
-        return {
-            caller: list(callees)
-            for caller, callees in self.program_graph.call_graph.items()
-        }
-
 
 ResolveModifiedCall = Callable[
     [MonoDefId, ModifierContext], tuple[MonoDefId, ConcreteCustomUse | None]
@@ -103,6 +92,11 @@ def analyze_modifier_calls(
     Functions loaded as values are additional roots with no inherited modifiers.
     Explore their calls and further loads, and record loads separately from the
     call graph.
+
+    Each invocation starts afresh from the checking data, leaving the input graphs
+    and local modifier labels unchanged. The result owns an independent snapshot
+    of the resolved graphs and concrete custom uses. Load rows must be reusable
+    collections because traversal and result construction read them separately.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.

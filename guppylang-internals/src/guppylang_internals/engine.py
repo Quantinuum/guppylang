@@ -300,6 +300,12 @@ class CompilationEngine:
     The engine maintains a worklist of definitions that still need to be checked and
     makes sure that all dependencies are compiled.
 
+    Checking records original call edges, function-load dependencies, and local
+    modifier labels. Modifier analysis reads these records and publishes a separate
+    immutable ``analyzed_graph`` once all required custom specializations are checked.
+    Compilation uses that snapshot for effects and custom implementations. Each
+    ``check()`` rebuilds the analysis; ``reset=False`` retains the checking cache.
+
     See `ENGINE` for the singleton instance of this class.
     """
 
@@ -315,17 +321,17 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
-    #: Call graph mapping from each checked function specialization to list of callees.
-    #: Populated during type checking as calls are checked.
+    #: Original callees recorded for each checked function specialization.
+    #: Analysis preserves these rows, including call-site order and repeated calls.
     call_graph: dict[MonoDefId, list[MonoDefId]]
-    #: Mapping from each checked function specialization to functions loaded/referenced
-    #: by it.
+    #: Original function-value dependencies of each checked specialization.
     load_graph: dict[MonoDefId, set[MonoDefId]]
-    #: Graph from the last completed check(), cleared on check() or reset().
+    #: Resolved graphs and custom uses from the last completed check().
+    #: Compilation reads this snapshot; check() and reset() clear it.
     analyzed_graph: ProgramGraph | None
     func_effects: dict[MonoDefId, set["Effect"]]
-    #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
-    #: stores one representative call site span for diagnostics in
+    #: Distinct local modifier contexts checked on each monomorphized call-graph edge.
+    #: The value stores one representative call site span for diagnostics in
     #: analysis.modifier._check_recursive_custom_uses
     local_modifiers_by_edge: dict[CallGraphEdge, dict[ModifierContext, Span]]
 
@@ -683,8 +689,6 @@ class CompilationEngine:
                 program_graph.custom_uses_by_mono_def.values()
             ):
                 self.analyzed_graph = program_graph
-                # NICOLA: TODO: cal_graph must be preserved!
-                self.call_graph = modifier_analysis.expanded_calls
                 break
             self._drain_check_worklists()
 

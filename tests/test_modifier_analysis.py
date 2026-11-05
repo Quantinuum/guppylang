@@ -70,26 +70,6 @@ def test_analysis_returns_graph_without_mutating_checking_data():
     assert result.program_graph.custom_uses_by_mono_def == {custom: custom_use}
 
 
-def test_expanded_calls_compatibility_view_is_an_independent_mutable_copy():
-    root, leaf = [(DefId.fresh(), ()) for _ in range(2)]
-    result = analyze_modifier_calls(
-        [root],
-        {root: [leaf, leaf], leaf: []},
-        {root: set(), leaf: set()},
-        {},
-        lambda callee, _context: (callee, None),
-    )
-
-    expanded_calls = result.expanded_calls
-    assert expanded_calls == {root: [leaf], leaf: []}
-    expanded_calls[root].append(root)
-    expanded_calls[leaf] = [root]
-    expanded_calls.clear()
-
-    assert result.program_graph.call_graph == {root: (leaf,), leaf: ()}
-    assert result.expanded_calls == {root: [leaf], leaf: []}
-
-
 def test_analysis_includes_newly_checked_custom_dependencies():
     root, gate, custom, factory, loaded, leaf = [(DefId.fresh(), ()) for _ in range(6)]
     daggered = ModifierContext(daggered=True)
