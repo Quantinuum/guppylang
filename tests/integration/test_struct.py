@@ -192,6 +192,54 @@ def test_unitary_method_nested_generics_in_struct(validate):
     validate(main.compile_function())
 
 
+def test_control_classical_struct_with_unused_quantum_type_arg(validate):
+    T = guppy.type_var("T", copyable=False, droppable=False)
+
+    @guppy.struct
+    class Classical(Generic[T]):
+        value: int
+
+    @guppy
+    # Even though T is qubit, it's unused in the struct. Thus the struct is fully
+    # classical making the function fully classical. Thus we do not need it to be
+    # declared as `controllable`.
+    def use(s: Classical[qubit]) -> None:
+
+        s.value += 1
+
+    @guppy
+    def main(c: qubit, s: Classical[qubit]) -> None:
+        with control(c):
+            use(s)
+
+    validate(main.compile_function())
+
+
+def test_control_nested_quantum_struct(validate):
+    T = guppy.type_var("T", copyable=False, droppable=False)
+
+    @guppy.struct
+    class Inner(Generic[T]):
+        value: T
+
+    @guppy.struct
+    class Outer:
+        inner: Inner[qubit]
+
+    @guppy(controllable=True)
+    # Here Outer contains inside Inner a qubit type. Thus the function is quantum and
+    # we need the controllable flag.
+    def use(s: Outer) -> None:
+        h(s.inner.value)
+
+    @guppy
+    def main(c: qubit, s: Outer) -> None:
+        with control(c):
+            use(s)
+
+    validate(main.with_minimal_opt().compile_function(), export=False)
+
+
 def test_method_call_on_param_shadowing_struct_name(validate):
     """Regression test: a local parameter that shadows the name of an unrelated global
     struct must still resolve to the local instance, not be misdiagnosed as an instance

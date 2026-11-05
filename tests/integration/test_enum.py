@@ -86,6 +86,25 @@ def test_basic_enum(validate):
     validate(main)
 
 
+def test_control_classical_enum_with_unused_quantum_type_arg(validate):
+    T = guppy.type_var("T", copyable=False, droppable=False)
+
+    @guppy.enum
+    class Classical(Generic[T]):
+        Value = {"value": int}
+
+    @guppy
+    def use(e: Classical[qubit]) -> None:
+        pass
+
+    @guppy
+    def main(c: qubit, e: Classical[qubit]) -> None:
+        with control(c):
+            use(e)
+
+    validate(main.compile_function())
+
+
 def test_backward_ref_enum(validate):
     @guppy.enum
     class EnumA:
