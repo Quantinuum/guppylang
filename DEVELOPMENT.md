@@ -262,13 +262,14 @@ present, and vice versa.
 Release creation is **driven by tags**. When the release PR is merged (into `main`
 or a release branch), the `tag-release-line` job in `release-publish.yml` tags both
 packages (`guppylang-v<version>` and `guppylang-internals-v<version>`) and pushes
-the tags. Each tag push then triggers the `create-release` job, which creates a
-**draft** GitHub release for the matching package, with notes sliced verbatim from
-the committed changelog at that tag.
+the tags. Each tag push then triggers the `create-release` job, which publishes a
+GitHub release for the matching package, with notes sliced verbatim from the
+committed changelog at that tag. Publishing triggers `python-wheels.yml`, which
+builds, checks, and uploads the wheels to PyPI.
 
-Review each draft release and **publish** it when ready: publishing triggers
-`python-wheels.yml`, which uploads the wheels to PyPI. Wheels are only published
-once you publish the draft release, not when the tag first creates it.
+Alpha, beta, and release candidates for either package are marked **Prerelease**
+releases in GitHub. Only the highest stable `guppylang` tag is marked
+**Latest**. Stable `guppylang-internals` releases get neither label.
 
 ### After-release chores
 
@@ -294,6 +295,6 @@ Once the backport is complete (the backport PR is merged), the `B-backport-nomin
 
 ### Patch releases
 
-Once the backport is complete, `release-pr.yml` then opens/updates the release PR on `release-pr--release/<major>.<minor>` with the next patch version. Merge it, and `release-publish.yml` tags and drafts the releases as usual.
+Once the backport is complete, `release-pr.yml` then opens/updates the release PR on `release-pr--release/<major>.<minor>` with the next patch version. Merge it, and `release-publish.yml` tags and publishes the releases as usual.
 After the release is published, make sure the version and changelog changes are
 reflected on `main` so the history stays consistent.
