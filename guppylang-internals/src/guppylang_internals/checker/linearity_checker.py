@@ -823,6 +823,9 @@ class BBLinearityChecker(ast.NodeVisitor):
                     if has_explicit_copy(place.ty):
                         used_err.add_sub_diagnostic(AlreadyUsedError.MakeCopy(None))
                     raise GuppyError(used_err)
+
+            # Also check if parents have been moved
+            check_mutable_parent_already_used(var, Use(use, use_kind, var), self.scope)
             self.scope.use(var, node, use_kind)
 
         # reassign controls
