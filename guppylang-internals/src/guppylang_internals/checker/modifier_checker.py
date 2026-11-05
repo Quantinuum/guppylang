@@ -199,6 +199,13 @@ class _ProjectionCollector(_BodyTransformer):
     """Collects the projections of the candidate variables that are accessed in the
     body, as well as the variables that must be captured as a whole."""
 
+    #: The struct and tuple variables that are candidates for projection capture
+    candidates: Mapping[str, Variable]
+    #: The projections that are accessed in the body
+    projections: dict[PlaceId, Place]
+    #: Variables that must be captured as a whole
+    whole: set[str]
+
     def __init__(self, candidates: Mapping[str, Variable]) -> None:
         self.candidates = candidates
         self.projections: dict[PlaceId, Place] = {}
@@ -237,6 +244,11 @@ class _ProjectionCollector(_BodyTransformer):
 
 class _ProjectionRewriter(_BodyTransformer):
     """Replaces accesses to the captured projections with fresh variables."""
+
+    #: The struct and tuple variables that are candidates for projection capture
+    candidates: Mapping[str, Variable]
+    #: The projections to replace with fresh variables
+    captured: Mapping[PlaceId, Place]
 
     def __init__(
         self, candidates: Mapping[str, Variable], captured: Mapping[PlaceId, Place]
