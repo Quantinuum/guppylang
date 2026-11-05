@@ -7,7 +7,15 @@ from guppylang_internals.ast_util import set_location_from, with_loc
 from guppylang_internals.cfg.bb import BB
 from guppylang_internals.cfg.cfg import CFG
 from guppylang_internals.checker.cfg_checker import check_cfg
-from guppylang_internals.checker.core import Context, FieldAccess, Place, Variable
+from guppylang_internals.checker.core import (
+    Context,
+    FieldAccess,
+    Place,
+    PlaceId,
+    TupleAccess,
+    Variable,
+)
+from guppylang_internals.checker.linearity_checker import parent_places
 from guppylang_internals.checker.unitary_checker import check_invalid_under_dagger
 from guppylang_internals.engine import ENGINE
 from guppylang_internals.error import InternalGuppyError
@@ -24,6 +32,7 @@ from guppylang_internals.tys.ty import (
     InputFlags,
     NoneType,
     StructType,
+    TupleType,
     Type,
 )
 
@@ -44,29 +53,29 @@ def check_modified_block(
 
     cfg.analyze(def_ass_before, maybe_ass_before, [])
 
-    # If the body only accesses some fields of a struct, we capture those fields
-    # instead of the whole struct. This allows, for example, using one field of a
-    # struct as control while acting on another field inside the body.
-    captured_fields = _capture_struct_fields(
+    # If the body only accesses some fields of a struct or elements of a tuple, we
+    # capture those instead of the whole value. This allows, for example, using one
+    # field of a struct as control while acting on another field inside the body.
+    captured_projections = _capture_projections(
         cfg,
         {
             x: ctx.locals[x]
             for x in cfg.live_before[cfg.entry_bb]
-            if x in ctx.locals and isinstance(ctx.locals[x].ty, StructType)
+            if x in ctx.locals and isinstance(ctx.locals[x].ty, StructType | TupleType)
         },
     )
-    if captured_fields:
-        def_ass_before = def_ass_before | captured_fields.keys()
-        maybe_ass_before = maybe_ass_before | captured_fields.keys()
+    if captured_projections:
+        def_ass_before = def_ass_before | captured_projections.keys()
+        maybe_ass_before = maybe_ass_before | captured_projections.keys()
         cfg.analyze(def_ass_before, maybe_ass_before, [])
 
     captured = {
         x: (
-            captured_fields[x] if x in captured_fields else ctx.locals[x],
+            captured_projections[x] if x in captured_projections else ctx.locals[x],
             using_bb.vars.used[x],
         )
         for x, using_bb in cfg.live_before[cfg.entry_bb].items()
-        if x in captured_fields or x in ctx.locals
+        if x in captured_projections or x in ctx.locals
     }
 
     # We do not allow any loop or branching if it is daggered.
@@ -153,33 +162,46 @@ class _BodyTransformer(ast.NodeTransformer):
         return node
 
 
-def _field_path(
-    node: ast.expr, candidates: Mapping[str, Variable]
-) -> tuple[str, tuple[str, ...]] | None:
-    """Returns the variable name and accessed field names if the node is a chain of
-    struct field accesses on one of the candidate variables, e.g. `s.x.y`."""
-    attrs = []
-    while isinstance(node, ast.Attribute):
-        attrs.append(node.attr)
+def _project(place: Place, step: str | int) -> Place | None:
+    """Projects a place onto a struct field (`str`) or a tuple element (`int`)."""
+    match place.ty, step:
+        case StructType() as ty, str() if step in ty.field_dict:
+            return FieldAccess(place, ty.field_dict[step], None)
+        case TupleType() as ty, int() if 0 <= step < len(ty.element_types):
+            return TupleAccess(place, ty.element_types[step], step, None)
+    return None
+
+
+def _projection(node: ast.expr, candidates: Mapping[str, Variable]) -> Place | None:
+    """Returns the place described by a chain of struct field accesses and constant
+    tuple indices on one of the candidate variables, e.g. `s.x[0].y`."""
+    steps: list[str | int] = []
+    while isinstance(node, ast.Attribute | ast.Subscript):
+        match node:
+            case ast.Attribute(attr=attr):
+                steps.append(attr)
+            case ast.Subscript(slice=ast.Constant(value=int(idx))):
+                steps.append(idx)
+            case _:
+                return None
         node = node.value
     if not isinstance(node, ast.Name) or node.id not in candidates:
         return None
-    path = tuple(reversed(attrs))
-    ty = candidates[node.id].ty
-    for field_name in path:
-        if not isinstance(ty, StructType) or field_name not in ty.field_dict:
+    place: Place | None = candidates[node.id]
+    for step in reversed(steps):
+        if place is None:
             return None
-        ty = ty.field_dict[field_name].ty
-    return node.id, path
+        place = _project(place, step)
+    return place
 
 
-class _FieldUseCollector(_BodyTransformer):
-    """Collects the struct fields accessed on the candidate variables and the
-    variables that must be captured as a whole."""
+class _ProjectionCollector(_BodyTransformer):
+    """Collects the projections of the candidate variables that are accessed in the
+    body, as well as the variables that must be captured as a whole."""
 
     def __init__(self, candidates: Mapping[str, Variable]) -> None:
         self.candidates = candidates
-        self.paths: dict[str, set[tuple[str, ...]]] = {}
+        self.projections: dict[PlaceId, Place] = {}
         self.whole: set[str] = set()
 
     def _mark_whole(self, node: ast.expr) -> None:
@@ -189,27 +211,21 @@ class _FieldUseCollector(_BodyTransformer):
             self.whole.add(node.id)
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
-        # Any use of the variable that isn't a field access requires the whole value
-        if node.id in self.candidates:
-            self.whole.add(node.id)
+        # Any use of the variable that isn't a projection requires the whole value
+        self._mark_whole(node)
         return node
 
-    def visit_Attribute(self, node: ast.Attribute) -> ast.Attribute:
+    def _visit_projection(self, node: ast.Attribute | ast.Subscript) -> ast.expr:
         if not isinstance(node.ctx, ast.Load):
-            # Assignments to (parts of) fields require capturing the whole variable
+            # Assignments to (parts of) projections require capturing the whole variable
             self._mark_whole(node)
-        elif fp := _field_path(node, self.candidates):
-            x, path = fp
-            self.paths.setdefault(x, set()).add(path)
+        elif place := _projection(node, self.candidates):
+            self.projections[place.id] = place
             return node
         self.generic_visit(node)
         return node
 
-    def visit_Subscript(self, node: ast.Subscript) -> ast.Subscript:
-        if not isinstance(node.ctx, ast.Load):
-            self._mark_whole(node)
-        self.generic_visit(node)
-        return node
+    visit_Attribute = visit_Subscript = _visit_projection
 
     def visit_NestedFunctionDef(self, node: NestedFunctionDef) -> NestedFunctionDef:
         # To be safe, nested functions always capture whole variables
@@ -219,64 +235,60 @@ class _FieldUseCollector(_BodyTransformer):
         return node
 
 
-class _FieldUseRewriter(_BodyTransformer):
-    """Replaces struct field accesses with the corresponding fresh variables."""
+class _ProjectionRewriter(_BodyTransformer):
+    """Replaces accesses to the captured projections with fresh variables."""
 
     def __init__(
-        self,
-        candidates: Mapping[str, Variable],
-        captured: Mapping[str, set[tuple[str, ...]]],
+        self, candidates: Mapping[str, Variable], captured: Mapping[PlaceId, Place]
     ) -> None:
         self.candidates = candidates
         self.captured = captured
 
-    def visit_Attribute(self, node: ast.Attribute) -> ast.expr:
-        fp = _field_path(node, self.candidates)
-        if fp and fp[1] in self.captured.get(fp[0], ()):
-            name = ast.Name(id=".".join([fp[0], *fp[1]]), ctx=ast.Load())
+    def _visit_projection(self, node: ast.Attribute | ast.Subscript) -> ast.expr:
+        place = _projection(node, self.candidates)
+        if place and place.id in self.captured:
+            name = ast.Name(id=str(place), ctx=ast.Load())
             set_location_from(name, node)
             return name
         self.generic_visit(node)
         return node
 
+    visit_Attribute = visit_Subscript = _visit_projection
+
     def visit_NestedFunctionDef(self, node: NestedFunctionDef) -> NestedFunctionDef:
         return node
 
 
-def _capture_struct_fields(
+def _capture_projections(
     cfg: CFG, candidates: Mapping[str, Variable]
 ) -> dict[str, Place]:
-    """Rewrites the body of a modified block such that accesses to fields of struct
-    variables are replaced by fresh variables.
+    """Rewrites the body of a modified block such that accesses to struct fields and
+    tuple elements of local variables are replaced by fresh variables.
 
-    For example, if a body only uses `s.x` and `s.y.z`, the occurrences are replaced
-    with variables called `s.x` and `s.y.z` (which can't clash with user-defined
-    variables). This allows us to capture only the used fields instead of the whole
-    struct.
+    For example, if a body only uses `s.x` and `t[0][1]`, the occurrences are replaced
+    with variables called `s.x` and `t[0][1]` (which can't clash with user-defined
+    variables). This allows us to capture only the used parts instead of the whole
+    struct or tuple.
 
     Returns a mapping from the names of the fresh variables to the places they refer
     to.
     """
-    collector = _FieldUseCollector(candidates)
+    collector = _ProjectionCollector(candidates)
     collector.visit_cfg(cfg)
 
-    # If both a field and one of its sub-fields are used, we capture the outer one
-    captured_paths = {
-        x: {p for p in paths if not any(p[: len(q)] == q != p for q in paths)}
-        for x, paths in collector.paths.items()
-        if x not in collector.whole
+    used = {
+        pid: place
+        for pid, place in collector.projections.items()
+        if place.root.name not in collector.whole
     }
-    _FieldUseRewriter(candidates, captured_paths).visit_cfg(cfg)
-
-    captured: dict[str, Place] = {}
-    for x, paths in captured_paths.items():
-        for path in paths:
-            place: Place = candidates[x]
-            for field_name in path:
-                assert isinstance(place.ty, StructType)
-                place = FieldAccess(place, place.ty.field_dict[field_name], None)
-            captured[".".join([x, *path])] = place
-    return captured
+    # If both a place and one of its projections are used, we capture the outer one
+    captured = {
+        pid: place
+        for pid, place in used.items()
+        if not any(parent.id in used for parent in parent_places(place))
+    }
+    _ProjectionRewriter(candidates, captured).visit_cfg(cfg)
+    return {str(place): place for place in captured.values()}
 
 
 def check_modified_block_signature(

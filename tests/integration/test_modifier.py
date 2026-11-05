@@ -1506,3 +1506,40 @@ def test_control_struct_field_nested_modifiers(validate):
                     x(tq.c)
 
     validate(main.compile_function())
+
+
+def test_control_tuple_element(validate):
+    @guppy
+    def main() -> None:
+        t = (qubit(), qubit())
+        with control(t[0]):
+            x(t[1])
+        discard(t[0])
+        discard(t[1])
+
+    validate(main.compile())
+
+
+def test_control_nested_tuple_element(validate):
+    @guppy
+    def main(t: tuple[tuple[qubit, qubit], qubit]) -> None:
+        with control(t[0][0]):
+            x(t[0][1])
+            x(t[1])
+
+    validate(main.compile_function())
+
+
+def test_control_tuple_in_struct(validate):
+    @guppy.struct
+    class Pair:
+        qs: tuple[qubit, qubit]
+        c: qubit
+
+    @guppy
+    def main(p: Pair) -> None:
+        with control(p.qs[0]):
+            x(p.qs[1])
+            x(p.c)
+
+    validate(main.compile_function())
