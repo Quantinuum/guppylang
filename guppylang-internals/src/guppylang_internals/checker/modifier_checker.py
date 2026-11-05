@@ -259,7 +259,7 @@ class _ProjectionRewriter(_BodyTransformer):
     def _visit_projection(self, node: ast.Attribute | ast.Subscript) -> ast.expr:
         place = _projection(node, self.candidates)
         if place and place.id in self.captured:
-            name = ast.Name(id=str(place), ctx=ast.Load())
+            name = ast.Name(id=str(self.captured[place.id]), ctx=ast.Load())
             set_location_from(name, node)
             return name
         self.generic_visit(node)
