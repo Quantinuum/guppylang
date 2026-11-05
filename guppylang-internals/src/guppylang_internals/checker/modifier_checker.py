@@ -174,7 +174,8 @@ def _project(place: Place, step: str | int) -> Place | None:
 
 def _projection(node: ast.expr, candidates: Mapping[str, Variable]) -> Place | None:
     """Returns the place described by a chain of struct field accesses and constant
-    tuple indices on one of the candidate variables, e.g. `s.x[0].y`."""
+    tuple indices on one of the candidate variables, e.g. `s.x[0].y`. Return `None` for
+    invalid accesses, which will be captured by type-checking later."""
     steps: list[str | int] = []
     while isinstance(node, ast.Attribute | ast.Subscript):
         match node:

@@ -1543,3 +1543,104 @@ def test_control_tuple_in_struct(validate):
             x(p.c)
 
     validate(main.compile_function())
+
+
+def test_control_struct_field_nested_function(validate, use_experimental_features):
+    @guppy.struct(frozen=True)
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main() -> None:
+        p = Params(1, 2)
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # The nested function captures `p` as a whole, so the field access
+            # `p.b` outside of it must not be captured separately.
+            def inner() -> int:
+                return p.a
+
+            _ = inner() + p.b
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_assigned_in_body(validate):
+    @guppy.struct
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main() -> None:
+        p = Params(1, 2)
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # Assigning to a field requires capturing the whole struct
+            p.a = 3
+            _ = p.b
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_dynamic_subscript(validate):
+    @guppy.struct
+    class Register:
+        qs: array[qubit, 3]
+        i: int
+
+    @guppy
+    def main(r: Register) -> None:
+        c = qubit()
+        with control(c):
+            x(r.qs[r.i])
+        discard(c)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_in_branch(validate):
+    @guppy.struct
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main(p: Params) -> None:
+        c = qubit()
+        t = qubit()
+        with control(c):
+            if p.a > p.b:
+                x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_method_call(validate):
+    @guppy.struct
+    class Data:
+        xs: array[int, 3]
+
+    @guppy
+    def main(d: Data) -> None:
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # `d.xs.copy` is a method, not a field, so only `d.xs` is captured
+            _ = d.xs.copy()
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
