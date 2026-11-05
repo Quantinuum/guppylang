@@ -1,0 +1,15 @@
+Error: Copy violation (at $FILE:9:10)
+  | 
+7 | def test(t: tuple[qubit, qubit]) -> None:
+8 |     with control(t[0]):
+9 |         x(t[0])
+  |           ^^^^ Tuple index `t[0]` with non-copyable type `qubit` cannot be
+  |                borrowed ...
+
+Note:
+  | 
+7 | def test(t: tuple[qubit, qubit]) -> None:
+8 |     with control(t[0]):
+  |                  ---- Tuple index `t[0]` already borrowed here
+
+Guppy compilation failed due to 1 previous error
