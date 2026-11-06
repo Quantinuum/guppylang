@@ -149,13 +149,7 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    ParamSpec,
-    TypeVar,
-)
-
-from guppylang.emulator.exceptions import EmulatorBuildError
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -297,6 +291,8 @@ class OptimizerInstance[**P, Out]:
 
         Emulation in debug mode (enabling panic traces) requires minimal optimization.
         """
+        from guppylang.emulator.exceptions import EmulatorBuildError
+
         # TODO: Consider changing this to a warning instead of an error after
         # https://github.com/Quantinuum/tket2/issues/1964 is resolved.
         if debug_mode and self.passes:
