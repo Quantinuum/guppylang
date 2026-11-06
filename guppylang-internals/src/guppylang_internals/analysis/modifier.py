@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from guppylang_internals.analysis.program_graph import ProgramGraph
 from guppylang_internals.checker.errors.generic import (
     RecursiveModifierControlCountError,
 )
@@ -61,17 +62,14 @@ class ModifierAnalysisResult:
     """Result of propagating modifiers through a monomorphized call graph.
 
     Args:
-        expanded_calls: Call graph after propagating modifiers and resolving calls to
-            custom modified implementations.
+        program_graph: Snapshot of the resolved call graph, checked function-load
+            dependencies, and required concrete custom modifier uses.
         resolved_calls: Called function's ``MonoDefId`` for each call edge and modifier
             context.
-        custom_uses_by_mono_def: Concrete custom modifier uses keyed by custom
-            definition ``MonoDefId``.
     """
 
-    expanded_calls: dict[MonoDefId, list[MonoDefId]]
+    program_graph: ProgramGraph
     resolved_calls: dict[EdgeWithModifierContext, MonoDefId]
-    custom_uses_by_mono_def: dict[MonoDefId, ConcreteCustomUse]
 
 
 ResolveModifiedCall = Callable[
@@ -82,7 +80,7 @@ ResolveModifiedCall = Callable[
 def analyze_modifier_calls(
     entry_points: Iterable[MonoDefId],
     raw_calls: Mapping[MonoDefId, Sequence[MonoDefId]],
-    load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
+    load_graph: Mapping[MonoDefId, Collection[MonoDefId]],
     local_modifiers_by_edge: Mapping[CallGraphEdge, Mapping[ModifierContext, Span]],
     resolve_modified_call: ResolveModifiedCall,
 ) -> ModifierAnalysisResult:
@@ -94,6 +92,11 @@ def analyze_modifier_calls(
     Functions loaded as values are additional roots with no inherited modifiers.
     Explore their calls and further loads, and record loads separately from the
     call graph.
+
+    Each invocation starts afresh from the checking data, leaving the input graphs
+    and local modifier labels unchanged. The result owns an independent snapshot
+    of the resolved graphs and concrete custom uses. Load rows must be reusable
+    collections because traversal and result construction read them separately.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.
@@ -209,9 +212,8 @@ def analyze_modifier_calls(
         custom_calls, custom_uses_by_mono_def, contextual_callers
     )
     return ModifierAnalysisResult(
-        expanded_calls,
-        resolved_calls,
-        custom_uses_by_mono_def,
+        program_graph=ProgramGraph(expanded_calls, load_graph, custom_uses_by_mono_def),
+        resolved_calls=resolved_calls,
     )
 
 
