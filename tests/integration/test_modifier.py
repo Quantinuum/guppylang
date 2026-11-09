@@ -1646,41 +1646,22 @@ def test_control_struct_field_method_call(validate):
     validate(main.compile_function())
 
 
-def test_dagger_unmixed_projections_of_mixed(validate):
-    @guppy.struct
-    class Inner:
-        q1: qubit
-        q2: qubit
-
-    @guppy.struct
-    class Outer:
-        inner: Inner
-        a: angle
-
-    @guppy(daggerable=True)
-    def use_inner(s: Inner) -> None:
-        h(s.q1)
-
-    @guppy(daggerable=True)
-    def use_pair(t: tuple[qubit, qubit]) -> None:
-        h(t[0])
-
-    @guppy(daggerable=True)
-    def main(s: Outer, t: tuple[tuple[qubit, qubit], angle]) -> None:
-        # Scalar and all-quantum projections of mixed values are fine
-        use_inner(s.inner)
-        rx(s.inner.q2, s.a)
-        use_pair(t[0])
-        rx(t[0][1], t[1])
-
-    validate(main.with_minimal_opt().compile_function(), export=False)
-
-
-def test_dagger_unmixed_arrays_and_field_assign(validate):
+def test_dagger_unmixed_uses_of_mixed(validate):
     @guppy.struct
     class Qubits:
         q1: qubit
         q2: qubit
+
+    @guppy.struct
+    class Mixed:
+        q: qubit
+        a: angle
+
+    @guppy.struct
+    class Outer:
+        qs: Qubits
+        m: Mixed
+        a: angle
 
     @guppy.struct
     class Params:
@@ -1688,9 +1669,32 @@ def test_dagger_unmixed_arrays_and_field_assign(validate):
         b: angle
 
     @guppy(daggerable=True)
-    def main(qs: array[Qubits, 2], ps: array[Params, 2], q: qubit, i: int) -> None:
+    def use_qubits(s: Qubits) -> None:
+        h(s.q1)
+
+    @guppy(daggerable=True)
+    def use_pair(t: tuple[qubit, qubit]) -> None:
+        h(t[0])
+
+    @guppy(daggerable=True)
+    def main(
+        s: Outer,
+        t: tuple[tuple[qubit, qubit], tuple[qubit, angle], angle],
+        qs: array[Qubits, 2],
+        ps: array[Params, 2],
+        i: int,
+    ) -> None:
+        # Unmixed projections of mixed values can be used as a whole
+        use_qubits(s.qs)
+        use_pair(t[0])
+        # Static projections through mixed intermediates only use the leaf wires
+        rx(s.m.q, s.m.a)
+        rx(t[1][0], t[1][1])
+        rx(s.qs.q2, s.a)
+        rx(t[0][1], t[2])
+        # Subscripts into arrays of unmixed values are fine, including assignment
         h(qs[i].q1)
-        rx(q, ps[i].a)
+        rx(qs[i].q2, ps[i].a)
         ps[i].b = ps[i].a
 
     validate(main.with_minimal_opt().compile_function(), export=False)

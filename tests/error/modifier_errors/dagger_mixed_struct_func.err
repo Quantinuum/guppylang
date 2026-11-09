@@ -6,7 +6,10 @@ Error: Invalid expression in dagger (at $FILE:18:8)
    |         ^ Mixed quantum and classical struct `MyStruct` found in a
    |           dagger context
 
-Help: Structs and tuples used in daggered contexts must contain either only
+Note: Structs and tuples used in daggered contexts must contain either only
 quantum or only classical data.
+
+Help: Consider using the fields of `s` individually instead of the whole struct,
+e.g. `s.q`, `s.x`
 
 Guppy compilation failed due to 1 previous error
