@@ -408,3 +408,6 @@ def test_propagated_context_does_not_change_unmodified_invocation():
     assert set(
         ENGINE.analysis_cache.local_modifiers_by_edge[apply_mono, gate_mono]
     ) == {NO_CALL_MODIFIERS}
+
+
+# NICOLA: TODO: add a test that refers to https://github.com/Quantinuum/guppylang/issues/2469

@@ -81,3 +81,6 @@ def test_nested_function():
     assert data is not None
     # Check the outer function calls exactly one function (the nested function).
     assert len(data) == 1
+
+
+# NICOLA: TODO: add a test about preserving analysis check during check
