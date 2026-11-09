@@ -96,9 +96,6 @@ def test_nested_function():
     assert len(data) == 1
 
 
-# NICOLA: TODO: add a test about preserving analysis check during check
-
-
 def test_analysis_returns_graph_without_mutating_checking_data():
     root, helper, gate, custom, loaded = [(DefId.fresh(), ()) for _ in range(5)]
     controlled = ModifierContext(control_sizes=(1,))
