@@ -62,6 +62,14 @@ class _ArrayEquality:
     def __eq__(self: Self, other: Self) -> bool: ...
 
 
+def _split_remainder(size: int, position: int) -> int:
+    """Validate a split position before computing its output shape."""
+    if not 0 <= position <= size:
+        msg = f"Split position {position} is out of bounds for array of size {size}"
+        raise ValueError(msg)
+    return size - position
+
+
 def _check_array_index(index: int, size: int, message: str | None = None) -> None:
     """Validate a static array index before generating access code."""
     if not 0 <= index < size:
@@ -369,6 +377,77 @@ class array[T, n: nat](builtins.list[T]):
         """
         for i in range(n // 2):
             mem_swap(self[i], self[n - i - 1])
+
+    @guppy
+    @no_type_check
+    def concat[T, n: nat, m: nat](
+        self: array[T, n] @ owned, other: array[T, m] @ owned
+    ) -> array[T, comptime(n + m)]:
+        """Consume two arrays and join their elements in order.
+
+        Supports linear elements, transferring each exactly once into a complete
+        output. Either input may be empty. Takes O(n + m) time and O(1) auxiliary
+        space, excluding the O(n + m) output array.
+
+        .. code-block:: python
+
+            joined = array(1, 2).concat(array(3))  # [1, 2, 3]
+        """
+        result = array(
+            _concat_element(self, other, i)
+            for i in range(comptime(n + m))  # type: ignore[name-defined]
+        )
+        self.discard_all_taken()
+        other.discard_all_taken()
+        return result
+
+    @guppy
+    @no_type_check
+    def appended[T, n: nat](
+        self: array[T, n] @ owned, value: T @ owned
+    ) -> array[T, comptime(n + 1)]:
+        """Consume an array and value, returning the value appended at the end.
+
+        Supports linear elements and empty arrays. Transfers each element once
+        into a complete output. Takes O(n + 1) time and O(1) auxiliary space,
+        excluding the O(n + 1) output array.
+
+        .. code-block:: python
+
+            values = array(1, 2).appended(3)  # [1, 2, 3]
+        """
+        return self.concat(array(value))
+
+    @guppy
+    @no_type_check
+    def split_at[T, n: nat](
+        self: array[T, n] @ owned, position: nat @ comptime
+    ) -> tuple[array[T, position], array[T, comptime(_split_remainder(n, position))]]:
+        """Consume an array, splitting before the compile-time position.
+
+        Positions 0 through n are valid, including endpoints and empty arrays.
+        Other positions are rejected during compilation, before any transfer.
+        Preserves order and moves each linear element exactly once into complete
+        outputs. Takes O(n) time and O(1) auxiliary space, excluding O(n) outputs.
+
+        .. code-block:: python
+
+            left, right = array(1, 2, 3).split_at(1)  # [1], [2, 3]
+
+        Qubit registers can be split and rejoined without copying:
+
+        .. code-block:: python
+
+            from guppylang.std.quantum import discard_array, qubit
+
+            qs = array(qubit() for _ in range(3))
+            left, right = qs.split_at(1)
+            discard_array(left.concat(right))
+        """
+        left = array(self.take(i) for i in range(position))
+        right = array(self.take(position + i) for i in range(comptime(n - position)))
+        self.discard_all_taken()
+        return left, right
 
     @guppy
     @no_type_check
@@ -750,6 +829,17 @@ def _array_from_nat(
     return some(
         array(bool((value >> nat(first + step * i)) & nat(1)) for i in range(size))
     )
+
+
+@guppy
+@no_type_check
+def _concat_element[T, n: nat, m: nat](
+    left: array[T, n], right: array[T, m], index: int
+) -> T:
+    # Conditional expressions are unsupported in array comprehensions.
+    if index < len(left):
+        return left.take(index)
+    return right.take(index - len(left))
 
 
 @guppy
