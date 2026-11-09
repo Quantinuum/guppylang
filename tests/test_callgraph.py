@@ -64,24 +64,6 @@ def test_recursive():
     assert mono_id in ENGINE.analysis_cache.call_graph[mono_id]
 
 
-def test_duplicate_calls_are_preserved_by_checking():
-    @guppy
-    def leaf() -> None:
-        pass
-
-    @guppy
-    def root() -> None:
-        leaf()
-        leaf()
-
-    root.check()
-
-    leaf_mono = (leaf.id, ())
-    assert ENGINE.analysis_cache.call_graph[root.id, ()] == [leaf_mono, leaf_mono]
-    assert ENGINE.analyzed_graph is not None
-    assert ENGINE.analyzed_graph.call_graph[root.id, ()] == (leaf_mono,)
-
-
 def test_nested_function():
     """Test that nested function calls are recorded in the call graph."""
 

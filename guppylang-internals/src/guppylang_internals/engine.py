@@ -165,6 +165,7 @@ class AnalysisCache:
     """
 
     #: Original callees in call-site order, including repeated calls.
+    # NICOLA TODO: we dont need list here, since duplication is not important
     call_graph: dict[MonoDefId, list[MonoDefId]] = field(default_factory=dict)
     #: Original function-value dependencies of each checked specialization.
     load_graph: dict[MonoDefId, set[MonoDefId]] = field(default_factory=dict)
