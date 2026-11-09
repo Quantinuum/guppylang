@@ -1,6 +1,7 @@
 """Integration tests for modifier-labelled call-graph analysis."""
 
 import pytest
+from hugr import ops
 from guppylang import guppy
 from guppylang.library import GuppyLibrary
 from guppylang.std.array import array
@@ -13,7 +14,7 @@ from guppylang.std.builtins import (
     nat,
     panic,
 )
-from guppylang.std.quantum import discard, measure, qubit, s, sdg, x
+from guppylang.std.quantum import discard, measure, qubit, s, x
 from guppylang_internals.analysis.callgraph import CallGraph
 from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.checker.modifier import (
@@ -415,19 +416,26 @@ def test_library_compiles_custom_dagger():
     """Regression test for https://github.com/Quantinuum/guppylang/issues/2469."""
 
     @guppy.unitary
-    class s_gate:
+    class custom_gate:
         @guppy
         def __call__(q: qubit) -> None:
             s(q)
 
         @guppy
         def daggered(q: qubit) -> None:
-            sdg(q)
+            x(q)
 
     @guppy
     def main(q: qubit) -> None:
         with dagger:
-            s_gate(q)
+            custom_gate(q)
 
     hugr = GuppyLibrary.from_members(main).compile().modules[0]
-    assert any("tket.daggered" in hugr[node].metadata.as_dict() for node in hugr)
+    gate_names = [
+        data.op.op_def().name
+        for _, data in hugr.nodes()
+        if isinstance(data.op, ops.ExtOp)
+    ]
+    # Automatic daggering of S would produce Sdg instead of the custom X.
+    assert "X" in gate_names
+    assert "Sdg" not in gate_names
