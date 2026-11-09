@@ -1,5 +1,18 @@
+from copy import deepcopy
+
 from guppylang import guppy
+from guppylang_internals.analysis.modifier import (
+    ConcreteCustomUse,
+    analyze_modifier_calls,
+)
+from guppylang_internals.checker.modifier import (
+    NO_CALL_MODIFIERS,
+    CustomModifierKind,
+    ModifierContext,
+)
+from guppylang_internals.definition.common import DefId
 from guppylang_internals.engine import ENGINE
+from guppylang_internals.span import Loc, Span
 
 
 def test_simple():
@@ -84,3 +97,54 @@ def test_nested_function():
 
 
 # NICOLA: TODO: add a test about preserving analysis check during check
+
+
+def test_analysis_returns_graph_without_mutating_checking_data():
+    root, helper, gate, custom, loaded = [(DefId.fresh(), ()) for _ in range(5)]
+    controlled = ModifierContext(control_sizes=(1,))
+    span = Span(Loc(__file__, 1, 1), Loc(__file__, 1, 2))
+    custom_use = ConcreteCustomUse(gate, custom, CustomModifierKind.CONTROLLED, 1)
+    calls = {
+        root: [helper],
+        helper: [gate, gate],
+        gate: [],
+        custom: [],
+        loaded: [gate],
+    }
+    loads = {
+        root: set(),
+        helper: {loaded},
+        gate: set(),
+        custom: {loaded},
+        loaded: set(),
+    }
+    local_modifiers = {
+        (root, helper): {controlled: span},
+        (helper, gate): {NO_CALL_MODIFIERS: span},
+        (loaded, gate): {NO_CALL_MODIFIERS: span},
+    }
+    original_inputs = deepcopy((calls, loads, local_modifiers))
+
+    def resolve(callee, context):
+        if callee == gate and context == controlled:
+            return custom, custom_use
+        return callee, None
+
+    result = analyze_modifier_calls([root], calls, loads, local_modifiers, resolve)
+
+    assert (calls, loads, local_modifiers) == original_inputs
+    assert result.program_graph.call_graph == {
+        root: (helper,),
+        helper: (custom,),
+        gate: (),
+        custom: (),
+        loaded: (gate,),
+    }
+    assert result.program_graph.load_graph == {
+        root: frozenset(),
+        helper: frozenset({loaded}),
+        gate: frozenset(),
+        custom: frozenset({loaded}),
+        loaded: frozenset(),
+    }
+    assert result.program_graph.custom_uses_by_mono_def == {custom: custom_use}
