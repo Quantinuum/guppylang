@@ -1,8 +1,8 @@
 from dataclasses import FrozenInstanceError
 
 import pytest
+from guppylang_internals.analysis.callgraph import CallGraph, ProgramGraph
 from guppylang_internals.analysis.modifier import ConcreteCustomUse
-from guppylang_internals.analysis.program_graph import ProgramGraph
 from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.definition.common import DefId
 from guppylang_internals.tys.builtin import nat_type
@@ -18,9 +18,10 @@ def test_snapshot_isolated_from_source_mutations(condense_before_mutation):
     calls = {root: [called, called], called: [], loaded: []}
     loads = {root: {loaded}, called: set(), loaded: set()}
     graph = ProgramGraph(calls, loads, custom_uses)
+    call_graph = CallGraph(graph.call_graph)
 
     if condense_before_mutation:
-        assert len(graph.condensed) == 3
+        assert len(call_graph.condensed) == 3
 
     # Change existing rows, replace a row, and remove keys in the source graphs.
     calls[root].append(loaded)
@@ -42,7 +43,7 @@ def test_snapshot_isolated_from_source_mutations(condense_before_mutation):
     assert graph.custom_uses_by_mono_def == {custom: custom_use}
     components = {
         member: component
-        for component in graph.condensed
+        for component in call_graph.condensed
         for member in component.members
     }
     assert set(components) == {root, called, loaded}
@@ -86,7 +87,7 @@ def test_empty_graph():
     assert graph.call_graph == {}
     assert graph.load_graph == {}
     assert graph.custom_uses_by_mono_def == {}
-    assert graph.condensed == ()
+    assert CallGraph(graph.call_graph).condensed == []
 
 
 def test_empty_rows_are_retained():
@@ -95,7 +96,7 @@ def test_empty_rows_are_retained():
 
     assert graph.call_graph == {root: ()}
     assert graph.load_graph == {root: frozenset()}
-    [component] = graph.condensed
+    [component] = CallGraph(graph.call_graph).condensed
     assert component.members == frozenset({root})
     assert component.external_callees == frozenset()
 
@@ -110,7 +111,7 @@ def test_load_edges_do_not_contribute_to_call_components():
     # Combining call and load edges would put all three functions in one cycle.
     components = {
         member: component
-        for component in graph.condensed
+        for component in CallGraph(graph.call_graph).condensed
         for member in component.members
     }
     assert set(components) == {root, called, loaded}
@@ -129,7 +130,7 @@ def test_recursive_call_components_and_external_callees():
         {root: [first], first: [second], second: [first, external]}, {}
     )
 
-    root_component, recursive_component = graph.condensed
+    root_component, recursive_component = CallGraph(graph.call_graph).condensed
     assert root_component.members == frozenset({root})
     assert recursive_component.members == frozenset({first, second})
     assert root_component.external_callees == frozenset(
@@ -144,6 +145,6 @@ def test_generic_definitions_are_not_call_component_members():
     graph = ProgramGraph({root: [generic], generic: [root]}, {})
 
     assert graph.call_graph[generic] == (root,)
-    [component] = graph.condensed
+    [component] = CallGraph(graph.call_graph).condensed
     assert component.members == frozenset({root})
     assert component.external_callees == frozenset({(root, None, generic)})

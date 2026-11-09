@@ -19,13 +19,12 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
-from guppylang_internals.analysis.callgraph import CallGraph
+from guppylang_internals.analysis.callgraph import CallGraph, ProgramGraph
 from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.analysis.modifier import (
     ConcreteCustomUse,
     analyze_modifier_calls,
 )
-from guppylang_internals.analysis.program_graph import ProgramGraph
 from guppylang_internals.checker.modifier import (
     CustomModifierKind,
     ModifierContext,

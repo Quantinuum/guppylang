@@ -7,7 +7,7 @@ from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from guppylang_internals.analysis.program_graph import ProgramGraph
+from guppylang_internals.analysis.callgraph import ProgramGraph
 from guppylang_internals.checker.errors.generic import (
     RecursiveModifierControlCountError,
 )
@@ -62,8 +62,8 @@ class ModifierAnalysisResult:
     """Result of propagating modifiers through a monomorphized call graph.
 
     Args:
-        program_graph: Snapshot of the resolved call graph, checked function-load
-            dependencies, and required concrete custom modifier uses.
+        program_graph: Snapshot of the resolved call graph, load graph, and concrete
+            custom modifier uses keyed by custom definition ``MonoDefId``
         resolved_calls: Called function's ``MonoDefId`` for each call edge and modifier
             context.
     """
@@ -92,11 +92,6 @@ def analyze_modifier_calls(
     Functions loaded as values are additional roots with no inherited modifiers.
     Explore their calls and further loads, and record loads separately from the
     call graph.
-
-    Each invocation starts afresh from the checking data, leaving the input graphs
-    and local modifier labels unchanged. The result owns an independent snapshot
-    of the resolved graphs and concrete custom uses. Load rows must be reusable
-    collections because traversal and result construction read them separately.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.
