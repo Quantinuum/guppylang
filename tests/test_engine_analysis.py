@@ -55,11 +55,13 @@ def test_analysis_is_published_after_custom_specializations_are_checked(
     assert ENGINE.analyzed_graph is not None
     [custom_use] = ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
     assert custom_use.custom_def in ENGINE.checked
-    assert custom_use.custom_def in ENGINE.call_graph
-    assert custom_use.custom_def in ENGINE.load_graph
+    assert custom_use.custom_def in ENGINE.analysis_cache.call_graph
+    assert custom_use.custom_def in ENGINE.analysis_cache.load_graph
     assert custom_use.custom_def in ENGINE.analyzed_graph.call_graph
     assert custom_use.custom_def in ENGINE.analyzed_graph.load_graph
-    assert ENGINE.call_graph[custom_main.id, ()] == [custom_use.unmodified_callee]
+    assert ENGINE.analysis_cache.call_graph[custom_main.id, ()] == [
+        custom_use.unmodified_callee
+    ]
     assert ENGINE.analyzed_graph.call_graph[custom_main.id, ()] == (
         custom_use.custom_def,
     )

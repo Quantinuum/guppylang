@@ -88,7 +88,7 @@ def test_compilation_uses_analyzed_graph(validate, monkeypatch):
 
     def check_and_clear_raw_calls(def_ids, *, reset=True):
         check(def_ids, reset=reset)
-        ENGINE.call_graph.clear()
+        ENGINE.analysis_cache.call_graph.clear()
 
     monkeypatch.setattr(ENGINE, "check", check_and_clear_raw_calls)
     program = main.with_minimal_opt().compile_function()

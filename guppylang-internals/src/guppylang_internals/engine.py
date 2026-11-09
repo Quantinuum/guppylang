@@ -158,7 +158,7 @@ CallGraphEdge = tuple[MonoDefId, MonoDefId]
 
 @dataclass
 class AnalysisCache:
-    """Mutable checking data used to derive an independent analyzed program graph.
+    """Cache for data regarting call graph, load graph, modifier uses and effects.
 
     Only checking populates these records. Analysis reads them without replacing
     original edges, propagating modifier labels into them, or changing local effects.
@@ -319,12 +319,8 @@ class CompilationEngine:
     The engine maintains a worklist of definitions that still need to be checked and
     makes sure that all dependencies are compiled.
 
-    Checking records original call edges, function-load dependencies, local effects,
-    and modifier labels in ``analysis_cache``. Analysis reads these records and
-    publishes an immutable ``analyzed_graph`` after checking all required custom
-    specializations. Compilation uses that snapshot for effects and custom
-    implementations. Each ``check()`` rebuilds the analysis; ``reset=False`` retains
-    the checking cache.
+    ``reset=False`` retains the checking cache with expection of the modifier analyzed
+    graph, that is computed from scratch each time.
 
     See `ENGINE` for the singleton instance of this class.
     """
@@ -344,7 +340,7 @@ class CompilationEngine:
     #: Original graph, effect, and modifier information recorded during checking.
     analysis_cache: AnalysisCache
     #: Resolved graphs and custom uses from the last completed check().
-    #: Compilation reads this snapshot; check() and reset() clear it.
+    #: Compilation reads this snapshot; reset() clear it: check() recompute it.
     analyzed_graph: ProgramGraph | None
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
@@ -399,18 +395,6 @@ class CompilationEngine:
         self.types_to_check_worklist = {}
         self.analysis_cache = AnalysisCache()
         self.analyzed_graph = None
-
-    # NICOLA: TODO: used only in test
-    @property
-    def call_graph(self) -> dict[MonoDefId, list[MonoDefId]]:
-        """Original calls recorded during checking, owned by ``analysis_cache``."""
-        return self.analysis_cache.call_graph
-
-    # NICOLA: TODO: used only in test
-    @property
-    def load_graph(self) -> dict[MonoDefId, set[MonoDefId]]:
-        """Original function loads recorded during checking."""
-        return self.analysis_cache.load_graph
 
     def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
         """Records a function-value dependency, without propagating call effects."""
