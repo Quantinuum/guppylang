@@ -3,15 +3,27 @@ from guppylang.std.builtins import dagger
 from guppylang.std.quantum import qubit, h
 
 
+@guppy.struct
+class Inner:
+    q: qubit
+    x: int
+
+
+@guppy.struct
+class Outer:
+    inner: Inner
+    q: qubit
+
+
 @guppy(daggerable=True)
-def foo(t: tuple[qubit, int]) -> None:
-    h(t[0])
+def foo(s: Outer) -> None:
+    h(s.q)
 
 
 @guppy
-def test(t: tuple[qubit, int]) -> None:
+def test(s: Outer) -> None:
     with dagger:
-        foo(t)
+        foo(s)
 
 
 test.compile_function()
