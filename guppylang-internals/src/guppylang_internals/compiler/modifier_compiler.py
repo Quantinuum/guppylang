@@ -201,7 +201,7 @@ def compile_modified_block(
 
     for arg in captured:
         # captured inout values are returned after the control arrays.
-        if InputFlags.Inout in arg.flags:
+        if not arg.ty.copyable:
             dfg[arg] = next(outports)
 
     for subscript in control_subscripts:

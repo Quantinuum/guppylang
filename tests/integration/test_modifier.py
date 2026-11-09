@@ -1448,3 +1448,199 @@ def test_std(validate):
         discard(t)
 
     validate(main.compile())
+
+
+def test_control_struct_field(validate):
+    @guppy.struct
+    class TwoQubits:
+        a: qubit
+        b: qubit
+
+    @guppy
+    def main() -> None:
+        tq = TwoQubits(qubit(), qubit())
+        with control(tq.a):
+            x(tq.b)
+        discard(tq.a)
+        discard(tq.b)
+
+    validate(main.compile())
+
+
+def test_control_nested_struct_field(validate):
+    @guppy.struct
+    class Inner:
+        a: qubit
+        b: qubit
+
+    @guppy.struct
+    class Outer:
+        inner: Inner
+        c: qubit
+        n: int
+
+    @guppy
+    def main(o: Outer) -> None:
+        with control(o.inner.a):
+            x(o.inner.b)
+            x(o.c)
+            rx(o.c, angle(o.n))
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_nested_modifiers(validate):
+    @guppy.struct
+    class ThreeQubits:
+        a: qubit
+        b: qubit
+        c: qubit
+
+    @guppy
+    def main(tq: ThreeQubits) -> None:
+        with dagger:
+            with control(tq.a):
+                x(tq.b)
+            with control(tq.b):
+                with control(tq.a):
+                    x(tq.c)
+
+    validate(main.compile_function())
+
+
+def test_control_tuple_element(validate):
+    @guppy
+    def main() -> None:
+        t = (qubit(), qubit())
+        with control(t[0]):
+            x(t[1])
+        discard(t[0])
+        discard(t[1])
+
+    validate(main.compile())
+
+
+def test_control_nested_tuple_element(validate):
+    @guppy
+    def main(t: tuple[tuple[qubit, qubit], qubit]) -> None:
+        with control(t[0][0]):
+            x(t[0][1])
+            x(t[1])
+
+    validate(main.compile_function())
+
+
+def test_control_tuple_in_struct(validate):
+    @guppy.struct
+    class Pair:
+        qs: tuple[qubit, qubit]
+        c: qubit
+
+    @guppy
+    def main(p: Pair) -> None:
+        with control(p.qs[0]):
+            x(p.qs[1])
+            x(p.c)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_nested_function(validate, use_experimental_features):
+    @guppy.struct(frozen=True)
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main() -> None:
+        p = Params(1, 2)
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # The nested function captures `p` as a whole, so the field access
+            # `p.b` outside of it must not be captured separately.
+            def inner() -> int:
+                return p.a
+
+            _ = inner() + p.b
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_assigned_in_body(validate):
+    @guppy.struct
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main() -> None:
+        p = Params(1, 2)
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # Assigning to a field requires capturing the whole struct
+            p.a = 3
+            _ = p.b
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_dynamic_subscript(validate):
+    @guppy.struct
+    class Register:
+        qs: array[qubit, 3]
+        i: int
+
+    @guppy
+    def main(r: Register) -> None:
+        c = qubit()
+        with control(c):
+            x(r.qs[r.i])
+        discard(c)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_in_branch(validate):
+    @guppy.struct
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main(p: Params) -> None:
+        c = qubit()
+        t = qubit()
+        with control(c):
+            if p.a > p.b:
+                x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_method_call(validate):
+    @guppy.struct
+    class Data:
+        xs: array[int, 3]
+
+    @guppy
+    def main(d: Data) -> None:
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # `d.xs.copy` is a method, not a field, so only `d.xs` is captured
+            _ = d.xs.copy()
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
