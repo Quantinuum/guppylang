@@ -33,6 +33,7 @@ from guppylang_internals.nodes import (
     TensorCall,
 )
 from guppylang_internals.span import ToSpan, function_header_span
+from guppylang_internals.tys.arg import TypeArg
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import (
@@ -40,6 +41,7 @@ from guppylang_internals.tys.ty import (
     CALL_CTRL_DAGGERED_METHOD,
     CALL_DAGGERED_METHOD,
     FunctionType,
+    OpaqueType,
     StructType,
     TupleType,
     Type,
@@ -129,12 +131,15 @@ def _annotate_diagnostics(
 
 def is_mixed_ty(ty: Type) -> bool:
     """Checks whether a struct or tuple type (or any struct or tuple nested inside
-    it) contains both quantum and classical elements."""
+    it) contains both quantum and classical elements. Opaque types like arrays are
+    mixed if any of their type arguments are mixed."""
     match ty:
         case TupleType(element_types=elems):
             elem_tys = list(elems)
         case StructType(fields=fields):
             elem_tys = [f.ty for f in fields]
+        case OpaqueType(args=args):
+            return any(is_mixed_ty(arg.ty) for arg in args if isinstance(arg, TypeArg))
         case _:
             return False
     quantum = [contain_qubit_ty(elem_ty) for elem_ty in elem_tys]
@@ -292,8 +297,16 @@ class BBUnitaryChecker(ast.NodeVisitor):
 
     def _check_mixed_under_dagger(self, node: ast.expr, ty: Type | None) -> None:
         if UnitaryFlags.Dagger in self.flags and ty is not None and is_mixed_ty(ty):
-            # `is_mixed_ty` returns False if not a struct or tuple type.
-            kind = "struct" if isinstance(ty, StructType) else "tuple"
+            # `is_mixed_ty` returns False if not a struct, tuple or opaque type.
+            match ty:
+                case StructType():
+                    kind = "struct"
+                case TupleType():
+                    kind = "tuple"
+                case OpaqueType(defn=defn):
+                    kind = defn.name
+                case _:
+                    kind = "value"
             err = InvalidUnderDagger(
                 node, things=f"Mixed quantum and classical {kind} `{ty}`"
             )
@@ -303,17 +316,35 @@ class BBUnitaryChecker(ast.NodeVisitor):
     def visit_Name(self, node: ast.Name) -> None:
         self._check_mixed_under_dagger(node, get_type_opt(node))
 
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        self._check_mixed_under_dagger(node, get_type_opt(node))
+        self.generic_visit(node)
+
     def visit_PlaceNode(self, node: PlaceNode) -> None:
-        # Only whole variables are checked: projections like `s.q` or `t[0]` don't
-        # use the mixed value itself (see projection capture in modified blocks)
-        if isinstance(node.place, Variable):
-            self._check_mixed_under_dagger(node, node.place.ty)
+        # Check the type of the place itself: projections like `t[0]` or `s.x` are
+        # fine if they are scalar or unmixed, but may themselves be mixed aggregates.
+        # Intermediate projections (e.g. `xs[i]` in `xs[i].q`) are checked as well,
+        # but not the root variable, which is only used through the projection.
+        place = node.place
+        self._check_mixed_under_dagger(node, place.ty)
+        while not isinstance(place, Variable) and not isinstance(
+            place.parent, Variable
+        ):
+            place = place.parent
+            self._check_mixed_under_dagger(node, place.ty)
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
         # Nested modified blocks are checked separately by the CFG checker
         pass
 
     def _check_assign(self, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> None:
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for target in targets:
+            for n in ast.walk(target):
+                # Assigning to a projection (e.g. `s.n = ...`) updates the whole
+                # root variable, so its type must not be mixed
+                if isinstance(n, PlaceNode):
+                    self._check_mixed_under_dagger(n, n.place.root.ty)
         if node.value is not None:
             self.visit(node.value)
 

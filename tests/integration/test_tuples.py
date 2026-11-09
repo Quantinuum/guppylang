@@ -128,27 +128,14 @@ def test_non_terminating(validate):
     validate(foo.compile_function())
 
 
-def test_dagger_classical_tuple(validate):
+def test_dagger_unmixed_tuples(validate):
     @guppy(daggerable=True)
-    def first(t: tuple[angle, angle]) -> angle:
-        return t[0]
+    def use(qs: tuple[qubit, qubit], ps: tuple[angle, angle]) -> None:
+        rx(qs[0], ps[0])
 
     @guppy
-    def main(q: qubit, t: tuple[angle, angle]) -> None:
+    def main(qs: tuple[qubit, qubit], ps: tuple[angle, angle]) -> None:
         with dagger:
-            rx(q, first(t))
-
-    validate(main.compile_function())
-
-
-def test_dagger_quantum_tuple(validate):
-    @guppy(daggerable=True)
-    def use(t: tuple[qubit, qubit]) -> None:
-        h(t[0])
-
-    @guppy
-    def main(t: tuple[qubit, qubit]) -> None:
-        with dagger:
-            use(t)
+            use(qs, ps)
 
     validate(main.with_minimal_opt().compile_function(), export=False)

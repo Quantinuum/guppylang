@@ -1,6 +1,6 @@
 from guppylang.decorator import guppy
 from guppylang.std.builtins import dagger
-from guppylang.std.quantum import qubit, h
+from guppylang.std.quantum import h, qubit
 
 
 @guppy(daggerable=True)

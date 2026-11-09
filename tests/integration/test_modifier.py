@@ -1644,3 +1644,53 @@ def test_control_struct_field_method_call(validate):
         discard(t)
 
     validate(main.compile_function())
+
+
+def test_dagger_unmixed_projections_of_mixed(validate):
+    @guppy.struct
+    class Inner:
+        q1: qubit
+        q2: qubit
+
+    @guppy.struct
+    class Outer:
+        inner: Inner
+        a: angle
+
+    @guppy(daggerable=True)
+    def use_inner(s: Inner) -> None:
+        h(s.q1)
+
+    @guppy(daggerable=True)
+    def use_pair(t: tuple[qubit, qubit]) -> None:
+        h(t[0])
+
+    @guppy(daggerable=True)
+    def main(s: Outer, t: tuple[tuple[qubit, qubit], angle]) -> None:
+        # Scalar and all-quantum projections of mixed values are fine
+        use_inner(s.inner)
+        rx(s.inner.q2, s.a)
+        use_pair(t[0])
+        rx(t[0][1], t[1])
+
+    validate(main.with_minimal_opt().compile_function(), export=False)
+
+
+def test_dagger_unmixed_arrays_and_field_assign(validate):
+    @guppy.struct
+    class Qubits:
+        q1: qubit
+        q2: qubit
+
+    @guppy.struct
+    class Params:
+        a: angle
+        b: angle
+
+    @guppy(daggerable=True)
+    def main(qs: array[Qubits, 2], ps: array[Params, 2], q: qubit, i: int) -> None:
+        h(qs[i].q1)
+        rx(q, ps[i].a)
+        ps[i].b = ps[i].a
+
+    validate(main.with_minimal_opt().compile_function(), export=False)
