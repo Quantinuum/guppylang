@@ -44,6 +44,7 @@ from guppylang.std.lang import Copy, Drop, comptime
 from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
+from guppylang.std.platform import panic
 
 if TYPE_CHECKING:
     from guppylang.std.lang import owned
@@ -68,6 +69,20 @@ def _split_remainder(size: int, position: int) -> int:
         msg = f"Split position {position} is out of bounds for array of size {size}"
         raise ValueError(msg)
     return size - position
+
+
+def _chunk_count(length: int, size: int) -> int:
+    """Validate chunk shape before transferring elements."""
+    if size <= 0 or length % size != 0:
+        msg = "Chunk size must be positive and divide the array length exactly"
+        raise ValueError(msg)
+    return length // size
+
+
+def _check_subarray_size(length: int, size: int) -> None:
+    if not 0 <= size <= length:
+        msg = "Subarray size must be between zero and the array length"
+        raise ValueError(msg)
 
 
 def _check_array_index(index: int, size: int, message: str | None = None) -> None:
@@ -451,6 +466,117 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
+    def subarray[T: Copy, n: nat](
+        self: array[T, n], start: int, size: nat @ comptime
+    ) -> array[T, size]:
+        """Copy a statically sized subarray starting at a runtime index.
+
+        Borrows the input and requires Copy. Rejects sizes greater than n during
+        compilation. Panics unless 0 <= start <= n and size <= n - start.
+        A zero-size result may start at n. Takes O(size) time and O(1) auxiliary
+        space, excluding the output array.
+
+        .. code-block:: python
+
+            middle = array(1, 2, 3, 4).subarray(1, 2)  # [2, 3]
+        """
+        comptime(_check_subarray_size(n, size))
+        if start < 0 or start > n or size > n - start:
+            panic("Subarray bounds are out of range")
+        return array(self[start + i] for i in range(size))
+
+    @guppy
+    @no_type_check
+    def zip[T, U, n: nat](
+        self: array[T, n] @ owned, other: array[U, n] @ owned
+    ) -> array[tuple[T, U], n]:
+        """Consume equal-length arrays, pairing corresponding elements.
+
+        Supports linear elements and empty arrays. Transfers each element once,
+        preserving index order. Takes O(n) time and O(1) auxiliary space,
+        excluding the output array.
+
+        .. code-block:: python
+
+            pairs = array(1, 2).zip(array(True, False))
+        """
+        result = array((self.take(i), other.take(i)) for i in range(n))
+        self.discard_all_taken()
+        other.discard_all_taken()
+        return result
+
+    @guppy
+    @no_type_check
+    def unzip[T, U, n: nat](
+        self: array[tuple[T, U], n] @ owned,
+    ) -> tuple[array[T, n], array[U, n]]:
+        """Consume pairs, returning their first and second components in order.
+
+        Supports linear components and empty arrays. Each pair is consumed once;
+        second components are buffered in complete Option slots while first
+        components are collected. Takes O(n) time and O(n) auxiliary space,
+        excluding the output arrays.
+
+        .. code-block:: python
+
+            numbers, flags = array((1, True), (2, False)).unzip()
+        """
+        seconds = array(nothing[U]() for _ in range(n))  # type: ignore[name-defined]
+        firsts = array(_unzip_first(self, seconds, i) for i in range(n))
+        self.discard_all_taken()
+        result = array(seconds.take(i).unwrap() for i in range(n))
+        seconds.discard_all_taken()
+        return firsts, result
+
+    @guppy
+    @no_type_check
+    def flatten[T, n: nat, m: nat](
+        self: array[array[T, m], n] @ owned,
+    ) -> array[T, comptime(n * m)]:
+        """Consume a rectangular array, concatenating its rows in row-major order.
+
+        Supports linear elements, empty outer arrays, and zero-length rows.
+        Transfers each element once into a complete output. Takes O(n + n*m)
+        time, including cleanup of empty rows, and O(1) auxiliary space excluding
+        the output array.
+
+        .. code-block:: python
+
+            flat = array(array(1, 2), array(3, 4)).flatten()  # [1, 2, 3, 4]
+        """
+        result = array(
+            self[i // m].take(i % m)  # type: ignore[name-defined]
+            for i in range(comptime(n * m))  # type: ignore[name-defined]
+        )
+        for row in self:
+            row.discard_all_taken()
+        return result
+
+    @guppy
+    @no_type_check
+    def chunks[T, n: nat](
+        self: array[T, n] @ owned, size: nat @ comptime
+    ) -> array[array[T, size], comptime(_chunk_count(n, size))]:
+        """Consume an array, grouping consecutive elements into fixed-size rows.
+
+        The compile-time size must be positive and divide n exactly; invalid
+        shapes are rejected before any transfer. Empty arrays yield zero rows.
+        Supports linear elements and preserves order. Takes O(n) time and O(1)
+        auxiliary space, excluding the output arrays.
+
+        .. code-block:: python
+
+            rows = array(1, 2, 3, 4).chunks(2)  # [[1, 2], [3, 4]]
+        """
+        result = array(
+            array(self.take(i * size + j) for j in range(size))
+            for i in range(comptime(_chunk_count(n, size)))
+        )
+        self.discard_all_taken()
+        return result
+
+    @guppy
+    @no_type_check
     def get[T: Copy, n: nat](self: array[T, n], index: int) -> Option[T]:
         """Return a copy at index, or nothing for negative/out-of-range indices.
 
@@ -829,6 +955,16 @@ def _array_from_nat(
     return some(
         array(bool((value >> nat(first + step * i)) & nat(1)) for i in range(size))
     )
+
+
+@guppy
+@no_type_check
+def _unzip_first[T, U, n: nat](
+    pairs: array[tuple[T, U], n], seconds: array[Option[U], n], index: int
+) -> T:
+    first, second = pairs.take(index)
+    seconds[index].swap(some(second)).unwrap_nothing()
+    return first
 
 
 @guppy
