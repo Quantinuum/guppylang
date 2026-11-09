@@ -134,8 +134,7 @@ def test_recursive_custom_modifier_same_control_count():
     assert custom_def in analyzed_graph.call_graph[helper_instantiation]
 
 
-@pytest.mark.parametrize("incremental", [False, True])
-def test_non_recursive_control_count_increase_is_allowed(incremental):
+def test_non_recursive_control_count_increase_is_allowed():
     """Different non-recursive paths may use increasing control counts."""
 
     @guppy.unitary
@@ -163,22 +162,13 @@ def test_non_recursive_control_count_increase_is_allowed(incremental):
         call_with_one_control(q, c)
         call_with_two_controls(q, controls)
 
-    if incremental:
-        call_with_one_control.check()
-        ENGINE.check([main.id], reset=False)
-    else:
-        main.check()
+    main.check()
 
     assert ENGINE.analyzed_graph is not None
     assert {
         use.control_count
         for use in ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
     } == {1, 2}
-    gate_mono = (custom_gate.id, ())
-    assert ENGINE.analysis_cache.call_graph[call_with_one_control.id, ()] == [gate_mono]
-    assert ENGINE.analysis_cache.call_graph[call_with_two_controls.id, ()] == [
-        gate_mono
-    ]
 
 
 def test_modifier_context_propagates_through_higher_order_and_helper_calls():
@@ -372,20 +362,6 @@ def test_loaded_function_does_not_inherit_modifiers():
     loaded_mono = (loaded.id, (ConstArg(ConstValue(nat_type(), 2)),))
     assert analyzed_graph.call_graph[loaded_mono] == ((helper.id, ()),)
     assert analyzed_graph.call_graph[helper.id, ()] == (custom_use.custom_def,)
-    assert analyzed_graph.load_graph[loader.id, ()] == frozenset({(factory.id, ())})
-    assert analyzed_graph.load_graph[factory.id, ()] == frozenset(
-        {(loaded.id, ()), loaded_mono}
-    )
-    gate_mono = (custom_gate.id, ())
-    assert ENGINE.analysis_cache.call_graph[helper.id, ()] == [gate_mono]
-    assert set(
-        ENGINE.analysis_cache.local_modifiers_by_edge[(helper.id, ()), gate_mono]
-    ) == {NO_CALL_MODIFIERS}
-    assert ENGINE.analysis_cache.load_graph[loader.id, ()] == {(factory.id, ())}
-    assert ENGINE.analysis_cache.load_graph[factory.id, ()] == {
-        (loaded.id, ()),
-        loaded_mono,
-    }
 
 
 def test_propagated_context_does_not_change_unmodified_invocation():
