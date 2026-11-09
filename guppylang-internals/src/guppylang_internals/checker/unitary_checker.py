@@ -264,8 +264,9 @@ class BBUnitaryChecker(ast.NodeVisitor):
         self._check_call(node, node.tensor_ty)
 
     def visit_BarrierExpr(self, node: BarrierExpr) -> None:
-        # Barrier is always allowed
-        pass
+        # Barrier itself is always allowed, but its arguments still need checking
+        for arg in node.args:
+            self.visit(arg)
 
     def visit_StateOutputExpr(self, node: StateOutputExpr) -> None:
         # State output is not allowed under dagger, since the execution order
