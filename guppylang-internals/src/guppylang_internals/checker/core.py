@@ -25,6 +25,7 @@ from guppylang_internals.definition.common import (
 )
 from guppylang_internals.engine import BUILTIN_DEFS, DEF_STORE, ENGINE, MonoDefId
 from guppylang_internals.error import InternalGuppyError, RequiresMonomorphizationError
+from guppylang_internals.frame_util import FrameSnapshot
 from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.const import (
     BoundConstVar,
@@ -307,7 +308,7 @@ class PythonObject:
 
 
 class Globals:
-    """Wrapper around a stack frame in which a Guppy definition was defined.
+    """Wrapper around the Python scope in which a Guppy definition was defined.
 
     Gives access to the other globals that are in scope for that definition.
     """
@@ -315,9 +316,9 @@ class Globals:
     f_locals: dict[str, Any]
     f_globals: dict[str, Any]
     f_builtins: dict[str, Any]
-    frame: FrameType
+    frame: FrameType | FrameSnapshot
 
-    def __init__(self, frame: FrameType) -> None:
+    def __init__(self, frame: FrameType | FrameSnapshot) -> None:
         self.frame = frame
         self.f_locals = frame.f_locals
         self.f_globals = frame.f_globals

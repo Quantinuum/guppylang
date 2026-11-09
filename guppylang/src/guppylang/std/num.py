@@ -469,7 +469,7 @@ class float:
             int_op("trunc_s", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
         unitary_flags=UnitaryFlags.Dagger,
-        effects=[Effect.ANY],
+        effects=[Effect.PANIC],
     )
     def __int__(self: float) -> int: ...
 
@@ -493,7 +493,7 @@ class float:
             int_op("trunc_u", hugr.std.int.CONVERSIONS_EXTENSION),
         ),
         unitary_flags=UnitaryFlags.Dagger,
-        effects=[Effect.ANY],
+        effects=[Effect.PANIC],
     )
     def __nat__(self: float) -> nat: ...
 

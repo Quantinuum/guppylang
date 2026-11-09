@@ -711,6 +711,106 @@ def test_ctrl_daggered_impl_is_executed(run_int_fn):
     run_int_fn(main, expected=1, num_qubits=2)
 
 
+@pytest.mark.parametrize("modifier", ["controlled", "daggered", "ctrl_daggered"])
+def test_custom_modifier_in_loaded_function_is_executed(modifier, run_int_fn):
+    """Indirect calls to loaded functions execute their custom modified methods."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            x(q)
+
+        @guppy
+        def ctrl_daggered[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy
+    def call_controlled(q: qubit, c: qubit) -> None:
+        with control(c):
+            custom_gate(q)
+
+    @guppy
+    def call_daggered(q: qubit, c: qubit) -> None:
+        with dagger:
+            custom_gate(q)
+
+    @guppy
+    def call_ctrl_daggered(q: qubit, c: qubit) -> None:
+        with control(c), dagger:
+            custom_gate(q)
+
+    loaded = {
+        "controlled": call_controlled,
+        "daggered": call_daggered,
+        "ctrl_daggered": call_ctrl_daggered,
+    }[modifier]
+
+    @guppy
+    def main() -> int:
+        target = qubit()
+        control_qubit = qubit()
+        x(control_qubit)
+        # Erase the function item's identity so this is an indirect call. Modifier
+        # analysis must reach the function body through its load edge.
+        f: Function[[qubit, qubit], None] = loaded
+        f(target, control_qubit)
+        result = measure(target).read()
+        discard(control_qubit)
+        return 1 if result else 0
+
+    # Each custom method flips the target; modifying the empty base body cannot.
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
+@pytest.mark.parametrize("comptime_factory", [False, True])
+def test_custom_modifier_in_returned_function_is_executed(comptime_factory, run_int_fn):
+    """Returned functions retain custom modifiers with either kind of factory."""
+
+    @guppy.unitary
+    class custom_gate:
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def controlled[n: nat](q: qubit, _controls: array[qubit, n]) -> None:
+            x(q)
+
+    @guppy
+    def loaded(q: qubit, c: qubit) -> None:
+        with control(c):
+            custom_gate(q)
+
+    factory_decorator = guppy.comptime if comptime_factory else guppy
+
+    @factory_decorator
+    def factory() -> Function[[qubit, qubit], None]:
+        return loaded
+
+    @guppy
+    def main() -> int:
+        q = qubit()
+        c = qubit()
+        x(c)
+        f = factory()
+        f(q, c)
+        result = measure(q).read()
+        discard(c)
+        return 1 if result else 0
+
+    # Only the custom controlled implementation flips the target.
+    run_int_fn(main, expected=1, num_qubits=2)
+
+
 def test_custom_modifier_use_default_when_missing_implementation(run_int_fn):
     @guppy.unitary
     class controllable_gate:
@@ -1353,3 +1453,199 @@ def test_std(validate):
         discard(t)
 
     validate(main.compile())
+
+
+def test_control_struct_field(validate):
+    @guppy.struct
+    class TwoQubits:
+        a: qubit
+        b: qubit
+
+    @guppy
+    def main() -> None:
+        tq = TwoQubits(qubit(), qubit())
+        with control(tq.a):
+            x(tq.b)
+        discard(tq.a)
+        discard(tq.b)
+
+    validate(main.compile())
+
+
+def test_control_nested_struct_field(validate):
+    @guppy.struct
+    class Inner:
+        a: qubit
+        b: qubit
+
+    @guppy.struct
+    class Outer:
+        inner: Inner
+        c: qubit
+        n: int
+
+    @guppy
+    def main(o: Outer) -> None:
+        with control(o.inner.a):
+            x(o.inner.b)
+            x(o.c)
+            rx(o.c, angle(o.n))
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_nested_modifiers(validate):
+    @guppy.struct
+    class ThreeQubits:
+        a: qubit
+        b: qubit
+        c: qubit
+
+    @guppy
+    def main(tq: ThreeQubits) -> None:
+        with dagger:
+            with control(tq.a):
+                x(tq.b)
+            with control(tq.b):
+                with control(tq.a):
+                    x(tq.c)
+
+    validate(main.compile_function())
+
+
+def test_control_tuple_element(validate):
+    @guppy
+    def main() -> None:
+        t = (qubit(), qubit())
+        with control(t[0]):
+            x(t[1])
+        discard(t[0])
+        discard(t[1])
+
+    validate(main.compile())
+
+
+def test_control_nested_tuple_element(validate):
+    @guppy
+    def main(t: tuple[tuple[qubit, qubit], qubit]) -> None:
+        with control(t[0][0]):
+            x(t[0][1])
+            x(t[1])
+
+    validate(main.compile_function())
+
+
+def test_control_tuple_in_struct(validate):
+    @guppy.struct
+    class Pair:
+        qs: tuple[qubit, qubit]
+        c: qubit
+
+    @guppy
+    def main(p: Pair) -> None:
+        with control(p.qs[0]):
+            x(p.qs[1])
+            x(p.c)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_nested_function(validate, use_experimental_features):
+    @guppy.struct(frozen=True)
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main() -> None:
+        p = Params(1, 2)
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # The nested function captures `p` as a whole, so the field access
+            # `p.b` outside of it must not be captured separately.
+            def inner() -> int:
+                return p.a
+
+            _ = inner() + p.b
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_assigned_in_body(validate):
+    @guppy.struct
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main() -> None:
+        p = Params(1, 2)
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # Assigning to a field requires capturing the whole struct
+            p.a = 3
+            _ = p.b
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_dynamic_subscript(validate):
+    @guppy.struct
+    class Register:
+        qs: array[qubit, 3]
+        i: int
+
+    @guppy
+    def main(r: Register) -> None:
+        c = qubit()
+        with control(c):
+            x(r.qs[r.i])
+        discard(c)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_in_branch(validate):
+    @guppy.struct
+    class Params:
+        a: int
+        b: int
+
+    @guppy
+    def main(p: Params) -> None:
+        c = qubit()
+        t = qubit()
+        with control(c):
+            if p.a > p.b:
+                x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())
+
+
+def test_control_struct_field_method_call(validate):
+    @guppy.struct
+    class Data:
+        xs: array[int, 3]
+
+    @guppy
+    def main(d: Data) -> None:
+        c = qubit()
+        t = qubit()
+        with control(c):
+            # `d.xs.copy` is a method, not a field, so only `d.xs` is captured
+            _ = d.xs.copy()
+            x(t)
+        discard(c)
+        discard(t)
+
+    validate(main.compile_function())

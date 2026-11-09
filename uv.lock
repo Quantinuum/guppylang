@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12, <4"
 resolution-markers = [
     "python_full_version >= '3.15' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
@@ -273,11 +273,11 @@ css = [
 
 [[package]]
 name = "certifi"
-version = "2026.5.20"
+version = "2026.10.18"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f3/ce/ee2ecad540810a79593028e88299baeae54d346cc7a0d94b6199988b89b1/certifi-2026.5.20.tar.gz", hash = "sha256:69dea482ab64caa7b9f6aba1c6bf48bb6a5448d1c0f1b17ab42ad8c763a5344d", size = 135422, upload-time = "2026-05-20T11:46:50.073Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7e/eb/a2aa1ac3ea30dd3f30ca57f40232138b6b0040719316ecb85daf61167771/certifi-2026.10.18.tar.gz", hash = "sha256:b9995d97b64d0431a5af837d8ca8cd6238104d1f319f04bd93ea43124d6c861e", size = 135227, upload-time = "2026-10-18T16:21:07.655Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/8c/57e832b7af6d7c5abe66eb3fbe3a3a32f4d11ea23a1aa7131371035be991/certifi-2026.5.20-py3-none-any.whl", hash = "sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897", size = 134134, upload-time = "2026-05-20T11:46:48.578Z" },
+    { url = "https://files.pythonhosted.org/packages/08/ba/95dd616042484f7c83a06974388b37b837732740ee70bc5dc715b5fcd55a/certifi-2026.10.18-py3-none-any.whl", hash = "sha256:73191c47aaa79da394e8fee2dbc2ec827432cab56311122c9e47abf79e390f62", size = 134093, upload-time = "2026-10-18T16:21:06.276Z" },
 ]
 
 [[package]]
@@ -790,7 +790,7 @@ wheels = [
 
 [[package]]
 name = "guppylang"
-version = "1.1.3"
+version = "1.2.0"
 source = { editable = "guppylang" }
 dependencies = [
     { name = "guppylang-internals" },
@@ -813,7 +813,7 @@ requires-dist = [
 
 [[package]]
 name = "guppylang-internals"
-version = "1.1.3"
+version = "1.2.0"
 source = { editable = "guppylang-internals" }
 dependencies = [
     { name = "hugr" },
@@ -830,7 +830,7 @@ requires-dist = [
     { name = "hugr", specifier = "~=0.18.6" },
     { name = "networkx", specifier = ">=3.4.2" },
     { name = "pytket", specifier = ">=2.18.1" },
-    { name = "tket", extras = ["pytket"], specifier = "~=0.15.8" },
+    { name = "tket", extras = ["pytket"], specifier = "~=0.15.12" },
     { name = "tket-exts", specifier = "~=0.14.0" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "wasmtime", specifier = ">=38.0,<48.1" },
@@ -1949,7 +1949,7 @@ wheels = [
 
 [[package]]
 name = "pre-commit"
-version = "4.6.2"
+version = "4.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cfgv" },
@@ -1958,9 +1958,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/74/89/1f3e8e1fc3e97de0fa963495832f581f025f29471602a309e48808244292/pre_commit-4.6.2.tar.gz", hash = "sha256:8f5d7bfb021ecdbcd9d49d89847082dd24172ccde534390081a679ad046e2441", size = 198670, upload-time = "2026-08-10T22:07:18.421Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/c3/6965c2690ddce885ec75121572d065a5b94c5a5d8d3e657927ecda9fd715/pre_commit-4.7.0.tar.gz", hash = "sha256:1f3deee12b914c8fa184bd2b5953391c2e4f36763e403d4a23dc9983fa7c6e86", size = 198120, upload-time = "2026-10-12T20:45:40.32Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/e2/bbb7129c9e7999a6b8ee9cca3b66486c25c423ab5a75f34071798b74ce94/pre_commit-4.6.2-py2.py3-none-any.whl", hash = "sha256:e2dde9a75d3bce11bd3831c26d134df00a2803c1d818be6a0383c3dcda25dc4e", size = 226202, upload-time = "2026-08-10T22:07:16.942Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/83/ce0a196e4f7b20b11ce3aa1fc72fb973f64b7628d51c1b8aebad37fb7f81/pre_commit-4.7.0-py2.py3-none-any.whl", hash = "sha256:2e229038ad3656081b70c27913157e4b636ef306f643f024a8a8e3f0f7b2f877", size = 226261, upload-time = "2026-10-12T20:45:38.858Z" },
 ]
 
 [[package]]
@@ -3020,20 +3020,20 @@ wheels = [
 
 [[package]]
 name = "tket"
-version = "0.15.10"
+version = "0.15.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hugr" },
     { name = "tket-eccs" },
     { name = "tket-exts" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/20/0a/258a6036b3a8a5489ac15a609ccdab9ded1b7ce2704e512945ab2a8129e4/tket-0.15.10.tar.gz", hash = "sha256:a9ec3176ee7b1886f988045dc6e1856499da32c72d031e0d3a7a2f41da2ca223", size = 842443, upload-time = "2026-09-30T17:43:09.911Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/e1/a5f4a53d47f95b14f840358feafd5173cd53f1ed0e46f301eb95cf62493d/tket-0.15.12.tar.gz", hash = "sha256:a34a0a5ab7a19d2f4e0a3e08043f29ea82b1c604f872f32eaa99e130dc50b1e5", size = 863973, upload-time = "2026-10-20T13:24:04.345Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6d/d0/4ee6c1c850205522bea461344ad16cb97bbc043d8c44fdce4a0c8c7696d5/tket-0.15.10-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:086654221fef55f00671aff0359becdbb18a020adfadbf3cc785eba7891c8387", size = 11616454, upload-time = "2026-09-30T17:42:55.292Z" },
-    { url = "https://files.pythonhosted.org/packages/72/eb/ff3c3a9e4f3770649ffc9cb68a17e16e69308fa4404eb248f7f2c33ca664/tket-0.15.10-cp310-abi3-macosx_11_0_x86_64.whl", hash = "sha256:576daa676b06bb9a36751504766884a8495060fcc11a0e47629e17783bc95d9b", size = 12771846, upload-time = "2026-09-30T17:42:58.03Z" },
-    { url = "https://files.pythonhosted.org/packages/6d/3e/0afc426eb3b5004551ab871e08d4e6fa7f83c1b6ab6286b6cf5f9201aba6/tket-0.15.10-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:be022439a9931597c045afdf93344de7e0392046b80d7371b5911ceb731907aa", size = 13858287, upload-time = "2026-09-30T17:43:01.195Z" },
-    { url = "https://files.pythonhosted.org/packages/2f/ba/46e8b578df31e00fc977dfe54976f68e88779610a112ab1f90c011ce658f/tket-0.15.10-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:7da049080139c683a084c61bcfb5184e94f022e8006d8ca8dbfd3b094c6afd4d", size = 15090317, upload-time = "2026-09-30T17:43:04.641Z" },
-    { url = "https://files.pythonhosted.org/packages/99/20/e8f7243fec76f4b2a3ffab1f49234833fccc72b5531e8563e0ff51f6c554/tket-0.15.10-cp310-abi3-win_amd64.whl", hash = "sha256:4819570dad0af40fa1b372148a4b876e0df8a3707946a15cf512519bbcf899ac", size = 11752234, upload-time = "2026-09-30T17:43:07.835Z" },
+    { url = "https://files.pythonhosted.org/packages/79/f9/5eaa2c68e9b305380e73b8db405948657f5a6147b623b3a0814036ceb9dc/tket-0.15.12-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:51fc32c339b92a2bf99f4898f0655d1bcb0bc19f54d6aa91d646996c806f4e3f", size = 11799147, upload-time = "2026-10-20T13:23:50.785Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/08/42cbe59326936b1922cfbeea8d1ad53c9bf391e0ae3bd629e3b68ae03770/tket-0.15.12-cp310-abi3-macosx_11_0_x86_64.whl", hash = "sha256:7fa349c7b93e52d5049d3961105abe0afcd7fb86187ec46f7251339b06ff5baf", size = 12905846, upload-time = "2026-10-20T13:23:54.103Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/60/41e9df05a8fe2b82456d22806d720fb3d72196564135f23f4e1145c4d8f0/tket-0.15.12-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:83a792dea8d8424cc8262bc76ca7bed4e8592dfd8248e306511d78671c29d67b", size = 13989742, upload-time = "2026-10-20T13:23:56.782Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/57/01f1e01237000dcade5e386680ef439bfe91c32022cc3f08482c4ebd01ce/tket-0.15.12-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:d96213d5f0baf9cd16a0c2e9579f08af7636555166c1961c03f607b6358e954e", size = 15254097, upload-time = "2026-10-20T13:23:59.239Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/07/7c8c5683d870b3f977a6c797188c7688f0f34d6a27ebb7819f50163f374c/tket-0.15.12-cp310-abi3-win_amd64.whl", hash = "sha256:d29ae67d6a21d5b95a67d53d8f7cc0430e5cdfe416d824e8e747918fca546287", size = 11902837, upload-time = "2026-10-20T13:24:01.716Z" },
 ]
 
 [package.optional-dependencies]
@@ -3102,11 +3102,11 @@ wheels = [
 
 [[package]]
 name = "types-networkx"
-version = "3.6.1.20261006"
+version = "3.6.1.20261024"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fb/a9/a55d05982aafa8777530b287c3dbcc6127914bd1e5f2343b17a5c9def1f0/types_networkx-3.6.1.20261006.tar.gz", hash = "sha256:6c27cc7b49c8b49c4ac7ca2460299a5b43c4dad221e558eb4a9b59c78f19709d", size = 76482, upload-time = "2026-10-06T08:15:37.926Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/51/6a/f6ff53269f24a2cb2480b768e8bcf31a7d74f5446811fb088c5e35782684/types_networkx-3.6.1.20261024.tar.gz", hash = "sha256:8dc85c36358819e9c6683604b404949f41e5e3ae9bb57a98c695f38a827e402d", size = 76912, upload-time = "2026-10-24T06:36:32.942Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/d0/81f49b8450029396433262c1b036f1928fa073e578991bd9e22ebeb54a60/types_networkx-3.6.1.20261006-py3-none-any.whl", hash = "sha256:8e2fedb83bb906c0d37a6ae020da3adc4abbd6bd999d8dd3d3266216bd6fae07", size = 167424, upload-time = "2026-10-06T08:15:36.734Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/20/eeeae3baadd8ca9b2d795063eab50b9c32b01899e5437b02011cae53a5d7/types_networkx-3.6.1.20261024-py3-none-any.whl", hash = "sha256:b193b28155eed511acee02d61e66a06f5a6b4194a0dc0f4d0215c859c9c23319", size = 167427, upload-time = "2026-10-24T06:36:31.393Z" },
 ]
 
 [[package]]

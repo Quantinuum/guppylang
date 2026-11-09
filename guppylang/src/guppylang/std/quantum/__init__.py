@@ -24,7 +24,7 @@ from guppylang.std.option import Option
 
 @custom_type(ht.Qubit, copyable=False, droppable=False)
 class qubit:
-    @hugr_op(quantum_op("QAlloc"), effects=[Effect.ANY])
+    @hugr_op(quantum_op("QAlloc"), effects=[Effect.ALLOC, Effect.PANIC])
     @no_type_check
     def __new__() -> "qubit": ...
 
@@ -66,10 +66,7 @@ class Measurement:
         return self.read()
 
 
-# Effect not because it panics (it doesn't) but because we want this to be totally
-# ordered with respect to other allocating ops (both fallible and infallible) for
-# predictability.
-@hugr_op(quantum_op("TryQAlloc"), effects=[Effect.ANY])
+@hugr_op(quantum_op("TryQAlloc"), effects=[Effect.ALLOC])
 @no_type_check
 def maybe_qubit() -> Option[qubit]:
     """Try to allocate a qubit, returning `some(qubit)`
@@ -285,7 +282,9 @@ def vdg(q: qubit) -> None:
     """
 
 
-@custom_function(RotationCompiler("Rz"), unitary_flags=UnitaryFlags.Unitary, effects=())
+@custom_function(
+    RotationCompiler("Rz"), unitary_flags=UnitaryFlags.Unitary, effects=[Effect.PANIC]
+)
 @no_type_check
 def rz(q: qubit, angle: angle) -> None:
     r"""Rz gate.
@@ -301,7 +300,9 @@ def rz(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("Rx"), unitary_flags=UnitaryFlags.Unitary, effects=())
+@custom_function(
+    RotationCompiler("Rx"), unitary_flags=UnitaryFlags.Unitary, effects=[Effect.PANIC]
+)
 @no_type_check
 def rx(q: qubit, angle: angle) -> None:
     r"""Rx gate.
@@ -316,7 +317,9 @@ def rx(q: qubit, angle: angle) -> None:
     """
 
 
-@custom_function(RotationCompiler("Ry"), unitary_flags=UnitaryFlags.Unitary, effects=())
+@custom_function(
+    RotationCompiler("Ry"), unitary_flags=UnitaryFlags.Unitary, effects=[Effect.PANIC]
+)
 @no_type_check
 def ry(q: qubit, angle: angle) -> None:
     r"""Ry gate.
@@ -332,7 +335,7 @@ def ry(q: qubit, angle: angle) -> None:
 
 
 @custom_function(
-    RotationCompiler("CRz"), unitary_flags=UnitaryFlags.Unitary, effects=()
+    RotationCompiler("CRz"), unitary_flags=UnitaryFlags.Unitary, effects=[Effect.PANIC]
 )
 @no_type_check
 def crz(control: qubit, target: qubit, angle: angle) -> None:
@@ -393,13 +396,13 @@ def project_z(q: qubit) -> Measurement:
     return m
 
 
-@hugr_op(quantum_op("QFree"), effects=[Effect.ANY])
+@hugr_op(quantum_op("QFree"), effects=[Effect.FREE])
 @no_type_check
 def discard(q: qubit @ owned) -> None:
     """Discard a single qubit."""
 
 
-@hugr_op(quantum_op("MeasureFree"), effects=[Effect.ANY])
+@hugr_op(quantum_op("MeasureFree"), effects=[Effect.FREE])
 @no_type_check
 def measure(q: qubit @ owned) -> Measurement:
     """Request a destructive lazy measurement of a qubit, returning a `Measurement`

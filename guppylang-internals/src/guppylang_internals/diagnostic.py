@@ -131,15 +131,11 @@ class Diagnostic(SubDiagnostic, Protocol):
         return self._render(self.title)
 
     def add_sub_diagnostic(self, sub: "SubDiagnostic") -> Self:
-        """Adds a new sub-diagnostic."""
-        if (
-            self.span is not None
-            and sub.span is not None
-            and to_span(sub.span).file != to_span(self.span).file
-        ):
-            raise InternalGuppyError(
-                "Diagnostic: Cross-file sub-diagnostics are not supported"
-            )
+        """Adds a new sub-diagnostic.
+
+        The sub-diagnostic may point at a different source file than the parent.
+        `DiagnosticsRenderer` loads each span from its own file.
+        """
         object.__setattr__(sub, "_parent", self)
         self.children.append(sub)
         return self
@@ -248,8 +244,19 @@ class DiagnosticsRenderer:
             children_with_span = [
                 (child, to_span(child.span)) for child in diag.children if child.span
             ]
-            all_spans = [span] + [s for _, s in children_with_span]
-            max_lineno = max(s.end.line for s in all_spans)
+            # Gutter width follows the file being rendered. A note in another file
+            # must not widen the primary snippet, and same-file notes keep the
+            # previous width. `max` needs a sequence: a lone int is not iterable.
+            max_lineno = max(
+                [
+                    span.end.line,
+                    *(
+                        child_span.end.line
+                        for _, child_span in children_with_span
+                        if child_span.file == span.file
+                    ),
+                ]
+            )
 
             self.buffer.append(f"{level}: {diag.rendered_title} (at {span.start})")
 
@@ -262,71 +269,9 @@ class DiagnosticsRenderer:
                 prefix_lines=self.PREFIX_ERROR_CONTEXT_LINES,
             )
 
-            # Render children grouped by consecutive runs of the same level,
-            # preserving the original order
-            # e.g.
-            # Notes:
-            #   - Note 1 (span)
-            #   - Note 2 (span)
-            # Help:
-            #   - Help 1 (span)
-            #   - Help 2 (span)
-            # ...
-            for lv, group_iter in groupby(children_with_span, key=lambda x: x[0].level):
-                group = list(group_iter)
-                match group:
-                    case [(only_child, only_span)]:
-                        self.buffer.append(f"\n{self.level_str(lv)}:")
-                        self.render_snippet(
-                            only_span,
-                            only_child.rendered_span_label,
-                            max_lineno,
-                            prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                            print_pad_line=True,
-                        )
-                    case [(first_child, first_span), *rest_group]:
-                        self.buffer.append(f"\n{self.level_str_plural(lv)}:")
-                        self.render_snippet(
-                            first_span,
-                            first_child.rendered_span_label,
-                            max_lineno,
-                            prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
-                            print_pad_line=True,
-                        )
-
-                        prev_span_end_lineno = first_span.end.line
-
-                        for sub_diag, span in rest_group:
-                            span_start_lineno = span.start.line
-                            span_end_lineno = span.end.line
-
-                            # If notes are on the same line, render them together
-                            if span_start_lineno == prev_span_end_lineno:
-                                prefix_lines = 0
-                                print_pad_line = True
-                            # if notes are close enough, render them adjacently
-                            elif (
-                                span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
-                                <= prev_span_end_lineno + 1
-                            ):
-                                prefix_lines = (
-                                    span_start_lineno - prev_span_end_lineno - 1
-                                )
-                                print_pad_line = False
-                            # otherwise we render a separator between notes
-                            else:
-                                self.buffer.append("")
-                                prefix_lines = self.PREFIX_NOTE_CONTEXT_LINES
-                                print_pad_line = False
-
-                            self.render_snippet(
-                                span,
-                                sub_diag.rendered_span_label,
-                                max_lineno,
-                                prefix_lines=prefix_lines,
-                                print_pad_line=print_pad_line,
-                            )
-                            prev_span_end_lineno = span_end_lineno
+            self._render_spanned_subdiagnostics(
+                children_with_span, span.file, max_lineno
+            )
 
             # Render the main diagnostic message if present
             if diag.rendered_message:
@@ -340,6 +285,107 @@ class DiagnosticsRenderer:
                 self.buffer += wrap(
                     f"{self.level_str(sub_diag.level)}: {sub_diag.rendered_message}",
                     self.MAX_MESSAGE_LINE_LEN,
+                )
+
+    def _render_spanned_subdiagnostics(
+        self,
+        children_with_span: list[tuple[SubDiagnostic, Span]],
+        primary_file: str,
+        primary_max_lineno: int,
+    ) -> None:
+        """Render spanned notes and help, one file at a time.
+
+        Consecutive same-file sub-diagnostics keep the existing grouping. A span in
+        another file is rendered on its own, with that file's location and gutter.
+        """
+        for level, group_iter in groupby(children_with_span, key=lambda x: x[0].level):
+            same_file_batch: list[tuple[SubDiagnostic, Span]] = []
+            for item in group_iter:
+                _, child_span = item
+                if child_span.file == primary_file:
+                    same_file_batch.append(item)
+                    continue
+                if same_file_batch:
+                    self._render_span_group(level, same_file_batch, primary_max_lineno)
+                    same_file_batch = []
+                self._render_span_group(
+                    level,
+                    [item],
+                    child_span.end.line,
+                    location=child_span.start,
+                )
+            if same_file_batch:
+                self._render_span_group(level, same_file_batch, primary_max_lineno)
+
+    def _render_span_group(
+        self,
+        level: DiagnosticLevel,
+        group: list[tuple[SubDiagnostic, Span]],
+        max_lineno: int,
+        location: Loc | None = None,
+    ) -> None:
+        """Render one run of spanned sub-diagnostics that share a file."""
+        suffix = f" (at {location})" if location is not None else ""
+        match group:
+            case [(only_child, only_span)]:
+                self.buffer.append(f"\n{self.level_str(level)}:{suffix}")
+                self.render_snippet(
+                    only_span,
+                    only_child.rendered_span_label,
+                    max_lineno,
+                    prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                    print_pad_line=True,
+                )
+            case [(first_child, first_span), *rest_group]:
+                self.buffer.append(f"\n{self.level_str_plural(level)}:{suffix}")
+                self.render_snippet(
+                    first_span,
+                    first_child.rendered_span_label,
+                    max_lineno,
+                    prefix_lines=self.PREFIX_NOTE_CONTEXT_LINES,
+                    print_pad_line=True,
+                )
+
+                prev_span_end_lineno = first_span.end.line
+
+                for sub_diag, span in rest_group:
+                    span_start_lineno = span.start.line
+                    span_end_lineno = span.end.line
+
+                    # Notes above the previous one are not adjacent, even when the
+                    # line numbers would otherwise satisfy the distance check.
+                    if span_start_lineno < prev_span_end_lineno:
+                        self.buffer.append("")
+                        prefix_lines = self.PREFIX_NOTE_CONTEXT_LINES
+                        print_pad_line = False
+                    # If notes are on the same line, render them together
+                    elif span_start_lineno == prev_span_end_lineno:
+                        prefix_lines = 0
+                        print_pad_line = True
+                    # if notes are close enough, render them adjacently
+                    elif (
+                        span_start_lineno - self.PREFIX_NOTE_CONTEXT_LINES
+                        <= prev_span_end_lineno + 1
+                    ):
+                        prefix_lines = span_start_lineno - prev_span_end_lineno - 1
+                        print_pad_line = False
+                    # otherwise we render a separator between notes
+                    else:
+                        self.buffer.append("")
+                        prefix_lines = self.PREFIX_NOTE_CONTEXT_LINES
+                        print_pad_line = False
+
+                    self.render_snippet(
+                        span,
+                        sub_diag.rendered_span_label,
+                        max_lineno,
+                        prefix_lines=prefix_lines,
+                        print_pad_line=print_pad_line,
+                    )
+                    prev_span_end_lineno = span_end_lineno
+            case _:
+                raise InternalGuppyError(
+                    "Diagnostic: empty spanned sub-diagnostic group"
                 )
 
     def render_snippet(
@@ -504,12 +550,20 @@ class MietteRenderer:
             ) from None
 
     def render_diagnostic(self, diag: Diagnostic) -> None:
-        """Renders diagnostic using miette. Same interface as DiagnosticsRenderer."""
+        """Renders diagnostic using miette. Same interface as DiagnosticsRenderer.
+
+        Miette reports use one source buffer. Spans from another file are not given
+        offsets into that buffer; they are appended afterwards with their own location
+        and source lines.
+        """
         spans = []
         source_text = None
+        primary_file = None
+        foreign_spans: list[tuple[SubDiagnostic, Span]] = []
 
         if diag.span:
             main_span = to_span(diag.span)
+            primary_file = main_span.file
 
             # Get entire file directly from sources
             full_file_lines = self.source.sources[main_span.file]
@@ -529,14 +583,21 @@ class MietteRenderer:
         other_messages = []
 
         for child in diag.children:
-            if child.span and source_text:
+            if child.span:
                 child_span = to_span(child.span)
-                start_offset = self._calculate_offset(child_span.start, source_text)
-                end_offset = self._calculate_offset(child_span.end, source_text)
-                span_len = max(1, end_offset - start_offset)
+                if primary_file is not None and child_span.file != primary_file:
+                    foreign_spans.append((child, child_span))
+                elif source_text:
+                    start_offset = self._calculate_offset(child_span.start, source_text)
+                    end_offset = self._calculate_offset(child_span.end, source_text)
+                    span_len = max(1, end_offset - start_offset)
 
-                if start_offset < len(source_text) and end_offset <= len(source_text):
-                    spans.append((start_offset, span_len, child.rendered_span_label))
+                    if start_offset < len(source_text) and end_offset <= len(
+                        source_text
+                    ):
+                        spans.append(
+                            (start_offset, span_len, child.rendered_span_label)
+                        )
 
             if child.rendered_message:
                 if isinstance(child, Help):
@@ -565,6 +626,34 @@ class MietteRenderer:
         for msg in other_messages:
             self.buffer.append("")
             self.buffer.append(msg)
+
+        for child, child_span in foreign_spans:
+            self._append_foreign_span(child, child_span)
+
+    def _append_foreign_span(self, child: SubDiagnostic, span: Span) -> None:
+        """Append a note whose source is not the miette report's single buffer.
+
+        The label and file location are always printed. Source lines are included
+        when that file is registered, highlighted separately from the primary file.
+        """
+        label = child.rendered_span_label or ""
+        header = f"{self._level_name(child)}: {label} (at {span.start})".rstrip()
+        self.buffer.append("")
+        self.buffer.append(header)
+        if span.file not in self.source.sources:
+            return
+
+        lines = self.source.span_lines(span)
+        width = len(str(span.end.line))
+        for line_no, line in enumerate(lines, start=span.start.line):
+            self.buffer.append(f"{line_no:>{width}} | {line}")
+        if not span.is_multiline and lines:
+            highlight = " " * span.start.column + "-" * max(len(span), 1)
+            self.buffer.append(f"{'':>{width}} | {highlight}")
+
+    @staticmethod
+    def _level_name(child: SubDiagnostic) -> str:
+        return child.level.name.lower().capitalize()
 
     def _calculate_offset(self, loc: Loc, source_text: str) -> int:
         """Calculate byte offset from line/column position."""

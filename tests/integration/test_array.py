@@ -824,10 +824,15 @@ def test_take2(validate):
         main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=True)
 
     # array.take compiles to a `get` returning both the array and an Option of the
-    # element; the latter is then unwrapped. The is_borrow is ordered after the
-    # Conditional doing the unwrap, so we get the panic message from the Conditional.
-    with pytest.raises(EmulatorError, match="Array index out of bounds"):
+    # element; the latter is then unwrapped in a Conditional, panicking with
+    # "Array index out of bounds".
+    # The is_borrowed is lowered into LLVM to panic with
+    # "Panic (#1002): Index out of bounds".
+    # The Conditional and is_borrowed are in parallel, and it happens that
+    # the is_borrowed happens first, hence:
+    with pytest.raises(EmulatorError, match="Index out of bounds"):
         main.emulator(3).coinflip_sim().run(idx1=5, idx2=0, linear=False)
+    # If this becomes flaky, consider checking for "ndex out of bounds" :-)
 
 
 def test_discard_borrowed(validate):

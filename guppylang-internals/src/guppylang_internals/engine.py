@@ -55,7 +55,7 @@ from guppylang_internals.error import (
     RequiresMonomorphizationError,
     pretty_errors,
 )
-from guppylang_internals.frame_util import get_calling_frame
+from guppylang_internals.frame_util import FrameSnapshot, get_calling_frame
 from guppylang_internals.metadata.debug_info_util import (
     StringTable,
 )
@@ -174,12 +174,14 @@ class DefinitionStore:
     type_members: defaultdict[DefId, dict[str, DefId]]
     type_member_parents: dict[DefId, DefId]
     wasm_functions: dict[DefId, FunctionType]
-    frames: dict[DefId, FrameType]
+    frames: dict[DefId, FrameType | FrameSnapshot]
     sources: SourceMap
     # Maps a parent definition (usually a function) to its custom modified definitions
     custom_modified_defs: dict[DefId, dict[CustomModifierKind, DefId]]
     # Reverse mapping for custom modified definitions to their unmodified definition
     custom_modified_def_parents: dict[DefId, DefId]
+    # Tracks frame registrations made inside detach_new_frames.
+    _registered_frame_defs: set[DefId] | None
 
     def __init__(self) -> None:
         self.raw_defs = {defn.id: defn for defn in BUILTIN_DEFS_LIST}
@@ -190,10 +192,14 @@ class DefinitionStore:
         self.wasm_functions = {}
         self.custom_modified_defs = defaultdict(dict)
         self.custom_modified_def_parents = {}
+        self._registered_frame_defs: set[DefId] | None = None
 
-    def register_def(self, defn: RawDef, frame: FrameType) -> None:
+    def register_def(self, defn: RawDef, frame: FrameType | FrameSnapshot) -> None:
+        """Register a definition and its Python scope."""
         self.raw_defs[defn.id] = defn
         self.frames[defn.id] = frame
+        if self._registered_frame_defs is not None and isinstance(frame, FrameType):
+            self._registered_frame_defs.add(defn.id)
 
     def update_def_frame(self, def_id: DefId, frame: FrameType) -> None:
         """Update the Python scope used to resolve names in a registered definition."""
@@ -247,6 +253,28 @@ class DefinitionStore:
         assert custom_def_id not in self.custom_modified_def_parents
         self.custom_modified_def_parents[custom_def_id] = parent_def_id
 
+    @contextmanager
+    def detach_new_frames(self) -> Generator[None, None, None]:
+        """Break references to caller frames in `self.frames` after exiting this
+        context.
+
+        Frames inside this context are kept alive so forward references and
+        class-member scope changes get reflected in the local frames.
+        """
+        assert self._registered_frame_defs is None, "Frame detachment cannot be nested"
+        self._registered_frame_defs = set()
+        try:
+            yield
+        finally:
+            snapshots: dict[FrameType, FrameSnapshot] = {}
+            for def_id in self._registered_frame_defs:
+                frame = self.frames[def_id]
+                if isinstance(frame, FrameType):
+                    if frame not in snapshots:
+                        snapshots[frame] = FrameSnapshot.from_frame(frame)
+                    self.frames[def_id] = snapshots[frame]
+            self._registered_frame_defs = None
+
 
 DEF_STORE: DefinitionStore = DefinitionStore()
 
@@ -287,9 +315,12 @@ class CompilationEngine:
 
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
-    #: Call graph mapping from caller to list of callees. Populated during type checking
-    # as calls are checked, to be then used for effects checking.
+    #: Call graph mapping from each checked function specialization to list of callees.
+    #: Populated during type checking as calls are checked.
     call_graph: dict[MonoDefId, list[MonoDefId]]
+    #: Mapping from each checked function specialization to functions loaded/referenced
+    #: by it.
+    load_graph: dict[MonoDefId, set[MonoDefId]]
     func_effects: dict[MonoDefId, set["Effect"]]
     #: Distinct modifier contexts used on each monomorphized call-graph edge. The value
     #: stores one representative call site span for diagnostics in
@@ -315,7 +346,8 @@ class CompilationEngine:
         old_stage = self._stage
         self._stage = stage
         try:
-            yield
+            with DEF_STORE.detach_new_frames():
+                yield
         finally:
             self._stage = old_stage
 
@@ -350,10 +382,15 @@ class CompilationEngine:
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
         self.call_graph = {}
+        self.load_graph = {}
         self.func_effects = {}
         self.local_modifiers_by_edge = {}
         self.resolved_modified_calls = {}
         self.custom_uses_by_mono_def = {}
+
+    def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
+        """Records a function-value dependency, without propagating call effects."""
+        self.load_graph[owner].add(target)
 
     def register_call(
         self,
@@ -506,6 +543,7 @@ class CompilationEngine:
         """
         assert mono_id not in self.call_graph
         self.call_graph[mono_id] = []
+        self.load_graph[mono_id] = set()
 
     def get_type_defn(self, ty: Type | TypeDef) -> TypeDef | None:
         """Convert a Type | TypeDef to a TypeDef."""
@@ -638,6 +676,7 @@ class CompilationEngine:
             modifier_analysis = analyze_modifier_calls(
                 entry_points,
                 self.call_graph,
+                self.load_graph,
                 self.local_modifiers_by_edge,
                 self._resolve_modified_call,
             )
