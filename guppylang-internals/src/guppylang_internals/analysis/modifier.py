@@ -64,12 +64,9 @@ class ModifierAnalysisResult:
     Args:
         program_graph: Snapshot of the resolved call graph, load graph, and concrete
             custom modifier uses keyed by custom definition ``MonoDefId``
-        resolved_calls: Called function's ``MonoDefId`` for each call edge and modifier
-            context.
     """
 
     program_graph: ProgramGraph
-    resolved_calls: dict[EdgeWithModifierContext, MonoDefId]
 
 
 ResolveModifiedCall = Callable[
@@ -208,7 +205,6 @@ def analyze_modifier_calls(
     )
     return ModifierAnalysisResult(
         program_graph=ProgramGraph(expanded_calls, load_graph, custom_uses_by_mono_def),
-        resolved_calls=resolved_calls,
     )
 
 

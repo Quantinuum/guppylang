@@ -60,7 +60,8 @@ def test_recursive():
     factorial.check()
 
     mono_id = (factorial.id, ())
-    assert mono_id in ENGINE.analysis_cache.call_graph[mono_id]  # factorial calls itself
+    # factorial calls itself
+    assert mono_id in ENGINE.analysis_cache.call_graph[mono_id]
 
 
 def test_duplicate_calls_are_preserved_by_checking():

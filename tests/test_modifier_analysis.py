@@ -64,9 +64,6 @@ def test_analysis_returns_graph_without_mutating_checking_data():
         custom: frozenset({loaded}),
         loaded: frozenset(),
     }
-    assert result.resolved_calls[(helper, gate), controlled] == custom
-    # Loading a function does not pass on the helper's inherited control context.
-    assert result.resolved_calls[(loaded, gate), NO_CALL_MODIFIERS] == gate
     assert result.program_graph.custom_uses_by_mono_def == {custom: custom_use}
 
 
@@ -78,8 +75,10 @@ def test_analysis_includes_newly_checked_custom_dependencies():
     calls = {root: [gate], gate: []}
     loads = {root: set(), gate: set()}
     local_modifiers = {(root, gate): {daggered: span}}
+    visited_calls = set()
 
     def resolve(callee, context):
+        visited_calls.add((callee, context))
         if callee == gate and context == daggered:
             return custom, custom_use
         return callee, None
@@ -109,7 +108,7 @@ def test_analysis_includes_newly_checked_custom_dependencies():
         loaded: frozenset(),
         leaf: frozenset(),
     }
-    assert second.resolved_calls[(loaded, leaf), NO_CALL_MODIFIERS] == leaf
+    assert (leaf, NO_CALL_MODIFIERS) in visited_calls
     assert second.program_graph.custom_uses_by_mono_def == {custom: custom_use}
     assert first.program_graph.call_graph == {root: (custom,), gate: ()}
     assert first.program_graph.load_graph == {root: frozenset(), gate: frozenset()}
@@ -124,12 +123,18 @@ def test_analysis_preserves_load_collections(collection_type):
         leaf: collection_type(),
     }
     original_loads = deepcopy(loads)
+    visited_calls = set()
+
+    def resolve(callee, context):
+        visited_calls.add((callee, context))
+        return callee, None
+
     result = analyze_modifier_calls(
         [root],
         {root: [], loaded: [leaf], leaf: []},
         loads,
         {},
-        lambda callee, _context: (callee, None),
+        resolve,
     )
 
     assert loads == original_loads
@@ -139,4 +144,4 @@ def test_analysis_preserves_load_collections(collection_type):
         loaded: frozenset(),
         leaf: frozenset(),
     }
-    assert result.resolved_calls[(loaded, leaf), NO_CALL_MODIFIERS] == leaf
+    assert (leaf, NO_CALL_MODIFIERS) in visited_calls

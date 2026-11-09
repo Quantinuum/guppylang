@@ -176,7 +176,9 @@ def test_non_recursive_control_count_increase_is_allowed(incremental):
     } == {1, 2}
     gate_mono = (custom_gate.id, ())
     assert ENGINE.analysis_cache.call_graph[call_with_one_control.id, ()] == [gate_mono]
-    assert ENGINE.analysis_cache.call_graph[call_with_two_controls.id, ()] == [gate_mono]
+    assert ENGINE.analysis_cache.call_graph[call_with_two_controls.id, ()] == [
+        gate_mono
+    ]
 
 
 def test_modifier_context_propagates_through_higher_order_and_helper_calls():

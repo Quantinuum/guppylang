@@ -158,7 +158,7 @@ CallGraphEdge = tuple[MonoDefId, MonoDefId]
 
 @dataclass
 class AnalysisCache:
-    """Cache for data regarting call graph, load graph, modifier uses and effects.
+    """Cache for data regarding call graph, load graph, modifier uses and effects.
 
     Only checking populates these records. Analysis reads them without replacing
     original edges, propagating modifier labels into them, or changing local effects.
@@ -319,7 +319,7 @@ class CompilationEngine:
     The engine maintains a worklist of definitions that still need to be checked and
     makes sure that all dependencies are compiled.
 
-    ``reset=False`` retains the checking cache with expection of the modifier analyzed
+    ``reset=False`` retains the checking cache with exception of the modifier analyzed
     graph, that is computed from scratch each time.
 
     See `ENGINE` for the singleton instance of this class.
