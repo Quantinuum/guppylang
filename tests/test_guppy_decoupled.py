@@ -38,6 +38,27 @@ def broken_tket():
         sys.modules = old_modules
 
 
+@contextmanager
+def broken_selene():
+    old_modules = sys.modules.copy()
+
+    # Break all selene_sim, selene_core, and plugin imports
+    for key in list(sys.modules.keys()):
+        if key.startswith(("selene_sim", "selene_core")) or key.endswith("plugin"):
+            break_module(key)
+
+    # Purge cached guppylang imports
+    for key in list(sys.modules.keys()):
+        if key.startswith("guppylang"):
+            del sys.modules[key]
+
+    try:
+        yield
+    finally:
+        # Reset imported modules
+        sys.modules = old_modules
+
+
 @pytest.mark.forked
 def test_broken_tket():
     """Asserts that the module breaker works as intended to break tket imports."""
@@ -80,7 +101,7 @@ def test_use_load_pytket_decorator():
 
 
 @pytest.mark.forked
-def test_guppy_decoupled():
+def test_guppy_decoupled_from_tket():
     """Regression test for https://github.com/Quantinuum/guppylang/issues/1595 to
     ensure that the main guppy decorator is decoupled from the `tket` dependency, in
     that import-time problems in the `tket` dependency an import of the decorator to
@@ -94,3 +115,32 @@ def test_guppy_decoupled():
             pass
 
         f.check()  # Smoke test decorator
+
+
+@pytest.mark.forked
+def test_use_emulator():
+    """Tests that using the emulator functionality raises an import error when imports
+    are broken."""
+    with broken_selene(), pytest.raises(ImportError, match=r"empty_module.py"):  # noqa: PT012
+        from guppylang import guppy
+
+        @guppy
+        def f() -> None:
+            pass
+
+        _ = f.emulator().run()
+
+
+@pytest.mark.forked
+def test_guppy_decoupled_from_selene():
+    """Tests that basic the core guppylang compiler can be used without selene
+    dependencies."""
+
+    with broken_selene():
+        from guppylang import guppy
+
+        @guppy
+        def f() -> None:
+            pass
+
+        _ = f.compile()
