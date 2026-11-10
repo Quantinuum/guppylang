@@ -249,7 +249,7 @@ def func_decls_flat():
         other_rotation = func2(rotation + 1.0, q)
         rx(q, angle(other_rotation))
 
-    return unknown_rotations.with_minimal_opt().compile_function()
+    return unknown_rotations.compile_function()
 
 
 def func_decls_opt():
@@ -464,11 +464,7 @@ def angles_flat():
                 "tket.result.result_bool": 1,
             },
         ),
-        (
-            func_decls_flat,
-            func_decls_opt,
-            {"TKET1.tk1op": 2, "tket.quantum.symbolic_angle": 1},
-        ),
+        (func_decls_flat, func_decls_opt, {"TKET1.tk1op": 2}),
     ],
 )
 def test_optimize_flattened(
