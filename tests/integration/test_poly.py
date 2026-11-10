@@ -423,10 +423,13 @@ def test_relevant(validate):
         return x
 
     @guppy
-    def main(r: R) -> R:
+    def main(r: R) -> tuple[R, R]:
         r_copy = r
-        # A copyable but non-droppable type must use the callback's by-value signature.
-        return apply(foo(r_copy), identity)
+        value = foo(r_copy)
+        # Adapt the copyable, non-droppable callback while retaining the borrowed
+        # value: both the regular result and the borrowed value must be consumed.
+        result = apply(value, identity)
+        return result, value
 
     validate(main.compile_function())
 

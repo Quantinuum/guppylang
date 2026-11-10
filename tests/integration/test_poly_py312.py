@@ -497,7 +497,7 @@ def test_struct_unused_param(validate):
     validate(main.compile_function())
 
 
-def test_generic_borrowed_callback(validate):
+def test_generic_borrowed_callback(validate, run_int_fn):
     @guppy
     def apply[T](value: T, predicate: Function[[T], bool]) -> bool:
         return predicate(value)
@@ -530,6 +530,21 @@ def test_generic_borrowed_callback(validate):
 
     main.check()
     validate(main.compile_function())
+
+    @guppy.comptime
+    def traced(value: int) -> bool:
+        return apply(value, positive)
+
+    validate(traced.compile_function())
+
+    @guppy
+    def run() -> int:
+        q = qubit()
+        result = main(1, q)
+        discard(q)
+        return int(result)
+
+    run_int_fn(run, expected=1, num_qubits=1)
 
 
 def test_generic_owned_callback(validate):

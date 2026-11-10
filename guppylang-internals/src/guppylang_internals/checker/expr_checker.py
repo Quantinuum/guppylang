@@ -120,6 +120,7 @@ from guppylang_internals.nodes import (
     DesugaredListComp,
     DummyGenericParamValue,
     FieldAccessAndDrop,
+    FunctionCoercion,
     GlobalCall,
     GlobalName,
     IterNext,
@@ -185,6 +186,7 @@ from guppylang_internals.tys.ty import (
     Type,
     TypeBase,
     UnitaryFlags,
+    can_adapt_function,
     function_tensor_signature,
     parse_function_tensor,
     unify,
@@ -301,6 +303,8 @@ def record_function_load(node: ast.expr, ty: Type, ctx: Context) -> None:
             # after type inference.
             assert isinstance(ENGINE.get_parsed(def_id), CallableDef)
             ENGINE.register_load(ctx.current_caller, (def_id, inst))
+        case FunctionCoercion(func=func):
+            record_function_load(func, get_type(func), ctx)
         case PartialApply(func=func):
             # Loading `obj.method`, produce a PartialApply(func=method)
             record_function_load(func, get_type(func), ctx)
@@ -1483,7 +1487,13 @@ def check_type_against(
         # Finally, check that the instantiation respects the linearity requirements
         check_inst(act_sig, inst, node)
 
-        return node, subst, inst
+        return (
+            adapt_function_value(
+                node, act_sig.instantiate(inst), exp.substitute(subst), inst, ctx
+            ),
+            subst,
+            (),
+        )
 
     # Otherwise, we know that `act` has no unsolved type vars, so unification is trivial
     assert not act.unsolved_vars
@@ -1494,7 +1504,44 @@ def check_type_against(
             return coerced, {}, ()
         raise GuppyTypeError(TypeMismatchError(node, exp, act, kind))
 
-    return node, subst, ()
+    # Validate inferred capabilities before considering calling-convention adapters.
+    # Otherwise a bad generic instantiation can look like an unsafe coercion.
+    for var in exp.unsolved_vars:
+        if isinstance(var, ExistentialTypeVar) and var in subst:
+            TypeParam(0, var.display_name, var.copyable, var.droppable).check_arg(
+                subst[var].to_arg(), node
+            )
+    return adapt_function_value(node, act, exp.substitute(subst), (), ctx), subst, ()
+
+
+def adapt_function_value(
+    node: ast.expr, source: Type, target: Type, inst: Inst, ctx: Context
+) -> ast.expr:
+    # Tracing stores static function references in places. Recover the definition
+    # so the adapter can call it directly rather than capture a runtime closure.
+    if (
+        isinstance(source, FunctionType)
+        and isinstance(node, PlaceNode)
+        and isinstance(node.place, ComptimeVariable)
+    ):
+        from guppylang_internals.tracing.object import TracingDefMixin
+
+        value = node.place.static_value
+        if isinstance(value, TracingDefMixin):
+            node = with_loc(node, make_global_name(value.wrapped.name, value.id))
+    if inst:
+        # Keep the actual signature on the value loaded inside the adapter.
+        node = make_type_apply(node, inst)
+    node = with_type(source, node)
+    if (
+        isinstance(source, FunctionType)
+        and isinstance(target, FunctionType)
+        and source.with_unitary_flags(target.unitary_flags) != target
+    ):
+        if not can_adapt_function(source, target):
+            raise GuppyTypeError(TypeMismatchError(node, target, source))
+        node = with_type(target, with_loc(node, FunctionCoercion(node, source, target)))
+    return node
 
 
 def try_coerce_to(

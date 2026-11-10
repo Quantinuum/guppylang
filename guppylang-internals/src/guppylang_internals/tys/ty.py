@@ -465,16 +465,6 @@ class FuncInput:
     #: `Callable`). We use `compare=False` because names are not visible to the caller.
     name: str | None = field(default=None, compare=False)
 
-    def transform(self, transformer: Transformer) -> "FuncInput":
-        """Transform the input type and update its implicit borrowing convention."""
-        ty = self.ty.transform(transformer)
-        flags = self.flags
-        # Some internal operations intentionally borrow already-copyable values.
-        # Only remove borrowing introduced for a potentially non-copyable type.
-        if not self.ty.copyable and ty.copyable:
-            flags &= ~InputFlags.Inout
-        return replace(self, ty=ty, flags=flags)
-
 
 @dataclass(frozen=True, init=False)
 class FunctionType(ParametrizedTypeBase):
@@ -609,7 +599,7 @@ class FunctionType(ParametrizedTypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or FunctionType(
-            [inp.transform(transformer) for inp in self.inputs],
+            [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
             self.output.transform(transformer),
             self.params,
             comptime_args=self.comptime_args,
@@ -635,7 +625,7 @@ class FunctionType(ParametrizedTypeBase):
 
         inst = Instantiator(full_inst)
         return FunctionType(
-            [inp.transform(inst) for inp in self.inputs],
+            [replace(inp, ty=inp.ty.transform(inst)) for inp in self.inputs],
             self.output.transform(inst),
             remaining_params,
             # Comptime type arguments also need to be instantiated
@@ -1054,6 +1044,46 @@ def row_to_hugr(row: TypeRow, ctx: ToHugrContext) -> ht.TypeRow:
 def rows_to_hugr(rows: Sequence[TypeRow], ctx: ToHugrContext) -> list[ht.TypeRow]:
     """Computes the Hugr representation of a sequence of rows."""
     return [row_to_hugr(row, ctx) for row in rows]
+
+
+def can_adapt_function(source: FunctionType, target: FunctionType) -> bool:
+    """Whether a wrapper can reconcile two concrete function conventions safely."""
+
+    def compatible(source: Type, target: Type) -> bool:
+        if source == target:
+            return True
+        return (
+            isinstance(source, FunctionType)
+            and isinstance(target, FunctionType)
+            and can_adapt_function(source, target)
+        )
+
+    if (
+        source.parametrized
+        or target.parametrized
+        or len(source.inputs) != len(target.inputs)
+    ):
+        return False
+    if (
+        target.unitary_flags & source.unitary_flags != target.unitary_flags
+        or source.comptime_args != target.comptime_args
+    ):
+        return False
+    for src, dst in zip(source.inputs, target.inputs, strict=True):
+        if not compatible(dst.ty, src.ty):
+            return False
+        src_borrow = InputFlags.Inout in src.flags
+        dst_borrow = InputFlags.Inout in dst.flags
+        # Borrowing a consumed input leaves an extra output to discard. Calling
+        # a consuming function from a borrow must retain a copy for write-back.
+        if src_borrow != dst_borrow and (
+            (src_borrow and not src.ty.droppable)
+            or (dst_borrow and not src.ty.copyable)
+        ):
+            return False
+        if (src.flags & InputFlags.Comptime) != (dst.flags & InputFlags.Comptime):
+            return False
+    return compatible(source.output, target.output)
 
 
 def unify(s: Type, t: Type, subst: "Subst | None") -> "Subst | None":

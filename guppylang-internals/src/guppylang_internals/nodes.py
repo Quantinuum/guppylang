@@ -97,6 +97,21 @@ class DummyGenericParamValue(ast.Name):
     __reduce_ex__ = object.__reduce_ex__
 
 
+class FunctionCoercion(ast.expr):
+    """Adapt a function value to a compatible borrowing convention."""
+
+    _fields = ("func",)
+
+    def __init__(self, func: ast.expr, source: FunctionType, target: FunctionType):
+        super().__init__()
+        self.func = func
+        self.source_ty = source
+        self.target_ty = target
+
+    __reduce__ = object.__reduce__
+    __reduce_ex__ = object.__reduce_ex__
+
+
 class LocalCall(ast.expr):
     func: ast.expr
     args: list[ast.expr]
