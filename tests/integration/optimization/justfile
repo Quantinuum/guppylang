@@ -1,0 +1,28 @@
+# List the available commands
+help:
+    @just --list --justfile {{justfile()}}
+
+# Re-generate all hugr files and their mermaid diagrams.
+recompile: recompile-hugrs
+
+# Re-generate all hugr files.
+recompile-hugrs:
+    #!/usr/bin/env sh
+    # Find all examples in subdirectories and re-run them.
+    for example in $(find . -type f -name "*.py"); do
+        echo "Re-generating $example"
+        uv run --prerelease=allow --no-project "$example"
+    done
+
+# Generate the mermaid diagrams from hugr files, for examples directories containing a `.generate_mmd` empty file.
+mermaid:
+    #!/usr/bin/env sh
+    echo "Generating hugr diagrams"
+    cargo install hugr-cli
+    # Find directories containing a `.generate_mmd` file
+    for dir in $(find . -type f -name ".generate_mmd" -exec dirname {} \;); do
+        echo "Re-generating mermaid diagrams in $dir"
+        for example in $(find "$dir" -type f -name "*.hugr"); do
+            hugr mermaid "$example" -o "${example%.hugr}.mmd"
+        done
+    done
