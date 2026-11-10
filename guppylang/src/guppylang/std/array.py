@@ -489,6 +489,36 @@ class array[T, n: nat](builtins.list[T]):
 
     @guppy
     @no_type_check
+    def __and__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs & ys`` using `bitwise_and`."""
+        return self.bitwise_and(other)
+
+    @guppy
+    @no_type_check
+    def __or__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs | ys`` using `bitwise_or`."""
+        return self.bitwise_or(other)
+
+    @guppy
+    @no_type_check
+    def __xor__[n: nat](self: array[bool, n], other: array[bool, n]) -> array[bool, n]:
+        """Implement ``xs ^ ys`` using `bitwise_xor`."""
+        return self.bitwise_xor(other)
+
+    @guppy
+    @no_type_check
+    def __invert__[n: nat](self: array[bool, n]) -> array[bool, n]:
+        """Implement ``~xs`` using `bitwise_not`."""
+        return self.bitwise_not()
+
+    @guppy
+    @no_type_check
+    def __matmul__[n: nat](self: array[bool, n], other: array[bool, n]) -> bool:
+        """Implement ``xs @ ys`` using `dot`."""
+        return self.dot(other)
+
+    @guppy
+    @no_type_check
     def to_nat[n: nat](self: array[bool, n]) -> nat:
         """Convert a boolean array to an unsigned integer, most significant bit first.
 
