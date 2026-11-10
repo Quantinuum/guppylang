@@ -4,18 +4,23 @@
 
 from pathlib import Path
 from typing import Literal
-
 import pytest
+
 from hugr.build.base import Hugr
 from hugr.ops import AsExtOp
 from hugr.package import Package
 from tket_exts import tket_registry
-
 from tket._state import CompilationState
 from tket.passes import Normalize, PytketHugrPass, QSystemRebasePass, _QSystemLLVMPass
+from pytket.passes import CliffordSimp
+from guppylang import guppy
+from guppylang.std.builtins import result, array, owned
+from guppylang.std.quantum import cx, h, rx, cz, rz, measure, qubit
+from guppylang.std.angles import angle
 
+# Import the pytket passes, if the `pytket` extra has been installed.
+# If not, skip all tests in this file.
 pytket = pytest.importorskip("pytket")
-from pytket.passes import CliffordSimp  # noqa: E402
 
 
 def _test_files_hugr(path: Path) -> Hugr:
@@ -228,3 +233,392 @@ def test_optimize_guppy(name: str, version_suffix: str) -> None:
     _QSystemLLVMPass().run(hugr)
 
     CompilationState.from_python(hugr).validate()
+
+
+def ranges_opt():
+    @guppy
+    def main() -> None:
+        q1, q2, q3, q4 = qubit(), qubit(), qubit(), qubit()
+        b1 = measure(q1)
+        b2 = measure(q2)
+        b3 = measure(q3)
+        b4 = measure(q4)
+
+        result("b1", b1.read())
+        result("b2", b2.read())
+        result("b3", b3.read())
+        result("b4", b4.read())
+
+    return main.compile()
+
+
+def ranges_flat():
+    @guppy
+    def main() -> None:
+        q1, q2, q3, q4 = qubit(), qubit(), qubit(), qubit()
+        q1, q2, q3, q4 = f(array(q1, q2, q3, q4))
+        b1 = measure(q1)
+        b2 = measure(q2)
+        b3 = measure(q3)
+        b4 = measure(q4)
+
+        result("b1", b1.read())
+        result("b2", b2.read())
+        result("b3", b3.read())
+        result("b4", b4.read())
+
+    @guppy.comptime
+    def f(qs: array[qubit, 4] @ owned) -> array[qubit, 4]:
+        for i in range(4):
+            h(qs[(-i) % 4])
+        for i in range(3):
+            cx(qs[i], qs[i + 1])
+        for i in range(3):
+            cx(qs[2 - i], qs[3 - i])
+        for i in range(4):
+            h(qs[(3 * i + 1) % 4])
+        return qs
+
+    return main.with_minimal_opt().compile()
+
+
+def ranges():
+    @guppy
+    def main() -> None:
+        q1, q2, q3, q4 = qubit(), qubit(), qubit(), qubit()
+        q1, q2, q3, q4 = f(array(q1, q2, q3, q4))
+        b1 = measure(q1)
+        b2 = measure(q2)
+        b3 = measure(q3)
+        b4 = measure(q4)
+
+        result("b1", b1.read())
+        result("b2", b2.read())
+        result("b3", b3.read())
+        result("b4", b4.read())
+
+    @guppy
+    def f(qs: array[qubit, 4] @ owned) -> array[qubit, 4]:
+        for i in range(4):
+            h(qs[(-i) % 4])
+        for i in range(3):
+            cx(qs[i], qs[i + 1])
+        for i in range(3):
+            cx(qs[2 - i], qs[3 - i])
+        for i in range(4):
+            h(qs[(3 * i + 1) % 4])
+        return qs
+
+    return main.with_minimal_opt().compile()
+
+
+def ranges_flat_array():
+    """Version of `ranges` with flattened control flow but retaining array accesses"""
+
+    @guppy
+    def main() -> None:
+        q1, q2, q3, q4 = qubit(), qubit(), qubit(), qubit()
+        q1, q2, q3, q4 = f(array(q1, q2, q3, q4))
+        b1 = measure(q1)
+        b2 = measure(q2)
+        b3 = measure(q3)
+        b4 = measure(q4)
+
+        result("b1", b1.read())
+        result("b2", b2.read())
+        result("b3", b3.read())
+        result("b4", b4.read())
+
+    @guppy
+    def f(qs: array[qubit, 4] @ owned) -> array[qubit, 4]:
+        h(qs[0])
+        h(qs[3])
+        h(qs[2])
+        h(qs[1])
+
+        cx(qs[0], qs[1])
+        cx(qs[1], qs[2])
+        cx(qs[2], qs[3])
+
+        cx(qs[2], qs[3])
+        cx(qs[1], qs[2])
+        cx(qs[0], qs[1])
+
+        h(qs[1])
+        h(qs[0])
+        h(qs[3])
+        h(qs[2])
+        return qs
+
+    return main.with_minimal_opt().compile()
+
+
+def false_branch():
+    @guppy
+    def main() -> None:
+        q = qubit()
+        h(q)
+        if True:
+            h(q)
+        if False:
+            h(q)
+        b = measure(q).read()
+
+        result("b", b)
+
+    return main.with_minimal_opt().compile()
+
+
+def false_branch_opt():
+    @guppy
+    def main() -> None:
+        result("b", 0)
+
+    return main.compile()
+
+
+def nested_array():
+    @guppy
+    def main(arr: array[array[qubit, 5], 3]) -> None:
+        cx(arr[0][1], arr[0][2])
+        cx(arr[0][1], arr[0][2])
+
+    return main.with_minimal_opt().compile_function()
+
+
+def nested_array_opt():
+    @guppy
+    def main(arr: array[array[qubit, 5], 3]) -> None:
+        # it may be impossible to elide the three borrow/return pairs
+        # of different indices in case these panic...so something like
+        # def inner(ar: array[qubit, 5]) -> None:
+        #    inner2(ar[1], ar[2])
+        # def inner2(q1: qubit, q2: qubit) -> None:
+        #    pass
+        # inner(ar[0])
+        pass
+
+    return main.compile_function()
+
+
+def func_decls():
+    @guppy.declare
+    def func1() -> float: ...
+
+    @guppy.declare
+    def func2(f: float, q: qubit) -> float: ...
+
+    @guppy
+    def unknown_rotations(q: qubit) -> None:
+        rotation = func1()
+        rx(q, angle(rotation))
+
+        # Some operations that we can optimize away.
+        h(q)
+        h(q)
+
+        other_rotation = func2(rotation + 1.0, q)
+        rx(q, angle(other_rotation))
+
+    return unknown_rotations.with_minimal_opt().compile_function()
+
+
+def func_decls_flat():
+    @guppy.declare
+    def func1() -> float: ...
+
+    @guppy.declare
+    def func2(f: float, q: qubit) -> float: ...
+
+    @guppy.comptime
+    def unknown_rotations(q: qubit) -> None:
+        rotation = func1()
+        rx(q, angle(rotation))
+
+        # Some operations that we can optimize away.
+        h(q)
+        h(q)
+
+        other_rotation = func2(rotation + 1.0, q)
+        rx(q, angle(other_rotation))
+
+    return unknown_rotations.with_minimal_opt().compile_function()
+
+
+def func_decls_opt():
+    @guppy.declare
+    def func1() -> float: ...
+
+    @guppy.declare
+    def func2(f: float, q: qubit) -> float: ...
+
+    @guppy
+    def unknown_rotations(q: qubit) -> None:
+        rotation = func1()
+        rx(q, angle(rotation))
+
+        other_rotation = func2(rotation + 1.0, q)
+        rx(q, angle(other_rotation))
+
+    return unknown_rotations.compile_function()
+
+
+def simple_cx_opt():
+    @guppy
+    def main() -> None:
+        result("b1", 0)
+        result("b2", 0)
+
+    return main.compile()
+
+
+def simple_cx():
+    @guppy
+    def main() -> None:
+        q1, q2 = qubit(), qubit()
+        cx(q1, q2)
+        cx(q1, q2)
+        b1 = measure(q1)
+        b2 = measure(q2)
+
+        result("b1", b1.read())
+        result("b2", b2.read())
+
+    return main.with_minimal_opt().compile()
+
+
+def nested_flat():
+    @guppy
+    def main() -> None:
+        q1, q2, q3 = qubit(), qubit(), qubit()
+        q1, q2, q3 = f(array(q1, q2, q3))
+        b1 = measure(q1)
+        b2 = measure(q2)
+        b3 = measure(q3)
+
+        result("b1", b1.read())
+        result("b2", b2.read())
+        result("b3", b3.read())
+
+    @guppy.comptime
+    def f(qs: array[qubit, 3] @ owned) -> array[qubit, 3]:
+        for i in range(3):
+            h(qs[i])
+        for i in range(2):
+            for j in range(3):
+                cz(qs[j], qs[(j + 1) % 3])
+        for i in range(3):
+            h(qs[i])
+        return qs
+
+    return main.with_minimal_opt().compile()
+
+
+def nested_opt():
+    @guppy
+    def main() -> None:
+        q1, q2, q3 = qubit(), qubit(), qubit()
+        b1 = measure(q1)
+        b2 = measure(q2)
+        b3 = measure(q3)
+
+        result("b1", b1.read())
+        result("b2", b2.read())
+        result("b3", b3.read())
+
+    return main.compile()
+
+
+def nested():
+    @guppy
+    def main() -> None:
+        q1, q2, q3 = qubit(), qubit(), qubit()
+        q1, q2, q3 = f(array(q1, q2, q3))
+        b1 = measure(q1)
+        b2 = measure(q2)
+        b3 = measure(q3)
+
+        result("b1", b1.read())
+        result("b2", b2.read())
+        result("b3", b3.read())
+
+    @guppy
+    def f(qs: array[qubit, 3] @ owned) -> array[qubit, 3]:
+        for i in range(3):
+            h(qs[i])
+        for i in range(2):
+            for j in range(3):
+                cz(qs[j], qs[(j + 1) % 3])
+        for i in range(3):
+            h(qs[i])
+        return qs
+
+    return main.with_minimal_opt().compile()
+
+
+def angles():
+    """Some angle logic that reduces to the identity.
+
+    This may be harder to optimize, as it requires const-folding angles through loop
+    unpeeling.
+    """
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        q = f(q)
+        b = measure(q)
+
+        result("b", b.read())
+
+    @guppy
+    def g(q: qubit, x: angle) -> None:
+        rz(q, x / 2 - angle(0.1))
+        rz(q, x / 2 + angle(0.1))
+
+    @guppy
+    def f(q: qubit @ owned) -> qubit:
+        h(q)
+        x: angle = angle(0.0)
+        for i in range(5):
+            g(q, x)
+            x += angle(0.2)
+        h(q)
+        return q
+
+    return main.with_minimal_opt().compile()
+
+
+def angles_opt():
+    @guppy
+    def main() -> None:
+        result("b", 0)
+
+    return main.compile()
+
+
+def angles_flat():
+    @guppy
+    def main() -> None:
+        q = qubit()
+        q = f(q)
+        b = measure(q)
+
+        result("b", b.read())
+
+    @guppy.comptime
+    def g(q: qubit, x: angle) -> None:
+        rz(q, x / 2 - angle(0.1))
+        rz(q, x / 2 + angle(0.1))
+
+    @guppy.comptime
+    def f(q: qubit @ owned) -> qubit:
+        h(q)
+        x: angle = angle(0.0)
+        for i in range(5):
+            g(q, x)
+            x += angle(0.2)
+        h(q)
+        return q
+
+    return main.with_minimal_opt().compile()
