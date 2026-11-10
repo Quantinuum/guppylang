@@ -2,7 +2,7 @@ import functools
 from typing import TYPE_CHECKING, Any, assert_never, cast
 
 from guppylang_internals.error import InternalGuppyError
-from guppylang_internals.tys.arg import ConstArg, TypeArg
+from guppylang_internals.tys.arg import Argument, ConstArg, TypeArg
 from guppylang_internals.tys.common import Visitor
 from guppylang_internals.tys.ty import (
     BoundTypeVar,
@@ -51,51 +51,51 @@ class QubitFinder(Visitor):
     class FoundFlag(Exception):
         pass
 
-    @functools.singledispatchmethod
     def visit(self, ty: Any) -> bool:
-        raise InternalGuppyError(f"Unhandled node in QubitFinder: {type(ty).__name__}")
+        node: Type | Argument
+        if isinstance(ty, TypeBase):
+            node = ty.cast()
+        elif isinstance(ty, TypeArg | ConstArg):
+            node = ty
+        else:
+            raise InternalGuppyError(
+                f"Unhandled node in QubitFinder: {type(ty).__name__}"
+            )
 
-    @visit.register
-    def _visit_Type(self, ty: TypeBase) -> bool:
-        # Keep this match exhaustive over the closed Type union. New type variants
-        # must explicitly decide how their contained types are searched.
-        match ty.cast():
+        # Keep this match exhaustive over types and arguments. New variants must
+        # explicitly decide how their contained types are searched.
+        match node:
             case BoundTypeVar() | ExistentialTypeVar() | NumericType() | NoneType():
                 pass
-            case FunctionType() as func:
-                for inp in func.inputs:
+            case FunctionType(inputs=inputs, output=output):
+                for inp in inputs:
                     inp.ty.visit(self)
-                func.output.visit(self)
-            case FunctionDefType() as func_def:
-                for arg in func_def.args:
+                output.visit(self)
+            case FunctionDefType(args=args):
+                for arg in args:
                     self.visit(arg)
-            case TupleType() as tup:
-                for element in tup.element_types:
+            case TupleType(element_types=elements):
+                for element in elements:
                     element.visit(self)
-            case OpaqueType() as opaque:
+            case OpaqueType(args=args) as opaque:
                 if is_qubit_ty(opaque):
                     raise self.FoundFlag
-                for arg in opaque.args:
+                for arg in args:
                     self.visit(arg)
-            case StructType() as struct:
-                for field in struct.fields:
+            case StructType(fields=fields):
+                for field in fields:
                     field.ty.visit(self)
-            case EnumType() as enum:
-                for variant in enum.variants_as_list:
+            case EnumType(variants_as_list=variants):
+                for variant in variants:
                     for field in variant.fields:
                         field.ty.visit(self)
+            case TypeArg(ty=arg_ty):
+                arg_ty.visit(self)
+            case ConstArg():
+                # Constant arguments do not contribute qubits to the enclosing type.
+                pass
             case unexpected:
                 assert_never(unexpected)
-        return True
-
-    @visit.register
-    def _visit_TypeArg(self, arg: TypeArg) -> bool:
-        arg.ty.visit(self)
-        return True
-
-    @visit.register
-    def _visit_ConstArg(self, arg: ConstArg) -> bool:
-        # Preserve the existing traversal: do not descend into constant arguments.
         return True
 
 
