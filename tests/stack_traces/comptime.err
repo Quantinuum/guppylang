@@ -13,3 +13,4 @@ Guppy traceback (most recent call last):
    11 | def main() -> None:
    12 |     panicking_func()
       |     ^
+
