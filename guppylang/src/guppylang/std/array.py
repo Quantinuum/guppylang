@@ -41,7 +41,6 @@ from guppylang import guppy
 from guppylang.std.err import Result, err, ok
 from guppylang.std.iter import SizedIter
 from guppylang.std.lang import Copy, Drop, comptime
-from guppylang.std.mem import mem_swap
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing, some
 from guppylang.std.platform import panic
@@ -381,17 +380,95 @@ class array[T, n: nat](builtins.list[T]):
     @guppy
     @no_type_check
     def reverse_in_place(self) -> None:
-        """Reverse array elements in-place.
+        """Reverse array elements in place.
 
-        Takes O(n) time and O(1) auxiliary space, supporting linear elements.
+        Borrows the array and supports linear elements. Empty and singleton
+        arrays are unchanged. Pairwise exchanges take O(n) time and O(1)
+        auxiliary space.
 
         .. code-block:: python
 
             qs = array(qubit() for _ in range(2))
             qs.reverse_in_place()
         """
-        for i in range(n // 2):
-            mem_swap(self[i], self[n - i - 1])
+        _reverse_range(self, 0, n)
+
+    @guppy
+    @no_type_check
+    def swap(self, first: int, second: int) -> None:
+        """Swap two array elements in place using `array_swap`.
+
+        Borrows the array and supports linear elements. Equal valid indices
+        leave it unchanged. Panics if either index is negative or out of bounds.
+        Takes O(1) time and auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3)
+            values.swap(0, 2)  # [3, 2, 1]
+        """
+        array_swap(self, first, second)
+
+    @guppy
+    @no_type_check
+    def fill[T: (Copy, Drop), n: nat](self: array[T, n], value: T) -> None:
+        """Replace every element with a copy of value, borrowing both inputs.
+
+        Requires Copy and Drop to copy the replacement and discard old elements.
+        Empty arrays are unchanged. A single scan takes O(n) time and O(1)
+        auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3)
+            values.fill(7)  # [7, 7, 7]
+        """
+        for i in range(n):
+            self[i] = value
+
+    @guppy
+    @no_type_check
+    def rotate_left_in_place(self, amount: int) -> None:
+        """Rotate elements left by amount, preserving their cyclic order.
+
+        Borrows the array and supports linear elements. Amounts wrap modulo
+        the length; negative amounts rotate right. Empty arrays are unchanged
+        for any amount. Zero effective rotations are no-ops.
+        The rotation is implemented using three reversals, taking O(n) time
+        and O(1) auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3, 4)
+            values.rotate_left_in_place(1)  # [2, 3, 4, 1]
+        """
+        amount = _normalize_rotation(n, amount)
+        if amount == 0:
+            return
+        _reverse_range(self, 0, amount)
+        _reverse_range(self, amount, n)
+        self.reverse_in_place()
+
+    @guppy
+    @no_type_check
+    def rotate_right_in_place(self, amount: int) -> None:
+        """Rotate elements right by amount, preserving their cyclic order.
+
+        Borrows the array and supports linear elements. Amounts wrap modulo
+        the length; negative amounts rotate left. Empty arrays are unchanged
+        for any amount. Zero effective rotations are no-ops.
+        The rotation is implemented using three reversals, taking O(n) time
+        and O(1) auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 2, 3, 4)
+            values.rotate_right_in_place(1)  # [4, 1, 2, 3]
+        """
+        amount = _normalize_rotation(n, amount)
+        if amount == 0:
+            return
+        self.rotate_left_in_place(n - amount)
 
     @guppy
     @no_type_check
@@ -959,6 +1036,26 @@ def _array_from_nat(
 
 @guppy
 @no_type_check
+def _normalize_rotation(length: int, amount: int) -> int:
+    if length == 0:
+        return 0
+    # Normalize the signed remainder without negating a potentially minimal int.
+    offset = amount % length
+    if offset < 0:
+        offset += length
+    return offset
+
+
+@guppy
+@no_type_check
+def _reverse_range[T, n: nat](values: array[T, n], start: int, stop: int) -> None:
+    # Callers validate the half-open range before the first exchange.
+    for i in range((stop - start) // 2):
+        array_swap(values, start + i, stop - i - 1)
+
+
+@guppy
+@no_type_check
 def _unzip_first[T, U, n: nat](
     pairs: array[tuple[T, U], n], seconds: array[Option[U], n], index: int
 ) -> T:
@@ -1063,7 +1160,8 @@ def array_swap[L, n: nat](arr: array[L, n], idx: int, idx2: int) -> None:
 
     The swap happens in-place. Panics if either index is out of bounds.
 
-    Works with both copyable and linear types (like qubits).
+    Works with both copyable and linear types (like qubits). Equal valid indices
+    leave the array unchanged. Takes O(1) time and auxiliary space.
 
     Args:
         arr: The array to modify
