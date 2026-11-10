@@ -86,7 +86,7 @@ def ranges_flat():
             h(qs[(3 * i + 1) % 4])
         return qs
 
-    return main.with_minimal_opt().compile()
+    return main.compile()
 
 
 def ranges():
@@ -116,7 +116,7 @@ def ranges():
             h(qs[(3 * i + 1) % 4])
         return qs
 
-    return main.with_minimal_opt().compile()
+    return main.compile()
 
 
 def ranges_flat_array():
@@ -157,7 +157,7 @@ def ranges_flat_array():
         h(qs[2])
         return qs
 
-    return main.with_minimal_opt().compile()
+    return main.compile()
 
 
 def false_branch():
@@ -173,7 +173,7 @@ def false_branch():
 
         result("b", b)
 
-    return main.with_minimal_opt().compile()
+    return main.compile()
 
 
 def false_branch_opt():
@@ -190,7 +190,7 @@ def nested_array():
         cx(arr[0][1], arr[0][2])
         cx(arr[0][1], arr[0][2])
 
-    return main.with_minimal_opt().compile_function()
+    return main.compile_function()
 
 
 def nested_array_opt():
@@ -227,7 +227,7 @@ def func_decls():
         other_rotation = func2(rotation + 1.0, q)
         rx(q, angle(other_rotation))
 
-    return unknown_rotations.with_minimal_opt().compile_function()
+    return unknown_rotations.compile_function()
 
 
 def func_decls_flat():
@@ -291,7 +291,7 @@ def simple_cx():
         result("b1", b1.read())
         result("b2", b2.read())
 
-    return main.with_minimal_opt().compile()
+    return main.compile()
 
 
 def nested_flat():
@@ -318,7 +318,7 @@ def nested_flat():
             h(qs[i])
         return qs
 
-    return main.with_minimal_opt().compile()
+    return main.compile()
 
 
 def nested_opt():
@@ -360,7 +360,7 @@ def nested():
             h(qs[i])
         return qs
 
-    return main.with_minimal_opt().compile()
+    return main.compile()
 
 
 def angles():
@@ -393,7 +393,7 @@ def angles():
         h(q)
         return q
 
-    return main.with_minimal_opt().compile()
+    return main.compile()
 
 
 def angles_opt():
@@ -505,7 +505,6 @@ def test_angles_rotations() -> None:
 
     # We don't need Normalize to "flatten" control flow here, but we still want
     # to get rid of other guppy artifacts.
-    hugr = angles_flat().modules[0]
     hugr = Normalize()(hugr)
     hugr = _run_clifford_simp(hugr)
 
