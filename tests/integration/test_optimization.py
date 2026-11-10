@@ -9,7 +9,7 @@ from hugr.build.base import Hugr
 from hugr.ops import AsExtOp
 from hugr.package import Package
 from tket._state import CompilationState
-from tket.passes import Normalize, PytketHugrPass, QSystemRebasePass, _QSystemLLVMPass
+from tket.passes import PytketHugrPass, QSystemRebasePass, _QSystemLLVMPass
 from guppylang import guppy
 from guppylang.optimizer import OptimizationLevel
 from guppylang.std.builtins import result, array, owned
@@ -476,7 +476,6 @@ def test_optimize_flattened(
     """Test that given Guppy whose control-flow has been flattened by hand,
     the optimizer can do the rest."""
     hugr = flattened().modules[0]
-    hugr = Normalize()(hugr)
     hugr = _run_clifford_simp(hugr)
 
     actual_counts = _count_gates(hugr)
@@ -517,7 +516,6 @@ def test_optimize_ranges_array() -> None:
 
     hugr = ranges_flat_array().modules[0]
 
-    hugr = Normalize()(hugr)
     hugr = _run_clifford_simp(hugr)
 
     expected_counts = _count_gates(ranges_opt().modules[0])
@@ -546,8 +544,6 @@ def test_optimize(
     including lowering to QSystem.
     """
     hugr = original().modules[0]
-
-    hugr = Normalize()(hugr)
 
     if flattened is not None:
         flat_counts = _count_gates(flattened().modules[0])
