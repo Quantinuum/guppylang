@@ -15,7 +15,7 @@ on:
 
 env:
   # Pinned version for the uv package manager
-  UV_VERSION: "0.12.23"
+  UV_VERSION: "0.13.0"
 
 jobs:
   check-release-guppylang:
@@ -27,7 +27,7 @@ jobs:
       matrix:
         target:
           - resolution: "highest"
-            python: "3.14"
+            python: "3.15"
           - resolution: "lowest-direct"
             python: "3.12"
     steps:
