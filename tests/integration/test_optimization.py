@@ -11,6 +11,7 @@ from hugr.package import Package
 from tket._state import CompilationState
 from tket.passes import Normalize, PytketHugrPass, QSystemRebasePass, _QSystemLLVMPass
 from guppylang import guppy
+from guppylang.optimizer import OptimizationLevel
 from guppylang.std.builtins import result, array, owned
 from guppylang.std.quantum import cx, h, rx, cz, rz, measure, qubit
 from guppylang.std.angles import angle
@@ -404,7 +405,7 @@ def angles_opt():
     return main.compile()
 
 
-def angles_flat():
+def angles_flat(lvl: OptimizationLevel | None = None):
     @guppy
     def main() -> None:
         q = qubit()
@@ -428,7 +429,7 @@ def angles_flat():
         h(q)
         return q
 
-    return main.with_minimal_opt().compile()
+    return (main if lvl is None else main.with_opt_level(lvl)).compile()
 
 
 @pytest.mark.parametrize(
@@ -496,13 +497,12 @@ def test_angles_rotations() -> None:
             for _, data in hugr.nodes()
         )
 
-    hugr = angles_flat().modules[0]
+    hugr = angles_flat(OptimizationLevel.Minimal).modules[0]
+    # No function inlining yet, so only two rotations, in g().
     assert count_from_halfturns(hugr) == 2
 
-    # We don't need Normalize to "flatten" control flow here, but we still want
-    # to get rid of other guppy artifacts.
-    hugr = Normalize()(hugr)
-    hugr = _run_clifford_simp(hugr)
+    # Recompile with default optimization.
+    hugr = angles_flat().modules[0]
 
     optimized = angles_opt().modules[0]
     assert count_from_halfturns(optimized) == 0
