@@ -616,16 +616,9 @@ def check_unitary_method[T](
             # Docstrings are fine if they occur at the start
             case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
                 pass
-            case _, ast.FunctionDef() as node:
-                if node.name not in valid_method_names:
-                    raise GuppyError(
-                        UnexpectedError(
-                            node,
-                            "statement",
-                            unexpected_in="in a `@guppy.unitary` class",
-                        ).add_sub_diagnostic(InvalidUnitaryMethodHelp(None))
-                    )
-                method_name = node.name
+            case _, ast.FunctionDef(name=method_name) as node if (
+                method_name in valid_method_names
+            ):
                 # `__call__` already checked in `decorator._get_unitary_call_def`
                 if method_name == "__call__":
                     continue
@@ -636,7 +629,7 @@ def check_unitary_method[T](
                     and isinstance(method.wrapped, RawFunctionDef)
                 ):
                     raise GuppyError(
-                        InvalidUnitaryMethodError(node, node.name, class_ast.name)
+                        InvalidUnitaryMethodError(node, method_name, class_ast.name)
                     )
 
                 # Check that no invalid metadata is present
@@ -646,7 +639,7 @@ def check_unitary_method[T](
                         UnexpectedError(
                             function_header_span(node),
                             "unitary flags",
-                            unexpected_in="in the method `@guppy` decorator",
+                            unexpected_in="the method `@guppy` decorator",
                         ).add_sub_diagnostic(InvalidUnitaryMetadataHelp(None))
                     )
 
@@ -665,7 +658,7 @@ def check_unitary_method[T](
                     UnexpectedError(
                         node,
                         "statement",
-                        unexpected_in="in a `@guppy.unitary` class",
+                        unexpected_in="a `@guppy.unitary` class",
                     ).add_sub_diagnostic(InvalidUnitaryMethodHelp(None))
                 )
     return custom_methods
