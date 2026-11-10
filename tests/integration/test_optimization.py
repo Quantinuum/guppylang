@@ -11,6 +11,7 @@ from hugr.package import Package
 from tket._state import CompilationState
 from tket.passes import PytketHugrPass, QSystemRebasePass, _QSystemLLVMPass
 from guppylang import guppy
+from guppylang.defs import GuppyFunctionDefinition
 from guppylang.optimizer import OptimizationLevel
 from guppylang.std.builtins import result, array, owned
 from guppylang.std.quantum import cx, h, rx, cz, rz, measure, qubit
@@ -36,11 +37,10 @@ def _count_gates(hugr: Hugr) -> dict[str, int]:
     return counts
 
 
-def _run_clifford_simp(hugr: Hugr) -> Hugr:
-    """Apply CliffordSimp pass to a HUGR, returning the optimized HUGR."""
-    clifford_pass = PytketHugrPass(CliffordSimp(allow_swaps=True))
-    result = clifford_pass.run(hugr)
-    return result.hugr
+def _with_clifford_simp(func: GuppyFunctionDefinition):
+    return func.with_opt_level(OptimizationLevel.Classical).with_optimization(
+        PytketHugrPass(CliffordSimp(allow_swaps=True))
+    )
 
 
 def ranges_opt():
@@ -319,7 +319,9 @@ def nested_flat():
             h(qs[i])
         return qs
 
-    return main.compile()
+    # OptimizationLevel.Default includes only RemoveRedundanciesPass
+    # which is not sufficient here.
+    return _with_clifford_simp(main).compile()
 
 
 def nested_opt():
@@ -361,7 +363,10 @@ def nested():
             h(qs[i])
         return qs
 
-    return main.compile()
+    # This still doesn't optimize even with CliffordSimp, so this achieves
+    # nothing currently. However `nested_flat` is optimized only with CliffordSimp
+    # so use that here too.
+    return _with_clifford_simp(main).compile()
 
 
 def angles():
@@ -465,7 +470,7 @@ def angles_flat(lvl: OptimizationLevel | None = None):
                 "tket.result.result_bool": 1,
             },
         ),
-        (func_decls_flat, func_decls_opt, {"TKET1.tk1op": 2}),
+        (func_decls_flat, func_decls_opt, None),
     ],
 )
 def test_optimize_flattened(
@@ -476,7 +481,6 @@ def test_optimize_flattened(
     """Test that given Guppy whose control-flow has been flattened by hand,
     the optimizer can do the rest."""
     hugr = flattened().modules[0]
-    hugr = _run_clifford_simp(hugr)
 
     actual_counts = _count_gates(hugr)
     optimized_counts = _count_gates(optimized().modules[0])
@@ -516,8 +520,6 @@ def test_optimize_ranges_array() -> None:
 
     hugr = ranges_flat_array().modules[0]
 
-    hugr = _run_clifford_simp(hugr)
-
     expected_counts = _count_gates(ranges_opt().modules[0])
     assert _count_gates(hugr) == expected_counts
 
@@ -549,7 +551,6 @@ def test_optimize(
         flat_counts = _count_gates(flattened().modules[0])
         assert _count_gates(hugr) == flat_counts
 
-    hugr = _run_clifford_simp(hugr)
     opt_counts = _count_gates(optimized().modules[0])
     assert _count_gates(hugr) == opt_counts
 
