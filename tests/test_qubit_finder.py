@@ -115,3 +115,14 @@ def test_unhandled_future_type_fails():
 def test_unhandled_visitor_node_fails():
     with pytest.raises(InternalGuppyError, match="Unhandled node in QubitFinder"):
         QubitFinder().visit(object())
+
+
+def test_constant_argument_is_not_searched():
+    arg = ConstArg(ConstValue(qubit_ty(), None))
+    assert not contain_qubit_ty(FunctionDefType(DefId(0), [arg]))
+    assert QubitFinder().visit(arg)
+
+
+def test_type_argument_is_searched():
+    with pytest.raises(QubitFinder.FoundFlag):
+        QubitFinder().visit(TypeArg(qubit_ty()))
