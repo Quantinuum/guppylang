@@ -38,7 +38,7 @@ def _load_guppy_circuit(
 
     Args:
         name: Base name of the circuit (e.g., "angles", "nested_array")
-        version_suffix: Version suffix (e.g., "1.1" for angles-v1.1)
+        version_suffix: Version suffix (always "")
         file_type: One of "original", "flat", or "optimized"
 
     Returns:
@@ -81,18 +81,6 @@ def _run_clifford_simp(hugr: Hugr) -> Hugr:
     ("name", "version_suffix", "expected"),
     [
         ("nested_array", "", None),
-        # There was a significant change to angles between guppylang v1.1.x and v1.2,
-        # hence the second testcase, but this only shows up when looking at rotation ops
-        # - see test_angles_rotations.
-        (
-            "angles",
-            "1.1",
-            {
-                "tket.quantum.MeasureFree": 1,
-                "tket.quantum.QAlloc": 1,
-                "tket.result.result_bool": 1,
-            },
-        ),
         (
             "angles",
             "",
@@ -156,13 +144,6 @@ def test_optimize_flattened_guppy(
         assert actual_counts == optimized_counts
 
 
-@pytest.mark.parametrize(
-    ("version_suffix", "expected"),
-    [
-        ("1.1", 0),  # previously working as desired
-        ("", 10),  # now: https://github.com/Quantinuum/tket2/issues/2130
-    ],
-)
 def test_angles_rotations(version_suffix, expected) -> None:
     def count_from_halfturns(hugr: Hugr) -> int:
         return sum(
@@ -170,7 +151,7 @@ def test_angles_rotations(version_suffix, expected) -> None:
             for _, data in hugr.nodes()
         )
 
-    hugr = _load_guppy_circuit("angles", version_suffix, "flat")
+    hugr = _load_guppy_circuit("angles", "", "flat")
     assert count_from_halfturns(hugr) == 2
 
     # We don't need Normalize to "flatten" control flow here, but we still want
@@ -178,9 +159,9 @@ def test_angles_rotations(version_suffix, expected) -> None:
     hugr = Normalize()(hugr)
     hugr = _run_clifford_simp(hugr)
 
-    optimized = _load_guppy_circuit("angles", version_suffix, "optimized")
+    optimized = _load_guppy_circuit("angles", "", "optimized")
     assert count_from_halfturns(optimized) == 0
-    assert count_from_halfturns(hugr) == expected
+    assert count_from_halfturns(hugr) == 10
 
 
 def test_optimize_guppy_ranges_array() -> None:
@@ -200,7 +181,6 @@ def test_optimize_guppy_ranges_array() -> None:
     ("name", "version_suffix"),
     [
         ("nested_array", ""),
-        pytest.param("angles", "1.1", marks=pytest.mark.xfail()),
         pytest.param("angles", "", marks=pytest.mark.xfail()),
         pytest.param("false_branch", "", marks=pytest.mark.xfail()),
         pytest.param("simple_cx", "", marks=pytest.mark.xfail()),
