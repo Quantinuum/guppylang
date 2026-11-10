@@ -415,9 +415,18 @@ def test_relevant(validate):
     def foo(x: T) -> T: ...
 
     @guppy
+    def apply[S](x: S, f: Function[[S], S]) -> S:
+        return f(x)
+
+    @guppy
+    def identity(x: R) -> R:
+        return x
+
+    @guppy
     def main(r: R) -> R:
         r_copy = r
-        return foo(r_copy)
+        # A copyable but non-droppable type must use the callback's by-value signature.
+        return apply(foo(r_copy), identity)
 
     validate(main.compile_function())
 

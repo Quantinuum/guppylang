@@ -3,10 +3,10 @@
 from guppylang import array, qubit
 from guppylang.decorator import guppy
 from guppylang.std.builtins import Controllable, Daggerable, Unitary
-from guppylang.std.lang import Copy, Drop, owned, comptime
+from guppylang.std.lang import Copy, Drop, Function, owned, comptime
 from guppylang.std.num import nat
 from guppylang.std.option import Option, nothing
-from guppylang.std.quantum import discard_array, h
+from guppylang.std.quantum import discard, discard_array, h
 
 
 def test_function(validate):
@@ -493,5 +493,57 @@ def test_struct_unused_param(validate):
         # We're allowed to copy `s` since it actually doesn't contain a qubit
         s1, s2 = s, s
         # We're also allowed to drop all of them
+
+    validate(main.compile_function())
+
+
+def test_generic_borrowed_callback(validate):
+    @guppy
+    def apply[T](value: T, predicate: Function[[T], bool]) -> bool:
+        return predicate(value)
+
+    @guppy
+    def positive(value: int) -> bool:
+        return value > 0
+
+    @guppy
+    def invoke[T](
+        value: T,
+        predicate: Function[[T], bool],
+        caller: Function[[T, Function[[T], bool]], bool],
+    ) -> bool:
+        return caller(value, predicate)
+
+    @guppy
+    def borrow_qubit(value: qubit) -> bool:
+        h(value)
+        return True
+
+    @guppy
+    def main(value: int, q: qubit) -> bool:
+        a = apply(value, positive)
+        b = apply[int](value, positive)
+        c = apply(q, borrow_qubit)
+        d = invoke(value, positive, apply[int])
+        h(q)
+        return a and b and c and d
+
+    main.check()
+    validate(main.compile_function())
+
+
+def test_generic_owned_callback(validate):
+    @guppy
+    def apply[T](value: T @ owned, consume: Function[[T @ owned], bool]) -> bool:
+        return consume(value)
+
+    @guppy
+    def consume_qubit(value: qubit @ owned) -> bool:
+        discard(value)
+        return True
+
+    @guppy
+    def main(q: qubit @ owned) -> bool:
+        return apply(q, consume_qubit)
 
     validate(main.compile_function())

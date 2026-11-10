@@ -465,6 +465,16 @@ class FuncInput:
     #: `Callable`). We use `compare=False` because names are not visible to the caller.
     name: str | None = field(default=None, compare=False)
 
+    def transform(self, transformer: Transformer) -> "FuncInput":
+        """Transform the input type and update its implicit borrowing convention."""
+        ty = self.ty.transform(transformer)
+        flags = self.flags
+        # Some internal operations intentionally borrow already-copyable values.
+        # Only remove borrowing introduced for a potentially non-copyable type.
+        if not self.ty.copyable and ty.copyable:
+            flags &= ~InputFlags.Inout
+        return replace(self, ty=ty, flags=flags)
+
 
 @dataclass(frozen=True, init=False)
 class FunctionType(ParametrizedTypeBase):
@@ -599,7 +609,7 @@ class FunctionType(ParametrizedTypeBase):
     def transform(self, transformer: Transformer) -> "Type":
         """Accepts a transformer on this type."""
         return transformer.transform(self) or FunctionType(
-            [replace(inp, ty=inp.ty.transform(transformer)) for inp in self.inputs],
+            [inp.transform(transformer) for inp in self.inputs],
             self.output.transform(transformer),
             self.params,
             comptime_args=self.comptime_args,
@@ -625,7 +635,7 @@ class FunctionType(ParametrizedTypeBase):
 
         inst = Instantiator(full_inst)
         return FunctionType(
-            [replace(inp, ty=inp.ty.transform(inst)) for inp in self.inputs],
+            [inp.transform(inst) for inp in self.inputs],
             self.output.transform(inst),
             remaining_params,
             # Comptime type arguments also need to be instantiated
