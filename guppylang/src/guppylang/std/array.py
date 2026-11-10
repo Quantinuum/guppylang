@@ -911,6 +911,95 @@ class array[T, n: nat](builtins.list[T]):
                 best = i
         return self[best]
 
+    @guppy
+    @no_type_check
+    def is_sorted[T: _ArrayOrdering, n: nat](self: array[T, n]) -> bool:
+        """Return whether elements are in nondecreasing order, borrowing the array.
+
+        Empty and singleton arrays are sorted. Stops at the first descending
+        adjacent pair. Supports linear elements through borrowed less-than
+        comparisons, which must define a consistent strict weak ordering;
+        floating-point NaNs do not satisfy this requirement.
+        Takes O(n) worst-case time excluding comparison costs and O(1)
+        auxiliary space.
+
+        .. code-block:: python
+
+            ordered = array(1, 2, 2).is_sorted()  # True
+        """
+        for i in range(1, n):  # noqa: SIM110 - Guppy has no builtin all yet.
+            if self[i].__lt__(self[i - 1]):
+                return False
+        return True
+
+    @guppy
+    @no_type_check
+    def sort_unstable[T: _ArrayOrdering, n: nat](self: array[T, n]) -> None:
+        """Sort the array in place into nondecreasing order using heapsort.
+
+        Borrows the array, preserving every element, including linear values.
+        Empty and singleton arrays are unchanged. Equally ranked elements may
+        be reordered. Borrowed less-than comparisons must define a consistent
+        strict weak ordering; floating-point NaNs do not satisfy this requirement.
+        Building a max-heap and repeatedly extracting its maximum takes
+        O(n log n) worst-case time excluding comparison costs and O(1)
+        auxiliary space.
+
+        .. code-block:: python
+
+            values = array(3, 1, 2)
+            values.sort_unstable()  # [1, 2, 3]
+        """
+        # Wikipedia's heapify(a, count), inlined here. The first leaf is n // 2;
+        # visit its preceding parents backwards, with child heaps already valid.
+        # https://en.wikipedia.org/wiki/Heapsort#Pseudocode
+        start = int(n) // 2
+        while start > 0:
+            start -= 1
+            _sift_down(self, start, n)
+        # Heap extraction: move each maximum into the sorted suffix [end, n).
+        end = int(n)
+        while end > 1:
+            end -= 1
+            array_swap(self, 0, end)
+            _sift_down(self, 0, end)
+
+    @guppy
+    @no_type_check
+    def binary_search[T: _ArrayOrdering, n: nat](
+        self: array[T, n], value: T
+    ) -> Result[int, int]:
+        """Find a matching index in a sorted array, or its insertion position.
+
+        Returns ok(index) for a match or err(insertion_index) if absent. An empty
+        array returns err(0). Any matching duplicate index may be returned.
+        Borrows the array and value, supporting linear elements. Matches are
+        equivalent under the ordering: neither element compares less than the
+        other, without requiring equality.
+
+        The array must already be sorted under the same consistent strict weak
+        ordering; this precondition is not checked. Floating-point NaNs do not
+        satisfy this requirement. Halves the search interval each iteration,
+        taking O(log n) time excluding comparison costs and O(1) auxiliary space.
+
+        .. code-block:: python
+
+            values = array(1, 3, 5)
+            found = values.binary_search(3).unwrap()  # 1
+            insertion = values.binary_search(4).unwrap_err()  # 2
+        """
+        low = 0
+        high = int(n)
+        while low < high:
+            middle = low + (high - low) // 2
+            if self[middle].__lt__(value):
+                low = middle + 1
+            elif value.__lt__(self[middle]):
+                high = middle
+            else:
+                return ok(middle)
+        return err(low)
+
     # Borrowed indexing allows early exit without consuming linear elements.
     # An iterable abstraction must define ownership of unconsumed elements
     # before it can provide equivalent short-circuit reductions.
@@ -1167,6 +1256,25 @@ def _array_from_nat(
     return some(
         array(bool((value >> nat(first + step * i)) & nat(1)) for i in range(size))
     )
+
+
+@guppy
+@no_type_check
+def _sift_down[T: _ArrayOrdering, n: nat](
+    values: array[T, n], root: int, end: int
+) -> None:
+    # The children below root already form max-heaps in [0, end).
+    # Swapping the root with its greater child preserves each child's subtree
+    # until the displaced root is sifted down on the next iteration.
+    # root < end // 2 is equivalent to iLeftChild(root) < end.
+    while root < end // 2:
+        child = 2 * root + 1
+        if child + 1 < end and values[child].__lt__(values[child + 1]):
+            child += 1
+        if not values[root].__lt__(values[child]):
+            return
+        array_swap(values, root, child)
+        root = child
 
 
 @guppy
