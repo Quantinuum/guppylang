@@ -33,6 +33,7 @@ def test_bit_conversions() -> None:
         value = (nat(high) << nat(32)) | nat(low)
         original = bits.copy()
         output("big", bits.to_nat())
+        output("nat_syntax", nat(bits) == bits.to_nat())
         output("little", bits.to_nat_le())
         big = array_from_nat(value, size).unwrap()
         little = array_from_nat_le(value, size).unwrap()
@@ -63,10 +64,11 @@ def test_bit_conversions() -> None:
 
     shot = main.emulator(0).coinflip_sim().run()[0]
     for (size, value, bits), entries in zip(
-        cases, batched(shot.entries, 7), strict=True
+        cases, batched(shot.entries, 8), strict=True
     ):
         assert dict(entries) == {
             "big": value,
+            "nat_syntax": True,
             "little": sum(int(bit) << i for i, bit in enumerate(bits)),
             "big_bits": bits if size else 0,
             "little_bits": list(reversed(bits)) if size else 0,
@@ -99,11 +101,16 @@ def test_bit_conversion_overflow() -> None:
 
 
 @pytest.mark.parametrize(
-    "operation", ["to_nat", "to_nat_le", "array_from_nat", "array_from_nat_le"]
+    "operation", ["to_nat", "to_nat_le", "nat", "array_from_nat", "array_from_nat_le"]
 )
 @no_type_check
 def test_bit_conversion_invalid_width(operation: str) -> None:
-    if operation.startswith("to_nat"):
+    if operation == "nat":
+
+        @guppy
+        def main(bits: array[bool, 65]) -> nat:
+            return nat(bits)
+    elif operation.startswith("to_nat"):
         convert = getattr(array, operation)
 
         @guppy
