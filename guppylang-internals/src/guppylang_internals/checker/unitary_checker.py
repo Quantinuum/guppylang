@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar
 from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
-from guppylang_internals.checker.core import Place
+from guppylang_internals.checker.core import Place, SubscriptAccess, Variable
 from guppylang_internals.checker.errors.generic import (
     InvalidUnderDagger,
     UnexpectedError,
@@ -23,6 +23,7 @@ from guppylang_internals.nodes import (
     GlobalCall,
     LocalCall,
     ModifiedBlock,
+    PlaceNode,
     StateOutputExpr,
     TensorCall,
 )
@@ -261,8 +262,24 @@ class BBUnitaryChecker(ast.NodeVisitor):
             self.visit(value)
 
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
-        # Nested modified blocks are checked separately by the CFG checker
-        pass
+        # Arguments are evaluated in the enclosing context, not in the body
+        # context that includes this block's modifiers. The CFG checker checks
+        # the body separately.
+        for control in node.control:
+            for arg in control.ctrl:
+                self.visit(arg)
+        for power in node.power:
+            self.visit(power.iter)
+
+    def visit_PlaceNode(self, node: PlaceNode) -> None:
+        # Subscript indices are stored on places rather than as AST children.
+        # Check their computation without treating the borrowed element as a
+        # fresh qubit allocation through its generated getitem call.
+        place = node.place
+        while not isinstance(place, Variable):
+            if isinstance(place, SubscriptAccess):
+                self.visit(place.item_expr)
+            place = place.parent
 
     def _check_assign(self, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> None:
         if node.value is not None:
