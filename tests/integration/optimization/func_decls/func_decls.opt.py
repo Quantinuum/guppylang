@@ -1,35 +1,21 @@
-# /// script
-# requires-python = ">=3.13"
-# dependencies = [
-#     "guppylang==1.2.0",
-#     "guppylang-internals==1.2.0",
-# ]
-# ///
-
-from pathlib import Path
-from sys import argv
-
 from guppylang import guppy
 from guppylang.std.angles import angle
 from guppylang.std.quantum import qubit, rx
 
 
-@guppy.declare
-def func1() -> float: ...
+def func_decls_opt():
+    @guppy.declare
+    def func1() -> float: ...
 
+    @guppy.declare
+    def func2(f: float, q: qubit) -> float: ...
 
-@guppy.declare
-def func2(f: float, q: qubit) -> float: ...
+    @guppy
+    def unknown_rotations(q: qubit) -> None:
+        rotation = func1()
+        rx(q, angle(rotation))
 
+        other_rotation = func2(rotation + 1.0, q)
+        rx(q, angle(other_rotation))
 
-@guppy
-def unknown_rotations(q: qubit) -> None:
-    rotation = func1()
-    rx(q, angle(rotation))
-
-    other_rotation = func2(rotation + 1.0, q)
-    rx(q, angle(other_rotation))
-
-
-program = unknown_rotations.compile_function()
-Path(argv[0]).with_suffix(".hugr").write_bytes(program.to_bytes())
+    return unknown_rotations.compile_function()
