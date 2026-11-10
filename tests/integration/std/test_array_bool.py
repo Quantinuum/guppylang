@@ -111,19 +111,28 @@ def test_boolean_logic() -> None:
     def check[size: nat](xs: array[bool, size], ys: array[bool, size]) -> None:
         original_xs = xs.copy()
         original_ys = ys.copy()
-        if size:
-            output("and", xs.bitwise_and(ys))
-            output("or", xs.bitwise_or(ys))
-            output("xor", xs.bitwise_xor(ys))
-            output("not", xs.bitwise_not())
-        else:
+        if not size:
             xs.bitwise_and(ys)
             xs.bitwise_or(ys)
             xs.bitwise_xor(ys)
             xs.bitwise_not()
             xs.dot(ys)
+            xs & ys
+            xs | ys
+            xs ^ ys
+            ~xs
+            xs @ ys
             return
+        output("and", xs.bitwise_and(ys))
+        output("or", xs.bitwise_or(ys))
+        output("xor", xs.bitwise_xor(ys))
+        output("not", xs.bitwise_not())
+        output("and_syntax", xs & ys)
+        output("or_syntax", xs | ys)
+        output("xor_syntax", xs ^ ys)
+        output("not_syntax", ~xs)
         output("dot", xs.dot(ys))
+        output("dot_syntax", xs @ ys)
         unchanged = True
         for i in range(size):
             unchanged = (
@@ -156,5 +165,11 @@ def test_boolean_logic() -> None:
             "dot": bool(sum(x & y for x, y in zip(xs, ys, strict=True)) % 2),
             "unchanged": True,
         }
+        expected.update(
+            {
+                f"{tag}_syntax": expected[tag]
+                for tag in ["and", "or", "xor", "not", "dot"]
+            }
+        )
         assert dict(next(entries) for _ in expected) == expected, name
     assert next(entries, None) is None
