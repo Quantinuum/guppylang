@@ -235,7 +235,9 @@ def barray_borrow(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
     )
 
 
-def barray_return(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
+def barray_return(
+    elem_ty: ht.Type, length: ht.TypeArg, may_panic: bool = True
+) -> OpWithEffects:
     """Returns an array `return` operation."""
     arr_ty = array_type(elem_ty, length)
     return _instantiate_array_op(
@@ -244,7 +246,7 @@ def barray_return(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [arr_ty, ht.USize(), elem_ty],
         [arr_ty],
-        effects=[Effect.PANIC],
+        effects=[Effect.PANIC] if may_panic else [],
     )
 
 
