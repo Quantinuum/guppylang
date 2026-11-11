@@ -397,6 +397,22 @@ class ArrayComprUnknownSizeError(Error):
 
 
 @dataclass(frozen=True)
+class EmptyArrayCopyableError(Error):
+    title: ClassVar[str] = "Copyable elements"
+    span_label: ClassVar[str] = (
+        "`empty_array` cannot be used with copyable element type `{ty}`"
+    )
+    ty: Type
+
+    @dataclass(frozen=True)
+    class Explanation(Note):
+        message: ClassVar[str] = (
+            "Only arrays with non-copyable elements can be created empty. Consider "
+            "constructing the array directly, e.g. via an array comprehension"
+        )
+
+
+@dataclass(frozen=True)
 class TupleIndexOutOfBoundsError(Error):
     title: ClassVar[str] = "Tuple index out of bounds"
     span_label: ClassVar[str] = (

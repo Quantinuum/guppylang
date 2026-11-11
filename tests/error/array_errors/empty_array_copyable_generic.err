@@ -1,0 +1,12 @@
+Error: Copyable elements (at $FILE:10:9)
+   | 
+ 8 | @guppy
+ 9 | def singleton(x: T @ owned) -> array[T, 1]:
+10 |     xs = empty_array[T, 1]()
+   |          ^^^^^^^^^^^ `empty_array` cannot be used with copyable element type
+   |                      `bool`
+
+Note: Only arrays with non-copyable elements can be created empty. Consider
+constructing the array directly, e.g. via an array comprehension
+
+Guppy compilation failed due to 1 previous error
