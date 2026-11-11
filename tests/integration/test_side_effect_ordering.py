@@ -2,6 +2,8 @@
 side-effects.
 """
 
+import pytest
+from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from hugr import ops, Hugr, Node
 from hugr.std import PRELUDE
 import itertools
@@ -20,7 +22,6 @@ from guppylang_internals.std._internal.compiler.tket_exts import (
     QSYSTEM_RANDOM_EXTENSION,
     RESULT_EXTENSION,
 )
-from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from guppylang.std.builtins import output, array
 from guppylang.std.qsystem.random import RNG
 from guppylang.std.quantum import discard, measure
@@ -572,3 +573,59 @@ def test_decl(validate):
     assert "bar" in get_called_func_name(hugr, call)
 
     check_order(hugr, [inp, call_cfg, out])
+
+
+def test_qarray_exit(validate):
+    from guppylang.std.quantum import h
+
+    @guppy
+    def foo(arr: array[qubit, 3]) -> None:
+        h(arr[0])
+        exit("Success")
+        h(arr[0])  # Should be borrow-squashed
+        exit("Failure")  # Well we shouldn't have got here...
+
+    pkg = foo.with_minimal_opt().compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+
+    # Probably remove, but temporarily...
+    def has_directed_order_path(source, target):
+        return any(
+            node == target or has_directed_order_path(node, target)
+            for node in hugr.outgoing_order_links(source)
+        )
+
+    [get1, get2] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
+    [set1, set2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
+    [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
+
+    assert has_directed_order_path(exit1, exit2)
+    assert not has_directed_order_path(exit2, exit1)
+
+    try:
+        check_order(hugr, [get1, set1, exit1, get2, set2, exit2])
+        xfail1 = False
+    except AssertionError as e:
+        # For now...
+
+        xfail1 = True
+
+    pkg = foo.compile_function()
+    validate(pkg)
+    hugr = pkg.modules[0]
+
+    [get1] = find_ext_nodes(hugr, "collections.borrow_arr.borrow")
+    # set1, get2 borrow-squashed
+    [set2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
+    [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
+
+    try:
+        check_order(hugr, [get1, exit1, set2, exit2])
+    except AssertionError as e:
+        # For now...
+        assert exit2 in hugr.outgoing_order_links(exit1)
+        xfail2 = True
+    assert xfail1 == xfail2
+    if xfail1:
+        pytest.xfail()
