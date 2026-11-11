@@ -1,0 +1,15 @@
+Error: Invalid expression in dagger (at $FILE:19:18)
+   | 
+17 | @guppy(daggerable=True)
+18 | def test(qs: array[qubit, 2], js: array[int, 2], s: Mixed) -> None:
+19 |     h(qs[js[index(s)]])
+   |                   ^ Mixed quantum and classical struct `Mixed` found in a dagger
+   |                     context
+
+Note: Structs and tuples used in daggered contexts must contain either only
+quantum or only classical data.
+
+Help: Consider using the fields of `s` individually instead of the whole struct,
+e.g. `s.q`, `s.n`
+
+Guppy compilation failed due to 1 previous error
