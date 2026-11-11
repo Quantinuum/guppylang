@@ -98,7 +98,7 @@ class Effect(Enum):
         return f"[{', '.join(e.name for e in effects)}]"
 
 
-def implied_effect_types(
+def extract_effect_types(
     effects: Iterable[Effect | EffectType],
 ) -> Iterable[EffectType]:
     for e in effects:
