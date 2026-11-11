@@ -455,11 +455,19 @@ def check_unitary_method[T](
 
     custom_methods: dict[CustomModifierKind, RawFunctionDef] = {}
     valid_method_names = [kind.value for kind in CustomModifierKind] + ["__call__"]
-    for node in class_ast.body:
+    for i, node in enumerate(class_ast.body):
+        # Docstrings are fine if they occur at the start
+        if (
+            i == 0
+            and isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            continue
         if not isinstance(node, ast.FunctionDef) or node.name not in valid_method_names:
             raise GuppyError(
                 UnexpectedError(
-                    node, "statement", unexpected_in="in a `@guppy.unitary` class"
+                    node, "statement", unexpected_in="a `@guppy.unitary` class"
                 ).add_sub_diagnostic(InvalidUnitaryMethodHelp(None))
             )
         method_name = node.name
@@ -481,7 +489,7 @@ def check_unitary_method[T](
                 UnexpectedError(
                     function_header_span(node),
                     "unitary flags",
-                    unexpected_in="in the method `@guppy` decorator",
+                    unexpected_in="the method `@guppy` decorator",
                 ).add_sub_diagnostic(InvalidUnitaryMetadataHelp(None))
             )
 
