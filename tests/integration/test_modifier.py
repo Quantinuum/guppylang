@@ -1698,3 +1698,28 @@ def test_dagger_unmixed_uses_of_mixed(validate):
         ps[i].b = ps[i].a
 
     validate(main.compile_function())
+
+
+def test_custom_modifier_accepts_docstring(validate) -> None:
+    """guppy.unitary classes accept docstrings."""
+
+    @guppy.unitary
+    class custom_modified:
+        """Docstring here"""
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        with dagger:
+            custom_modified(q)
+        discard(q)
+
+    validate(main.compile())
