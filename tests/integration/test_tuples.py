@@ -138,4 +138,4 @@ def test_dagger_unmixed_tuples(validate):
         with dagger:
             use(qs, ps)
 
-    validate(main.with_minimal_opt().compile_function(), export=False)
+    validate(main.compile_function())
