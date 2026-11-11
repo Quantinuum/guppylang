@@ -3,10 +3,15 @@ import builtins
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
-from guppylang_internals.ast_util import branching_in_ast, get_type, loop_in_ast
+from guppylang_internals.ast_util import (
+    branching_in_ast,
+    get_type,
+    get_type_opt,
+    loop_in_ast,
+)
 from guppylang_internals.cfg.bb import BBStatement
 from guppylang_internals.checker.cfg_checker import CheckedCFG
-from guppylang_internals.checker.core import Place
+from guppylang_internals.checker.core import Place, SubscriptAccess, Variable
 from guppylang_internals.checker.errors.generic import (
     InvalidUnderDagger,
     UnexpectedError,
@@ -14,7 +19,12 @@ from guppylang_internals.checker.errors.generic import (
 from guppylang_internals.checker.modifier import CustomModifierKind
 from guppylang_internals.definition.value import CallableDef
 from guppylang_internals.diagnostic import Error, Help
-from guppylang_internals.error import GuppyError, GuppyTypeError, pretty_errors
+from guppylang_internals.error import (
+    GuppyError,
+    GuppyTypeError,
+    InternalGuppyError,
+    pretty_errors,
+)
 from guppylang_internals.nodes import (
     AbortExpr,
     AnyCall,
@@ -23,10 +33,12 @@ from guppylang_internals.nodes import (
     GlobalCall,
     LocalCall,
     ModifiedBlock,
+    PlaceNode,
     StateOutputExpr,
     TensorCall,
 )
 from guppylang_internals.span import ToSpan, function_header_span
+from guppylang_internals.tys.arg import TypeArg
 from guppylang_internals.tys.errors import UnitaryCallError
 from guppylang_internals.tys.qubit import contain_qubit_ty
 from guppylang_internals.tys.ty import (
@@ -34,6 +46,10 @@ from guppylang_internals.tys.ty import (
     CALL_CTRL_DAGGERED_METHOD,
     CALL_DAGGERED_METHOD,
     FunctionType,
+    OpaqueType,
+    StructType,
+    TupleType,
+    Type,
     UnitaryFlags,
 )
 
@@ -116,6 +132,52 @@ def _annotate_diagnostics(
     err.add_sub_diagnostic(InvalidUnderDagger.ControlFlowHelp(None))
 
     return GuppyError(err)
+
+
+def is_mixed_ty(ty: Type) -> bool:
+    """Checks whether a struct or tuple type (or any struct or tuple nested inside
+    it) contains both quantum and classical elements. Opaque types like arrays are
+    mixed if any of their type arguments are mixed."""
+    match ty:
+        case TupleType(element_types=elems):
+            elem_tys = list(elems)
+        case StructType(fields=fields):
+            elem_tys = [f.ty for f in fields]
+        case OpaqueType(args=args):
+            return any(is_mixed_ty(arg.ty) for arg in args if isinstance(arg, TypeArg))
+        case _:
+            return False
+    quantum = [contain_qubit_ty(elem_ty) for elem_ty in elem_tys]
+    if not any(quantum):
+        # All classical.
+        return False
+    if not all(quantum):
+        # Given it is not all classical but not all quantum, must be mixed.
+        return True
+    # If all are quantum, we still need to check for nested mixed types.
+    return any(is_mixed_ty(elem_ty) for elem_ty in elem_tys)
+
+
+def unmixed_projections(name: str, ty: Type) -> list[str]:
+    """Returns the field and element accesses of a value called `name` that are not
+    mixed, expanding nested mixed structs and tuples."""
+    match ty:
+        case TupleType(element_types=elems):
+            children = [(f"{name}[{i}]", elem) for i, elem in enumerate(elems)]
+        case StructType(fields=fields):
+            children = [(f"{name}.{f.name}", f.ty) for f in fields]
+        case _:
+            # Mixed opaque types (e.g. arrays) can't be projected into further
+            return [] if is_mixed_ty(ty) else [name]
+    return [
+        proj
+        for child_name, child_ty in children
+        for proj in (
+            unmixed_projections(child_name, child_ty)
+            if is_mixed_ty(child_ty)
+            else [child_name]
+        )
+    ]
 
 
 class BBUnitaryChecker(ast.NodeVisitor):
@@ -229,8 +291,9 @@ class BBUnitaryChecker(ast.NodeVisitor):
         self._check_call(node, node.tensor_ty)
 
     def visit_BarrierExpr(self, node: BarrierExpr) -> None:
-        # Barrier is always allowed
-        pass
+        # Barrier itself is always allowed, but its arguments still need checking
+        for arg in node.args:
+            self.visit(arg)
 
     def visit_StateOutputExpr(self, node: StateOutputExpr) -> None:
         # State output is not allowed under dagger, since the execution order
@@ -260,11 +323,104 @@ class BBUnitaryChecker(ast.NodeVisitor):
         for value in node.values:
             self.visit(value)
 
+    def _check_mixed_under_dagger(
+        self,
+        node: ast.expr,
+        ty: Type | None,
+        *,
+        # Either `help` is provided, or `value_name` is used to generate suggestions.
+        help: Help | None = None,
+        value_name: str | None = None,
+    ) -> None:
+        """Raises an error if `ty` is a mixed quantum/classical aggregate under
+        dagger."""
+        if UnitaryFlags.Dagger in self.flags and ty is not None and is_mixed_ty(ty):
+            # `is_mixed_ty` returns False if not a struct, tuple or opaque type.
+            match ty:
+                case StructType():
+                    kind = "struct"
+                case TupleType():
+                    kind = "tuple"
+                case OpaqueType(defn=defn):
+                    kind = defn.name
+                case _:
+                    raise InternalGuppyError(f"Unexpected mixed type: `{ty}`")
+            err = InvalidUnderDagger(
+                node, things=f"Mixed quantum and classical {kind} `{ty}`"
+            )
+            err.add_sub_diagnostic(InvalidUnderDagger.MixedTypeNote(None))
+            if help is None and value_name is not None:
+                examples = tuple(unmixed_projections(value_name, ty))
+                match ty:
+                    case StructType() if examples:
+                        help = InvalidUnderDagger.UseStructFieldsHelp(
+                            None, value_name, examples
+                        )
+                    case TupleType() if examples:
+                        help = InvalidUnderDagger.UseTupleElementsHelp(
+                            None, value_name, examples
+                        )
+            if help is not None:
+                err.add_sub_diagnostic(help)
+            raise GuppyTypeError(err)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        self._check_mixed_under_dagger(node, get_type_opt(node), value_name=node.id)
+
+    def visit_Tuple(self, node: ast.Tuple) -> None:
+        self._check_mixed_under_dagger(
+            node, get_type_opt(node), help=InvalidUnderDagger.TupleLiteralHelp(None)
+        )
+        self.generic_visit(node)
+
+    def visit_PlaceNode(self, node: PlaceNode) -> None:
+        # Check the type of the place itself: projections like `t[0]` or `s.x` are
+        # fine if they are scalar or unmixed, but may themselves be mixed aggregates.
+        place = node.place
+        self._check_mixed_under_dagger(node, place.ty, value_name=str(place))
+        # Static struct and tuple projections (e.g. `s.inner` in `s.inner.q`) only
+        # use the flattened leaf wires, so mixed intermediates are fine. Subscripts on
+        # the other hand materialize the whole value via `__getitem__` (e.g. `xs[i]`
+        # in `xs[i].q`), so they must not be mixed.
+        parent = place
+        while not isinstance(parent, Variable):
+            parent = parent.parent
+            if isinstance(parent, SubscriptAccess):
+                self._check_mixed_under_dagger(node, parent.ty)
+        self._visit_subscript_items(place)
+
+    def _visit_subscript_items(self, place: Place) -> None:
+        """Visits the index expressions of all subscripts in the given place, e.g.
+        `index(s)` in `qs[index(s)].q`.
+        """
+        while not isinstance(place, Variable):
+            if isinstance(place, SubscriptAccess):
+                self.visit(place.item_expr)
+            place = place.parent
+
     def visit_CheckedModifiedBlock(self, node: CheckedModifiedBlock) -> None:
         # Nested modified blocks are checked separately by the CFG checker
         pass
 
     def _check_assign(self, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> None:
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for target in targets:
+            for n in ast.walk(target):
+                # Assigning to a projection (e.g. `s.n = ...`) updates the whole
+                # root variable, so its type must not be mixed
+                if isinstance(n, PlaceNode):
+                    place, root = n.place, n.place.root
+                    if isinstance(place, Variable):
+                        self._check_mixed_under_dagger(n, root.ty, value_name=str(root))
+                    else:
+                        self._check_mixed_under_dagger(
+                            n,
+                            root.ty,
+                            help=InvalidUnderDagger.AssignProjectionHelp(
+                                None, str(place), str(root)
+                            ),
+                        )
+                    self._visit_subscript_items(place)
         if node.value is not None:
             self.visit(node.value)
 
