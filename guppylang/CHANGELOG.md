@@ -61,6 +61,13 @@ As of version `1.0.0`, the Guppy language is considered stable. An extended chan
 * Support decimal places in rounding (#2283)([6f7ea2f](https://github.com/Quantinuum/guppylang/commit/6f7ea2f47ad084c836e5905f096514e122de2daf))
 * Accept bytes into emulator builder (#2314)([24dc1a5](https://github.com/Quantinuum/guppylang/commit/24dc1a5747ac259a2e42925c75676b3da663fec5))
 
+## [1.1.5](https://github.com/Quantinuum/guppylang/compare/guppylang-v1.1.4...guppylang-v1.1.5) (2026-10-26)
+
+
+### Bug Fixes
+
+* Fixed a memory leak due to retained call stacks when storing frames in compilation stage (#2457)([fc979f3](https://github.com/Quantinuum/guppylang/commit/fc979f37bdf3fa174582f97ac99330ff17d42f71))
+
 ## [1.1.4](https://github.com/Quantinuum/guppylang/compare/guppylang-internals-v1.1.3...guppylang-internals-v1.1.4) (2026-10-22)
 
 
