@@ -74,12 +74,15 @@ from guppylang_internals.tys.ty import (
 
 if TYPE_CHECKING:
     from guppylang_internals.definition.declaration import RawFunctionDecl
+    from guppylang_internals.definition.traced import RawTracedFunctionDef
     from guppylang_internals.tys.param import Parameter
 
 PyFunc = Callable[..., Any]
 
 
-def default_func_link_name(raw_def: "RawFunctionDef | RawFunctionDecl") -> str:
+def default_func_link_name(
+    raw_def: "RawFunctionDef | RawFunctionDecl | RawTracedFunctionDef",
+) -> str:
     if (parent_ty_id := DEF_STORE.type_member_parents.get(raw_def.id)) is not None:
         parent = ENGINE.get_parsed(parent_ty_id)
         if isinstance(parent, ParsedStructDef | ParsedEnumDef):
