@@ -24,7 +24,6 @@ from guppylang_internals.tys import (
     EffectType,
     StronglyOrdered,
     WeaklyOrdered,
-    extract_effect_types,
 )
 
 type OpWithEffects = tuple[DataflowOp, Iterable[Effect | EffectType]]
@@ -118,7 +117,7 @@ class DFBuilder(ABC, ToNode):
         """
         op, effects = op
         op_node = self._raw.add_op(op, *args)
-        self._handle_side_effects(op_node, extract_effect_types(effects))
+        self._handle_side_effects(op_node, to_effect_types(effects))
 
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
@@ -216,7 +215,7 @@ class DFBuilder(ABC, ToNode):
         call = self._raw.call(
             func, *args, instantiation=instantiation, type_args=type_args
         )
-        self._handle_side_effects(call, extract_effect_types(effects))
+        self._handle_side_effects(call, to_effect_types(effects))
         if set_debug_info and debug_conditions_fulfilled(self.current_ast_node):
             assert self.current_ast_node is not None  # for type-checker
             self._raw.hugr[call].metadata[HugrDebugInfo] = make_location_record(
@@ -342,3 +341,14 @@ class BlockBuilder(_DFBuilderRaw[Block]):
     def set_block_outputs(self, branching: Wire, *other_outputs: Wire) -> None:
         self._raw.set_outputs(branching, *other_outputs)
         self._handle_side_effects(self._raw.output_node, self.effects)
+
+
+def to_effect_types(effects: Iterable[Effect | EffectType]) -> Iterable[EffectType]:
+    for e in effects:
+        if isinstance(e, Effect):
+            if isinstance(e.value, Iterable):
+                yield from e.value
+            else:
+                yield e.value
+        else:
+            yield e
