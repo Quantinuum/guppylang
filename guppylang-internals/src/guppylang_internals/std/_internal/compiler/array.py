@@ -231,8 +231,7 @@ def barray_borrow(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [arr_ty, ht.USize()],
         [arr_ty, elem_ty],
-        effects=(),  #  panics, but do not record: this will inhibit optimization
-        # https://github.com/guppylang/guppylang/issues/2122
+        effects=[Effect.PANIC],
     )
 
 
@@ -245,8 +244,7 @@ def barray_return(elem_ty: ht.Type, length: ht.TypeArg) -> OpWithEffects:
         length,
         [arr_ty, ht.USize(), elem_ty],
         [arr_ty],
-        effects=(),  #  panics, but do not record: this will inhibit optimization
-        # https://github.com/guppylang/guppylang/issues/2122
+        effects=[Effect.PANIC],
     )
 
 

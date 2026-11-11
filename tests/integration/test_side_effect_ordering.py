@@ -2,7 +2,6 @@
 side-effects.
 """
 
-import pytest
 from hugr.std.collections.borrow_array import EXTENSION as BORROW_ARRAY_EXTENSION
 from hugr import ops, Hugr, Node
 from hugr.std import PRELUDE
@@ -154,8 +153,7 @@ def test_different_effects_parallel(validate):
     @guppy
     def test(arr: array[qubit, 2] @ owned) -> None:
         output("a", True)  # Output effect
-        q = arr.take(1)  # No effect
-        # (yet, see https://github.com/Quantinuum/guppylang/issues/2122)
+        q = arr.take(1)  # Panic effect
         arr.discard_all_taken()  # Panic effect
         # q = measure_and_reset(q)
         mq = maybe_qubit()  # Allocation only
@@ -169,6 +167,9 @@ def test_different_effects_parallel(validate):
     hugr = compiled.modules[0]
     [out_a] = find_ext_nodes(
         hugr, RESULT_EXTENSION.get_op("result_bool").qualified_name()
+    )
+    [take] = find_ext_nodes(
+        hugr, BORROW_ARRAY_EXTENSION.get_op("borrow").qualified_name()
     )
     [discard_all_borrowed] = find_ext_nodes(
         hugr, BORROW_ARRAY_EXTENSION.get_op("discard_all_borrowed").qualified_name()
@@ -188,13 +189,13 @@ def test_different_effects_parallel(validate):
     assert set(hugr.outgoing_order_links(inp)) == {out_a, qalloc}
 
     # OUTPUT / PANIC effect
-    assert set(hugr.outgoing_order_links(out_a)) == {discard_all_borrowed, unwrap}
+    assert set(hugr.outgoing_order_links(out_a)) == {take, discard_all_borrowed, unwrap}
 
     # ALLOC / FREE effect
     assert set(hugr.outgoing_order_links(qalloc)) == {qfree1, qfree2}
 
     # Output node collects last nodes from all effects
-    final_nodes = {discard_all_borrowed, unwrap, qfree1, qfree2}
+    final_nodes = {take, discard_all_borrowed, unwrap, qfree1, qfree2}
     assert set(hugr.incoming_order_links(outp)) == final_nodes
     for n in final_nodes:
         assert list(hugr.outgoing_order_links(n)) == [outp]
@@ -603,13 +604,13 @@ def test_qarray_exit(validate):
     assert has_directed_order_path(exit1, exit2)
     assert not has_directed_order_path(exit2, exit1)
 
-    try:
-        check_order(hugr, [get1, set1, exit1, get2, set2, exit2])
-        xfail1 = False
-    except AssertionError as e:
-        # For now...
-
-        xfail1 = True
+    [inp, out] = hugr.children(hugr[get1].parent)[:2]
+    # get/set are in parallel because we don't care about order of panics
+    # (looking at order edges. Value edges will enforce serialization!)
+    for n in [get1, set1]:
+        check_order(hugr, [inp, n, exit1])
+    for n in [get2, set2]:
+        check_order(hugr, [exit1, n, exit2, out])
 
     pkg = foo.compile_function()
     validate(pkg)
@@ -620,12 +621,4 @@ def test_qarray_exit(validate):
     [set2] = find_ext_nodes(hugr, "collections.borrow_arr.return")
     [exit1, exit2] = find_ext_nodes(hugr, "prelude.exit")
 
-    try:
-        check_order(hugr, [get1, exit1, set2, exit2])
-    except AssertionError as e:
-        # For now...
-        assert exit2 in hugr.outgoing_order_links(exit1)
-        xfail2 = True
-    assert xfail1 == xfail2
-    if xfail1:
-        pytest.xfail()
+    check_order(hugr, [get1, exit1, set2, exit2])
