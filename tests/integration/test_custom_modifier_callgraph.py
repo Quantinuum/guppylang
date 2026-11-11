@@ -71,7 +71,7 @@ def test_custom_modifier_removes_effects():
     custom_main.check()
     assert ENGINE.analyzed_graph is not None
     effects = compute_effects(
-        CallGraph(ENGINE.analyzed_graph.call_graph), ENGINE.analysis_cache.func_effects
+        CallGraph(ENGINE.analyzed_graph.call_graph), ENGINE.call_info.func_effects
     )
     [custom_use] = ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
     assert effects[custom_use.unmodified_callee] == frozenset({Effect.PANIC})
@@ -106,7 +106,7 @@ def test_custom_modifier_adds_effects():
     assert ENGINE.analyzed_graph is not None
     [custom_use] = ENGINE.analyzed_graph.custom_uses_by_mono_def.values()
     effects = compute_effects(
-        CallGraph(ENGINE.analyzed_graph.call_graph), ENGINE.analysis_cache.func_effects
+        CallGraph(ENGINE.analyzed_graph.call_graph), ENGINE.call_info.func_effects
     )
     assert effects[custom_use.custom_def] == frozenset({Effect.PANIC})
     assert effects[main.id, ()] == frozenset({Effect.PANIC})
@@ -246,12 +246,12 @@ def test_modifier_context_propagates_through_higher_order_and_helper_calls():
     daggered_use = uses_by_kind[CustomModifierKind.DAGGERED]
 
     # Checking records only the empty contexts local to each helper body.
-    assert set(
-        ENGINE.analysis_cache.local_modifiers_by_edge[apply_mono, gate_mono]
-    ) == {NO_CALL_MODIFIERS}
-    assert set(
-        ENGINE.analysis_cache.local_modifiers_by_edge[helper_mono, gate_mono]
-    ) == {NO_CALL_MODIFIERS}
+    assert set(ENGINE.call_info.local_modifiers_by_edge[apply_mono, gate_mono]) == {
+        NO_CALL_MODIFIERS
+    }
+    assert set(ENGINE.call_info.local_modifiers_by_edge[helper_mono, gate_mono]) == {
+        NO_CALL_MODIFIERS
+    }
 
     # Analysis resolves both inherited contexts to the matching custom definitions.
     assert controlled_use.unmodified_callee == gate_mono
@@ -407,9 +407,9 @@ def test_propagated_context_does_not_change_unmodified_invocation():
     assert gate_mono in analyzed_graph.call_graph[apply_mono]
     assert custom_use.custom_def in analyzed_graph.call_graph[apply_mono]
     # Propagation must not mutate the empty local label checked inside apply.
-    assert set(
-        ENGINE.analysis_cache.local_modifiers_by_edge[apply_mono, gate_mono]
-    ) == {NO_CALL_MODIFIERS}
+    assert set(ENGINE.call_info.local_modifiers_by_edge[apply_mono, gate_mono]) == {
+        NO_CALL_MODIFIERS
+    }
 
 
 def test_library_compiles_custom_dagger():

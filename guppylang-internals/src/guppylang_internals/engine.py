@@ -157,8 +157,8 @@ CallGraphEdge = tuple[MonoDefId, MonoDefId]
 
 
 @dataclass
-class AnalysisCache:
-    """Cache for data regarding call graph, load graph, modifier uses and effects.
+class CallInfo:
+    """Call graph, load graph, modifier uses, and effects recorded during checking.
 
     Only checking populates these records. Analysis reads them without replacing
     original edges, propagating modifier labels into them, or changing local effects.
@@ -320,8 +320,8 @@ class CompilationEngine:
     The engine maintains a worklist of definitions that still need to be checked and
     makes sure that all dependencies are compiled.
 
-    ``reset=False`` retains the checking cache with exception of the modifier analyzed
-    graph, that is computed from scratch each time.
+    ``reset=False`` retains checked definitions and ``call_info``. The modifier
+    analysis graph is computed from scratch each time.
 
     See `ENGINE` for the singleton instance of this class.
     """
@@ -339,9 +339,11 @@ class CompilationEngine:
     to_compile_worklist: dict[MonoDefId, CheckedDef]
 
     #: Original graph, effect, and modifier information recorded during checking.
-    analysis_cache: AnalysisCache
+    #: Mutations invalidate analyzed_graph to prevent compiling stale analysis.
+    call_info: CallInfo
     #: Resolved graphs and custom uses from the last completed check().
-    #: Compilation reads this snapshot; reset() clear it: check() recompute it.
+    #: Compilation reads this snapshot; call_info mutations and reset() clear it.
+    #: check() recomputes it.
     analyzed_graph: ModifierAnalysisResult | None
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
@@ -394,12 +396,15 @@ class CompilationEngine:
         self.to_check_worklist = {}
         self.generic_to_check_worklist = {}
         self.types_to_check_worklist = {}
-        self.analysis_cache = AnalysisCache()
+        self.call_info = CallInfo()
+        # Discard analysis derived from the call information that was just reset.
         self.analyzed_graph = None
 
     def register_load(self, owner: MonoDefId, target: MonoDefId) -> None:
         """Records a function-value dependency, without propagating call effects."""
-        self.analysis_cache.load_graph[owner].add(target)
+        # Invalidate analysis before changing load dependencies to avoid stale results.
+        self.analyzed_graph = None
+        self.call_info.load_graph[owner].add(target)
 
     def register_call(
         self,
@@ -410,29 +415,35 @@ class CompilationEngine:
     ) -> None:
         """Registers a function call in the call graph. If the callee is a
         `CallableEffects` then also registers those effects for that callee."""
+        # Invalidate analysis before changing calls and their modifier contexts.
+        self.analyzed_graph = None
         # current_caller is not set for e.g. comptime but should be here:
         assert ctx.current_caller is not None
-        assert ctx.current_caller in self.analysis_cache.call_graph
-        self.analysis_cache.call_graph[ctx.current_caller].append((callee.id, inst))
+        assert ctx.current_caller in self.call_info.call_graph
+        self.call_info.call_graph[ctx.current_caller].append((callee.id, inst))
         if isinstance(callee, CallableEffects):
             self.register_effects((callee.id, inst), callee.call_effects)
         # Record the modifier context under which the call is performed
         callee_mono_def_id: MonoDefId = (callee.id, inst)
         edge = (ctx.current_caller, callee_mono_def_id)
-        modifier_contexts = self.analysis_cache.local_modifiers_by_edge.setdefault(
-            edge, {}
-        )
+        modifier_contexts = self.call_info.local_modifiers_by_edge.setdefault(edge, {})
         modifier_contexts.setdefault(ctx.modifier_ctx, to_span(call_node))
 
     def register_effects(self, func: MonoDefId, effects: "Iterable[Effect]") -> None:
         """Registers known effects for a function, for when the effects cannot be
         attributed to some concrete callee (i.e. with its own MonoDefId)."""
-        self.analysis_cache.func_effects.setdefault(func, set()).update(effects)
+        # Require fresh analysis before compiling with the updated function effects.
+        self.analyzed_graph = None
+        self.call_info.func_effects.setdefault(func, set()).update(effects)
 
     def assert_stage(self, stage: CompilationStage, context: str) -> None:
         if self._stage != stage:
             raise CompilationStageError(
                 context, actual_stage=self._stage, expected_stage=stage
+            )
+        if self._stage == CompilationStage.COMPILE:
+            assert self.analyzed_graph is not None, (
+                "analyzed_graph is None, thus checking is not complete"
             )
 
     @pretty_errors
@@ -552,9 +563,11 @@ class CompilationEngine:
         Thus, used to indicate the def is of a kind for which we wish to track calls
         (i.e. a user-defined function), even if it doesn't actually contain any.
         """
-        assert mono_id not in self.analysis_cache.call_graph
-        self.analysis_cache.call_graph[mono_id] = []
-        self.analysis_cache.load_graph[mono_id] = set()
+        # Invalidate analysis so it includes the newly registered graph node.
+        self.analyzed_graph = None
+        assert mono_id not in self.call_info.call_graph
+        self.call_info.call_graph[mono_id] = []
+        self.call_info.load_graph[mono_id] = set()
 
     def get_type_defn(self, ty: Type | TypeDef) -> TypeDef | None:
         """Convert a Type | TypeDef to a TypeDef."""
@@ -652,6 +665,7 @@ class CompilationEngine:
         #  need to store and check if any dependencies have changed.
         if reset:
             self.reset()
+        # Recompute analysis for these entry points, even when retaining checked data.
         self.analyzed_graph = None
 
         # We allow generic functions as checking entrypoints as long as we don't run
@@ -687,9 +701,9 @@ class CompilationEngine:
         while True:
             program_graph = analyze_modifier_calls(
                 entry_points,
-                self.analysis_cache.call_graph,
-                self.analysis_cache.load_graph,
-                self.analysis_cache.local_modifiers_by_edge,
+                self.call_info.call_graph,
+                self.call_info.load_graph,
+                self.call_info.local_modifiers_by_edge,
                 self._resolve_modified_call,
             )
             if not self._register_custom_modifier_monomorphizations(
@@ -837,16 +851,16 @@ class CompilationEngine:
         self.check(def_ids, reset=reset)
         assert self._stage == CompilationStage.NONE, "Checking should have reset stage"
         with self._in_stage(CompilationStage.COMPILE):
-            return self._compile_impl(def_ids)
+            return self._compile_impl(def_ids, context)
 
     def _compile_impl(
-        self, def_ids: list[DefId]
+        self, def_ids: list[DefId], context: str
     ) -> tuple[ModulePointer, list[CompiledDef]]:
-        assert self.analyzed_graph is not None, (
-            "Checking must finish before compilation"
-        )
-        call_graph = CallGraph(self.analyzed_graph.call_graph)
-        effects = compute_effects(call_graph, self.analysis_cache.func_effects)
+        self.assert_stage(CompilationStage.COMPILE, context)
+        analyzed_graph = self.analyzed_graph
+        assert analyzed_graph is not None
+        call_graph = CallGraph(analyzed_graph.call_graph)
+        effects = compute_effects(call_graph, self.call_info.func_effects)
 
         # Prepare Hugr for this module
         graph = hf.Module()
@@ -864,7 +878,7 @@ class CompilationEngine:
             graph,
             set(def_ids),
             effects,
-            self.analyzed_graph.custom_uses_by_mono_def,
+            analyzed_graph.custom_uses_by_mono_def,
             StringTable(),
         )
         requested_defs = []
@@ -930,6 +944,10 @@ class CompilationEngine:
             for ext in used_extensions_result.used_extensions.extensions
             if ext.name not in std_ext_names
         ]
+        if self.analyzed_graph is not analyzed_graph:
+            raise InternalGuppyError(
+                "Call information changed during compilation; checking must run again"
+            )
         return (
             ModulePointer(
                 Package(modules=[graph.hugr], extensions=packaged_extensions), 0
