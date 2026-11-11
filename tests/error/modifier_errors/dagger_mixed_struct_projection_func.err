@@ -1,0 +1,15 @@
+Error: Invalid expression in dagger (at $FILE:24:8)
+   | 
+22 | @guppy(daggerable=True)
+23 | def test(s: Outer) -> None:
+24 |     foo(s.inner)
+   |         ^^^^^^^ Mixed quantum and classical struct `Inner` found in a dagger
+   |                 context
+
+Note: Structs and tuples used in daggered contexts must contain either only
+quantum or only classical data.
+
+Help: Consider using the fields of `s.inner` individually instead of the whole
+struct, e.g. `s.inner.q`, `s.inner.x`
+
+Guppy compilation failed due to 1 previous error

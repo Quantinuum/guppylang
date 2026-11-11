@@ -1644,3 +1644,82 @@ def test_control_struct_field_method_call(validate):
         discard(t)
 
     validate(main.compile_function())
+
+
+def test_dagger_unmixed_uses_of_mixed(validate):
+    @guppy.struct
+    class Qubits:
+        q1: qubit
+        q2: qubit
+
+    @guppy.struct
+    class Mixed:
+        q: qubit
+        a: angle
+
+    @guppy.struct
+    class Outer:
+        qs: Qubits
+        m: Mixed
+        a: angle
+
+    @guppy.struct
+    class Params:
+        a: angle
+        b: angle
+
+    @guppy(daggerable=True)
+    def use_qubits(s: Qubits) -> None:
+        h(s.q1)
+
+    @guppy(daggerable=True)
+    def use_pair(t: tuple[qubit, qubit]) -> None:
+        h(t[0])
+
+    @guppy(daggerable=True)
+    def main(
+        s: Outer,
+        t: tuple[tuple[qubit, qubit], tuple[qubit, angle], angle],
+        qs: array[Qubits, 2],
+        ps: array[Params, 2],
+        i: int,
+    ) -> None:
+        # Unmixed projections of mixed values can be used as a whole
+        use_qubits(s.qs)
+        use_pair(t[0])
+        # Static projections through mixed intermediates only use the leaf wires
+        rx(s.m.q, s.m.a)
+        rx(t[1][0], t[1][1])
+        rx(s.qs.q2, s.a)
+        rx(t[0][1], t[2])
+        # Subscripts into arrays of unmixed values are fine, including assignment
+        h(qs[i].q1)
+        rx(qs[i].q2, ps[i].a)
+        ps[i].b = ps[i].a
+
+    validate(main.compile_function())
+
+
+def test_custom_modifier_accepts_docstring(validate) -> None:
+    """guppy.unitary classes accept docstrings."""
+
+    @guppy.unitary
+    class custom_modified:
+        """Docstring here"""
+
+        @guppy
+        def __call__(q: qubit) -> None:
+            pass
+
+        @guppy
+        def daggered(q: qubit) -> None:
+            pass
+
+    @guppy
+    def main() -> None:
+        q = qubit()
+        with dagger:
+            custom_modified(q)
+        discard(q)
+
+    validate(main.compile())
