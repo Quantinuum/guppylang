@@ -437,62 +437,6 @@ def angles_flat(lvl: OptimizationLevel | None = None):
     return (main if lvl is None else main.with_opt_level(lvl)).compile()
 
 
-@pytest.mark.parametrize(
-    ("flattened", "optimized", "expected"),
-    [
-        (nested_array, nested_array_opt, None),
-        (
-            angles_flat,
-            angles_opt,
-            {
-                "tket.quantum.MeasureFree": 1,
-                "tket.quantum.QAlloc": 1,
-                "tket.result.result_bool": 1,
-            },
-        ),
-        (
-            simple_cx,
-            simple_cx_opt,
-            {
-                "tket.quantum.QAlloc": 2,
-                "tket.quantum.MeasureFree": 2,
-                "tket.result.result_bool": 2,
-            },
-        ),
-        (nested_flat, nested_opt, None),
-        (ranges_flat, ranges_opt, None),
-        (
-            false_branch,
-            false_branch_opt,
-            {
-                "tket.quantum.QAlloc": 1,
-                "tket.quantum.MeasureFree": 1,
-                "tket.result.result_bool": 1,
-            },
-        ),
-        (func_decls_flat, func_decls_opt, None),
-    ],
-)
-def test_optimize_flattened(
-    flattened: Callable[[], Package],
-    optimized: Callable[[], Package],
-    expected: dict[str, int] | None,
-) -> None:
-    """Test that given Guppy whose control-flow has been flattened by hand,
-    the optimizer can do the rest."""
-    hugr = flattened().modules[0]
-
-    actual_counts = _count_gates(hugr)
-    optimized_counts = _count_gates(optimized().modules[0])
-
-    if expected is not None:
-        assert actual_counts != optimized_counts
-        assert actual_counts == expected
-        pytest.xfail()
-    else:
-        assert actual_counts == optimized_counts
-
-
 def test_angles_rotations() -> None:
     def count_from_halfturns(hugr: Hugr) -> int:
         return sum(
@@ -525,20 +469,78 @@ def test_optimize_ranges_array() -> None:
 
 
 @pytest.mark.parametrize(
-    ("original", "flattened", "optimized"),
+    ("original", "flattened", "optimized", "expected"),
     [
-        (nested_array, None, nested_array_opt),
-        pytest.param(angles, angles_flat, angles_opt, marks=pytest.mark.xfail()),
-        pytest.param(false_branch, None, false_branch_opt, marks=pytest.mark.xfail()),
-        pytest.param(simple_cx, None, simple_cx_opt, marks=pytest.mark.xfail()),
-        pytest.param(nested, nested_flat, nested_opt, marks=pytest.mark.xfail()),
-        pytest.param(ranges, ranges_flat, ranges_opt, marks=pytest.mark.xfail()),
+        (nested_array, None, nested_array_opt, None),  # There is no nested_array_flat
+        (
+            angles_flat,
+            None,
+            angles_opt,
+            {
+                "tket.quantum.MeasureFree": 1,
+                "tket.quantum.QAlloc": 1,
+                "tket.result.result_bool": 1,
+            },
+        ),  # Since "flat" fails, do not bother testing "original"
+        (
+            simple_cx,
+            None,  # There is no flat
+            simple_cx_opt,
+            {
+                "tket.quantum.QAlloc": 2,
+                "tket.quantum.MeasureFree": 2,
+                "tket.result.result_bool": 2,
+            },
+        ),
+        (nested_flat, None, nested_opt, None),
+        (
+            nested,
+            None,  # Does not flatten properly
+            nested_opt,
+            {
+                "tket.quantum.QAlloc": 3,
+                "tket.quantum.MeasureFree": 3,
+                "tket.result.result_bool": 3,
+                "TKET1.tk1op": 4,
+                "tket.quantum.CX": 1,
+            },
+        ),
+        (ranges_flat, None, ranges_opt, None),
+        (
+            ranges,
+            None,  # Does not flatten properly
+            ranges_opt,
+            {
+                "tket.quantum.QAlloc": 4,
+                "tket.quantum.MeasureFree": 4,
+                "tket.result.result_bool": 4,
+                "tket.quantum.H": 2,  # Would be TKET1.tk1op if we used CliffordSimp
+                "tket.quantum.CX": 2,
+            },
+        ),
+        (
+            false_branch,
+            None,  # There is no false_branch_flat
+            false_branch_opt,
+            {
+                "tket.quantum.QAlloc": 1,
+                "tket.quantum.MeasureFree": 1,
+                "tket.result.result_bool": 1,
+            },
+        ),
+        (
+            func_decls,
+            func_decls_flat,
+            func_decls_opt,
+            None,
+        ),  # Note special-casing of optimizations applied
     ],
 )
 def test_optimize(
     original: Callable[[], Package],
     flattened: Callable[[], Package] | None,
     optimized: Callable[[], Package],
+    expected: dict[str, int] | None,
 ) -> None:
     """Test full optimization pipeline on Guppy circuits.
 
@@ -546,15 +548,22 @@ def test_optimize(
     including lowering to QSystem.
     """
     hugr = original().modules[0]
+    actual_counts = _count_gates(hugr)
 
     if flattened is not None:
         flat_counts = _count_gates(flattened().modules[0])
-        assert _count_gates(hugr) == flat_counts
+        assert actual_counts == flat_counts
 
-    opt_counts = _count_gates(optimized().modules[0])
-    assert _count_gates(hugr) == opt_counts
+    optimized_counts = _count_gates(optimized().modules[0])
 
     QSystemRebasePass().run(hugr)
     _QSystemLLVMPass().run(hugr)
 
     CompilationState.from_python(hugr).validate()
+
+    if expected is not None:
+        assert actual_counts != optimized_counts
+        assert actual_counts == expected
+        pytest.xfail()
+    else:
+        assert actual_counts == optimized_counts
