@@ -1697,7 +1697,7 @@ def test_dagger_unmixed_uses_of_mixed(validate):
         rx(qs[i].q2, ps[i].a)
         ps[i].b = ps[i].a
 
-    validate(main.with_minimal_opt().compile_function(), export=False)
+    validate(main.compile_function())
 
 
 def test_custom_modifier_accepts_docstring(validate) -> None:
