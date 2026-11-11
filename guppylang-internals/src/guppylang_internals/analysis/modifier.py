@@ -7,7 +7,7 @@ from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from guppylang_internals.analysis.callgraph import ProgramGraph
+from guppylang_internals.analysis.callgraph import ModifierAnalysisResult
 from guppylang_internals.checker.errors.generic import (
     RecursiveModifierControlCountError,
 )
@@ -57,18 +57,6 @@ class ResolvedCustomCall:
     call: Span
 
 
-@dataclass(frozen=True)
-class ModifierAnalysisResult:
-    """Result of propagating modifiers through a monomorphized call graph.
-
-    Args:
-        program_graph: Snapshot of the resolved call graph, load graph, and concrete
-            custom modifier uses keyed by custom definition ``MonoDefId``
-    """
-
-    program_graph: ProgramGraph
-
-
 ResolveModifiedCall = Callable[
     [MonoDefId, ModifierContext], tuple[MonoDefId, ConcreteCustomUse | None]
 ]
@@ -89,6 +77,9 @@ def analyze_modifier_calls(
     Functions loaded as values are additional roots with no inherited modifiers.
     Explore their calls and further loads, and record loads separately from the
     call graph.
+
+    Return a snapshot of the resolved call graph, load graph, and concrete custom
+    modifier uses keyed by custom definition ``MonoDefId``.
     """
     # This starts as a copy of the checked graph. Each reachable concrete caller is
     # replaced by the union of the targets found for all contexts in which it is used.
@@ -203,9 +194,7 @@ def analyze_modifier_calls(
     _check_recursive_custom_uses(
         custom_calls, custom_uses_by_mono_def, contextual_callers
     )
-    return ModifierAnalysisResult(
-        program_graph=ProgramGraph(expanded_calls, load_graph, custom_uses_by_mono_def),
-    )
+    return ModifierAnalysisResult(expanded_calls, load_graph, custom_uses_by_mono_def)
 
 
 def _check_recursive_custom_uses(

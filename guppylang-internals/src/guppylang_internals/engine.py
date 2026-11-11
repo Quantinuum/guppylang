@@ -19,7 +19,7 @@ from hugr.package import ModulePointer, Package
 from semver import Version
 
 import guppylang_internals
-from guppylang_internals.analysis.callgraph import CallGraph, ProgramGraph
+from guppylang_internals.analysis.callgraph import CallGraph, ModifierAnalysisResult
 from guppylang_internals.analysis.effects import compute_effects
 from guppylang_internals.analysis.modifier import (
     ConcreteCustomUse,
@@ -342,7 +342,7 @@ class CompilationEngine:
     analysis_cache: AnalysisCache
     #: Resolved graphs and custom uses from the last completed check().
     #: Compilation reads this snapshot; reset() clear it: check() recompute it.
-    analyzed_graph: ProgramGraph | None
+    analyzed_graph: ModifierAnalysisResult | None
 
     # Cached compilation infrastructure (lazy-initialized, program-independent)
     _base_resolve_registry: ExtensionRegistry | None = None
@@ -685,14 +685,13 @@ class CompilationEngine:
         # fixed point.
         self._drain_check_worklists()
         while True:
-            modifier_analysis = analyze_modifier_calls(
+            program_graph = analyze_modifier_calls(
                 entry_points,
                 self.analysis_cache.call_graph,
                 self.analysis_cache.load_graph,
                 self.analysis_cache.local_modifiers_by_edge,
                 self._resolve_modified_call,
             )
-            program_graph = modifier_analysis.program_graph
             if not self._register_custom_modifier_monomorphizations(
                 program_graph.custom_uses_by_mono_def.values()
             ):

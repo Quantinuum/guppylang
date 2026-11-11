@@ -130,18 +130,18 @@ def test_analysis_returns_graph_without_mutating_checking_data():
     result = analyze_modifier_calls([root], calls, loads, local_modifiers, resolve)
 
     assert (calls, loads, local_modifiers) == original_inputs
-    assert result.program_graph.call_graph == {
+    assert result.call_graph == {
         root: (helper,),
         helper: (custom,),
         gate: (),
         custom: (),
         loaded: (gate,),
     }
-    assert result.program_graph.load_graph == {
+    assert result.load_graph == {
         root: frozenset(),
         helper: frozenset({loaded}),
         gate: frozenset(),
         custom: frozenset({loaded}),
         loaded: frozenset(),
     }
-    assert result.program_graph.custom_uses_by_mono_def == {custom: custom_use}
+    assert result.custom_uses_by_mono_def == {custom: custom_use}

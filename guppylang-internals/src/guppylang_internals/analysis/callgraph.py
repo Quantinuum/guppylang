@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, init=False)
-class ProgramGraph:
+class ModifierAnalysisResult:
     """An immutable snapshot of program dependencies and custom modifier uses after
     modifier analysis.
 
@@ -34,7 +34,7 @@ class ProgramGraph:
         self,
         call_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
         load_graph: Mapping[MonoDefId, Iterable[MonoDefId]],
-        custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse] | None = None,
+        custom_uses_by_mono_def: Mapping[MonoDefId, ConcreteCustomUse],
     ) -> None:
         object.__setattr__(
             self,
@@ -53,11 +53,7 @@ class ProgramGraph:
         object.__setattr__(
             self,
             "custom_uses_by_mono_def",
-            MappingProxyType(
-                dict(custom_uses_by_mono_def)
-                if custom_uses_by_mono_def is not None
-                else {}
-            ),
+            MappingProxyType(dict(custom_uses_by_mono_def)),
         )
 
 
