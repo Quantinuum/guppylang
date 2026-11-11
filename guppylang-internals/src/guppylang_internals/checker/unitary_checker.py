@@ -612,53 +612,51 @@ def check_unitary_method[T](
     custom_methods: dict[CustomModifierKind, RawFunctionDef] = {}
     valid_method_names = [kind.value for kind in CustomModifierKind] + ["__call__"]
     for i, node in enumerate(class_ast.body):
-        match i, node:
-            # Docstrings are fine if they occur at the start
-            case 0, ast.Expr(value=ast.Constant(value=v)) if isinstance(v, str):
-                pass
-            case _, ast.FunctionDef(name=method_name) as node if (
-                method_name in valid_method_names
-            ):
-                # `__call__` already checked in `decorator._get_unitary_call_def`
-                if method_name == "__call__":
-                    continue
-                method = cls.__dict__.get(method_name)
+        # Docstrings are fine if they occur at the start
+        if (
+            i == 0
+            and isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            continue
+        if not isinstance(node, ast.FunctionDef) or node.name not in valid_method_names:
+            raise GuppyError(
+                UnexpectedError(
+                    node, "statement", unexpected_in="a `@guppy.unitary` class"
+                ).add_sub_diagnostic(InvalidUnitaryMethodHelp(None))
+            )
+        method_name = node.name
+        # `__call__` has already been checked in `decorator._get_unitary_call_def`
+        if method_name == "__call__":
+            continue
+        method = cls.__dict__.get(method_name)
 
-                if not (
-                    isinstance(method, GuppyDefinition)
-                    and isinstance(method.wrapped, RawFunctionDef)
-                ):
-                    raise GuppyError(
-                        InvalidUnitaryMethodError(node, method_name, class_ast.name)
-                    )
+        if not (
+            isinstance(method, GuppyDefinition)
+            and isinstance(method.wrapped, RawFunctionDef)
+        ):
+            raise GuppyError(InvalidUnitaryMethodError(node, node.name, class_ast.name))
 
-                # Check that no invalid metadata is present
-                method_raw_def = method.wrapped
-                if method_raw_def.unitary_flags != UnitaryFlags.NoFlags:
-                    raise GuppyError(
-                        UnexpectedError(
-                            function_header_span(node),
-                            "unitary flags",
-                            unexpected_in="the method `@guppy` decorator",
-                        ).add_sub_diagnostic(InvalidUnitaryMetadataHelp(None))
-                    )
+        # Check that no invalid metadata is present
+        method_raw_def = method.wrapped
+        if method_raw_def.unitary_flags != UnitaryFlags.NoFlags:
+            raise GuppyError(
+                UnexpectedError(
+                    function_header_span(node),
+                    "unitary flags",
+                    unexpected_in="the method `@guppy` decorator",
+                ).add_sub_diagnostic(InvalidUnitaryMetadataHelp(None))
+            )
 
-                if (
-                    method_raw_def.metadata is not None
-                    and method_raw_def.metadata.get_expected_qubits() is not None
-                ):
-                    raise GuppyError(
-                        UnexpectedError(
-                            function_header_span(node), "`@expected_qubits` decorator"
-                        ).add_sub_diagnostic(InvalidExpectedQubit(None))
-                    )
-                custom_methods[CustomModifierKind(node.name)] = method_raw_def
-            case _, _:
-                raise GuppyError(
-                    UnexpectedError(
-                        node,
-                        "statement",
-                        unexpected_in="a `@guppy.unitary` class",
-                    ).add_sub_diagnostic(InvalidUnitaryMethodHelp(None))
-                )
+        if (
+            method_raw_def.metadata is not None
+            and method_raw_def.metadata.get_expected_qubits() is not None
+        ):
+            raise GuppyError(
+                UnexpectedError(
+                    function_header_span(node), "`@expected_qubits` decorator"
+                ).add_sub_diagnostic(InvalidExpectedQubit(None))
+            )
+        custom_methods[CustomModifierKind(node.name)] = method_raw_def
     return custom_methods
